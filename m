@@ -1,146 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AFBCE6B009C
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 10:25:16 -0400 (EDT)
-Date: Wed, 6 May 2009 15:25:25 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
-In-Reply-To: <20090506133434.GX16078@random.random>
-Message-ID: <Pine.LNX.4.64.0905061453320.21067@blonde.anvils>
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com>
- <1241475935-21162-2-git-send-email-ieidus@redhat.com>
- <1241475935-21162-3-git-send-email-ieidus@redhat.com>
- <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com>
- <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils>
- <20090506133434.GX16078@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 602F86B009E
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 10:30:37 -0400 (EDT)
+Date: Wed, 6 May 2009 15:31:00 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Double check memmap is actually valid with a memmap
+	has unexpected holes
+Message-ID: <20090506143059.GB20709@csn.ul.ie>
+References: <20090505082944.GA25904@csn.ul.ie> <20090505110653.GA16649@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090505110653.GA16649@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hartleys@visionengravers.com, mcrapet@gmail.com, linux@arm.linux.org.uk, fred99@carolina.rr.com, linux-arm-kernel@lists.arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 May 2009, Andrea Arcangeli wrote:
-> On Wed, May 06, 2009 at 12:16:52PM +0100, Hugh Dickins wrote:
-> > I'm very much with those who suggested an madvise(), for which Chris
-> > prepared a patch.  I know Andrea felt uneasy with an madvise() going
-> > to a possibly-configured-out-or-never-loaded module, but it is just
-> > advice, so I don't have a problem with that myself, so long as it
-> > is documented in the manpage.
+On Tue, May 05, 2009 at 01:06:53PM +0200, Johannes Weiner wrote:
+> Hi Mel,
 > 
-> I don't have so much of a problem with that, but there are a couple of
-> differences: normally madvise doesn't depend on the admin to start
-> some kernel thread to be meaningful, and normally madvise isn't a
-> privileged operation, see below.
+> On Tue, May 05, 2009 at 09:29:44AM +0100, Mel Gorman wrote:
+> > pfn_valid() is meant to be able to tell if a given PFN has valid memmap
+> > associated with it or not. In FLATMEM, it is expected that holes always
+> > have valid memmap as long as there is valid PFNs either side of the hole.
+> > In SPARSEMEM, it is assumed that a valid section has a memmap for the
+> > entire section.
+> > 
+> > However, ARM and maybe other embedded architectures in the future free
+> > memmap backing holes to save memory on the assumption the memmap is never
+> > used. The page_zone() linkages are then broken even though pfn_valid()
+> > returns true. A walker of the full memmap in this case must do additional
+> > check to ensure the memmap they are looking at is sane by making sure the
+> > zone and PFN linkages are still valid. This is expensive, but walkers of
+> > the full memmap are extremely rare.
+> > 
+> > This was caught before for FLATMEM and hacked around but it hits again
+> > for SPARSEMEM because the page_zone() linkages can look ok where the PFN
+> > linkages are totally screwed. This looks like a hatchet job but the reality
+> > is that any clean solution would end up consuming all the memory saved
+> > by punching these unexpected holes in the memmap. For example, we tried
+> > marking the memmap within the section invalid but the section size exceeds
+> > the size of the hole in most cases so pfn_valid() starts returning false
+> > where valid memmap exists. Shrinking the size of the section would increase
+> > memory consumption offsetting the gains.
+> > 
+> > This patch identifies when an architecture is punching unexpected holes
+> > in the memmap that the memory model cannot automatically detect. When set,
+> > walkers of the full memmap must call memmap_valid_within() for each PFN and
+> > passing in what it expects the page and zone to be for that PFN. If it finds
+> > the linkages to be broken, it assumes the memmap is invalid for that PFN.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> > Whereas I do worry just what capability should be required for this:
-> > can't a greedy app simply fork itself, touch all its pages, and thus
-> > lock itself into memory in this way?  And I do worry about the cpu
+> I think we also need to fix up show_mem(). 
+
+As it turns out, ARM has its own show_mem(). I don't see how, but ARM
+must not be using lib/show_mem.c even though it compiles it.
+
+> Attached is a
+> compile-tested patch, please have a look.  I am not sure about memory
+> hotplug issues but on a quick glance the vmstat stuff seems to be
+> optimistic as well.
 > 
-> KSM pages are supposed to be swappable in the long run so let's think
-> longer term.
-
-And in the interim, insist on capable(CAP_IPC_LOCK)?
-If that's okay for KVM's usage, that's fine by me for now.
-
-Whether not having privilege means it should fail or silently ignore
-the advice it's been given, I'm not sure: fail appears more helpful, but
-silently ignore may fit better with whether module has been loaded yet
-(we can keep a list of what's registered, for when module is loaded).
-
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: lib: adjust show_mem() to support memmap holes
 > 
-> > cost of all the scanning, if it were to get used more generally -
-> > it would be a pity if we just advised complainers to tune it out.
+> Some architectures free the backing of mem_map holes.  pfn_valid() is
+> not able to report this properly, so a stronger check is needed if the
+> caller is about to use the page descriptor derived from a pfn.
 > 
-> Clearly if tons of apps maliciously register themself in ksm, they'll
-> waste tons of CPU for no good, they'll just populate the unstable tree
-> with pages that are all equal except for the last 4 bytes slowing down
-> KSM for nothing.
-
-You're right to be concerned about the malicious, but I was thinking
-rather of apps just wanting to say they may contain a goodly number
-of duplicate pages, and wanting to register themselves for merging,
-no malice intended.
-
-If only for my hacked-up testing, I'm interested in having a workable
-system on which every process has opted the whole of its address space
-into this merging: never be optimal, but I'd like workable.
-
-> This is also why it's good to have a /dev/ksm ioctl
-> that the admin can allow only certain users to use for registering
-> virtual ranges (for example only the kvm/qemu user or all users in
-> scientific environments). Otherwise we'd need some kind of permissions
-> settings in sysfs with some API that certainly is less intuitive than
-> chown/chmod on /dev/ksm. We just can't allow madvise to succeed on any
-> luser registering itself in KSM, so if it was madvise, it shall return
-> -EPERM somehow sometime.
-
-I don't see a role for /dev/ksm any more.  I'm glad the administrative
-tunables have now been switched over to sysfs, and think that should be
-used for these restrictions too.
-
-And please don't think of non-KVM users of KSM as malicious lusers!
-
+> Change the node walking to zone walking and use memmap_valid_within()
+> to check for holes.  This is reliable as it additionally checks for
+> page_zone() and page_to_pfn() coherency.
 > 
-> > I'm still working my way through ksm.c, and not gone back to look at
-> > Chris's madvise patch, but doubt it will be sufficient.  There's an
-> > interesting difference between what you're doing in ksm.c, and how
-> > madvise usually behaves, regarding unmapped areas: madvice doesn't
-> > usually apply to an unmapped area, and goes away with an area when
-> > it is unmapped; whereas in KSM's case, the advice applies to whatever
-> > happens to get mapped in the area specified, persisting across unmaps.
+> Not-yet-signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  lib/show_mem.c |   21 +++++++++------------
+>  1 files changed, 9 insertions(+), 12 deletions(-)
 > 
-> Given the apps using KSM tends to be quite special, the fact it's
-> sticky, it doesn't go away with munmap isn't big deal, quite to the
-> contrary those apps will likely have an easier time thanks to the
-> registration not going away over munmap/mmap, without requiring
-> reloading of malloc/new calls.
+> diff --git a/lib/show_mem.c b/lib/show_mem.c
+> index 238e72a..ed3c3ec 100644
+> --- a/lib/show_mem.c
+> +++ b/lib/show_mem.c
+> @@ -11,29 +11,27 @@
+>  
+>  void show_mem(void)
+>  {
+> -	pg_data_t *pgdat;
+>  	unsigned long total = 0, reserved = 0, shared = 0,
+>  		nonshared = 0, highmem = 0;
+> +	struct zone *zone;
+>  
+>  	printk(KERN_INFO "Mem-Info:\n");
+>  	show_free_areas();
+>  
+> -	for_each_online_pgdat(pgdat) {
+> -		unsigned long i, flags;
+> +	for_each_populated_zone(zone) {
+> +		unsigned long start = zone->zone_start_pfn;
+> +		unsigned long end = start + zone->spanned_pages;
 
-I don't have a fixed view on this: I'm open to it behaving differently
-in this way (SuS on madvise certainly doesn't prohibit it), but suspect
-we might end up better off behaving consistently.
+The patch appears to be doing two things
 
+o Scanning zones instead of pgdats
+o Adding the use of memmap_valid_within()
+
+Scanning zones instead of pgdats seems like a good idea on its own and should
+be split out for separate consideration.
+
+> +		unsigned long pfn;
+>  
+> -		pgdat_resize_lock(pgdat, &flags);
+
+How sure are you about removing the acquisition of this lock?  If anything,
+it appears that pagetypeinfo_showblockcount_print() should be taking this lock.
+
+> -		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+> -			struct page *page;
+> -			unsigned long pfn = pgdat->node_start_pfn + i;
+> +		for (pfn = start; pfn < end; pfn++) {
+> +			struct page *page = pfn_to_page(pfn);
+>  
+
+You need to check pfn_valid() before using pfn_to_page().
+
+> -			if (unlikely(!(i % MAX_ORDER_NR_PAGES)))
+> +			if (unlikely(!(pfn % MAX_ORDER_NR_PAGES)))
+>  				touch_nmi_watchdog();
+>  
+> -			if (!pfn_valid(pfn))
+> +			if (!memmap_valid_within(pfn, page, zone))
+>  				continue;
+>  
+
+You need both the pfn_valid() check and the memmap_valid_within() as
+memmap_valid_within() unconditionally returns 1 for most architectures. If
+you applied this patch as-is, memory holes in a zone will cause big problems -
+random results at best and invalid memory references at worst.
+
+> -			page = pfn_to_page(pfn);
+> -
+>  			if (PageHighMem(page))
+>  				highmem++;
+>  
+> @@ -46,7 +44,6 @@ void show_mem(void)
+>  
+>  			total++;
+>  		}
+> -		pgdat_resize_unlock(pgdat, &flags);
+>  	}
+>  
+>  	printk(KERN_INFO "%lu pages RAM\n", total);
+> -- 
+> 1.6.2.1.135.gde769
 > 
-> To skip over holes during virtual scans we just vma->vm_next.
 
-Is that in updates yet to come?  I see things like
-	for (pages_count = 0; pages_count < slot->npages; ++pages_count)
-and
-		ksm_scan->page_index++;
-which will, of course, eventually get across any hole and move into
-vma->vm_next, but take vastly longer to do so than necessary.
-
-> 
-> > But I do appreciate the separation you've kept so far,
-> > and wouldn't want to tie it all together too closely.
-> 
-> The above plus the fact it remains self contained without making the
-> VM any more complicated, gives some value.
-
-Yes, that's admirable, and shouldn't be discarded lightly.
-But we do also need to be careful about letting subsystems go their
-own way.  I was _very_ pleased to find it all sited in mm/, rather
-than hidden away elsewhere, as I'd originally feared.
-
-> Even swapping I'd like to
-> add it without VM specific knowledge about KSM. tmpfs has an easier
-> time because it has its own vma type, here we've KSM pages mixed
-> inside regular anonymous !vma->vm_file regions and !vm_ops.
-
-Well, whatever works out simplest, probably.  I think there's a good
-chance that doing it with tmpfs pages will work out simplest, but
-perfectly possible also that that's a no-go for some reason.
-
-> 
-> > p.s.  I wish you'd chosen different name than KSM - the kernel
-> > has supported shared memory for many years - and notice ksm.c itself
-> > says "Memory merging driver".  "Merge" would indeed have been a less
-> > ambiguous term than "Share", but I think too late to change that now
-> > - except possibly in the MADV_ flag names?
-> 
-> I don't actually care about names, so I leave this to other to discuss.
-
-Hugh
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
