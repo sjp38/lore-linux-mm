@@ -1,51 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A1C86B003D
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 13:53:46 -0400 (EDT)
-Date: Wed, 6 May 2009 18:54:22 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
-In-Reply-To: <20090506170917.GE15712@x200.localdomain>
-Message-ID: <Pine.LNX.4.64.0905061845540.12391@blonde.anvils>
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com>
- <1241475935-21162-2-git-send-email-ieidus@redhat.com>
- <1241475935-21162-3-git-send-email-ieidus@redhat.com>
- <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com>
- <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils>
- <4A01AC5E.6000906@redhat.com> <20090506161424.GC15712@x200.localdomain>
- <Pine.LNX.4.64.0905061732220.5775@blonde.anvils> <20090506170917.GE15712@x200.localdomain>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5546B003D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 15:21:33 -0400 (EDT)
+Date: Wed, 6 May 2009 20:20:35 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH] Double check memmap is actually valid with a memmap
+	has unexpected holes
+Message-ID: <20090506192035.GB21993@n2100.arm.linux.org.uk>
+References: <20090505082944.GA25904@csn.ul.ie> <20090505110653.GA16649@cmpxchg.org> <20090506143059.GB20709@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090506143059.GB20709@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Chris Wright <chrisw@redhat.com>
-Cc: Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hartleys@visionengravers.com, mcrapet@gmail.com, fred99@carolina.rr.com, linux-arm-kernel@lists.arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 May 2009, Chris Wright wrote:
-> * Hugh Dickins (hugh@veritas.com) wrote:
-> > 
-> > Is the phrase "covert channel" going to come up somehow?
+On Wed, May 06, 2009 at 03:31:00PM +0100, Mel Gorman wrote:
+> On Tue, May 05, 2009 at 01:06:53PM +0200, Johannes Weiner wrote:
+> > I think we also need to fix up show_mem(). 
 > 
-> There's two (still hand wavy) conerns I see there.  First is the security
-> implication: timing writes to see cow and guess the shared data for
-> another apps VM_LOCKED region,
+> As it turns out, ARM has its own show_mem(). I don't see how, but ARM
+> must not be using lib/show_mem.c even though it compiles it.
 
-Mmm, yes, there's fun to be had there; though I don't see it as having
-anything to do with VM_LOCKED, beyond that the paranoid have reason to
-place their most anxious data in VM_LOCKED areas.
-
-I'm thinking of an app which prepares pages full of scurrilous rumour,
-then waits around looking at its /proc/self/smaps to see if anyone else
-is writing stories like that!
-
-> second is just plain old complaints of
-> those rt latency sensitive apps that somehow have VM_LOCKED|VM_MERGE
-> and complain of COW fault time, probably just "don't do that".
-
-Right.  There are sensitive sites which ought not to configure such
-merging on; but I don't think we should disallow merging locked.
-
-Hugh
+That happens because lib/show_mem.c is a library file, and since there
+isn't an unresolved reference to show_mem in from within the object
+files ld is asked to link, the version in the .a library won't be
+brought in.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
