@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E8F056B0047
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 02:19:38 -0400 (EDT)
-Received: by mail-ew0-f164.google.com with SMTP id 8so6509923ewy.38
-        for <linux-mm@kvack.org>; Tue, 05 May 2009 23:19:56 -0700 (PDT)
-Date: Wed, 6 May 2009 10:19:53 +0400
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: [PATCH -mmotm] mm: init_per_zone_pages_min - get rid of sqrt call
-	on small machines
-Message-ID: <20090506061953.GA16057@lenovo>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 609A56B004D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 02:34:10 -0400 (EDT)
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id n466YcUO023046
+	for <linux-mm@kvack.org>; Wed, 6 May 2009 07:34:38 +0100
+Received: from wa-out-1112.google.com (wahk40.prod.google.com [10.114.237.40])
+	by zps78.corp.google.com with ESMTP id n466YaWP028953
+	for <linux-mm@kvack.org>; Tue, 5 May 2009 23:34:36 -0700
+Received: by wa-out-1112.google.com with SMTP id k40so2116373wah.16
+        for <linux-mm@kvack.org>; Tue, 05 May 2009 23:34:36 -0700 (PDT)
+Date: Tue, 5 May 2009 23:34:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mmotm] mm: setup_per_zone_inactive_ratio - fix comment
+ and make it __init
+In-Reply-To: <20090506061923.GA4865@lenovo>
+Message-ID: <alpine.DEB.2.00.0905052333390.9824@chino.kir.corp.google.com>
+References: <20090506061923.GA4865@lenovo>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: LMMML <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LMMML <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-For small machines we may eliminate call for int_sqrt
-by using precaulculated value.
+On Wed, 6 May 2009, Cyrill Gorcunov wrote:
 
-CC: David Rientjes <rientjes@google.com>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
----
- mm/page_alloc.c |   12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+> The caller of setup_per_zone_inactive_ratio is module_init function.
+> No need to keep the callee after is completed as well.
+> Also fix a comment.
+> 
+> CC: David Rientjes <rientjes@google.com>
+> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
-Index: linux-2.6.git/mm/page_alloc.c
-=====================================================================
---- linux-2.6.git.orig/mm/page_alloc.c
-+++ linux-2.6.git/mm/page_alloc.c
-@@ -4610,11 +4610,15 @@ static int __init init_per_zone_pages_mi
- 
- 	lowmem_kbytes = nr_free_buffer_pages() * (PAGE_SIZE >> 10);
- 
--	min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
--	if (min_free_kbytes < 128)
-+	/* for small values we may eliminate sqrt operation completely */
-+	if (lowmem_kbytes < 1024)
- 		min_free_kbytes = 128;
--	if (min_free_kbytes > 65536)
--		min_free_kbytes = 65536;
-+	else {
-+		min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
-+		if (min_free_kbytes > 65536)
-+			min_free_kbytes = 65536;
-+	}
-+
- 	setup_per_zone_pages_min();
- 	setup_per_zone_lowmem_reserve();
- 	setup_per_zone_inactive_ratio();
+Acked-by: David Rientjes <rientjes@google.com>
+
+There's no need to specify -mmotm on the subject line since it isn't 
+specific to that tree, this applies to HEAD just fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
