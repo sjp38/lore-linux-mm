@@ -1,43 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4D42B6B003D
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 05:50:51 -0400 (EDT)
-Message-ID: <4A015C69.7010600@redhat.com>
-Date: Wed, 06 May 2009 12:46:17 +0300
-From: Izik Eidus <ieidus@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 726D66B003D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 07:04:57 -0400 (EDT)
+Date: Wed, 6 May 2009 20:04:24 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+In-Reply-To: <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
+References: <20090429130430.4B11.A69D9226@jp.fujitsu.com> <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
+Message-Id: <20090506200413.7EBE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] ksm: dont allow overlap memory addresses registrations.
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <4A00DD4F.8010101@redhat.com>
-In-Reply-To: <4A00DD4F.8010101@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, hugh@veritas.com, nickpiggin@yahoo.com.au
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Izik Eidus wrote:
->> subjects say it all.
->
-> Not a very useful commit message.
->
-> This makes me wonder, though.
->
-> What happens if a user mmaps a 30MB memory region, registers it
-> with KSM and then unmaps the middle 10MB?
+> > test environment: no lvm, copy ext3 to ext3 (not mv), no change swappiness,
+> >         CFQ is used, userland is Fedora10, mmotm(2.6.30-rc1 + mm patch),
+> >         CPU opteronx4, mem 4G
+> >
+> > mouse move lag:        not happend
+> > window move lag:       not happend
+> > Mapped page decrease rapidly: not happend (I guess, these page stay in
+> >                     active list on my system)
+> > page fault large latency:   happend (latencytop display >1200ms)
+> >
+> >
+> > Then, I don't doubt vm replacement logic now.
+> > but I need more investigate.
+> > I plan to try following thing today and tommorow.
+> >
+> > - XFS
+> > - LVM
+> > - another io scheduler (thanks Ted, good view point)
+> > - Rik's new patch
+> 
+> hm, AS io-scheduler don't make such large latency on my environment.
+> Elladan, Can you try to AS scheduler? (adding boot option "elevator=as")
 
-User cant break 30MB into smaller one.
-That mean that when you regisiter memory region that is X mb size, you 
-can only remove it (as a whole), or add new region.
-This should answer the next question you had about why i have just the 
-start address for removing the regions.
+second test result:
+read dev(sda): SSD, lvm+XFS
+write dev(sdb): HDD, lvm+XFS
 
->
->> Signed-off-by: Izik Eidus <ieidus@redhat.com>
->
-> except for the commit message, Acked-by: Rik van Riel <riel@redhat.com>
->
+the result is the same of ext3 without lvm. Thus I think
+XFS isn't guilty.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
