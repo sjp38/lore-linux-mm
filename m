@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 207946B005C
-	for <linux-mm@kvack.org>; Tue,  5 May 2009 20:54:07 -0400 (EDT)
-Message-ID: <4A00DFDE.30407@redhat.com>
-Date: Tue, 05 May 2009 20:54:54 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 287A06B0062
+	for <linux-mm@kvack.org>; Tue,  5 May 2009 20:54:35 -0400 (EDT)
+Message-ID: <4A00DFFB.3050708@redhat.com>
+Date: Tue, 05 May 2009 20:55:23 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] ksm: build system make it compile for all archs
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <1241475935-21162-4-git-send-email-ieidus@redhat.com> <1241475935-21162-5-git-send-email-ieidus@redhat.com> <1241475935-21162-6-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1241475935-21162-6-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 6/6] ksm: use another miscdevice minor number.
+References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <1241475935-21162-4-git-send-email-ieidus@redhat.com> <1241475935-21162-5-git-send-email-ieidus@redhat.com> <1241475935-21162-6-git-send-email-ieidus@redhat.com> <1241475935-21162-7-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1241475935-21162-7-git-send-email-ieidus@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +17,13 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
 Izik Eidus wrote:
-> The known issues with cross platform support were fixed,
-> so we return it back to compile on all archs.
+> The old number was registered already by another project.
+> The new number is #234.
+> 
+> Thanks.
 > 
 > Signed-off-by: Izik Eidus <ieidus@redhat.com>
+> Signed-off-by: Alan Cox <device@lanana.org>
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
