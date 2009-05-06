@@ -1,53 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 70B316B006A
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 13:00:43 -0400 (EDT)
-Message-ID: <4A01C207.3050504@redhat.com>
-Date: Wed, 06 May 2009 19:59:51 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 88FBF6B005D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 13:09:15 -0400 (EDT)
+Date: Wed, 6 May 2009 10:09:17 -0700
+From: Chris Wright <chrisw@redhat.com>
 Subject: Re: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com> <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils> <20090506133434.GX16078@random.random> <4A019719.7030504@redhat.com> <Pine.LNX.4.64.0905061739540.5934@blonde.anvils> <20090506164945.GD15712@x200.localdomain>
-In-Reply-To: <20090506164945.GD15712@x200.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20090506170917.GE15712@x200.localdomain>
+References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com> <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils> <4A01AC5E.6000906@redhat.com> <20090506161424.GC15712@x200.localdomain> <Pine.LNX.4.64.0905061732220.5775@blonde.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0905061732220.5775@blonde.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Chris Wright <chrisw@redhat.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Chris Wright <chrisw@redhat.com>, Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Chris Wright wrote:
-> * Hugh Dickins (hugh@veritas.com) wrote:
->   
->> On Wed, 6 May 2009, Izik Eidus wrote:
->>     
->>> Andrea Arcangeli wrote:
->>>       
->>>> On Wed, May 06, 2009 at 12:16:52PM +0100, Hugh Dickins wrote:
->>>>   
->>>>
->>>>         
->>>>> p.s.  I wish you'd chosen different name than KSM - the kernel
->>>>> has supported shared memory for many years - and notice ksm.c itself
->>>>> says "Memory merging driver".  "Merge" would indeed have been a less
->>>>> ambiguous term than "Share", but I think too late to change that now
->>>>> - except possibly in the MADV_ flag names?
->>>>>     
->>>>>           
->>>> I don't actually care about names, so I leave this to other to discuss.
->>>>   
->>>>         
->>> Well, There is no real problem changing the name, any suggestions?
->>>       
->> mm/merge.c or mm/mmerge.c: the module formerly known as KSM ?
->>     
->
-> I like merge.
-Sold !.
->
-> thanks,
-> -chris
->   
+* Hugh Dickins (hugh@veritas.com) wrote:
+> On Wed, 6 May 2009, Chris Wright wrote:
+> > Another
+> > question of what to do w/ VM_LOCKED, should that exclude VM_MERGE or
+> > let user get what asked for?
+> 
+> What's the issue with VM_LOCKED?  We wouldn't want to merge a page
+> while it was under get_user_pages (unless KSM's own, but ignore that),
+> but what's the deal with VM_LOCKED?
+> 
+> Is the phrase "covert channel" going to come up somehow?
+
+There's two (still hand wavy) conerns I see there.  First is the security
+implication: timing writes to see cow and guess the shared data for
+another apps VM_LOCKED region, second is just plain old complaints of
+those rt latency sensitive apps that somehow have VM_LOCKED|VM_MERGE
+and complain of COW fault time, probably just "don't do that".
+
+thanks,
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
