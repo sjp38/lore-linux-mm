@@ -1,50 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A56176B0089
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 09:42:03 -0400 (EDT)
-Date: Wed, 6 May 2009 15:42:36 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/3] mm: SLUB fix reclaim_state
-Message-ID: <20090506134236.GA3012@wotan.suse.de>
-References: <20090505091343.706910164@suse.de> <20090505091434.312182900@suse.de> <1241594430.15411.3.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1241594430.15411.3.camel@penberg-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 176106B0092
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 09:50:45 -0400 (EDT)
+Date: Wed, 6 May 2009 14:28:33 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 2/6] ksm: dont allow overlap memory addresses registrations.
+In-Reply-To: <20090506131735.GW16078@random.random>
+Message-ID: <Pine.LNX.4.64.0905061424480.19190@blonde.anvils>
+References: <1241475935-21162-1-git-send-email-ieidus@redhat.com>
+ <1241475935-21162-2-git-send-email-ieidus@redhat.com>
+ <1241475935-21162-3-git-send-email-ieidus@redhat.com> <4A00DD4F.8010101@redhat.com>
+ <4A015C69.7010600@redhat.com> <4A0181EA.3070600@redhat.com>
+ <20090506131735.GW16078@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: stable@kernel.org, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 06, 2009 at 10:20:30AM +0300, Pekka Enberg wrote:
-> On Tue, 2009-05-05 at 19:13 +1000, npiggin@suse.de wrote:
-> > plain text document attachment (mm-slub-fix-reclaim_state.patch)
-> > SLUB does not correctly account reclaim_state.reclaimed_slab, so it will
-> > break memory reclaim. Account it like SLAB does.
-> > 
-> > Cc: stable@kernel.org
-> > Cc: linux-mm@kvack.org
-> > Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-> > Cc: Matt Mackall <mpm@selenic.com>
-> > Cc: Christoph Lameter <cl@linux.com>
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+On Wed, 6 May 2009, Andrea Arcangeli wrote:
 > 
-> I have applied the patch series. I see you have cc'd stable so I assume
-> you want this in 2.6.30, right? This seems like a rather serious bug but
+> For example for the swapping of KSM pages we've been thinking of using
+> external rmap hooks to avoid the VM to know anything specific to KSM
+> pages but to still allow their unmapping and swap.
 
-Thanks. I think it makes sense to into 2.6.30. Also probably all active
-.stable kernels.
+There may prove to be various reasons why it wouldn't work out in practice;
+but when thinking of swapping them, it is worth considering if those KSM
+pages can just be assigned to a tmpfs file, then leave the swapping to that.
 
-
-> I wonder why we've gotten away with it for so long? Is there a test
-> program or a known workload that breaks without this?
-
-Well... it isn't doing what reclaim code wants, and it is differing
-behaviour between SLAB and SL?B, so I think it is fairly safe to
-merge these now.
-
-It doesn't look like too much *significant* changes to heuristics, but
-things will get skewed here and there.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
