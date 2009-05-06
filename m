@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9E9326B003D
-	for <linux-mm@kvack.org>; Tue,  5 May 2009 20:40:26 -0400 (EDT)
-Message-ID: <4A00DC9B.1070806@redhat.com>
-Date: Tue, 05 May 2009 20:40:59 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E83FC6B0047
+	for <linux-mm@kvack.org>; Tue,  5 May 2009 20:43:21 -0400 (EDT)
+Message-ID: <4A00DD4F.8010101@redhat.com>
+Date: Tue, 05 May 2009 20:43:59 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] ksm: limiting the num of mem regions user can register
- per fd.
-References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1241475935-21162-2-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 2/6] ksm: dont allow overlap memory addresses registrations.
+References: <1241475935-21162-1-git-send-email-ieidus@redhat.com> <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1241475935-21162-3-git-send-email-ieidus@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,13 +17,18 @@ Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
 Izik Eidus wrote:
-> Right now user can open /dev/ksm fd and register unlimited number of
-> regions, such behavior may allocate unlimited amount of kernel memory
-> and get the whole host into out of memory situation.
-> 
+> subjects say it all.
+
+Not a very useful commit message.
+
+This makes me wonder, though.
+
+What happens if a user mmaps a 30MB memory region, registers it
+with KSM and then unmaps the middle 10MB?
+
 > Signed-off-by: Izik Eidus <ieidus@redhat.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+except for the commit message, Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed.
