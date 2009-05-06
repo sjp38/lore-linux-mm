@@ -1,52 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 726D66B003D
-	for <linux-mm@kvack.org>; Wed,  6 May 2009 07:04:57 -0400 (EDT)
-Date: Wed, 6 May 2009 20:04:24 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Swappiness vs. mmap() and interactive response
-In-Reply-To: <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
-References: <20090429130430.4B11.A69D9226@jp.fujitsu.com> <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
-Message-Id: <20090506200413.7EBE.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 46BD06B003D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 08:20:49 -0400 (EDT)
+Message-ID: <4A0180AB.20108@redhat.com>
+Date: Wed, 06 May 2009 08:20:59 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] x86: 46 bit PAE support
+References: <20090505172856.6820db22@cuia.bos.redhat.com> <4A00ED83.1030700@zytor.com>
+In-Reply-To: <4A00ED83.1030700@zytor.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mingo@redhat.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> > test environment: no lvm, copy ext3 to ext3 (not mv), no change swappiness,
-> >         CFQ is used, userland is Fedora10, mmotm(2.6.30-rc1 + mm patch),
-> >         CPU opteronx4, mem 4G
-> >
-> > mouse move lag:        not happend
-> > window move lag:       not happend
-> > Mapped page decrease rapidly: not happend (I guess, these page stay in
-> >                     active list on my system)
-> > page fault large latency:   happend (latencytop display >1200ms)
-> >
-> >
-> > Then, I don't doubt vm replacement logic now.
-> > but I need more investigate.
-> > I plan to try following thing today and tommorow.
-> >
-> > - XFS
-> > - LVM
-> > - another io scheduler (thanks Ted, good view point)
-> > - Rik's new patch
+H. Peter Anvin wrote:
+> Rik van Riel wrote:
+>> Testing: booted it on an x86-64 system with 6GB RAM.  Did you really think
+>> I had access to a system with 64TB of RAM? :)
 > 
-> hm, AS io-scheduler don't make such large latency on my environment.
-> Elladan, Can you try to AS scheduler? (adding boot option "elevator=as")
+> No, but it would be good if we could test it under Qemu or KVM with an
+> appropriately set up sparse memory map.
 
-second test result:
-read dev(sda): SSD, lvm+XFS
-write dev(sdb): HDD, lvm+XFS
+I don't have a system with 1TB either, which is how much space
+the memmap[] would take...
 
-the result is the same of ext3 without lvm. Thus I think
-XFS isn't guilty.
-
-
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
