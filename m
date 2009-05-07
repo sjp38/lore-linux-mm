@@ -1,36 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D35C56B004D
-	for <linux-mm@kvack.org>; Thu,  7 May 2009 11:06:45 -0400 (EDT)
-Message-ID: <4A02F8ED.3090008@redhat.com>
-Date: Thu, 07 May 2009 11:06:21 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
- citizen
-References: <20090430072057.GA4663@eskimo.com>  <20090430174536.d0f438dd.akpm@linux-foundation.org>  <20090430205936.0f8b29fc@riellaptop.surriel.com>  <20090430181340.6f07421d.akpm@linux-foundation.org>  <20090430215034.4748e615@riellaptop.surriel.com>  <20090430195439.e02edc26.akpm@linux-foundation.org>  <49FB01C1.6050204@redhat.com>  <20090501123541.7983a8ae.akpm@linux-foundation.org>  <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins>  <20090507121101.GB20934@localhost>  <alpine.DEB.1.10.0905070935530.24528@qirst.com> <1241705702.11251.156.camel@twins> <alpine.DEB.1.10.0905071016410.24528@qirst.com>
-In-Reply-To: <alpine.DEB.1.10.0905071016410.24528@qirst.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 912A26B004D
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 11:13:07 -0400 (EDT)
+Date: Thu, 7 May 2009 17:10:39 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class citizen
+Message-ID: <20090507151039.GA2413@cmpxchg.org>
+References: <20090430174536.d0f438dd.akpm@linux-foundation.org> <20090430205936.0f8b29fc@riellaptop.surriel.com> <20090430181340.6f07421d.akpm@linux-foundation.org> <20090430215034.4748e615@riellaptop.surriel.com> <20090430195439.e02edc26.akpm@linux-foundation.org> <49FB01C1.6050204@redhat.com> <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090507121101.GB20934@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Thu, 7 May 2009, Peter Zijlstra wrote:
->
->   
->> It re-instates the young bit for PROT_EXEC pages, so that they will only
->> be paged when they are really cold, or there is severe pressure.
->>     
->
-> But they are rescanned until then. Really cold means what exactly? I do a
-> back up of a few hundred gigabytes and do not use firefox while the backup
-> is ongoing. Will the firefox pages still be in memory or not?
->   
-The patch with the subject "[PATCH] vmscan: evict use-once pages first (v3)"
-together with this patch should make sure that it stays in memory.
+On Thu, May 07, 2009 at 08:11:01PM +0800, Wu Fengguang wrote:
+> Introduce AS_EXEC to mark executables and their linked libraries, and to
+> protect their referenced active pages from being deactivated.
+> 
+> CC: Elladan <elladan@eskimo.com>
+> CC: Nick Piggin <npiggin@suse.de>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Christoph Lameter <cl@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Peter Zijlstra <peterz@infradead.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  include/linux/pagemap.h |    1 +
+>  mm/mmap.c               |    2 ++
+>  mm/nommu.c              |    2 ++
+>  mm/vmscan.c             |   35 +++++++++++++++++++++++++++++++++--
+>  4 files changed, 38 insertions(+), 2 deletions(-)
+> 
+> --- linux.orig/include/linux/pagemap.h
+> +++ linux/include/linux/pagemap.h
+> @@ -25,6 +25,7 @@ enum mapping_flags {
+>  #ifdef CONFIG_UNEVICTABLE_LRU
+>  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+>  #endif
+> +	AS_EXEC		= __GFP_BITS_SHIFT + 4,	/* mapped PROT_EXEC somewhere */
+>  };
+>  
+>  static inline void mapping_set_error(struct address_space *mapping, int error)
+> --- linux.orig/mm/mmap.c
+> +++ linux/mm/mmap.c
+> @@ -1194,6 +1194,8 @@ munmap_back:
+>  			goto unmap_and_free_vma;
+>  		if (vm_flags & VM_EXECUTABLE)
+>  			added_exe_file_vma(mm);
+> +		if (vm_flags & VM_EXEC)
+> +			set_bit(AS_EXEC, &file->f_mapping->flags);
+>  	} else if (vm_flags & VM_SHARED) {
+>  		error = shmem_zero_setup(vma);
+>  		if (error)
+> --- linux.orig/mm/nommu.c
+> +++ linux/mm/nommu.c
+> @@ -1224,6 +1224,8 @@ unsigned long do_mmap_pgoff(struct file 
+>  			added_exe_file_vma(current->mm);
+>  			vma->vm_mm = current->mm;
+>  		}
+> +		if (vm_flags & VM_EXEC)
+> +			set_bit(AS_EXEC, &file->f_mapping->flags);
+>  	}
+
+I find it a bit ugly that it applies an attribute of the memory area
+(per mm) to the page cache mapping (shared).  Because this in turn
+means that the reference through a non-executable vma might get the
+pages rotated just because there is/was an executable mmap around.
+
+>  	down_write(&nommu_region_sem);
+> --- linux.orig/mm/vmscan.c
+> +++ linux/mm/vmscan.c
+> @@ -1230,6 +1230,7 @@ static void shrink_active_list(unsigned 
+>  	unsigned long pgmoved;
+>  	unsigned long pgscanned;
+>  	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+> +	LIST_HEAD(l_active);
+>  	LIST_HEAD(l_inactive);
+>  	struct page *page;
+>  	struct pagevec pvec;
+> @@ -1269,8 +1270,15 @@ static void shrink_active_list(unsigned 
+>  
+>  		/* page_referenced clears PageReferenced */
+>  		if (page_mapping_inuse(page) &&
+> -		    page_referenced(page, 0, sc->mem_cgroup))
+> +		    page_referenced(page, 0, sc->mem_cgroup)) {
+> +			struct address_space *mapping = page_mapping(page);
+> +
+>  			pgmoved++;
+> +			if (mapping && test_bit(AS_EXEC, &mapping->flags)) {
+> +				list_add(&page->lru, &l_active);
+> +				continue;
+> +			}
+> +		}
+
+Since we walk the VMAs in page_referenced anyway, wouldn't it be
+better to check if one of them is executable?  This would even work
+for executable anon pages.  After all, there are applications that cow
+executable mappings (sbcl and other language environments that use an
+executable, run-time modified core image come to mind).
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
