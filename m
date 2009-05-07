@@ -1,95 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E9CF46B003D
-	for <linux-mm@kvack.org>; Thu,  7 May 2009 08:01:30 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 5so369770ywm.26
-        for <linux-mm@kvack.org>; Thu, 07 May 2009 05:01:31 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 425D66B003D
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 08:11:37 -0400 (EDT)
+Date: Thu, 7 May 2009 20:11:01 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH -mm] vmscan: make mapped executable pages the first class
+	citizen
+Message-ID: <20090507121101.GB20934@localhost>
+References: <20090430072057.GA4663@eskimo.com> <20090430174536.d0f438dd.akpm@linux-foundation.org> <20090430205936.0f8b29fc@riellaptop.surriel.com> <20090430181340.6f07421d.akpm@linux-foundation.org> <20090430215034.4748e615@riellaptop.surriel.com> <20090430195439.e02edc26.akpm@linux-foundation.org> <49FB01C1.6050204@redhat.com> <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins>
 MIME-Version: 1.0
-In-Reply-To: <20090507104635.GG16078@random.random>
-References: <4A00DD4F.8010101@redhat.com> <4A0181EA.3070600@redhat.com>
-	 <20090506131735.GW16078@random.random>
-	 <Pine.LNX.4.64.0905061424480.19190@blonde.anvils>
-	 <20090506140904.GY16078@random.random>
-	 <20090506152100.41266e4c@lxorguk.ukuu.org.uk>
-	 <Pine.LNX.4.64.0905061532240.25289@blonde.anvils>
-	 <20090506145641.GA16078@random.random>
-	 <20090507085547.24efb60f.minchan.kim@barrios-desktop>
-	 <20090507104635.GG16078@random.random>
-Date: Thu, 7 May 2009 21:01:30 +0900
-Message-ID: <44c63dc40905070501j1a468e16yde46403da19460e6@mail.gmail.com>
-Subject: Re: [PATCH 2/6] ksm: dont allow overlap memory addresses
-	registrations.
-From: Minchan Kim <barrioskmc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1241432635.7620.4732.camel@twins>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hugh@veritas.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, chrisw@redhat.com, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
->> Many embedded system is so I/O bouneded that we can use much CPU time in there.
->
-> Embedded systems with >4G of ram should run 64bit these days, so I
-> don't see a problem.
+Introduce AS_EXEC to mark executables and their linked libraries, and to
+protect their referenced active pages from being deactivated.
 
-What I mean is that many embedded applications don't use so much cpu
-time that we can use extra cpu time to scan identical pages for KSM.
-:)
+CC: Elladan <elladan@eskimo.com>
+CC: Nick Piggin <npiggin@suse.de>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Christoph Lameter <cl@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Peter Zijlstra <peterz@infradead.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/pagemap.h |    1 +
+ mm/mmap.c               |    2 ++
+ mm/nommu.c              |    2 ++
+ mm/vmscan.c             |   35 +++++++++++++++++++++++++++++++++--
+ 4 files changed, 38 insertions(+), 2 deletions(-)
 
->> One more thing about interface.
->>
->> Ksm map regions are dynamic characteritic ?
->> I mean sometime A application calls ioctl(0x800000, 0x10000) and sometime it calls ioctl(0xb7000000, 0x20000);
->> Of course, It depends on application's behavior.
->
-> Looks like the ioctl API is going away in favour of madvise so it'll
-> function like madvise, if you munmap the region the KSM registration
-> will go away.
->
->> ex) echo 'pid 0x8050000 0x100000' > sysfs or procfs or cgroup.
->
-> This was answered by Chris, and surely this is feasible, as it is
-> feasible for kksmd to scan the whole system regardless of any
-> madvise. Some sysfs mangling should allow it.
->
-> However regardless of the highmem issue (this applies to 64bit systems
-> too) you've to keep in mind that for kksmd to keep track all pages
-> under scan it has to build rbtree and allocate rmap_items and
-> tree_items for each page tracked, those objects take some memory, so
-> if there's not much ram sharing you may waste more memory in the kksmd
-> allocations than in the amount of memory actually freed by KSM. This
-> is why it's better to selectively only register ranges that we know in
-> advance there's an high probability to free memory.
-
-Indeed.
-
-This interface can use for just simple test and profiling.
-If it don't add memory pressure and latency, we can use it without
-modifying source code.
-Unfortunately, it's not in usual case. ;-)
-
-So if KSM can provide profiling information, we can tune easily than now.
-
-ex)
-pfn : 0x12, shared [pid 103, vaddr 0x80010000] [pid 201, vaddr 0x800ac000] .....
-pfn : 0x301, shared [pid 103, vaddr 0x80020000] [pid 203, vaddr
-0x801ac000] .....
-...
-...
-
-If KSM can provide this profiling information, firstly we try to use
-ksm without madive and next we can add madvise call on most like
-sharable vma range using profiling data.
-
-> Thanks!
-> Andrea
->
-
-
-
--- 
-Thanks,
-Minchan Kim
+--- linux.orig/include/linux/pagemap.h
++++ linux/include/linux/pagemap.h
+@@ -25,6 +25,7 @@ enum mapping_flags {
+ #ifdef CONFIG_UNEVICTABLE_LRU
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+ #endif
++	AS_EXEC		= __GFP_BITS_SHIFT + 4,	/* mapped PROT_EXEC somewhere */
+ };
+ 
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+--- linux.orig/mm/mmap.c
++++ linux/mm/mmap.c
+@@ -1194,6 +1194,8 @@ munmap_back:
+ 			goto unmap_and_free_vma;
+ 		if (vm_flags & VM_EXECUTABLE)
+ 			added_exe_file_vma(mm);
++		if (vm_flags & VM_EXEC)
++			set_bit(AS_EXEC, &file->f_mapping->flags);
+ 	} else if (vm_flags & VM_SHARED) {
+ 		error = shmem_zero_setup(vma);
+ 		if (error)
+--- linux.orig/mm/nommu.c
++++ linux/mm/nommu.c
+@@ -1224,6 +1224,8 @@ unsigned long do_mmap_pgoff(struct file 
+ 			added_exe_file_vma(current->mm);
+ 			vma->vm_mm = current->mm;
+ 		}
++		if (vm_flags & VM_EXEC)
++			set_bit(AS_EXEC, &file->f_mapping->flags);
+ 	}
+ 
+ 	down_write(&nommu_region_sem);
+--- linux.orig/mm/vmscan.c
++++ linux/mm/vmscan.c
+@@ -1230,6 +1230,7 @@ static void shrink_active_list(unsigned 
+ 	unsigned long pgmoved;
+ 	unsigned long pgscanned;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
++	LIST_HEAD(l_active);
+ 	LIST_HEAD(l_inactive);
+ 	struct page *page;
+ 	struct pagevec pvec;
+@@ -1269,8 +1270,15 @@ static void shrink_active_list(unsigned 
+ 
+ 		/* page_referenced clears PageReferenced */
+ 		if (page_mapping_inuse(page) &&
+-		    page_referenced(page, 0, sc->mem_cgroup))
++		    page_referenced(page, 0, sc->mem_cgroup)) {
++			struct address_space *mapping = page_mapping(page);
++
+ 			pgmoved++;
++			if (mapping && test_bit(AS_EXEC, &mapping->flags)) {
++				list_add(&page->lru, &l_active);
++				continue;
++			}
++		}
+ 
+ 		list_add(&page->lru, &l_inactive);
+ 	}
+@@ -1279,7 +1287,6 @@ static void shrink_active_list(unsigned 
+ 	 * Move the pages to the [file or anon] inactive list.
+ 	 */
+ 	pagevec_init(&pvec, 1);
+-	lru = LRU_BASE + file * LRU_FILE;
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+ 	/*
+@@ -1291,6 +1298,7 @@ static void shrink_active_list(unsigned 
+ 	reclaim_stat->recent_rotated[!!file] += pgmoved;
+ 
+ 	pgmoved = 0;  /* count pages moved to inactive list */
++	lru = LRU_BASE + file * LRU_FILE;
+ 	while (!list_empty(&l_inactive)) {
+ 		page = lru_to_page(&l_inactive);
+ 		prefetchw_prev_lru_page(page, &l_inactive, flags);
+@@ -1313,6 +1321,29 @@ static void shrink_active_list(unsigned 
+ 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	__count_vm_events(PGDEACTIVATE, pgmoved);
++
++	pgmoved = 0;  /* count pages moved back to active list */
++	lru = LRU_ACTIVE + file * LRU_FILE;
++	while (!list_empty(&l_active)) {
++		page = lru_to_page(&l_active);
++		prefetchw_prev_lru_page(page, &l_active, flags);
++		VM_BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++		VM_BUG_ON(!PageActive(page));
++
++		list_move(&page->lru, &zone->lru[lru].list);
++		mem_cgroup_add_lru_list(page, lru);
++		pgmoved++;
++		if (!pagevec_add(&pvec, page)) {
++			spin_unlock_irq(&zone->lru_lock);
++			if (buffer_heads_over_limit)
++				pagevec_strip(&pvec);
++			__pagevec_release(&pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
++	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
++
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	if (buffer_heads_over_limit)
+ 		pagevec_strip(&pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
