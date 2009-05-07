@@ -1,132 +1,102 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 618EB6B0083
-	for <linux-mm@kvack.org>; Sun, 31 May 2009 23:12:20 -0400 (EDT)
-Message-Id: <6.0.0.20.2.20090601120706.0739e790@172.19.0.2>
-Date: Mon, 01 Jun 2009 12:07:42 +0900
-From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Subject: Re: [PATCH] readahead:add blk_run_backing_dev
-In-Reply-To: <20090601030249.GA10348@localhost>
-References: <20090526164252.0741b392.akpm@linux-foundation.org>
- <6.0.0.20.2.20090527092105.076be238@172.19.0.2>
- <20090527020909.GB17658@localhost>
- <6.0.0.20.2.20090527110937.0770c420@172.19.0.2>
- <20090527023638.GA27079@localhost>
- <6.0.0.20.2.20090527114200.076aab00@172.19.0.2>
- <20090527025721.GA11153@localhost>
- <6.0.0.20.2.20090527120248.076abe38@172.19.0.2>
- <20090601023758.GA8795@localhost>
- <6.0.0.20.2.20090601115104.0739dac0@172.19.0.2>
- <20090601030249.GA10348@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 6/7] pagemap: document 9 more exported page flags
+Date: Thu, 07 May 2009 09:21:23 +0800
+Message-ID: <20090507014914.636803082@intel.com>
+References: <20090507012116.996644836@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CD31E6B003D
+	for <linux-mm@kvack.org>; Wed,  6 May 2009 21:49:28 -0400 (EDT)
+Content-Disposition: inline; filename=kpageflags-doc.patch
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
+Also add short descriptions for all of the 20 exported page flags.
 
-At 12:02 09/06/01, Wu Fengguang wrote:
->On Mon, Jun 01, 2009 at 10:51:56AM +0800, Hisashi Hifumi wrote:
->> 
->> At 11:37 09/06/01, Wu Fengguang wrote:
->> >On Wed, May 27, 2009 at 11:06:37AM +0800, Hisashi Hifumi wrote:
->> >> 
->> >> At 11:57 09/05/27, Wu Fengguang wrote:
->> >> >On Wed, May 27, 2009 at 10:47:47AM +0800, Hisashi Hifumi wrote:
->> >> >> 
->> >> >> At 11:36 09/05/27, Wu Fengguang wrote:
->> >> >> >On Wed, May 27, 2009 at 10:21:53AM +0800, Hisashi Hifumi wrote:
->> >> >> >>
->> >> >> >> At 11:09 09/05/27, Wu Fengguang wrote:
->> >> >> >> >On Wed, May 27, 2009 at 08:25:04AM +0800, Hisashi Hifumi wrote:
->> >> >> >> >>
->> >> >> >> >> At 08:42 09/05/27, Andrew Morton wrote:
->> >> >> >> >> >On Fri, 22 May 2009 10:33:23 +0800
->> >> >> >> >> >Wu Fengguang <fengguang.wu@intel.com> wrote:
->> >> >> >> >> >
->> >> >> >> >> >> > I tested above patch, and I got same performance number.
->> >> >> >> >> >> > I wonder why if (PageUptodate(page)) check is there...
->> >> >> >> >> >>
->> >> >> >> >> >> Thanks!  This is an interesting micro timing behavior that
->> >> >> >> >> >> demands some research work.  The above check is to confirm 
->if it's
->> >> >> >> >> >> the PageUptodate() case that makes the difference. So why 
->that case
->> >> >> >> >> >> happens so frequently so as to impact the performance? 
->Will it also
->> >> >> >> >> >> happen in NFS?
->> >> >> >> >> >>
->> >> >> >> >> >> The problem is readahead IO pipeline is not running smoothly, 
->> >which is
->> >> >> >> >> >> undesirable and not well understood for now.
->> >> >> >> >> >
->> >> >> >> >> >The patch causes a remarkably large performance increase.  A 9%
->> >> >> >> >> >reduction in time for a linear read? I'd be surprised if the 
->workload
->> >> >> >> >>
->> >> >> >> >> Hi Andrew.
->> >> >> >> >> Yes, I tested this with dd.
->> >> >> >> >>
->> >> >> >> >> >even consumed 9% of a CPU, so where on earth has the kernel 
->gone to?
->> >> >> >> >> >
->> >> >> >> >> >Have you been able to reproduce this in your testing?
->> >> >> >> >>
->> >> >> >> >> Yes, this test on my environment is reproducible.
->> >> >> >> >
->> >> >> >> >Hisashi, does your environment have some special configurations?
->> >> >> >>
->> >> >> >> Hi.
->> >> >> >> My testing environment is as follows:
->> >> >> >> Hardware: HP DL580
->> >> >> >> CPU:Xeon 3.2GHz *4 HT enabled
->> >> >> >> Memory:8GB
->> >> >> >> Storage: Dothill SANNet2 FC (7Disks RAID-0 Array)
->> >> >> >
->> >> >> >This is a big hardware RAID. What's the readahead size?
->> >> >> >
->> >> >> >The numbers look too small for a 7 disk RAID:
->> >> >> >
->> >> >> >        > #dd if=testdir/testfile of=/dev/null bs=16384
->> >> >> >        >
->> >> >> >        > -2.6.30-rc6
->> >> >> >        > 1048576+0 records in
->> >> >> >        > 1048576+0 records out
->> >> >> >        > 17179869184 bytes (17 GB) copied, 224.182 seconds, 76.6 MB/s
->> >> >> >        >
->> >> >> >        > -2.6.30-rc6-patched
->> >> >> >        > 1048576+0 records in
->> >> >> >        > 1048576+0 records out
->> >> >> >        > 17179869184 bytes (17 GB) copied, 206.465 seconds, 83.2 MB/s
->> >> >> >
->> >> >> >I'd suggest you to configure the array properly before coming back to
->> >> >> >measuring the impact of this patch.
->> >> >> 
->> >> >> 
->> >> >> I created 16GB file to this disk array, and mounted to testdir, dd to 
->> >> >this directory.
->> >> >
->> >> >I mean, you should get >300MB/s throughput with 7 disks, and you
->> >> >should seek ways to achieve that before testing out this patch :-)
->> >> 
->> >> Throughput number of storage array is very from one product to another.
->> >> On my hardware environment I think this number is valid and
->> >> my patch is effective.
->> >
->> >What's your readahead size? Is it large enough to cover the stripe width?
->> 
->> Do you mean strage's readahead size?
->
->What's strage? I mean if your RAID's block device file is /dev/sda, then
->
->        blockdev --getra /dev/sda
->
->will tell its readahead size in unit of 512 bytes.
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ Documentation/vm/pagemap.txt |   66 +++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)
 
-256 sectors.
+--- linux.orig/Documentation/vm/pagemap.txt
++++ linux/Documentation/vm/pagemap.txt
+@@ -49,6 +49,72 @@ There are three components to pagemap:
+      8. WRITEBACK
+      9. RECLAIM
+     10. BUDDY
++    11. MMAP
++    12. ANON
++    13. SWAPCACHE
++    14. SWAPBACKED
++    15. COMPOUND_HEAD
++    16. COMPOUND_TAIL
++    16. HUGE
++    18. UNEVICTABLE
++    19. HWPOISON
++    20. NOPAGE
++
++Short descriptions to the page flags:
++
++ 0. LOCKED
++    page is being locked for exclusive access, eg. by undergoing read/write IO
++
++ 7. SLAB
++    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
++    When compound page is used, SLUB/SLQB will only set this flag on the head
++    page; SLOB will not flag it at all.
++
++10. BUDDY
++    a free memory block managed by the buddy system allocator
++    The buddy system organizes free memory in blocks of various orders.
++    An order N block has 2^N physically contiguous pages, with the BUDDY flag
++    set for and _only_ for the first page.
++
++15. COMPOUND_HEAD
++16. COMPOUND_TAIL
++    A compound page with order N consists of 2^N physically contiguous pages.
++    A compound page with order 2 takes the form of "HTTT", where H donates its
++    head page and T donates its tail page(s).  The major consumers of compound
++    pages are hugeTLB pages (Documentation/vm/hugetlbpage.txt), the SLUB etc.
++    memory allocators and various device drivers. However in this interface,
++    only huge/giga pages are made visible to end users.
++17. HUGE
++    this is an integral part of a HugeTLB page
++
++19. HWPOISON
++    hardware detected memory corruption on this page: don't touch the data!
++
++20. NOPAGE
++    no page frame exists at the requested address
++
++    [IO related page flags]
++ 1. ERROR     IO error occurred
++ 3. UPTODATE  page has up-to-date data
++              ie. for file backed page: (in-memory data revision >= on-disk one)
++ 4. DIRTY     page has been written to, hence contains new data
++              ie. for file backed page: (in-memory data revision >  on-disk one)
++ 8. WRITEBACK page is being synced to disk
++
++    [LRU related page flags]
++ 5. LRU         page is in one of the LRU lists
++ 6. ACTIVE      page is in the active LRU list
++18. UNEVICTABLE page is in the unevictable (non-)LRU list
++                It is somehow pinned and not a candidate for LRU page reclaims,
++		eg. ramfs pages, shmctl(SHM_LOCK) and mlock() memory segments
++ 2. REFERENCED  page has been referenced since last LRU list enqueue/requeue
++ 9. RECLAIM     page will be reclaimed soon after its pageout IO completed
++11. MMAP        a memory mapped page
++12. ANON        a memory mapped page that is not part of a file
++13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
++14. SWAPBACKED  page is backed by swap/RAM
++
++The page-types tool in this directory can be used to query the above flags.
+ 
+ Using pagemap to do something useful:
+ 
 
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
