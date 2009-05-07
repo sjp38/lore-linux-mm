@@ -1,54 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id F28A36B003D
-	for <linux-mm@kvack.org>; Thu,  7 May 2009 09:23:31 -0400 (EDT)
-Date: Thu, 7 May 2009 15:23:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
-Message-ID: <20090507132346.GA30074@random.random>
-References: <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com> <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils> <20090506133434.GX16078@random.random> <4A019719.7030504@redhat.com> <Pine.LNX.4.64.0905061739540.5934@blonde.anvils> <20090506164945.GD15712@x200.localdomain> <20090507113120.GH16078@random.random> <Pine.LNX.4.64.0905071339220.12379@blonde.anvils>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 61FF96B003D
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 09:49:59 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9177E82C4B6
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 10:02:45 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 1IQHCvTx8BSr for <linux-mm@kvack.org>;
+	Thu,  7 May 2009 10:02:45 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4745F82C4B9
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 10:02:39 -0400 (EDT)
+Date: Thu, 7 May 2009 09:39:30 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
+ citizen
+In-Reply-To: <20090507121101.GB20934@localhost>
+Message-ID: <alpine.DEB.1.10.0905070935530.24528@qirst.com>
+References: <20090430072057.GA4663@eskimo.com> <20090430174536.d0f438dd.akpm@linux-foundation.org> <20090430205936.0f8b29fc@riellaptop.surriel.com> <20090430181340.6f07421d.akpm@linux-foundation.org> <20090430215034.4748e615@riellaptop.surriel.com>
+ <20090430195439.e02edc26.akpm@linux-foundation.org> <49FB01C1.6050204@redhat.com> <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0905071339220.12379@blonde.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Chris Wright <chrisw@redhat.com>, Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 07, 2009 at 02:13:31PM +0100, Hugh Dickins wrote:
-> No: "KSM" stands for "Kernel Samepage Merging", doesn't it?
-> Or maybe someone can devise a better term for the "S" of it.
-> I think we're all too familiar with "KSM" to want to outlaw that,
-> just don't dwell too much on the "Kernel Shared Memory" expansion.
+On Thu, 7 May 2009, Wu Fengguang wrote:
 
-So you suggest to keep KSM acronym but meaning Kernel Samepage
-Merging instead of Kernel Shared Memory ;).
+> Introduce AS_EXEC to mark executables and their linked libraries, and to
+> protect their referenced active pages from being deactivated.
 
-> > In addition I consistently use the term "shared KSM pages" often,
-> > should I rename all those instances to "merged pages"? I used the word
-> > 'merging' only when describing the operation KSM does when it creates
-> > shared pages, but never to name the generated pages themself.
-> 
-> No, you and your audience and your readers will find it clearest
-> if you remark on the change in naming upfront, then get on with
-> describing it all in the way that comes most naturally to you.
 
-Actually that's what I already did yesterday, but then I thought I
-shall try to get it in sync to avoid confusion. But if KSM name is
-here to stay, I'll stick with the KSM name and perhaps a few to
-"merged pages" as you suggested.
-
-> But do sprinkle in a few "merged pages", I suggest: perhaps by
-> the time you deliver it, they'll be coming more naturally to you.
-> 
-> (Actually, "shared KSM pages" makes more sense if that "S" is not
-
-ehehe ;)
-
-> for Shared.  I keep wondering what the two "k"s in kksmd stand for.)
-
-kernel KSM daemon.
+We already have support for mlock(). How is this an improvement? This is
+worse since the AS_EXEC pages stay on the active list and are continually
+rescanned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
