@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E656B004D
-	for <linux-mm@kvack.org>; Thu,  7 May 2009 10:48:38 -0400 (EDT)
-Date: Thu, 7 May 2009 16:49:04 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] x86: 46 bit PAE support
-Message-ID: <20090507144904.GA2344@elte.hu>
-References: <20090505172856.6820db22@cuia.bos.redhat.com> <4A00ED83.1030700@zytor.com> <4A0180AB.20108@redhat.com> <20090507120103.GA1497@ucw.cz> <20090507141642.GJ481@elte.hu> <4A02EFD2.40707@zytor.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D35C56B004D
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 11:06:45 -0400 (EDT)
+Message-ID: <4A02F8ED.3090008@redhat.com>
+Date: Thu, 07 May 2009 11:06:21 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A02EFD2.40707@zytor.com>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
+ citizen
+References: <20090430072057.GA4663@eskimo.com>  <20090430174536.d0f438dd.akpm@linux-foundation.org>  <20090430205936.0f8b29fc@riellaptop.surriel.com>  <20090430181340.6f07421d.akpm@linux-foundation.org>  <20090430215034.4748e615@riellaptop.surriel.com>  <20090430195439.e02edc26.akpm@linux-foundation.org>  <49FB01C1.6050204@redhat.com>  <20090501123541.7983a8ae.akpm@linux-foundation.org>  <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins>  <20090507121101.GB20934@localhost>  <alpine.DEB.1.10.0905070935530.24528@qirst.com> <1241705702.11251.156.camel@twins> <alpine.DEB.1.10.0905071016410.24528@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0905071016410.24528@qirst.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Pavel Machek <pavel@ucw.cz>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, mingo@redhat.com, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-
-* H. Peter Anvin <hpa@zytor.com> wrote:
-
-> Ingo Molnar wrote:
-> > 
-> > Yes, struct page is ~64 bytes, and 64*64 == 4096.
-> > 
-> > Alas, it's not a problem: my suggestion wasnt to simulate 64 TB of 
-> > RAM. My suggestion was to create a sparse physical memory map (in a 
-> > virtual machine) that spreads ~1GB of RAM all around the 64 TB 
-> > physical address space. That will test whether the kernel is able to 
-> > map and work with such physical addresses. (which will cover most of 
-> > the issues)
-> > 
-> > A good look at /debug/x86/dump_pagetables with such a system booted 
-> > up would be nice as well - to make sure every virtual memory range 
-> > is in its proper area, and that there's enough free space around 
-> > them.
-> > 
-> 
-> We're working on simulating this at Intel.  We should hopefully be 
-> able to test this next week.
-
-Wow, very nice!
-
-It would be nice to do it on a KVM basis and submit the 
-weird-memory-layout submission to the KVM tree. It would be helpful 
-with the reproduction of weird, memory layout dependent bugs too for 
-example. Plus we could create a test facility that randomizes the 
-physical memory layout (with a given fragmentation level).
-
-	Ingo
+Christoph Lameter wrote:
+> On Thu, 7 May 2009, Peter Zijlstra wrote:
+>
+>   
+>> It re-instates the young bit for PROT_EXEC pages, so that they will only
+>> be paged when they are really cold, or there is severe pressure.
+>>     
+>
+> But they are rescanned until then. Really cold means what exactly? I do a
+> back up of a few hundred gigabytes and do not use firefox while the backup
+> is ongoing. Will the firefox pages still be in memory or not?
+>   
+The patch with the subject "[PATCH] vmscan: evict use-once pages first (v3)"
+together with this patch should make sure that it stays in memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
