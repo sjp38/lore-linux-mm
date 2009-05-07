@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id AA9436B003D
-	for <linux-mm@kvack.org>; Thu,  7 May 2009 06:45:57 -0400 (EDT)
-Date: Thu, 7 May 2009 12:46:35 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 669606B003D
+	for <linux-mm@kvack.org>; Thu,  7 May 2009 07:30:56 -0400 (EDT)
+Date: Thu, 7 May 2009 13:31:20 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/6] ksm: dont allow overlap memory addresses
-	registrations.
-Message-ID: <20090507104635.GG16078@random.random>
-References: <4A00DD4F.8010101@redhat.com> <4A015C69.7010600@redhat.com> <4A0181EA.3070600@redhat.com> <20090506131735.GW16078@random.random> <Pine.LNX.4.64.0905061424480.19190@blonde.anvils> <20090506140904.GY16078@random.random> <20090506152100.41266e4c@lxorguk.ukuu.org.uk> <Pine.LNX.4.64.0905061532240.25289@blonde.anvils> <20090506145641.GA16078@random.random> <20090507085547.24efb60f.minchan.kim@barrios-desktop>
+Subject: Re: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
+Message-ID: <20090507113120.GH16078@random.random>
+References: <1241475935-21162-2-git-send-email-ieidus@redhat.com> <1241475935-21162-3-git-send-email-ieidus@redhat.com> <1241475935-21162-4-git-send-email-ieidus@redhat.com> <4A00DF9B.1080501@redhat.com> <4A014C7B.9080702@redhat.com> <Pine.LNX.4.64.0905061110470.3519@blonde.anvils> <20090506133434.GX16078@random.random> <4A019719.7030504@redhat.com> <Pine.LNX.4.64.0905061739540.5934@blonde.anvils> <20090506164945.GD15712@x200.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090507085547.24efb60f.minchan.kim@barrios-desktop>
+In-Reply-To: <20090506164945.GD15712@x200.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, chrisw@redhat.com, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: Chris Wright <chrisw@redhat.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 07, 2009 at 08:55:47AM +0900, Minchan Kim wrote:
-> Hmm. Don't you consider 32-bit system ?
-
-Sorry I was too short, don't worry, I meant hugemem 32bit systems,
-like 32G. If there's not much highmem, no problem can ever
-happen. Just like pagetables had to be moved to highmem on 32G 32bit
-systems to make them workable, KSM on those systems may generate lots
-of lowmem and triggering early OOM conditions when allocating inodes
-or other slab objects etc... and we don't plan to move those
-rmap_items that represents physical pages by the chain of the virtual
-addresses that maps them in highmem.
-
-> Many embedded system is so I/O bouneded that we can use much CPU time in there. 
-
-Embedded systems with >4G of ram should run 64bit these days, so I
-don't see a problem.
-
-> I hope this feature will help saving memory in embedded system. 
-
-It will (assuming that there are apps that are duplicating anonymous
-memory of course ;).
-
-> One more thing about interface. 
+On Wed, May 06, 2009 at 09:49:45AM -0700, Chris Wright wrote:
+> I like merge.  For madvise() approach I had used:
 > 
-> Ksm map regions are dynamic characteritic ?
-> I mean sometime A application calls ioctl(0x800000, 0x10000) and sometime it calls ioctl(0xb7000000, 0x20000);
-> Of course, It depends on application's behavior. 
+> +#define MADV_SHAREABLE 12              /* can share identical pages */
+> +#define MADV_UNSHAREABLE 13            /* can not share identical pages
+> 
+> But those are maybe better put as MADV_(UN)MERGEABLE (gets a bit confusing when
+> you talk of merging vmas ;-)
+> */
 
-Looks like the ioctl API is going away in favour of madvise so it'll
-function like madvise, if you munmap the region the KSM registration
-will go away.
+What this thing does is to create shared pages by merging equal pages...
 
-> ex) echo 'pid 0x8050000 0x100000' > sysfs or procfs or cgroup. 
+While I don't care about the naming much myself, one problem I have is
+that I've been writing a KSM paper for linuxsymposium and I'd like to
+use a nomenclature that is in sync with how this stuff should be
+called on lkml, to avoid confusion.
 
-This was answered by Chris, and surely this is feasible, as it is
-feasible for kksmd to scan the whole system regardless of any
-madvise. Some sysfs mangling should allow it.
+So should I change the simpler word KSM with "Memory Merging feature"
+all over the paper?
 
-However regardless of the highmem issue (this applies to 64bit systems
-too) you've to keep in mind that for kksmd to keep track all pages
-under scan it has to build rbtree and allocate rmap_items and
-tree_items for each page tracked, those objects take some memory, so
-if there's not much ram sharing you may waste more memory in the kksmd
-allocations than in the amount of memory actually freed by KSM. This
-is why it's better to selectively only register ranges that we know in
-advance there's an high probability to free memory.
+In addition I consistently use the term "shared KSM pages" often,
+should I rename all those instances to "merged pages"? I used the word
+'merging' only when describing the operation KSM does when it creates
+shared pages, but never to name the generated pages themself.
 
-Thanks!
+Thanks,
 Andrea
 
 --
