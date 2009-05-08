@@ -1,97 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 031476B0047
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:40:00 -0400 (EDT)
-Date: Fri, 8 May 2009 13:40:18 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4EB6B003D
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:47:21 -0400 (EDT)
+Date: Fri, 8 May 2009 13:47:42 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/8] mm: introduce PageHuge() for testing huge/gigantic
-	pages
-Message-ID: <20090508114018.GA17129@elte.hu>
-References: <20090508105320.316173813@intel.com> <20090508111030.264063904@intel.com>
+Subject: Re: [PATCH 4/8] proc: export more page flags in /proc/kpageflags
+Message-ID: <20090508114742.GB17129@elte.hu>
+References: <20090508105320.316173813@intel.com> <20090508111031.020574236@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090508111030.264063904@intel.com>
+In-Reply-To: <20090508111031.020574236@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Li Zefan <lizf@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
 * Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> Introduce PageHuge(), which identifies huge/gigantic pages
-> by their dedicated compound destructor functions.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/mm.h |   24 ++++++++++++++++++++++++
->  mm/hugetlb.c       |    2 +-
->  mm/page_alloc.c    |   11 ++++++++++-
->  3 files changed, 35 insertions(+), 2 deletions(-)
-> 
-> --- linux.orig/mm/page_alloc.c
-> +++ linux/mm/page_alloc.c
-> @@ -299,13 +299,22 @@ void prep_compound_page(struct page *pag
->  }
->  
->  #ifdef CONFIG_HUGETLBFS
-> +/*
-> + * This (duplicated) destructor function distinguishes gigantic pages from
-> + * normal compound pages.
-> + */
-> +void free_gigantic_page(struct page *page)
-> +{
-> +	__free_pages_ok(page, compound_order(page));
-> +}
-> +
->  void prep_compound_gigantic_page(struct page *page, unsigned long order)
->  {
->  	int i;
->  	int nr_pages = 1 << order;
->  	struct page *p = page + 1;
->  
-> -	set_compound_page_dtor(page, free_compound_page);
-> +	set_compound_page_dtor(page, free_gigantic_page);
->  	set_compound_order(page, order);
->  	__SetPageHead(page);
->  	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
-> --- linux.orig/mm/hugetlb.c
-> +++ linux/mm/hugetlb.c
-> @@ -550,7 +550,7 @@ struct hstate *size_to_hstate(unsigned l
->  	return NULL;
->  }
->  
-> -static void free_huge_page(struct page *page)
-> +void free_huge_page(struct page *page)
->  {
->  	/*
->  	 * Can't pass hstate in here because it is called from the
-> --- linux.orig/include/linux/mm.h
-> +++ linux/include/linux/mm.h
-> @@ -355,6 +355,30 @@ static inline void set_compound_order(st
->  	page[1].lru.prev = (void *)order;
->  }
->  
-> +#ifdef CONFIG_HUGETLBFS
-> +void free_huge_page(struct page *page);
-> +void free_gigantic_page(struct page *page);
-> +
-> +static inline int PageHuge(struct page *page)
-> +{
-> +	compound_page_dtor *dtor;
-> +
-> +	if (!PageCompound(page))
-> +		return 0;
-> +
-> +	page = compound_head(page);
-> +	dtor = get_compound_page_dtor(page);
-> +
-> +	return  dtor == free_huge_page ||
-> +		dtor == free_gigantic_page;
-> +}
+> Export all page flags faithfully in /proc/kpageflags.
 
-Hm, this function is _way_ too large to be inlined.
+Ongoing objection and NAK against extended haphazard exporting of 
+kernel internals via an ad-hoc ABI via ad-hoc, privatized 
+instrumentation that only helps the MM code and nothing else. It was 
+a mistake to introduce the /proc/kpageflags hack a year ago, and it 
+even more wrong today to expand on it.
+
+/proc/kpageflags should be done via the proper methods outlined in 
+the previous mails i wrote on this topic: for example by using the 
+'object collections' abstraction i suggested. Clean enumeration of 
+all pages (files, tasks, etc.) and the definition of histograms over 
+it via free-form filter expressions is the right way to do this. It 
+would not only help other subsystems, it would also be far more 
+capable.
+
+So this should be done in cooperation with instrumentation folks, 
+while improving _all_ of Linux instrumentation in general. Or, if 
+you dont have the time/interest to work with us on that, it should 
+not be done at all. Not having the resources/interest to do 
+something properly is not a license to introduce further 
+instrumentation crap into Linux.
 
 	Ingo
 
