@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B3B4B6B004D
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 12:29:22 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n48GTl8Y020222
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 9 May 2009 01:29:48 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A921945DD77
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 01:29:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8640245DD76
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 01:29:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F1D51DB8017
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 01:29:47 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4580D1DB8014
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 01:29:47 +0900 (JST)
-Message-ID: <e100843048ef769085ac80ac03d19842.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090508230107.8dd680b3.d-nishimura@mtf.biglobe.ne.jp>
-References: <20090508140528.c34ae712.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090508140910.bb07f5c6.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090508230107.8dd680b3.d-nishimura@mtf.biglobe.ne.jp>
-Date: Sat, 9 May 2009 01:29:46 +0900 (JST)
-Subject: Re: [PATCH 2/2] memcg fix stale swap cache account leak v6
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2EE036B0055
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:18:56 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3AD3982C4DD
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:31:21 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id d-2vZA0QqDld for <linux-mm@kvack.org>;
+	Fri,  8 May 2009 13:31:21 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 746C782C5DE
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:31:12 -0400 (EDT)
+Date: Fri, 8 May 2009 13:18:55 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
+ citizen
+In-Reply-To: <20090508034054.GB1202@eskimo.com>
+Message-ID: <alpine.DEB.1.10.0905081312080.15748@qirst.com>
+References: <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <alpine.DEB.1.10.0905070935530.24528@qirst.com> <1241705702.11251.156.camel@twins>
+ <alpine.DEB.1.10.0905071016410.24528@qirst.com> <1241712000.18617.7.camel@lts-notebook> <alpine.DEB.1.10.0905071231090.10171@qirst.com> <4A03164D.90203@redhat.com> <20090508034054.GB1202@eskimo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: nishimura@mxp.nes.nec.co.jp
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, d-nishimura@mtf.biglobe.ne.jp
+To: Elladan <elladan@eskimo.com>
+Cc: Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura wrote:
-> On Fri, 8 May 2009 14:09:10 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 7 May 2009, Elladan wrote:
 
->>  - avoid swapin-readahead when memcg is activated.
-> I agree that disabling readahead would be the easiest way to avoid type-1.
-> And this patch looks good to me about it.
->
-Thanks.
+> > Nobody (except you) is proposing that we completely disable
+> > the eviction of executable pages.  I believe that your idea
+> > could easily lead to a denial of service attack, with a user
+> > creating a very large executable file and mmaping it.
 
-> But if we go in this way to avoid type-1, I think my patch(*1) would be
-> enough to avoid type-2 and is simpler than this one.
-> I've confirmed in my test that no leak can be seen with my patch and
-> with setting page-cluster to 0.
->
-> *1 http://marc.info/?l=linux-kernel&m=124115252607665&w=2
->
-Ok, I'll merge yours on my set.
-the whole patch set will be
-  [1/3]  memcg_activated()
-  [2/3]  avoid readahead
-  [3/3]  your fix.
+The amount of mlockable pages is limited via ulimit. We can already make
+the pages unreclaimable through mlock().
 
-I'll post in the next week.
+> I don't know of any distro that applies default ulimits, so desktops are
+> already susceptible to the far more trivial "call malloc a lot" or "fork bomb"
+> attacks.  Plus, ulimits don't help, since they only apply per process - you'd
+> need a default mem cgroup before this mattered, I think.
 
-Thanks,
--Kame
+The point remains that the proposed patch does not solve the general
+problem that we encounter with exec pages of critical components of the
+user interface being evicted from memory.
 
+Do we have test data that shows a benefit? The description is minimal. Rik
+claimed on IRC that tests have been done. If so then the patch description
+should include the tests. Which loads benefit from this patch?
 
+A significant change to the reclaim algorithm also needs to
+have a clear description of the effects on reclaim behavior which is also
+lacking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
