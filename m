@@ -1,77 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B9106B0083
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 14:24:42 -0400 (EDT)
-Date: Fri, 8 May 2009 13:24:29 -0500
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 327A16B0087
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 14:28:36 -0400 (EDT)
+Date: Fri, 8 May 2009 13:28:46 -0500
 From: Matt Mackall <mpm@selenic.com>
-Subject: Re: [PATCH 2/7] slob: use PG_slab for identifying SLOB pages
-Message-ID: <20090508182428.GW31071@waste.org>
-References: <20090507012116.996644836@intel.com> <20090507014914.067348097@intel.com>
+Subject: Re: [PATCH 3/7] proc: kpagecount/kpageflags code cleanup
+Message-ID: <20090508182845.GX31071@waste.org>
+References: <20090507012116.996644836@intel.com> <20090507014914.244032831@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090507014914.067348097@intel.com>
+In-Reply-To: <20090507014914.244032831@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 07, 2009 at 09:21:19AM +0800, Wu Fengguang wrote:
-> For the sake of consistency.
+On Thu, May 07, 2009 at 09:21:20AM +0800, Wu Fengguang wrote:
+> Move increments of pfn/out to bottom of the loop.
 > 
-> Cc: Matt Mackall <mpm@selenic.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
 Acked-by: Matt Mackall <mpm@selenic.com>
 
-Pekka, please take this one directly.
-
 > ---
->  include/linux/page-flags.h |    2 --
->  mm/slob.c                  |    6 +++---
->  2 files changed, 3 insertions(+), 5 deletions(-)
+>  fs/proc/page.c |   17 +++++++++++------
+>  1 file changed, 11 insertions(+), 6 deletions(-)
 > 
-> --- linux.orig/include/linux/page-flags.h
-> +++ linux/include/linux/page-flags.h
-> @@ -120,7 +120,6 @@ enum pageflags {
->  	PG_savepinned = PG_dirty,
+> --- linux.orig/fs/proc/page.c
+> +++ linux/fs/proc/page.c
+> @@ -11,6 +11,7 @@
 >  
->  	/* SLOB */
-> -	PG_slob_page = PG_active,
->  	PG_slob_free = PG_private,
+>  #define KPMSIZE sizeof(u64)
+>  #define KPMMASK (KPMSIZE - 1)
+> +
+>  /* /proc/kpagecount - an array exposing page counts
+>   *
+>   * Each entry is a u64 representing the corresponding
+> @@ -32,20 +33,22 @@ static ssize_t kpagecount_read(struct fi
+>  		return -EINVAL;
 >  
->  	/* SLUB */
-> @@ -203,7 +202,6 @@ PAGEFLAG(SavePinned, savepinned);			/* X
->  PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
->  PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
+>  	while (count > 0) {
+> -		ppage = NULL;
+>  		if (pfn_valid(pfn))
+>  			ppage = pfn_to_page(pfn);
+> -		pfn++;
+> +		else
+> +			ppage = NULL;
+>  		if (!ppage)
+>  			pcount = 0;
+>  		else
+>  			pcount = page_mapcount(ppage);
 >  
-> -__PAGEFLAG(SlobPage, slob_page)
->  __PAGEFLAG(SlobFree, slob_free)
+> -		if (put_user(pcount, out++)) {
+> +		if (put_user(pcount, out)) {
+>  			ret = -EFAULT;
+>  			break;
+>  		}
 >  
->  __PAGEFLAG(SlubFrozen, slub_frozen)
-> --- linux.orig/mm/slob.c
-> +++ linux/mm/slob.c
-> @@ -132,17 +132,17 @@ static LIST_HEAD(free_slob_large);
->   */
->  static inline int is_slob_page(struct slob_page *sp)
->  {
-> -	return PageSlobPage((struct page *)sp);
-> +	return PageSlab((struct page *)sp);
->  }
+> +		pfn++;
+> +		out++;
+>  		count -= KPMSIZE;
+>  	}
 >  
->  static inline void set_slob_page(struct slob_page *sp)
->  {
-> -	__SetPageSlobPage((struct page *)sp);
-> +	__SetPageSlab((struct page *)sp);
->  }
+> @@ -98,10 +101,10 @@ static ssize_t kpageflags_read(struct fi
+>  		return -EINVAL;
 >  
->  static inline void clear_slob_page(struct slob_page *sp)
->  {
-> -	__ClearPageSlobPage((struct page *)sp);
-> +	__ClearPageSlab((struct page *)sp);
->  }
+>  	while (count > 0) {
+> -		ppage = NULL;
+>  		if (pfn_valid(pfn))
+>  			ppage = pfn_to_page(pfn);
+> -		pfn++;
+> +		else
+> +			ppage = NULL;
+>  		if (!ppage)
+>  			kflags = 0;
+>  		else
+> @@ -119,11 +122,13 @@ static ssize_t kpageflags_read(struct fi
+>  			kpf_copy_bit(kflags, KPF_RECLAIM, PG_reclaim) |
+>  			kpf_copy_bit(kflags, KPF_BUDDY, PG_buddy);
 >  
->  static inline struct slob_page *slob_page(const void *addr)
+> -		if (put_user(uflags, out++)) {
+> +		if (put_user(uflags, out)) {
+>  			ret = -EFAULT;
+>  			break;
+>  		}
+>  
+> +		pfn++;
+> +		out++;
+>  		count -= KPMSIZE;
+>  	}
+>  
 > 
 > -- 
 
