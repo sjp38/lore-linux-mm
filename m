@@ -1,95 +1,87 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 6/8] pagemap: document 9 more exported page flags
-Date: Fri, 08 May 2009 18:53:26 +0800
-Message-ID: <20090508111031.568178884@intel.com>
+Subject: [PATCH 8/8] pagemap: export PG_hwpoison
+Date: Fri, 08 May 2009 18:53:28 +0800
+Message-ID: <20090508111032.121067794@intel.com>
 References: <20090508105320.316173813@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB5CE6B003D
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E3C746B004D
 	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:12:37 -0400 (EDT)
-Content-Disposition: inline; filename=kpageflags-doc.patch
+Content-Disposition: inline; filename=kpageflags-hwpoison.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Also add short descriptions for all of the 20 exported page flags.
+This flag indicates a hardware detected memory corruption on the page.
+Any future access of the page data may bring down the machine.
 
+CC: Andi Kleen <andi@firstfloor.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- Documentation/vm/pagemap.txt |   62 +++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+ Documentation/vm/page-types.c |    2 ++
+ Documentation/vm/pagemap.txt  |    4 ++++
+ fs/proc/page.c                |    5 +++++
+ 3 files changed, 11 insertions(+)
 
+--- linux.orig/fs/proc/page.c
++++ linux/fs/proc/page.c
+@@ -92,6 +92,7 @@ static const struct file_operations proc
+ #define KPF_COMPOUND_TAIL	16
+ #define KPF_HUGE		17
+ #define KPF_UNEVICTABLE		18
++#define KPF_HWPOISON		19
+ #define KPF_NOPAGE		20
+ 
+ /* kernel hacking assistances
+@@ -171,6 +172,10 @@ static u64 get_uflags(struct page *page)
+ 	u |= kpf_copy_bit(k, KPF_SWAPCACHE,	PG_swapcache);
+ 	u |= kpf_copy_bit(k, KPF_SWAPBACKED,	PG_swapbacked);
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++	u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
++#endif
++
+ #ifdef CONFIG_UNEVICTABLE_LRU
+ 	u |= kpf_copy_bit(k, KPF_UNEVICTABLE,	PG_unevictable);
+ 	u |= kpf_copy_bit(k, KPF_MLOCKED,	PG_mlocked);
+--- linux.orig/Documentation/vm/page-types.c
++++ linux/Documentation/vm/page-types.c
+@@ -47,6 +47,7 @@
+ #define KPF_COMPOUND_TAIL	16
+ #define KPF_HUGE		17
+ #define KPF_UNEVICTABLE		18
++#define KPF_HWPOISON		19
+ #define KPF_NOPAGE		20
+ 
+ /* [32-] kernel hacking assistances */
+@@ -94,6 +95,7 @@ static char *page_flag_names[] = {
+ 	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
+ 	[KPF_HUGE]		= "G:huge",
+ 	[KPF_UNEVICTABLE]	= "u:unevictable",
++	[KPF_HWPOISON]		= "X:hwpoison",
+ 	[KPF_NOPAGE]		= "n:nopage",
+ 
+ 	[KPF_RESERVED]		= "r:reserved",
 --- linux.orig/Documentation/vm/pagemap.txt
 +++ linux/Documentation/vm/pagemap.txt
-@@ -49,6 +49,68 @@ There are three components to pagemap:
-      8. WRITEBACK
-      9. RECLAIM
-     10. BUDDY
-+    11. MMAP
-+    12. ANON
-+    13. SWAPCACHE
-+    14. SWAPBACKED
-+    15. COMPOUND_HEAD
-+    16. COMPOUND_TAIL
-+    16. HUGE
-+    18. UNEVICTABLE
-+    20. NOPAGE
-+
-+Short descriptions to the page flags:
-+
-+ 0. LOCKED
-+    page is being locked for exclusive access, eg. by undergoing read/write IO
-+
-+ 7. SLAB
-+    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
-+    When compound page is used, SLUB/SLQB will only set this flag on the head
-+    page; SLOB will not flag it at all.
-+
-+10. BUDDY
-+    a free memory block managed by the buddy system allocator
-+    The buddy system organizes free memory in blocks of various orders.
-+    An order N block has 2^N physically contiguous pages, with the BUDDY flag
-+    set for and _only_ for the first page.
-+
-+15. COMPOUND_HEAD
-+16. COMPOUND_TAIL
-+    A compound page with order N consists of 2^N physically contiguous pages.
-+    A compound page with order 2 takes the form of "HTTT", where H donates its
-+    head page and T donates its tail page(s).  The major consumers of compound
-+    pages are hugeTLB pages (Documentation/vm/hugetlbpage.txt), the SLUB etc.
-+    memory allocators and various device drivers. However in this interface,
-+    only huge/giga pages are made visible to end users.
-+17. HUGE
-+    this is an integral part of a HugeTLB page
-+
-+20. NOPAGE
-+    no page frame exists at the requested address
-+
-+    [IO related page flags]
-+ 1. ERROR     IO error occurred
-+ 3. UPTODATE  page has up-to-date data
-+              ie. for file backed page: (in-memory data revision >= on-disk one)
-+ 4. DIRTY     page has been written to, hence contains new data
-+              ie. for file backed page: (in-memory data revision >  on-disk one)
-+ 8. WRITEBACK page is being synced to disk
-+
-+    [LRU related page flags]
-+ 5. LRU         page is in one of the LRU lists
-+ 6. ACTIVE      page is in the active LRU list
-+18. UNEVICTABLE page is in the unevictable (non-)LRU list
-+                It is somehow pinned and not a candidate for LRU page reclaims,
-+		eg. ramfs pages, shmctl(SHM_LOCK) and mlock() memory segments
-+ 2. REFERENCED  page has been referenced since last LRU list enqueue/requeue
-+ 9. RECLAIM     page will be reclaimed soon after its pageout IO completed
-+11. MMAP        a memory mapped page
-+12. ANON        a memory mapped page that is not part of a file
-+13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
-+14. SWAPBACKED  page is backed by swap/RAM
-+
-+The page-types tool in this directory can be used to query the above flags.
+@@ -57,6 +57,7 @@ There are three components to pagemap:
+     16. COMPOUND_TAIL
+     16. HUGE
+     18. UNEVICTABLE
++    19. HWPOISON
+     20. NOPAGE
  
- Using pagemap to do something useful:
+ Short descriptions to the page flags:
+@@ -86,6 +87,9 @@ Short descriptions to the page flags:
+ 17. HUGE
+     this is an integral part of a HugeTLB page
+ 
++19. HWPOISON
++    hardware detected memory corruption on this page: don't touch the data!
++
+ 20. NOPAGE
+     no page frame exists at the requested address
  
 
 -- 
