@@ -1,49 +1,98 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 5/8] pagemap: document clarifications
-Date: Fri, 08 May 2009 18:53:25 +0800
-Message-ID: <20090508111031.354583236@intel.com>
+Subject: [PATCH 1/8] mm: introduce PageHuge() for testing huge/gigantic pages
+Date: Fri, 08 May 2009 18:53:21 +0800
+Message-ID: <20090508111030.264063904@intel.com>
 References: <20090508105320.316173813@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 562DB6B005C
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 55E4F6B004F
 	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:12:38 -0400 (EDT)
-Content-Disposition: inline; filename=kpageflags-doc-fix.patch
+Content-Disposition: inline; filename=giga-page.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Some bit ranges were inclusive and some not.
-Fix them to be consistently inclusive.
+Introduce PageHuge(), which identifies huge/gigantic pages
+by their dedicated compound destructor functions.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- Documentation/vm/pagemap.txt |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/mm.h |   24 ++++++++++++++++++++++++
+ mm/hugetlb.c       |    2 +-
+ mm/page_alloc.c    |   11 ++++++++++-
+ 3 files changed, 35 insertions(+), 2 deletions(-)
 
---- linux.orig/Documentation/vm/pagemap.txt
-+++ linux/Documentation/vm/pagemap.txt
-@@ -12,9 +12,9 @@ There are three components to pagemap:
-    value for each virtual page, containing the following data (from
-    fs/proc/task_mmu.c, above pagemap_read):
+--- linux.orig/mm/page_alloc.c
++++ linux/mm/page_alloc.c
+@@ -299,13 +299,22 @@ void prep_compound_page(struct page *pag
+ }
  
--    * Bits 0-55  page frame number (PFN) if present
-+    * Bits 0-54  page frame number (PFN) if present
-     * Bits 0-4   swap type if swapped
--    * Bits 5-55  swap offset if swapped
-+    * Bits 5-54  swap offset if swapped
-     * Bits 55-60 page shift (page size = 1<<page shift)
-     * Bit  61    reserved for future use
-     * Bit  62    page swapped
-@@ -36,7 +36,7 @@ There are three components to pagemap:
-  * /proc/kpageflags.  This file contains a 64-bit set of flags for each
-    page, indexed by PFN.
+ #ifdef CONFIG_HUGETLBFS
++/*
++ * This (duplicated) destructor function distinguishes gigantic pages from
++ * normal compound pages.
++ */
++void free_gigantic_page(struct page *page)
++{
++	__free_pages_ok(page, compound_order(page));
++}
++
+ void prep_compound_gigantic_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
+ 	struct page *p = page + 1;
  
--   The flags are (from fs/proc/proc_misc, above kpageflags_read):
-+   The flags are (from fs/proc/page.c, above kpageflags_read):
+-	set_compound_page_dtor(page, free_compound_page);
++	set_compound_page_dtor(page, free_gigantic_page);
+ 	set_compound_order(page, order);
+ 	__SetPageHead(page);
+ 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -550,7 +550,7 @@ struct hstate *size_to_hstate(unsigned l
+ 	return NULL;
+ }
  
-      0. LOCKED
-      1. ERROR
+-static void free_huge_page(struct page *page)
++void free_huge_page(struct page *page)
+ {
+ 	/*
+ 	 * Can't pass hstate in here because it is called from the
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -355,6 +355,30 @@ static inline void set_compound_order(st
+ 	page[1].lru.prev = (void *)order;
+ }
+ 
++#ifdef CONFIG_HUGETLBFS
++void free_huge_page(struct page *page);
++void free_gigantic_page(struct page *page);
++
++static inline int PageHuge(struct page *page)
++{
++	compound_page_dtor *dtor;
++
++	if (!PageCompound(page))
++		return 0;
++
++	page = compound_head(page);
++	dtor = get_compound_page_dtor(page);
++
++	return  dtor == free_huge_page ||
++		dtor == free_gigantic_page;
++}
++#else
++static inline int PageHuge(struct page *page)
++{
++	return 0;
++}
++#endif
++
+ /*
+  * Multiple processes may "see" the same page. E.g. for untouched
+  * mappings of /dev/null, all processes see the same page full of
 
 -- 
 
