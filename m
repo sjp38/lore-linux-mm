@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2EE036B0055
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:18:56 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 3AD3982C4DD
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:31:21 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id d-2vZA0QqDld for <linux-mm@kvack.org>;
-	Fri,  8 May 2009 13:31:21 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 746C782C5DE
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:31:12 -0400 (EDT)
-Date: Fri, 8 May 2009 13:18:55 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
- citizen
-In-Reply-To: <20090508034054.GB1202@eskimo.com>
-Message-ID: <alpine.DEB.1.10.0905081312080.15748@qirst.com>
-References: <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <alpine.DEB.1.10.0905070935530.24528@qirst.com> <1241705702.11251.156.camel@twins>
- <alpine.DEB.1.10.0905071016410.24528@qirst.com> <1241712000.18617.7.camel@lts-notebook> <alpine.DEB.1.10.0905071231090.10171@qirst.com> <4A03164D.90203@redhat.com> <20090508034054.GB1202@eskimo.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 83ACD6B0062
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:40:49 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so3394770gxk.14
+        for <linux-mm@kvack.org>; Fri, 08 May 2009 10:41:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.1.10.0905081022490.23875@qirst.com>
+References: <20090430215034.4748e615@riellaptop.surriel.com>
+	 <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins>
+	 <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org>
+	 <20090508030209.GA8892@localhost>
+	 <20090508163042.ba4ef116.minchan.kim@barrios-desktop>
+	 <20090508080921.GA25411@localhost>
+	 <20090508183427.f313770f.minchan.kim@barrios-desktop>
+	 <alpine.DEB.1.10.0905081022490.23875@qirst.com>
+Date: Sat, 9 May 2009 02:41:26 +0900
+Message-ID: <2f11576a0905081041nb26140bx56394f8e232fb59e@mail.gmail.com>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
+	citizen
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Elladan <elladan@eskimo.com>
-Cc: Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 May 2009, Elladan wrote:
+>> > > Why did you said that "The page_referenced() path will only cover th=
+e ""_text_"" section" ?
+>> > > Could you elaborate please ?
+>> >
+>> > I was under the wild assumption that only the _text_ section will be
+>> > PROT_EXEC mapped. =A0No?
+>>
+>> Yes. I support your idea.
+>
+> Why do PROT_EXEC mapped segments deserve special treatment? What about th=
+e
+> other memory segments of the process? Essentials like stack, heap and
+> data segments of the libraries?
 
-> > Nobody (except you) is proposing that we completely disable
-> > the eviction of executable pages.  I believe that your idea
-> > could easily lead to a denial of service attack, with a user
-> > creating a very large executable file and mmaping it.
+Currently, file-backed page and swap-backed page are lived in separate lru.
 
-The amount of mlockable pages is limited via ulimit. We can already make
-the pages unreclaimable through mlock().
+text section: file
+stack: anon
+heap: anon
+data segment: anon
 
-> I don't know of any distro that applies default ulimits, so desktops are
-> already susceptible to the far more trivial "call malloc a lot" or "fork bomb"
-> attacks.  Plus, ulimits don't help, since they only apply per process - you'd
-> need a default mem cgroup before this mattered, I think.
-
-The point remains that the proposed patch does not solve the general
-problem that we encounter with exec pages of critical components of the
-user interface being evicted from memory.
-
-Do we have test data that shows a benefit? The description is minimal. Rik
-claimed on IRC that tests have been done. If so then the patch description
-should include the tests. Which loads benefit from this patch?
-
-A significant change to the reclaim algorithm also needs to
-have a clear description of the effects on reclaim behavior which is also
-lacking.
+and, streaming IO problem don't affect swap-backed lru. it's only
+file-backed lru problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
