@@ -1,89 +1,68 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/8] proc: kpagecount/kpageflags code cleanup
-Date: Fri, 08 May 2009 18:53:23 +0800
-Message-ID: <20090508111030.776795553@intel.com>
+Subject: [PATCH 2/8] slob: use PG_slab for identifying SLOB pages
+Date: Fri, 08 May 2009 18:53:22 +0800
+Message-ID: <20090508111030.604626949@intel.com>
 References: <20090508105320.316173813@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 22E236B003D
+	by kanga.kvack.org (Postfix) with SMTP id 72DF06B0047
 	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:12:37 -0400 (EDT)
-Content-Disposition: inline; filename=kpageflags-fix-out.patch
+Content-Disposition: inline; filename=mm-slob-page-flag.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Move increments of pfn/out to bottom of the loop.
+For the sake of consistency.
 
+Cc: Matt Mackall <mpm@selenic.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/proc/page.c |   17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ include/linux/page-flags.h |    2 --
+ mm/slob.c                  |    6 +++---
+ 2 files changed, 3 insertions(+), 5 deletions(-)
 
---- linux.orig/fs/proc/page.c
-+++ linux/fs/proc/page.c
-@@ -11,6 +11,7 @@
+--- linux.orig/include/linux/page-flags.h
++++ linux/include/linux/page-flags.h
+@@ -120,7 +120,6 @@ enum pageflags {
+ 	PG_savepinned = PG_dirty,
  
- #define KPMSIZE sizeof(u64)
- #define KPMMASK (KPMSIZE - 1)
-+
- /* /proc/kpagecount - an array exposing page counts
-  *
-  * Each entry is a u64 representing the corresponding
-@@ -32,20 +33,22 @@ static ssize_t kpagecount_read(struct fi
- 		return -EINVAL;
+ 	/* SLOB */
+-	PG_slob_page = PG_active,
+ 	PG_slob_free = PG_private,
  
- 	while (count > 0) {
--		ppage = NULL;
- 		if (pfn_valid(pfn))
- 			ppage = pfn_to_page(pfn);
--		pfn++;
-+		else
-+			ppage = NULL;
- 		if (!ppage)
- 			pcount = 0;
- 		else
- 			pcount = page_mapcount(ppage);
+ 	/* SLUB */
+@@ -203,7 +202,6 @@ PAGEFLAG(SavePinned, savepinned);			/* X
+ PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
+ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
  
--		if (put_user(pcount, out++)) {
-+		if (put_user(pcount, out)) {
- 			ret = -EFAULT;
- 			break;
- 		}
+-__PAGEFLAG(SlobPage, slob_page)
+ __PAGEFLAG(SlobFree, slob_free)
  
-+		pfn++;
-+		out++;
- 		count -= KPMSIZE;
- 	}
+ __PAGEFLAG(SlubFrozen, slub_frozen)
+--- linux.orig/mm/slob.c
++++ linux/mm/slob.c
+@@ -132,17 +132,17 @@ static LIST_HEAD(free_slob_large);
+  */
+ static inline int is_slob_page(struct slob_page *sp)
+ {
+-	return PageSlobPage((struct page *)sp);
++	return PageSlab((struct page *)sp);
+ }
  
-@@ -98,10 +101,10 @@ static ssize_t kpageflags_read(struct fi
- 		return -EINVAL;
+ static inline void set_slob_page(struct slob_page *sp)
+ {
+-	__SetPageSlobPage((struct page *)sp);
++	__SetPageSlab((struct page *)sp);
+ }
  
- 	while (count > 0) {
--		ppage = NULL;
- 		if (pfn_valid(pfn))
- 			ppage = pfn_to_page(pfn);
--		pfn++;
-+		else
-+			ppage = NULL;
- 		if (!ppage)
- 			kflags = 0;
- 		else
-@@ -119,11 +122,13 @@ static ssize_t kpageflags_read(struct fi
- 			kpf_copy_bit(kflags, KPF_RECLAIM, PG_reclaim) |
- 			kpf_copy_bit(kflags, KPF_BUDDY, PG_buddy);
+ static inline void clear_slob_page(struct slob_page *sp)
+ {
+-	__ClearPageSlobPage((struct page *)sp);
++	__ClearPageSlab((struct page *)sp);
+ }
  
--		if (put_user(uflags, out++)) {
-+		if (put_user(uflags, out)) {
- 			ret = -EFAULT;
- 			break;
- 		}
- 
-+		pfn++;
-+		out++;
- 		count -= KPMSIZE;
- 	}
- 
+ static inline struct slob_page *slob_page(const void *addr)
 
 -- 
 
