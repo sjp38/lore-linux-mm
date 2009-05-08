@@ -1,111 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F76F6B0089
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 16:11:47 -0400 (EDT)
-Date: Fri, 8 May 2009 13:06:58 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DB2C6B0093
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 16:31:34 -0400 (EDT)
+Date: Fri, 8 May 2009 13:24:52 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V3
-Message-Id: <20090508130658.813e29c1.akpm@linux-foundation.org>
-In-Reply-To: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
-References: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
+Subject: Re: [PATCH 4/8] proc: export more page flags in /proc/kpageflags
+Message-Id: <20090508132452.bafa287a.akpm@linux-foundation.org>
+In-Reply-To: <20090508114742.GB17129@elte.hu>
+References: <20090508105320.316173813@intel.com>
+	<20090508111031.020574236@intel.com>
+	<20090508114742.GB17129@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: linux-media@vger.kernel.org, mchehab@infradead.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org, hannes@cmpxchg.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: fengguang.wu@intel.com, fweisbec@gmail.com, rostedt@goodmis.org, a.p.zijlstra@chello.nl, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, mpm@selenic.com, adobriyan@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 08 May 2009 17:53:10 +0900
-Magnus Damm <magnus.damm@gmail.com> wrote:
+On Fri, 8 May 2009 13:47:42 +0200
+Ingo Molnar <mingo@elte.hu> wrote:
 
-> From: Magnus Damm <damm@igel.co.jp>
 > 
-> This is V3 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
+> * Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> Since videobuf-dma-contig is designed to handle physically contiguous
-> memory, this patch modifies the videobuf-dma-contig code to only accept
-> a user space pointer to physically contiguous memory. For now only
-> VM_PFNMAP vmas are supported, so forget hotplug.
+> > Export all page flags faithfully in /proc/kpageflags.
 > 
-> On SuperH Mobile we use this with our sh_mobile_ceu_camera driver
-> together with various multimedia accelerator blocks that are exported to
-> user space using UIO. The UIO kernel code exports physically contiguous
-> memory to user space and lets the user space application mmap() this memory
-> and pass a pointer using the USERPTR interface for V4L2 zero copy operation.
-> 
-> With this approach we support zero copy capture, hardware scaling and
-> various forms of hardware encoding and decoding.
-> 
-> Signed-off-by: Magnus Damm <damm@igel.co.jp>
-> ---
-> 
->  Needs the following patches (Thanks to Johannes Weiner and akpm):
->  - mm-introduce-follow_pte.patch
->  - mm-use-generic-follow_pte-in-follow_phys.patch
->  - mm-introduce-follow_pfn.patch
+> Ongoing objection and NAK against extended haphazard exporting of 
+> kernel internals via an ad-hoc ABI via ad-hoc, privatized 
+> instrumentation that only helps the MM code and nothing else.
 
-I'l plan to merge this and the above three into 2.6.31-rc1 unless it
-all gets shot down.
+You're a year too late.  The pagemap interface is useful.
 
-> +static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
-> +					struct videobuf_buffer *vb)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	struct vm_area_struct *vma;
-> +	unsigned long prev_pfn, this_pfn;
-> +	unsigned long pages_done, user_address;
-> +	int ret;
-> +
-> +	mem->size = PAGE_ALIGN(vb->size);
-> +	mem->is_userptr = 0;
-> +	ret = -EINVAL;
-> +
-> +	down_read(&mm->mmap_sem);
-> +
-> +	vma = find_vma(mm, vb->baddr);
-> +	if (!vma)
-> +		goto out_up;
-> +
-> +	if ((vb->baddr + mem->size) > vma->vm_end)
-> +		goto out_up;
-> +
-> +	pages_done = 0;
-> +	prev_pfn = 0; /* kill warning */
-> +	user_address = vb->baddr;
-> +
-> +	while (pages_done < (mem->size >> PAGE_SHIFT)) {
-> +		ret = follow_pfn(vma, user_address, &this_pfn);
-> +		if (ret)
-> +			break;
-> +
-> +		if (pages_done == 0)
-> +			mem->dma_handle = this_pfn << PAGE_SHIFT;
-> +		else if (this_pfn != (prev_pfn + 1))
-> +			ret = -EFAULT;
-> +
-> +		if (ret)
-> +			break;
-> +
-> +		prev_pfn = this_pfn;
-> +		user_address += PAGE_SIZE;
-> +		pages_done++;
-> +	}
-> +
-> +	if (!ret)
-> +		mem->is_userptr = 1;
-> +
-> + out_up:
-> +	up_read(&current->mm->mmap_sem);
-> +
-> +	return ret;
-> +}
+> /proc/kpageflags should be done via the proper methods outlined in 
+> the previous mails i wrote on this topic: for example by using the 
+> 'object collections' abstraction i suggested.
 
-If this function really so obvious and trivial that it is best to merge
-it without any documentation at all?  Has it been made as easy for
-others to maintain as we can possibly make it?
+What's that?
 
-What does it do, how does it do it and why does it do it?
+> So this should be done in cooperation with instrumentation folks, 
+
+Feel free to start cooperating.
+
+> while improving _all_ of Linux instrumentation in general. Or, if 
+> you dont have the time/interest to work with us on that, it should 
+> not be done at all. Not having the resources/interest to do 
+> something properly is not a license to introduce further 
+> instrumentation crap into Linux.
+
+If and when whatever-this-stuff-is is available and if it turns out to be
+usable then someone can take on the task of migrating the existing
+apgemap implementation over to use the new machinery while preserving
+existing userspace interfaces.
+
+But we shouldn't block improvements to an existing feature because
+someone might change the way that feature is implemented some time in
+the future.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
