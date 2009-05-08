@@ -1,68 +1,96 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 2/8] slob: use PG_slab for identifying SLOB pages
-Date: Fri, 08 May 2009 18:53:22 +0800
-Message-ID: <20090508111030.604626949@intel.com>
+Subject: [PATCH 6/8] pagemap: document 9 more exported page flags
+Date: Fri, 08 May 2009 18:53:26 +0800
+Message-ID: <20090508111031.568178884@intel.com>
 References: <20090508105320.316173813@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 72DF06B0047
+	by kanga.kvack.org (Postfix) with SMTP id BB5CE6B003D
 	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:12:37 -0400 (EDT)
-Content-Disposition: inline; filename=mm-slob-page-flag.patch
+Content-Disposition: inline; filename=kpageflags-doc.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-For the sake of consistency.
+Also add short descriptions for all of the 20 exported page flags.
 
-Cc: Matt Mackall <mpm@selenic.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/page-flags.h |    2 --
- mm/slob.c                  |    6 +++---
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ Documentation/vm/pagemap.txt |   62 +++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)
 
---- linux.orig/include/linux/page-flags.h
-+++ linux/include/linux/page-flags.h
-@@ -120,7 +120,6 @@ enum pageflags {
- 	PG_savepinned = PG_dirty,
+--- linux.orig/Documentation/vm/pagemap.txt
++++ linux/Documentation/vm/pagemap.txt
+@@ -49,6 +49,68 @@ There are three components to pagemap:
+      8. WRITEBACK
+      9. RECLAIM
+     10. BUDDY
++    11. MMAP
++    12. ANON
++    13. SWAPCACHE
++    14. SWAPBACKED
++    15. COMPOUND_HEAD
++    16. COMPOUND_TAIL
++    16. HUGE
++    18. UNEVICTABLE
++    20. NOPAGE
++
++Short descriptions to the page flags:
++
++ 0. LOCKED
++    page is being locked for exclusive access, eg. by undergoing read/write IO
++
++ 7. SLAB
++    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
++    When compound page is used, SLUB/SLQB will only set this flag on the head
++    page; SLOB will not flag it at all.
++
++10. BUDDY
++    a free memory block managed by the buddy system allocator
++    The buddy system organizes free memory in blocks of various orders.
++    An order N block has 2^N physically contiguous pages, with the BUDDY flag
++    set for and _only_ for the first page.
++
++15. COMPOUND_HEAD
++16. COMPOUND_TAIL
++    A compound page with order N consists of 2^N physically contiguous pages.
++    A compound page with order 2 takes the form of "HTTT", where H donates its
++    head page and T donates its tail page(s).  The major consumers of compound
++    pages are hugeTLB pages (Documentation/vm/hugetlbpage.txt), the SLUB etc.
++    memory allocators and various device drivers. However in this interface,
++    only huge/giga pages are made visible to end users.
++17. HUGE
++    this is an integral part of a HugeTLB page
++
++20. NOPAGE
++    no page frame exists at the requested address
++
++    [IO related page flags]
++ 1. ERROR     IO error occurred
++ 3. UPTODATE  page has up-to-date data
++              ie. for file backed page: (in-memory data revision >= on-disk one)
++ 4. DIRTY     page has been written to, hence contains new data
++              ie. for file backed page: (in-memory data revision >  on-disk one)
++ 8. WRITEBACK page is being synced to disk
++
++    [LRU related page flags]
++ 5. LRU         page is in one of the LRU lists
++ 6. ACTIVE      page is in the active LRU list
++18. UNEVICTABLE page is in the unevictable (non-)LRU list
++                It is somehow pinned and not a candidate for LRU page reclaims,
++		eg. ramfs pages, shmctl(SHM_LOCK) and mlock() memory segments
++ 2. REFERENCED  page has been referenced since last LRU list enqueue/requeue
++ 9. RECLAIM     page will be reclaimed soon after its pageout IO completed
++11. MMAP        a memory mapped page
++12. ANON        a memory mapped page that is not part of a file
++13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
++14. SWAPBACKED  page is backed by swap/RAM
++
++The page-types tool in this directory can be used to query the above flags.
  
- 	/* SLOB */
--	PG_slob_page = PG_active,
- 	PG_slob_free = PG_private,
+ Using pagemap to do something useful:
  
- 	/* SLUB */
-@@ -203,7 +202,6 @@ PAGEFLAG(SavePinned, savepinned);			/* X
- PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
- PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
- 
--__PAGEFLAG(SlobPage, slob_page)
- __PAGEFLAG(SlobFree, slob_free)
- 
- __PAGEFLAG(SlubFrozen, slub_frozen)
---- linux.orig/mm/slob.c
-+++ linux/mm/slob.c
-@@ -132,17 +132,17 @@ static LIST_HEAD(free_slob_large);
-  */
- static inline int is_slob_page(struct slob_page *sp)
- {
--	return PageSlobPage((struct page *)sp);
-+	return PageSlab((struct page *)sp);
- }
- 
- static inline void set_slob_page(struct slob_page *sp)
- {
--	__SetPageSlobPage((struct page *)sp);
-+	__SetPageSlab((struct page *)sp);
- }
- 
- static inline void clear_slob_page(struct slob_page *sp)
- {
--	__ClearPageSlobPage((struct page *)sp);
-+	__ClearPageSlab((struct page *)sp);
- }
- 
- static inline struct slob_page *slob_page(const void *addr)
 
 -- 
 
