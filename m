@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB2C6B0093
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 16:31:34 -0400 (EDT)
-Date: Fri, 8 May 2009 13:24:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/8] proc: export more page flags in /proc/kpageflags
-Message-Id: <20090508132452.bafa287a.akpm@linux-foundation.org>
-In-Reply-To: <20090508114742.GB17129@elte.hu>
-References: <20090508105320.316173813@intel.com>
-	<20090508111031.020574236@intel.com>
-	<20090508114742.GB17129@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F976B0096
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 18:04:34 -0400 (EDT)
+Date: Fri, 8 May 2009 23:00:45 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
+ class citizen
+Message-ID: <20090508230045.5346bd32@lxorguk.ukuu.org.uk>
+In-Reply-To: <20090508125859.210a2a25.akpm@linux-foundation.org>
+References: <20090430181340.6f07421d.akpm@linux-foundation.org>
+	<20090430215034.4748e615@riellaptop.surriel.com>
+	<20090430195439.e02edc26.akpm@linux-foundation.org>
+	<49FB01C1.6050204@redhat.com>
+	<20090501123541.7983a8ae.akpm@linux-foundation.org>
+	<20090503031539.GC5702@localhost>
+	<1241432635.7620.4732.camel@twins>
+	<20090507121101.GB20934@localhost>
+	<20090507151039.GA2413@cmpxchg.org>
+	<20090507134410.0618b308.akpm@linux-foundation.org>
+	<20090508081608.GA25117@localhost>
+	<20090508125859.210a2a25.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: fengguang.wu@intel.com, fweisbec@gmail.com, rostedt@goodmis.org, a.p.zijlstra@chello.nl, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, mpm@selenic.com, adobriyan@gmail.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, hannes@cmpxchg.org, peterz@infradead.org, riel@redhat.com, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 May 2009 13:47:42 +0200
-Ingo Molnar <mingo@elte.hu> wrote:
+> The patch seems reasonable but the changelog and the (non-existent)
+> design documentation could do with a touch-up.
 
-> 
-> * Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > Export all page flags faithfully in /proc/kpageflags.
-> 
-> Ongoing objection and NAK against extended haphazard exporting of 
-> kernel internals via an ad-hoc ABI via ad-hoc, privatized 
-> instrumentation that only helps the MM code and nothing else.
+Is it right that I as a user can do things like mmap my database
+PROT_EXEC to get better database numbers by making other
+stuff swap first ?
 
-You're a year too late.  The pagemap interface is useful.
+You seem to be giving everyone a "nice my process up" hack.
 
-> /proc/kpageflags should be done via the proper methods outlined in 
-> the previous mails i wrote on this topic: for example by using the 
-> 'object collections' abstraction i suggested.
-
-What's that?
-
-> So this should be done in cooperation with instrumentation folks, 
-
-Feel free to start cooperating.
-
-> while improving _all_ of Linux instrumentation in general. Or, if 
-> you dont have the time/interest to work with us on that, it should 
-> not be done at all. Not having the resources/interest to do 
-> something properly is not a license to introduce further 
-> instrumentation crap into Linux.
-
-If and when whatever-this-stuff-is is available and if it turns out to be
-usable then someone can take on the task of migrating the existing
-apgemap implementation over to use the new machinery while preserving
-existing userspace interfaces.
-
-But we shouldn't block improvements to an existing feature because
-someone might change the way that feature is implemented some time in
-the future.
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
