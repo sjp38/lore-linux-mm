@@ -1,160 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 06FA06B003D
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 05:34:11 -0400 (EDT)
-Received: by wa-out-1112.google.com with SMTP id v27so616376wah.22
-        for <linux-mm@kvack.org>; Fri, 08 May 2009 02:34:42 -0700 (PDT)
-Date: Fri, 8 May 2009 18:34:27 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
- class citizen
-Message-Id: <20090508183427.f313770f.minchan.kim@barrios-desktop>
-In-Reply-To: <20090508080921.GA25411@localhost>
-References: <20090430215034.4748e615@riellaptop.surriel.com>
-	<20090430195439.e02edc26.akpm@linux-foundation.org>
-	<49FB01C1.6050204@redhat.com>
-	<20090501123541.7983a8ae.akpm@linux-foundation.org>
-	<20090503031539.GC5702@localhost>
-	<1241432635.7620.4732.camel@twins>
-	<20090507121101.GB20934@localhost>
-	<20090507151039.GA2413@cmpxchg.org>
-	<20090508030209.GA8892@localhost>
-	<20090508163042.ba4ef116.minchan.kim@barrios-desktop>
-	<20090508080921.GA25411@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B8A6B003D
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 07:37:56 -0400 (EDT)
+Date: Fri, 8 May 2009 13:38:20 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 2/2] memcg fix stale swap cache account leak v6
+Message-ID: <20090508113820.GL11596@elte.hu>
+References: <20090508140528.c34ae712.kamezawa.hiroyu@jp.fujitsu.com> <20090508140910.bb07f5c6.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090508140910.bb07f5c6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 May 2009 16:09:21 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+x
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Fri, May 08, 2009 at 03:30:42PM +0800, Minchan Kim wrote:
-> > Hi, Let me have a question. 
-> > 
-> > On Fri, 8 May 2009 11:02:09 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > On Thu, May 07, 2009 at 11:10:39PM +0800, Johannes Weiner wrote:
-> > > > On Thu, May 07, 2009 at 08:11:01PM +0800, Wu Fengguang wrote:
-> > > > > Introduce AS_EXEC to mark executables and their linked libraries, and to
-> > > > > protect their referenced active pages from being deactivated.
-> > > > > 
-> > > > > CC: Elladan <elladan@eskimo.com>
-> > > > > CC: Nick Piggin <npiggin@suse.de>
-> > > > > CC: Johannes Weiner <hannes@cmpxchg.org>
-> > > > > CC: Christoph Lameter <cl@linux-foundation.org>
-> > > > > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > > Acked-by: Peter Zijlstra <peterz@infradead.org>
-> > > > > Acked-by: Rik van Riel <riel@redhat.com>
-> > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > > ---
-> > > > >  include/linux/pagemap.h |    1 +
-> > > > >  mm/mmap.c               |    2 ++
-> > > > >  mm/nommu.c              |    2 ++
-> > > > >  mm/vmscan.c             |   35 +++++++++++++++++++++++++++++++++--
-> > > > >  4 files changed, 38 insertions(+), 2 deletions(-)
-> > > > > 
-> > > > > --- linux.orig/include/linux/pagemap.h
-> > > > > +++ linux/include/linux/pagemap.h
-> > > > > @@ -25,6 +25,7 @@ enum mapping_flags {
-> > > > >  #ifdef CONFIG_UNEVICTABLE_LRU
-> > > > >  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
-> > > > >  #endif
-> > > > > +	AS_EXEC		= __GFP_BITS_SHIFT + 4,	/* mapped PROT_EXEC somewhere */
-> > > > >  };
-> > > > >  
-> > > > >  static inline void mapping_set_error(struct address_space *mapping, int error)
-> > > > > --- linux.orig/mm/mmap.c
-> > > > > +++ linux/mm/mmap.c
-> > > > > @@ -1194,6 +1194,8 @@ munmap_back:
-> > > > >  			goto unmap_and_free_vma;
-> > > > >  		if (vm_flags & VM_EXECUTABLE)
-> > > > >  			added_exe_file_vma(mm);
-> > > > > +		if (vm_flags & VM_EXEC)
-> > > > > +			set_bit(AS_EXEC, &file->f_mapping->flags);
-> > > > >  	} else if (vm_flags & VM_SHARED) {
-> > > > >  		error = shmem_zero_setup(vma);
-> > > > >  		if (error)
-> > > > > --- linux.orig/mm/nommu.c
-> > > > > +++ linux/mm/nommu.c
-> > > > > @@ -1224,6 +1224,8 @@ unsigned long do_mmap_pgoff(struct file 
-> > > > >  			added_exe_file_vma(current->mm);
-> > > > >  			vma->vm_mm = current->mm;
-> > > > >  		}
-> > > > > +		if (vm_flags & VM_EXEC)
-> > > > > +			set_bit(AS_EXEC, &file->f_mapping->flags);
-> > > > >  	}
-> > > > 
-> > > > I find it a bit ugly that it applies an attribute of the memory area
-> > > > (per mm) to the page cache mapping (shared).  Because this in turn
-> > > > means that the reference through a non-executable vma might get the
-> > > > pages rotated just because there is/was an executable mmap around.
-> > > 
-> > > Right, the intention was to identify a whole executable/library file,
-> > > eg. /bin/bash or /lib/libc-2.9.so, covering both _text_ and _data_
-> > > sections.
-> > 
-> > But, your patch is care just text section. 
-> > Do I miss something ?
-> 
-> This patch actually protects the mapped pages in the whole executable
-> file.  Sorry, the title was a bit misleading..
+> +struct swapio_check {
+> +	spinlock_t	lock;
+> +	void		*swap_bio_list;
+> +	struct delayed_work work;
+> +} stale_swap_check;
 
-Yeah. I was confusing with title. 
-Thanks for quick reply. :)
+Small nit. It's nice that you lined up the first two fields, but it 
+would be nice to line up the third one too:
 
-> > > > >  	down_write(&nommu_region_sem);
-> > > > > --- linux.orig/mm/vmscan.c
-> > > > > +++ linux/mm/vmscan.c
-> > > > > @@ -1230,6 +1230,7 @@ static void shrink_active_list(unsigned 
-> > > > >  	unsigned long pgmoved;
-> > > > >  	unsigned long pgscanned;
-> > > > >  	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-> > > > > +	LIST_HEAD(l_active);
-> > > > >  	LIST_HEAD(l_inactive);
-> > > > >  	struct page *page;
-> > > > >  	struct pagevec pvec;
-> > > > > @@ -1269,8 +1270,15 @@ static void shrink_active_list(unsigned 
-> > > > >  
-> > > > >  		/* page_referenced clears PageReferenced */
-> > > > >  		if (page_mapping_inuse(page) &&
-> > > > > -		    page_referenced(page, 0, sc->mem_cgroup))
-> > > > > +		    page_referenced(page, 0, sc->mem_cgroup)) {
-> > > > > +			struct address_space *mapping = page_mapping(page);
-> > > > > +
-> > > > >  			pgmoved++;
-> > > > > +			if (mapping && test_bit(AS_EXEC, &mapping->flags)) {
-> > > > > +				list_add(&page->lru, &l_active);
-> > > > > +				continue;
-> > > > > +			}
-> > > > > +		}
-> > > > 
-> > > > Since we walk the VMAs in page_referenced anyway, wouldn't it be
-> > > > better to check if one of them is executable?  This would even work
-> > > > for executable anon pages.  After all, there are applications that cow
-> > > > executable mappings (sbcl and other language environments that use an
-> > > > executable, run-time modified core image come to mind).
-> > > 
-> > > The page_referenced() path will only cover the _text_ section.  But
-> > 
-> > Why did you said that "The page_referenced() path will only cover the ""_text_"" section" ? 
-> > Could you elaborate please ?
-> 
-> I was under the wild assumption that only the _text_ section will be
-> PROT_EXEC mapped.  No?
+struct swapio_check {
+	spinlock_t		lock;
+	void			*swap_bio_list;
+	struct delayed_work	work;
+} stale_swap_check;
 
-Yes. I support your idea. 
+> +	while (nr--) {
+> +		cond_resched();
+> +		spin_lock_irq(&sc->lock);
+> +		bio = sc->swap_bio_list;
 
-> Thanks,
-> Fengguang
+> @@ -66,6 +190,7 @@ static void end_swap_bio_write(struct bi
+>  				(unsigned long long)bio->bi_sector);
+>  		ClearPageReclaim(page);
+>  	}
+> +	mem_cgroup_swapio_check_again(bio, page);
 
--- 
-Kinds Regards
-Minchan Kim
+Hm, this patch adds quite a bit of scanning overhead to 
+end_swap_bio_write(), to work around artifacts of a global LRU not 
+working well with a partitioned system's per-partition LRU needs.
+
+Isnt the right solution to have a better LRU that is aware of this, 
+instead of polling around in the hope of cleaning up stale entries?
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
