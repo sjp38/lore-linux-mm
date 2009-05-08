@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB226B0062
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 13:40:59 -0400 (EDT)
-Date: Fri, 8 May 2009 18:37:56 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
- class citizen
-Message-ID: <20090508183756.158aa3c3@lxorguk.ukuu.org.uk>
-In-Reply-To: <20090508034054.GB1202@eskimo.com>
-References: <20090501123541.7983a8ae.akpm@linux-foundation.org>
-	<20090503031539.GC5702@localhost>
-	<1241432635.7620.4732.camel@twins>
-	<20090507121101.GB20934@localhost>
-	<alpine.DEB.1.10.0905070935530.24528@qirst.com>
-	<1241705702.11251.156.camel@twins>
-	<alpine.DEB.1.10.0905071016410.24528@qirst.com>
-	<1241712000.18617.7.camel@lts-notebook>
-	<alpine.DEB.1.10.0905071231090.10171@qirst.com>
-	<4A03164D.90203@redhat.com>
-	<20090508034054.GB1202@eskimo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B9106B0083
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 14:24:42 -0400 (EDT)
+Date: Fri, 8 May 2009 13:24:29 -0500
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: [PATCH 2/7] slob: use PG_slab for identifying SLOB pages
+Message-ID: <20090508182428.GW31071@waste.org>
+References: <20090507012116.996644836@intel.com> <20090507014914.067348097@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090507014914.067348097@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Elladan <elladan@eskimo.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-
-> I don't think this sort of DOS is relevant for a single user or trusted user
-> system.  
+On Thu, May 07, 2009 at 09:21:19AM +0800, Wu Fengguang wrote:
+> For the sake of consistency.
 > 
-> I don't know of any distro that applies default ulimits, so desktops are
+> Cc: Matt Mackall <mpm@selenic.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-A lot of people turn on the vm overcommit protection. In fact if you run
-some of the standard desktop apps today its practically essential to deal
-with them quietly leaking the box into oblivion or just going mad at
-random intervals.
+Acked-by: Matt Mackall <mpm@selenic.com>
 
-> already susceptible to the far more trivial "call malloc a lot" or "fork bomb"
-> attacks.  Plus, ulimits don't help, since they only apply per process - you'd
-> need a default mem cgroup before this mattered, I think.
+Pekka, please take this one directly.
 
-We have a system wide one in effect via the vm overcommit stuff and have
-had for years. It works, its relevant and even if it didn't "everything
-else sucks" isn't an excuse for more suckage but a call for better things.
+> ---
+>  include/linux/page-flags.h |    2 --
+>  mm/slob.c                  |    6 +++---
+>  2 files changed, 3 insertions(+), 5 deletions(-)
+> 
+> --- linux.orig/include/linux/page-flags.h
+> +++ linux/include/linux/page-flags.h
+> @@ -120,7 +120,6 @@ enum pageflags {
+>  	PG_savepinned = PG_dirty,
+>  
+>  	/* SLOB */
+> -	PG_slob_page = PG_active,
+>  	PG_slob_free = PG_private,
+>  
+>  	/* SLUB */
+> @@ -203,7 +202,6 @@ PAGEFLAG(SavePinned, savepinned);			/* X
+>  PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
+>  PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
+>  
+> -__PAGEFLAG(SlobPage, slob_page)
+>  __PAGEFLAG(SlobFree, slob_free)
+>  
+>  __PAGEFLAG(SlubFrozen, slub_frozen)
+> --- linux.orig/mm/slob.c
+> +++ linux/mm/slob.c
+> @@ -132,17 +132,17 @@ static LIST_HEAD(free_slob_large);
+>   */
+>  static inline int is_slob_page(struct slob_page *sp)
+>  {
+> -	return PageSlobPage((struct page *)sp);
+> +	return PageSlab((struct page *)sp);
+>  }
+>  
+>  static inline void set_slob_page(struct slob_page *sp)
+>  {
+> -	__SetPageSlobPage((struct page *)sp);
+> +	__SetPageSlab((struct page *)sp);
+>  }
+>  
+>  static inline void clear_slob_page(struct slob_page *sp)
+>  {
+> -	__ClearPageSlobPage((struct page *)sp);
+> +	__ClearPageSlab((struct page *)sp);
+>  }
+>  
+>  static inline struct slob_page *slob_page(const void *addr)
+> 
+> -- 
 
-If you want any kind of tunable user controllable vm priority then the
-obvious things to do would be to borrow the nice() values or implement a
-vmnice() for VMAs so users can only say "flog me harder".
-
-Not I fear that it matters - until you fix the two problems of obscenely
-bloated leaky apps and bad I/O performance its really an "everything
-louder than everything else" kind of argument.
-
-Alan
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
