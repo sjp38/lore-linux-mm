@@ -1,153 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 075F56B0088
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 16:05:48 -0400 (EDT)
-Date: Fri, 8 May 2009 12:58:59 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F76F6B0089
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 16:11:47 -0400 (EDT)
+Date: Fri, 8 May 2009 13:06:58 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
- class citizen
-Message-Id: <20090508125859.210a2a25.akpm@linux-foundation.org>
-In-Reply-To: <20090508081608.GA25117@localhost>
-References: <20090430181340.6f07421d.akpm@linux-foundation.org>
-	<20090430215034.4748e615@riellaptop.surriel.com>
-	<20090430195439.e02edc26.akpm@linux-foundation.org>
-	<49FB01C1.6050204@redhat.com>
-	<20090501123541.7983a8ae.akpm@linux-foundation.org>
-	<20090503031539.GC5702@localhost>
-	<1241432635.7620.4732.camel@twins>
-	<20090507121101.GB20934@localhost>
-	<20090507151039.GA2413@cmpxchg.org>
-	<20090507134410.0618b308.akpm@linux-foundation.org>
-	<20090508081608.GA25117@localhost>
+Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V3
+Message-Id: <20090508130658.813e29c1.akpm@linux-foundation.org>
+In-Reply-To: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
+References: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: hannes@cmpxchg.org, peterz@infradead.org, riel@redhat.com, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: linux-media@vger.kernel.org, mchehab@infradead.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 May 2009 16:16:08 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Fri, 08 May 2009 17:53:10 +0900
+Magnus Damm <magnus.damm@gmail.com> wrote:
 
-> vmscan: make mapped executable pages the first class citizen
+> From: Magnus Damm <damm@igel.co.jp>
 > 
-> Protect referenced PROT_EXEC mapped pages from being deactivated.
+> This is V3 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
 > 
-> PROT_EXEC(or its internal presentation VM_EXEC) pages normally belong to some
-> currently running executables and their linked libraries, they shall really be
-> cached aggressively to provide good user experiences.
+> Since videobuf-dma-contig is designed to handle physically contiguous
+> memory, this patch modifies the videobuf-dma-contig code to only accept
+> a user space pointer to physically contiguous memory. For now only
+> VM_PFNMAP vmas are supported, so forget hotplug.
 > 
-
-The patch seems reasonable but the changelog and the (non-existent)
-design documentation could do with a touch-up.
-
+> On SuperH Mobile we use this with our sh_mobile_ceu_camera driver
+> together with various multimedia accelerator blocks that are exported to
+> user space using UIO. The UIO kernel code exports physically contiguous
+> memory to user space and lets the user space application mmap() this memory
+> and pass a pointer using the USERPTR interface for V4L2 zero copy operation.
 > 
-> --- linux.orig/mm/vmscan.c
-> +++ linux/mm/vmscan.c
-> @@ -1233,6 +1233,7 @@ static void shrink_active_list(unsigned 
->  	unsigned long pgscanned;
->  	unsigned long vm_flags;
->  	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-> +	LIST_HEAD(l_active);
->  	LIST_HEAD(l_inactive);
->  	struct page *page;
->  	struct pagevec pvec;
-> @@ -1272,8 +1273,13 @@ static void shrink_active_list(unsigned 
->  
->  		/* page_referenced clears PageReferenced */
->  		if (page_mapping_inuse(page) &&
-> -		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags))
-> +		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
->  			pgmoved++;
-> +			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
-> +				list_add(&page->lru, &l_active);
-> +				continue;
-> +			}
-> +		}
+> With this approach we support zero copy capture, hardware scaling and
+> various forms of hardware encoding and decoding.
+> 
+> Signed-off-by: Magnus Damm <damm@igel.co.jp>
+> ---
+> 
+>  Needs the following patches (Thanks to Johannes Weiner and akpm):
+>  - mm-introduce-follow_pte.patch
+>  - mm-use-generic-follow_pte-in-follow_phys.patch
+>  - mm-introduce-follow_pfn.patch
 
-What we're doing here is to identify referenced, file-backed active
-pages.  We clear their referenced bit and give than another trip around
-the active list.  So if they aren't referenced during that additional
-pass, they will get deactivated next time they are scanned, yes?  It's
-a fairly high-level design/heuristic thing which needs careful
-commenting, please.
+I'l plan to merge this and the above three into 2.6.31-rc1 unless it
+all gets shot down.
 
-
-Also, the change makes this comment:
-
-	spin_lock_irq(&zone->lru_lock);
-	/*
-	 * Count referenced pages from currently used mappings as
-	 * rotated, even though they are moved to the inactive list.
-	 * This helps balance scan pressure between file and anonymous
-	 * pages in get_scan_ratio.
-	 */
-	reclaim_stat->recent_rotated[!!file] += pgmoved;
-
-inaccurate.
-								
->  		list_add(&page->lru, &l_inactive);
->  	}
-> @@ -1282,7 +1288,6 @@ static void shrink_active_list(unsigned 
->  	 * Move the pages to the [file or anon] inactive list.
->  	 */
->  	pagevec_init(&pvec, 1);
-> -	lru = LRU_BASE + file * LRU_FILE;
->  
->  	spin_lock_irq(&zone->lru_lock);
->  	/*
-> @@ -1294,6 +1299,7 @@ static void shrink_active_list(unsigned 
->  	reclaim_stat->recent_rotated[!!file] += pgmoved;
->  
->  	pgmoved = 0;  /* count pages moved to inactive list */
-> +	lru = LRU_BASE + file * LRU_FILE;
->  	while (!list_empty(&l_inactive)) {
->  		page = lru_to_page(&l_inactive);
->  		prefetchw_prev_lru_page(page, &l_inactive, flags);
-> @@ -1316,6 +1322,29 @@ static void shrink_active_list(unsigned 
->  	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
->  	__count_vm_events(PGDEACTIVATE, pgmoved);
+> +static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
+> +					struct videobuf_buffer *vb)
+> +{
+> +	struct mm_struct *mm = current->mm;
+> +	struct vm_area_struct *vma;
+> +	unsigned long prev_pfn, this_pfn;
+> +	unsigned long pages_done, user_address;
+> +	int ret;
 > +
-> +	pgmoved = 0;  /* count pages moved back to active list */
-> +	lru = LRU_ACTIVE + file * LRU_FILE;
-> +	while (!list_empty(&l_active)) {
-> +		page = lru_to_page(&l_active);
-> +		prefetchw_prev_lru_page(page, &l_active, flags);
-> +		VM_BUG_ON(PageLRU(page));
-> +		SetPageLRU(page);
-> +		VM_BUG_ON(!PageActive(page));
+> +	mem->size = PAGE_ALIGN(vb->size);
+> +	mem->is_userptr = 0;
+> +	ret = -EINVAL;
 > +
-> +		list_move(&page->lru, &zone->lru[lru].list);
-> +		mem_cgroup_add_lru_list(page, lru);
-> +		pgmoved++;
-> +		if (!pagevec_add(&pvec, page)) {
-> +			spin_unlock_irq(&zone->lru_lock);
-> +			if (buffer_heads_over_limit)
-> +				pagevec_strip(&pvec);
-> +			__pagevec_release(&pvec);
-> +			spin_lock_irq(&zone->lru_lock);
-> +		}
+> +	down_read(&mm->mmap_sem);
+> +
+> +	vma = find_vma(mm, vb->baddr);
+> +	if (!vma)
+> +		goto out_up;
+> +
+> +	if ((vb->baddr + mem->size) > vma->vm_end)
+> +		goto out_up;
+> +
+> +	pages_done = 0;
+> +	prev_pfn = 0; /* kill warning */
+> +	user_address = vb->baddr;
+> +
+> +	while (pages_done < (mem->size >> PAGE_SHIFT)) {
+> +		ret = follow_pfn(vma, user_address, &this_pfn);
+> +		if (ret)
+> +			break;
+> +
+> +		if (pages_done == 0)
+> +			mem->dma_handle = this_pfn << PAGE_SHIFT;
+> +		else if (this_pfn != (prev_pfn + 1))
+> +			ret = -EFAULT;
+> +
+> +		if (ret)
+> +			break;
+> +
+> +		prev_pfn = this_pfn;
+> +		user_address += PAGE_SIZE;
+> +		pages_done++;
 > +	}
+> +
+> +	if (!ret)
+> +		mem->is_userptr = 1;
+> +
+> + out_up:
+> +	up_read(&current->mm->mmap_sem);
+> +
+> +	return ret;
+> +}
 
-The copy-n-pasting here is unfortunate.  But I expect that if we redid
-this as a loop, the result would be a bit ugly - the pageActive
-handling gets in the way.
+If this function really so obvious and trivial that it is best to merge
+it without any documentation at all?  Has it been made as easy for
+others to maintain as we can possibly make it?
 
-> +	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-
-Is it just me, is is all this stuff:
-
-	lru = LRU_ACTIVE + file * LRU_FILE;
-	...
-	foo(NR_LRU_BASE + lru);
-
-really hard to read?
-
-
-
-Now.  How do we know that this patch improves Linux?
+What does it do, how does it do it and why does it do it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
