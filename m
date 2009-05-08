@@ -1,84 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D64C26B003D
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 04:50:37 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id d14so720477and.26
-        for <linux-mm@kvack.org>; Fri, 08 May 2009 01:51:24 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4BBDD6B003D
+	for <linux-mm@kvack.org>; Fri,  8 May 2009 04:51:59 -0400 (EDT)
+Date: Fri, 8 May 2009 16:52:30 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH 2/5] PM/Suspend: Do not shrink memory before
+	suspend
+Message-ID: <20090508085230.GA25924@localhost>
+References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl> <200905072351.11639.rjw@sisk.pl>
 MIME-Version: 1.0
-In-Reply-To: <20090505212139.GA2559@cmpxchg.org>
-References: <20090501181449.GA8912@cmpxchg.org>
-	 <1241430874-12667-1-git-send-email-hannes@cmpxchg.org>
-	 <20090505122442.6271c7da.akpm@linux-foundation.org>
-	 <20090505203807.GB2428@cmpxchg.org>
-	 <20090505140517.bef78dd3.akpm@linux-foundation.org>
-	 <20090505212139.GA2559@cmpxchg.org>
-Date: Fri, 8 May 2009 17:51:24 +0900
-Message-ID: <aec7e5c30905080151q5a4f4ebq1e743b534a5fc84a@mail.gmail.com>
-Subject: Re: [patch 1/3] mm: introduce follow_pte()
-From: Magnus Damm <magnus.damm@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200905072351.11639.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, hverkuil@xs4all.nl, lethal@linux-sh.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 6, 2009 at 6:21 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Tue, May 05, 2009 at 02:05:17PM -0700, Andrew Morton wrote:
->> On Tue, 5 May 2009 22:38:07 +0200
->> Johannes Weiner <hannes@cmpxchg.org> wrote:
->> > On Tue, May 05, 2009 at 12:24:42PM -0700, Andrew Morton wrote:
->> > > On Mon, =A04 May 2009 11:54:32 +0200
->> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
->> > >
->> > > > A generic readonly page table lookup helper to map an address spac=
-e
->> > > > and an address from it to a pte.
->> > >
->> > > umm, OK.
->> > >
->> > > Is there actually some point to these three patches? =A0If so, what =
-is it?
->> >
->> > Magnus needs to check for physical contiguity of a VMAs backing pages
->> > to support zero-copy exportation of video data to userspace.
->> >
->> > This series implements follow_pfn() so he can walk the VMA backing
->> > pages and ensure their PFNs are in linear order.
->> >
->> > [ This patch can be collapsed with 2/3, I just thought it would be
->> > =A0 easier to read the diffs when having them separate. ]
->> >
->> > 1/3 and 2/3: factor out the page table walk from follow_phys() into
->> > follow_pte().
->> >
->> > 3/3: implement follow_pfn() on top of follow_pte().
->>
->> So we could bundle these patches with Magnus's patchset, or we could
->> consider these three patches as a cleanup or something.
->>
->> Given that 3/3 introduces an unused function, I'm inclined to sit tight
->> and await Magnus's work.
->
-> Yeah, I didn't see the video guys responding on Magnus' patch yet, so
-> let's wait for them.
->
-> Magnus, the actual conversion of your code should be trivial, could
-> you respin it on top of these three patches using follow_pfn() then?
+On Fri, May 08, 2009 at 05:51:10AM +0800, Rafael J. Wysocki wrote:
+> From: Rafael J. Wysocki <rjw@sisk.pl>
+> 
+> Remove the shrinking of memory from the suspend-to-RAM code, where
+> it is not really necessary.
+> 
+> Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+> Acked-by: Nigel Cunningham <nigel@tuxonice.net>
 
-So I tested the patches in -mm (1/3, 2/3, 3/3) together with the zero
-copy patch and everything seems fine. Feel free to add acks from me,
-least for patch 1/3 and 3/3 - i know too little about the generic case
-to say anything about 2/3.
-
-Acked-by: Magnus Damm <damm@igel.co.jp>
-
-I'll send V3 of my zero copy patch in a little while. Thanks a lot for the =
-help!
-
-Cheers,
-
-/ magnus
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
