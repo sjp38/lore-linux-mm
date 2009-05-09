@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 638DD6B009D
-	for <linux-mm@kvack.org>; Fri,  8 May 2009 18:53:27 -0400 (EDT)
-Date: Fri, 8 May 2009 15:53:49 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D154E6B009E
+	for <linux-mm@kvack.org>; Sat,  9 May 2009 00:04:49 -0400 (EDT)
+Date: Fri, 8 May 2009 21:04:18 -0700
 From: Elladan <elladan@eskimo.com>
 Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
 	class citizen
-Message-ID: <20090508225349.GA9883@eskimo.com>
-References: <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org> <20090507134410.0618b308.akpm@linux-foundation.org> <20090508081608.GA25117@localhost> <20090508125859.210a2a25.akpm@linux-foundation.org> <20090508230045.5346bd32@lxorguk.ukuu.org.uk> <20090508151532.6769e702.akpm@linux-foundation.org>
+Message-ID: <20090509040418.GA29306@eskimo.com>
+References: <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <alpine.DEB.1.10.0905070935530.24528@qirst.com> <1241705702.11251.156.camel@twins> <alpine.DEB.1.10.0905071016410.24528@qirst.com> <1241712000.18617.7.camel@lts-notebook> <alpine.DEB.1.10.0905071231090.10171@qirst.com> <4A03164D.90203@redhat.com> <20090508034054.GB1202@eskimo.com> <4A04580B.5050501@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090508151532.6769e702.akpm@linux-foundation.org>
+In-Reply-To: <4A04580B.5050501@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, fengguang.wu@intel.com, hannes@cmpxchg.org, peterz@infradead.org, riel@redhat.com, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Elladan <elladan@eskimo.com>, Christoph Lameter <cl@linux.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 08, 2009 at 03:15:32PM -0700, Andrew Morton wrote:
-> On Fri, 8 May 2009 23:00:45 +0100
-> Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> 
-> > > The patch seems reasonable but the changelog and the (non-existent)
-> > > design documentation could do with a touch-up.
-> > 
-> > Is it right that I as a user can do things like mmap my database
-> > PROT_EXEC to get better database numbers by making other
-> > stuff swap first ?
-> >
-> > You seem to be giving everyone a "nice my process up" hack.
-> 
-> Yep.
-> 
-> But prior to 2.6.27(?) the same effect could be had by mmap()ing the
-> file with or without PROT_EXEC.  The patch restores a
-> probably-beneficial heuristic which got lost in the LRU rewrite.
-> 
-> So we're no worse than pre-2.6.27 kernels here.  Plus there are
-> probably more effective ways of getting that sort of boost, such as
-> having a process running which simply touches your favoured pages
-> at a suitable (and fairly low) frequency.
+On Fri, May 08, 2009 at 12:04:27PM -0400, Rik van Riel wrote:
+> Elladan wrote:
+>
+>>> Nobody (except you) is proposing that we completely disable
+>>> the eviction of executable pages.  I believe that your idea
+>>> could easily lead to a denial of service attack, with a user
+>>> creating a very large executable file and mmaping it.
+>>>
+>>> Giving executable pages some priority over other file cache
+>>> pages is nowhere near as dangerous wrt. unexpected side effects
+>>> and should work just as well.
+>>
+>> I don't think this sort of DOS is relevant for a single user or trusted user
+>> system.  
+>
+> Which not all systems are, meaning that the mechanism
+> Christoph proposes can never be enabled by default and
+> would have to be tweaked by the user.
+>
+> I prefer code that should work just as well 99% of the
+> time, but can be enabled by default for everybody.
+> That way people automatically get the benefit.
 
-An example of a process which does this automatically is the Java virtual
-machine (and probably other runtimes which use a mark and sweep type GC).
+I read Christopher's proposal as essentially, "have a desktop switch which
+won't evict executable pages unless they're using more than some huge
+percentage of RAM" (presumably, he wants anonymous pages to get special
+treatment too) -- this would essentially be similar to mlocking all your
+executables, only with a safety net if you go above x% and without affecting
+non-executable file maps.
 
-You can see this in practice pretty easily -- a jvm process will automatically
-keep its memory paged in, even under strong VM pressure.
+Given that, the DOS possibility you proposed seemed to just be one where a user
+could push a lot of unprotected pages out quickly and make the system run slow.
+
+I don't see how that's any different than just asking malloc() for a lot of ram
+and then touching it a lot to make it appear very hot to the VM.  Any user can
+trivially do that already, and some apps (eg. a jvm) happily do that for you.
+The pathology is the same, and if anything an executable mmap is harder.
 
 -E
 
