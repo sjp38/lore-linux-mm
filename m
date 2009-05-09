@@ -1,72 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 84A586B005C
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 06:19:55 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n49AKBl1012917
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 9 May 2009 19:20:11 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 470ED45DE51
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 19:20:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2382145DE69
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 19:20:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F3C881DB803A
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 19:20:10 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C91E1DB803E
-	for <linux-mm@kvack.org>; Sat,  9 May 2009 19:20:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class citizen
-In-Reply-To: <alpine.DEB.1.10.0905081312080.15748@qirst.com>
-References: <20090508034054.GB1202@eskimo.com> <alpine.DEB.1.10.0905081312080.15748@qirst.com>
-Message-Id: <20090509191818.3AD8.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id F32166B00B6
+	for <linux-mm@kvack.org>; Sat,  9 May 2009 06:22:45 -0400 (EDT)
+Date: Sat, 9 May 2009 12:22:54 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [patch] tracing/mm: add page frame snapshot trace
+Message-ID: <20090509102254.GA15245@elte.hu>
+References: <20090508105320.316173813@intel.com> <20090508111031.020574236@intel.com> <20090508114742.GB17129@elte.hu> <20090508124433.GB15949@localhost> <20090509062758.GB21354@elte.hu> <20090509091325.GA7994@localhost> <20090509092431.GB13784@elte.hu> <20090509094316.GA5520@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sat,  9 May 2009 19:20:09 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090509094316.GA5520@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Elladan <elladan@eskimo.com>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 7 May 2009, Elladan wrote:
-> 
-> > > Nobody (except you) is proposing that we completely disable
-> > > the eviction of executable pages.  I believe that your idea
-> > > could easily lead to a denial of service attack, with a user
-> > > creating a very large executable file and mmaping it.
-> 
-> The amount of mlockable pages is limited via ulimit. We can already make
-> the pages unreclaimable through mlock().
-> 
-> > I don't know of any distro that applies default ulimits, so desktops are
-> > already susceptible to the far more trivial "call malloc a lot" or "fork bomb"
-> > attacks.  Plus, ulimits don't help, since they only apply per process - you'd
-> > need a default mem cgroup before this mattered, I think.
-> 
-> The point remains that the proposed patch does not solve the general
-> problem that we encounter with exec pages of critical components of the
-> user interface being evicted from memory.
-> 
-> Do we have test data that shows a benefit? The description is minimal. Rik
-> claimed on IRC that tests have been done. If so then the patch description
-> should include the tests. Which loads benefit from this patch?
-> 
-> A significant change to the reclaim algorithm also needs to
-> have a clear description of the effects on reclaim behavior which is also
-> lacking.
 
-btw,
+* Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-This is very good news to me.
-Recently I've taked sevaral time for reproducing this issue. but
-I have no luck. I'm interesting its test-case.
+> > How about changing it from 'trigger' to 'dump_range':
+> 
+> That's a better name!
+> 
+> >    echo "*" > /debug/tracing/objects/mm/pages/dump_range
+> > 
+> > being a shortcut for 'dump all'?
+> 
+> No I'm not complaining about -1. That's even better than "*",
+> because the latter can easily be expanded by shell ;)
+> 
+> > And:
+> > 
+> >    echo "1000 2000" > /debug/tracing/objects/mm/pages/dump_range
+> > 
+> > ?
+> 
+> Now it's much more intuitive!
+> 
+> > The '1000' is the offset where the dumping starts, and 2000 is the 
+> > size of the dump.
+> 
+> Ah the second parameter 2000 can easily be taken as "end"..
 
-Thanks.
+Ok ... i've changed the name to dump_range and added your fix for 
+mapcount as well. I pushed it all out to -tip.
 
+Would you be interested in having a look at that and tweaking the 
+dump_range API to any variant of your liking, and sending a patch 
+for that? Both "<start> <end>" and "<start> <size>" (or any other 
+variant) would be fine IMHO.
+
+The lseek hack is nice (and we can keep that) but an explicit range 
+API would be nice, we try to keep all of ftrace scriptable.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
