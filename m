@@ -1,47 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 35A8A6B00B9
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 10:59:00 -0400 (EDT)
-Received: by gxk20 with SMTP id 20so5139721gxk.14
-        for <linux-mm@kvack.org>; Sun, 10 May 2009 07:59:55 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 074E56B003D
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 15:33:58 -0400 (EDT)
+Message-ID: <4A072CB5.2050801@oracle.com>
+Date: Sun, 10 May 2009 12:36:21 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <4A06EA08.1030102@redhat.com>
-References: <20090430181340.6f07421d.akpm@linux-foundation.org>
-	 <20090507134410.0618b308.akpm@linux-foundation.org>
-	 <20090508081608.GA25117@localhost>
-	 <20090508125859.210a2a25.akpm@linux-foundation.org>
-	 <20090508230045.5346bd32@lxorguk.ukuu.org.uk>
-	 <2f11576a0905100159m32c36a9ep9fb7cc5604c60b2@mail.gmail.com>
-	 <1241946446.6317.42.camel@laptop>
-	 <2f11576a0905100236u15d45f7fm32d470776659cfec@mail.gmail.com>
-	 <20090510144533.167010a9@lxorguk.ukuu.org.uk>
-	 <4A06EA08.1030102@redhat.com>
-Date: Sun, 10 May 2009 23:59:54 +0900
-Message-ID: <2f11576a0905100759n30fbc948wef34336774abfae1@mail.gmail.com>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
-	citizen
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH -mmotm] slqbinfo: eliminate warnings
+References: <200905082241.n48Mfpdh022249@imap1.linux-foundation.org>
+In-Reply-To: <200905082241.n48Mfpdh022249@imap1.linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, minchan.kim@gmail.com
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+From: Randy Dunlap <randy.dunlap@oracle.com>
 
->> Secondly it moves the pressure from the storage volume holding the system
->> binaries and libraries to the swap device which already has to deal with
->> a lot of random (and thus expensive) I/O, as well as the users filestore
->> for mapped objects there - which may even be on a USB thumbdrive.
->
-> Preserving the PROT_EXEC pages over streaming IO should not
-> move much (if any) pressure from the file LRUs onto the
-> swap-backed (anon) LRUs.
+Eliminate build warnings:
 
-I don't think this is good example.
-this issue is already solved by your patch. Thus this patch don't
-improve streaming IO issue.
+Documentation/vm/slqbinfo.c:386: warning: unused variable 'total'
+Documentation/vm/slqbinfo.c:512: warning: format '%5d' expects type 'int', but argument 9 has type 'long unsigned int'
+Documentation/vm/slqbinfo.c:520: warning: format '%4ld' expects type 'long int', but argument 9 has type 'int'
+Documentation/vm/slqbinfo.c:646: warning: unused variable 'total_partial'
+Documentation/vm/slqbinfo.c:646: warning: unused variable 'avg_partial'
+Documentation/vm/slqbinfo.c:645: warning: unused variable 'max_partial'
+Documentation/vm/slqbinfo.c:645: warning: unused variable 'min_partial'
+Documentation/vm/slqbinfo.c:860: warning: unused variable 'count'
+Documentation/vm/slqbinfo.c:858: warning: unused variable 'p'
+
+Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
+---
+ Documentation/vm/slqbinfo.c |   11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)
+
+--- mmotm-2009-0508-1522.orig/Documentation/vm/slqbinfo.c
++++ mmotm-2009-0508-1522/Documentation/vm/slqbinfo.c
+@@ -383,7 +383,6 @@ void slab_stats(struct slabinfo *s)
+ {
+ 	unsigned long total_alloc;
+ 	unsigned long total_free;
+-	unsigned long total;
+ 
+ 	total_alloc = s->alloc;
+ 	total_free = s->free;
+@@ -501,7 +500,7 @@ void slabcache(struct slabinfo *s)
+ 		total_alloc = s->alloc;
+ 		total_free = s->free;
+ 
+-		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5d %7ld %8d\n",
++		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5ld %7ld %8d\n",
+ 			s->name, s->objects,
+ 			total_alloc, total_free,
+ 			total_alloc ? (s->alloc_slab_fill * 100 / total_alloc) : 0,
+@@ -512,7 +511,7 @@ void slabcache(struct slabinfo *s)
+ 			s->order);
+ 	}
+ 	else
+-		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4ld %s\n",
++		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4d %s\n",
+ 			s->name, s->objects, s->object_size, size_str,
+ 			s->objs_per_slab, s->order,
+ 			s->slabs ? (s->objects * s->object_size * 100) /
+@@ -641,10 +640,6 @@ void totals(void)
+ 	/* Object size */
+ 	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
+ 
+-	/* Number of partial slabs in a slabcache */
+-	unsigned long long min_partial = max, max_partial = 0,
+-				avg_partial, total_partial = 0;
+-
+ 	/* Number of slabs in a slab cache */
+ 	unsigned long long min_slabs = max, max_slabs = 0,
+ 				avg_slabs, total_slabs = 0;
+@@ -855,9 +850,7 @@ void read_slab_dir(void)
+ 	DIR *dir;
+ 	struct dirent *de;
+ 	struct slabinfo *slab = slabinfo;
+-	char *p;
+ 	char *t;
+-	int count;
+ 
+ 	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
+ 		fatal("SYSFS support for SLUB not active\n");
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
