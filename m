@@ -1,140 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E34FA6B004D
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 04:35:30 -0400 (EDT)
-Date: Sun, 10 May 2009 16:35:17 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [patch] tracing/mm: add page frame snapshot trace
-Message-ID: <20090510083517.GB5794@localhost>
-References: <20090508111031.020574236@intel.com> <20090508114742.GB17129@elte.hu> <20090508124433.GB15949@localhost> <20090509062758.GB21354@elte.hu> <20090509091325.GA7994@localhost> <20090509100137.GC20941@elte.hu> <20090509105742.GA8398@localhost> <20090509110513.GD16138@elte.hu> <20090509122309.GC8940@localhost> <20090509140512.GA22000@elte.hu>
+	by kanga.kvack.org (Postfix) with SMTP id 3A46A6B0047
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 05:04:59 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so1188641yxh.26
+        for <linux-mm@kvack.org>; Sun, 10 May 2009 02:05:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090509140512.GA22000@elte.hu>
+In-Reply-To: <20090508230045.5346bd32@lxorguk.ukuu.org.uk>
+References: <20090430181340.6f07421d.akpm@linux-foundation.org>
+	 <20090501123541.7983a8ae.akpm@linux-foundation.org>
+	 <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins>
+	 <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org>
+	 <20090507134410.0618b308.akpm@linux-foundation.org>
+	 <20090508081608.GA25117@localhost>
+	 <20090508125859.210a2a25.akpm@linux-foundation.org>
+	 <20090508230045.5346bd32@lxorguk.ukuu.org.uk>
+Date: Sun, 10 May 2009 17:59:17 +0900
+Message-ID: <2f11576a0905100159m32c36a9ep9fb7cc5604c60b2@mail.gmail.com>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class
+	citizen
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: =?utf-8?B?RnLDqWTDqXJpYw==?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, hannes@cmpxchg.org, peterz@infradead.org, riel@redhat.com, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 09, 2009 at 10:05:12PM +0800, Ingo Molnar wrote:
-> 
-> * Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > > ( End even for tasks, which are perhaps the hardest to iterate, we
-> > >   can still do the /proc method of iterating up to the offset by 
-> > >   counting. It wastes some time for each separate thread as it has 
-> > >   to count up to its offset, but it still allows the dumping itself
-> > >   to be parallelised. Or we could dump blocks of the PID hash array. 
-> > >   That distributes tasks well, and can be iterated very easily with 
-> > >   low/zero contention. The result will come out unordered in any 
-> > >   case. )
-> > 
-> > For task/file based page walking, the best parallelism unit can be 
-> > the task/file, instead of page segments inside them.
-> > 
-> > And there is the sparse file problem. There will be large holes in 
-> > the address space of file and process(and even physical memory!).
-> 
-> If we want to iterate in the file offset space then we should use 
-> the find_get_pages() trick: use the page radix tree and do gang 
-> lookups in ascending order. Holes will be skipped over in a natural 
-> way in the tree.
+2009/5/9 Alan Cox <alan@lxorguk.ukuu.org.uk>:
+>> The patch seems reasonable but the changelog and the (non-existent)
+>> design documentation could do with a touch-up.
+>
+> Is it right that I as a user can do things like mmap my database
+> PROT_EXEC to get better database numbers by making other
+> stuff swap first ?
+>
+> You seem to be giving everyone a "nice my process up" hack.
 
-Right. I actually have code doing this, very neat trick.
+How about this?
+if priority < DEF_PRIORITY-2, aggressive lumpy reclaim in
+shrink_inactive_list() already
+reclaim the active page forcely.
+then, this patch don't change kernel reclaim policy.
 
-> Regarding iterators, i think the best way would be to expose a 
-> number of 'natural iterators' in the object collection directory. 
-> The current dump_range could be changed to "pfn_index" (it's really 
-> a 'physical page number' index and iterator), and we could introduce 
-> a couple of other indices as well:
-> 
->     /debug/tracing/objects/mm/pages/pfn_index
->     /debug/tracing/objects/mm/pages/filename_index
->     /debug/tracing/objects/mm/pages/task_index
->     /debug/tracing/objects/mm/pages/sb_index
+anyway, user process non-changable preventing "nice my process up
+hack" seems makes sense to me.
 
-How about 
+test result:
 
-     /debug/tracing/objects/mm/pages/walk-pfn
-     /debug/tracing/objects/mm/pages/walk-file
-     /debug/tracing/objects/mm/pages/walk-task
+echo 100 > /proc/sys/vm/dirty_ratio
+echo 100 > /proc/sys/vm/dirty_background_ratio
+run modified qsbench (use mmap(PROT_EXEC) instead malloc)
 
-     /debug/tracing/objects/mm/pages/walk-fs
-     (fs may be a more well known name than sb?)
+           active2active vs active2inactive ratio
+before    5:5
+after       1:9
 
-They begin with a verb, because they are verbs when we echo some
-parameters into them ;-)
+please don't ask performance number. I haven't reproduce Wu's patch
+improvemnt ;)
 
-> "filename_index" would take a file name (a string), and would dump 
-> all pages of that inode - perhaps with an additional index/range 
-> parameter as well. For example:
-> 
->     echo "/home/foo/bar.txt 0 1000" > filename_index
+Wu, What do you think?
 
-Better to use
+---
+ mm/vmscan.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-     "0 1000 /home/foo/bar.txt"
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c	2009-05-10 02:40:01.000000000 +0900
++++ b/mm/vmscan.c	2009-05-10 03:33:30.000000000 +0900
+@@ -1275,7 +1275,8 @@ static void shrink_active_list(unsigned
+ 			struct address_space *mapping = page_mapping(page);
 
-because there will be files named "/some/file 001".
-
-But then echo will append an additional '\n' to filename and we are
-faced with the question whether to ignore the trailing '\n'.
-
-> Would look up that file and dump any pages in the page cache related 
-> to that file, in the 0..1000 pages offset range.
-> 
-> ( We could support the 'batching' of such requests too, so 
->   multi-line strings can be used to request multiple files, via a 
->   single system call.
-
-Yes, I'd expect it to make some difference in efficiency, when there
-are many small files.
-
->   We could perhaps even support directories and do 
->   directory-and-all-child-dentries/inodes recursive lookups. )
-
-Maybe, could do this when there comes such a need.
-
-> Other indices/iterators would work like this:
-> 
->     echo "/var" > sb_index
-> 
-> Would try to find the superblock associated to /var, and output all 
-> pages that relate to that superblock. (it would iterate over all 
-> inodes and look them all up in the pagecache and dump any matches)
-
-Can we buffer so much outputs in kernel? Even if ftrace has no such
-limitations, it may not be a good idea to pin too many pages in the
-ring buffer.
-
-I do need this feature. But it sounds like a mixture of
-"files-inside-sb" walker and "pages-inside-file" walker. 
-It's unclear how it will duplicate functions with the
-"files object collection" to be added in:
-
-        /debug/tracing/objects/mm/files/*
-
-For example,
-
-        /debug/tracing/objects/mm/files/walk-fs
-        /debug/tracing/objects/mm/files/walk-dirty
-        /debug/tracing/objects/mm/files/walk-global
-and some filtering options, like size, cached_size, etc.
-
-> Alternatively, we could do a reverse look up for the inode from the 
-> pfn, and output that name. That would bloat the records a bit, and 
-> would be more costly as well.
-
-That sounds like "describe-pfn" and can serve as a good debugging tool.
-
-> The 'task_index' would output based on a PID, it would find the mm 
-> of that task and dump all pages associated to that mm. Offset/range 
-> info would be virtual address page index based.
-
-Right.
-
-Thanks,
-Fengguang
+ 			pgmoved++;
+-			if (mapping && test_bit(AS_EXEC, &mapping->flags)) {
++			if (mapping && (priority >= DEF_PRIORITY - 2) &&
++			    test_bit(AS_EXEC, &mapping->flags)) {
+ 				pga2a++;
+ 				list_add(&page->lru, &l_active);
+ 				continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
