@@ -1,80 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 041126B004D
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 16:13:18 -0400 (EDT)
-Date: Sun, 10 May 2009 21:13:50 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
- class  citizen
-Message-ID: <20090510211350.7aecc8de@lxorguk.ukuu.org.uk>
-In-Reply-To: <4A06EA08.1030102@redhat.com>
-References: <20090430181340.6f07421d.akpm@linux-foundation.org>
-	<1241432635.7620.4732.camel@twins>
-	<20090507121101.GB20934@localhost>
-	<20090507151039.GA2413@cmpxchg.org>
-	<20090507134410.0618b308.akpm@linux-foundation.org>
-	<20090508081608.GA25117@localhost>
-	<20090508125859.210a2a25.akpm@linux-foundation.org>
-	<20090508230045.5346bd32@lxorguk.ukuu.org.uk>
-	<2f11576a0905100159m32c36a9ep9fb7cc5604c60b2@mail.gmail.com>
-	<1241946446.6317.42.camel@laptop>
-	<2f11576a0905100236u15d45f7fm32d470776659cfec@mail.gmail.com>
-	<20090510144533.167010a9@lxorguk.ukuu.org.uk>
-	<4A06EA08.1030102@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B72B76B0055
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 16:20:26 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH 6/6] PM/Hibernate: Estimate hard core working set size
+Date: Sun, 10 May 2009 21:53:35 +0200
+References: <200905070040.08561.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905101612.24764.rjw@sisk.pl>
+In-Reply-To: <200905101612.24764.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200905102153.36461.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, minchan.kim@gmail.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Not only can it be abused but some systems such as java have large
-> > PROT_EXEC mapped environments, as do many other JIT based languages.
+On Sunday 10 May 2009, Rafael J. Wysocki wrote:
+> From: Rafael J. Wysocki <rjw@sisk.pl>
 > 
-> On the file LRU side, or on the anon LRU side?
-
-Generally anonymous so it would indeed be ok.
-
-> > I still think the focus is on the wrong thing. We shouldn't be trying to
-> > micro-optimise page replacement guesswork - we should be macro-optimising
-> > the resulting I/O performance.
+> We want to avoid attempting to free too much memory too hard, so
+> estimate the size of the hard core working set and use it as the
+> lower limit for preallocating memory.
 > 
-> Any ideas on how to achieve that? :)
+> Not-yet-signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+> ---
+> 
+> The formula used in this patch appears to return numbers that are too lower.
 
-I know - vm is hard, and page out consists of making the best wrong
-decision without having the facts.
+I was able to improve that a little by taking the reserved saveable pages into
+accout and by the adding reclaimable slab, mlocked pages and inactive file
+pages to the "hard core working set".  Still, the resulting number is only about
+right for x86_64.  On i386 there still is something we're not taking into
+account and that's something substantial (20000 pages seem to be "missing"
+from the balance sheet).
 
-Make your swap decisions depend upon I/O load on storage devices. Make
-your paging decisions based upon writing and reading large contiguous
-chunks (512K costs the same as 8K pretty much) - but you already know
-that .
+Updated patch (on top of the corrected [6/6] I've just sent) is appended.
 
-Historically BSD tackled some of this by actually swapping processes out
-once pressure got very high - because even way back it actually became
-cheaper at some point than spewing randomness at the disk drive. Plus it
-also avoids the death by thrashing problem. Possibly however that means
-the chunk size should relate to the paging rate ?
+Thanks,
+Rafael
 
-I get to watch what comes down the pipe from the vm, and it's not pretty,
-especially when todays disk drive is more like swapping to a tape loop. I
-can see how to fix anonymous page out (log structured swap) but I'm not
-sure what that would do to anonymous page-in even with a cleaner.
+---
+From: Rafael J. Wysocki <rjw@sisk.pl>
+Subject: PM/Hibernate: Estimate hard core working set size (rev. 2)
 
-At the block level it may be worth having a look what is going on in more
-detail - the bigger queues and I/O sizes on modern disks (plus the
-cache flushimng) also mean that the amount of time it can take a command
-to the head and back to the OS has probably jumped a lot with newer SATA
-devices - even if the block layer is getting them queued at the head of
-the queue and promptly. I can give a disk 15 seconds of work quite easily
-and possibly stuffing the disk stupid isn't the right algorithm when
-paging is considered.
+We want to avoid attempting to free too much memory too hard, so
+estimate the size of the hard core working set and use it as the
+lower limit for preallocating memory.
 
-rpm -e gnome* and Arjan's ioprio hacks seem to fix my box but thats not a
-general useful approach. I need to re-test the ioprio hacks with a
-current kernel and see if the other I/O changes have helped.
+[rev. 2: Take saveable reserved pages into account and add some more
+ types of pages to the "hard core working set".]
 
-Alan
+Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+---
+ kernel/power/snapshot.c |   64 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+Index: linux-2.6/kernel/power/snapshot.c
+===================================================================
+--- linux-2.6.orig/kernel/power/snapshot.c
++++ linux-2.6/kernel/power/snapshot.c
+@@ -1090,6 +1090,8 @@ void swsusp_free(void)
+ /* Helper functions used for the shrinking of memory. */
+ 
+ #define GFP_IMAGE	(GFP_KERNEL | __GFP_NOWARN | __GFP_NO_OOM_KILL)
++/* Typical desktop does not have more than 100MB of mapped pages. */
++#define MAX_MMAP_PAGES	(100 << (20 - PAGE_SHIFT))
+ 
+ /**
+  * preallocate_image_pages - Allocate a number of pages for hibernation image
+@@ -1211,6 +1213,60 @@ static void free_unnecessary_pages(void)
+ }
+ 
+ /**
++ * minimum_image_size - Estimate the minimum acceptable size of an image
++ *
++ * We want to avoid attempting to free too much memory too hard, so estimate the
++ * minimum acceptable size of a hibernation image and use it as the lower limit
++ * for preallocating memory.
++ */
++static unsigned long minimum_image_size(void)
++{
++	struct zone *zone;
++	unsigned long size;
++
++	/*
++	 * Mapped pages are normally few and precious, but their number should
++	 * be bounded for safety.
++	 */
++	size = global_page_state(NR_FILE_MAPPED);
++	size = min_t(unsigned long, size, MAX_MMAP_PAGES);
++
++	/* mlocked pages cannot be swapped out. */
++	size += global_page_state(NR_MLOCK);
++
++	/* Hard (but normally small) memory requests. */
++	size += global_page_state(NR_SLAB_UNRECLAIMABLE);
++	size += global_page_state(NR_SLAB_RECLAIMABLE);
++	size += global_page_state(NR_UNEVICTABLE);
++	size += global_page_state(NR_PAGETABLE);
++
++	/* Saveable pages that are reserved cannot be freed. */
++	for_each_zone(zone) {
++		unsigned long pfn, max_zone_pfn;
++
++		if (is_highmem(zone))
++			continue;
++		mark_free_pages(zone);
++		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
++		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
++			if (saveable_page(zone, pfn)
++			    && PageReserved(pfn_to_page(pfn)))
++				size++;
++	}
++
++	/*
++	 * Disk I/O can be much faster than swap I/O, so optimize for
++	 * performance.
++	 */
++	size += global_page_state(NR_ACTIVE_ANON);
++	size += global_page_state(NR_INACTIVE_ANON);
++	size += global_page_state(NR_ACTIVE_FILE);
++
++	return size;
++}
++
++
++/**
+  * hibernate_preallocate_memory - Preallocate memory for hibernation image
+  *
+  * To create a hibernation image it is necessary to make a copy of every page
+@@ -1298,6 +1354,14 @@ int hibernate_preallocate_memory(void)
+ 	shrink_all_memory(saveable - size);
+ 
+ 	/*
++	 * Estimate the size of the hard core working set and use it as the
++	 * minimum image size.
++	 */
++	pages = minimum_image_size();
++	if (size < pages)
++		size = pages;
++
++	/*
+ 	 * The number of saveable pages in memory was too high, so apply some
+ 	 * pressure to decrease it.  First, make room for the largest possible
+ 	 * image and fail if that doesn't work.  Next, try to decrease the size
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
