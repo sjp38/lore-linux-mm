@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 074E56B003D
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 15:33:58 -0400 (EDT)
-Message-ID: <4A072CB5.2050801@oracle.com>
-Date: Sun, 10 May 2009 12:36:21 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-MIME-Version: 1.0
-Subject: [PATCH -mmotm] slqbinfo: eliminate warnings
-References: <200905082241.n48Mfpdh022249@imap1.linux-foundation.org>
-In-Reply-To: <200905082241.n48Mfpdh022249@imap1.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 041126B004D
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 16:13:18 -0400 (EDT)
+Date: Sun, 10 May 2009 21:13:50 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
+ class  citizen
+Message-ID: <20090510211350.7aecc8de@lxorguk.ukuu.org.uk>
+In-Reply-To: <4A06EA08.1030102@redhat.com>
+References: <20090430181340.6f07421d.akpm@linux-foundation.org>
+	<1241432635.7620.4732.camel@twins>
+	<20090507121101.GB20934@localhost>
+	<20090507151039.GA2413@cmpxchg.org>
+	<20090507134410.0618b308.akpm@linux-foundation.org>
+	<20090508081608.GA25117@localhost>
+	<20090508125859.210a2a25.akpm@linux-foundation.org>
+	<20090508230045.5346bd32@lxorguk.ukuu.org.uk>
+	<2f11576a0905100159m32c36a9ep9fb7cc5604c60b2@mail.gmail.com>
+	<1241946446.6317.42.camel@laptop>
+	<2f11576a0905100236u15d45f7fm32d470776659cfec@mail.gmail.com>
+	<20090510144533.167010a9@lxorguk.ukuu.org.uk>
+	<4A06EA08.1030102@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-From: Randy Dunlap <randy.dunlap@oracle.com>
+> > Not only can it be abused but some systems such as java have large
+> > PROT_EXEC mapped environments, as do many other JIT based languages.
+> 
+> On the file LRU side, or on the anon LRU side?
 
-Eliminate build warnings:
+Generally anonymous so it would indeed be ok.
 
-Documentation/vm/slqbinfo.c:386: warning: unused variable 'total'
-Documentation/vm/slqbinfo.c:512: warning: format '%5d' expects type 'int', but argument 9 has type 'long unsigned int'
-Documentation/vm/slqbinfo.c:520: warning: format '%4ld' expects type 'long int', but argument 9 has type 'int'
-Documentation/vm/slqbinfo.c:646: warning: unused variable 'total_partial'
-Documentation/vm/slqbinfo.c:646: warning: unused variable 'avg_partial'
-Documentation/vm/slqbinfo.c:645: warning: unused variable 'max_partial'
-Documentation/vm/slqbinfo.c:645: warning: unused variable 'min_partial'
-Documentation/vm/slqbinfo.c:860: warning: unused variable 'count'
-Documentation/vm/slqbinfo.c:858: warning: unused variable 'p'
+> > I still think the focus is on the wrong thing. We shouldn't be trying to
+> > micro-optimise page replacement guesswork - we should be macro-optimising
+> > the resulting I/O performance.
+> 
+> Any ideas on how to achieve that? :)
 
-Signed-off-by: Randy Dunlap <randy.dunlap@oracle.com>
----
- Documentation/vm/slqbinfo.c |   11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+I know - vm is hard, and page out consists of making the best wrong
+decision without having the facts.
 
---- mmotm-2009-0508-1522.orig/Documentation/vm/slqbinfo.c
-+++ mmotm-2009-0508-1522/Documentation/vm/slqbinfo.c
-@@ -383,7 +383,6 @@ void slab_stats(struct slabinfo *s)
- {
- 	unsigned long total_alloc;
- 	unsigned long total_free;
--	unsigned long total;
- 
- 	total_alloc = s->alloc;
- 	total_free = s->free;
-@@ -501,7 +500,7 @@ void slabcache(struct slabinfo *s)
- 		total_alloc = s->alloc;
- 		total_free = s->free;
- 
--		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5d %7ld %8d\n",
-+		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5ld %7ld %8d\n",
- 			s->name, s->objects,
- 			total_alloc, total_free,
- 			total_alloc ? (s->alloc_slab_fill * 100 / total_alloc) : 0,
-@@ -512,7 +511,7 @@ void slabcache(struct slabinfo *s)
- 			s->order);
- 	}
- 	else
--		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4ld %s\n",
-+		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4d %s\n",
- 			s->name, s->objects, s->object_size, size_str,
- 			s->objs_per_slab, s->order,
- 			s->slabs ? (s->objects * s->object_size * 100) /
-@@ -641,10 +640,6 @@ void totals(void)
- 	/* Object size */
- 	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
- 
--	/* Number of partial slabs in a slabcache */
--	unsigned long long min_partial = max, max_partial = 0,
--				avg_partial, total_partial = 0;
--
- 	/* Number of slabs in a slab cache */
- 	unsigned long long min_slabs = max, max_slabs = 0,
- 				avg_slabs, total_slabs = 0;
-@@ -855,9 +850,7 @@ void read_slab_dir(void)
- 	DIR *dir;
- 	struct dirent *de;
- 	struct slabinfo *slab = slabinfo;
--	char *p;
- 	char *t;
--	int count;
- 
- 	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
- 		fatal("SYSFS support for SLUB not active\n");
+Make your swap decisions depend upon I/O load on storage devices. Make
+your paging decisions based upon writing and reading large contiguous
+chunks (512K costs the same as 8K pretty much) - but you already know
+that .
 
+Historically BSD tackled some of this by actually swapping processes out
+once pressure got very high - because even way back it actually became
+cheaper at some point than spewing randomness at the disk drive. Plus it
+also avoids the death by thrashing problem. Possibly however that means
+the chunk size should relate to the paging rate ?
 
+I get to watch what comes down the pipe from the vm, and it's not pretty,
+especially when todays disk drive is more like swapping to a tape loop. I
+can see how to fix anonymous page out (log structured swap) but I'm not
+sure what that would do to anonymous page-in even with a cleaner.
 
+At the block level it may be worth having a look what is going on in more
+detail - the bigger queues and I/O sizes on modern disks (plus the
+cache flushimng) also mean that the amount of time it can take a command
+to the head and back to the OS has probably jumped a lot with newer SATA
+devices - even if the block layer is getting them queued at the head of
+the queue and promptly. I can give a disk 15 seconds of work quite easily
+and possibly stuffing the disk stupid isn't the right algorithm when
+paging is considered.
+
+rpm -e gnome* and Arjan's ioprio hacks seem to fix my box but thats not a
+general useful approach. I need to re-test the ioprio hacks with a
+current kernel and see if the other I/O changes have helped.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
