@@ -1,51 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 00EF86B00A6
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 10:40:20 -0400 (EDT)
-Subject: [PATCH] mm: exit.c reorder wait_opts to remove padding on 64 bit
- builds
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-Content-Type: text/plain
-Date: Sun, 10 May 2009 15:40:55 +0100
-Message-Id: <1241966455.2724.11.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1731E6B00A7
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 10:46:50 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: [RFC][PATCH 2/6] PM/Suspend: Do not shrink memory before suspend
+Date: Sun, 10 May 2009 15:50:58 +0200
+References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl>
+In-Reply-To: <200905101548.57557.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200905101550.59677.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-reorder struct wait_opts to remove 8 bytes of alignment padding on 64
-bit builds
+From: Rafael J. Wysocki <rjw@sisk.pl>
 
-Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+Remove the shrinking of memory from the suspend-to-RAM code, where
+it is not really necessary.
+
+Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+Acked-by: Nigel Cunningham <nigel@tuxonice.net>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
+ kernel/power/main.c |   20 +-------------------
+ mm/vmscan.c         |    4 ++--
+ 2 files changed, 3 insertions(+), 21 deletions(-)
 
-Hi Andrew,
-Oleg asked me to send you this patch against your tree.
-
-patch against latest mmotm.git.
-successfully compiled but has had no other testing.
-
-regards
-Richard
-
-
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 6e8c9fd..576e626 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -1080,8 +1080,8 @@ SYSCALL_DEFINE1(exit_group, int, error_code)
+Index: linux-2.6/kernel/power/main.c
+===================================================================
+--- linux-2.6.orig/kernel/power/main.c
++++ linux-2.6/kernel/power/main.c
+@@ -188,9 +188,6 @@ static void suspend_test_finish(const ch
  
- struct wait_opts {
- 	enum pid_type		wo_type;
--	struct pid		*wo_pid;
- 	int			wo_flags;
-+	struct pid		*wo_pid;
+ #endif
  
- 	struct siginfo __user	*wo_info;
- 	int __user		*wo_stat;
-
+-/* This is just an arbitrary number */
+-#define FREE_PAGE_NUMBER (100)
+-
+ static struct platform_suspend_ops *suspend_ops;
+ 
+ /**
+@@ -226,7 +223,6 @@ int suspend_valid_only_mem(suspend_state
+ static int suspend_prepare(void)
+ {
+ 	int error;
+-	unsigned int free_pages;
+ 
+ 	if (!suspend_ops || !suspend_ops->enter)
+ 		return -EPERM;
+@@ -241,24 +237,10 @@ static int suspend_prepare(void)
+ 	if (error)
+ 		goto Finish;
+ 
+-	if (suspend_freeze_processes()) {
+-		error = -EAGAIN;
+-		goto Thaw;
+-	}
+-
+-	free_pages = global_page_state(NR_FREE_PAGES);
+-	if (free_pages < FREE_PAGE_NUMBER) {
+-		pr_debug("PM: free some memory\n");
+-		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
+-		if (nr_free_pages() < FREE_PAGE_NUMBER) {
+-			error = -ENOMEM;
+-			printk(KERN_ERR "PM: No enough memory\n");
+-		}
+-	}
++	error = suspend_freeze_processes();
+ 	if (!error)
+ 		return 0;
+ 
+- Thaw:
+ 	suspend_thaw_processes();
+ 	usermodehelper_enable();
+  Finish:
+Index: linux-2.6/mm/vmscan.c
+===================================================================
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -2054,7 +2054,7 @@ unsigned long global_lru_pages(void)
+ 		+ global_page_state(NR_INACTIVE_FILE);
+ }
+ 
+-#ifdef CONFIG_PM
++#ifdef CONFIG_HIBERNATION
+ /*
+  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+  * from LRU lists system-wide, for given pass and priority.
+@@ -2194,7 +2194,7 @@ out:
+ 
+ 	return sc.nr_reclaimed;
+ }
+-#endif
++#endif /* CONFIG_HIBERNATION */
+ 
+ /* It's optimal to keep kswapds on the same CPUs as their memory, but
+    not required for correctness.  So if the last cpu in a node goes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
