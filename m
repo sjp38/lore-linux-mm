@@ -1,106 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1731E6B00A7
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 20EE46B00A9
 	for <linux-mm@kvack.org>; Sun, 10 May 2009 10:46:50 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [RFC][PATCH 2/6] PM/Suspend: Do not shrink memory before suspend
-Date: Sun, 10 May 2009 15:50:58 +0200
-References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl>
-In-Reply-To: <200905101548.57557.rjw@sisk.pl>
+Subject: [RFC][PATCH 0/6] PM/Hibernate: Rework memory shrinking (rev. 3)
+Date: Sun, 10 May 2009 15:48:56 +0200
+References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl>
+In-Reply-To: <200905072348.59856.rjw@sisk.pl>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200905101550.59677.rjw@sisk.pl>
+Message-Id: <200905101548.57557.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Rafael J. Wysocki <rjw@sisk.pl>
+On Thursday 07 May 2009, Rafael J. Wysocki wrote:
+> On Thursday 07 May 2009, Rafael J. Wysocki wrote:
+> > Hi,
+> > 
+> > The following patchset is an attempt to rework the memory shrinking mechanism
+> > used during hibernation to make room for the image.  It is a work in progress
+> > and most likely it's going to be modified, but it has been discussed recently
+> > and I'd like to get comments on the current version.
+> > 
+> > [1/5] - disable the OOM kernel after freezing tasks (this will be dropped if
+> >         it's verified that we can avoid the OOM killing by using
+> >         __GFP_FS|__GFP_WAIT|__GFP_NORETRY|__GFP_NOWARN
+> >         in the next patches).
+> > 
+> > [2/5] - drop memory shrinking from the suspend (to RAM) code path
+> > 
+> > [3/5] - move swsusp_shrink_memory() to snapshot.c
+> > 
+> > [4/5] - rework swsusp_shrink_memory() (to use memory allocations for applying
+> >         memory pressure)
+> > 
+> > [5/5] - allocate image pages along with the shrinking.
+> 
+> Updated patchset follows.
 
-Remove the shrinking of memory from the suspend-to-RAM code, where
-it is not really necessary.
+I the meantime I added a patch that attempts to computer the size of the hard
+core working set.  I also had to rework the patch reworking
+swsusp_shrink_memory() so that it takes highmem into account.
 
-Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
-Acked-by: Nigel Cunningham <nigel@tuxonice.net>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
----
- kernel/power/main.c |   20 +-------------------
- mm/vmscan.c         |    4 ++--
- 2 files changed, 3 insertions(+), 21 deletions(-)
+Currently, the patchset consists of the following patches:
 
-Index: linux-2.6/kernel/power/main.c
-===================================================================
---- linux-2.6.orig/kernel/power/main.c
-+++ linux-2.6/kernel/power/main.c
-@@ -188,9 +188,6 @@ static void suspend_test_finish(const ch
- 
- #endif
- 
--/* This is just an arbitrary number */
--#define FREE_PAGE_NUMBER (100)
--
- static struct platform_suspend_ops *suspend_ops;
- 
- /**
-@@ -226,7 +223,6 @@ int suspend_valid_only_mem(suspend_state
- static int suspend_prepare(void)
- {
- 	int error;
--	unsigned int free_pages;
- 
- 	if (!suspend_ops || !suspend_ops->enter)
- 		return -EPERM;
-@@ -241,24 +237,10 @@ static int suspend_prepare(void)
- 	if (error)
- 		goto Finish;
- 
--	if (suspend_freeze_processes()) {
--		error = -EAGAIN;
--		goto Thaw;
--	}
--
--	free_pages = global_page_state(NR_FREE_PAGES);
--	if (free_pages < FREE_PAGE_NUMBER) {
--		pr_debug("PM: free some memory\n");
--		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
--		if (nr_free_pages() < FREE_PAGE_NUMBER) {
--			error = -ENOMEM;
--			printk(KERN_ERR "PM: No enough memory\n");
--		}
--	}
-+	error = suspend_freeze_processes();
- 	if (!error)
- 		return 0;
- 
-- Thaw:
- 	suspend_thaw_processes();
- 	usermodehelper_enable();
-  Finish:
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c
-+++ linux-2.6/mm/vmscan.c
-@@ -2054,7 +2054,7 @@ unsigned long global_lru_pages(void)
- 		+ global_page_state(NR_INACTIVE_FILE);
- }
- 
--#ifdef CONFIG_PM
-+#ifdef CONFIG_HIBERNATION
- /*
-  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
-  * from LRU lists system-wide, for given pass and priority.
-@@ -2194,7 +2194,7 @@ out:
- 
- 	return sc.nr_reclaimed;
- }
--#endif
-+#endif /* CONFIG_HIBERNATION */
- 
- /* It's optimal to keep kswapds on the same CPUs as their memory, but
-    not required for correctness.  So if the last cpu in a node goes
+[1/6] - disable the OOM kernel after freezing tasks (this will be dropped if
+        it's verified that we can avoid the OOM killing by using
+        __GFP_FS|__GFP_WAIT|__GFP_NORETRY|__GFP_NOWARN
+        in the next patches).
+
+[2/6] - drop memory shrinking from the suspend (to RAM) code path
+
+[3/6] - move swsusp_shrink_memory() to snapshot.c
+
+[4/6] - rework swsusp_shrink_memory() (to use memory allocations for applying
+        memory pressure)
+
+[5/6] - allocate image pages along with the shrinking
+
+[6/6] - estimate the size of the hard core working set and use it as the lower
+        limit of the image size.
+
+Comments welcome.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
