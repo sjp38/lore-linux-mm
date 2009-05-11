@@ -1,173 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BAF6B003D
-	for <linux-mm@kvack.org>; Mon, 11 May 2009 06:06:22 -0400 (EDT)
-Date: Mon, 11 May 2009 12:03:49 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first class  citizen
-Message-ID: <20090511100349.GA5086@cmpxchg.org>
-References: <20090508125859.210a2a25.akpm@linux-foundation.org> <20090508230045.5346bd32@lxorguk.ukuu.org.uk> <2f11576a0905100159m32c36a9ep9fb7cc5604c60b2@mail.gmail.com> <1241946446.6317.42.camel@laptop> <2f11576a0905100236u15d45f7fm32d470776659cfec@mail.gmail.com> <20090510144533.167010a9@lxorguk.ukuu.org.uk> <4A06EA08.1030102@redhat.com> <20090510211350.7aecc8de@lxorguk.ukuu.org.uk> <4A073B0D.4090604@redhat.com> <20090510142322.690186a4@infradead.org>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FD8F6B003D
+	for <linux-mm@kvack.org>; Mon, 11 May 2009 07:45:36 -0400 (EDT)
+Date: Mon, 11 May 2009 13:45:54 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 4/8] proc: export more page flags in /proc/kpageflags
+Message-ID: <20090511114554.GC4748@elte.hu>
+References: <20090508105320.316173813@intel.com> <20090508111031.020574236@intel.com> <20090508114742.GB17129@elte.hu> <20090508132452.bafa287a.akpm@linux-foundation.org> <20090509104409.GB16138@elte.hu> <20090509222612.887b96e3.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090510142322.690186a4@infradead.org>
+In-Reply-To: <20090509222612.887b96e3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, elladan@eskimo.com, npiggin@suse.de, cl@linux-foundation.org, minchan.kim@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: fengguang.wu@intel.com, fweisbec@gmail.com, rostedt@goodmis.org, a.p.zijlstra@chello.nl, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, mpm@selenic.com, adobriyan@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 10, 2009 at 02:23:22PM -0700, Arjan van de Ven wrote:
-> On Sun, 10 May 2009 16:37:33 -0400
-> Rik van Riel <riel@redhat.com> wrote:
+
+* Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Sat, 9 May 2009 12:44:09 +0200 Ingo Molnar <mingo@elte.hu> wrote:
 > 
-> > Alan Cox wrote:
-> > > Historically BSD tackled some of this by actually swapping
-> > > processes out once pressure got very high 
-> > 
-> > Our big problem today usually isn't throughput though,
-> > but latency - the time it takes to bring a previously
-> > inactive application back to life.
+> > And because it was so crappy to be in /proc we are now also 
+> > treating it as a hard ABI, not as a debugfs interface - for that 
+> > single app that is using it.
 > 
-> Could we do a chain? E.g. store which page we paged out next (for the
-> vma) as part of the first pageout, and then page them just right back
-> in? Or even have a (bitmap?) of pages that have been in memory for the
-> vma, and on a re-fault, look for other pages "nearby" that used to be
-> in but are now out ?
+> We'd probably make better progress here were someone to explain 
+> what pagemap actually is.
+> 
+> pagemap is a userspace interface via which application developers 
+> (including embedded) can analyse, understand and optimise their 
+> use of memory.
 
-I'm not sure I understand your chaining idea.
+IMHO that's really a fancy sentence for: 'to debug how their app 
+interacts with the kernel'. Yes, it can be said without the word 
+'debug' or 'instrumentation' in it. Maybe it could also be written 
+without having any r's in it.
 
-As to the virtually-related pages, I hacked up a clustering idea for
-swap-out once (and swap-in readahead should then get virtually related
-pages grouped together as well) but it didn't work out as expected.
+Doing any of that does not change the meaning of the feature though.
 
-The LRU order is perhaps a better hint for access patterns than the
-relationship on a virtual address level, but at the moment we fail to
-keep the LRU order intact on swap so bets are off again...
+> It is not debugging feature at all, let alone a kernel debugging 
+> feature.  For this reason it is not appropriate that its 
+> interfaces be presented in debugfs.
+> 
+> Furthermore the main control file for pagemap is in 
+> /proc/<pid>/pagemap.  pagemap _cannot_ be put in debugfs because 
+> debugfs doesn't maintain the per-process subdirectories in which 
+> to place it.  /proc/<pid>/ is exactly the place where the pagemap 
+> file should appear.
 
-I have only black-box-benchmarked performance numbers and didn't look
-too close at it at the time, though.  If somebody wants to play with
-it, patch is attached.
+only if done in a stupid way.
 
-	Hannes
+The thing is, nor are all active inodes enumerated in /debug and not 
+in /proc either. And we've stopped stuffing new instrumentation into 
+/proc about a decade ago and introduced debugfs for that.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3b58602..ba11dee 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1020,6 +1020,101 @@ int isolate_lru_page(struct page *page)
- 	return ret;
- }
- 
-+static unsigned long cluster_inactive_anon_vma(struct vm_area_struct *vma,
-+					struct page *page,
-+					unsigned long *scanned,
-+					struct list_head *cluster)
-+{
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+	unsigned long va, area, start, end, nr_taken = 0, nr_scanned = 0;
-+
-+	va = page_address_in_vma(page, vma);
-+	if (va == -EFAULT)
-+		return 0;
-+
-+	pte = page_check_address(page, vma->vm_mm, va, &ptl, 0);
-+	if (!pte)
-+		return 0;
-+	pte_unmap_unlock(pte, ptl);
-+
-+	area = page_cluster << PAGE_SHIFT;
-+	start = va - area;
-+	if (start < vma->vm_start)
-+		start = vma->vm_start;
-+	end = va + area;
-+	if (end > vma->vm_end)
-+		end = vma->vm_end;
-+
-+	for (va = start; va < end; va += PAGE_SIZE, nr_scanned++) {
-+		pgd_t *pgd;
-+		pud_t *pud;
-+		pmd_t *pmd;
-+		struct zone *zone;
-+		struct page *cursor;
-+
-+		pgd = pgd_offset(vma->vm_mm, va);
-+		if (!pgd_present(*pgd))
-+			continue;
-+		pud = pud_offset(pgd, va);
-+		if (!pud_present(*pud))
-+			continue;
-+		pmd = pmd_offset(pud, va);
-+		if (!pmd_present(*pmd))
-+			continue;
-+		pte = pte_offset_map_lock(vma->vm_mm, pmd, va, &ptl);
-+		if (!pte_present(*pte)) {
-+			pte_unmap_unlock(pte, ptl);
-+			continue;
-+		}
-+		cursor = vm_normal_page(vma, va, *pte);
-+		pte_unmap_unlock(pte, ptl);
-+
-+		if (!cursor || cursor == page)
-+			continue;
-+
-+		zone = page_zone(cursor);
-+		if (zone != page_zone(page))
-+			continue;
-+
-+		spin_lock_irq(&zone->lru_lock);
-+		if (!__isolate_lru_page(cursor, ISOLATE_INACTIVE, 0)) {
-+			list_move_tail(&cursor->lru, cluster);
-+			nr_taken++;
-+		}
-+		spin_unlock_irq(&zone->lru_lock);
-+	}
-+	*scanned += nr_scanned;
-+	return nr_taken;
-+}
-+
-+static unsigned long cluster_inactive_anon(struct list_head *list,
-+					unsigned long *scanned)
-+{
-+	LIST_HEAD(cluster);
-+	unsigned long nr_taken = 0, nr_scanned = 0;
-+
-+	while (!list_empty(list)) {
-+		struct page *page;
-+		struct anon_vma *anon_vma;
-+		struct vm_area_struct *vma;
-+
-+		page = list_entry(list->next, struct page, lru);
-+		list_move(&page->lru, &cluster);
-+
-+		anon_vma = page_lock_anon_vma(page);
-+		if (!anon_vma)
-+			continue;
-+		list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-+			nr_taken += cluster_inactive_anon_vma(vma, page,
-+							&nr_scanned, &cluster);
-+		page_unlock_anon_vma(anon_vma);
-+	}
-+	list_replace(&cluster, list);
-+	*scanned += nr_scanned;
-+	return nr_taken;
-+}
-+
- /*
-  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-  * of reclaimed pages
-@@ -1061,6 +1156,11 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
- 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
- 			     &page_list, &nr_scan, sc->order, mode,
- 				zone, sc->mem_cgroup, 0, file);
-+		if (!file && mode == ISOLATE_INACTIVE) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			nr_taken += cluster_inactive_anon(&page_list, &nr_scan);
-+			spin_lock_irq(&zone->lru_lock);
-+		}
- 		nr_active = clear_active_flags(&page_list, count);
- 		__count_vm_events(PGDEACTIVATE, nr_active);
- 
+_Especially_ when some piece of instrumentation is clearly growing 
+in scope and nature, as here.
+
+> Yes, we could place pagemap's two auxiliary files into debugfs but 
+> it would be rather stupid to split the feature's control files 
+> across two pseudo filesystems, one of which may not even exist.  
+> Plus pagemap is not a kernel debugging feature.
+
+That's not what i'm suggesting though.
+
+What i'm suggesting is that there's a zillion ways to enumerate and 
+index various kernel objects, doing that in /proc is fundamentally 
+wrong. And there's no need to create a per PID/TID directory 
+structure in /debug either, to be able to list and access objects by 
+their PID.
+
+_Especially_ when the end result is not human-readable to begin 
+with, as it is in the pagemap/kpagecount/kpageflags case.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
