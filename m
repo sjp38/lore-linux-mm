@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F02F66B003D
-	for <linux-mm@kvack.org>; Mon, 11 May 2009 15:03:22 -0400 (EDT)
-Date: Mon, 11 May 2009 12:03:23 -0700
-From: Andy Isaacson <adi@hexapodia.org>
-Subject: Re: [PATCH 4/8] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090511190323.GO21505@hexapodia.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090511114554.GC4748@elte.hu>
+	by kanga.kvack.org (Postfix) with ESMTP id C78336B003D
+	for <linux-mm@kvack.org>; Mon, 11 May 2009 16:12:50 -0400 (EDT)
+Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
+	by smtp-out.google.com with ESMTP id n4BKD0DD015165
+	for <linux-mm@kvack.org>; Mon, 11 May 2009 13:13:00 -0700
+Received: from rv-out-0506.google.com (rvbl9.prod.google.com [10.140.88.9])
+	by zps77.corp.google.com with ESMTP id n4BKCwMm023675
+	for <linux-mm@kvack.org>; Mon, 11 May 2009 13:12:59 -0700
+Received: by rv-out-0506.google.com with SMTP id l9so2247892rvb.53
+        for <linux-mm@kvack.org>; Mon, 11 May 2009 13:12:58 -0700 (PDT)
+Date: Mon, 11 May 2009 13:12:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC][PATCH 1/6] mm: Introduce __GFP_NO_OOM_KILL
+In-Reply-To: <200905101550.09671.rjw@sisk.pl>
+Message-ID: <alpine.DEB.2.00.0905111312140.27577@chino.kir.corp.google.com>
+References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905101550.09671.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, fengguang.wu@intel.com, fweisbec@gmail.com, rostedt@goodmis.org, a.p.zijlstra@chello.nl, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, mpm@selenic.com, adobriyan@gmail.com, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 11, 2009 at 01:45:54PM +0200, Ingo Molnar wrote:
-> * Andrew Morton <akpm@linux-foundation.org> wrote:
-> > Yes, we could place pagemap's two auxiliary files into debugfs but 
-> > it would be rather stupid to split the feature's control files 
-> > across two pseudo filesystems, one of which may not even exist.  
-> > Plus pagemap is not a kernel debugging feature.
+On Sun, 10 May 2009, Rafael J. Wysocki wrote:
+
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -1619,8 +1619,12 @@ nofail_alloc:
+>  			goto got_pg;
+>  		}
+>  
+> -		/* The OOM killer will not help higher order allocs so fail */
+> -		if (order > PAGE_ALLOC_COSTLY_ORDER) {
+> +		/*
+> +		 * The OOM killer will not help higher order allocs so fail.
+> +		 * Also fail if the caller doesn't want the OOM killer to run.
+> +		 */
+> +		if (order > PAGE_ALLOC_COSTLY_ORDER
+> +				|| (gfp_mask & __GFP_NO_OOM_KILL)) {
+>  			clear_zonelist_oom(zonelist, gfp_mask);
+>  			goto nopage;
+>  		}
+> Index: linux-2.6/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/gfp.h
+> +++ linux-2.6/include/linux/gfp.h
+> @@ -51,8 +51,9 @@ struct vm_area_struct;
+>  #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
+>  #define __GFP_MOVABLE	((__force gfp_t)0x100000u)  /* Page is movable */
+> +#define __GFP_NO_OOM_KILL ((__force gfp_t)0x200000u)  /* Don't invoke out_of_memory() */
+>  
+> -#define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
+> +#define __GFP_BITS_SHIFT 22	/* Number of __GFP_FOO bits */
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+>  
+>  /* This equals 0, but use constants in case they ever change */
 > 
-> That's not what i'm suggesting though.
-> 
-> What i'm suggesting is that there's a zillion ways to enumerate and 
-> index various kernel objects, doing that in /proc is fundamentally 
-> wrong.
 
-This sounds like you're saying that /proc/<pid>/pagemap is wrong, and
-I'm pretty sure I disagree with that statement.  debugfs is not a
-substitute for pagemap.  pagemap+kpageflags is a significant improvement
-in the memory-usage-introspection capabilities provided to Linux
-applications, and if it were harder to access (by depending on debugfs)
-it would be significantly less useful.
-
-> And there's no need to create a per PID/TID directory 
-> structure in /debug either, to be able to list and access objects by 
-> their PID.
-> 
-> _Especially_ when the end result is not human-readable to begin 
-> with, as it is in the pagemap/kpagecount/kpageflags case.
-
-FWIW, we had a support script break due to /proc/<pid>/pagemap (it
-tarred up /proc/[0-9]*/* and /var/log/ and application logfiles and sent
-it off to support@, so once pagemap appeared the support script started
-filling up disks).  I toyed around with making pagemap read(2)s return
--EINVAL unless the reader lseek(2)ed first[1], but decided we were
-better off just fixing the support script to enumerate interesting proc
-files, since there's no guarantee against further suprising semantics
-getting added to /proc (and we'd still need to support unpatched
-kernels).
-
-So while I love the capability that kpageflags and pagemap provides, its
-implementation has not been without impact.
-
-On a slightly different tangent -- it's pretty trivial to decode pagemap
-with dd(1) and hd(1), or even perl, and it's not as if (for example)
-/proc/<pid>/maps is made much easier to interpret just because its
-contents are presented as ASCII rather than binary, so I feel like the
-design decisions of pagemap are sane and defensible.
-
-"I think that forms some kind of argument about kpageflags, but I'm not
-sure if it's for or against."  -- someone witty
-
-[1] fun fact -- cp(1) and cat(1) get the expected behavior with such a
-patch, but dd(1) always lseek(2)s its input even if no skip= was
-specified.
-
--andy
+Nack, unnecessary in mmotm and my patch series from 
+http://lkml.org/lkml/2009/5/10/118.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
