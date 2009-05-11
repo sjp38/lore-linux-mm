@@ -1,121 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1446B003D
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 20:27:23 -0400 (EDT)
-Date: Mon, 11 May 2009 09:22:41 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 2/2] memcg fix stale swap cache account leak v6
-Message-Id: <20090511092241.f332a1d6.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090508165636.GD4630@balbir.in.ibm.com>
-References: <20090508140528.c34ae712.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090508140910.bb07f5c6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090508165636.GD4630@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E7DD46B003D
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 22:05:53 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id v27so1148305wah.22
+        for <linux-mm@kvack.org>; Sun, 10 May 2009 19:05:57 -0700 (PDT)
+Message-ID: <4A0787B5.8060103@gmail.com>
+Date: Mon, 11 May 2009 10:04:37 +0800
+From: Huang Shijie <shijie8@gmail.com>
+MIME-Version: 1.0
+Subject: [PATCH] lib : do code optimization for radix_tree_lookup() and radix_tree_lookup_slot()
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: nickpiggin@yahoo.com.au, clameter@sgi.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 May 2009 22:26:36 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-08 14:09:10]:
-> 
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > In general, Linux's swp_entry handling is done by combination of lazy techniques
-> > and global LRU. It works well but when we use mem+swap controller, some more
-> > strict control is appropriate. Otherwise, swp_entry used by a cgroup will be
-> > never freed until global LRU works. In a system where memcg is well-configured,
-> > global LRU doesn't work frequently.
-> > 
-> >   Example A) Assume a swap cache which is not mapped.
-> >               CPU0                            CPU1
-> > 	   zap_pte()....                  shrink_page_list()
-> > 	    free_swap_and_cache()           lock_page()
-> > 		page seems busy.
-> > 
-> >   Example B) Assume swapin-readahead.
-> > 	      CPU0			      CPU1
-> > 	   zap_pte()			  read_swap_cache_async()
-> > 					  swap_duplicate().
-> >            swap_entry_free() = 1
-> > 	   find_get_page()=> NULL.
-> > 					  add_to_swap_cache().
-> > 					  issue swap I/O. 
-> > 
-> > There are many patterns of this kind of race (but no problems).
-> > 
-> > free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
-> > function. If the swp_entry/page seems busy, swp_entry is not freed.
-> > This is not a problem because global-LRU will find SwapCache at page reclaim.
-> > 
-> > If memcg is used, on the other hand, global LRU may not work. Then, above
-> > unused SwapCache will not be freed.
-> > (unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
-> > 
-> > So, even if there are no tasks in a cgroup, swp_entry usage still remains.
-> > In bad case, OOM by mem+swap controller is triggered by this "leak" of
-> > swp_entry as Nishimura reported.
-> > 
-> > Considering this issue, swapin-readahead itself is not very good for memcg.
-> > It read swap cache which will not be used. (and _unused_ swapcache will
-> > not be accounted.) Even if we account swap cache at add_to_swap_cache(),
-> > we need to account page to several _unrelated_ memcg. This is bad.
-> > 
-> > This patch tries to fix racy case of free_swap_and_cache() and page status.
-> > 
-> > After this patch applied, following test works well.
-> > 
-> >   # echo 1-2M > ../memory.limit_in_bytes
-> >   # run tasks under memcg.
-> >   # kill all tasks and make memory.tasks empty
-> >   # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
-> >     there is no _used_ swp_entry.
-> > 
-> > What this patch does is
-> >  - avoid swapin-readahead when memcg is activated.
-> >  - try to free swapcache immediately after Writeback is done.
-> >  - Handle racy case of __remove_mapping() in vmscan.c
-> > 
-> > TODO:
-> >  - tmpfs should use real readahead rather than swapin readahead...
-> > 
-> > Changelog: v5 -> v6
-> >  - works only when memcg is activated.
-> >  - check after I/O works only after writeback.
-> >  - avoid swapin-readahead when memcg is activated.
-> >  - fixed page refcnt issue.
-> > Changelog: v4->v5
-> >  - completely new design.
-> > 
-> > Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> I know we discussed readahead changes this in the past
-> 
-> 1. the memcg_activated() check should be memcg_swap_activated(), no?
->    In type 1, the problem can be solved by unaccounting the pages
->    in swap_entry_free
->    Type 2 is not a problem, since the accounting is already correct
->    Hence my assertion that this problem occurs only when swapaccount
->    is enabled.
-No.
-Both type-1 and type-2 have the problem that swp_entry is not freed correctly.
-This problem has nothing to do with whether mem+swap controller is enabled or not.
+ I think radix_tree_lookup() and radix_tree_lookup_slot() have too much 
+same code except the return value.
+ I introduce the function radix_tree_lookup_element() to do the real work.
 
-Thanks,
-Daisuke Nishimura.
+/*
+ * is_slot == 1 : search for the slot.
+ * is_slot == 0 : search for the node.
+ */
+  static void * radix_tree_lookup_element(struct radix_tree_root *root, 
+unsigned long index, int is_slot);
 
-> 2. I don't mind adding space overhead to swap_cgroup, if this problem
->    can be fought that way. The approaches so far have made my head go
->    round.
-> 3. Disabling readahead is a big decision and will need loads of
->    review/data before we can decide to go this route.
-> 
-> 
-> -- 
-> 	Balbir
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+
+----
+
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 4bb42a0..176fd96 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -351,20 +351,12 @@ int radix_tree_insert(struct radix_tree_root *root,
+ }
+ EXPORT_SYMBOL(radix_tree_insert);
+ 
+-/**
+- *    radix_tree_lookup_slot    -    lookup a slot in a radix tree
+- *    @root:        radix tree root
+- *    @index:        index key
+- *
+- *    Returns:  the slot corresponding to the position @index in the
+- *    radix tree @root. This is useful for update-if-exists operations.
+- *
+- *    This function can be called under rcu_read_lock iff the slot is not
+- *    modified by radix_tree_replace_slot, otherwise it must be called
+- *    exclusive from other writers. Any dereference of the slot must be 
+done
+- *    using radix_tree_deref_slot.
++/*
++ * is_slot == 1 : search for the slot.
++ * is_slot == 0 : search for the node.
+  */
+-void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned 
+long index)
++static void * radix_tree_lookup_element(struct radix_tree_root *root,
++                    unsigned long index, int is_slot)
+ {
+     unsigned int height, shift;
+     struct radix_tree_node *node, **slot;
+@@ -376,7 +368,7 @@ void **radix_tree_lookup_slot(struct radix_tree_root 
+*root, unsigned long index)
+     if (!radix_tree_is_indirect_ptr(node)) {
+         if (index > 0)
+             return NULL;
+-        return (void **)&root->rnode;
++        return is_slot ? (void *)&root->rnode : node;
+     }
+     node = radix_tree_indirect_to_ptr(node);
+ 
+@@ -397,7 +389,25 @@ void **radix_tree_lookup_slot(struct 
+radix_tree_root *root, unsigned long index)
+         height--;
+     } while (height > 0);
+ 
+-    return (void **)slot;
++    return is_slot ? (void *)slot : node;
++}
++
++/**
++ *    radix_tree_lookup_slot    -    lookup a slot in a radix tree
++ *    @root:        radix tree root
++ *    @index:        index key
++ *
++ *    Returns:  the slot corresponding to the position @index in the
++ *    radix tree @root. This is useful for update-if-exists operations.
++ *
++ *    This function can be called under rcu_read_lock iff the slot is not
++ *    modified by radix_tree_replace_slot, otherwise it must be called
++ *    exclusive from other writers. Any dereference of the slot must be 
+done
++ *    using radix_tree_deref_slot.
++ */
++void **radix_tree_lookup_slot(struct radix_tree_root *root, unsigned 
+long index)
++{
++    return (void**)radix_tree_lookup_element(root, index, 1);
+ }
+ EXPORT_SYMBOL(radix_tree_lookup_slot);
+ 
+@@ -415,38 +425,7 @@ EXPORT_SYMBOL(radix_tree_lookup_slot);
+  */
+ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
+ {
+-    unsigned int height, shift;
+-    struct radix_tree_node *node, **slot;
+-
+-    node = rcu_dereference(root->rnode);
+-    if (node == NULL)
+-        return NULL;
+-
+-    if (!radix_tree_is_indirect_ptr(node)) {
+-        if (index > 0)
+-            return NULL;
+-        return node;
+-    }
+-    node = radix_tree_indirect_to_ptr(node);
+-
+-    height = node->height;
+-    if (index > radix_tree_maxindex(height))
+-        return NULL;
+-
+-    shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+-
+-    do {
+-        slot = (struct radix_tree_node **)
+-            (node->slots + ((index>>shift) & RADIX_TREE_MAP_MASK));
+-        node = rcu_dereference(*slot);
+-        if (node == NULL)
+-            return NULL;
+-
+-        shift -= RADIX_TREE_MAP_SHIFT;
+-        height--;
+-    } while (height > 0);
+-
+-    return node;
++    return radix_tree_lookup_element(root, index, 0);
+ }
+ EXPORT_SYMBOL(radix_tree_lookup);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
