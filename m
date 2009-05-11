@@ -1,181 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F0EEC6B003D
-	for <linux-mm@kvack.org>; Sun, 10 May 2009 19:44:29 -0400 (EDT)
-Received: by wa-out-1112.google.com with SMTP id v27so1132026wah.22
-        for <linux-mm@kvack.org>; Sun, 10 May 2009 16:45:10 -0700 (PDT)
-Date: Mon, 11 May 2009 08:45:00 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC][PATCH] vmscan: report vm_flags in page_referenced()
-Message-Id: <20090511084500.2fccdc73.minchan.kim@barrios-desktop>
-In-Reply-To: <20090509065640.GA6487@localhost>
-References: <20090501123541.7983a8ae.akpm@linux-foundation.org>
-	<20090503031539.GC5702@localhost>
-	<1241432635.7620.4732.camel@twins>
-	<20090507121101.GB20934@localhost>
-	<20090507151039.GA2413@cmpxchg.org>
-	<1241709466.11251.164.camel@twins>
-	<20090508041700.GC8892@localhost>
-	<28c262360905080509q333ec8acv2d2be69d99e1dfa3@mail.gmail.com>
-	<20090508121549.GA17077@localhost>
-	<28c262360905080701h366e071cv1560b09126cbc78c@mail.gmail.com>
-	<20090509065640.GA6487@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D1446B003D
+	for <linux-mm@kvack.org>; Sun, 10 May 2009 20:27:23 -0400 (EDT)
+Date: Mon, 11 May 2009 09:22:41 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/2] memcg fix stale swap cache account leak v6
+Message-Id: <20090511092241.f332a1d6.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090508165636.GD4630@balbir.in.ibm.com>
+References: <20090508140528.c34ae712.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090508140910.bb07f5c6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090508165636.GD4630@balbir.in.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: balbir@linux.vnet.ibm.com
+Cc: nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry for late. 
-
-On Sat, 9 May 2009 14:56:40 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> On Fri, May 08, 2009 at 10:01:19PM +0800, Minchan Kim wrote:
-> > On Fri, May 8, 2009 at 9:15 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > On Fri, May 08, 2009 at 08:09:24PM +0800, Minchan Kim wrote:
-> > >> On Fri, May 8, 2009 at 1:17 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > >> > On Thu, May 07, 2009 at 11:17:46PM +0800, Peter Zijlstra wrote:
-> > >> >> On Thu, 2009-05-07 at 17:10 +0200, Johannes Weiner wrote:
-> > >> >>
-> > >> >> > > @@ -1269,8 +1270,15 @@ static void shrink_active_list(unsigned
-> > >> >> > >
-> > >> >> > > A  A  A  A  A  /* page_referenced clears PageReferenced */
-> > >> >> > > A  A  A  A  A  if (page_mapping_inuse(page) &&
-> > >> >> > > - A  A  A  A  A  A  page_referenced(page, 0, sc->mem_cgroup))
-> > >> >> > > + A  A  A  A  A  A  page_referenced(page, 0, sc->mem_cgroup)) {
-> > >> >> > > + A  A  A  A  A  A  A  A  struct address_space *mapping = page_mapping(page);
-> > >> >> > > +
-> > >> >> > > A  A  A  A  A  A  A  A  A  pgmoved++;
-> > >> >> > > + A  A  A  A  A  A  A  A  if (mapping && test_bit(AS_EXEC, &mapping->flags)) {
-> > >> >> > > + A  A  A  A  A  A  A  A  A  A  A  A  list_add(&page->lru, &l_active);
-> > >> >> > > + A  A  A  A  A  A  A  A  A  A  A  A  continue;
-> > >> >> > > + A  A  A  A  A  A  A  A  }
-> > >> >> > > + A  A  A  A  }
-> > >> >> >
-> > >> >> > Since we walk the VMAs in page_referenced anyway, wouldn't it be
-> > >> >> > better to check if one of them is executable? A This would even work
-> > >> >> > for executable anon pages. A After all, there are applications that cow
-> > >> >> > executable mappings (sbcl and other language environments that use an
-> > >> >> > executable, run-time modified core image come to mind).
-> > >> >>
-> > >> >> Hmm, like provide a vm_flags mask along to page_referenced() to only
-> > >> >> account matching vmas... seems like a sensible idea.
-> > >> >
-> > >> > Here is a quick patch for your opinions. Compile tested.
-> > >> >
-> > >> > With the added vm_flags reporting, the mlock=>unevictable logic can
-> > >> > possibly be made more straightforward.
-> > >> >
-> > >> > Thanks,
-> > >> > Fengguang
-> > >> > ---
-> > >> > vmscan: report vm_flags in page_referenced()
-> > >> >
-> > >> > This enables more informed reclaim heuristics, eg. to protect executable
-> > >> > file pages more aggressively.
-> > >> >
-> > >> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > >> > ---
-> > >> > A include/linux/rmap.h | A  A 5 +++--
-> > >> > A mm/rmap.c A  A  A  A  A  A | A  30 +++++++++++++++++++++---------
-> > >> > A mm/vmscan.c A  A  A  A  A | A  A 7 +++++--
-> > >> > A 3 files changed, 29 insertions(+), 13 deletions(-)
-> > >> >
-> > >> > --- linux.orig/include/linux/rmap.h
-> > >> > +++ linux/include/linux/rmap.h
-> > >> > @@ -83,7 +83,8 @@ static inline void page_dup_rmap(struct
-> > >> > A /*
-> > >> > A * Called from mm/vmscan.c to handle paging out
-> > >> > A */
-> > >> > -int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
-> > >> > +int page_referenced(struct page *, int is_locked,
-> > >> > + A  A  A  A  A  A  A  A  A  A  A  struct mem_cgroup *cnt, unsigned long *vm_flags);
-> > >> > A int try_to_unmap(struct page *, int ignore_refs);
-> > >> >
-> > >> > A /*
-> > >> > @@ -128,7 +129,7 @@ int page_wrprotect(struct page *page, in
-> > >> > A #define anon_vma_prepare(vma) A (0)
-> > >> > A #define anon_vma_link(vma) A  A  do {} while (0)
-> > >> >
-> > >> > -#define page_referenced(page,l,cnt) TestClearPageReferenced(page)
-> > >> > +#define page_referenced(page, locked, cnt, flags) TestClearPageReferenced(page)
-> > >> > A #define try_to_unmap(page, refs) SWAP_FAIL
-> > >> >
-> > >> > A static inline int page_mkclean(struct page *page)
-> > >> > --- linux.orig/mm/rmap.c
-> > >> > +++ linux/mm/rmap.c
-> > >> > @@ -333,7 +333,8 @@ static int page_mapped_in_vma(struct pag
-> > >> > A * repeatedly from either page_referenced_anon or page_referenced_file.
-> > >> > A */
-> > >> > A static int page_referenced_one(struct page *page,
-> > >> > - A  A  A  struct vm_area_struct *vma, unsigned int *mapcount)
-> > >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A struct vm_area_struct *vma,
-> > >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A unsigned int *mapcount)
-> > >> > A {
-> > >> > A  A  A  A struct mm_struct *mm = vma->vm_mm;
-> > >> > A  A  A  A unsigned long address;
-> > >> > @@ -385,7 +386,8 @@ out:
-> > >> > A }
-> > >> >
-> > >> > A static int page_referenced_anon(struct page *page,
-> > >> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct mem_cgroup *mem_cont)
-> > >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  struct mem_cgroup *mem_cont,
-> > >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  unsigned long *vm_flags)
-> > >> > A {
-> > >> > A  A  A  A unsigned int mapcount;
-> > >> > A  A  A  A struct anon_vma *anon_vma;
-> > >> > @@ -406,6 +408,7 @@ static int page_referenced_anon(struct p
-> > >> > A  A  A  A  A  A  A  A if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
-> > >> > A  A  A  A  A  A  A  A  A  A  A  A continue;
-> > >> > A  A  A  A  A  A  A  A referenced += page_referenced_one(page, vma, &mapcount);
-> > >> > + A  A  A  A  A  A  A  *vm_flags |= vma->vm_flags;
-> > >>
-> > >> Sometime this vma don't contain the anon page.
-> > >> That's why we need page_check_address.
-> > >> For such a case, wrong *vm_flag cause be harmful to reclaim.
-> > >> It can be happen in your first class citizen patch, I think.
-> > >
-> > > Yes I'm aware of that - the VMA area covers that page, but have no pte
-> > > actually installed for that page. That should be OK - the presentation
-> > > of such VMA is a good indication of it being some executable text.
-> > >
+On Fri, 8 May 2009 22:26:36 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-08 14:09:10]:
+> 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > Sorry but I can't understand your point.
+> > In general, Linux's swp_entry handling is done by combination of lazy techniques
+> > and global LRU. It works well but when we use mem+swap controller, some more
+> > strict control is appropriate. Otherwise, swp_entry used by a cgroup will be
+> > never freed until global LRU works. In a system where memcg is well-configured,
+> > global LRU doesn't work frequently.
 > > 
-> > This is general interface but not only executable text.
-> > Sometime, The information of vma which don't really have the page can
-> > be passed to caller.
+> >   Example A) Assume a swap cache which is not mapped.
+> >               CPU0                            CPU1
+> > 	   zap_pte()....                  shrink_page_list()
+> > 	    free_swap_and_cache()           lock_page()
+> > 		page seems busy.
+> > 
+> >   Example B) Assume swapin-readahead.
+> > 	      CPU0			      CPU1
+> > 	   zap_pte()			  read_swap_cache_async()
+> > 					  swap_duplicate().
+> >            swap_entry_free() = 1
+> > 	   find_get_page()=> NULL.
+> > 					  add_to_swap_cache().
+> > 					  issue swap I/O. 
+> > 
+> > There are many patterns of this kind of race (but no problems).
+> > 
+> > free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
+> > function. If the swp_entry/page seems busy, swp_entry is not freed.
+> > This is not a problem because global-LRU will find SwapCache at page reclaim.
+> > 
+> > If memcg is used, on the other hand, global LRU may not work. Then, above
+> > unused SwapCache will not be freed.
+> > (unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
+> > 
+> > So, even if there are no tasks in a cgroup, swp_entry usage still remains.
+> > In bad case, OOM by mem+swap controller is triggered by this "leak" of
+> > swp_entry as Nishimura reported.
+> > 
+> > Considering this issue, swapin-readahead itself is not very good for memcg.
+> > It read swap cache which will not be used. (and _unused_ swapcache will
+> > not be accounted.) Even if we account swap cache at add_to_swap_cache(),
+> > we need to account page to several _unrelated_ memcg. This is bad.
+> > 
+> > This patch tries to fix racy case of free_swap_and_cache() and page status.
+> > 
+> > After this patch applied, following test works well.
+> > 
+> >   # echo 1-2M > ../memory.limit_in_bytes
+> >   # run tasks under memcg.
+> >   # kill all tasks and make memory.tasks empty
+> >   # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
+> >     there is no _used_ swp_entry.
+> > 
+> > What this patch does is
+> >  - avoid swapin-readahead when memcg is activated.
+> >  - try to free swapcache immediately after Writeback is done.
+> >  - Handle racy case of __remove_mapping() in vmscan.c
+> > 
+> > TODO:
+> >  - tmpfs should use real readahead rather than swapin readahead...
+> > 
+> > Changelog: v5 -> v6
+> >  - works only when memcg is activated.
+> >  - check after I/O works only after writeback.
+> >  - avoid swapin-readahead when memcg is activated.
+> >  - fixed page refcnt issue.
+> > Changelog: v4->v5
+> >  - completely new design.
+> > 
+> > Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Right. But if the caller don't care, why bother passing the vm_flags
-> parameter down to page_referenced_one()? We can do that when there
-> comes a need, otherwise it sounds more like unnecessary overheads.
+> I know we discussed readahead changes this in the past
 > 
-> > ex) It can be happen by COW, mremap, non-linear mapping and so on.
-> > but I am not sure.
+> 1. the memcg_activated() check should be memcg_swap_activated(), no?
+>    In type 1, the problem can be solved by unaccounting the pages
+>    in swap_entry_free
+>    Type 2 is not a problem, since the accounting is already correct
+>    Hence my assertion that this problem occurs only when swapaccount
+>    is enabled.
+No.
+Both type-1 and type-2 have the problem that swp_entry is not freed correctly.
+This problem has nothing to do with whether mem+swap controller is enabled or not.
+
+Thanks,
+Daisuke Nishimura.
+
+> 2. I don't mind adding space overhead to swap_cgroup, if this problem
+>    can be fought that way. The approaches so far have made my head go
+>    round.
+> 3. Disabling readahead is a big decision and will need loads of
+>    review/data before we can decide to go this route.
 > 
-> Hmm, this reminded me of the mlocked page protection logic in
-> page_referenced_one(). Why shall the "if (vma->vm_flags & VM_LOCKED)"
-> check be placed *after* the page_check_address() check? Is there a
-> case that an *existing* page frame is not mapped to the VM_LOCKED vma?
-> And why not to protect the page in such a case?
-
-
-I also have been having a question that routine.
-As annotation said, it seems to prevent increaseing referenced counter for mlocked page to move the page to unevictable list ASAP.
-Is right?
- 
-But now, page_referenced use refereced variable as just flag not count. 
-So, I think referecned variable counted is meaningless. 
-
-What do you think ?
-
-
--- 
-Kinds Regards
-Minchan Kim
+> 
+> -- 
+> 	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
