@@ -1,166 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8652D6B004F
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 04:15:17 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4C8FQIx021642
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 12 May 2009 17:15:29 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF12D45DE55
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 17:15:26 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E38145DE54
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 17:15:26 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 883861DB8037
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 17:15:26 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C1811DB8043
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 17:15:26 +0900 (JST)
-Date: Tue, 12 May 2009 17:13:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH][BUGFIX] memcg: fix for deadlock between lock_page_cgroup
- and mapping tree_lock
-Message-Id: <20090512171356.3d3a7554.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090512170007.ad7f5c7b.nishimura@mxp.nes.nec.co.jp>
-References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512140648.0974cb10.nishimura@mxp.nes.nec.co.jp>
-	<20090512160901.8a6c5f64.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512170007.ad7f5c7b.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ADE546B0055
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 04:17:36 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 25so2410132wfa.11
+        for <linux-mm@kvack.org>; Tue, 12 May 2009 01:17:51 -0700 (PDT)
+Date: Tue, 12 May 2009 17:17:29 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
+ class citizen
+Message-Id: <20090512171729.3fe475d1.minchan.kim@barrios-desktop>
+In-Reply-To: <20090512025246.GC7518@localhost>
+References: <20090430195439.e02edc26.akpm@linux-foundation.org>
+	<49FB01C1.6050204@redhat.com>
+	<20090501123541.7983a8ae.akpm@linux-foundation.org>
+	<20090503031539.GC5702@localhost>
+	<1241432635.7620.4732.camel@twins>
+	<20090507121101.GB20934@localhost>
+	<20090507151039.GA2413@cmpxchg.org>
+	<20090507134410.0618b308.akpm@linux-foundation.org>
+	<20090508081608.GA25117@localhost>
+	<20090508125859.210a2a25.akpm@linux-foundation.org>
+	<20090512025246.GC7518@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 May 2009 17:00:07 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> hmm, I see.
-> cache_charge is outside of tree_lock, so moving uncharge would make sense.
-> IMHO, we should make the period of spinlock as small as possible,
-> and charge/uncharge of pagecache/swapcache is protected by page lock, not tree_lock.
+On Tue, 12 May 2009 10:52:46 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
+
+That is great explanation. :)
+
+Now, we just need any numbers. 
+But, as you know, It is difficult to get the numbers for various workloads. 
+
+I don't know it is job of you or us ?? 
+MM tree is always not stable. It's place to test freely for various workloads.
+
+If we can justify patch at least, we can test it after merge once. 
+(Of course, It depends on Andrew )
+After long testing without any regresssions, we can merge this into linus tree. 
+
+I think this patch is enough. 
+
+Wu Fengguang 
+Please, resend this patch series with modifying 'merge duplicate code in shrink_active_list' patch. 
+
+Thanks for your great effort. :)
+
+> Protect referenced PROT_EXEC mapped pages from being deactivated.
 > 
-How about this ?
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> PROT_EXEC(or its internal presentation VM_EXEC) pages normally belong to some
+> currently running executables and their linked libraries, they shall really be
+> cached aggressively to provide good user experiences.
+> 
+> Thanks to Johannes Weiner for the advice to reuse the VMA walk in
+> page_referenced() to get the PROT_EXEC bit.
+> 
+> 
+> [more details]
+> 
+> ( The consequences of this patch will have to be discussed together with
+>   Rik van Riel's recent patch "vmscan: evict use-once pages first". )
+> 
+> ( Some of the good points and insights are taken into this changelog.
+>   Thanks to all the involved people for the great LKML discussions. )
+> 
+> the problem
+> -----------
+> 
+> For a typical desktop, the most precious working set is composed of
+> *actively accessed*
+> 	(1) memory mapped executables
+> 	(2) and their anonymous pages
+> 	(3) and other files
+> 	(4) and the dcache/icache/.. slabs
+> while the least important data are
+> 	(5) infrequently used or use-once files
+> 
+> For a typical desktop, one major problem is busty and large amount of (5)
+> use-once files flushing out the working set.
+> 
+> Inside the working set, (4) dcache/icache have already been too sticky ;-)
+> So we only have to care (2) anonymous and (1)(3) file pages.
+> 
+> anonymous pages
+> ---------------
+> Anonymous pages are effectively immune to the streaming IO attack, because we
+> now have separate file/anon LRU lists. When the use-once files crowd into the
+> file LRU, the list's "quality" is significantly lowered. Therefore the scan
+> balance policy in get_scan_ratio() will choose to scan the (low quality) file
+> LRU much more frequently than the anon LRU.
+> 
+> file pages
+> ----------
+> Rik proposed to *not* scan the active file LRU when the inactive list grows
+> larger than active list. This guarantees that when there are use-once streaming
+> IO, and the working set is not too large(so that active_size < inactive_size),
+> the active file LRU will *not* be scanned at all. So the not-too-large working
+> set can be well protected.
+> 
+> But there are also situations where the file working set is a bit large so that
+> (active_size >= inactive_size), or the streaming IOs are not purely use-once.
+> In these cases, the active list will be scanned slowly. Because the current
+> shrink_active_list() policy is to deactivate active pages regardless of their
+> referenced bits. The deactivated pages become susceptible to the streaming IO
+> attack: the inactive list could be scanned fast (500MB / 50MBps = 10s) so that
+> the deactivated pages don't have enough time to get re-referenced. Because a
+> user tend to switch between windows in intervals from seconds to minutes.
+> 
+> This patch holds mapped executable pages in the active list as long as they
+> are referenced during each full scan of the active list.  Because the active
+> list is normally scanned much slower, they get longer grace time (eg. 100s)
+> for further references, which better matches the pace of user operations.
+> 
+> side effects
+> ------------
+> 
+> This patch is safe in general, it restores the pre-2.6.28 mmap() behavior
+> but in a much smaller and well targeted scope.
+> 
+> One may worry about some one to abuse the PROT_EXEC heuristic.  But as
+> Andrew Morton stated, there are other tricks to getting that sort of boost.
+> 
+> Another concern is the PROT_EXEC mapped pages growing large in rare cases,
+> and therefore hurting reclaim efficiency. But a sane application targeted for
+> large audience will never use PROT_EXEC for data mappings. If some home made
+> application tries to abuse that bit, it shall be aware of the consequences,
+> which won't be disastrous even in the worst case.
+> 
+> CC: Elladan <elladan@eskimo.com>
+> CC: Nick Piggin <npiggin@suse.de>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Christoph Lameter <cl@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Peter Zijlstra <peterz@infradead.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/vmscan.c |   41 +++++++++++++++++++++++++++++++++++++++--
+>  1 file changed, 39 insertions(+), 2 deletions(-)
+> 
+> --- linux.orig/mm/vmscan.c
+> +++ linux/mm/vmscan.c
+> @@ -1233,6 +1233,7 @@ static void shrink_active_list(unsigned 
+>  	unsigned long pgscanned;
+>  	unsigned long vm_flags;
+>  	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+> +	LIST_HEAD(l_active);
+>  	LIST_HEAD(l_inactive);
+>  	struct page *page;
+>  	struct pagevec pvec;
+> @@ -1272,8 +1273,21 @@ static void shrink_active_list(unsigned 
+>  
+>  		/* page_referenced clears PageReferenced */
+>  		if (page_mapping_inuse(page) &&
+> -		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags))
+> +		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
+>  			pgmoved++;
+> +			/*
+> +			 * Identify referenced, file-backed active pages and
+> +			 * give them one more trip around the active list. So
+> +			 * that executable code get better chances to stay in
+> +			 * memory under moderate memory pressure.  Anon pages
+> +			 * are ignored, since JVM can create lots of anon
+> +			 * VM_EXEC pages.
+> +			 */
+> +			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+> +				list_add(&page->lru, &l_active);
+> +				continue;
+> +			}
+> +		}
+>  
+>  		list_add(&page->lru, &l_inactive);
+>  	}
+> @@ -1282,7 +1296,6 @@ static void shrink_active_list(unsigned 
+>  	 * Move the pages to the [file or anon] inactive list.
+>  	 */
+>  	pagevec_init(&pvec, 1);
+> -	lru = LRU_BASE + file * LRU_FILE;
+>  
+>  	spin_lock_irq(&zone->lru_lock);
+>  	/*
+> @@ -1294,6 +1307,7 @@ static void shrink_active_list(unsigned 
+>  	reclaim_stat->recent_rotated[!!file] += pgmoved;
+>  
+>  	pgmoved = 0;  /* count pages moved to inactive list */
+> +	lru = LRU_BASE + file * LRU_FILE;
+>  	while (!list_empty(&l_inactive)) {
+>  		page = lru_to_page(&l_inactive);
+>  		prefetchw_prev_lru_page(page, &l_inactive, flags);
+> @@ -1316,6 +1330,29 @@ static void shrink_active_list(unsigned 
+>  	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+>  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+>  	__count_vm_events(PGDEACTIVATE, pgmoved);
+> +
+> +	pgmoved = 0;  /* count pages moved back to active list */
+> +	lru = LRU_ACTIVE + file * LRU_FILE;
+> +	while (!list_empty(&l_active)) {
+> +		page = lru_to_page(&l_active);
+> +		prefetchw_prev_lru_page(page, &l_active, flags);
+> +		VM_BUG_ON(PageLRU(page));
+> +		SetPageLRU(page);
+> +		VM_BUG_ON(!PageActive(page));
+> +
+> +		list_move(&page->lru, &zone->lru[lru].list);
+> +		mem_cgroup_add_lru_list(page, lru);
+> +		pgmoved++;
+> +		if (!pagevec_add(&pvec, page)) {
+> +			spin_unlock_irq(&zone->lru_lock);
+> +			if (buffer_heads_over_limit)
+> +				pagevec_strip(&pvec);
+> +			__pagevec_release(&pvec);
+> +			spin_lock_irq(&zone->lru_lock);
+> +		}
+> +	}
+> +	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+> +
+>  	spin_unlock_irq(&zone->lru_lock);
+>  	if (buffer_heads_over_limit)
+>  		pagevec_strip(&pvec);
 
-As Nishimura pointed out, mapping->tree_lock can be aquired from interrupt
-context. Then, following dead lock can occur.
-Assume "A" as a page.
 
- CPU0:
-       lock_page_cgroup(A)
-		interrupted
-			-> take mapping->tree_lock.
- CPU1:
-       take mapping->tree_lock
-		-> lock_page_cgroup(A)
-
-This patch tries to fix above deadlock by moving memcg's hook to out of
-mapping->tree_lock.
-
-After this patch, lock_page_cgroup() is not called under mapping->tree_lock.
-
-Making Nishimura's first fix more fundamanetal for avoiding to add special case.
-
-Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/filemap.c    |    6 +++---
- mm/swap_state.c |    2 +-
- mm/truncate.c   |    1 +
- mm/vmscan.c     |    2 ++
- 4 files changed, 7 insertions(+), 4 deletions(-)
-
-Index: mmotm-2.6.30-May07/mm/filemap.c
-===================================================================
---- mmotm-2.6.30-May07.orig/mm/filemap.c
-+++ mmotm-2.6.30-May07/mm/filemap.c
-@@ -121,7 +121,6 @@ void __remove_from_page_cache(struct pag
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
- 	BUG_ON(page_mapped(page));
--	mem_cgroup_uncharge_cache_page(page);
- 
- 	/*
- 	 * Some filesystems seem to re-dirty the page even after
-@@ -145,6 +144,7 @@ void remove_from_page_cache(struct page 
- 	spin_lock_irq(&mapping->tree_lock);
- 	__remove_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_uncharge_cache_page(page);
- }
- 
- static int sync_page(void *word)
-@@ -476,13 +476,13 @@ int add_to_page_cache_locked(struct page
- 		if (likely(!error)) {
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-+			spin_unlock_irq(&mapping->tree_lock);
- 		} else {
- 			page->mapping = NULL;
-+			spin_unlock_irq(&mapping->tree_lock);
- 			mem_cgroup_uncharge_cache_page(page);
- 			page_cache_release(page);
- 		}
--
--		spin_unlock_irq(&mapping->tree_lock);
- 		radix_tree_preload_end();
- 	} else
- 		mem_cgroup_uncharge_cache_page(page);
-Index: mmotm-2.6.30-May07/mm/swap_state.c
-===================================================================
---- mmotm-2.6.30-May07.orig/mm/swap_state.c
-+++ mmotm-2.6.30-May07/mm/swap_state.c
-@@ -121,7 +121,6 @@ void __delete_from_swap_cache(struct pag
- 	total_swapcache_pages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
- 	INC_CACHE_INFO(del_total);
--	mem_cgroup_uncharge_swapcache(page, ent);
- }
- 
- /**
-@@ -191,6 +190,7 @@ void delete_from_swap_cache(struct page 
- 	__delete_from_swap_cache(page);
- 	spin_unlock_irq(&swapper_space.tree_lock);
- 
-+	mem_cgroup_uncharge_swapcache(page, ent);
- 	swap_free(entry);
- 	page_cache_release(page);
- }
-Index: mmotm-2.6.30-May07/mm/truncate.c
-===================================================================
---- mmotm-2.6.30-May07.orig/mm/truncate.c
-+++ mmotm-2.6.30-May07/mm/truncate.c
-@@ -359,6 +359,7 @@ invalidate_complete_page2(struct address
- 	BUG_ON(page_has_private(page));
- 	__remove_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	mem_cgroup_uncharge_cache_page(page);
- 	page_cache_release(page);	/* pagecache ref */
- 	return 1;
- failed:
-Index: mmotm-2.6.30-May07/mm/vmscan.c
-===================================================================
---- mmotm-2.6.30-May07.orig/mm/vmscan.c
-+++ mmotm-2.6.30-May07/mm/vmscan.c
-@@ -477,10 +477,12 @@ static int __remove_mapping(struct addre
- 		swp_entry_t swap = { .val = page_private(page) };
- 		__delete_from_swap_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_uncharge_swapcache(page);
- 		swap_free(swap);
- 	} else {
- 		__remove_from_page_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-+		mem_cgroup_uncharge_cache_page(page);
- 	}
- 
- 	return 1;
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
