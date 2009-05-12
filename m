@@ -1,46 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 789C16B005C
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 00:35:13 -0400 (EDT)
-Date: Tue, 12 May 2009 12:35:22 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first
-	class citizen
-Message-ID: <20090512043522.GA17079@localhost>
-References: <49FB01C1.6050204@redhat.com> <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org> <20090507134410.0618b308.akpm@linux-foundation.org> <20090508081608.GA25117@localhost> <20090508125859.210a2a25.akpm@linux-foundation.org> <20090512025058.GA7518@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090512025058.GA7518@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA3F6B005D
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 00:36:04 -0400 (EDT)
+Date: Tue, 12 May 2009 13:32:38 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/3] fix swap cache account leak at swapin-readahead
+Message-Id: <20090512133238.0fb41722.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 12, 2009 at 10:50:58AM +0800, Wu Fengguang wrote:
-> > Now.  How do we know that this patch improves Linux?
+On Tue, 12 May 2009 10:46:03 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Hmm, it seems hard to get measurable performance numbers.
+> In general, Linux's swp_entry handling is done by combination of lazy techniques
+> and global LRU. It works well but when we use mem+swap controller, some more
+> strict control is appropriate. Otherwise, swp_entry used by a cgroup will be
+> never freed until global LRU works. In a system where memcg is well-configured,
+> global LRU doesn't work frequently.
 > 
-> But we know that the running executable code is precious and shall be
-> protected, and the patch protects them in this way:
+>   Example) Assume swapin-readahead.
+> 	      CPU0			      CPU1
+> 	   zap_pte()			  read_swap_cache_async()
+> 					  swap_duplicate().
+>            swap_entry_free() = 1
+> 	   find_get_page()=> NULL.
+> 					  add_to_swap_cache().
+> 					  issue swap I/O. 
 > 
->         before patch: will be reclaimed if not referenced in I
->         after  patch: will be reclaimed if not referenced in I+A
+> There are many patterns of this kind of race (but no problems).
+> 
+> free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
+> function. If the swp_entry/page seems busy, swp_entry is not freed.
+> This is not a problem because global-LRU will find SwapCache at page reclaim.
+> 
+> If memcg is used, on the other hand, global LRU may not work. Then, above
+> unused SwapCache will not be freed.
+> (unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
+> 
+> So, even if there are no tasks in a cgroup, swp_entry usage still remains.
+> In bad case, OOM by mem+swap controller is triggered by this "leak" of
+> swp_entry as Nishimura reported.
+> 
+> Considering this issue, swapin-readahead itself is not very good for memcg.
+> It read swap cache which will not be used. (and _unused_ swapcache will
+> not be accounted.) Even if we account swap cache at add_to_swap_cache(),
+> we need to account page to several _unrelated_ memcg. This is bad.
+> 
+> This patch tries to fix racy case of free_swap_and_cache() and page status.
+> 
+> After this patch applied, following test works well.
+> 
+>   # echo 1-2M > ../memory.limit_in_bytes
+>   # run tasks under memcg.
+>   # kill all tasks and make memory.tasks empty
+>   # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
+>     there is no _used_ swp_entry.
+> 
+> What this patch does is
+>  - avoid swapin-readahead when memcg is activated.
+> 
+> Changelog: v6 -> v7
+>  - just handle races in readahead.
+>  - races in writeback is handled in the next patch.
+> 
+> Changelog: v5 -> v6
+>  - works only when memcg is activated.
+>  - check after I/O works only after writeback.
+>  - avoid swapin-readahead when memcg is activated.
+>  - fixed page refcnt issue.
+> Changelog: v4->v5
+>  - completely new design.
+> 
+> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-s/will/may/, to be more exact.
+Looks good to me.
 
-> where
->         A = time to fully scan the active   file LRU
->         I = time to fully scan the inactive file LRU
-> 
-> Note that normally A >> I.
-> 
-> Therefore this patch greatly prolongs the in-cache time of executable code,
-> when there are moderate memory pressures.
-
-Thanks,
-Fengguang
+	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
