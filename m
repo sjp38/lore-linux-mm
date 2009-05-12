@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 644006B0083
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 09:30:10 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 5so1785291ywm.26
-        for <linux-mm@kvack.org>; Tue, 12 May 2009 06:30:37 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C726D6B0088
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 09:34:51 -0400 (EDT)
+Message-ID: <4A097A80.9000502@redhat.com>
+Date: Tue, 12 May 2009 09:32:48 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20090511103651.49d852f8@pedra.chehab.org>
-References: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
-	 <20090508130658.813e29c1.akpm@linux-foundation.org>
-	 <20090511103651.49d852f8@pedra.chehab.org>
-Date: Tue, 12 May 2009 22:30:37 +0900
-Message-ID: <aec7e5c30905120630k7cbc245dh211dbd0472928a2d@mail.gmail.com>
-Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V3
-From: Magnus Damm <magnus.damm@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -mm] vmscan: merge duplicate code in	shrink_active_list()
+References: <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org> <20090507134410.0618b308.akpm@linux-foundation.org> <20090508081608.GA25117@localhost> <20090508125859.210a2a25.akpm@linux-foundation.org> <20090512025319.GD7518@localhost> <20090512162633.352313d6.minchan.kim@barrios-desktop> <20090512114807.GC5926@localhost>
+In-Reply-To: <20090512114807.GC5926@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mauro Carvalho Chehab <mchehab@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org, hannes@cmpxchg.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 11, 2009 at 10:36 PM, Mauro Carvalho Chehab
-<mchehab@infradead.org> wrote:
-> Em Fri, 8 May 2009 13:06:58 -0700
-> Andrew Morton <akpm@linux-foundation.org> escreveu:
->
->> On Fri, 08 May 2009 17:53:10 +0900
->> Magnus Damm <magnus.damm@gmail.com> wrote:
+Wu Fengguang wrote:
+> On Tue, May 12, 2009 at 03:26:33PM +0800, Minchan Kim wrote:
+>> On Tue, 12 May 2009 10:53:19 +0800
+>> Wu Fengguang <fengguang.wu@intel.com> wrote:
 >>
->> > From: Magnus Damm <damm@igel.co.jp>
->> >
->> > This is V3 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
->> >
->> > Since videobuf-dma-contig is designed to handle physically contiguous
->> > memory, this patch modifies the videobuf-dma-contig code to only accept
->> > a user space pointer to physically contiguous memory. For now only
->> > VM_PFNMAP vmas are supported, so forget hotplug.
->> >
->> > On SuperH Mobile we use this with our sh_mobile_ceu_camera driver
->> > together with various multimedia accelerator blocks that are exported to
->> > user space using UIO. The UIO kernel code exports physically contiguous
->> > memory to user space and lets the user space application mmap() this memory
->> > and pass a pointer using the USERPTR interface for V4L2 zero copy operation.
->> >
->> > With this approach we support zero copy capture, hardware scaling and
->> > various forms of hardware encoding and decoding.
->> >
->> > Signed-off-by: Magnus Damm <damm@igel.co.jp>
->
-> Acked-by: Mauro Carvalho Chehab <mchehab@redhat.com>
+>>> The "move pages to active list" and "move pages to inactive list"
+>>> code blocks are mostly identical and can be served by a function.
+>>>
+>>> Thanks to Andrew Morton for pointing this out.
+>>>
+>>> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>>> ---
+>>>  mm/vmscan.c |   84 ++++++++++++++++++++------------------------------
+>>>  1 file changed, 35 insertions(+), 49 deletions(-)
+>>>
+>>> --- linux.orig/mm/vmscan.c
+>>> +++ linux/mm/vmscan.c
+>>> @@ -1225,6 +1225,36 @@ static inline void note_zone_scanning_pr
+>>>   * But we had to alter page->flags anyway.
+>>>   */
+>>>  
+>>> +void move_active_pages_to_lru(enum lru_list lru, struct list_head *list)
+>>> +{
+>>> +	unsigned long pgmoved = 0;
+>>> +
+>>> +	while (!list_empty(&list)) {
+>>> +		page = lru_to_page(&list);
+>>> +		prefetchw_prev_lru_page(page, &list, flags);
+>>> +
+>>> +		VM_BUG_ON(PageLRU(page));
+>>> +		SetPageLRU(page);
+>>> +
+>>> +		VM_BUG_ON(!PageActive(page));
+>>> +		if (lru < LRU_ACTIVE)
+>>> +			ClearPageActive(page);
+>> Arithmetic on the LRU list is not good code for redability, I think. 
+>> How about adding comment? 
+>>
+>> if (lru < LRU_ACTIVE) /* In case of moving from active list to inactive */
+>>
+>> Ignore me if you think this is trivial. 
+> 
+> Good suggestion. Or this simple one: "we are de-activating"?
 
-Thank you!
+lru < LRU_ACTIVE will never be true for file pages,
+either active or inactive.
 
->> What does it do, how does it do it and why does it do it?
->
-> A good documentation is a really good idea here. There videobuf internals are
-> very complex. A good documentation for it is very important to keep it updated.
-
-I've just posted a little patch that adds function descriptions,
-hopefully that is one step in the right direction.
-
-> I would also suggest if you could also take a look at videobuf-vmalloc and implement a
-> similar method to provide USERPTR. The vmalloc flavor can easily be tested with
-> the virtual (vivi) video driver, so it helps people to better understand how
-> videobuf works. It will also help the USB drivers that use videobuf to use USERPTR.
-
-Yeah, supporting USERPTR with vivi sounds like a good plan. I'm not
-sure how much work it involves though. The comment in the
-videobuf-vmalloc header says that the buffer code assumes that the
-driver does not touch the data, but I think that's exactly how vivi
-generates the frame data for us. =)
-
-I need to figure out the best way to grab references to user space
-pages and map them virtually contiguous like vmalloc does. This will
-take a bit of time, so don't expect anything submitted in time for
-v2.6.31. I've put it fairly high on my TODO list.
-
-Thanks for your help!
-
-/ magnus
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
