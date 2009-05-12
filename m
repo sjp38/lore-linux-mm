@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1CEE46B004F
-	for <linux-mm@kvack.org>; Mon, 11 May 2009 21:45:55 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5709B6B0055
+	for <linux-mm@kvack.org>; Mon, 11 May 2009 21:46:54 -0400 (EDT)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4C1kZjl023627
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4C1la1m017659
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 12 May 2009 10:46:35 +0900
+	Tue, 12 May 2009 10:47:37 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6308B45DE58
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:46:35 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 96BB645DE51
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:47:36 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3104F45DE54
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:46:35 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7313845DE4F
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:47:36 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E3D6A1DB803C
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:46:34 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 352BA1DB8043
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:46:34 +0900 (JST)
-Date: Tue, 12 May 2009 10:45:04 +0900
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 569C9E08001
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:47:36 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 085041DB805B
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:47:36 +0900 (JST)
+Date: Tue, 12 May 2009 10:46:03 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/3] add check for mem cgroup is activated
-Message-Id: <20090512104504.4e722ccc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/3] fix swap cache account leak at swapin-readahead
+Message-Id: <20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,79 +34,111 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-There is a function "mem_cgroup_disabled()" which returns
-  - memcg is configured ?
-  - disabled by boot option ?
-This is check is useful to confirm whether we have to call memcg's hook or not.
+In general, Linux's swp_entry handling is done by combination of lazy techniques
+and global LRU. It works well but when we use mem+swap controller, some more
+strict control is appropriate. Otherwise, swp_entry used by a cgroup will be
+never freed until global LRU works. In a system where memcg is well-configured,
+global LRU doesn't work frequently.
 
-But, even when memcg is configured (and not disabled), it's not really used
-until mounted. This patch adds mem_cgroup_activated() to check memcg is
-mounted or not at least once.
-(Will be used in later patch.)
+  Example) Assume swapin-readahead.
+	      CPU0			      CPU1
+	   zap_pte()			  read_swap_cache_async()
+					  swap_duplicate().
+           swap_entry_free() = 1
+	   find_get_page()=> NULL.
+					  add_to_swap_cache().
+					  issue swap I/O. 
 
-IIUC, only very careful users set boot option of memcg to be disabled and
-most of people will not be aware of that memcg is enabled at default.
-So, if memcg wants to affect to global VM behavior or to add some overheads,
-there is cases that this check is better than mem_cgroup_disabled().
+There are many patterns of this kind of race (but no problems).
 
-Acked-by: Balbir Singh <balbir@linux.vnet.bim.com>
+free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
+function. If the swp_entry/page seems busy, swp_entry is not freed.
+This is not a problem because global-LRU will find SwapCache at page reclaim.
+
+If memcg is used, on the other hand, global LRU may not work. Then, above
+unused SwapCache will not be freed.
+(unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
+
+So, even if there are no tasks in a cgroup, swp_entry usage still remains.
+In bad case, OOM by mem+swap controller is triggered by this "leak" of
+swp_entry as Nishimura reported.
+
+Considering this issue, swapin-readahead itself is not very good for memcg.
+It read swap cache which will not be used. (and _unused_ swapcache will
+not be accounted.) Even if we account swap cache at add_to_swap_cache(),
+we need to account page to several _unrelated_ memcg. This is bad.
+
+This patch tries to fix racy case of free_swap_and_cache() and page status.
+
+After this patch applied, following test works well.
+
+  # echo 1-2M > ../memory.limit_in_bytes
+  # run tasks under memcg.
+  # kill all tasks and make memory.tasks empty
+  # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
+    there is no _used_ swp_entry.
+
+What this patch does is
+ - avoid swapin-readahead when memcg is activated.
+
+Changelog: v6 -> v7
+ - just handle races in readahead.
+ - races in writeback is handled in the next patch.
+
+Changelog: v5 -> v6
+ - works only when memcg is activated.
+ - check after I/O works only after writeback.
+ - avoid swapin-readahead when memcg is activated.
+ - fixed page refcnt issue.
+Changelog: v4->v5
+ - completely new design.
+
+Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
-Index: mmotm-2.6.30-May07/include/linux/memcontrol.h
+ mm/swap_state.c |   20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+Index: mmotm-2.6.30-May07/mm/swap_state.c
 ===================================================================
---- mmotm-2.6.30-May07.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.30-May07/include/linux/memcontrol.h
-@@ -115,6 +115,8 @@ static inline bool mem_cgroup_disabled(v
- 		return true;
- 	return false;
- }
-+/* Returns strue if mem_cgroup is enabled and really used (mounted). */
-+bool mem_cgroup_activated(void);
- 
- extern bool mem_cgroup_oom_called(struct task_struct *task);
- void mem_cgroup_update_mapped_file_stat(struct page *page, int val);
-@@ -229,6 +231,11 @@ static inline bool mem_cgroup_disabled(v
- 	return true;
- }
- 
-+static inline bool mem_cgroup_activated(void)
-+{
-+	return false;
-+}
-+
- static inline bool mem_cgroup_oom_called(struct task_struct *task)
+--- mmotm-2.6.30-May07.orig/mm/swap_state.c
++++ mmotm-2.6.30-May07/mm/swap_state.c
+@@ -349,9 +349,9 @@ struct page *read_swap_cache_async(swp_e
+ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 			struct vm_area_struct *vma, unsigned long addr)
  {
- 	return false;
-Index: mmotm-2.6.30-May07/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.30-May07.orig/mm/memcontrol.c
-+++ mmotm-2.6.30-May07/mm/memcontrol.c
-@@ -2577,6 +2577,17 @@ static void mem_cgroup_move_task(struct 
- 	mutex_unlock(&memcg_tasklist);
- }
+-	int nr_pages;
++	int nr_pages = 1;
+ 	struct page *page;
+-	unsigned long offset;
++	unsigned long offset = 0;
+ 	unsigned long end_offset;
  
-+static bool __mem_cgroup_activated = false;
-+bool mem_cgroup_activated(void)
-+{
-+	return __mem_cgroup_activated;
-+}
+ 	/*
+@@ -360,8 +360,22 @@ struct page *swapin_readahead(swp_entry_
+ 	 * No, it's very unlikely that swap layout would follow vma layout,
+ 	 * more likely that neighbouring swap pages came from the same node:
+ 	 * so use the same "addr" to choose the same node for each swap read.
++	 *
++	 * But, when memcg is used, swapin readahead give us some bad
++	 * effects. There are 2 big problems in general.
++	 * 1. Swapin readahead tend to use/read _not required_ memory.
++	 *    And _not required_ memory is only freed by global LRU.
++	 * 2. We can't charge pages for swap-cache readahead because
++	 *    we should avoid account memory in a cgroup which a
++	 *    thread call this function is not related to.
++	 * And swapin-readahead have racy condition with
++	 * free_swap_and_cache(). This also annoys memcg.
++	 * Then, if memcg is really used, we avoid readahead.
+ 	 */
+-	nr_pages = valid_swaphandles(entry, &offset);
 +
-+static void mem_cgroup_bind(struct cgroup_subsys *ss, struct cgroup *root)
-+{
-+	__mem_cgroup_activated = true;
-+}
++	if (!mem_cgroup_activated())
++		nr_pages = valid_swaphandles(entry, &offset);
 +
- struct cgroup_subsys mem_cgroup_subsys = {
- 	.name = "memory",
- 	.subsys_id = mem_cgroup_subsys_id,
-@@ -2585,6 +2596,7 @@ struct cgroup_subsys mem_cgroup_subsys =
- 	.destroy = mem_cgroup_destroy,
- 	.populate = mem_cgroup_populate,
- 	.attach = mem_cgroup_move_task,
-+	.bind = mem_cgroup_bind,
- 	.early_init = 0,
- 	.use_id = 1,
- };
+ 	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
+ 		/* Ok, do the async read-ahead now */
+ 		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
