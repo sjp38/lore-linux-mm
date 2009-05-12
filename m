@@ -1,94 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AC696B008C
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:45:34 -0400 (EDT)
-Date: Tue, 12 May 2009 11:45:53 -0300
-From: Mauro Carvalho Chehab <mchehab@infradead.org>
-Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V3
-Message-ID: <20090512114553.48e19188@pedra.chehab.org>
-In-Reply-To: <aec7e5c30905120630k7cbc245dh211dbd0472928a2d@mail.gmail.com>
-References: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
-	<20090508130658.813e29c1.akpm@linux-foundation.org>
-	<20090511103651.49d852f8@pedra.chehab.org>
-	<aec7e5c30905120630k7cbc245dh211dbd0472928a2d@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F46A6B0093
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 11:05:42 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4CEttgZ017607
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 10:55:55 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4CF5iLe242098
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 11:05:44 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4CF5h96010714
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 11:05:44 -0400
+Subject: Re: [RFC] Replace the watermark-related union in struct zone with
+ awatermark[] array V2
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090512141331.GI25923@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+	 <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
+	 <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com>
+	 <20090427170054.GE912@csn.ul.ie>
+	 <alpine.DEB.2.00.0904271340320.11972@chino.kir.corp.google.com>
+	 <20090427205400.GA23510@csn.ul.ie>
+	 <alpine.DEB.2.00.0904271400450.11972@chino.kir.corp.google.com>
+	 <20090430133524.GC21997@csn.ul.ie> <1241099300.29485.96.camel@nimitz>
+	 <20090512141331.GI25923@csn.ul.ie>
+Content-Type: text/plain
+Date: Tue, 12 May 2009 08:05:39 -0700
+Message-Id: <1242140739.8109.40078.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Magnus Damm <magnus.damm@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org, hannes@cmpxchg.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: David Rientjes <rientjes@google.com>, Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Em Tue, 12 May 2009 22:30:37 +0900
-Magnus Damm <magnus.damm@gmail.com> escreveu:
-
-
-> >> What does it do, how does it do it and why does it do it?
-> >
-> > A good documentation is a really good idea here. There videobuf internals are
-> > very complex. A good documentation for it is very important to keep it updated.
+On Tue, 2009-05-12 at 15:13 +0100, Mel Gorman wrote:
+> Changelog since V1
+>   o Use N_wmark_pages accessors instead of array accesses
 > 
-> I've just posted a little patch that adds function descriptions,
-> hopefully that is one step in the right direction.
-
-Good!
-
-I started a documentation of videobuf KABI at:
-	~/tokernel/wrk/linus/Documentation/video4linux/v4l2-framework.txt 
-
-For now, it covers only the common code (offering a view for driver writers,
-not for videobuf writers), but I think we can extend it (or create a separate
-doc) with internal details. In the future, we should consider converting it to
-docbook and produce a complete V4L2 KABI doc.
-
-Feel free to add some notes there.
-
-> > I would also suggest if you could also take a look at videobuf-vmalloc and implement a
-> > similar method to provide USERPTR. The vmalloc flavor can easily be tested with
-> > the virtual (vivi) video driver, so it helps people to better understand how
-> > videobuf works. It will also help the USB drivers that use videobuf to use USERPTR.
+> Patch page-allocator-use-allocation-flags-as-an-index-to-the-zone-watermark
+> from -mm added a union to struct zone where the watermarks could be accessed
+> with either zone->pages_* or a pages_mark array. The concern was that this
+> aliasing caused more confusion that it helped.
 > 
-> Yeah, supporting USERPTR with vivi sounds like a good plan. I'm not
-> sure how much work it involves though. The comment in the
-> videobuf-vmalloc header says that the buffer code assumes that the
-> driver does not touch the data, but I think that's exactly how vivi
-> generates the frame data for us. =)
+> This patch replaces the union with a watermark array that is indexed with
+> WMARK_* defines accessed via helpers. All call sites that use zone->pages_*
+> are updated to use the helpers for accessing the values and the array
+> offsets for setting.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+>  Documentation/sysctl/vm.txt |   11 ++++++-----
+>  Documentation/vm/balance    |   18 +++++++++---------
+>  arch/m32r/mm/discontig.c    |    6 +++---
+>  include/linux/mmzone.h      |   20 ++++++++++++++------
+>  mm/page_alloc.c             |   41 +++++++++++++++++++++--------------------
+>  mm/vmscan.c                 |   39 +++++++++++++++++++++------------------
+>  mm/vmstat.c                 |    6 +++---
+>  7 files changed, 77 insertions(+), 64 deletions(-)
 
-:)
+Looks nice.  It net adds a few lines of code, but that's mostly from the
+#defines and not added complexity or lots of line wrapping.  
 
-The rationale for that comment is that we shouldn't reformat the received data
-inside kernel (like doing format conversions), but, instead, let this task to
-happen at userspace if needed. 
+Ackedf-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
-With PCI, this is very clear: it just fills the frame data via DMA, and adds the
-corresponding meta-data to the videobuf structures at interrupt time. This is
-possible, since DMA generates IRQ only after receiving a complete frame, so
-meta-data can be added without troubles.
-
-Although videobuf-vmalloc itself doesn't touch at the data (behaving just like
-PCI videobuf's), this note is not quite true with the clients of
-videobuf-vmalloc (vivi and the USB drivers), since:
-
-1) all USB drivers I know use a small transport layer over USB to indicate
-frame begin/end and eventually to multiplex with VBI and/or audio. So,
-the usb drivers need to get rid of the USB transport layer, providing only the
-stream data to userspace, and filling the meta-data based on the transport layer;
-
-2) vivi produces the stream data.
-
-> I need to figure out the best way to grab references to user space
-> pages and map them virtually contiguous like vmalloc does. This will
-> take a bit of time, so don't expect anything submitted in time for
-> v2.6.31. I've put it fairly high on my TODO list.
-
-Thanks!
-
-> Thanks for your help!
-
-Anytime.
-
-Cheers,
-Mauro
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
