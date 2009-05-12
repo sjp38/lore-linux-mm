@@ -1,151 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EFCA26B004F
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 07:25:53 -0400 (EDT)
-Date: Tue, 12 May 2009 13:24:00 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] fix swap cache account leak at swapin-readahead
-Message-ID: <20090512112359.GA20771@cmpxchg.org>
-References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com> <20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C0E066B004F
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 07:44:27 -0400 (EDT)
+Date: Tue, 12 May 2009 19:44:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH -mm] vmscan: report vm_flags in page_referenced()
+Message-ID: <20090512114456.GB5926@localhost>
+References: <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org> <20090507134410.0618b308.akpm@linux-foundation.org> <20090508081608.GA25117@localhost> <20090508125859.210a2a25.akpm@linux-foundation.org> <20090512025153.GB7518@localhost> <1242109389.11251.310.camel@twins> <20090512154413.ca39795e.minchan.kim@barrios-desktop>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090512154413.ca39795e.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 12, 2009 at 10:46:03AM +0900, KAMEZAWA Hiroyuki wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Tue, May 12, 2009 at 02:44:13PM +0800, Minchan Kim wrote:
+> On Tue, 12 May 2009 08:23:09 +0200
+> Peter Zijlstra <peterz@infradead.org> wrote:
 > 
-> In general, Linux's swp_entry handling is done by combination of lazy techniques
-> and global LRU. It works well but when we use mem+swap controller, some more
-> strict control is appropriate. Otherwise, swp_entry used by a cgroup will be
-> never freed until global LRU works. In a system where memcg is well-configured,
-> global LRU doesn't work frequently.
+> > On Tue, 2009-05-12 at 10:51 +0800, Wu Fengguang wrote:
+> > > @@ -406,6 +408,7 @@ static int page_referenced_anon(struct p
+> > >                 if (mem_cont && !mm_match_cgroup(vma->vm_mm, mem_cont))
+> > >                         continue;
+> > >                 referenced += page_referenced_one(page, vma, &mapcount);
+> > > +               *vm_flags |= vma->vm_flags;
+> > >                 if (!mapcount)
+> > >                         break;
+> > >         }
+> > 
+> > Shouldn't that read:
+> > 
+> >   if (page_referenced_on(page, vma, &mapcount)) {
+> >     referenced++;
+> >     *vm_flags |= vma->vm_flags;
+> >   }
+> > 
+> > So that we only add the vma-flags of those vmas that actually have a
+> > young bit set?
+> > 
+> > In which case it'd be more at home in page_referenced_one():
+> > 
+> > @@ -381,6 +381,8 @@ out_unmap:
+> >  	(*mapcount)--;
+> >  	pte_unmap_unlock(pte, ptl);
+> >  out:
+> > +	if (referenced)
+> > +		*vm_flags |= vma->vm_flags;
+> >  	return referenced;
+> >  }
 > 
->   Example) Assume swapin-readahead.
-> 	      CPU0			      CPU1
-> 	   zap_pte()			  read_swap_cache_async()
-> 					  swap_duplicate().
->            swap_entry_free() = 1
-> 	   find_get_page()=> NULL.
-> 					  add_to_swap_cache().
-> 					  issue swap I/O. 
-> 
-> There are many patterns of this kind of race (but no problems).
-> 
-> free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
-> function. If the swp_entry/page seems busy, swp_entry is not freed.
-> This is not a problem because global-LRU will find SwapCache at page reclaim.
-> 
-> If memcg is used, on the other hand, global LRU may not work. Then, above
-> unused SwapCache will not be freed.
-> (unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
-> 
-> So, even if there are no tasks in a cgroup, swp_entry usage still remains.
-> In bad case, OOM by mem+swap controller is triggered by this "leak" of
-> swp_entry as Nishimura reported.
-> 
-> Considering this issue, swapin-readahead itself is not very good for memcg.
-> It read swap cache which will not be used. (and _unused_ swapcache will
-> not be accounted.) Even if we account swap cache at add_to_swap_cache(),
-> we need to account page to several _unrelated_ memcg. This is bad.
-> 
-> This patch tries to fix racy case of free_swap_and_cache() and page status.
-> 
-> After this patch applied, following test works well.
-> 
->   # echo 1-2M > ../memory.limit_in_bytes
->   # run tasks under memcg.
->   # kill all tasks and make memory.tasks empty
->   # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
->     there is no _used_ swp_entry.
-> 
-> What this patch does is
->  - avoid swapin-readahead when memcg is activated.
-> 
-> Changelog: v6 -> v7
->  - just handle races in readahead.
->  - races in writeback is handled in the next patch.
-> 
-> Changelog: v5 -> v6
->  - works only when memcg is activated.
->  - check after I/O works only after writeback.
->  - avoid swapin-readahead when memcg is activated.
->  - fixed page refcnt issue.
-> Changelog: v4->v5
->  - completely new design.
-> 
-> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/swap_state.c |   20 +++++++++++++++++---
->  1 file changed, 17 insertions(+), 3 deletions(-)
-> 
-> Index: mmotm-2.6.30-May07/mm/swap_state.c
-> ===================================================================
-> --- mmotm-2.6.30-May07.orig/mm/swap_state.c
-> +++ mmotm-2.6.30-May07/mm/swap_state.c
-> @@ -349,9 +349,9 @@ struct page *read_swap_cache_async(swp_e
->  struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
->  			struct vm_area_struct *vma, unsigned long addr)
->  {
-> -	int nr_pages;
-> +	int nr_pages = 1;
->  	struct page *page;
-> -	unsigned long offset;
-> +	unsigned long offset = 0;
->  	unsigned long end_offset;
->  
->  	/*
-> @@ -360,8 +360,22 @@ struct page *swapin_readahead(swp_entry_
->  	 * No, it's very unlikely that swap layout would follow vma layout,
->  	 * more likely that neighbouring swap pages came from the same node:
->  	 * so use the same "addr" to choose the same node for each swap read.
-> +	 *
-> +	 * But, when memcg is used, swapin readahead give us some bad
-> +	 * effects. There are 2 big problems in general.
-> +	 * 1. Swapin readahead tend to use/read _not required_ memory.
-> +	 *    And _not required_ memory is only freed by global LRU.
-> +	 * 2. We can't charge pages for swap-cache readahead because
-> +	 *    we should avoid account memory in a cgroup which a
-> +	 *    thread call this function is not related to.
-> +	 * And swapin-readahead have racy condition with
-> +	 * free_swap_and_cache(). This also annoys memcg.
-> +	 * Then, if memcg is really used, we avoid readahead.
->  	 */
-> -	nr_pages = valid_swaphandles(entry, &offset);
-> +
-> +	if (!mem_cgroup_activated())
-> +		nr_pages = valid_swaphandles(entry, &offset);
-> +
->  	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
->  		/* Ok, do the async read-ahead now */
->  		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+> Good. I am ACK for peter's suggestion.
+> It can prevent setting vm_flag for worng vma which don't have the page.
 
-Having nr_pages set to 1 and offset to zero will actually enter hat
-loop and try to read a swap slot at offset zero, including a
-superfluous page allocation, just to fail at the swap_duplicate()
-(swap slot 0 is swap header -> SWAP_MAP_BAD).
+Good suggestions!  I realized now it is a flaky idea to not do that in
+page_referenced_one(), hehe.
 
-How about:
-
-	if (mem_cgroup_activated())
-		goto pivot;
-	nr_pages = valid_swaphandles(...);
-	for (readahead loop)
-		...
-pivot:
-	return read_swap_cache_async();
-
-That will also save you the runtime initialization of nr_pages and
-offset completely when the cgroup is active.  And you'll have only one
-branch and no second one for offset < end_offset in the loop.  And the
-lru draining, but I'm not sure about that.  I think it's not needed.
-
-	Hannes
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
