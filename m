@@ -1,100 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 97CDF6B004F
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 05:51:14 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4C9lnkx010461
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 05:47:49 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4C9q0Lb184936
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 05:52:01 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4C9o3VL004456
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 05:50:03 -0400
-Date: Tue, 12 May 2009 15:21:58 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/3] fix stale swap cache account leak  in memcg v7
-Message-ID: <20090512095158.GB6351@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 047366B004F
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 06:58:07 -0400 (EDT)
+Date: Tue, 12 May 2009 19:58:23 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [PATCH][BUGFIX] memcg: fix for deadlock between
+ lock_page_cgroup and mapping tree_lock
+Message-Id: <20090512195823.15c5cb80.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20090512171356.3d3a7554.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090512140648.0974cb10.nishimura@mxp.nes.nec.co.jp>
+	<20090512160901.8a6c5f64.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090512170007.ad7f5c7b.nishimura@mxp.nes.nec.co.jp>
+	<20090512171356.3d3a7554.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-12 10:44:01]:
+On Tue, 12 May 2009 17:13:56 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> I hope this version gets acks..
-> ==
-> As Nishimura reported, there is a race at handling swap cache.
-> 
-> Typical cases are following (from Nishimura's mail)
-> 
-> 
-> == Type-1 ==
->   If some pages of processA has been swapped out, it calls free_swap_and_cache().
->   And if at the same time, processB is calling read_swap_cache_async() about
->   a swap entry *that is used by processA*, a race like below can happen.
-> 
->             processA                   |           processB
->   -------------------------------------+-------------------------------------
->     (free_swap_and_cache())            |  (read_swap_cache_async())
->                                        |    swap_duplicate()
->                                        |    __set_page_locked()
->                                        |    add_to_swap_cache()
->       swap_entry_free() == 0           |
->       find_get_page() -> found         |
->       try_lock_page() -> fail & return |
->                                        |    lru_cache_add_anon()
->                                        |      doesn't link this page to memcg's
->                                        |      LRU, because of !PageCgroupUsed.
-> 
->   This type of leak can be avoided by setting /proc/sys/vm/page-cluster to 0.
-> 
-> 
-> == Type-2 ==
->     Assume processA is exiting and pte points to a page(!PageSwapCache).
->     And processB is trying reclaim the page.
-> 
->               processA                   |           processB
->     -------------------------------------+-------------------------------------
->       (page_remove_rmap())               |  (shrink_page_list())
->          mem_cgroup_uncharge_page()      |
->             ->uncharged because it's not |
->               PageSwapCache yet.         |
->               So, both mem/memsw.usage   |
->               are decremented.           |
->                                          |    add_to_swap() -> added to swap cache.
-> 
->     If this page goes thorough without being freed for some reason, this page
->     doesn't goes back to memcg's LRU because of !PageCgroupUsed.
-> 
-> 
-> Considering Type-1, it's better to avoid swapin-readahead when memcg is used.
-> swapin-readahead just read swp_entries which are near to requested entry. So,
-> pages not to be used can be on memory (on global LRU). When memcg is used,
-> this is not good behavior anyway.
-> 
-> Considering Type-2, the page should be freed from SwapCache right after WriteBack.
-> Free swapped out pages as soon as possible is a good nature to memcg, anyway.
-> 
-> The patch set includes followng
->  [1/3] add mem_cgroup_is_activated() function. which tell us memcg is _really_ used.
->  [2/3] fix swap cache handling race by avoidng readahead.
->  [3/3] fix swap cache handling race by check swapcount again.
-> 
-> Result is good under my test.
+> On Tue, 12 May 2009 17:00:07 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > hmm, I see.
+> > cache_charge is outside of tree_lock, so moving uncharge would make sense.
+> > IMHO, we should make the period of spinlock as small as possible,
+> > and charge/uncharge of pagecache/swapcache is protected by page lock, not tree_lock.
+> > 
+> How about this ?
+Looks good conceptually, but it cannot be built :)
 
-What was the result (performance data impact) of disabling swap
-readahead? Otherwise, this looks the most reasonable set of patches
-for this problem.
+It needs a fix like this.
+Passed build test with enabling/disabling both CONFIG_MEM_RES_CTLR
+and CONFIG_SWAP.
 
--- 
-	Balbir
+===
+ include/linux/swap.h |    5 +++++
+ mm/memcontrol.c      |    4 +++-
+ mm/swap_state.c      |    4 +---
+ mm/vmscan.c          |    2 +-
+ 4 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index caf0767..6ea541d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -431,6 +431,11 @@ static inline swp_entry_t get_swap_page(void)
+ #define has_swap_token(x) 0
+ #define disable_swap_token() do { } while(0)
+ 
++static inline void
++mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
++{
++}
++
+ #endif /* CONFIG_SWAP */
+ #endif /* __KERNEL__*/
+ #endif /* _LINUX_SWAP_H */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0c9c1ad..89523cf 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1488,8 +1488,9 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+ }
+ 
++#ifdef CONFIG_SWAP
+ /*
+- * called from __delete_from_swap_cache() and drop "page" account.
++ * called after __delete_from_swap_cache() and drop "page" account.
+  * memcg information is recorded to swap_cgroup of "ent"
+  */
+ void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+@@ -1506,6 +1507,7 @@ void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+ 	if (memcg)
+ 		css_put(&memcg->css);
+ }
++#endif
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ /*
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 87f10d4..7624c89 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -109,8 +109,6 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+  */
+ void __delete_from_swap_cache(struct page *page)
+ {
+-	swp_entry_t ent = {.val = page_private(page)};
+-
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(!PageSwapCache(page));
+ 	VM_BUG_ON(PageWriteback(page));
+@@ -190,7 +188,7 @@ void delete_from_swap_cache(struct page *page)
+ 	__delete_from_swap_cache(page);
+ 	spin_unlock_irq(&swapper_space.tree_lock);
+ 
+-	mem_cgroup_uncharge_swapcache(page, ent);
++	mem_cgroup_uncharge_swapcache(page, entry);
+ 	swap_free(entry);
+ 	page_cache_release(page);
+ }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 6c5988d..a7d7a06 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -470,7 +470,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
+ 		swp_entry_t swap = { .val = page_private(page) };
+ 		__delete_from_swap_cache(page);
+ 		spin_unlock_irq(&mapping->tree_lock);
+-		mem_cgroup_uncharge_swapcache(page);
++		mem_cgroup_uncharge_swapcache(page, swap);
+ 		swap_free(swap);
+ 	} else {
+ 		__remove_from_page_cache(page);
+===
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
