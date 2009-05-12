@@ -1,44 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2EF356B0082
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 09:20:30 -0400 (EDT)
-Message-ID: <4A09778B.5030809@redhat.com>
-Date: Tue, 12 May 2009 09:20:11 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 644006B0083
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 09:30:10 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so1785291ywm.26
+        for <linux-mm@kvack.org>; Tue, 12 May 2009 06:30:37 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] vmscan: make mapped executable pages the first	class
- citizen
-References: <20090430195439.e02edc26.akpm@linux-foundation.org> <49FB01C1.6050204@redhat.com> <20090501123541.7983a8ae.akpm@linux-foundation.org> <20090503031539.GC5702@localhost> <1241432635.7620.4732.camel@twins> <20090507121101.GB20934@localhost> <20090507151039.GA2413@cmpxchg.org> <20090507134410.0618b308.akpm@linux-foundation.org> <20090508081608.GA25117@localhost> <20090508125859.210a2a25.akpm@linux-foundation.org> <20090512025058.GA7518@localhost>
-In-Reply-To: <20090512025058.GA7518@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+In-Reply-To: <20090511103651.49d852f8@pedra.chehab.org>
+References: <20090508085310.31326.38083.sendpatchset@rx1.opensource.se>
+	 <20090508130658.813e29c1.akpm@linux-foundation.org>
+	 <20090511103651.49d852f8@pedra.chehab.org>
+Date: Tue, 12 May 2009 22:30:37 +0900
+Message-ID: <aec7e5c30905120630k7cbc245dh211dbd0472928a2d@mail.gmail.com>
+Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V3
+From: Magnus Damm <magnus.damm@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Mauro Carvalho Chehab <mchehab@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-
->> Also, the change makes this comment:
+On Mon, May 11, 2009 at 10:36 PM, Mauro Carvalho Chehab
+<mchehab@infradead.org> wrote:
+> Em Fri, 8 May 2009 13:06:58 -0700
+> Andrew Morton <akpm@linux-foundation.org> escreveu:
+>
+>> On Fri, 08 May 2009 17:53:10 +0900
+>> Magnus Damm <magnus.damm@gmail.com> wrote:
 >>
->> 	spin_lock_irq(&zone->lru_lock);
->> 	/*
->> 	 * Count referenced pages from currently used mappings as
->> 	 * rotated, even though they are moved to the inactive list.
->> 	 * This helps balance scan pressure between file and anonymous
->> 	 * pages in get_scan_ratio.
->> 	 */
->> 	reclaim_stat->recent_rotated[!!file] += pgmoved;
->>
->> inaccurate.
-> 
-> Good catch, I'll just remove the stale "even though they are moved to
-> the inactive list".
+>> > From: Magnus Damm <damm@igel.co.jp>
+>> >
+>> > This is V3 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
+>> >
+>> > Since videobuf-dma-contig is designed to handle physically contiguous
+>> > memory, this patch modifies the videobuf-dma-contig code to only accept
+>> > a user space pointer to physically contiguous memory. For now only
+>> > VM_PFNMAP vmas are supported, so forget hotplug.
+>> >
+>> > On SuperH Mobile we use this with our sh_mobile_ceu_camera driver
+>> > together with various multimedia accelerator blocks that are exported to
+>> > user space using UIO. The UIO kernel code exports physically contiguous
+>> > memory to user space and lets the user space application mmap() this memory
+>> > and pass a pointer using the USERPTR interface for V4L2 zero copy operation.
+>> >
+>> > With this approach we support zero copy capture, hardware scaling and
+>> > various forms of hardware encoding and decoding.
+>> >
+>> > Signed-off-by: Magnus Damm <damm@igel.co.jp>
+>
+> Acked-by: Mauro Carvalho Chehab <mchehab@redhat.com>
 
-Well, it is still true for !VM_EXEC pages.
+Thank you!
 
--- 
-All rights reversed.
+>> What does it do, how does it do it and why does it do it?
+>
+> A good documentation is a really good idea here. There videobuf internals are
+> very complex. A good documentation for it is very important to keep it updated.
+
+I've just posted a little patch that adds function descriptions,
+hopefully that is one step in the right direction.
+
+> I would also suggest if you could also take a look at videobuf-vmalloc and implement a
+> similar method to provide USERPTR. The vmalloc flavor can easily be tested with
+> the virtual (vivi) video driver, so it helps people to better understand how
+> videobuf works. It will also help the USB drivers that use videobuf to use USERPTR.
+
+Yeah, supporting USERPTR with vivi sounds like a good plan. I'm not
+sure how much work it involves though. The comment in the
+videobuf-vmalloc header says that the buffer code assumes that the
+driver does not touch the data, but I think that's exactly how vivi
+generates the frame data for us. =)
+
+I need to figure out the best way to grab references to user space
+pages and map them virtually contiguous like vmalloc does. This will
+take a bit of time, so don't expect anything submitted in time for
+v2.6.31. I've put it fairly high on my TODO list.
+
+Thanks for your help!
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
