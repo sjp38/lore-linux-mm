@@ -1,68 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DF04A6B00E9
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 07:13:59 -0400 (EDT)
-Received: by pxi37 with SMTP id 37so237396pxi.12
-        for <linux-mm@kvack.org>; Wed, 13 May 2009 04:14:11 -0700 (PDT)
-Date: Wed, 13 May 2009 20:13:49 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED
- submenu
-Message-Id: <20090513201349.a90a9d46.minchan.kim@barrios-desktop>
-In-Reply-To: <1242211037.24436.552.camel@macbook.infradead.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 589716B00EC
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 07:18:22 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so1062376gxk.14
+        for <linux-mm@kvack.org>; Wed, 13 May 2009 04:18:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <87r5ytl0nn.fsf@basil.nowhere.org>
 References: <20090513172904.7234.A69D9226@jp.fujitsu.com>
-	<20090513175152.1590c117.minchan.kim@barrios-desktop>
-	<20090513175539.723A.A69D9226@jp.fujitsu.com>
-	<20090513191221.674bc543.minchan.kim@barrios-desktop>
-	<1242211037.24436.552.camel@macbook.infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	 <87r5ytl0nn.fsf@basil.nowhere.org>
+Date: Wed, 13 May 2009 20:18:38 +0900
+Message-ID: <2f11576a0905130418w1782f85j12cb938e92d256ff@mail.gmail.com>
+Subject: Re: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED
+	submenu
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Matt Mackall <mpm@selenic.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Minchan@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 May 2009 11:37:17 +0100
-David Woodhouse <dwmw2@infradead.org> wrote:
+2009/5/13 Andi Kleen <andi@firstfloor.org>:
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> writes:
+>
+>> Subject: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED submenu
+>>
+>> Almost people always turn on CONFIG_UNEVICTABLE_LRU. this configuration is
+>> used only embedded people.
+>> Thus, moving it into embedded submenu is better.
+>
+> Is there are any reason it cannot be just made unconditional unless
+> CONFIG_MMU is disabled. It was never clear to me why this was a config
+> option at all.
 
-> On Wed, 2009-05-13 at 19:12 +0900, Minchan Kim wrote:
-> > > No.
-> > > As far as I know, many embedded guys use this configuration.
-> > > they hate unexpected latency by reclaim. !UNEVICTABLE_LRU increase
-> > > unexpectability largely.
-> > 
-> > As I said previous(http://lkml.org/lkml/2009/3/16/209), Many embedded
-> > environment have a small ram. It doesn't have a big impact in such
-> > case. 
-> > 
-> > Let CCed embedded matainers. 
-> > I won't have a objection if embedded maintainers ack this. 
-> 
-> I probably wouldn't be cheerleading for it if you wanted to make it
-> optional when it wasn't before -- but I suppose we might as well
-> preserve the option under CONFIG_EMBEDDED if the alternative is to lose
-> it completely.
+In past days, I proposed this. but Minchan found this config bloat kernel 7kb
+and he claim embedded guys should have selectable chance. I agreed it.
 
-Thanks for good commeting.
-If embedded maintainer don't have an obejction, me, too. :)
-
-But Let's add following comment like CONFIG_AIO. 
-
-"Disabling this option saves about 7k"
-
-> 
-> Acked-by: David Woodhouse <David.Woodhouse@intel.com>
-> 
-> -- 
-> David Woodhouse                            Open Source Technology Centre
-> David.Woodhouse@intel.com                              Intel Corporation
-> 
-
-
--- 
-Kinds Regards
-Minchan Kim
+Is this enough explanation?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
