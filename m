@@ -1,126 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2586B0115
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:18:30 -0400 (EDT)
-Message-ID: <4A0AF2DA.2020404@zytor.com>
-Date: Wed, 13 May 2009 09:18:34 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 490126B0118
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:34:22 -0400 (EDT)
+Date: Wed, 13 May 2009 17:34:48 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] Double check memmap is actually valid with a memmap has
+	unexpected holes V2
+Message-ID: <20090513163448.GA18006@csn.ul.ie>
+References: <20090505082944.GA25904@csn.ul.ie> <20090505083614.GA28688@n2100.arm.linux.org.uk> <20090505084928.GC25904@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
- 64 bits in X86_64
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com>
-In-Reply-To: <1242202647-32446-1-git-send-email-sheng@linux.intel.com>
-Content-Type: multipart/mixed;
- boundary="------------060805040508090909070102"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090505084928.GC25904@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Sheng Yang <sheng@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hartleys@visionengravers.com, mcrapet@gmail.com, fred99@carolina.rr.com, linux-arm-kernel@lists.arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------060805040508090909070102
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-Sheng Yang wrote:
-> This fix 44/45 bit width memory can't boot up issue. The reason is
-> free_bootmem_node()->mark_bootmem_node()->__free() use test_and_clean_bit() to
-> clean node_bootmem_map, but for 44bits width address, the idx set bit 31 (43 -
-> 12), which consider as a nagetive value for bts.
+On Tue, May 05, 2009 at 09:49:28AM +0100, Mel Gorman wrote:
+> On Tue, May 05, 2009 at 09:36:14AM +0100, Russell King - ARM Linux wrote:
+> > On Tue, May 05, 2009 at 09:29:44AM +0100, Mel Gorman wrote:
+> > > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> > > index e02b893..6d79051 100644
+> > > --- a/arch/arm/Kconfig
+> > > +++ b/arch/arm/Kconfig
+> > > @@ -925,10 +925,9 @@ config OABI_COMPAT
+> > >  	  UNPREDICTABLE (in fact it can be predicted that it won't work
+> > >  	  at all). If in doubt say Y.
+> > >  
+> > > -config ARCH_FLATMEM_HAS_HOLES
+> > > +config ARCH_HAS_HOLES_MEMORYMODEL
+> > 
+> > Can we arrange for EP93xx to select this so we don't have it enabled for
+> > everyone.
+> > 
+> > The other user of this was RPC when it was flatmem only, but since it has
+> > been converted to sparsemem it's no longer an issue there.
+> > 
 > 
-> This patch applied to tip/mm.
+> This problem is hitting SPARSEMEM, at least according to reports I have
+> been cc'd on so it's not a SPARSEMEM vs FLATMEM thing. From the leader --
+> "This was caught before for FLATMEM and hacked around but it hits again for
+> SPARSEMEM because the page_zone linkages can look ok where the PFN linkages
+> are totally screwed."
+> 
+> If you feel that this problem is only encountered on the EP93xx, then the
+> option could be made more conservative with the following (untested) patch
+> and then wait to see who complains.
+> 
 
-Hi Sheng,
+This problem is still there. Russell, would you be ok with picking up
+this version of the fix? There were suggestions for modifying the
+generic code further but they are not critical to the problem on ARM and
+could be done as a follow-up patch.
 
-Could you try the attached patch instead?
+==== CUT HERE ====
+Double check memmap is actually valid with a memmap has unexpected holes V2
 
-	-hpa
+Changelog since V1
+  o Restrict to EP93xx
 
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+pfn_valid() is meant to be able to tell if a given PFN has valid memmap
+associated with it or not. In FLATMEM, it is expected that holes always
+have valid memmap as long as there is valid PFNs either side of the hole.
+In SPARSEMEM, it is assumed that a valid section has a memmap for the
+entire section.
 
+However, ARM and maybe other embedded architectures in the future free
+memmap backing holes to save memory on the assumption the memmap is never
+used. The page_zone linkages are then broken even though pfn_valid()
+returns true. A walker of the full memmap must then do this additional
+check to ensure the memmap they are looking at is sane by making sure the
+zone and PFN linkages are still valid. This is expensive, but walkers of
+the full memmap are extremely rare.
 
---------------060805040508090909070102
-Content-Type: text/plain;
- name="diff"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="diff"
+This was caught before for FLATMEM and hacked around but it hits again for
+SPARSEMEM because the page_zone linkages can look ok where the PFN linkages
+are totally screwed. This looks like a hatchet job but the reality is that
+any clean solution would end up consumning all the memory saved by punching
+these unexpected holes in the memmap. For example, we tried marking the
+memmap within the section invalid but the section size exceeds the size of
+the hole in most cases so pfn_valid() starts returning false where valid
+memmap exists. Shrinking the size of the section would increase memory
+consumption offsetting the gains.
 
-ZGlmZiAtLWdpdCBhL0RvY3VtZW50YXRpb24veDg2L2Jvb3QudHh0IGIvRG9jdW1lbnRhdGlv
-bi94ODYvYm9vdC50eHQKaW5kZXggZTAyMDM2Ni4uY2NjMWJkNCAxMDA2NDQKLS0tIGEvRG9j
-dW1lbnRhdGlvbi94ODYvYm9vdC50eHQKKysrIGIvRG9jdW1lbnRhdGlvbi94ODYvYm9vdC50
-eHQKQEAgLTUwLDYgKzUwLDExIEBAIFByb3RvY29sIDIuMDg6CShLZXJuZWwgMi42LjI2KSBB
-ZGRlZCBjcmMzMiBjaGVja3N1bSBhbmQgRUxGIGZvcm1hdAogUHJvdG9jb2wgMi4wOToJKEtl
-cm5lbCAyLjYuMjYpIEFkZGVkIGEgZmllbGQgb2YgNjQtYml0IHBoeXNpY2FsCiAJCXBvaW50
-ZXIgdG8gc2luZ2xlIGxpbmtlZCBsaXN0IG9mIHN0cnVjdAlzZXR1cF9kYXRhLgogCitQcm90
-b2NvbCAyLjEwOgkoS2VybmVsIDIuNi4zMT8pIEEgcHJvdG9jb2wgZm9yIHJlbGF4ZWQgYWxp
-Z25tZW50CisJIAliZXlvbmQgdGhlIGtlcm5lbF9hbGlnbm1lbnQgYWRkZWQsIG5ldyBpbml0
-X3NpemUgYW5kCisJIAlwcmVmX2FkZHJlc3MgZmllbGRzLgorCSAJCisKICoqKiogTUVNT1JZ
-IExBWU9VVAogCiBUaGUgdHJhZGl0aW9uYWwgbWVtb3J5IG1hcCBmb3IgdGhlIGtlcm5lbCBs
-b2FkZXIsIHVzZWQgZm9yIEltYWdlIG9yCkBAIC0xNzMsNyArMTc4LDcgQEAgT2Zmc2V0CVBy
-b3RvCU5hbWUJCU1lYW5pbmcKIDAyMkMvNAkyLjAzKwlyYW1kaXNrX21heAlIaWdoZXN0IGxl
-Z2FsIGluaXRyZCBhZGRyZXNzCiAwMjMwLzQJMi4wNSsJa2VybmVsX2FsaWdubWVudCBQaHlz
-aWNhbCBhZGRyIGFsaWdubWVudCByZXF1aXJlZCBmb3Iga2VybmVsCiAwMjM0LzEJMi4wNSsJ
-cmVsb2NhdGFibGVfa2VybmVsIFdoZXRoZXIga2VybmVsIGlzIHJlbG9jYXRhYmxlIG9yIG5v
-dAotMDIzNS8xCU4vQQlwYWQyCQlVbnVzZWQKKzAyMzUvMQkyLjEwKwltaW5fYWxpZ25tZW50
-CU1pbmltdW0gYWxpZ25tZW50LCBhcyBhIHBvd2VyIG9mIDIKIDAyMzYvMglOL0EJcGFkMwkJ
-VW51c2VkCiAwMjM4LzQJMi4wNisJY21kbGluZV9zaXplCU1heGltdW0gc2l6ZSBvZiB0aGUg
-a2VybmVsIGNvbW1hbmQgbGluZQogMDIzQy80CTIuMDcrCWhhcmR3YXJlX3N1YmFyY2ggSGFy
-ZHdhcmUgc3ViYXJjaGl0ZWN0dXJlCkBAIC0xODIsNiArMTg3LDggQEAgT2Zmc2V0CVByb3Rv
-CU5hbWUJCU1lYW5pbmcKIDAyNEMvNAkyLjA4KwlwYXlsb2FkX2xlbmd0aAlMZW5ndGggb2Yg
-a2VybmVsIHBheWxvYWQKIDAyNTAvOAkyLjA5KwlzZXR1cF9kYXRhCTY0LWJpdCBwaHlzaWNh
-bCBwb2ludGVyIHRvIGxpbmtlZCBsaXN0CiAJCQkJb2Ygc3RydWN0IHNldHVwX2RhdGEKKzAy
-NTgvOAkyLjEwKwlwcmVmX2FkZHJlc3MJUHJlZmVycmVkIGxvYWRpbmcgYWRkcmVzcworMDI2
-MC80CTIuMTArCWluaXRfc2l6ZQlMaW5lYXIgbWVtb3J5IHJlcXVpcmVkIGR1cmluZyBpbml0
-aWFsaXphdGlvbgogCiAoMSkgRm9yIGJhY2t3YXJkcyBjb21wYXRpYmlsaXR5LCBpZiB0aGUg
-c2V0dXBfc2VjdHMgZmllbGQgY29udGFpbnMgMCwgdGhlCiAgICAgcmVhbCB2YWx1ZSBpcyA0
-LgpAQCAtNDgyLDExICs0ODksMTUgQEAgUHJvdG9jb2w6CTIuMDMrCiAgIDB4MzdGRkZGRkYs
-IHlvdSBjYW4gc3RhcnQgeW91ciByYW1kaXNrIGF0IDB4MzdGRTAwMDAuKQogCiBGaWVsZCBu
-YW1lOglrZXJuZWxfYWxpZ25tZW50Ci1UeXBlOgkJcmVhZCAocmVsb2MpCitUeXBlOgkJcmVh
-ZC9tb2RpZnkgKHJlbG9jKQogT2Zmc2V0L3NpemU6CTB4MjMwLzQKLVByb3RvY29sOgkyLjA1
-KworUHJvdG9jb2w6CTIuMDUrIChyZWFkKSwgMi4xMCsgKG1vZGlmeSkKIAotICBBbGlnbm1l
-bnQgdW5pdCByZXF1aXJlZCBieSB0aGUga2VybmVsIChpZiByZWxvY2F0YWJsZV9rZXJuZWwg
-aXMgdHJ1ZS4pCisgIEFsaWdubWVudCB1bml0IHJlcXVpcmVkIGJ5IHRoZSBrZXJuZWwgKGlm
-IHJlbG9jYXRhYmxlX2tlcm5lbCBpcworICB0cnVlLikgIFN0YXJ0aW5nIHdpdGggcHJvdG9j
-b2wgdmVyc2lvbiAyLjEwLCB0aGlzIHJlZmxlY3RzIHRoZQorICBrZXJuZWwgYWxpZ25tZW50
-IHByZWZlcnJlZCBmb3Igb3B0aW1hbCBwZXJmb3JtYW5jZSBhbmQgY2FuIGJlCisgIG1vZGlm
-aWVkIGJ5IHRoZSBsb2FkZXI7IHNlZSB0aGUgbWluX2FsaWdubWVudCBhbmQgcHJlZl9hZGRy
-ZXNzIGZpZWxkCisgIGJlbG93LgogCiBGaWVsZCBuYW1lOglyZWxvY2F0YWJsZV9rZXJuZWwK
-IFR5cGU6CQlyZWFkIChyZWxvYykKQEAgLTQ5OCw2ICs1MDksMjIgQEAgUHJvdG9jb2w6CTIu
-MDUrCiAgIEFmdGVyIGxvYWRpbmcsIHRoZSBib290IGxvYWRlciBtdXN0IHNldCB0aGUgY29k
-ZTMyX3N0YXJ0IGZpZWxkIHRvCiAgIHBvaW50IHRvIHRoZSBsb2FkZWQgY29kZSwgb3IgdG8g
-YSBib290IGxvYWRlciBob29rLgogCitGaWVsZCBuYW1lOgltaW5fYWxpZ25tZW50CitUeXBl
-OgkJcmVhZCAocmVsb2MpCitPZmZzZXQvc2l6ZToJMHgyMzUvMQorUHJvdG9jb2w6CTIuMTAr
-CisKKyAgVGhpcyBmaWVsZCwgaWYgbm9uemVybywgaW5kaWNhdGVzIGFzIGEgcG93ZXIgb2Yg
-MiB0aGUgbWluaW11bQorICBhbGlnbm1lbnQgcmVxdWlyZWQsIGFzIG9wcG9zZWQgdG8gcHJl
-ZmVycmVkLCBieSB0aGUga2VybmVsIHRvIGJvb3QuCisgIElmIGEgYm9vdCBsb2FkZXIgbWFr
-ZXMgdXNlIG9mIHRoaXMgZmllbGQsIGl0IHNob3VsZCB1cGRhdGUgdGhlCisgIGtlcm5lbF9h
-bGlnbm1lbnQgZmllbGQgd2l0aCB0aGUgYWxpZ25tZW50IHVuaXQgZGVzaXJlZDsgdHlwaWNh
-bGx5OgorCisJa2VybmVsX2FsaWdubWVudCA9IDEgPDwgbWluX2FsaWdubWVudAorCisgIFRo
-ZXJlIG1heSBiZSBhIGNvbnNpZGVyYWJsZSBwZXJmb3JtYW5jZSBjb3N0IHdpdGggYW4gZXhj
-ZXNzaXZlbHkKKyAgbWlzYWxpZ25lZCBrZXJuZWwuICBUaGVyZWZvcmUsIGEgbG9hZGVyIHNo
-b3VsZCB0eXBpY2FsbHkgdHJ5IGVhY2gKKyAgcG93ZXItb2YtdHdvIGFsaWdubWVudCBmcm9t
-IGtlcm5lbF9hbGlnbm1lbnQgZG93biB0byB0aGlzIGFsaWdubWVudC4KKwogRmllbGQgbmFt
-ZToJY21kbGluZV9zaXplCiBUeXBlOgkJcmVhZAogT2Zmc2V0L3NpemU6CTB4MjM4LzQKQEAg
-LTU4Miw2ICs2MDksMjcgQEAgUHJvdG9jb2w6CTIuMDkrCiAgIHN1cmUgdG8gY29uc2lkZXIg
-dGhlIGNhc2Ugd2hlcmUgdGhlIGxpbmtlZCBsaXN0IGFscmVhZHkgY29udGFpbnMKICAgZW50
-cmllcy4KIAorRmllbGQgbmFtZToJcHJlZl9hZGRyZXNzCitUeXBlOgkJcmVhZCAocmVsb2Mp
-CitPZmZzZXQvc2l6ZToJMHgyNTgvOAorUHJvdG9jb2w6CTIuMTArCisKKyAgVGhpcyBmaWVs
-ZCwgaWYgbm9uemVybywgcmVwcmVzZW50cyBhIHByZWZlcnJlZCBsb2FkIGFkZHJlc3MgZm9y
-IHRoZQorICBrZXJuZWwuICBBIHJlbG9jYXRpbmcgYm9vdGxvYWRlciBzaG91bGQgYXR0ZW1w
-dCB0byBsb2FkIGF0IHRoaXMKKyAgYWRkcmVzcyBpZiBwb3NzaWJsZS4KKworCitGaWVsZCBu
-YW1lOglpbml0X3NpemUKK1R5cGU6CQlyZWFkCitPZmZzZXQvc2l6ZToJMHgyNWMvNAorCisg
-IFRoaXMgZmllbGQgaW5kaWNhdGVzIHRoZSBhbW91bnQgb2YgbGluZWFyIGNvbnRpZ3VvdXMg
-bWVtb3J5IHN0YXJ0aW5nCisgIGF0IHRoZSBrZXJuZWwgbG9hZCBhZGRyZXNzIChyb3VuZGVk
-IHVwIHRvIGtlcm5lbF9hbGlnbm1lbnQpIHRoYXQgdGhlCisgIGtlcm5lbCBuZWVkcyBiZWZv
-cmUgaXQgaXMgY2FwYWJsZSBvZiBleGFtaW5pbmcgaXRzIG1lbW9yeSBtYXAuICBUaGlzCisg
-IGlzIG5vdCB0aGUgc2FtZSB0aGluZyBhcyB0aGUgdG90YWwgYW1vdW50IG9mIG1lbW9yeSB0
-aGUga2VybmVsIG5lZWRzCisgIHRvIGJvb3QsIGJ1dCBpdCBjYW4gYmUgdXNlZCBieSBhIHJl
-bG9jYXRpbmcgYm9vdCBsb2FkZXIgdG8gaGVscAorICBzZWxlY3QgYSBzYWZlIGxvYWQgYWRk
-cmVzcyBmb3IgdGhlIGtlcm5lbC4KKwogCiAqKioqIFRIRSBJTUFHRSBDSEVDS1NVTQogCg==
---------------060805040508090909070102--
+This patch identifies when an architecture is punching unexpected holes
+in the memmap that the memory model cannot automatically detect and sets
+ARCH_HAS_HOLES_MEMORYMODEL. At the moment, this is restricted to EP93xx
+which is the model sub-architecture this has been reported on but may expand
+later. When set, walkers of the full memmap must call memmap_valid_within()
+for each PFN and passing in what it expects the page and zone to be for
+that PFN. If it finds the linkages to be broken, it assumes the memmap is
+invalid for that PFN.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ arch/arm/Kconfig       |    6 +++---
+ include/linux/mmzone.h |   26 ++++++++++++++++++++++++++
+ mm/mmzone.c            |   15 +++++++++++++++
+ mm/vmstat.c            |   19 ++++---------------
+ 4 files changed, 48 insertions(+), 18 deletions(-)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index e02b893..a4c195c 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -273,6 +273,7 @@ config ARCH_EP93XX
+ 	select HAVE_CLK
+ 	select COMMON_CLKDEV
+ 	select ARCH_REQUIRE_GPIOLIB
++	select ARCH_HAS_HOLES_MEMORYMODEL
+ 	help
+ 	  This enables support for the Cirrus EP93xx series of CPUs.
+ 
+@@ -925,10 +926,9 @@ config OABI_COMPAT
+ 	  UNPREDICTABLE (in fact it can be predicted that it won't work
+ 	  at all). If in doubt say Y.
+ 
+-config ARCH_FLATMEM_HAS_HOLES
++config ARCH_HAS_HOLES_MEMORYMODEL
+ 	bool
+-	default y
+-	depends on FLATMEM
++	default n
+ 
+ # Discontigmem is deprecated
+ config ARCH_DISCONTIGMEM_ENABLE
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 1ff59fd..d20513a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1104,6 +1104,32 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+ #define pfn_valid_within(pfn) (1)
+ #endif
+ 
++#ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
++/*
++ * pfn_valid() is meant to be able to tell if a given PFN has valid memmap
++ * associated with it or not. In FLATMEM, it is expected that holes always
++ * have valid memmap as long as there is valid PFNs either side of the hole.
++ * In SPARSEMEM, it is assumed that a valid section has a memmap for the
++ * entire section.
++ *
++ * However, an ARM, and maybe other embedded architectures in the future
++ * free memmap backing holes to save memory on the assumption the memmap is
++ * never used. The page_zone linkages are then broken even though pfn_valid()
++ * returns true. A walker of the full memmap must then do this additional
++ * check to ensure the memmap they are looking at is sane by making sure
++ * the zone and PFN linkages are still valid. This is expensive, but walkers
++ * of the full memmap are extremely rare.
++ */
++int memmap_valid_within(unsigned long pfn,
++					struct page *page, struct zone *zone);
++#else
++static inline int memmap_valid_within(unsigned long pfn,
++					struct page *page, struct zone *zone)
++{
++	return 1;
++}
++#endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
++
+ #endif /* !__GENERATING_BOUNDS.H */
+ #endif /* !__ASSEMBLY__ */
+ #endif /* _LINUX_MMZONE_H */
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index 16ce8b9..f5b7d17 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -6,6 +6,7 @@
+ 
+ 
+ #include <linux/stddef.h>
++#include <linux/mm.h>
+ #include <linux/mmzone.h>
+ #include <linux/module.h>
+ 
+@@ -72,3 +73,17 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 	*zone = zonelist_zone(z);
+ 	return z;
+ }
++
++#ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
++int memmap_valid_within(unsigned long pfn,
++					struct page *page, struct zone *zone)
++{
++	if (page_to_pfn(page) != pfn)
++		return 0;
++
++	if (page_zone(page) != zone)
++		return 0;
++
++	return 1;
++}
++#endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 17f2abb..03ee651 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -509,22 +509,11 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
+ 			continue;
+ 
+ 		page = pfn_to_page(pfn);
+-#ifdef CONFIG_ARCH_FLATMEM_HAS_HOLES
+-		/*
+-		 * Ordinarily, memory holes in flatmem still have a valid
+-		 * memmap for the PFN range. However, an architecture for
+-		 * embedded systems (e.g. ARM) can free up the memmap backing
+-		 * holes to save memory on the assumption the memmap is
+-		 * never used. The page_zone linkages are then broken even
+-		 * though pfn_valid() returns true. Skip the page if the
+-		 * linkages are broken. Even if this test passed, the impact
+-		 * is that the counters for the movable type are off but
+-		 * fragmentation monitoring is likely meaningless on small
+-		 * systems.
+-		 */
+-		if (page_zone(page) != zone)
++
++		/* Watch for unexpected holes punched in the memmap */
++		if (!memmap_valid_within(pfn, page, zone))
+ 			continue;
+-#endif
++
+ 		mtype = get_pageblock_migratetype(page);
+ 
+ 		if (mtype < MIGRATE_TYPES)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
