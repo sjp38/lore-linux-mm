@@ -1,229 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AC3DA6B0120
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 13:29:05 -0400 (EDT)
-Message-ID: <4A0B036B.7000107@zytor.com>
-Date: Wed, 13 May 2009 10:29:15 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C136B0122
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 14:04:57 -0400 (EDT)
+Date: Wed, 13 May 2009 19:03:47 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 2/3] fix swap cache account leak at swapin-readahead
+In-Reply-To: <20090513111800.GA2254@cmpxchg.org>
+Message-ID: <Pine.LNX.4.64.0905131707330.27813@blonde.anvils>
+References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090512112359.GA20771@cmpxchg.org> <20090513085816.13dc7709.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090513111800.GA2254@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
- 64 bits in X86_64
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <4A0AF2DA.2020404@zytor.com> <4A0AFB7D.2080105@zytor.com>
-In-Reply-To: <4A0AFB7D.2080105@zytor.com>
-Content-Type: multipart/mixed;
- boundary="------------030502010407080500010300"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Sheng Yang <sheng@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------030502010407080500010300
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-H. Peter Anvin wrote:
-> H. Peter Anvin wrote:
->> Sheng Yang wrote:
->>> This fix 44/45 bit width memory can't boot up issue. The reason is
->>> free_bootmem_node()->mark_bootmem_node()->__free() use test_and_clean_bit() to
->>> clean node_bootmem_map, but for 44bits width address, the idx set bit 31 (43 -
->>> 12), which consider as a nagetive value for bts.
->>>
->>> This patch applied to tip/mm.
->> Hi Sheng,
->>
->> Could you try the attached patch instead?
->>
+On Wed, 13 May 2009, Johannes Weiner wrote:
+> On Wed, May 13, 2009 at 08:58:16AM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 12 May 2009 13:24:00 +0200
+> > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > On Tue, May 12, 2009 at 10:46:03AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > >
+> > > > Index: mmotm-2.6.30-May07/mm/swap_state.c
+> > > > ===================================================================
+> > > > --- mmotm-2.6.30-May07.orig/mm/swap_state.c
+> > > > +++ mmotm-2.6.30-May07/mm/swap_state.c
+> > > > @@ -349,9 +349,9 @@ struct page *read_swap_cache_async(swp_e
+> > > >  struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+> > > >  			struct vm_area_struct *vma, unsigned long addr)
+> > > >  {
+> > > > -	int nr_pages;
+> > > > +	int nr_pages = 1;
+> > > >  	struct page *page;
+> > > > -	unsigned long offset;
+> > > > +	unsigned long offset = 0;
+> > > >  	unsigned long end_offset;
+> > > >  
+> > > >  	/*
+> > > > @@ -360,8 +360,22 @@ struct page *swapin_readahead(swp_entry_
+> > > >  	 * No, it's very unlikely that swap layout would follow vma layout,
+> > > >  	 * more likely that neighbouring swap pages came from the same node:
+> > > >  	 * so use the same "addr" to choose the same node for each swap read.
+> > > > +	 *
+> > > > +	 * But, when memcg is used, swapin readahead give us some bad
+> > > > +	 * effects. There are 2 big problems in general.
+> > > > +	 * 1. Swapin readahead tend to use/read _not required_ memory.
+> > > > +	 *    And _not required_ memory is only freed by global LRU.
+> > > > +	 * 2. We can't charge pages for swap-cache readahead because
+> > > > +	 *    we should avoid account memory in a cgroup which a
+> > > > +	 *    thread call this function is not related to.
+> > > > +	 * And swapin-readahead have racy condition with
+> > > > +	 * free_swap_and_cache(). This also annoys memcg.
+> > > > +	 * Then, if memcg is really used, we avoid readahead.
+> > > >  	 */
+> > > > -	nr_pages = valid_swaphandles(entry, &offset);
+> > > > +
+> > > > +	if (!mem_cgroup_activated())
+> > > > +		nr_pages = valid_swaphandles(entry, &offset);
+> > > > +
+> > > >  	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
+> > > >  		/* Ok, do the async read-ahead now */
+> > > >  		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+> > > 
+> > > Having nr_pages set to 1 and offset to zero will actually enter hat
+> > > loop and try to read a swap slot at offset zero, including a
+> > > superfluous page allocation, just to fail at the swap_duplicate()
+> > > (swap slot 0 is swap header -> SWAP_MAP_BAD).
+> > > 
+> > Hmm ?
+> >  swp_entry(swp_type(entry), offset),
+> > can be zero ?
 > 
-> Sorry, wrong patch entirely... here is the right one.
+> I'm not sure I understand your question.
+
+Nor I, but I think KAMEZAWA-san is suggesting that we never come here
+with offset 0 anyway.  Which I believe is correct.
+
+(And in passing, off topic, note that we have a problem if we ever
+do need to read page 0 in this way, in the swap-to-regular-file case: 
+because the swap_extents reading of page 0 can differ from sys_swapon's
+reading of the header page without swap_extents - possibly hibernate
+to swapfile can suffer from that, but not regular swapping paths.)
+
+> Whether this whole
+> expression can or can not be zero is irrelevant.  My point is that you
+> enter the readahead loop with a bogus offset, while your original
+> intention is to completey disable readahead.
+
+I don't really buy your point on offset 0 in particular: if offset 0
+is asked for, it goes through the intended motions, though you and I
+know that offset 0 will subsequently be found unsuitable; but it does
+what is asked of it.
+
+However, I do agree with you that it's silly to be entering this loop
+at all when avoiding readahead.  When doing readahead, we have to cope
+with the fact that any of the calls in the loop might have failed, so
+we do the extra, targetted read_swap_cache_async at the end, to satisfy
+the actual request.  When avoiding readahead, better just to go to that
+final read_swap_cache_async, instead of duplicating it and compensating
+with a page_cache_release too.
+
+Which is what initializing nr_pages = 0 should achieve: see how
+valid_swaphandles() returns 0 rather than 1 when avoiding readahead,
+precisely to avoid the unnecessary duplication.  So I'd recommend
+nr_pages = 0 rather than nr_pages = 1 at the top.
+
 > 
+> > > How about:
+> > > 
+> > > 	if (mem_cgroup_activated())
+> > > 		goto pivot;
+> > > 	nr_pages = valid_swaphandles(...);
+> > > 	for (readahead loop)
+> > > 		...
+> > > pivot:
+> > > 	return read_swap_cache_async();
+> > > 
+> > > That will also save you the runtime initialization of nr_pages and
+> > > offset completely when the cgroup is active.  And you'll have only one
+> > > branch and no second one for offset < end_offset in the loop.  And the
+> > > lru draining, but I'm not sure about that.  I think it's not needed.
+> > > 
+> > Hmm. I'm not sure why lru_add_drain()->read_swap_cache_async() is inserted before returing
+> > to caller. Is the page to be returned isn't necessary to be on LRU ?
+> 
+> I'm not sure either.  Neither the fault handler nor concurrent
+> swap-ins seem to care.  I added Hugh on CC.
 
-This time, for real?  Sheesh.  I'm having a morning, apparently.
+Thanks, though you've probably got me from git-blame identifying when
+I moved that code around: the person you really want is akpm, then
+@digeo.com, in ChangeLog-2.5.46:
 
-	-hpa
+	[PATCH] empty the deferred lru-addition buffers in swapin_readahead
+	
+	If we're about to return to userspace after performing some swap
+	readahead, the pages in the deferred-addition LRU queues could stay
+	there for some time.  So drain them after performing readahead.
 
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+I suspect that's a "seems like a good idea, especially if we've many cpus"
+(which I do agree with), rather than a practical finding in some workload.
+If we've read in a number of pages which quite possibly will prove of no
+use to anyone, better have them visible to reclaim on the LRU as soon as
+possible, rather than stuck indefinitely in per-cpu vectors.
 
+The non-readahead case is a little different, in that you know the one
+page is really of use to someone; so it's less important to drain in
+that case, but whether worth avoiding the drain I don't know.
 
---------------030502010407080500010300
-Content-Type: text/plain;
- name="diff"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="diff"
+(On the general matter of these patches: mostly these days I find no
+time to do better than let the memcg people go their own way.  I do
+like these minimal patches much better than those putting blocks of
+#ifdef'ed code into mm/page_io.c and mm/vmscan.c etc.  But we'll need
+to see what how badly suppressing readahead works out - as I've said
+before, I'm no devout believer in readahead here, but have observed
+in the past that it really does help.  I always thought that to handle
+swapin readahead correctly, the memcg people would need to record the
+cgs of what's on swap.)
 
-ZGlmZiAtLWdpdCBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL2JpdG9wcy5oIGIvYXJjaC94ODYv
-aW5jbHVkZS9hc20vYml0b3BzLmgKaW5kZXggMDJiNDdhNi4uNTZmZDljYyAxMDA2NDQKLS0t
-IGEvYXJjaC94ODYvaW5jbHVkZS9hc20vYml0b3BzLmgKKysrIGIvYXJjaC94ODYvaW5jbHVk
-ZS9hc20vYml0b3BzLmgKQEAgLTQxLDYgKzQxLDE2IEBACiAjZGVmaW5lIENPTlNUX01BU0tf
-QUREUihuciwgYWRkcikJQklUT1BfQUREUigodm9pZCAqKShhZGRyKSArICgobnIpPj4zKSkK
-ICNkZWZpbmUgQ09OU1RfTUFTSyhucikJCQkoMSA8PCAoKG5yKSAmIDcpKQogCisvKgorICog
-SG93IHRvIHRyZWF0IHRoZSBiaXRvcHMgaW5kZXggZm9yIGJpdG9wcyBpbnN0cnVjdGlvbnMu
-ICBDYXN0aW5nIHRoaXMKKyAqIHRvIHVuc2lnbmVkIGxvbmcgY29ycmVjdGx5IGdlbmVyYXRl
-cyA2NC1iaXQgb3BlcmF0aW9ucyBvbiA2NCBiaXRzLgorICovCisjaWZkZWYgQ09ORklHX1g4
-Nl82NAorI2RlZmluZSBJRFgobnIpICJKciIgKG5yKQorI2Vsc2UKKyNkZWZpbmUgSURYKG5y
-KSAiSXIiIChucikKKyNlbmRpZgorCiAvKioKICAqIHNldF9iaXQgLSBBdG9taWNhbGx5IHNl
-dCBhIGJpdCBpbiBtZW1vcnkKICAqIEBucjogdGhlIGJpdCB0byBzZXQKQEAgLTU3LDcgKzY3
-LDcgQEAKICAqIHJlc3RyaWN0ZWQgdG8gYWN0aW5nIG9uIGEgc2luZ2xlLXdvcmQgcXVhbnRp
-dHkuCiAgKi8KIHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgdm9pZAotc2V0X2JpdCh1bnNpZ25l
-ZCBpbnQgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCitzZXRfYml0KHVuc2ln
-bmVkIGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7CiAJaWYgKElT
-X0lNTUVESUFURShucikpIHsKIAkJYXNtIHZvbGF0aWxlKExPQ0tfUFJFRklYICJvcmIgJTEs
-JTAiCkBAIC02Niw3ICs3Niw3IEBAIHNldF9iaXQodW5zaWduZWQgaW50IG5yLCB2b2xhdGls
-ZSB1bnNpZ25lZCBsb25nICphZGRyKQogCQkJOiAibWVtb3J5Iik7CiAJfSBlbHNlIHsKIAkJ
-YXNtIHZvbGF0aWxlKExPQ0tfUFJFRklYICJidHMgJTEsJTAiCi0JCQk6IEJJVE9QX0FERFIo
-YWRkcikgOiAiSXIiIChucikgOiAibWVtb3J5Iik7CisJCQk6IEJJVE9QX0FERFIoYWRkcikg
-OiBJRFgobnIpIDogIm1lbW9yeSIpOwogCX0KIH0KIApAQCAtNzksOSArODksOSBAQCBzZXRf
-Yml0KHVuc2lnbmVkIGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKICAq
-IElmIGl0J3MgY2FsbGVkIG9uIHRoZSBzYW1lIHJlZ2lvbiBvZiBtZW1vcnkgc2ltdWx0YW5l
-b3VzbHksIHRoZSBlZmZlY3QKICAqIG1heSBiZSB0aGF0IG9ubHkgb25lIG9wZXJhdGlvbiBz
-dWNjZWVkcy4KICAqLwotc3RhdGljIGlubGluZSB2b2lkIF9fc2V0X2JpdChpbnQgbnIsIHZv
-bGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCitzdGF0aWMgaW5saW5lIHZvaWQgX19zZXRf
-Yml0KHVuc2lnbmVkIGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7
-Ci0JYXNtIHZvbGF0aWxlKCJidHMgJTEsJTAiIDogQUREUiA6ICJJciIgKG5yKSA6ICJtZW1v
-cnkiKTsKKwlhc20gdm9sYXRpbGUoImJ0cyAlMSwlMCIgOiBBRERSIDogSURYKG5yKSA6ICJt
-ZW1vcnkiKTsKIH0KIAogLyoqCkBAIC05NSw3ICsxMDUsNyBAQCBzdGF0aWMgaW5saW5lIHZv
-aWQgX19zZXRfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKICAq
-IGluIG9yZGVyIHRvIGVuc3VyZSBjaGFuZ2VzIGFyZSB2aXNpYmxlIG9uIG90aGVyIHByb2Nl
-c3NvcnMuCiAgKi8KIHN0YXRpYyBfX2Fsd2F5c19pbmxpbmUgdm9pZAotY2xlYXJfYml0KGlu
-dCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKK2NsZWFyX2JpdCh1bnNpZ25l
-ZCBsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWlmIChJU19J
-TU1FRElBVEUobnIpKSB7CiAJCWFzbSB2b2xhdGlsZShMT0NLX1BSRUZJWCAiYW5kYiAlMSwl
-MCIKQEAgLTEwNCw3ICsxMTQsNyBAQCBjbGVhcl9iaXQoaW50IG5yLCB2b2xhdGlsZSB1bnNp
-Z25lZCBsb25nICphZGRyKQogCX0gZWxzZSB7CiAJCWFzbSB2b2xhdGlsZShMT0NLX1BSRUZJ
-WCAiYnRyICUxLCUwIgogCQkJOiBCSVRPUF9BRERSKGFkZHIpCi0JCQk6ICJJciIgKG5yKSk7
-CisJCQk6IElEWChucikpOwogCX0KIH0KIApAQCAtMTE2LDE1ICsxMjYsMTUgQEAgY2xlYXJf
-Yml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKICAqIGNsZWFyX2Jp
-dCgpIGlzIGF0b21pYyBhbmQgaW1wbGllcyByZWxlYXNlIHNlbWFudGljcyBiZWZvcmUgdGhl
-IG1lbW9yeQogICogb3BlcmF0aW9uLiBJdCBjYW4gYmUgdXNlZCBmb3IgYW4gdW5sb2NrLgog
-ICovCi1zdGF0aWMgaW5saW5lIHZvaWQgY2xlYXJfYml0X3VubG9jayh1bnNpZ25lZCBuciwg
-dm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKK3N0YXRpYyBpbmxpbmUgdm9pZCBjbGVh
-cl9iaXRfdW5sb2NrKHVuc2lnbmVkIGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcg
-KmFkZHIpCiB7CiAJYmFycmllcigpOwogCWNsZWFyX2JpdChuciwgYWRkcik7CiB9CiAKLXN0
-YXRpYyBpbmxpbmUgdm9pZCBfX2NsZWFyX2JpdChpbnQgbnIsIHZvbGF0aWxlIHVuc2lnbmVk
-IGxvbmcgKmFkZHIpCitzdGF0aWMgaW5saW5lIHZvaWQgX19jbGVhcl9iaXQodW5zaWduZWQg
-bG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKLQlhc20gdm9sYXRp
-bGUoImJ0ciAlMSwlMCIgOiBBRERSIDogIklyIiAobnIpKTsKKwlhc20gdm9sYXRpbGUoImJ0
-ciAlMSwlMCIgOiBBRERSIDogSURYKG5yKSk7CiB9CiAKIC8qCkBAIC0xMzksNyArMTQ5LDcg
-QEAgc3RhdGljIGlubGluZSB2b2lkIF9fY2xlYXJfYml0KGludCBuciwgdm9sYXRpbGUgdW5z
-aWduZWQgbG9uZyAqYWRkcikKICAqIE5vIG1lbW9yeSBiYXJyaWVyIGlzIHJlcXVpcmVkIGhl
-cmUsIGJlY2F1c2UgeDg2IGNhbm5vdCByZW9yZGVyIHN0b3JlcyBwYXN0CiAgKiBvbGRlciBs
-b2Fkcy4gU2FtZSBwcmluY2lwbGUgYXMgc3Bpbl91bmxvY2suCiAgKi8KLXN0YXRpYyBpbmxp
-bmUgdm9pZCBfX2NsZWFyX2JpdF91bmxvY2sodW5zaWduZWQgbnIsIHZvbGF0aWxlIHVuc2ln
-bmVkIGxvbmcgKmFkZHIpCitzdGF0aWMgaW5saW5lIHZvaWQgX19jbGVhcl9iaXRfdW5sb2Nr
-KHVuc2lnbmVkIGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7CiAJ
-YmFycmllcigpOwogCV9fY2xlYXJfYml0KG5yLCBhZGRyKTsKQEAgLTE1Nyw5ICsxNjcsOSBA
-QCBzdGF0aWMgaW5saW5lIHZvaWQgX19jbGVhcl9iaXRfdW5sb2NrKHVuc2lnbmVkIG5yLCB2
-b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogICogSWYgaXQncyBjYWxsZWQgb24gdGhl
-IHNhbWUgcmVnaW9uIG9mIG1lbW9yeSBzaW11bHRhbmVvdXNseSwgdGhlIGVmZmVjdAogICog
-bWF5IGJlIHRoYXQgb25seSBvbmUgb3BlcmF0aW9uIHN1Y2NlZWRzLgogICovCi1zdGF0aWMg
-aW5saW5lIHZvaWQgX19jaGFuZ2VfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9u
-ZyAqYWRkcikKK3N0YXRpYyBpbmxpbmUgdm9pZCBfX2NoYW5nZV9iaXQodW5zaWduZWQgbG9u
-ZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKLQlhc20gdm9sYXRpbGUo
-ImJ0YyAlMSwlMCIgOiBBRERSIDogIklyIiAobnIpKTsKKwlhc20gdm9sYXRpbGUoImJ0YyAl
-MSwlMCIgOiBBRERSIDogSURYKG5yKSk7CiB9CiAKIC8qKgpAQCAtMTcxLDcgKzE4MSw3IEBA
-IHN0YXRpYyBpbmxpbmUgdm9pZCBfX2NoYW5nZV9iaXQoaW50IG5yLCB2b2xhdGlsZSB1bnNp
-Z25lZCBsb25nICphZGRyKQogICogTm90ZSB0aGF0IEBuciBtYXkgYmUgYWxtb3N0IGFyYml0
-cmFyaWx5IGxhcmdlOyB0aGlzIGZ1bmN0aW9uIGlzIG5vdAogICogcmVzdHJpY3RlZCB0byBh
-Y3Rpbmcgb24gYSBzaW5nbGUtd29yZCBxdWFudGl0eS4KICAqLwotc3RhdGljIGlubGluZSB2
-b2lkIGNoYW5nZV9iaXQoaW50IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQor
-c3RhdGljIGlubGluZSB2b2lkIGNoYW5nZV9iaXQodW5zaWduZWQgbG9uZyBuciwgdm9sYXRp
-bGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKIAlpZiAoSVNfSU1NRURJQVRFKG5yKSkgewog
-CQlhc20gdm9sYXRpbGUoTE9DS19QUkVGSVggInhvcmIgJTEsJTAiCkBAIC0xODAsNyArMTkw
-LDcgQEAgc3RhdGljIGlubGluZSB2b2lkIGNoYW5nZV9iaXQoaW50IG5yLCB2b2xhdGlsZSB1
-bnNpZ25lZCBsb25nICphZGRyKQogCX0gZWxzZSB7CiAJCWFzbSB2b2xhdGlsZShMT0NLX1BS
-RUZJWCAiYnRjICUxLCUwIgogCQkJOiBCSVRPUF9BRERSKGFkZHIpCi0JCQk6ICJJciIgKG5y
-KSk7CisJCQk6IElEWChucikpOwogCX0KIH0KIApAQCAtMTkyLDEyICsyMDIsMTIgQEAgc3Rh
-dGljIGlubGluZSB2b2lkIGNoYW5nZV9iaXQoaW50IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBs
-b25nICphZGRyKQogICogVGhpcyBvcGVyYXRpb24gaXMgYXRvbWljIGFuZCBjYW5ub3QgYmUg
-cmVvcmRlcmVkLgogICogSXQgYWxzbyBpbXBsaWVzIGEgbWVtb3J5IGJhcnJpZXIuCiAgKi8K
-LXN0YXRpYyBpbmxpbmUgaW50IHRlc3RfYW5kX3NldF9iaXQoaW50IG5yLCB2b2xhdGlsZSB1
-bnNpZ25lZCBsb25nICphZGRyKQorc3RhdGljIGlubGluZSBpbnQgdGVzdF9hbmRfc2V0X2Jp
-dCh1bnNpZ25lZCBsb25nIG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewog
-CWludCBvbGRiaXQ7CiAKIAlhc20gdm9sYXRpbGUoTE9DS19QUkVGSVggImJ0cyAlMiwlMVxu
-XHQiCi0JCSAgICAgInNiYiAlMCwlMCIgOiAiPXIiIChvbGRiaXQpLCBBRERSIDogIklyIiAo
-bnIpIDogIm1lbW9yeSIpOworCQkgICAgICJzYmIgJTAsJTAiIDogIj1yIiAob2xkYml0KSwg
-QUREUiA6IElEWChucikgOiAibWVtb3J5Iik7CiAKIAlyZXR1cm4gb2xkYml0OwogfQpAQCAt
-MjEwLDcgKzIyMCw3IEBAIHN0YXRpYyBpbmxpbmUgaW50IHRlc3RfYW5kX3NldF9iaXQoaW50
-IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogICogVGhpcyBpcyB0aGUgc2Ft
-ZSBhcyB0ZXN0X2FuZF9zZXRfYml0IG9uIHg4Ni4KICAqLwogc3RhdGljIF9fYWx3YXlzX2lu
-bGluZSBpbnQKLXRlc3RfYW5kX3NldF9iaXRfbG9jayhpbnQgbnIsIHZvbGF0aWxlIHVuc2ln
-bmVkIGxvbmcgKmFkZHIpCit0ZXN0X2FuZF9zZXRfYml0X2xvY2sodW5zaWduZWQgbG9uZyBu
-ciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKIAlyZXR1cm4gdGVzdF9hbmRf
-c2V0X2JpdChuciwgYWRkcik7CiB9CkBAIC0yMjQsMTQgKzIzNCwxNCBAQCB0ZXN0X2FuZF9z
-ZXRfYml0X2xvY2soaW50IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogICog
-SWYgdHdvIGV4YW1wbGVzIG9mIHRoaXMgb3BlcmF0aW9uIHJhY2UsIG9uZSBjYW4gYXBwZWFy
-IHRvIHN1Y2NlZWQKICAqIGJ1dCBhY3R1YWxseSBmYWlsLiAgWW91IG11c3QgcHJvdGVjdCBt
-dWx0aXBsZSBhY2Nlc3NlcyB3aXRoIGEgbG9jay4KICAqLwotc3RhdGljIGlubGluZSBpbnQg
-X190ZXN0X2FuZF9zZXRfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRk
-cikKK3N0YXRpYyBpbmxpbmUgaW50IF9fdGVzdF9hbmRfc2V0X2JpdCh1bnNpZ25lZCBsb25n
-IG5yLCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWludCBvbGRiaXQ7CiAK
-IAlhc20oImJ0cyAlMiwlMVxuXHQiCiAJICAgICJzYmIgJTAsJTAiCiAJICAgIDogIj1yIiAo
-b2xkYml0KSwgQUREUgotCSAgICA6ICJJciIgKG5yKSk7CisJICAgIDogSURYKG5yKSk7CiAJ
-cmV0dXJuIG9sZGJpdDsKIH0KIApAQCAtMjQzLDEzICsyNTMsMTMgQEAgc3RhdGljIGlubGlu
-ZSBpbnQgX190ZXN0X2FuZF9zZXRfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9u
-ZyAqYWRkcikKICAqIFRoaXMgb3BlcmF0aW9uIGlzIGF0b21pYyBhbmQgY2Fubm90IGJlIHJl
-b3JkZXJlZC4KICAqIEl0IGFsc28gaW1wbGllcyBhIG1lbW9yeSBiYXJyaWVyLgogICovCi1z
-dGF0aWMgaW5saW5lIGludCB0ZXN0X2FuZF9jbGVhcl9iaXQoaW50IG5yLCB2b2xhdGlsZSB1
-bnNpZ25lZCBsb25nICphZGRyKQorc3RhdGljIGlubGluZSBpbnQgdGVzdF9hbmRfY2xlYXJf
-Yml0KHVuc2lnbmVkIGxvbmcgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7
-CiAJaW50IG9sZGJpdDsKIAogCWFzbSB2b2xhdGlsZShMT0NLX1BSRUZJWCAiYnRyICUyLCUx
-XG5cdCIKIAkJICAgICAic2JiICUwLCUwIgotCQkgICAgIDogIj1yIiAob2xkYml0KSwgQURE
-UiA6ICJJciIgKG5yKSA6ICJtZW1vcnkiKTsKKwkJICAgICA6ICI9ciIgKG9sZGJpdCksIEFE
-RFIgOiBJRFgobnIpIDogIm1lbW9yeSIpOwogCiAJcmV0dXJuIG9sZGJpdDsKIH0KQEAgLTI2
-MywyNiArMjczLDI2IEBAIHN0YXRpYyBpbmxpbmUgaW50IHRlc3RfYW5kX2NsZWFyX2JpdChp
-bnQgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCiAgKiBJZiB0d28gZXhhbXBs
-ZXMgb2YgdGhpcyBvcGVyYXRpb24gcmFjZSwgb25lIGNhbiBhcHBlYXIgdG8gc3VjY2VlZAog
-ICogYnV0IGFjdHVhbGx5IGZhaWwuICBZb3UgbXVzdCBwcm90ZWN0IG11bHRpcGxlIGFjY2Vz
-c2VzIHdpdGggYSBsb2NrLgogICovCi1zdGF0aWMgaW5saW5lIGludCBfX3Rlc3RfYW5kX2Ns
-ZWFyX2JpdChpbnQgbnIsIHZvbGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCitzdGF0aWMg
-aW5saW5lIGludCBfX3Rlc3RfYW5kX2NsZWFyX2JpdCh1bnNpZ25lZCBsb25nIG5yLCB2b2xh
-dGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWludCBvbGRiaXQ7CiAKIAlhc20gdm9s
-YXRpbGUoImJ0ciAlMiwlMVxuXHQiCiAJCSAgICAgInNiYiAlMCwlMCIKIAkJICAgICA6ICI9
-ciIgKG9sZGJpdCksIEFERFIKLQkJICAgICA6ICJJciIgKG5yKSk7CisJCSAgICAgOiBJRFgo
-bnIpKTsKIAlyZXR1cm4gb2xkYml0OwogfQogCiAvKiBXQVJOSU5HOiBub24gYXRvbWljIGFu
-ZCBpdCBjYW4gYmUgcmVvcmRlcmVkISAqLwotc3RhdGljIGlubGluZSBpbnQgX190ZXN0X2Fu
-ZF9jaGFuZ2VfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKK3N0
-YXRpYyBpbmxpbmUgaW50IF9fdGVzdF9hbmRfY2hhbmdlX2JpdCh1bnNpZ25lZCBsb25nIG5y
-LCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKQogewogCWludCBvbGRiaXQ7CiAKIAlh
-c20gdm9sYXRpbGUoImJ0YyAlMiwlMVxuXHQiCiAJCSAgICAgInNiYiAlMCwlMCIKIAkJICAg
-ICA6ICI9ciIgKG9sZGJpdCksIEFERFIKLQkJICAgICA6ICJJciIgKG5yKSA6ICJtZW1vcnki
-KTsKKwkJICAgICA6IElEWChucikgOiAibWVtb3J5Iik7CiAKIAlyZXR1cm4gb2xkYml0Owog
-fQpAQCAtMjk1LDMxICszMDUsMzEgQEAgc3RhdGljIGlubGluZSBpbnQgX190ZXN0X2FuZF9j
-aGFuZ2VfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKICAqIFRo
-aXMgb3BlcmF0aW9uIGlzIGF0b21pYyBhbmQgY2Fubm90IGJlIHJlb3JkZXJlZC4KICAqIEl0
-IGFsc28gaW1wbGllcyBhIG1lbW9yeSBiYXJyaWVyLgogICovCi1zdGF0aWMgaW5saW5lIGlu
-dCB0ZXN0X2FuZF9jaGFuZ2VfYml0KGludCBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAq
-YWRkcikKK3N0YXRpYyBpbmxpbmUgaW50IHRlc3RfYW5kX2NoYW5nZV9iaXQodW5zaWduZWQg
-bG9uZyBuciwgdm9sYXRpbGUgdW5zaWduZWQgbG9uZyAqYWRkcikKIHsKIAlpbnQgb2xkYml0
-OwogCiAJYXNtIHZvbGF0aWxlKExPQ0tfUFJFRklYICJidGMgJTIsJTFcblx0IgogCQkgICAg
-ICJzYmIgJTAsJTAiCi0JCSAgICAgOiAiPXIiIChvbGRiaXQpLCBBRERSIDogIklyIiAobnIp
-IDogIm1lbW9yeSIpOworCQkgICAgIDogIj1yIiAob2xkYml0KSwgQUREUiA6IElEWChucikg
-OiAibWVtb3J5Iik7CiAKIAlyZXR1cm4gb2xkYml0OwogfQogCi1zdGF0aWMgX19hbHdheXNf
-aW5saW5lIGludCBjb25zdGFudF90ZXN0X2JpdCh1bnNpZ25lZCBpbnQgbnIsIGNvbnN0IHZv
-bGF0aWxlIHVuc2lnbmVkIGxvbmcgKmFkZHIpCitzdGF0aWMgX19hbHdheXNfaW5saW5lIGlu
-dCBjb25zdGFudF90ZXN0X2JpdCh1bnNpZ25lZCBsb25nIG5yLCBjb25zdCB2b2xhdGlsZSB1
-bnNpZ25lZCBsb25nICphZGRyKQogewogCXJldHVybiAoKDFVTCA8PCAobnIgJSBCSVRTX1BF
-Ul9MT05HKSkgJgogCQkoKCh1bnNpZ25lZCBsb25nICopYWRkcilbbnIgLyBCSVRTX1BFUl9M
-T05HXSkpICE9IDA7CiB9CiAKLXN0YXRpYyBpbmxpbmUgaW50IHZhcmlhYmxlX3Rlc3RfYml0
-KGludCBuciwgdm9sYXRpbGUgY29uc3QgdW5zaWduZWQgbG9uZyAqYWRkcikKK3N0YXRpYyBp
-bmxpbmUgaW50IHZhcmlhYmxlX3Rlc3RfYml0KHVuc2lnbmVkIGxvbmcgbnIsIHZvbGF0aWxl
-IGNvbnN0IHVuc2lnbmVkIGxvbmcgKmFkZHIpCiB7CiAJaW50IG9sZGJpdDsKIAogCWFzbSB2
-b2xhdGlsZSgiYnQgJTIsJTFcblx0IgogCQkgICAgICJzYmIgJTAsJTAiCiAJCSAgICAgOiAi
-PXIiIChvbGRiaXQpCi0JCSAgICAgOiAibSIgKCoodW5zaWduZWQgbG9uZyAqKWFkZHIpLCAi
-SXIiIChucikpOworCQkgICAgIDogIm0iICgqKHVuc2lnbmVkIGxvbmcgKilhZGRyKSwgSURY
-KG5yKSk7CiAKIAlyZXR1cm4gb2xkYml0OwogfQpAQCAtMzMwLDcgKzM0MCw3IEBAIHN0YXRp
-YyBpbmxpbmUgaW50IHZhcmlhYmxlX3Rlc3RfYml0KGludCBuciwgdm9sYXRpbGUgY29uc3Qg
-dW5zaWduZWQgbG9uZyAqYWRkcikKICAqIEBucjogYml0IG51bWJlciB0byB0ZXN0CiAgKiBA
-YWRkcjogQWRkcmVzcyB0byBzdGFydCBjb3VudGluZyBmcm9tCiAgKi8KLXN0YXRpYyBpbnQg
-dGVzdF9iaXQoaW50IG5yLCBjb25zdCB2b2xhdGlsZSB1bnNpZ25lZCBsb25nICphZGRyKTsK
-K3N0YXRpYyBpbnQgdGVzdF9iaXQodW5zaWduZWQgbG9uZyBuciwgY29uc3Qgdm9sYXRpbGUg
-dW5zaWduZWQgbG9uZyAqYWRkcik7CiAjZW5kaWYKIAogI2RlZmluZSB0ZXN0X2JpdChuciwg
-YWRkcikJCQlcCg==
---------------030502010407080500010300--
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
