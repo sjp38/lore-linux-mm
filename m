@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7C76B010C
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 10:44:59 -0400 (EDT)
-Subject: Re: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED
- submenu
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <20090513143400.GC31071@waste.org>
-References: <20090513172904.7234.A69D9226@jp.fujitsu.com>
-	 <20090513175152.1590c117.minchan.kim@barrios-desktop>
-	 <20090513175539.723A.A69D9226@jp.fujitsu.com>
-	 <20090513191221.674bc543.minchan.kim@barrios-desktop>
-	 <1242211037.24436.552.camel@macbook.infradead.org>
-	 <20090513143400.GC31071@waste.org>
-Content-Type: text/plain
-Date: Wed, 13 May 2009 15:45:26 +0100
-Message-Id: <1242225926.24436.611.camel@macbook.infradead.org>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id A865F6B010E
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 10:46:56 -0400 (EDT)
+Message-ID: <4A0ADD88.9080705@redhat.com>
+Date: Wed, 13 May 2009 10:47:36 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120729.5885.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090513120729.5885.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-05-13 at 09:34 -0500, Matt Mackall wrote:
-> As the person who introduced CONFIG_EMBEDDED, I've occasionally
-> thought we should rename it to CONFIG_NONSTANDARD to make the
-> semantics clearer. It's less about cell phones and more about going
-> way off the beaten path.
+KOSAKI Motohiro wrote:
+> Subject: [PATCH] zone_reclaim_mode is always 0 by default
+> 
+> Current linux policy is, if the machine has large remote node distance,
+>  zone_reclaim_mode is enabled by default because we've be able to assume to 
+> large distance mean large server until recently.
+> 
+> Unfrotunately, recent modern x86 CPU (e.g. Core i7, Opeteron) have P2P transport
+> memory controller. IOW it's NUMA from software view.
+> 
+> Some Core i7 machine has large remote node distance and zone_reclaim don't
+> fit desktop and small file server. it cause performance degression.
+> 
+> Thus, zone_reclaim == 0 is better by default. sorry, HPC gusy. 
+> you need to turn zone_reclaim_mode on manually now.
 
-CONFIG_I_AM_NOT_AUNT_TILLIE
+I'll believe that it causes a performance regression with the
+old zone_reclaim behaviour, however the way you tweaked
+zone_reclaim should make it behave a lot better, no?
 
 -- 
-David Woodhouse                            Open Source Technology Centre
-David.Woodhouse@intel.com                              Intel Corporation
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
