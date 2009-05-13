@@ -1,63 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E311A6B012A
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 16:09:13 -0400 (EDT)
-Date: Wed, 13 May 2009 13:08:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
- with hugepage shared memory segments attached
-Message-Id: <20090513130846.d463cc1e.akpm@linux-foundation.org>
-In-Reply-To: <bug-13302-10286@http.bugzilla.kernel.org/>
-References: <bug-13302-10286@http.bugzilla.kernel.org/>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2F1876B012B
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 16:24:02 -0400 (EDT)
+Message-Id: <6.2.5.6.2.20090513161759.03a54ec0@flumedata.com>
+Date: Wed, 13 May 2009 16:18:21 -0400
+From: starlight@binnacle.cx
+Subject: [Bug 12134] can't shmat() 1GB hugepage segment from
+  second process more than one time
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, starlight@binnacle.cx
+To: linux-mm@kvack.org, Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+New life for old bug.
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Reproduced under 2.6.29.1.
 
-(Please read this ^^^^ !)
+Also discerned separate hugepage fork() issue now reported
+under bug 13302.
 
-On Wed, 13 May 2009 19:54:10 GMT
-bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> http://bugzilla.kernel.org/show_bug.cgi?id=13302
-> 
->            Summary: "bad pmd" on fork() of process with hugepage shared
->                     memory segments attached
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 2.6.29.1
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@linux-foundation.org
->         ReportedBy: starlight@binnacle.cx
->         Regression: Yes
-> 
-> 
-> Kernel reports "bad pmd" errors when process with hugepage
-> shared memory segments attached executes fork() system call.
-> Using vfork() avoids the issue.
-> 
-> Bug also appears in RHEL5 2.6.18-128.1.6.el5 and causes
-> leakage of huge pages.
-> 
-> Bug does not appear in RHEL4 2.6.9-78.0.13.ELsmp.
-> 
-> See bug 12134 for an example of the errors reported
-> by 'dmesg'.
-> 
-
+Sorry I keep forgetting to stay with e-mail.  Bugzillas
+are easier to keep track of over many months.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
