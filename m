@@ -1,442 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 58AB46B00D8
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 126656B00D9
 	for <linux-mm@kvack.org>; Wed, 13 May 2009 05:11:25 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 5/6] PM/Hibernate: Do not release preallocated memory unnecessarily (rev. 2)
-Date: Wed, 13 May 2009 10:40:36 +0200
-References: <200905070040.08561.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905131032.53624.rjw@sisk.pl>
-In-Reply-To: <200905131032.53624.rjw@sisk.pl>
+Subject: [RFC][PATCH 0/6] PM/Hibernate: Rework memory shrinking (rev. 4)
+Date: Wed, 13 May 2009 10:32:52 +0200
+References: <200905070040.08561.rjw@sisk.pl> <200905072348.59856.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl>
+In-Reply-To: <200905101548.57557.rjw@sisk.pl>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200905131040.37831.rjw@sisk.pl>
+Message-Id: <200905131032.53624.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 To: pm list <linux-pm@lists.linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Rafael J. Wysocki <rjw@sisk.pl>
+On Sunday 10 May 2009, Rafael J. Wysocki wrote:
+> On Thursday 07 May 2009, Rafael J. Wysocki wrote:
+> > On Thursday 07 May 2009, Rafael J. Wysocki wrote:
+> > > Hi,
+> > > 
+> > > The following patchset is an attempt to rework the memory shrinking mechanism
+> > > used during hibernation to make room for the image.  It is a work in progress
+> > > and most likely it's going to be modified, but it has been discussed recently
+> > > and I'd like to get comments on the current version.
+> > > 
+> > > [1/5] - disable the OOM kernel after freezing tasks (this will be dropped if
+> > >         it's verified that we can avoid the OOM killing by using
+> > >         __GFP_FS|__GFP_WAIT|__GFP_NORETRY|__GFP_NOWARN
+> > >         in the next patches).
+> > > 
+> > > [2/5] - drop memory shrinking from the suspend (to RAM) code path
+> > > 
+> > > [3/5] - move swsusp_shrink_memory() to snapshot.c
+> > > 
+> > > [4/5] - rework swsusp_shrink_memory() (to use memory allocations for applying
+> > >         memory pressure)
+> > > 
+> > > [5/5] - allocate image pages along with the shrinking.
+> > 
+> > Updated patchset follows.
+> 
+> I the meantime I added a patch that attempts to computer the size of the hard
+> core working set.  I also had to rework the patch reworking
+> swsusp_shrink_memory() so that it takes highmem into account.
+> 
+> Currently, the patchset consists of the following patches:
+> 
+> [1/6] - disable the OOM kernel after freezing tasks (this will be dropped if
+>         it's verified that we can avoid the OOM killing by using
+>         __GFP_FS|__GFP_WAIT|__GFP_NORETRY|__GFP_NOWARN
+>         in the next patches).
+> 
+> [2/6] - drop memory shrinking from the suspend (to RAM) code path
+> 
+> [3/6] - move swsusp_shrink_memory() to snapshot.c
+> 
+> [4/6] - rework swsusp_shrink_memory() (to use memory allocations for applying
+>         memory pressure)
+> 
+> [5/6] - allocate image pages along with the shrinking
+> 
+> [6/6] - estimate the size of the hard core working set and use it as the lower
+>         limit of the image size.
 
-Since the hibernation code is now going to use allocations of memory
-to make enough room for the image, it can also use the page frames
-allocated at this stage as image page frames.  The low-level
-hibernation code needs to be rearranged for this purpose, but it
-allows us to avoid freeing a great number of pages and allocating
-these same pages once again later, so it generally is worth doing.
+This is the 4th (and hopefully final) version of the patchset reworking
+hibernation memory shrinking.  The patches have been rearranged and some of
+them were modified to fix bugs etc.
 
-[rev. 2: Take highmem into account correctly.]
+[1/6] - drop memory shrinking from the suspend (to RAM) code path
 
-Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
----
- kernel/power/disk.c     |   15 ++-
- kernel/power/power.h    |    2 
- kernel/power/snapshot.c |  206 +++++++++++++++++++++++++++++++-----------------
- 3 files changed, 149 insertions(+), 74 deletions(-)
+[2/6] - move swsusp_shrink_memory() to snapshot.c
 
-Index: linux-2.6/kernel/power/snapshot.c
-===================================================================
---- linux-2.6.orig/kernel/power/snapshot.c
-+++ linux-2.6/kernel/power/snapshot.c
-@@ -1033,6 +1033,25 @@ copy_data_pages(struct memory_bitmap *co
- static unsigned int nr_copy_pages;
- /* Number of pages needed for saving the original pfns of the image pages */
- static unsigned int nr_meta_pages;
-+/*
-+ * Numbers of normal and highmem page frames allocated for hibernation image
-+ * before suspending devices.
-+ */
-+unsigned int alloc_normal, alloc_highmem;
-+/*
-+ * Memory bitmap used for marking saveable pages (during hibernation) or
-+ * hibernation image pages (during restore)
-+ */
-+static struct memory_bitmap orig_bm;
-+/*
-+ * Memory bitmap used during hibernation for marking allocated page frames that
-+ * will contain copies of saveable pages.  During restore it is initially used
-+ * for marking hibernation image pages, but then the set bits from it are
-+ * duplicated in @orig_bm and it is released.  On highmem systems it is next
-+ * used for marking "safe" highmem pages, but it has to be reinitialized for
-+ * this purpose.
-+ */
-+static struct memory_bitmap copy_bm;
- 
- /**
-  *	swsusp_free - free pages allocated for the suspend.
-@@ -1064,6 +1083,8 @@ void swsusp_free(void)
- 	nr_meta_pages = 0;
- 	restore_pblist = NULL;
- 	buffer = NULL;
-+	alloc_normal = 0;
-+	alloc_highmem = 0;
- }
- 
- /* Helper functions used for the shrinking of memory. */
-@@ -1082,8 +1103,16 @@ static unsigned long preallocate_image_p
- 	unsigned long nr_alloc = 0;
- 
- 	while (nr_pages > 0) {
--		if (!alloc_image_page(mask))
--			break;
-+ 		struct page *page;
-+
-+		page = alloc_image_page(mask);
-+ 		if (!page)
-+ 			break;
-+		memory_bm_set_bit(&copy_bm, page_to_pfn(page));
-+		if (PageHighMem(page))
-+			alloc_highmem++;
-+		else
-+			alloc_normal++;
- 		nr_pages--;
- 		nr_alloc++;
- 	}
-@@ -1144,7 +1173,47 @@ static inline unsigned long highmem_size
- #endif /* CONFIG_HIGHMEM */
- 
- /**
-- * swsusp_shrink_memory -  Make the kernel release as much memory as needed
-+ * free_unnecessary_pages - Release preallocated pages not needed for the image
-+ */
-+static void free_unnecessary_pages(void)
-+{
-+	unsigned long save_highmem, to_free_normal, to_free_highmem;
-+
-+	to_free_normal = alloc_normal - count_data_pages();
-+	save_highmem = count_highmem_pages();
-+	if (alloc_highmem > save_highmem) {
-+		to_free_highmem = alloc_highmem - save_highmem;
-+	} else {
-+		to_free_highmem = 0;
-+		to_free_normal -= save_highmem - alloc_highmem;
-+	}
-+
-+	memory_bm_position_reset(&copy_bm);
-+
-+	while (to_free_normal > 0 && to_free_highmem > 0) {
-+		unsigned long pfn = memory_bm_next_pfn(&copy_bm);
-+		struct page *page = pfn_to_page(pfn);
-+
-+		if (PageHighMem(page)) {
-+			if (!to_free_highmem)
-+				continue;
-+			to_free_highmem--;
-+			alloc_highmem--;
-+		} else {
-+			if (!to_free_normal)
-+				continue;
-+			to_free_normal--;
-+			alloc_normal--;
-+		}
-+		memory_bm_clear_bit(&copy_bm, pfn);
-+		swsusp_unset_page_forbidden(page);
-+		swsusp_unset_page_free(page);
-+		__free_page(page);
-+	}
-+}
-+
-+/**
-+ * hibernate_preallocate_memory - Preallocate memory for hibernation image
-  *
-  * To create a hibernation image it is necessary to make a copy of every page
-  * frame in use.  We also need a number of page frames to be free during
-@@ -1163,19 +1232,30 @@ static inline unsigned long highmem_size
-  * pages in the system is below the requested image size or it is impossible to
-  * allocate more memory, whichever happens first.
-  */
--int swsusp_shrink_memory(void)
-+int hibernate_preallocate_memory(void)
- {
- 	struct zone *zone;
- 	unsigned long saveable, size, max_size, count, highmem, pages = 0;
--	unsigned long alloc, pages_highmem;
-+	unsigned long alloc, save_highmem, pages_highmem;
- 	struct timeval start, stop;
--	int error = 0;
-+	int error;
- 
--	printk(KERN_INFO "PM: Shrinking memory... ");
-+	printk(KERN_INFO "PM: Preallocating image memory... ");
- 	do_gettimeofday(&start);
- 
-+	error = memory_bm_create(&orig_bm, GFP_IMAGE, PG_ANY);
-+	if (error)
-+		goto err_out;
-+
-+	error = memory_bm_create(&copy_bm, GFP_IMAGE, PG_ANY);
-+	if (error)
-+		goto err_out;
-+
-+	alloc_normal = 0;
-+	alloc_highmem = 0;
-+
- 	/* Count the number of saveable data pages. */
--	highmem = count_highmem_pages();
-+	save_highmem = count_highmem_pages();
- 	saveable = count_data_pages();
- 
- 	/*
-@@ -1183,7 +1263,8 @@ int swsusp_shrink_memory(void)
- 	 * number of pages needed for image metadata (size).
- 	 */
- 	count = saveable;
--	saveable += highmem;
-+	saveable += save_highmem;
-+	highmem = save_highmem;
- 	size = 0;
- 	for_each_populated_zone(zone) {
- 		size += snapshot_additional_pages(zone);
-@@ -1202,10 +1283,13 @@ int swsusp_shrink_memory(void)
- 		size = max_size;
- 	/*
- 	 * If the maximum is not less than the current number of saveable pages
--	 * in memory, we don't need to do anything more.
-+	 * in memory, allocate page frames for the image and we're done.
- 	 */
--	if (size >= saveable)
-+	if (size >= saveable) {
-+		pages = preallocate_image_highmem(save_highmem);
-+		pages += preallocate_image_memory(saveable - pages);
- 		goto out;
-+	}
- 
- 	/*
- 	 * Let the memory management subsystem know that we're going to need a
-@@ -1226,10 +1310,8 @@ int swsusp_shrink_memory(void)
- 	max_size += pages_highmem;
- 	alloc = count - max_size;
- 	pages = preallocate_image_memory(alloc);
--	if (pages < alloc) {
--		error = -ENOMEM;
--		goto free_out;
--	}
-+	if (pages < alloc)
-+		goto err_out;
- 	size = max_size - size;
- 	alloc = size;
- 	size = preallocate_image_highmem(highmem_size(size, highmem, count));
-@@ -1238,21 +1320,24 @@ int swsusp_shrink_memory(void)
- 	pages += preallocate_image_memory(alloc);
- 	pages += pages_highmem;
- 
-- free_out:
--	/* Release all of the preallocated page frames. */
--	swsusp_free();
--
--	if (error) {
--		printk(KERN_CONT "\n");
--		return error;
--	}
-+	/*
-+	 * We only need as many page frames for the image as there are saveable
-+	 * pages in memory, but we have allocated more.  Release the excessive
-+	 * ones now.
-+	 */
-+	free_unnecessary_pages();
- 
-  out:
- 	do_gettimeofday(&stop);
--	printk(KERN_CONT "done (preallocated %lu free pages)\n", pages);
--	swsusp_show_speed(&start, &stop, pages, "Freed");
-+	printk(KERN_CONT "done (allocated %lu pages)\n", pages);
-+	swsusp_show_speed(&start, &stop, pages, "Allocated");
- 
- 	return 0;
-+
-+ err_out:
-+	printk(KERN_CONT "\n");
-+	swsusp_free();
-+	return -ENOMEM;
- }
- 
- #ifdef CONFIG_HIGHMEM
-@@ -1263,7 +1348,7 @@ int swsusp_shrink_memory(void)
- 
- static unsigned int count_pages_for_highmem(unsigned int nr_highmem)
- {
--	unsigned int free_highmem = count_free_highmem_pages();
-+	unsigned int free_highmem = count_free_highmem_pages() + alloc_highmem;
- 
- 	if (free_highmem >= nr_highmem)
- 		nr_highmem = 0;
-@@ -1285,19 +1370,17 @@ count_pages_for_highmem(unsigned int nr_
- static int enough_free_mem(unsigned int nr_pages, unsigned int nr_highmem)
- {
- 	struct zone *zone;
--	unsigned int free = 0, meta = 0;
-+	unsigned int free = alloc_normal;
- 
--	for_each_zone(zone) {
--		meta += snapshot_additional_pages(zone);
-+	for_each_zone(zone)
- 		if (!is_highmem(zone))
- 			free += zone_page_state(zone, NR_FREE_PAGES);
--	}
- 
- 	nr_pages += count_pages_for_highmem(nr_highmem);
--	pr_debug("PM: Normal pages needed: %u + %u + %u, available pages: %u\n",
--		nr_pages, PAGES_FOR_IO, meta, free);
-+	pr_debug("PM: Normal pages needed: %u + %u, available pages: %u\n",
-+		nr_pages, PAGES_FOR_IO, free);
- 
--	return free > nr_pages + PAGES_FOR_IO + meta;
-+	return free > nr_pages + PAGES_FOR_IO;
- }
- 
- #ifdef CONFIG_HIGHMEM
-@@ -1319,7 +1402,7 @@ static inline int get_highmem_buffer(int
-  */
- 
- static inline unsigned int
--alloc_highmem_image_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
-+alloc_highmem_pages(struct memory_bitmap *bm, unsigned int nr_highmem)
- {
- 	unsigned int to_alloc = count_free_highmem_pages();
- 
-@@ -1339,7 +1422,7 @@ alloc_highmem_image_pages(struct memory_
- static inline int get_highmem_buffer(int safe_needed) { return 0; }
- 
- static inline unsigned int
--alloc_highmem_image_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
-+alloc_highmem_pages(struct memory_bitmap *bm, unsigned int n) { return 0; }
- #endif /* CONFIG_HIGHMEM */
- 
- /**
-@@ -1358,51 +1441,36 @@ static int
- swsusp_alloc(struct memory_bitmap *orig_bm, struct memory_bitmap *copy_bm,
- 		unsigned int nr_pages, unsigned int nr_highmem)
- {
--	int error;
--
--	error = memory_bm_create(orig_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
--	if (error)
--		goto Free;
--
--	error = memory_bm_create(copy_bm, GFP_ATOMIC | __GFP_COLD, PG_ANY);
--	if (error)
--		goto Free;
-+	int error = 0;
- 
- 	if (nr_highmem > 0) {
- 		error = get_highmem_buffer(PG_ANY);
- 		if (error)
--			goto Free;
--
--		nr_pages += alloc_highmem_image_pages(copy_bm, nr_highmem);
-+			goto err_out;
-+		if (nr_highmem > alloc_highmem) {
-+			nr_highmem -= alloc_highmem;
-+			nr_pages += alloc_highmem_pages(copy_bm, nr_highmem);
-+		}
- 	}
--	while (nr_pages-- > 0) {
--		struct page *page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
--
--		if (!page)
--			goto Free;
--
--		memory_bm_set_bit(copy_bm, page_to_pfn(page));
-+	if (nr_pages > alloc_normal) {
-+		nr_pages -= alloc_normal;
-+		while (nr_pages-- > 0) {
-+			struct page *page;
-+
-+			page = alloc_image_page(GFP_ATOMIC | __GFP_COLD);
-+			if (!page)
-+				goto err_out;
-+			memory_bm_set_bit(copy_bm, page_to_pfn(page));
-+		}
- 	}
-+
- 	return 0;
- 
-- Free:
-+ err_out:
- 	swsusp_free();
--	return -ENOMEM;
-+	return error;
- }
- 
--/* Memory bitmap used for marking saveable pages (during suspend) or the
-- * suspend image pages (during resume)
-- */
--static struct memory_bitmap orig_bm;
--/* Memory bitmap used on suspend for marking allocated pages that will contain
-- * the copies of saveable pages.  During resume it is initially used for
-- * marking the suspend image pages, but then its set bits are duplicated in
-- * @orig_bm and it is released.  Next, on systems with high memory, it may be
-- * used for marking "safe" highmem pages, but it has to be reinitialized for
-- * this purpose.
-- */
--static struct memory_bitmap copy_bm;
--
- asmlinkage int swsusp_save(void)
- {
- 	unsigned int nr_pages, nr_highmem;
-Index: linux-2.6/kernel/power/power.h
-===================================================================
---- linux-2.6.orig/kernel/power/power.h
-+++ linux-2.6/kernel/power/power.h
-@@ -74,7 +74,7 @@ extern asmlinkage int swsusp_arch_resume
- 
- extern int create_basic_memory_bitmaps(void);
- extern void free_basic_memory_bitmaps(void);
--extern int swsusp_shrink_memory(void);
-+extern int hibernate_preallocate_memory(void);
- 
- /**
-  *	Auxiliary structure used for reading the snapshot image data and
-Index: linux-2.6/kernel/power/disk.c
-===================================================================
---- linux-2.6.orig/kernel/power/disk.c
-+++ linux-2.6/kernel/power/disk.c
-@@ -303,8 +303,8 @@ int hibernation_snapshot(int platform_mo
- 	if (error)
- 		return error;
- 
--	/* Free memory before shutting down devices. */
--	error = swsusp_shrink_memory();
-+	/* Preallocate image memory before shutting down devices. */
-+	error = hibernate_preallocate_memory();
- 	if (error)
- 		goto Close;
- 
-@@ -320,6 +320,10 @@ int hibernation_snapshot(int platform_mo
- 	/* Control returns here after successful restore */
- 
-  Resume_devices:
-+	/* We may need to release the preallocated image pages here. */
-+	if (error || !in_suspend)
-+		swsusp_free();
-+
- 	device_resume(in_suspend ?
- 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
- 	resume_console();
-@@ -593,7 +597,10 @@ int hibernate(void)
- 		goto Thaw;
- 
- 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
--	if (in_suspend && !error) {
-+	if (error)
-+		goto Thaw;
-+
-+	if (in_suspend) {
- 		unsigned int flags = 0;
- 
- 		if (hibernation_mode == HIBERNATION_PLATFORM)
-@@ -605,8 +612,8 @@ int hibernate(void)
- 			power_down();
- 	} else {
- 		pr_debug("PM: Image restored successfully.\n");
--		swsusp_free();
- 	}
-+
-  Thaw:
- 	thaw_processes();
-  Finish:
+[3/6] - disable the OOM killer after freezing tasks (now it is done it a
+        simpler way)
+
+[4/6] - rework swsusp_shrink_memory() to use memory allocations for applying
+        memory pressure)
+
+[5/6] - do not release the preallocated image pages
+
+[6/6] - estimate the minimum image size and use it to avoid attempting to free
+        too much memory too hard
+
+IMO patches [1/6] and [2/6] are ready to go, so I'm going to add them to the
+linux-next branch of the suspend tree.
+
+Patch [3/6] in in mm, but it would be easier to handle [4/6] - [6/6] having
+this patch in the suspend tree.  Dunno.  Andrew, what would you prefer to do
+with it?
+
+Patches [4/6] - [6/6] have been tested on a couple of boxes in different
+configuration and no major problems have been found.
+
+Comments welcome.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
