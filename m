@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 64C936B00C6
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 04:16:26 -0400 (EDT)
-From: Sheng Yang <sheng@linux.intel.com>
-Subject: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to 64 bits in X86_64
-Date: Wed, 13 May 2009 16:17:27 +0800
-Message-Id: <1242202647-32446-1-git-send-email-sheng@linux.intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8E78C6B00C8
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 04:30:23 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4D8UomQ016482
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 13 May 2009 17:30:50 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E3C7645DD74
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 17:30:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C11F845DD70
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 17:30:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA6251DB8017
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 17:30:49 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77FBD1DB8012
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 17:30:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED submenu
+Message-Id: <20090513172904.7234.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 13 May 2009 17:30:45 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Sheng Yang <sheng@linux.intel.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-This fix 44/45 bit width memory can't boot up issue. The reason is
-free_bootmem_node()->mark_bootmem_node()->__free() use test_and_clean_bit() to
-clean node_bootmem_map, but for 44bits width address, the idx set bit 31 (43 -
-12), which consider as a nagetive value for bts.
+Subject: [PATCH] Kconfig: CONFIG_UNEVICTABLE_LRU move into EMBEDDED submenu
 
-This patch applied to tip/mm.
+Almost people always turn on CONFIG_UNEVICTABLE_LRU. this configuration is
+used only embedded people.
+Thus, moving it into embedded submenu is better.
 
-Signed-off-by: Sheng Yang <sheng@linux.intel.com>
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
 ---
- arch/x86/include/asm/bitops.h |   24 +++++++++++++++---------
- 1 files changed, 15 insertions(+), 9 deletions(-)
+ init/Kconfig |   12 ++++++++++++
+ mm/Kconfig   |   12 ------------
+ 2 files changed, 12 insertions(+), 12 deletions(-)
 
-diff --git a/arch/x86/include/asm/bitops.h b/arch/x86/include/asm/bitops.h
-index 02b47a6..400dd28 100644
---- a/arch/x86/include/asm/bitops.h
-+++ b/arch/x86/include/asm/bitops.h
-@@ -41,6 +41,12 @@
- #define CONST_MASK_ADDR(nr, addr)	BITOP_ADDR((void *)(addr) + ((nr)>>3))
- #define CONST_MASK(nr)			(1 << ((nr) & 7))
+Index: b/mm/Kconfig
+===================================================================
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -203,18 +203,6 @@ config VIRT_TO_BUS
+ 	def_bool y
+ 	depends on !ARCH_NO_VIRT_TO_BUS
  
-+#ifdef CONFIG_X86_64
-+#define REX_X86 "rex "
-+#else
-+#define REX_X86
-+#endif
-+
- /**
-  * set_bit - Atomically set a bit in memory
-  * @nr: the bit to set
-@@ -192,11 +198,11 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
-  * This operation is atomic and cannot be reordered.
-  * It also implies a memory barrier.
-  */
--static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
-+static inline int test_and_set_bit(long int nr, volatile unsigned long *addr)
- {
- 	int oldbit;
- 
--	asm volatile(LOCK_PREFIX "bts %2,%1\n\t"
-+	asm volatile(LOCK_PREFIX REX_X86 "bts %2,%1\n\t"
- 		     "sbb %0,%0" : "=r" (oldbit), ADDR : "Ir" (nr) : "memory");
- 
- 	return oldbit;
-@@ -224,11 +230,11 @@ test_and_set_bit_lock(int nr, volatile unsigned long *addr)
-  * If two examples of this operation race, one can appear to succeed
-  * but actually fail.  You must protect multiple accesses with a lock.
-  */
--static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
-+static inline int __test_and_set_bit(long int nr, volatile unsigned long *addr)
- {
- 	int oldbit;
- 
--	asm("bts %2,%1\n\t"
-+	asm(REX_X86 "bts %2,%1\n\t"
- 	    "sbb %0,%0"
- 	    : "=r" (oldbit), ADDR
- 	    : "Ir" (nr));
-@@ -243,14 +249,13 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
-  * This operation is atomic and cannot be reordered.
-  * It also implies a memory barrier.
-  */
--static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
-+static inline int test_and_clear_bit(long int nr, volatile unsigned long *addr)
- {
- 	int oldbit;
- 
--	asm volatile(LOCK_PREFIX "btr %2,%1\n\t"
-+	asm volatile(LOCK_PREFIX REX_X86 "btr %2,%1\n\t"
- 		     "sbb %0,%0"
- 		     : "=r" (oldbit), ADDR : "Ir" (nr) : "memory");
+-config UNEVICTABLE_LRU
+-	bool "Add LRU list to track non-evictable pages"
+-	default y
+-	help
+-	  Keeps unevictable pages off of the active and inactive pageout
+-	  lists, so kswapd will not waste CPU time or have its balancing
+-	  algorithms thrown off by scanning these pages.  Selecting this
+-	  will use one page flag and increase the code size a little,
+-	  say Y unless you know what you are doing.
 -
- 	return oldbit;
- }
+-	  See Documentation/vm/unevictable-lru.txt for more information.
+-
+ config HAVE_MLOCK
+ 	bool
+ 	default y if MMU=y
+Index: b/init/Kconfig
+===================================================================
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -954,6 +954,18 @@ config SLUB_DEBUG
+ 	  SLUB sysfs support. /sys/slab will not exist and there will be
+ 	  no support for cache validation etc.
  
-@@ -263,11 +268,12 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
-  * If two examples of this operation race, one can appear to succeed
-  * but actually fail.  You must protect multiple accesses with a lock.
-  */
--static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
-+static inline int __test_and_clear_bit(long int nr,
-+				       volatile unsigned long *addr)
- {
- 	int oldbit;
- 
--	asm volatile("btr %2,%1\n\t"
-+	asm volatile(REX_X86 "btr %2,%1\n\t"
- 		     "sbb %0,%0"
- 		     : "=r" (oldbit), ADDR
- 		     : "Ir" (nr));
--- 
-1.5.4.5
++config UNEVICTABLE_LRU
++	bool "Add LRU list to track non-evictable pages" if EMBEDDED
++	default y
++	help
++	  Keeps unevictable pages off of the active and inactive pageout
++	  lists, so kswapd will not waste CPU time or have its balancing
++	  algorithms thrown off by scanning these pages.  Selecting this
++	  will use one page flag and increase the code size a little,
++	  say Y unless you know what you are doing.
++
++	  See Documentation/vm/unevictable-lru.txt for more information.
++
+ config STRIP_ASM_SYMS
+ 	bool "Strip assembler-generated symbols during link"
+ 	default n
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
