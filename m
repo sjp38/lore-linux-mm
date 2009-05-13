@@ -1,44 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2F4E46B00B4
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 23:06:49 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4D36rem004803
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9786E6B00B6
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 23:07:43 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4D37VNs025944
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 13 May 2009 12:06:53 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A5732AEA82
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:06:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E4F2F1EF083
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:06:52 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B6BA1DB8040
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:06:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ADAEE08002
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:06:52 +0900 (JST)
+	Wed, 13 May 2009 12:07:31 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 71AB645DE52
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:07:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5204545DE51
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:07:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 36BC51DB803F
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:07:31 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E9CD81DB803C
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 12:07:30 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/4] vmscan: drop PF_SWAPWRITE from zone_reclaim
+Subject: [PATCH 3/4] vmscan: zone_reclaim use may_swap
 In-Reply-To: <20090513120155.5879.A69D9226@jp.fujitsu.com>
 References: <20090513120155.5879.A69D9226@jp.fujitsu.com>
-Message-Id: <20090513120627.587F.A69D9226@jp.fujitsu.com>
+Message-Id: <20090513120651.5882.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 13 May 2009 12:06:51 +0900 (JST)
+Date: Wed, 13 May 2009 12:07:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Subject: [PATCH] vmscan: drop PF_SWAPWRITE from zone_reclaim
+Subject: [PATCH] vmscan: zone_reclaim use may_swap
 
-PF_SWAPWRITE mean ignore write congestion. (see may_write_to_queue())
+Documentation/sysctl/vm.txt says
 
-foreground reclaim shouldn't ignore it because to write congested device cause
-large IO lantency.
-it isn't better than remote node allocation.
+	zone_reclaim_mode:
+
+	Zone_reclaim_mode allows someone to set more or less aggressive approaches to
+	reclaim memory when a zone runs out of memory. If it is set to zero then no
+	zone reclaim occurs. Allocations will be satisfied from other zones / nodes
+	in the system.
+
+	This is value ORed together of
+
+	1	= Zone reclaim on
+	2	= Zone reclaim writes dirty pages out
+	4	= Zone reclaim swaps pages
+
+
+So, "(zone_reclaim_mode & RECLAIM_SWAP) == 0" mean we don't want to reclaim
+swap-backed pages. not mapped file.
+
+Thus, may_swap is better than may_unmap.
+
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>
@@ -51,24 +67,17 @@ Index: b/mm/vmscan.c
 ===================================================================
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2406,7 +2406,7 @@ static int __zone_reclaim(struct zone *z
- 	 * and we also need to be able to write out pages for RECLAIM_WRITE
- 	 * and RECLAIM_SWAP.
- 	 */
--	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
-+	p->flags |= PF_MEMALLOC;
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
-@@ -2453,7 +2453,7 @@ static int __zone_reclaim(struct zone *z
- 	}
- 
- 	p->reclaim_state = NULL;
--	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-+	current->flags &= ~PF_MEMALLOC;
- 	return sc.nr_reclaimed >= nr_pages;
- }
- 
+@@ -2387,8 +2387,8 @@ static int __zone_reclaim(struct zone *z
+ 	int priority;
+ 	struct scan_control sc = {
+ 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+-		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+-		.may_swap = 1,
++		.may_unmap = 1,
++		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+ 		.swap_cluster_max = max_t(unsigned long, nr_pages,
+ 					SWAP_CLUSTER_MAX),
+ 		.gfp_mask = gfp_mask,
 
 
 --
