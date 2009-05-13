@@ -1,176 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 723CB6B00AC
-	for <linux-mm@kvack.org>; Tue, 12 May 2009 20:33:51 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4D0YLZj003064
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 13 May 2009 09:34:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CEE92AEA82
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:34:21 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E7F1EF085
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:34:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D1351DB8040
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:34:20 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EACCE08001
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:34:20 +0900 (JST)
-Date: Wed, 13 May 2009 09:32:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][BUGFIX] memcg: fix for deadlock between
- lock_page_cgroup and mapping tree_lock
-Message-Id: <20090513093250.7803d3d0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090513092828.cbaa5a76.nishimura@mxp.nes.nec.co.jp>
-References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512140648.0974cb10.nishimura@mxp.nes.nec.co.jp>
-	<20090512160901.8a6c5f64.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512170007.ad7f5c7b.nishimura@mxp.nes.nec.co.jp>
-	<20090512171356.3d3a7554.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512195823.15c5cb80.d-nishimura@mtf.biglobe.ne.jp>
-	<20090513085949.3c4b7b97.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090513092828.cbaa5a76.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 05CC26B00AF
+	for <linux-mm@kvack.org>; Tue, 12 May 2009 20:45:12 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4D0jrjc030359
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 13 May 2009 09:45:53 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C87C45DE62
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:45:53 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EB4F445DD79
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:45:52 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CA7621DB8041
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:45:52 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 67FBD1DB803B
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:45:52 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH -mm] vmscan: protect a fraction of file backed mapped pages from reclaim
+In-Reply-To: <alpine.DEB.1.10.0905121650090.14226@qirst.com>
+References: <20090512120002.D616.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905121650090.14226@qirst.com>
+Message-Id: <20090513084306.5874.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 13 May 2009 09:45:51 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 May 2009 09:28:28 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> All these expiration modifications do not take into account that a desktop
+> may sit idle for hours while some other things run in the background (like
+> backups at night or updatedb and other maintenance things). This still
+> means that the desktop will be usuable in the morning.
 
-> On Wed, 13 May 2009 08:59:49 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 12 May 2009 19:58:23 +0900
-> > Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
-> > 
-> > > On Tue, 12 May 2009 17:13:56 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > On Tue, 12 May 2009 17:00:07 +0900
-> > > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > > > hmm, I see.
-> > > > > cache_charge is outside of tree_lock, so moving uncharge would make sense.
-> > > > > IMHO, we should make the period of spinlock as small as possible,
-> > > > > and charge/uncharge of pagecache/swapcache is protected by page lock, not tree_lock.
-> > > > > 
-> > > > How about this ?
-> > > Looks good conceptually, but it cannot be built :)
-> > > 
-> > > It needs a fix like this.
-> > > Passed build test with enabling/disabling both CONFIG_MEM_RES_CTLR
-> > > and CONFIG_SWAP.
-> > > 
-> > ok, will update. can I add you Signed-off-by on the patch ?
-> > 
-> Sure.
-> 
-> 	Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> The patch(with my fix applied) seems to work fine, I need run it
-> for more long time though.
-> 
-Ok, I'll treat this as an independent issue, not as "4/4".
+Have you seen this phenomenom?
+I always use linux desktop for development. but I haven't seen it.
+perhaps I have no luck. I really want to know reproduce way.
 
-Thanks,
--Kame
+Please let me know reproduce way.
 
 
-> > Thanks,
-> > -Kame
-> > > ===
-> > >  include/linux/swap.h |    5 +++++
-> > >  mm/memcontrol.c      |    4 +++-
-> > >  mm/swap_state.c      |    4 +---
-> > >  mm/vmscan.c          |    2 +-
-> > >  4 files changed, 10 insertions(+), 5 deletions(-)
-> > > 
-> > > diff --git a/include/linux/swap.h b/include/linux/swap.h
-> > > index caf0767..6ea541d 100644
-> > > --- a/include/linux/swap.h
-> > > +++ b/include/linux/swap.h
-> > > @@ -431,6 +431,11 @@ static inline swp_entry_t get_swap_page(void)
-> > >  #define has_swap_token(x) 0
-> > >  #define disable_swap_token() do { } while(0)
-> > >  
-> > > +static inline void
-> > > +mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
-> > > +{
-> > > +}
-> > > +
-> > >  #endif /* CONFIG_SWAP */
-> > >  #endif /* __KERNEL__*/
-> > >  #endif /* _LINUX_SWAP_H */
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 0c9c1ad..89523cf 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -1488,8 +1488,9 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
-> > >  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
-> > >  }
-> > >  
-> > > +#ifdef CONFIG_SWAP
-> > >  /*
-> > > - * called from __delete_from_swap_cache() and drop "page" account.
-> > > + * called after __delete_from_swap_cache() and drop "page" account.
-> > >   * memcg information is recorded to swap_cgroup of "ent"
-> > >   */
-> > >  void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
-> > > @@ -1506,6 +1507,7 @@ void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
-> > >  	if (memcg)
-> > >  		css_put(&memcg->css);
-> > >  }
-> > > +#endif
-> > >  
-> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> > >  /*
-> > > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> > > index 87f10d4..7624c89 100644
-> > > --- a/mm/swap_state.c
-> > > +++ b/mm/swap_state.c
-> > > @@ -109,8 +109,6 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
-> > >   */
-> > >  void __delete_from_swap_cache(struct page *page)
-> > >  {
-> > > -	swp_entry_t ent = {.val = page_private(page)};
-> > > -
-> > >  	VM_BUG_ON(!PageLocked(page));
-> > >  	VM_BUG_ON(!PageSwapCache(page));
-> > >  	VM_BUG_ON(PageWriteback(page));
-> > > @@ -190,7 +188,7 @@ void delete_from_swap_cache(struct page *page)
-> > >  	__delete_from_swap_cache(page);
-> > >  	spin_unlock_irq(&swapper_space.tree_lock);
-> > >  
-> > > -	mem_cgroup_uncharge_swapcache(page, ent);
-> > > +	mem_cgroup_uncharge_swapcache(page, entry);
-> > >  	swap_free(entry);
-> > >  	page_cache_release(page);
-> > >  }
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 6c5988d..a7d7a06 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -470,7 +470,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
-> > >  		swp_entry_t swap = { .val = page_private(page) };
-> > >  		__delete_from_swap_cache(page);
-> > >  		spin_unlock_irq(&mapping->tree_lock);
-> > > -		mem_cgroup_uncharge_swapcache(page);
-> > > +		mem_cgroup_uncharge_swapcache(page, swap);
-> > >  		swap_free(swap);
-> > >  	} else {
-> > >  		__remove_from_page_cache(page);
-> > > ===
-> > > --
-> > > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > > the body of a message to majordomo@vger.kernel.org
-> > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > > Please read the FAQ at  http://www.tux.org/lkml/
-> > > 
-> > 
+> I have had some success with a patch that protects a pages in the file
+> cache from being unmapped if the mapped pages are below a certain
+> percentage of the file cache. Its another VM knob to define the percentage
+> though.
 > 
+> 
+> Subject: Do not evict mapped pages
+> 
+> It is quite annoying when important executable pages of the user interface
+> are evicted from memory because backup or some other function runs and no one
+> is clicking any buttons for awhile. Once you get back to the desktop and
+> try to click a link one is in for a surprise. It can take quite a long time
+> for the desktop to recover from the swap outs.
+> 
+> This patch ensures that mapped pages in the file cache are not evicted if there
+> are a sufficient number of unmapped pages present. A similar technique is
+> already in use under NUMA for zone reclaim. The same method can be used to
+> protect mapped pages from reclaim.
+
+note: (a bit offtopic)
+
+some Nehalem machine has long node distance and enabled zone reclaim mode.
+but it cause terrible result.
+
+it only works on large numa.
+
+> 
+> The percentage of file backed pages protected is set via
+> /proc/sys/vm/file_mapped_ratio. This defaults to 20%.
+
+Why do you think typical mapped ratio is less than 20% on desktop machine?
+
+Some desktop component (e.g. V4L, GEM, some game) use tons mapped page.
+but in the other hand, another some desktop user only use browser.
+So we can't assume typical mapped ratio on desktop, IMHO.
+
+Plus, typical desktop user don't set any sysctl value.
+
+key point is access-once vs access-many.
+I don't think mapped ratio is good approximation value.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
