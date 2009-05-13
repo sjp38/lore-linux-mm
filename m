@@ -1,39 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A702E6B0100
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:08:07 -0400 (EDT)
-Date: Wed, 13 May 2009 15:08:11 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: do we really want to export more pdflush details in sysctls
-Message-ID: <20090513130811.GE4140@kernel.dk>
-References: <20090513130128.GA10382@lst.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A6A926B0102
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 09:31:31 -0400 (EDT)
+Message-ID: <4A0ACBCC.1010606@redhat.com>
+Date: Wed, 13 May 2009 09:31:56 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090513130128.GA10382@lst.de>
+Subject: Re: [PATCH 1/4] vmscan: change the number of the unmapped files in
+ zone reclaim
+References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120606.587C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090513120606.587C.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@lst.de>
-Cc: Peter W Morreale <pmorreale@novell.com>, torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 13 2009, Christoph Hellwig wrote:
-> Hi all,
-> 
-> commit fafd688e4c0c34da0f3de909881117d374e4c7af titled
-> "mm: add /proc controls for pdflush threads" adds two more sysctl
-> variables exposing details about pdflush threads.  At the same time
-> Jens Axboe is working on the per-bdi writeback patchset which will
-> hopefull soon get rid of the pdflush threads in their current form.
-> 
-> Is it really a good idea to expose more details now or should we revert
-> this patch before 2.6.30 is out?
+KOSAKI Motohiro wrote:
+> Subject: [PATCH] vmscan: change the number of the unmapped files in zone reclaim
 
-Pained me as well when updating the patchset. I see little value in
-these knobs as it is, I'm imagining that the submitter must have had a
-use case where it made some difference?
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Rik van Riel <riel@redhat.com>
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
-Jens Axboe
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
