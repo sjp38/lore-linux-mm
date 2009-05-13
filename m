@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A28056B00D3
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DAC756B00D4
 	for <linux-mm@kvack.org>; Wed, 13 May 2009 05:11:24 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 1/6] PM/Suspend: Do not shrink memory before suspend
-Date: Wed, 13 May 2009 10:34:35 +0200
+Subject: [PATCH 3/6] mm, PM/Freezer: Disable OOM killer when tasks are frozen
+Date: Wed, 13 May 2009 10:37:49 +0200
 References: <200905070040.08561.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905131032.53624.rjw@sisk.pl>
 In-Reply-To: <200905131032.53624.rjw@sisk.pl>
 MIME-Version: 1.0
@@ -12,7 +12,7 @@ Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200905131034.36673.rjw@sisk.pl>
+Message-Id: <200905131037.50011.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 To: pm list <linux-pm@lists.linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
@@ -20,87 +20,111 @@ List-ID: <linux-mm.kvack.org>
 
 From: Rafael J. Wysocki <rjw@sisk.pl>
 
-Remove the shrinking of memory from the suspend-to-RAM code, where
-it is not really necessary.
+Currently, the following scenario appears to be possible in theory:
+
+* Tasks are frozen for hibernation or suspend.
+* Free pages are almost exhausted.
+* Certain piece of code in the suspend code path attempts to allocate
+  some memory using GFP_KERNEL and allocation order less than or
+  equal to PAGE_ALLOC_COSTLY_ORDER.
+* __alloc_pages_internal() cannot find a free page so it invokes the
+  OOM killer.
+* The OOM killer attempts to kill a task, but the task is frozen, so
+  it doesn't die immediately.
+* __alloc_pages_internal() jumps to 'restart', unsuccessfully tries
+  to find a free page and invokes the OOM killer.
+* No progress can be made.
+
+Although it is now hard to trigger during hibernation due to the
+memory shrinking carried out by the hibernation code, it is
+theoretically possible to trigger during suspend after the memory
+shrinking has been removed from that code path.  Moreover, since
+memory allocations are going to be used for the hibernation memory
+shrinking, it will be even more likely to happen during hibernation.
+
+To prevent it from happening, introduce the oom_killer_disabled
+switch that will cause __alloc_pages_internal() to fail in the
+situations in which the OOM killer would have been called and make
+the freezer set this switch after tasks have been successfully
+frozen.
 
 Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
-Acked-by: Nigel Cunningham <nigel@tuxonice.net>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/power/main.c |   20 +-------------------
- mm/vmscan.c         |    4 ++--
- 2 files changed, 3 insertions(+), 21 deletions(-)
+ include/linux/gfp.h    |   12 ++++++++++++
+ kernel/power/process.c |    5 +++++
+ mm/page_alloc.c        |    5 +++++
+ 3 files changed, 22 insertions(+)
 
-Index: linux-2.6/kernel/power/main.c
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/kernel/power/main.c
-+++ linux-2.6/kernel/power/main.c
-@@ -188,9 +188,6 @@ static void suspend_test_finish(const ch
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -175,6 +175,8 @@ static void set_pageblock_migratetype(st
+ 					PB_migrate, PB_migrate_end);
+ }
  
- #endif
- 
--/* This is just an arbitrary number */
--#define FREE_PAGE_NUMBER (100)
--
- static struct platform_suspend_ops *suspend_ops;
- 
- /**
-@@ -226,7 +223,6 @@ int suspend_valid_only_mem(suspend_state
- static int suspend_prepare(void)
++bool oom_killer_disabled __read_mostly;
++
+ #ifdef CONFIG_DEBUG_VM
+ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
  {
- 	int error;
--	unsigned int free_pages;
- 
- 	if (!suspend_ops || !suspend_ops->enter)
- 		return -EPERM;
-@@ -241,24 +237,10 @@ static int suspend_prepare(void)
- 	if (error)
- 		goto Finish;
- 
--	if (suspend_freeze_processes()) {
--		error = -EAGAIN;
--		goto Thaw;
--	}
--
--	free_pages = global_page_state(NR_FREE_PAGES);
--	if (free_pages < FREE_PAGE_NUMBER) {
--		pr_debug("PM: free some memory\n");
--		shrink_all_memory(FREE_PAGE_NUMBER - free_pages);
--		if (nr_free_pages() < FREE_PAGE_NUMBER) {
--			error = -ENOMEM;
--			printk(KERN_ERR "PM: No enough memory\n");
--		}
--	}
-+	error = suspend_freeze_processes();
- 	if (!error)
- 		return 0;
- 
-- Thaw:
- 	suspend_thaw_processes();
- 	usermodehelper_enable();
-  Finish:
-Index: linux-2.6/mm/vmscan.c
+@@ -1600,6 +1602,9 @@ nofail_alloc:
+ 		if (page)
+ 			goto got_pg;
+ 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
++		if (oom_killer_disabled)
++			goto nopage;
++
+ 		if (!try_set_zone_oom(zonelist, gfp_mask)) {
+ 			schedule_timeout_uninterruptible(1);
+ 			goto restart;
+Index: linux-2.6/include/linux/gfp.h
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c
-+++ linux-2.6/mm/vmscan.c
-@@ -2054,7 +2054,7 @@ unsigned long global_lru_pages(void)
- 		+ global_page_state(NR_INACTIVE_FILE);
+--- linux-2.6.orig/include/linux/gfp.h
++++ linux-2.6/include/linux/gfp.h
+@@ -245,4 +245,16 @@ void drain_zone_pages(struct zone *zone,
+ void drain_all_pages(void);
+ void drain_local_pages(void *dummy);
+ 
++extern bool oom_killer_disabled;
++
++static inline void oom_killer_disable(void)
++{
++	oom_killer_disabled = true;
++}
++
++static inline void oom_killer_enable(void)
++{
++	oom_killer_disabled = false;
++}
++
+ #endif /* __LINUX_GFP_H */
+Index: linux-2.6/kernel/power/process.c
+===================================================================
+--- linux-2.6.orig/kernel/power/process.c
++++ linux-2.6/kernel/power/process.c
+@@ -117,9 +117,12 @@ int freeze_processes(void)
+ 	if (error)
+ 		goto Exit;
+ 	printk("done.");
++
++	oom_killer_disable();
+  Exit:
+ 	BUG_ON(in_atomic());
+ 	printk("\n");
++
+ 	return error;
  }
  
--#ifdef CONFIG_PM
-+#ifdef CONFIG_HIBERNATION
- /*
-  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
-  * from LRU lists system-wide, for given pass and priority.
-@@ -2194,7 +2194,7 @@ out:
+@@ -145,6 +148,8 @@ static void thaw_tasks(bool nosig_only)
  
- 	return sc.nr_reclaimed;
- }
--#endif
-+#endif /* CONFIG_HIBERNATION */
- 
- /* It's optimal to keep kswapds on the same CPUs as their memory, but
-    not required for correctness.  So if the last cpu in a node goes
+ void thaw_processes(void)
+ {
++	oom_killer_enable();
++
+ 	printk("Restarting tasks ... ");
+ 	thaw_tasks(true);
+ 	thaw_tasks(false);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
