@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6DE6B0127
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 15:52:25 -0400 (EDT)
-Date: Wed, 13 May 2009 12:48:05 -0700
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E311A6B012A
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 16:09:13 -0400 (EDT)
+Date: Wed, 13 May 2009 13:08:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Double check memmap is actually valid with a memmap has
- unexpected holes V2
-Message-Id: <20090513124805.9c70c43c.akpm@linux-foundation.org>
-In-Reply-To: <20090513163448.GA18006@csn.ul.ie>
-References: <20090505082944.GA25904@csn.ul.ie>
-	<20090505083614.GA28688@n2100.arm.linux.org.uk>
-	<20090505084928.GC25904@csn.ul.ie>
-	<20090513163448.GA18006@csn.ul.ie>
+Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
+ with hugepage shared memory segments attached
+Message-Id: <20090513130846.d463cc1e.akpm@linux-foundation.org>
+In-Reply-To: <bug-13302-10286@http.bugzilla.kernel.org/>
+References: <bug-13302-10286@http.bugzilla.kernel.org/>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux@arm.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hartleys@visionengravers.com, mcrapet@gmail.com, fred99@carolina.rr.com, linux-arm-kernel@lists.arm.linux.org.uk
+To: linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, starlight@binnacle.cx
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 May 2009 17:34:48 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
 
-> pfn_valid() is meant to be able to tell if a given PFN has valid memmap
-> associated with it or not. In FLATMEM, it is expected that holes always
-> have valid memmap as long as there is valid PFNs either side of the hole.
-> In SPARSEMEM, it is assumed that a valid section has a memmap for the
-> entire section.
-> 
-> However, ARM and maybe other embedded architectures in the future free
-> memmap backing holes to save memory on the assumption the memmap is never
-> used. The page_zone linkages are then broken even though pfn_valid()
-> returns true. A walker of the full memmap must then do this additional
-> check to ensure the memmap they are looking at is sane by making sure the
-> zone and PFN linkages are still valid. This is expensive, but walkers of
-> the full memmap are extremely rare.
-> 
-> This was caught before for FLATMEM and hacked around but it hits again for
-> SPARSEMEM because the page_zone linkages can look ok where the PFN linkages
-> are totally screwed. This looks like a hatchet job but the reality is that
-> any clean solution would end up consumning all the memory saved by punching
-> these unexpected holes in the memmap. For example, we tried marking the
-> memmap within the section invalid but the section size exceeds the size of
-> the hole in most cases so pfn_valid() starts returning false where valid
-> memmap exists. Shrinking the size of the section would increase memory
-> consumption offsetting the gains.
-> 
-> This patch identifies when an architecture is punching unexpected holes
-> in the memmap that the memory model cannot automatically detect and sets
-> ARCH_HAS_HOLES_MEMORYMODEL. At the moment, this is restricted to EP93xx
-> which is the model sub-architecture this has been reported on but may expand
-> later. When set, walkers of the full memmap must call memmap_valid_within()
-> for each PFN and passing in what it expects the page and zone to be for
-> that PFN. If it finds the linkages to be broken, it assumes the memmap is
-> invalid for that PFN.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-It's unclear to me whether this patch is needed in 2.6.30 or even
-2.6.29 or whatever.
+(Please read this ^^^^ !)
 
-It applies OK to 2.6.28, 2.6.29, current mainline and mmotm, so I'll
-just sit tight until I'm told what to do.
+On Wed, 13 May 2009 19:54:10 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> http://bugzilla.kernel.org/show_bug.cgi?id=13302
+> 
+>            Summary: "bad pmd" on fork() of process with hugepage shared
+>                     memory segments attached
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.29.1
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: starlight@binnacle.cx
+>         Regression: Yes
+> 
+> 
+> Kernel reports "bad pmd" errors when process with hugepage
+> shared memory segments attached executes fork() system call.
+> Using vfork() avoids the issue.
+> 
+> Bug also appears in RHEL5 2.6.18-128.1.6.el5 and causes
+> leakage of huge pages.
+> 
+> Bug does not appear in RHEL4 2.6.9-78.0.13.ELsmp.
+> 
+> See bug 12134 for an example of the errors reported
+> by 'dmesg'.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
