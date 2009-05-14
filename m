@@ -1,376 +1,417 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3CFC96B0096
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 14:25:48 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH 4/6] PM/Hibernate: Rework shrinking of memory
-Date: Thu, 14 May 2009 20:26:18 +0200
-References: <200905070040.08561.rjw@sisk.pl> <20090513123409.302f4307.akpm@linux-foundation.org> <200905132255.04681.rjw@sisk.pl>
-In-Reply-To: <200905132255.04681.rjw@sisk.pl>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200905142026.19862.rjw@sisk.pl>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D2CA26B00AF
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 15:10:15 -0400 (EDT)
+Message-Id: <6.2.5.6.2.20090514135429.0588f5a0@binnacle.cx>
+Date: Thu, 14 May 2009 14:42:11 -0400
+From: starlight@binnacle.cx
+Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of
+  process with hugepage shared memory segments attached
+In-Reply-To: <20090514174947.GA24837@csn.ul.ie>
+References: <bug-13302-10286@http.bugzilla.kernel.org/>
+ <20090513130846.d463cc1e.akpm@linux-foundation.org>
+ <20090514105326.GA11770@csn.ul.ie>
+ <20090514105926.GB11770@csn.ul.ie>
+ <6.2.5.6.2.20090514131734.05890270@binnacle.cx>
+ <20090514174947.GA24837@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: multipart/mixed;
+	boundary="=====================_1090478672==_"
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-pm@lists.linux-foundation.org, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, pavel@ucw.cz, nigel@tuxonice.net, rientjes@google.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 13 May 2009, Rafael J. Wysocki wrote:
-> On Wednesday 13 May 2009, Andrew Morton wrote:
-> > On Wed, 13 May 2009 10:39:25 +0200
-> > "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
-> > 
-> > > From: Rafael J. Wysocki <rjw@sisk.pl>
-> > > 
-> > > Rework swsusp_shrink_memory() so that it calls shrink_all_memory()
-> > > just once to make some room for the image and then allocates memory
-> > > to apply more pressure to the memory management subsystem, if
-> > > necessary.
-> > > 
-> > > Unfortunately, we don't seem to be able to drop shrink_all_memory()
-> > > entirely just yet, because that would lead to huge performance
-> > > regressions in some test cases.
-> > > 
-> > 
-> > Isn't this a somewhat large problem?
-> 
-> Yes, it is.  The thing is 8 times slower (15 s vs 2 s) without the
-> shrink_all_memory() in at least one test case.  100% reproducible.
-> 
-> > The main point (I thought) was to remove shrink_all_memory().  Instead,
-> > we're retaining it and adding even more stuff?
-> 
-> The idea is that afterwards we can drop shrink_all_memory() once the
-> performance problem has been resolved.  Also, we now allocate memory for the
-> image using GFP_KERNEL instead of doing it with GFP_ATOMIC after freezing
-> devices.  I'd think that's an improvement?
-> 
-> > > +/**
-> > > + * compute_fraction - Compute approximate fraction x * (a/b)
-> > > + * @x: Number to multiply.
-> > > + * @numerator: Numerator of the fraction (a).
-> > > + * @denominator: Denominator of the fraction (b).
-> > >   *
-> > > - *	Notice: all userland should be stopped before it is called, or
-> > > - *	livelock is possible.
-> > > + * Compute an approximate value of the expression x * (a/b), where a is less
-> > > + * than b, all x, a, b are unsigned longs and x * a may be greater than the
-> > > + * maximum unsigned long.
-> > >   */
-> > > +static unsigned long compute_fraction(
-> > > +	unsigned long x, unsigned long numerator, unsigned long denominator)
-> > 
-> > I can't say I'm a great fan of the code layout here.
-> > 
-> > static unsigned long compute_fraction(unsigned long x, unsigned long numerator, unsigned long denominator)
-> > 
-> > or
-> > 
-> > static unsigned long compute_fraction(unsigned long x, unsigned long numerator,
-> > 					unsigned long denominator)
-> > 
-> > would be more typical.
-> 
-> OK
->  
-> > > +{
-> > > +	unsigned long ratio = (numerator << FRACTION_SHIFT) / denominator;
-> > >  
-> > > -#define SHRINK_BITE	10000
-> > > -static inline unsigned long __shrink_memory(long tmp)
-> > > +	x *= ratio;
-> > > +	return x >> FRACTION_SHIFT;
-> > > +}
-> > 
-> > Strange function.  Would it not be simpler/clearer to do it with 64-bit
-> > scalars, multiplication and do_div()?
-> 
-> Sure, I can do it this way too.  Is it fine to use u64 for this purpose?
-> 
-> > > +static unsigned long highmem_size(
-> > > +	unsigned long size, unsigned long highmem, unsigned long count)
-> > > +{
-> > > +	return highmem > count / 2 ?
-> > > +			compute_fraction(size, highmem, count) :
-> > > +			size - compute_fraction(size, count - highmem, count);
-> > > +}
-> > 
-> > This would be considerably easier to follow if we know what the three
-> > arguments represent.  Amount of memory?  In what units?  `count' of
-> > what?
-> > 
-> > The `count/2' thing there is quite mysterious.
-> > 
-> > <does some reverse-engineering>
-> > 
-> > OK, `count' is "the number of pageframes we can use".  (I don't think I
-> > helped myself a lot there).  But what's up with that divde-by-two?
-> > 
-> > <considers poking at callers to work out what `size' is>
-> > 
-> > <gives up>
-> > 
-> > Is this code as clear as we can possibly make it??
-> 
-> Heh
-> 
-> OK, I'll do my best to clean it up.
+--=====================_1090478672==_
+Content-Type: text/plain; charset="us-ascii"
 
-Updated patch is appended.
+At 06:49 PM 5/14/2009 +0100, Mel Gorman wrote:
+>Ok, I just tried that there - parent writing 30% of the shared memory
+>before forking but still did not reproduce the problem :(
 
----
-From: Rafael J. Wysocki <rjw@sisk.pl>
-Subject: PM/Hibernate: Rework shrinking of memory (rev. 2)
+Maybe it makes a difference to have lots of RAM (16GB on this 
+server), and about 1.5 GB of hugepage shared memory allocated in 
+the forking process in about four segments.  Often have all free 
+memory consumed by the file cache, but I don't belive this is 
+necessary to produce the problem as it will happen even right 
+after a reboot.  [RHEL5 meminfo attached]
 
-Rework swsusp_shrink_memory() so that it calls shrink_all_memory()
-just once to make some room for the image and then allocates memory
-to apply more pressure to the memory management subsystem, if
-necessary.
+Other possible factors:
+   daemon is non-root but has explicit
+      CAP_IPC_LOCK, CAP_NET_RAW, CAP_SYS_NICE set via
+      'setcap cap_net_raw,cap_ipc_lock,cap_sys_nice+ep daemon'
+   ulimit -Hl and -Sl are set to <unlimited>
+   process group is set in /proc/sys/vm/hugetlb_shm_group
+   /proc/sys/vm/nr_hugepages is set to 2048
+   daemon has 200 threads at time of fork()
+   shared memory segments explictly located [RHEL5 pmap -x attached]
+   between fork & exec these syscalls are issued
+      sched_getscheduler/sched_setscheduler
+      getpriority/setpriority
+      seteuid(getuid())
+      setegid(getgid())
+   with vfork() work-around, no syscalls are made before exec()
 
-Unfortunately, we don't seem to be able to drop shrink_all_memory()
-entirely just yet, because that would lead to huge performance
-regressions in some test cases.
+Don't think it's something anything specific to the DL160 (Intel E5430)
+we have because the DL165 (Opteron 2354) also exhibits the problem.
 
-Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
----
- kernel/power/snapshot.c |  204 +++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 158 insertions(+), 46 deletions(-)
+Will run the test cases provided this weekend for certain and 
+will let you know if bug is reproduced.
 
-Index: linux-2.6/kernel/power/snapshot.c
-===================================================================
---- linux-2.6.orig/kernel/power/snapshot.c
-+++ linux-2.6/kernel/power/snapshot.c
-@@ -1066,69 +1066,181 @@ void swsusp_free(void)
- 	buffer = NULL;
- }
- 
-+/* Helper functions used for the shrinking of memory. */
-+
-+#define GFP_IMAGE	(GFP_KERNEL | __GFP_NOWARN)
-+
- /**
-- *	swsusp_shrink_memory -  Try to free as much memory as needed
-+ * preallocate_image_pages - Allocate a number of pages for hibernation image
-+ * @nr_pages: Number of page frames to allocate.
-+ * @mask: GFP flags to use for the allocation.
-  *
-- *	... but do not OOM-kill anyone
-- *
-- *	Notice: all userland should be stopped before it is called, or
-- *	livelock is possible.
-+ * Return value: Number of page frames actually allocated
-  */
-+static unsigned long preallocate_image_pages(unsigned long nr_pages, gfp_t mask)
-+{
-+	unsigned long nr_alloc = 0;
-+
-+	while (nr_pages > 0) {
-+		if (!alloc_image_page(mask))
-+			break;
-+		nr_pages--;
-+		nr_alloc++;
-+	}
-+
-+	return nr_alloc;
-+}
-+
-+static unsigned long preallocate_image_memory(unsigned long nr_pages)
-+{
-+	return preallocate_image_pages(nr_pages, GFP_IMAGE);
-+}
- 
--#define SHRINK_BITE	10000
--static inline unsigned long __shrink_memory(long tmp)
-+#ifdef CONFIG_HIGHMEM
-+static unsigned long preallocate_image_highmem(unsigned long nr_pages)
- {
--	if (tmp > SHRINK_BITE)
--		tmp = SHRINK_BITE;
--	return shrink_all_memory(tmp);
-+	return preallocate_image_pages(nr_pages, GFP_IMAGE | __GFP_HIGHMEM);
- }
- 
-+/**
-+ *  __fraction - Compute (an approximation of) x * (multiplier / base)
-+ */
-+static unsigned long __fraction(u64 x, u64 multiplier, u64 base)
-+{
-+	x *= multiplier;
-+	do_div(x, base);
-+	return (unsigned long)x;
-+}
-+
-+static unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
-+						unsigned long highmem,
-+						unsigned long total)
-+{
-+	unsigned long alloc = __fraction(nr_pages, highmem, total);
-+
-+	return preallocate_image_pages(alloc, GFP_IMAGE | __GFP_HIGHMEM);
-+}
-+#else /* CONFIG_HIGHMEM */
-+static inline unsigned long preallocate_image_highmem(unsigned long nr_pages)
-+{
-+	return 0;
-+}
-+
-+static inline unsigned long preallocate_highmem_fraction(unsigned long nr_pages,
-+						unsigned long highmem,
-+						unsigned long total)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_HIGHMEM */
-+
-+/**
-+ * swsusp_shrink_memory -  Make the kernel release as much memory as needed
-+ *
-+ * To create a hibernation image it is necessary to make a copy of every page
-+ * frame in use.  We also need a number of page frames to be free during
-+ * hibernation for allocations made while saving the image and for device
-+ * drivers, in case they need to allocate memory from their hibernation
-+ * callbacks (these two numbers are given by PAGES_FOR_IO and SPARE_PAGES,
-+ * respectively, both of which are rough estimates).  To make this happen, we
-+ * compute the total number of available page frames and allocate at least
-+ *
-+ * ([page frames total] + PAGES_FOR_IO + [metadata pages]) / 2 + 2 * SPARE_PAGES
-+ *
-+ * of them, which corresponds to the maximum size of a hibernation image.
-+ *
-+ * If image_size is set below the number following from the above formula,
-+ * the preallocation of memory is continued until the total number of saveable
-+ * pages in the system is below the requested image size or it is impossible to
-+ * allocate more memory, whichever happens first.
-+ */
- int swsusp_shrink_memory(void)
- {
--	long tmp;
- 	struct zone *zone;
--	unsigned long pages = 0;
--	unsigned int i = 0;
--	char *p = "-\\|/";
-+	unsigned long saveable, size, max_size, count, highmem, pages = 0;
-+	unsigned long alloc, pages_highmem;
- 	struct timeval start, stop;
-+	int error = 0;
- 
--	printk(KERN_INFO "PM: Shrinking memory...  ");
-+	printk(KERN_INFO "PM: Shrinking memory... ");
- 	do_gettimeofday(&start);
--	do {
--		long size, highmem_size;
- 
--		highmem_size = count_highmem_pages();
--		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
--		tmp = size;
--		size += highmem_size;
--		for_each_populated_zone(zone) {
--			tmp += snapshot_additional_pages(zone);
--			if (is_highmem(zone)) {
--				highmem_size -=
--					zone_page_state(zone, NR_FREE_PAGES);
--			} else {
--				tmp -= zone_page_state(zone, NR_FREE_PAGES);
--				tmp += zone->lowmem_reserve[ZONE_NORMAL];
--			}
--		}
-+	/* Count the number of saveable data pages. */
-+	highmem = count_highmem_pages();
-+	saveable = count_data_pages();
-+
-+	/*
-+	 * Compute the total number of page frames we can use (count) and the
-+	 * number of pages needed for image metadata (size).
-+	 */
-+	count = saveable;
-+	saveable += highmem;
-+	size = 0;
-+	for_each_populated_zone(zone) {
-+		size += snapshot_additional_pages(zone);
-+		if (is_highmem(zone))
-+			highmem += zone_page_state(zone, NR_FREE_PAGES);
-+		else
-+			count += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+	count += highmem;
-+	count -= totalreserve_pages;
-+
-+	/* Compute the maximum number of saveable pages to leave in memory. */
-+	max_size = (count - (size + PAGES_FOR_IO)) / 2 - 2 * SPARE_PAGES;
-+	size = DIV_ROUND_UP(image_size, PAGE_SIZE);
-+	if (size > max_size)
-+		size = max_size;
-+	/*
-+	 * If the maximum is not less than the current number of saveable pages
-+	 * in memory, we don't need to do anything more.
-+	 */
-+	if (size >= saveable)
-+		goto out;
- 
--		if (highmem_size < 0)
--			highmem_size = 0;
-+	/*
-+	 * Let the memory management subsystem know that we're going to need a
-+	 * large number of page frames to allocate and make it free some memory.
-+	 * NOTE: If this is not done, performance will be hurt badly in some
-+	 * test cases.
-+	 */
-+	shrink_all_memory(saveable - size);
- 
--		tmp += highmem_size;
--		if (tmp > 0) {
--			tmp = __shrink_memory(tmp);
--			if (!tmp)
--				return -ENOMEM;
--			pages += tmp;
--		} else if (size > image_size / PAGE_SIZE) {
--			tmp = __shrink_memory(size - (image_size / PAGE_SIZE));
--			pages += tmp;
--		}
--		printk("\b%c", p[i++%4]);
--	} while (tmp > 0);
-+	/*
-+	 * The number of saveable pages in memory was too high, so apply some
-+	 * pressure to decrease it.  First, make room for the largest possible
-+	 * image and fail if that doesn't work.  Next, try to decrease the size
-+	 * of the image as much as indicated by image_size using allocations
-+	 * from highmem and non-highmem zones separately.
-+	 */
-+	pages_highmem = preallocate_image_highmem(highmem / 2);
-+	max_size += pages_highmem;
-+	alloc = count - max_size;
-+	pages = preallocate_image_memory(alloc);
-+	if (pages < alloc) {
-+		error = -ENOMEM;
-+		goto free_out;
-+	}
-+	size = max_size - size;
-+	alloc = size;
-+	size = preallocate_highmem_fraction(size, highmem, count);
-+	pages_highmem += size;
-+	alloc -= size;
-+	pages += preallocate_image_memory(alloc);
-+	pages += pages_highmem;
-+
-+ free_out:
-+	/* Release all of the preallocated page frames. */
-+	swsusp_free();
-+
-+	if (error) {
-+		printk(KERN_CONT "\n");
-+		return error;
-+	}
-+
-+ out:
- 	do_gettimeofday(&stop);
--	printk("\bdone (%lu pages freed)\n", pages);
-+	printk(KERN_CONT "done (preallocated %lu free pages)\n", pages);
- 	swsusp_show_speed(&start, &stop, pages, "Freed");
- 
- 	return 0;
+Have to go silent on this till the weekend.
+--=====================_1090478672==_
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: attachment; filename="meminfo.txt"
+
+MemTotal:     16443828 kB
+MemFree:        105364 kB
+Buffers:          8476 kB
+Cached:       11626260 kB
+SwapCached:          0 kB
+Active:         121876 kB
+Inactive:     11570788 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:     16443828 kB
+LowFree:        105364 kB
+SwapTotal:     2031608 kB
+SwapFree:      2031396 kB
+Dirty:          417224 kB
+Writeback:           0 kB
+AnonPages:       62700 kB
+Mapped:          10640 kB
+Slab:           416872 kB
+PageTables:       1904 kB
+NFS_Unstable:        0 kB
+Bounce:              0 kB
+CommitLimit:   8156368 kB
+Committed_AS:    71692 kB
+VmallocTotal: 34359738367 kB
+VmallocUsed:    266280 kB
+VmallocChunk: 34359471371 kB
+HugePages_Total:  2048
+HugePages_Free:    889
+HugePages_Rsvd:      0
+Hugepagesize:     2048 kB
+
+--=====================_1090478672==_
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: attachment; filename="pmap.txt"
+
+Address           Kbytes     RSS    Anon  Locked Mode   Mapping
+0000000000400000    2976       -       -       - r-x--  daemon
+00000000007e8000       8       -       -       - rw---  daemon
+00000000007ea000     192       -       -       - rw---    [ anon ]
+000000001546d000    9228       -       -       - rw---    [ anon ]
+0000000040955000       4       -       -       - -----    [ anon ]
+0000000040956000     128       -       -       - rw---    [ anon ]
+0000000040976000       4       -       -       - -----    [ anon ]
+0000000040977000     128       -       -       - rw---    [ anon ]
+0000000040997000       4       -       -       - -----    [ anon ]
+0000000040998000     128       -       -       - rw---    [ anon ]
+00000000409b8000       4       -       -       - -----    [ anon ]
+00000000409b9000     128       -       -       - rw---    [ anon ]
+000000004193a000       4       -       -       - -----    [ anon ]
+000000004193b000     128       -       -       - rw---    [ anon ]
+000000004195b000       4       -       -       - -----    [ anon ]
+000000004195c000     128       -       -       - rw---    [ anon ]
+000000004197c000       4       -       -       - -----    [ anon ]
+000000004197d000     128       -       -       - rw---    [ anon ]
+000000004199d000       4       -       -       - -----    [ anon ]
+000000004199e000     128       -       -       - rw---    [ anon ]
+00000000419be000       4       -       -       - -----    [ anon ]
+00000000419bf000     128       -       -       - rw---    [ anon ]
+00000000419df000       4       -       -       - -----    [ anon ]
+00000000419e0000     128       -       -       - rw---    [ anon ]
+0000000041a00000       4       -       -       - -----    [ anon ]
+0000000041a01000     128       -       -       - rw---    [ anon ]
+0000000041a21000       4       -       -       - -----    [ anon ]
+0000000041a22000     128       -       -       - rw---    [ anon ]
+0000000041a42000       4       -       -       - -----    [ anon ]
+0000000041a43000     128       -       -       - rw---    [ anon ]
+0000000041a63000       4       -       -       - -----    [ anon ]
+0000000041a64000     128       -       -       - rw---    [ anon ]
+0000000041a84000       4       -       -       - -----    [ anon ]
+0000000041a85000     128       -       -       - rw---    [ anon ]
+0000000041aa5000       4       -       -       - -----    [ anon ]
+0000000041aa6000     128       -       -       - rw---    [ anon ]
+0000000041ac6000       4       -       -       - -----    [ anon ]
+0000000041ac7000     128       -       -       - rw---    [ anon ]
+0000000041ae7000       4       -       -       - -----    [ anon ]
+0000000041ae8000     128       -       -       - rw---    [ anon ]
+0000000041b08000       4       -       -       - -----    [ anon ]
+0000000041b09000     128       -       -       - rw---    [ anon ]
+0000000041b29000       4       -       -       - -----    [ anon ]
+0000000041b2a000     128       -       -       - rw---    [ anon ]
+0000000041b4a000       4       -       -       - -----    [ anon ]
+0000000041b4b000     128       -       -       - rw---    [ anon ]
+0000000041b6b000       4       -       -       - -----    [ anon ]
+0000000041b6c000     128       -       -       - rw---    [ anon ]
+0000000041b8c000       4       -       -       - -----    [ anon ]
+0000000041b8d000     128       -       -       - rw---    [ anon ]
+0000000041bad000       4       -       -       - -----    [ anon ]
+0000000041bae000     128       -       -       - rw---    [ anon ]
+0000000041bce000       4       -       -       - -----    [ anon ]
+0000000041bcf000     128       -       -       - rw---    [ anon ]
+0000000041bef000       4       -       -       - -----    [ anon ]
+0000000041bf0000     128       -       -       - rw---    [ anon ]
+0000000041c10000       4       -       -       - -----    [ anon ]
+0000000041c11000     128       -       -       - rw---    [ anon ]
+0000000041c31000       4       -       -       - -----    [ anon ]
+0000000041c32000     128       -       -       - rw---    [ anon ]
+0000000041c52000       4       -       -       - -----    [ anon ]
+0000000041c53000     128       -       -       - rw---    [ anon ]
+0000000041c73000       4       -       -       - -----    [ anon ]
+0000000041c74000     128       -       -       - rw---    [ anon ]
+0000000041c94000       4       -       -       - -----    [ anon ]
+0000000041c95000     128       -       -       - rw---    [ anon ]
+0000000041cb5000       4       -       -       - -----    [ anon ]
+0000000041cb6000     128       -       -       - rw---    [ anon ]
+0000000041cd6000       4       -       -       - -----    [ anon ]
+0000000041cd7000     128       -       -       - rw---    [ anon ]
+0000000041cf7000       4       -       -       - -----    [ anon ]
+0000000041cf8000     128       -       -       - rw---    [ anon ]
+0000000041d18000       4       -       -       - -----    [ anon ]
+0000000041d19000     128       -       -       - rw---    [ anon ]
+0000000041d39000       4       -       -       - -----    [ anon ]
+0000000041d3a000     128       -       -       - rw---    [ anon ]
+0000000041d5a000       4       -       -       - -----    [ anon ]
+0000000041d5b000     128       -       -       - rw---    [ anon ]
+0000000041d7b000       4       -       -       - -----    [ anon ]
+0000000041d7c000     128       -       -       - rw---    [ anon ]
+0000000041d9c000       4       -       -       - -----    [ anon ]
+0000000041d9d000     128       -       -       - rw---    [ anon ]
+0000000041dbd000       4       -       -       - -----    [ anon ]
+0000000041dbe000     128       -       -       - rw---    [ anon ]
+0000000041dde000       4       -       -       - -----    [ anon ]
+0000000041ddf000     128       -       -       - rw---    [ anon ]
+0000000041dff000       4       -       -       - -----    [ anon ]
+0000000041e00000     128       -       -       - rw---    [ anon ]
+0000000041e20000       4       -       -       - -----    [ anon ]
+0000000041e21000     128       -       -       - rw---    [ anon ]
+0000000041e41000       4       -       -       - -----    [ anon ]
+0000000041e42000     128       -       -       - rw---    [ anon ]
+0000000041e62000       4       -       -       - -----    [ anon ]
+0000000041e63000     128       -       -       - rw---    [ anon ]
+0000000041e83000       4       -       -       - -----    [ anon ]
+0000000041e84000     128       -       -       - rw---    [ anon ]
+0000000041ea4000       4       -       -       - -----    [ anon ]
+0000000041ea5000     128       -       -       - rw---    [ anon ]
+0000000041ec5000       4       -       -       - -----    [ anon ]
+0000000041ec6000     128       -       -       - rw---    [ anon ]
+0000000041ee6000       4       -       -       - -----    [ anon ]
+0000000041ee7000     128       -       -       - rw---    [ anon ]
+0000000041f07000       4       -       -       - -----    [ anon ]
+0000000041f08000     128       -       -       - rw---    [ anon ]
+0000000041f28000       4       -       -       - -----    [ anon ]
+0000000041f29000     128       -       -       - rw---    [ anon ]
+0000000041f49000       4       -       -       - -----    [ anon ]
+0000000041f4a000     128       -       -       - rw---    [ anon ]
+0000000041f6a000       4       -       -       - -----    [ anon ]
+0000000041f6b000     128       -       -       - rw---    [ anon ]
+0000000041f8b000       4       -       -       - -----    [ anon ]
+0000000041f8c000     128       -       -       - rw---    [ anon ]
+0000000041fac000       4       -       -       - -----    [ anon ]
+0000000041fad000     128       -       -       - rw---    [ anon ]
+0000000041fcd000       4       -       -       - -----    [ anon ]
+0000000041fce000     128       -       -       - rw---    [ anon ]
+0000000041fee000       4       -       -       - -----    [ anon ]
+0000000041fef000     128       -       -       - rw---    [ anon ]
+000000004200f000       4       -       -       - -----    [ anon ]
+0000000042010000     128       -       -       - rw---    [ anon ]
+0000000042030000       4       -       -       - -----    [ anon ]
+0000000042031000     128       -       -       - rw---    [ anon ]
+0000000042051000       4       -       -       - -----    [ anon ]
+0000000042052000     128       -       -       - rw---    [ anon ]
+0000000042072000       4       -       -       - -----    [ anon ]
+0000000042073000     128       -       -       - rw---    [ anon ]
+0000000042093000       4       -       -       - -----    [ anon ]
+0000000042094000     128       -       -       - rw---    [ anon ]
+00000000420b4000       4       -       -       - -----    [ anon ]
+00000000420b5000     128       -       -       - rw---    [ anon ]
+00000000420d5000       4       -       -       - -----    [ anon ]
+00000000420d6000     128       -       -       - rw---    [ anon ]
+00000000420f6000       4       -       -       - -----    [ anon ]
+00000000420f7000     128       -       -       - rw---    [ anon ]
+0000000042117000       4       -       -       - -----    [ anon ]
+0000000042118000     128       -       -       - rw---    [ anon ]
+0000000042138000       4       -       -       - -----    [ anon ]
+0000000042139000     128       -       -       - rw---    [ anon ]
+0000000042159000       4       -       -       - -----    [ anon ]
+000000004215a000     128       -       -       - rw---    [ anon ]
+000000004217a000       4       -       -       - -----    [ anon ]
+000000004217b000     128       -       -       - rw---    [ anon ]
+000000004219b000       4       -       -       - -----    [ anon ]
+000000004219c000     128       -       -       - rw---    [ anon ]
+00000000421bc000       4       -       -       - -----    [ anon ]
+00000000421bd000     128       -       -       - rw---    [ anon ]
+00000000421dd000       4       -       -       - -----    [ anon ]
+00000000421de000     128       -       -       - rw---    [ anon ]
+00000000421fe000       4       -       -       - -----    [ anon ]
+00000000421ff000     128       -       -       - rw---    [ anon ]
+000000004221f000       4       -       -       - -----    [ anon ]
+0000000042220000     128       -       -       - rw---    [ anon ]
+0000000042240000       4       -       -       - -----    [ anon ]
+0000000042241000     128       -       -       - rw---    [ anon ]
+0000000042261000       4       -       -       - -----    [ anon ]
+0000000042262000     128       -       -       - rw---    [ anon ]
+0000000042282000       4       -       -       - -----    [ anon ]
+0000000042283000     128       -       -       - rw---    [ anon ]
+00000000422a3000       4       -       -       - -----    [ anon ]
+00000000422a4000     128       -       -       - rw---    [ anon ]
+00000000422c4000       4       -       -       - -----    [ anon ]
+00000000422c5000     128       -       -       - rw---    [ anon ]
+00000000422e5000       4       -       -       - -----    [ anon ]
+00000000422e6000     128       -       -       - rw---    [ anon ]
+0000000042306000       4       -       -       - -----    [ anon ]
+0000000042307000     128       -       -       - rw---    [ anon ]
+0000000042327000       4       -       -       - -----    [ anon ]
+0000000042328000     128       -       -       - rw---    [ anon ]
+0000000042348000       4       -       -       - -----    [ anon ]
+0000000042349000     128       -       -       - rw---    [ anon ]
+0000000042369000       4       -       -       - -----    [ anon ]
+000000004236a000     128       -       -       - rw---    [ anon ]
+000000004238a000       4       -       -       - -----    [ anon ]
+000000004238b000     128       -       -       - rw---    [ anon ]
+00000000423ab000       4       -       -       - -----    [ anon ]
+00000000423ac000     128       -       -       - rw---    [ anon ]
+00000000423cc000       4       -       -       - -----    [ anon ]
+00000000423cd000     128       -       -       - rw---    [ anon ]
+00000000423ed000       4       -       -       - -----    [ anon ]
+00000000423ee000     128       -       -       - rw---    [ anon ]
+000000004240e000       4       -       -       - -----    [ anon ]
+000000004240f000     128       -       -       - rw---    [ anon ]
+000000004242f000       4       -       -       - -----    [ anon ]
+0000000042430000     128       -       -       - rw---    [ anon ]
+0000000042450000       4       -       -       - -----    [ anon ]
+0000000042451000     128       -       -       - rw---    [ anon ]
+0000000042471000       4       -       -       - -----    [ anon ]
+0000000042472000     128       -       -       - rw---    [ anon ]
+0000000042492000       4       -       -       - -----    [ anon ]
+0000000042493000     128       -       -       - rw---    [ anon ]
+00000000424b3000       4       -       -       - -----    [ anon ]
+00000000424b4000     128       -       -       - rw---    [ anon ]
+00000000424d4000       4       -       -       - -----    [ anon ]
+00000000424d5000     128       -       -       - rw---    [ anon ]
+00000000424f5000       4       -       -       - -----    [ anon ]
+00000000424f6000     128       -       -       - rw---    [ anon ]
+0000000042516000       4       -       -       - -----    [ anon ]
+0000000042517000     128       -       -       - rw---    [ anon ]
+0000000042537000       4       -       -       - -----    [ anon ]
+0000000042538000     128       -       -       - rw---    [ anon ]
+0000000042558000       4       -       -       - -----    [ anon ]
+0000000042559000     128       -       -       - rw---    [ anon ]
+0000000042579000       4       -       -       - -----    [ anon ]
+000000004257a000     128       -       -       - rw---    [ anon ]
+000000004259a000       4       -       -       - -----    [ anon ]
+000000004259b000     128       -       -       - rw---    [ anon ]
+00000000425bb000       4       -       -       - -----    [ anon ]
+00000000425bc000     128       -       -       - rw---    [ anon ]
+00000000425dc000       4       -       -       - -----    [ anon ]
+00000000425dd000     128       -       -       - rw---    [ anon ]
+00000000425fd000       4       -       -       - -----    [ anon ]
+00000000425fe000     128       -       -       - rw---    [ anon ]
+000000004261e000       4       -       -       - -----    [ anon ]
+000000004261f000     128       -       -       - rw---    [ anon ]
+000000004263f000       4       -       -       - -----    [ anon ]
+0000000042640000     128       -       -       - rw---    [ anon ]
+0000000042660000       4       -       -       - -----    [ anon ]
+0000000042661000     128       -       -       - rw---    [ anon ]
+0000000042681000       4       -       -       - -----    [ anon ]
+0000000042682000     128       -       -       - rw---    [ anon ]
+00000000426a2000       4       -       -       - -----    [ anon ]
+00000000426a3000     128       -       -       - rw---    [ anon ]
+00000000426c3000       4       -       -       - -----    [ anon ]
+00000000426c4000     128       -       -       - rw---    [ anon ]
+00000000426e4000       4       -       -       - -----    [ anon ]
+00000000426e5000     128       -       -       - rw---    [ anon ]
+0000000042705000       4       -       -       - -----    [ anon ]
+0000000042706000     128       -       -       - rw---    [ anon ]
+0000000042726000       4       -       -       - -----    [ anon ]
+0000000042727000     128       -       -       - rw---    [ anon ]
+0000000042747000       4       -       -       - -----    [ anon ]
+0000000042748000     128       -       -       - rw---    [ anon ]
+0000000042768000       4       -       -       - -----    [ anon ]
+0000000042769000     128       -       -       - rw---    [ anon ]
+0000000042789000       4       -       -       - -----    [ anon ]
+000000004278a000     128       -       -       - rw---    [ anon ]
+00000000427aa000       4       -       -       - -----    [ anon ]
+00000000427ab000     128       -       -       - rw---    [ anon ]
+00000000427cb000       4       -       -       - -----    [ anon ]
+00000000427cc000     128       -       -       - rw---    [ anon ]
+00000000427ec000       4       -       -       - -----    [ anon ]
+00000000427ed000     128       -       -       - rw---    [ anon ]
+000000004280d000       4       -       -       - -----    [ anon ]
+000000004280e000      28       -       -       - rw---    [ anon ]
+0000000042815000       4       -       -       - -----    [ anon ]
+0000000042816000      28       -       -       - rw---    [ anon ]
+000000004281d000       4       -       -       - -----    [ anon ]
+000000004281e000      28       -       -       - rw---    [ anon ]
+0000000042825000       4       -       -       - -----    [ anon ]
+0000000042826000      28       -       -       - rw---    [ anon ]
+000000004282d000       4       -       -       - -----    [ anon ]
+000000004282e000      28       -       -       - rw---    [ anon ]
+0000000042835000       4       -       -       - -----    [ anon ]
+0000000042836000      28       -       -       - rw---    [ anon ]
+000000004283d000       4       -       -       - -----    [ anon ]
+000000004283e000      28       -       -       - rw---    [ anon ]
+0000000042845000       4       -       -       - -----    [ anon ]
+0000000042846000      28       -       -       - rw---    [ anon ]
+000000004284d000       4       -       -       - -----    [ anon ]
+000000004284e000      28       -       -       - rw---    [ anon ]
+0000000300000000  524288       -       -       - rw-s-  9 (deleted)
+0000000330000000  131072       -       -       - rw-s-  6 (deleted)
+00000003c0000000   98304       -       -       - rw-s-  8 (deleted)
+00000003d8000000  169984       -       -       - rw-s-  5 (deleted)
+00000003f0000000    2048       -       -       - rw-s-  1 (deleted)
+00000003f0400000    2048       -       -       - rw-s-  7 (deleted)
+0000000400000000 1048576       -       -       - rw-s-  3 (deleted)
+0000000580000000  262144       -       -       - rw-s-  4 (deleted)
+0000000600000000  131072       -       -       - rw-s-  2 (deleted)
+00000032d5400000     112       -       -       - r-x--  ld-2.5.so
+00000032d561b000       4       -       -       - r----  ld-2.5.so
+00000032d561c000       4       -       -       - rw---  ld-2.5.so
+00000032d5800000    1328       -       -       - r-x--  libc-2.5.so
+00000032d594c000    2048       -       -       - -----  libc-2.5.so
+00000032d5b4c000      16       -       -       - r----  libc-2.5.so
+00000032d5b50000       4       -       -       - rw---  libc-2.5.so
+00000032d5b51000      20       -       -       - rw---    [ anon ]
+00000032d6800000     520       -       -       - r-x--  libm-2.5.so
+00000032d6882000    2044       -       -       - -----  libm-2.5.so
+00000032d6a81000       4       -       -       - r----  libm-2.5.so
+00000032d6a82000       4       -       -       - rw---  libm-2.5.so
+00000032d6c00000      88       -       -       - r-x--  libpthread-2.5.so
+00000032d6c16000    2044       -       -       - -----  libpthread-2.5.so
+00000032d6e15000       4       -       -       - r----  libpthread-2.5.so
+00000032d6e16000       4       -       -       - rw---  libpthread-2.5.so
+00000032d6e17000      16       -       -       - rw---    [ anon ]
+00000032d7000000      28       -       -       - r-x--  librt-2.5.so
+00000032d7007000    2048       -       -       - -----  librt-2.5.so
+00000032d7207000       4       -       -       - r----  librt-2.5.so
+00000032d7208000       4       -       -       - rw---  librt-2.5.so
+00002aaaac000000     132       -       -       - rw---    [ anon ]
+00002aaaac021000   65404       -       -       - -----    [ anon ]
+00002aaab0000000     132       -       -       - rw---    [ anon ]
+00002aaab0021000   65404       -       -       - -----    [ anon ]
+00002aaab4000000     132       -       -       - rw---    [ anon ]
+00002aaab4021000   65404       -       -       - -----    [ anon ]
+00002ad69510e000       4       -       -       - rw---    [ anon ]
+00002ad695115000       4       -       -       - rw---    [ anon ]
+00002ad695116000     944       -       -       - r-x--  libstdc++.so.6.0.10
+00002ad695202000    1024       -       -       - -----  libstdc++.so.6.0.10
+00002ad695302000       8       -       -       - r----  libstdc++.so.6.0.10
+00002ad695304000      28       -       -       - rw---  libstdc++.so.6.0.10
+00002ad69530b000      80       -       -       - rw---    [ anon ]
+00002ad69531f000      88       -       -       - r-x--  libgcc_s.so.1
+00002ad695335000    1020       -       -       - -----  libgcc_s.so.1
+00002ad695434000       4       -       -       - rw---  libgcc_s.so.1
+00002ad695435000   24776       -       -       - rw---    [ anon ]
+00007fff1597d000     124       -       -       - rw---    [ stack ]
+ffffffffff600000    8192       -       -       - -----    [ anon ]
+----------------  ------  ------  ------  ------
+total kB         2641188       -       -       -
+
+--=====================_1090478672==_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
