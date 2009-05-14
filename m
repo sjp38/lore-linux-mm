@@ -1,30 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B55986B01BC
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:56:56 -0400 (EDT)
-Date: Thu, 14 May 2009 09:57:47 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
-	64 bits in X86_64
-Message-ID: <20090514135747.GA7926@infradead.org>
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 910036B01BD
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:09:30 -0400 (EDT)
+Message-ID: <4A0C2614.4010803@zytor.com>
+Date: Thu, 14 May 2009 07:09:24 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1242202647-32446-1-git-send-email-sheng@linux.intel.com>
+Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
+ 64 bits in X86_64
+References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <4A0AFB7D.2080105@zytor.com> <4A0B036B.7000107@zytor.com> <200905141152.29378.sheng@linux.intel.com>
+In-Reply-To: <200905141152.29378.sheng@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Sheng Yang <sheng@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 13, 2009 at 04:17:27PM +0800, Sheng Yang wrote:
-> This fix 44/45 bit width memory can't boot up issue. The reason is
-> free_bootmem_node()->mark_bootmem_node()->__free() use test_and_clean_bit() to
-> clean node_bootmem_map, but for 44bits width address, the idx set bit 31 (43 -
-> 12), which consider as a nagetive value for bts.
+Sheng Yang wrote:
+> 
+> Yeah, this one also works well(lightly tested). :)
+> 
+> But one thing should be noticed that, bit ops recognized the input as signed. 
+> According to SDM 2A 3.1.1.7 Operation Section, Bit(BitBase, BitOffset) can 
+> accept BitOffset as negative value, then search backward... Well, I indeed 
+> don't know when we need this, but I think keep signed here should be better...
+> 
 
-Should we really have different prototypes for these helpers on
-different architectures?
+Urk, you're right.  How daft.  I had preferred to switch it to unsigned
+long to match MIPS and SPARC, but that probably is a good reason to
+leave it signed.  Pain.
+
+	-hpa
+
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
