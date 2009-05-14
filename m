@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D2CA26B00AF
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 15:10:15 -0400 (EDT)
-Message-Id: <6.2.5.6.2.20090514135429.0588f5a0@binnacle.cx>
-Date: Thu, 14 May 2009 14:42:11 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B9F2D6B00B0
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 15:10:32 -0400 (EDT)
+Message-Id: <6.2.5.6.2.20090514151027.0588f5a0@binnacle.cx>
+Date: Thu, 14 May 2009 15:10:36 -0400
 From: starlight@binnacle.cx
 Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of
   process with hugepage shared memory segments attached
@@ -16,13 +16,13 @@ References: <bug-13302-10286@http.bugzilla.kernel.org/>
  <20090514174947.GA24837@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: multipart/mixed;
-	boundary="=====================_1090478672==_"
+	boundary="=====================_1090517095==_"
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---=====================_1090478672==_
+--=====================_1090517095==_
 Content-Type: text/plain; charset="us-ascii"
 
 At 06:49 PM 5/14/2009 +0100, Mel Gorman wrote:
@@ -59,7 +59,7 @@ Will run the test cases provided this weekend for certain and
 will let you know if bug is reproduced.
 
 Have to go silent on this till the weekend.
---=====================_1090478672==_
+--=====================_1090517095==_
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: attachment; filename="meminfo.txt"
 
@@ -94,7 +94,7 @@ HugePages_Free:    889
 HugePages_Rsvd:      0
 Hugepagesize:     2048 kB
 
---=====================_1090478672==_
+--=====================_1090517095==_
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: attachment; filename="pmap.txt"
 
@@ -411,7 +411,7 @@ ffffffffff600000    8192       -       -       - -----    [ anon ]
 ----------------  ------  ------  ------  ------
 total kB         2641188       -       -       -
 
---=====================_1090478672==_--
+--=====================_1090517095==_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
