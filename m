@@ -1,40 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C75D96B005A
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 16:30:55 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id EA11482C392
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 16:44:10 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id S+fiiDgI3FJJ for <linux-mm@kvack.org>;
-	Thu, 14 May 2009 16:44:10 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 38C2B82C3A0
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 16:44:04 -0400 (EDT)
-Date: Thu, 14 May 2009 16:31:16 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
-In-Reply-To: <4A0C7DB6.6010601@redhat.com>
-Message-ID: <alpine.DEB.1.10.0905141629440.15881@qirst.com>
-References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120729.5885.A69D9226@jp.fujitsu.com> <20090513152256.GM7601@sgi.com> <alpine.DEB.1.10.0905141602010.1381@qirst.com> <4A0C7DB6.6010601@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6C6516B004D
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 19:27:44 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4ENS8aK030145
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 15 May 2009 08:28:08 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C56045DE53
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:28:08 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E456845DE51
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:28:07 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 39A2B1DB803A
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:28:07 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EC8491DB803F
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:28:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH -mm] vmscan: protect a fraction of file backed mapped pages from reclaim
+In-Reply-To: <alpine.DEB.1.10.0905141612100.15881@qirst.com>
+References: <20090513084306.5874.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905141612100.15881@qirst.com>
+Message-Id: <20090515082312.F5B6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 15 May 2009 08:28:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Robin Holt <holt@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 May 2009, Rik van Riel wrote:
+> On Wed, 13 May 2009, KOSAKI Motohiro wrote:
+> 
+> > > All these expiration modifications do not take into account that a desktop
+> > > may sit idle for hours while some other things run in the background (like
+> > > backups at night or updatedb and other maintenance things). This still
+> > > means that the desktop will be usuable in the morning.
+> >
+> > Have you seen this phenomenom?
+> > I always use linux desktop for development. but I haven't seen it.
+> > perhaps I have no luck. I really want to know reproduce way.
+> >
+> > Please let me know reproduce way.
+> 
+> Run a backup (or rsync) over a few hundred GB.
 
-> I suspect that patches 1/4 through 3/4 will cause the
-> system to behave better already, by only reclaiming
-> the easiest to reclaim pages from zone reclaim and
-> falling back after that - or am overlooking something?
+-ENOTREPRODUCED
 
-zone reclaims default config has always only reclaimed the easiest
-reclaimable pages. Manual configuration is necessary to reclaim other
-pages.
+umm.
+May I ask detail operation?
+
+
+> > > The percentage of file backed pages protected is set via
+> > > /proc/sys/vm/file_mapped_ratio. This defaults to 20%.
+> >
+> > Why do you think typical mapped ratio is less than 20% on desktop machine?
+> 
+> Observation of the typical mapped size of Firefox under KDE.
+
+My point is, desktop people have very various mapped ratio.
+Do you oppose this?
+
+
+> > key point is access-once vs access-many.
+> 
+> Nothing against it if it works.
+> 
+
 
 
 --
