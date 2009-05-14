@@ -1,30 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8315C6B01DB
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:31:01 -0400 (EDT)
-Date: Thu, 14 May 2009 09:30:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in
- case of no swap space V3
-Message-Id: <20090514093050.43472421.akpm@linux-foundation.org>
-In-Reply-To: <20090514231555.f52c81eb.minchan.kim@gmail.com>
-References: <20090514231555.f52c81eb.minchan.kim@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB4E6B01DD
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:50:27 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4EGdj4M012706
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:39:45 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4EGpD3L187506
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:51:13 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4EGnDOu014318
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:49:14 -0400
+Date: Thu, 14 May 2009 22:20:45 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: mem_cgroup_lru_del_before_commit_swapcache() seems broken
+Message-ID: <20090514165045.GA4451@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 May 2009 23:15:55 +0900
-MinChan Kim <minchan.kim@gmail.com> wrote:
+Hi, Kame,
 
-> Now shrink_zone can deactivate active anon pages even if we don't have a swap device. 
-> Many embedded products don't have a swap device. So the deactivation of anon pages is unnecessary. 
+mem_cgroup_lru_del_before_commit_swapcache() seems to be broken, here
+is why
 
-Does shrink_list() need to scan the anon LRUs at all if there's no swap
-online?
+
+static void mem_cgroup_lru_del_before_commit_swapcache(struct page
+*page)
+{
+        unsigned long flags;
+        struct zone *zone = page_zone(page);
+        struct page_cgroup *pc = lookup_page_cgroup(page);
+
+        spin_lock_irqsave(&zone->lru_lock, flags);
+        /*
+         * Forget old LRU when this page_cgroup is *not* used. This
+         * Used bit
+         * is guarded by lock_page() because the page is SwapCache.
+         */
+        if (!PageCgroupUsed(pc))
+                mem_cgroup_del_lru_list(page, page_lru(page));
+
+...
+...
+void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+{
+        struct page_cgroup *pc;
+        struct mem_cgroup *mem;
+        struct mem_cgroup_per_zone *mz;
+
+        if (mem_cgroup_disabled())
+                return;
+        pc = lookup_page_cgroup(page);
+        /* can happen while we handle swapcache. */
+        if (!PageCgroupUsed(pc))
+                return;
+
+
+In mem_cgroup_lru_del_before_commit_swapcache() we say
+        if (!PageCgroupused(pc))
+                mem_cgroup_del_lru_list()
+
+in mem_cgroup_del_lru_list() we say
+        if (!PageCgroupUsed(pc))
+                return;
+
+So why call mem_cgroup_del_lru_list() at all? Am I missing something.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
