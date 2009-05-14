@@ -1,230 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 408E16B0151
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:31:14 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3AEFD6B0152
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:31:16 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 1/4] madvice: add MADV_SHAREABLE and MADV_UNSHAREABLE calls.
-Date: Thu, 14 May 2009 03:30:45 +0300
-Message-Id: <1242261048-4487-2-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 2/4] mmlist: share mmlist with ksm.
+Date: Thu, 14 May 2009 03:30:46 +0300
+Message-Id: <1242261048-4487-3-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1242261048-4487-2-git-send-email-ieidus@redhat.com>
 References: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
+ <1242261048-4487-2-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: hugh@veritas.com
 Cc: linux-kernel@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, linux-mm@kvack.org, riel@redhat.com, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch add MADV_SHAREABLE and MADV_UNSHAREABLE madvise calls,
-this calls used to mark vm memory areas with the VM_MERGEABLE flag,
-that specific if the memory inside the vma is allowed to be dinamicly shared
-with other memorys.
+This change the logic of drain_mmlist() so the mmlist will be able to be
+shared with ksm.
 
-(this is needed for ksm vma scanning support)
+Right now mmlist is used to track the mm structs that their pages had swapped
+and it is used by swapoff, this patch change it so that in addition to holding
+the mm structs that their pages had been swapped, it will hold the mm structs
+that have vm areas that are VM_MERGEABLE.
+
+The tradeoff is little bit more work when swapoff is running, but probably
+better than adding another pointer into mm_struct and increase its size.
+
+This patch add mmlist_mask that have 2 bits that are able to be set:
+MMLIST_SWAP and MMLIST_KSM, this mmlist_mask control the beahivor of the
+drain_mmlist() so it drain the mmlist when ksm use it.
+
+Implemantion note: if program called madvise for MADV_SHAREABLE, and then
+                   this vma will go away the mm_struct will be still kept
+                   inside the mmlist untill the procsess exit.
+
+Another intersting point is the code inside rmap.c:
+	if (list_empty(&mm->mmlist)) {
+		spin_lock(&mmlist_lock);
+		if (list_empty(&mm->mmlist))
+			list_add(&mm->mmlist, &init_mm.mmlist);
+		spin_unlock(&mmlist_lock);
+	}
+
+I and Andrea have disscussed about this function and we are not sure if it cant
+race with drain_mmlist when swapoff is run while swapping happen.
+
+Is it safe?, if it is safe it is safe for this patch, if it isnt then this patch
+isnt safe as well.
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
 ---
- include/asm-generic/mman.h |    2 +
- include/linux/mm.h         |    2 +
- include/linux/sched.h      |    2 +
- mm/madvise.c               |  116 +++++++++++++++++++++++++++++++++----------
- 4 files changed, 95 insertions(+), 27 deletions(-)
+ include/linux/swap.h |    4 ++++
+ mm/madvise.c         |    8 ++++++++
+ mm/rmap.c            |    8 ++++++++
+ mm/swapfile.c        |    9 +++++++--
+ 4 files changed, 27 insertions(+), 2 deletions(-)
 
-diff --git a/include/asm-generic/mman.h b/include/asm-generic/mman.h
-index 5e3dde2..830295d 100644
---- a/include/asm-generic/mman.h
-+++ b/include/asm-generic/mman.h
-@@ -34,6 +34,8 @@
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-+#define MADV_SHAREABLE	12		/* can share identical pages */
-+#define MADV_UNSHAREABLE 13		/* can not share identical pages */
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 62d8143..3919dc3 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -295,6 +295,10 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+ 			struct vm_area_struct *vma, unsigned long addr);
  
- /* compatibility flags */
- #define MAP_FILE	0
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a0ddfb5..61328a4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -106,6 +106,8 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
- #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
- 
-+#define VM_MERGEABLE    0x80000000	/* Memory may be merged */
+ /* linux/mm/swapfile.c */
++#define MMLIST_SWAP (1 << 0)
++#define MMLIST_KSM  (1 << 1)
++extern int mmlist_mask;
 +
- #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
- #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
- #endif
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b4c38bc..7dc786a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -439,6 +439,8 @@ extern int get_dumpable(struct mm_struct *mm);
- # define MMF_DUMP_MASK_DEFAULT_ELF	0
- #endif
- 
-+#define MMF_VM_MERGEABLE	9
-+
- struct sighand_struct {
- 	atomic_t		count;
- 	struct k_sigaction	action[_NSIG];
+ extern long nr_swap_pages;
+ extern long total_swap_pages;
+ extern void si_swapinfo(struct sysinfo *);
 diff --git a/mm/madvise.c b/mm/madvise.c
-index b9ce574..bd215ce 100644
+index bd215ce..40a0036 100644
 --- a/mm/madvise.c
 +++ b/mm/madvise.c
-@@ -30,36 +30,12 @@ static int madvise_need_mmap_write(int behavior)
- 	}
- }
- 
--/*
-- * We can potentially split a vm area into separate
-- * areas, each area with its own behavior.
-- */
--static long madvise_behavior(struct vm_area_struct * vma,
--		     struct vm_area_struct **prev,
--		     unsigned long start, unsigned long end, int behavior)
-+static int handle_vmas(struct vm_area_struct *vma, struct vm_area_struct **prev,
-+		       unsigned long start, unsigned long end, int new_flags)
- {
- 	struct mm_struct * mm = vma->vm_mm;
--	int error = 0;
- 	pgoff_t pgoff;
--	int new_flags = vma->vm_flags;
--
--	switch (behavior) {
--	case MADV_NORMAL:
--		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
--		break;
--	case MADV_SEQUENTIAL:
--		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
--		break;
--	case MADV_RANDOM:
--		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
--		break;
--	case MADV_DONTFORK:
--		new_flags |= VM_DONTCOPY;
--		break;
--	case MADV_DOFORK:
--		new_flags &= ~VM_DONTCOPY;
--		break;
--	}
-+	int error = 0;
- 
- 	if (new_flags == vma->vm_flags) {
- 		*prev = vma;
-@@ -101,6 +77,37 @@ out:
- }
+@@ -11,6 +11,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/hugetlb.h>
+ #include <linux/sched.h>
++#include <linux/swap.h>
  
  /*
-+ * We can potentially split a vm area into separate
-+ * areas, each area with its own behavior.
-+ */
-+static long madvise_behavior(struct vm_area_struct * vma,
-+		     struct vm_area_struct **prev,
-+		     unsigned long start, unsigned long end, int behavior)
-+{
-+	int new_flags = vma->vm_flags;
+  * Any behaviour which results in changes to the vma->vm_flags needs to
+@@ -237,6 +238,13 @@ static long madvise_shareable(struct vm_area_struct *vma,
+ 		if (!ret) {
+ 			mm = vma->vm_mm;
+ 			set_bit(MMF_VM_MERGEABLE, &mm->flags);
 +
-+	switch (behavior) {
-+	case MADV_NORMAL:
-+		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
-+		break;
-+	case MADV_SEQUENTIAL:
-+		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
-+		break;
-+	case MADV_RANDOM:
-+		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
-+		break;
-+	case MADV_DONTFORK:
-+		new_flags |= VM_DONTCOPY;
-+		break;
-+	case MADV_DOFORK:
-+		new_flags &= ~VM_DONTCOPY;
-+		break;
++			spin_lock(&mmlist_lock);
++			if (unlikely(list_empty(&mm->mmlist)))
++				list_add(&mm->mmlist, &init_mm.mmlist);
++			if (unlikely(!(mmlist_mask & MMLIST_KSM)))
++				mmlist_mask |= MMLIST_KSM;
++			spin_unlock(&mmlist_lock);
+ 		}
+ 
+ 		return ret;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 95c55ea..71f378a 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -951,7 +951,15 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				spin_lock(&mmlist_lock);
+ 				if (list_empty(&mm->mmlist))
+ 					list_add(&mm->mmlist, &init_mm.mmlist);
++				if (unlikely(!(mmlist_mask & MMLIST_SWAP)))
++					mmlist_mask |= MMLIST_SWAP;
+ 				spin_unlock(&mmlist_lock);
++			} else {
++				if (unlikely(!(mmlist_mask & MMLIST_SWAP))) {
++					spin_lock(&mmlist_lock);
++					mmlist_mask |= MMLIST_SWAP;
++					spin_unlock(&mmlist_lock);
++				}
+ 			}
+ 			dec_mm_counter(mm, anon_rss);
+ 		} else if (PAGE_MIGRATION) {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 312fafe..dadaa15 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -42,6 +42,8 @@ long total_swap_pages;
+ static int swap_overflow;
+ static int least_priority;
+ 
++int mmlist_mask = 0;
++
+ static const char Bad_file[] = "Bad swap file entry ";
+ static const char Unused_file[] = "Unused swap file entry ";
+ static const char Bad_offset[] = "Bad swap offset entry ";
+@@ -1149,8 +1151,11 @@ static void drain_mmlist(void)
+ 		if (swap_info[i].inuse_pages)
+ 			return;
+ 	spin_lock(&mmlist_lock);
+-	list_for_each_safe(p, next, &init_mm.mmlist)
+-		list_del_init(p);
++	mmlist_mask &= ~MMLIST_SWAP;
++	if (!mmlist_mask) {
++		list_for_each_safe(p, next, &init_mm.mmlist)
++			list_del_init(p);
 +	}
-+
-+	return handle_vmas(vma, prev, start, end, new_flags);
-+}
-+
-+/*
-  * Schedule all required I/O operations.  Do not wait for completion.
-  */
- static long madvise_willneed(struct vm_area_struct * vma,
-@@ -208,6 +215,54 @@ static long madvise_remove(struct vm_area_struct *vma,
- 	return error;
+ 	spin_unlock(&mmlist_lock);
  }
  
-+/*
-+ * Application allows pages to be shared with other pages of identical
-+ * content.
-+ *
-+ */
-+static long madvise_shareable(struct vm_area_struct *vma,
-+				struct vm_area_struct **prev,
-+				unsigned long start, unsigned long end,
-+				int behavior)
-+{
-+	int ret;
-+	struct mm_struct *mm;
-+
-+	switch (behavior) {
-+#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
-+	case MADV_SHAREABLE:
-+		ret = handle_vmas(vma, prev, start, end,
-+				  vma->vm_flags | VM_MERGEABLE);
-+
-+		if (!ret) {
-+			mm = vma->vm_mm;
-+			set_bit(MMF_VM_MERGEABLE, &mm->flags);
-+		}
-+
-+		return ret;
-+	case MADV_UNSHAREABLE:
-+		ret = handle_vmas(vma, prev, start, end,
-+				  vma->vm_flags & ~VM_MERGEABLE);
-+
-+		if (!ret) {
-+			mm = vma->vm_mm;
-+			vma = mm->mmap;
-+			while (vma) {
-+				if (vma->vm_flags & VM_MERGEABLE)
-+					break;
-+				vma = vma->vm_next;
-+			}
-+			if (!vma)
-+				clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-+		}
-+
-+		return ret;
-+#endif
-+	default:
-+		return -EINVAL;
-+	}
-+}
-+
- static long
- madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 		unsigned long start, unsigned long end, int behavior)
-@@ -238,6 +293,11 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 		error = madvise_dontneed(vma, prev, start, end);
- 		break;
- 
-+	case MADV_SHAREABLE:
-+	case MADV_UNSHAREABLE:
-+		error = madvise_shareable(vma, prev, start, end, behavior);
-+		break;
-+
- 	default:
- 		error = -EINVAL;
- 		break;
-@@ -269,6 +329,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
-  *		so the kernel can free resources associated with it.
-  *  MADV_REMOVE - the application wants to free up the given range of
-  *		pages and associated backing store.
-+ *  MADV_SHAREABLE - the application agrees that pages in the given
-+ *		range can be shared w/ other pages of identical content.
-  *
-  * return values:
-  *  zero    - success
 -- 
 1.5.6.5
 
