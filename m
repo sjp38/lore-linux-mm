@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 26D786B0169
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 754786B016D
 	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:57:08 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4E2sELv023866
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:54:14 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4E2w0kj227094
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:58:00 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4E2vx7M007027
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:58:00 -0600
-Date: Thu, 14 May 2009 08:09:30 +0530
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4E2rlZ0010722
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:53:47 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4E2w0S2257414
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:58:00 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4E2vxfg017474
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:58:00 -0400
+Date: Thu, 14 May 2009 08:26:18 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC] Low overhead patches for the memory resource controller
-Message-ID: <20090514023930.GT13394@balbir.in.ibm.com>
+Message-ID: <20090514025618.GW13394@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <20090513153218.GQ13394@balbir.in.ibm.com> <20090514090802.c5ac2246.kamezawa.hiroyu@jp.fujitsu.com> <20090514092405.1c3e6134.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
@@ -78,9 +78,8 @@ List-ID: <linux-mm.kvack.org>
 > this patch ?
 >
 
-Why would this make soft limit much harder? Since we charge up
-hierarchially even now we ignore a cgroup if its soft limit is not
-set. I am not sure I understand why. 
+Quick Clarificaiton, will my patches make soft limit hard or will the
+suggestio above do that? 
 
 -- 
 	Balbir
