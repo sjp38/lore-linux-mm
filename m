@@ -1,111 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C16E56B0199
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 07:11:55 -0400 (EDT)
-Received: by pxi37 with SMTP id 37so628983pxi.12
-        for <linux-mm@kvack.org>; Thu, 14 May 2009 04:12:05 -0700 (PDT)
-Date: Thu, 14 May 2009 20:11:50 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] mmtom: Prevent shrinking of active anon lru list in case of
- no swap space V2
-Message-Id: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D4BE76B019C
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 07:14:08 -0400 (EDT)
+Date: Thu, 14 May 2009 13:14:13 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC][PATCH 6/6] PM/Hibernate: Do not try to allocate too much
+	memory too hard
+Message-ID: <20090514111413.GB8871@elf.ucw.cz>
+References: <200905070040.08561.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905131032.53624.rjw@sisk.pl> <200905131042.18137.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200905131042.18137.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: pm list <linux-pm@lists.linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi!
 
-Changelog since V2
- o Add new function - can_reclaim_anon : it tests anon_list can be reclaim 
+> We want to avoid attempting to free too much memory too hard during
+> hibernation, so estimate the minimum size of the image to use as the
+> lower limit for preallocating memory.
 
-Changelog since V1 
- o Use nr_swap_pages <= 0 in shrink_active_list to prevent scanning  of active anon list.
+Why? Is freeing memory too slow?
 
-Now shrink_active_list is called several places.
-But if we don't have a swap space, we can't reclaim anon pages.
-So, we don't need deactivating anon pages in anon lru list.
+It used to be that user controlled image size, so he was able to
+balance "time to save image" vs. "responsiveness of system after
+resume".
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>	
+Does this just override user's preference when he chooses too small
+image size?
 
----
- mm/vmscan.c |   23 ++++++++++++++++++-----
- 1 files changed, 18 insertions(+), 5 deletions(-)
+> The approach here is based on the (experimental) observation that we
+> can't free more page frames than the sum of:
+> 
+> * global_page_state(NR_SLAB_RECLAIMABLE)
+> * global_page_state(NR_ACTIVE_ANON)
+> * global_page_state(NR_INACTIVE_ANON)
+> * global_page_state(NR_ACTIVE_FILE)
+> * global_page_state(NR_INACTIVE_FILE)
+> 
+> and even that is usually impossible to free in practice, because some
+> of the pages reported as global_page_state(NR_SLAB_RECLAIMABLE) can't
+> in fact be freed.  It turns out, however, that if the sum of the
+> above numbers is subtracted from the number of saveable pages in the
+> system and the result is multiplied by 1.25, we get a suitable
+> estimate of the minimum size of the image.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2f9d555..d7e8242 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1339,8 +1339,7 @@ static int inactive_anon_is_low_global(struct zone *zone)
-  * @zone: zone to check
-  * @sc:   scan control of this context
-  *
-- * Returns true if the zone does not have enough inactive anon pages,
-- * meaning some active anon pages need to be deactivated.
-+ * Returns true if the zone does not have enough inactive anon pages.
-  */
- static int inactive_anon_is_low(struct zone *zone, struct scan_control *sc)
- {
-@@ -1389,6 +1388,20 @@ static int inactive_file_is_low(struct zone *zone, struct scan_control *sc)
- 	return low;
- }
- 
-+/*
-+ * can_reclaim_anon - check if anonymous pages need to be deactivated
-+ * @zone: zone to check
-+ * @sc:   scan control of this context
-+ * 
-+ * Returns true if the zone does not have enough inactive anon pages
-+ * and have enough swap sppce, meaning some active anon pages need to
-+ * be deactivated.
-+ */
-+static int can_reclaim_anon(struct zone *zone, struct scan_control *sc)
-+{
-+	return (inactive_anon_is_low(zone, sc) && nr_swap_pages <= 0);
-+}
-+
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	struct zone *zone, struct scan_control *sc, int priority)
- {
-@@ -1399,7 +1412,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 		return 0;
- 	}
- 
--	if (lru == LRU_ACTIVE_ANON && inactive_anon_is_low(zone, sc)) {
-+	if (lru == LRU_ACTIVE_ANON && can_reclaim_anon(zone, sc)) {
- 		shrink_active_list(nr_to_scan, zone, sc, priority, file);
- 		return 0;
- 	}
-@@ -1577,7 +1590,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
- 	 */
--	if (inactive_anon_is_low(zone, sc))
-+	if (can_reclaim_anon(zone, sc))
- 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
- 
- 	throttle_vm_writeout(sc->gfp_mask);
-@@ -1880,7 +1893,7 @@ loop_again:
- 			 * Do some background aging of the anon list, to give
- 			 * pages a chance to be referenced before reclaiming.
- 			 */
--			if (inactive_anon_is_low(zone, &sc))
-+			if (can_reclaim_anon(zone, &sc))
- 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
- 							&sc, priority, 0);
- 
--- 
-1.5.4.3
 
+
+> Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+> ---
+>  kernel/power/snapshot.c |   56 ++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 52 insertions(+), 4 deletions(-)
+
+
+>  /**
+> + * minimum_image_size - Estimate the minimum acceptable size of an image
+> + * @saveable: The total number of saveable pages in the system.
+> + *
+> + * We want to avoid attempting to free too much memory too hard, so estimate the
+> + * minimum acceptable size of a hibernation image to use as the lower limit for
+> + * preallocating memory.
+
+I don't get it. If user sets image size as 0, we should free as much
+memory as we can. I just don't see why "we want to avoid... it".
+
+									Pavel
 
 -- 
-Kinds Regards
-Minchan Kim
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
