@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5CCAF6B0173
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 23:43:38 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4A2296B0176
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 23:51:15 -0400 (EDT)
 From: Sheng Yang <sheng@linux.intel.com>
 Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to 64 bits in X86_64
-Date: Thu, 14 May 2009 11:45:05 +0800
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <87zldhl7ne.fsf@basil.nowhere.org>
-In-Reply-To: <87zldhl7ne.fsf@basil.nowhere.org>
+Date: Thu, 14 May 2009 11:52:28 +0800
+References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <4A0AFB7D.2080105@zytor.com> <4A0B036B.7000107@zytor.com>
+In-Reply-To: <4A0B036B.7000107@zytor.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
-  charset="iso-8859-1"
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200905141145.05591.sheng@linux.intel.com>
+Message-Id: <200905141152.29378.sheng@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 13 May 2009 16:38:29 Andi Kleen wrote:
-> Sheng Yang <sheng@linux.intel.com> writes:
-> > -static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
-> > +static inline int test_and_set_bit(long int nr, volatile unsigned long
-> > *addr) {
-> >  	int oldbit;
+On Thursday 14 May 2009 01:29:15 H. Peter Anvin wrote:
+> H. Peter Anvin wrote:
+> > H. Peter Anvin wrote:
+> >> Sheng Yang wrote:
+> >>> This fix 44/45 bit width memory can't boot up issue. The reason is
+> >>> free_bootmem_node()->mark_bootmem_node()->__free() use
+> >>> test_and_clean_bit() to clean node_bootmem_map, but for 44bits width
+> >>> address, the idx set bit 31 (43 - 12), which consider as a nagetive
+> >>> value for bts.
+> >>>
+> >>> This patch applied to tip/mm.
+> >>
+> >> Hi Sheng,
+> >>
+> >> Could you try the attached patch instead?
 > >
-> > -	asm volatile(LOCK_PREFIX "bts %2,%1\n\t"
-> > +	asm volatile(LOCK_PREFIX REX_X86 "bts %2,%1\n\t"
+> > Sorry, wrong patch entirely... here is the right one.
 >
-> Use btsq on 64bit, then you don't need the explicit rex prefix.
+> This time, for real?  Sheesh.  I'm having a morning, apparently.
+>
+> 	-hpa
 
-Hi Andi
+Yeah, this one also works well(lightly tested). :)
 
-Well, I just think lots of "#ifdef/#else" is a little annoying here, then use 
-REX...
+But one thing should be noticed that, bit ops recognized the input as signed. 
+According to SDM 2A 3.1.1.7 Operation Section, Bit(BitBase, BitOffset) can 
+accept BitOffset as negative value, then search backward... Well, I indeed 
+don't know when we need this, but I think keep signed here should be better...
 
 -- 
 regards
-Yang, Sheng
+Yang, Sheng 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
