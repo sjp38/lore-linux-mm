@@ -1,39 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DC04D6B015A
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:43:23 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E0i1fN020211
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 14 May 2009 09:44:01 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A961645DD78
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:44:01 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 85B4C45DD7D
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:44:01 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 639771DB8038
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:44:01 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D47AE08002
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:43:56 +0900 (JST)
-Date: Thu, 14 May 2009 09:42:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 399396B015C
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 21:34:36 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E1Z6HX018543
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 14 May 2009 10:35:06 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DED545DE55
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:35:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 370B645DE54
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:35:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 02F67E08005
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:35:06 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 993DDE0800C
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:35:05 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [RFC] Low overhead patches for the memory resource controller
-Message-Id: <20090514094223.6c23e469.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090513153218.GQ13394@balbir.in.ibm.com>
 References: <20090513153218.GQ13394@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-Id: <20090514103123.9B52.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 14 May 2009 10:35:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
-
-On Wed, 13 May 2009 21:02:18 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
 > Important: Not for inclusion, for discussion only
 > 
@@ -71,155 +68,16 @@ Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
 > A new flag is used to track page_cgroup associated with the root cgroup
 > pages.
-> ---
-> 
->  include/linux/page_cgroup.h |    5 +++++
->  mm/memcontrol.c             |   23 +++++++++++++++++------
->  mm/page_cgroup.c            |    1 -
->  3 files changed, 22 insertions(+), 7 deletions(-)
-> 
-> 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index 7339c7b..9c88e85 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -26,6 +26,7 @@ enum {
->  	PCG_LOCK,  /* page cgroup is locked */
->  	PCG_CACHE, /* charged as cache */
->  	PCG_USED, /* this object is in use. */
-> +	PCG_ROOT, /* page belongs to root cgroup */
->  };
->  
->  #define TESTPCGFLAG(uname, lname)			\
-> @@ -46,6 +47,10 @@ TESTPCGFLAG(Cache, CACHE)
->  TESTPCGFLAG(Used, USED)
->  CLEARPCGFLAG(Used, USED)
->  
-> +SETPCGFLAG(Root, ROOT)
-> +CLEARPCGFLAG(Root, ROOT)
-> +TESTPCGFLAG(Root, ROOT)
-> +
->  static inline int page_cgroup_nid(struct page_cgroup *pc)
->  {
->  	return page_to_nid(pc->page);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9712ef7..2750bed 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -43,6 +43,7 @@
->  
->  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
-> +struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 0 */
-> @@ -196,6 +197,7 @@ enum charge_type {
->  #define PCGF_CACHE	(1UL << PCG_CACHE)
->  #define PCGF_USED	(1UL << PCG_USED)
->  #define PCGF_LOCK	(1UL << PCG_LOCK)
-> +#define PCGF_ROOT	(1UL << PCG_ROOT)
->  static const unsigned long
->  pcg_default_flags[NR_CHARGE_TYPE] = {
->  	PCGF_CACHE | PCGF_USED | PCGF_LOCK, /* File Cache */
-> @@ -422,6 +424,8 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
->  	/* can happen while we handle swapcache. */
->  	if (list_empty(&pc->lru) || !pc->mem_cgroup)
->  		return;
-> +	if (PageCgroupRoot(pc))
-> +		return;
->  	/*
->  	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
->  	 * removed from global LRU.
-> @@ -452,8 +456,8 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
->  	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
->  	 */
->  	smp_rmb();
-> -	/* unused page is not rotated. */
-> -	if (!PageCgroupUsed(pc))
-> +	/* unused or root page is not rotated. */
-> +	if (!PageCgroupUsed(pc) || PageCgroupRoot(pc))
->  		return;
->  	mz = page_cgroup_zoneinfo(pc);
->  	list_move(&pc->lru, &mz->lists[lru]);
-> @@ -472,7 +476,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
->  	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
->  	 */
->  	smp_rmb();
-> -	if (!PageCgroupUsed(pc))
-> +	if (!PageCgroupUsed(pc) || PageCgroupRoot(pc))
->  		return;
->  
->  	mz = page_cgroup_zoneinfo(pc);
-> @@ -1114,9 +1118,12 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
->  		css_put(&mem->css);
->  		return;
->  	}
-> -	pc->mem_cgroup = mem;
-> -	smp_wmb();
-> -	pc->flags = pcg_default_flags[ctype];
-> +	if (mem != root_mem_cgroup) {
-> +		pc->mem_cgroup = mem;
-> +		smp_wmb();
-> +		pc->flags = pcg_default_flags[ctype];
-> +	} else
-> +		SetPageCgroupRoot(pc);
->  
-This means
-  PCG_USED is not set. (then uncharge_common will be skipped completely.)
-  LOCK bit is dropped here.
 
-After fix, the test result will change.
+I think this is right direction path. typical desktop user don't use 
+non-root cgroup nor cgroup disabling boot parameter.
+this patch increase their user experience.
 
-Thanks,
--Kame
+I hope you fix rest technical issue.
+
+thanks.
 
 
-
->  	mem_cgroup_charge_statistics(mem, pc, true);
->  
-> @@ -1521,6 +1528,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
->  	mem_cgroup_charge_statistics(mem, pc, false);
->  
->  	ClearPageCgroupUsed(pc);
-> +	if (mem == root_mem_cgroup)
-> +		ClearPageCgroupRoot(pc);
->  	/*
->  	 * pc->mem_cgroup is not cleared here. It will be accessed when it's
->  	 * freed from LRU. This is safe because uncharged page is expected not
-> @@ -2504,6 +2513,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	if (cont->parent == NULL) {
->  		enable_swap_cgroup();
->  		parent = NULL;
-> +		root_mem_cgroup = mem;
->  	} else {
->  		parent = mem_cgroup_from_cont(cont->parent);
->  		mem->use_hierarchy = parent->use_hierarchy;
-> @@ -2532,6 +2542,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	return &mem->css;
->  free_out:
->  	__mem_cgroup_free(mem);
-> +	root_mem_cgroup = NULL;
->  	return ERR_PTR(error);
->  }
->  
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 09b73c5..6145ff6 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -276,7 +276,6 @@ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
->  
->  #endif
->  
-> -
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  
->  static DEFINE_MUTEX(swap_cgroup_mutex);
-> 
-> -- 
->         Thanks!
-> 	Balbir
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
