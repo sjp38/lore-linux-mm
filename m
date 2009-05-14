@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 80CBD6B01B0
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 08:57:41 -0400 (EDT)
-Message-ID: <4A0C1571.2020106@redhat.com>
-Date: Thu, 14 May 2009 08:58:25 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case
- of no swap space V2
-References: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
-In-Reply-To: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 00D676B01B4
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:05:15 -0400 (EDT)
+Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KJM004DRXOTPX@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 14 May 2009 14:05:18 +0100 (BST)
+Received: from amdc030 ([106.116.37.122])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0KJM00HLAXO72E@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 14 May 2009 14:05:17 +0100 (BST)
+Date: Thu, 14 May 2009 15:04:55 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH] Physical Memory Management [0/1]
+In-reply-to: <1242302702.6642.1140.camel@laptop>
+Message-id: <op.utw7yhv67p4s8u@amdc030>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 8BIT
+References: <op.utu26hq77p4s8u@amdc030>
+ <20090513151142.5d166b92.akpm@linux-foundation.org>
+ <op.utwwmpsf7p4s8u@amdc030> <1242300002.6642.1091.camel@laptop>
+ <op.utw4fdhz7p4s8u@amdc030> <1242302702.6642.1140.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim wrote:
+> On Thu, 2009-05-14 at 13:48 +0200, MichaA? Nazarewicz wrote:
+>>> On Thu, 2009-05-14 at 11:00 +0200, MichaA? Nazarewicz wrote:
+>>>>   PMM solves this problem since the buffers are allocated when they
+>>>>   are needed.
 
-> Now shrink_active_list is called several places.
-> But if we don't have a swap space, we can't reclaim anon pages.
+>> On Thu, 14 May 2009 13:20:02 +0200, Peter Zijlstra wrote:
+>>> Ha - only when you actually manage to allocate things. Physically
+>>> contiguous allocations are exceedingly hard once the machine has been
+>>> running for a while.
 
-If swap space has run out, get_scan_ratio() will return
-0 for the anon scan ratio, meaning we do not scan the
-anon lists.
+>> PMM reserves memory during boot time using alloc_bootmem_low_pages().
+>> After this is done, it can allocate buffers from reserved pool.
+>>
+>> The idea here is that there are n hardware accelerators, each
+>> can operate on 1MiB blocks (to simplify assume that's the case).
+>> However, we know that at most m < n devices will be used at the same
+>> time so instead of reserving n MiBs of memory we reserve only m MiBs.
 
-> So, we don't need deactivating anon pages in anon lru list.
+On Thu, 14 May 2009 14:05:02 +0200, Peter Zijlstra wrote:
+> And who says your pre-allocated pool won't fragment with repeated PMM
+> use?
 
-If we are close to running out of swap space, with
-swapins freeing up swap space on a regular basis,
-I believe we do want to do aging on the active
-pages, just so we can pick a decent page to swap
-out next time swap space becomes available.
+Yes, this is a good question.  What's more, there's no good answer. ;)
 
-> +static int can_reclaim_anon(struct zone *zone, struct scan_control *sc)
-> +{
-> +	return (inactive_anon_is_low(zone, sc) && nr_swap_pages <= 0);
-> +}
-> +
+There is no guarantee and it depends on use cases.  The biggest problem
+is a lot of small buffers allocated by different applications which get
+freed at different times.  However, if in most cases one or two
+applications use PMM, we can assume that buffers are allocated and
+freed in groups.  If that's the case, fragmentation is less likely to
+occur.
 
-This function name is misleading, because when we do have
-swap space available but inactive_anon_is_low is false,
-we still want to reclaim inactive anon pages!
+I'm not claiming that PMM is panacea for all the problems present on
+systems with no scatter-gather capability -- it is an attempt to gather
+different functionality and existing solutions in one place which is
+easier to manage and improve if needed.
 
-What problem did you encounter that you think this patch
-solves?
+Problem with allocation of continuous blocks hos no universal solution
+-- you can increased reserved area but then overall performance of the
+system will decrease.  PMM is trying to find a compromise between the
+two.
 
 -- 
-All rights reversed.
+Best regards,                                            _     _
+ .o. | Liege of Serenly Enlightened Majesty of         o' \,=./ `o
+ ..o | Computer Science,  MichaA? "mina86" Nazarewicz      (o o)
+ ooo +-<m.nazarewicz@samsung.com>-<mina86@jabber.org>-ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
