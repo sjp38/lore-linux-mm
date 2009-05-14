@@ -1,36 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 81E816B01EA
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 13:20:24 -0400 (EDT)
-Message-Id: <6.2.5.6.2.20090514131734.05890270@binnacle.cx>
-Date: Thu, 14 May 2009 13:20:09 -0400
-From: starlight@binnacle.cx
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of
-  process with hugepage shared memory segments attached
-In-Reply-To: <20090514105926.GB11770@csn.ul.ie>
-References: <bug-13302-10286@http.bugzilla.kernel.org/>
- <20090513130846.d463cc1e.akpm@linux-foundation.org>
- <20090514105326.GA11770@csn.ul.ie>
- <20090514105926.GB11770@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3E1816B01EC
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 13:25:59 -0400 (EDT)
+Message-ID: <4A0C5434.3040905@redhat.com>
+Date: Thu, 14 May 2009 13:26:12 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case
+ of no swap space V3
+References: <20090514231555.f52c81eb.minchan.kim@gmail.com> <20090514093050.43472421.akpm@linux-foundation.org>
+In-Reply-To: <20090514093050.43472421.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: MinChan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-Definately no.
+Andrew Morton wrote:
+> On Thu, 14 May 2009 23:15:55 +0900
+> MinChan Kim <minchan.kim@gmail.com> wrote:
+> 
+>> Now shrink_zone can deactivate active anon pages even if we don't have a swap device. 
+>> Many embedded products don't have a swap device. So the deactivation of anon pages is unnecessary. 
+> 
+> Does shrink_list() need to scan the anon LRUs at all if there's no swap
+> online?
 
-The possibly unusual thing done is that a file is read into 
-something like 30% of the segment, and the remaining pages are 
-not touched.
-
-
-At 11:59 AM 5/14/2009 +0100, Mel Gorman wrote:
->Another question on top of this.
->
->At any point, do you call madvise(MADV_WILLNEED),
->fadvise(FADV_WILLNEED) or readahead() on the share memory segment?
+It doesn't.  Get_scan_ratio() will return 0 as the
+anon percentage if no swap is online.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
