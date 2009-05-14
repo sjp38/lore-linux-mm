@@ -1,234 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3EE6B0142
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:06:59 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E072iP011630
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A44C56B0146
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:09:27 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E09Y62012832
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 14 May 2009 09:07:02 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1306845DE5D
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:07:02 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A995E45DE51
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:07:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FA8A1DB8042
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:07:01 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 213CC1DB803F
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:07:01 +0900 (JST)
-Date: Thu, 14 May 2009 09:05:29 +0900
+	Thu, 14 May 2009 09:09:34 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 59C4D45DE52
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:09:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 38FD645DE51
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:09:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FE321DB803A
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:09:34 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 881BD1DB803F
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:09:33 +0900 (JST)
+Date: Thu, 14 May 2009 09:08:02 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] fix swap cache account leak at swapin-readahead
-Message-Id: <20090514090529.b7bfcb7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0905131707330.27813@blonde.anvils>
-References: <20090512104401.28edc0a8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512104603.ac4ca1f4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090512112359.GA20771@cmpxchg.org>
-	<20090513085816.13dc7709.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090513111800.GA2254@cmpxchg.org>
-	<Pine.LNX.4.64.0905131707330.27813@blonde.anvils>
+Subject: Re: [RFC] Low overhead patches for the memory resource controller
+Message-Id: <20090514090802.c5ac2246.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090513153218.GQ13394@balbir.in.ibm.com>
+References: <20090513153218.GQ13394@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, mingo@elte.hu, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Johannes, Hugh, thank you for comments.
+On Wed, 13 May 2009 21:02:18 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-
-On Wed, 13 May 2009 19:03:47 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
-
-> On Wed, 13 May 2009, Johannes Weiner wrote:
-> > On Wed, May 13, 2009 at 08:58:16AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Tue, 12 May 2009 13:24:00 +0200
-> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > > On Tue, May 12, 2009 at 10:46:03AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > >
-> > > > > Index: mmotm-2.6.30-May07/mm/swap_state.c
-> > > > > ===================================================================
-> > > > > --- mmotm-2.6.30-May07.orig/mm/swap_state.c
-> > > > > +++ mmotm-2.6.30-May07/mm/swap_state.c
-> > > > > @@ -349,9 +349,9 @@ struct page *read_swap_cache_async(swp_e
-> > > > >  struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
-> > > > >  			struct vm_area_struct *vma, unsigned long addr)
-> > > > >  {
-> > > > > -	int nr_pages;
-> > > > > +	int nr_pages = 1;
-> > > > >  	struct page *page;
-> > > > > -	unsigned long offset;
-> > > > > +	unsigned long offset = 0;
-> > > > >  	unsigned long end_offset;
-> > > > >  
-> > > > >  	/*
-> > > > > @@ -360,8 +360,22 @@ struct page *swapin_readahead(swp_entry_
-> > > > >  	 * No, it's very unlikely that swap layout would follow vma layout,
-> > > > >  	 * more likely that neighbouring swap pages came from the same node:
-> > > > >  	 * so use the same "addr" to choose the same node for each swap read.
-> > > > > +	 *
-> > > > > +	 * But, when memcg is used, swapin readahead give us some bad
-> > > > > +	 * effects. There are 2 big problems in general.
-> > > > > +	 * 1. Swapin readahead tend to use/read _not required_ memory.
-> > > > > +	 *    And _not required_ memory is only freed by global LRU.
-> > > > > +	 * 2. We can't charge pages for swap-cache readahead because
-> > > > > +	 *    we should avoid account memory in a cgroup which a
-> > > > > +	 *    thread call this function is not related to.
-> > > > > +	 * And swapin-readahead have racy condition with
-> > > > > +	 * free_swap_and_cache(). This also annoys memcg.
-> > > > > +	 * Then, if memcg is really used, we avoid readahead.
-> > > > >  	 */
-> > > > > -	nr_pages = valid_swaphandles(entry, &offset);
-> > > > > +
-> > > > > +	if (!mem_cgroup_activated())
-> > > > > +		nr_pages = valid_swaphandles(entry, &offset);
-> > > > > +
-> > > > >  	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
-> > > > >  		/* Ok, do the async read-ahead now */
-> > > > >  		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
-> > > > 
-> > > > Having nr_pages set to 1 and offset to zero will actually enter hat
-> > > > loop and try to read a swap slot at offset zero, including a
-> > > > superfluous page allocation, just to fail at the swap_duplicate()
-> > > > (swap slot 0 is swap header -> SWAP_MAP_BAD).
-> > > > 
-> > > Hmm ?
-> > >  swp_entry(swp_type(entry), offset),
-> > > can be zero ?
-> > 
-> > I'm not sure I understand your question.
+> Important: Not for inclusion, for discussion only
 > 
-> Nor I, but I think KAMEZAWA-san is suggesting that we never come here
-> with offset 0 anyway.  Which I believe is correct.
+> I've been experimenting with a version of the patches below. They add
+> a PCGF_ROOT flag for tracking pages belonging to the root cgroup and
+> disable LRU manipulation for them
 > 
-Sorry for too short text. yes, I thought so.
- 
-> (And in passing, off topic, note that we have a problem if we ever
-> do need to read page 0 in this way, in the swap-to-regular-file case: 
-> because the swap_extents reading of page 0 can differ from sys_swapon's
-> reading of the header page without swap_extents - possibly hibernate
-> to swapfile can suffer from that, but not regular swapping paths.)
+> Caveats:
 > 
-> > Whether this whole
-> > expression can or can not be zero is irrelevant.  My point is that you
-> > enter the readahead loop with a bogus offset, while your original
-> > intention is to completey disable readahead.
+> 1. I've not checked accounting, accounting might be broken
+> 2. I've not made the root cgroup as non limitable, we need to disable
+> hard limits once we agree to go with this
 > 
-> I don't really buy your point on offset 0 in particular: if offset 0
-> is asked for, it goes through the intended motions, though you and I
-> know that offset 0 will subsequently be found unsuitable; but it does
-> what is asked of it.
 > 
-> However, I do agree with you that it's silly to be entering this loop
-> at all when avoiding readahead.  When doing readahead, we have to cope
-> with the fact that any of the calls in the loop might have failed, so
-> we do the extra, targetted read_swap_cache_async at the end, to satisfy
-> the actual request.  When avoiding readahead, better just to go to that
-> final read_swap_cache_async, instead of duplicating it and compensating
-> with a page_cache_release too.
+> Tests
 > 
-Ok, will do that.
+> Quick tests show an improvement with AIM9
+> 
+>                 mmotm+patch     mmtom-08-may-2009
+> AIM9            1338.57         1338.17
+> Dbase           18034.16        16021.58
+> New Dbase       18482.24        16518.54
+> Shared          9935.98         8882.11
+> Compute         16619.81        15226.13
+> 
+> Comments on the approach much appreciated
+> 
+> Feature: Remove the overhead associated with the root cgroup
+> 
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> This patch changes the memory cgroup and removes the overhead associated
+> with accounting all pages in the root cgroup. As a side-effect, we can
+> no longer set a memory hard limit in the root cgroup.
+> 
+> A new flag is used to track page_cgroup associated with the root cgroup
+> pages.
 
-> Which is what initializing nr_pages = 0 should achieve: see how
-> valid_swaphandles() returns 0 rather than 1 when avoiding readahead,
-> precisely to avoid the unnecessary duplication.  So I'd recommend
-> nr_pages = 0 rather than nr_pages = 1 at the top.
-> 
-
-I see.
-
-> > 
-> > > > How about:
-> > > > 
-> > > > 	if (mem_cgroup_activated())
-> > > > 		goto pivot;
-> > > > 	nr_pages = valid_swaphandles(...);
-> > > > 	for (readahead loop)
-> > > > 		...
-> > > > pivot:
-> > > > 	return read_swap_cache_async();
-> > > > 
-> > > > That will also save you the runtime initialization of nr_pages and
-> > > > offset completely when the cgroup is active.  And you'll have only one
-> > > > branch and no second one for offset < end_offset in the loop.  And the
-> > > > lru draining, but I'm not sure about that.  I think it's not needed.
-> > > > 
-> > > Hmm. I'm not sure why lru_add_drain()->read_swap_cache_async() is inserted before returing
-> > > to caller. Is the page to be returned isn't necessary to be on LRU ?
-> > 
-> > I'm not sure either.  Neither the fault handler nor concurrent
-> > swap-ins seem to care.  I added Hugh on CC.
-> 
-> Thanks, though you've probably got me from git-blame identifying when
-> I moved that code around: the person you really want is akpm, then
-> @digeo.com, in ChangeLog-2.5.46:
-> 
-> 	[PATCH] empty the deferred lru-addition buffers in swapin_readahead
-> 	
-> 	If we're about to return to userspace after performing some swap
-> 	readahead, the pages in the deferred-addition LRU queues could stay
-> 	there for some time.  So drain them after performing readahead.
-> 
-> I suspect that's a "seems like a good idea, especially if we've many cpus"
-> (which I do agree with), rather than a practical finding in some workload.
-> If we've read in a number of pages which quite possibly will prove of no
-> use to anyone, better have them visible to reclaim on the LRU as soon as
-> possible, rather than stuck indefinitely in per-cpu vectors.
-> 
-> The non-readahead case is a little different, in that you know the one
-> page is really of use to someone; so it's less important to drain in
-> that case, but whether worth avoiding the drain I don't know.
-> 
-Thank you very much ! It seems lru_add_drain is not necessary, here.
-
-
-> (On the general matter of these patches: mostly these days I find no
-> time to do better than let the memcg people go their own way.  I do
-> like these minimal patches much better than those putting blocks of
-> #ifdef'ed code into mm/page_io.c and mm/vmscan.c etc.
-And it was not perfect ;(
-
-> But we'll need
-> to see what how badly suppressing readahead works out - as I've said
-> before, I'm no devout believer in readahead here, but have observed
-> in the past that it really does help.  I always thought that to handle
-> swapin readahead correctly, the memcg people would need to record the
-> cgs of what's on swap.)
-> 
-
-IIUC, we record it. But to use the record correctly, we have to "charge" newly
-swapped-in pages which may not be used and may be under other cgroup which
-we are not under. With big modification, we may be able to charge at
-add_to_swap_cache(). But in this case, (when page_cluster=3)
-
-  swp_entry + 0  -> cg0
-  swp_entry + 1  -> cg1
-  ..............
-  swp_entry + 7  -> cg7
-
-We may have to charge 8cgs and has to call try_to_free_pages() in 8cgs with
-risk of OOM in other cgroup.
-
-What I think ideal is
-at swap_readahead()
-==
-  swp_entry + 0  -> special cg (or lru) for unused swap
-  swp_entry + 1  -> special cg (or lru) for unused swap
-  ...
-  swp_entry + 7  -> special cg (or lru) for unused swap
-==
-And move SwapCaches in sepcial cg to real cg when they are mapped
-(or added to shmem's address space).
-
-But, now, I can't find a good way to add "special cg" without complicated races
-and tons of codes. (Then, bugfix in this way will add more new bugs, I think.)
+Hmm ? How about ignoring memcg completely when the thread belongs to ROOT
+cgroup rather than this halfway method ?
 
 Thanks,
 -Kame
+
+
+> ---
+> 
+>  include/linux/page_cgroup.h |    5 +++++
+>  mm/memcontrol.c             |   23 +++++++++++++++++------
+>  mm/page_cgroup.c            |    1 -
+>  3 files changed, 22 insertions(+), 7 deletions(-)
+> 
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 7339c7b..9c88e85 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -26,6 +26,7 @@ enum {
+>  	PCG_LOCK,  /* page cgroup is locked */
+>  	PCG_CACHE, /* charged as cache */
+>  	PCG_USED, /* this object is in use. */
+> +	PCG_ROOT, /* page belongs to root cgroup */
+>  };
+>  
+>  #define TESTPCGFLAG(uname, lname)			\
+> @@ -46,6 +47,10 @@ TESTPCGFLAG(Cache, CACHE)
+>  TESTPCGFLAG(Used, USED)
+>  CLEARPCGFLAG(Used, USED)
+>  
+> +SETPCGFLAG(Root, ROOT)
+> +CLEARPCGFLAG(Root, ROOT)
+> +TESTPCGFLAG(Root, ROOT)
+> +
+>  static inline int page_cgroup_nid(struct page_cgroup *pc)
+>  {
+>  	return page_to_nid(pc->page);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9712ef7..2750bed 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -43,6 +43,7 @@
+>  
+>  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+>  #define MEM_CGROUP_RECLAIM_RETRIES	5
+> +struct mem_cgroup *root_mem_cgroup __read_mostly;
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  /* Turned on only when memory cgroup is enabled && really_do_swap_account = 0 */
+> @@ -196,6 +197,7 @@ enum charge_type {
+>  #define PCGF_CACHE	(1UL << PCG_CACHE)
+>  #define PCGF_USED	(1UL << PCG_USED)
+>  #define PCGF_LOCK	(1UL << PCG_LOCK)
+> +#define PCGF_ROOT	(1UL << PCG_ROOT)
+>  static const unsigned long
+>  pcg_default_flags[NR_CHARGE_TYPE] = {
+>  	PCGF_CACHE | PCGF_USED | PCGF_LOCK, /* File Cache */
+> @@ -422,6 +424,8 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+>  	/* can happen while we handle swapcache. */
+>  	if (list_empty(&pc->lru) || !pc->mem_cgroup)
+>  		return;
+> +	if (PageCgroupRoot(pc))
+> +		return;
+>  	/*
+>  	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
+>  	 * removed from global LRU.
+> @@ -452,8 +456,8 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
+>  	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+>  	 */
+>  	smp_rmb();
+> -	/* unused page is not rotated. */
+> -	if (!PageCgroupUsed(pc))
+> +	/* unused or root page is not rotated. */
+> +	if (!PageCgroupUsed(pc) || PageCgroupRoot(pc))
+>  		return;
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	list_move(&pc->lru, &mz->lists[lru]);
+> @@ -472,7 +476,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+>  	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+>  	 */
+>  	smp_rmb();
+> -	if (!PageCgroupUsed(pc))
+> +	if (!PageCgroupUsed(pc) || PageCgroupRoot(pc))
+>  		return;
+>  
+>  	mz = page_cgroup_zoneinfo(pc);
+> @@ -1114,9 +1118,12 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+>  		css_put(&mem->css);
+>  		return;
+>  	}
+> -	pc->mem_cgroup = mem;
+> -	smp_wmb();
+> -	pc->flags = pcg_default_flags[ctype];
+> +	if (mem != root_mem_cgroup) {
+> +		pc->mem_cgroup = mem;
+> +		smp_wmb();
+> +		pc->flags = pcg_default_flags[ctype];
+> +	} else
+> +		SetPageCgroupRoot(pc);
+>  
+>  	mem_cgroup_charge_statistics(mem, pc, true);
+>  
+> @@ -1521,6 +1528,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	mem_cgroup_charge_statistics(mem, pc, false);
+>  
+>  	ClearPageCgroupUsed(pc);
+> +	if (mem == root_mem_cgroup)
+> +		ClearPageCgroupRoot(pc);
+>  	/*
+>  	 * pc->mem_cgroup is not cleared here. It will be accessed when it's
+>  	 * freed from LRU. This is safe because uncharged page is expected not
+> @@ -2504,6 +2513,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	if (cont->parent == NULL) {
+>  		enable_swap_cgroup();
+>  		parent = NULL;
+> +		root_mem_cgroup = mem;
+>  	} else {
+>  		parent = mem_cgroup_from_cont(cont->parent);
+>  		mem->use_hierarchy = parent->use_hierarchy;
+> @@ -2532,6 +2542,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	return &mem->css;
+>  free_out:
+>  	__mem_cgroup_free(mem);
+> +	root_mem_cgroup = NULL;
+>  	return ERR_PTR(error);
+>  }
+>  
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 09b73c5..6145ff6 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -276,7 +276,6 @@ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
+>  
+>  #endif
+>  
+> -
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  
+>  static DEFINE_MUTEX(swap_cgroup_mutex);
+> 
+> -- 
+>         Thanks!
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
