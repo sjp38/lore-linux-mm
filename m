@@ -1,45 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DD2D6B01A9
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 08:05:03 -0400 (EDT)
-Subject: Re: [PATCH] Physical Memory Management [0/1]
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <op.utw4fdhz7p4s8u@amdc030>
-References: <op.utu26hq77p4s8u@amdc030>
-	 <20090513151142.5d166b92.akpm@linux-foundation.org>
-	 <op.utwwmpsf7p4s8u@amdc030> <1242300002.6642.1091.camel@laptop>
-	 <op.utw4fdhz7p4s8u@amdc030>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 14 May 2009 14:05:02 +0200
-Message-Id: <1242302702.6642.1140.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with SMTP id 8DD686B01AE
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 08:11:33 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4ECBgBo008369
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 14 May 2009 21:11:42 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB7CC45DE54
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 21:11:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A037745DE51
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 21:11:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 689EB1DB8040
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 21:11:41 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 12F981DB8041
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 21:11:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case  of no swap space V2
+In-Reply-To: <28c262360905140505h2db7ac3bp5ca10fcf2b4301bb@mail.gmail.com>
+References: <20090514204033.9B87.A69D9226@jp.fujitsu.com> <28c262360905140505h2db7ac3bp5ca10fcf2b4301bb@mail.gmail.com>
+Message-Id: <20090514210839.9B90.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 14 May 2009 21:11:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-05-14 at 13:48 +0200, MichaA? Nazarewicz wrote:
-> > On Thu, 2009-05-14 at 11:00 +0200, MichaA? Nazarewicz wrote:
-> >>   PMM solves this problem since the buffers are allocated when they
-> >>   are needed.
+> On Thu, May 14, 2009 at 8:44 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >> >
+> >> > Changelog since V2
+> >> > ?o Add new function - can_reclaim_anon : it tests anon_list can be reclaim
+> >> >
+> >> > Changelog since V1
+> >> > ?o Use nr_swap_pages <= 0 in shrink_active_list to prevent scanning ?of active anon list.
+> >> >
+> >> > Now shrink_active_list is called several places.
+> >> > But if we don't have a swap space, we can't reclaim anon pages.
+> >> > So, we don't need deactivating anon pages in anon lru list.
+> >> >
+> >> > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> >> > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> >> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> > Cc: Rik van Riel <riel@redhat.com>
+> >>
+> >> looks good to me. thanks :)
+> >
+> > Grr, my fault.
+> >
+> >
+> >
+> >> ?static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+> >> ? ? ? struct zone *zone, struct scan_control *sc, int priority)
+> >> ?{
+> >> @@ -1399,7 +1412,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+> >> ? ? ? ? ? ? ? return 0;
+> >> ? ? ? }
+> >>
+> >> - ? ? if (lru == LRU_ACTIVE_ANON && inactive_anon_is_low(zone, sc)) {
+> >> + ? ? if (lru == LRU_ACTIVE_ANON && can_reclaim_anon(zone, sc)) {
+> >> ? ? ? ? ? ? ? shrink_active_list(nr_to_scan, zone, sc, priority, file);
+> >> ? ? ? ? ? ? ? return 0;
+> >
+> > you shouldn't do that. if nr_swap_pages==0, get_scan_ratio return anon=0%.
+> > then, this branch is unnecessary.
+> >
 > 
-> On Thu, 14 May 2009 13:20:02 +0200, Peter Zijlstra wrote:
-> > Ha - only when you actually manage to allocate things. Physically
-> > contiguous allocations are exceedingly hard once the machine has been
-> > running for a while.
+> But, I think at last it can be happen following as.
 > 
-> PMM reserves memory during boot time using alloc_bootmem_low_pages().
-> After this is done, it can allocate buffers from reserved pool.
-> 
-> The idea here is that there are n hardware accelerators, each
-> can operate on 1MiB blocks (to simplify assume that's the case).
-> However, we know that at most m < n devices will be used at the same
-> time so instead of reserving n MiBs of memory we reserve only m MiBs.
+> 1515         * Even if we did not try to evict anon pages at all, we want to
+> 1516         * rebalance the anon lru active/inactive ratio.
+> 1517         */
+> 1518        if (inactive_anon_is_low(zone, sc))
+> 1519                shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
 
-And who says your pre-allocated pool won't fragment with repeated PMM
-use?
-
+I pointed to shrink_list(), but you replayed shrink_zone().
+I only talked about shrink_list().
 
 
 --
