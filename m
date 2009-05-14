@@ -1,38 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 254566B01C9
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:25:16 -0400 (EDT)
-Message-ID: <4A0C29D2.9050101@zytor.com>
-Date: Thu, 14 May 2009 07:25:22 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8AB416B01CA
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:26:37 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so2502643gxk.14
+        for <linux-mm@kvack.org>; Thu, 14 May 2009 07:27:00 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
- 64 bits in X86_64
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <87zldhl7ne.fsf@basil.nowhere.org> <200905141145.05591.sheng@linux.intel.com> <20090514083250.GD19296@one.firstfloor.org> <4A0C262B.3060303@zytor.com> <20090514141649.GD10933@one.firstfloor.org> <4A0C27AA.4010006@zytor.com> <20090514142749.GE10933@one.firstfloor.org>
-In-Reply-To: <20090514142749.GE10933@one.firstfloor.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090514231555.f52c81eb.minchan.kim@gmail.com>
+References: <20090514231555.f52c81eb.minchan.kim@gmail.com>
+Date: Thu, 14 May 2009 23:27:00 +0900
+Message-ID: <2f11576a0905140727j5ba02b07t94826f57dd99839c@mail.gmail.com>
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case
+	of no swap space V3
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Sheng Yang <sheng@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> 
-> Pretty much all the bit ops and a few other operations currently have
-> 2/4GB limits on x86-64. I don't think that's going to change.
-> 
-> In the kernel nothing is ever that big continuously anyways.
-> 
+> =A0mm/vmscan.c | =A0 =A02 +-
+> =A01 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2f9d555..621708f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1577,7 +1577,7 @@ static void shrink_zone(int priority, struct zone *=
+zone,
+> =A0 =A0 =A0 =A0 * Even if we did not try to evict anon pages at all, we w=
+ant to
+> =A0 =A0 =A0 =A0 * rebalance the anon lru active/inactive ratio.
+> =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc))
+> + =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, zone,=
+ sc, priority, 0);
 
-Uhm, that *is* the problem at hand... specifically the bootmem map on
-multi-terabyte systems.
 
-	-hpa
+       if (nr_swap_pages > 0 && inactive_anon_is_low(zone, sc))
 
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+is better?
+compiler can't swap evaluate order around &&.
+
+then,
+
+    if ( 0 && inactive_anon_is_low(zone, sc))
+
+and
+
+    if (inactive_anon_is_low(zone, sc) && 0)
+
+are different.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
