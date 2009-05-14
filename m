@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4A2296B0176
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 23:51:15 -0400 (EDT)
-From: Sheng Yang <sheng@linux.intel.com>
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to 64 bits in X86_64
-Date: Thu, 14 May 2009 11:52:28 +0800
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <4A0AFB7D.2080105@zytor.com> <4A0B036B.7000107@zytor.com>
-In-Reply-To: <4A0B036B.7000107@zytor.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1F7126B0177
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 01:10:34 -0400 (EDT)
+Received: by pzk5 with SMTP id 5so522729pzk.12
+        for <linux-mm@kvack.org>; Wed, 13 May 2009 22:10:42 -0700 (PDT)
+Date: Thu, 14 May 2009 14:10:25 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] Prevent shrinking of active anon lru list in case of no
+ swap space
+Message-Id: <20090514141025.239cafe5.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200905141152.29378.sheng@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 14 May 2009 01:29:15 H. Peter Anvin wrote:
-> H. Peter Anvin wrote:
-> > H. Peter Anvin wrote:
-> >> Sheng Yang wrote:
-> >>> This fix 44/45 bit width memory can't boot up issue. The reason is
-> >>> free_bootmem_node()->mark_bootmem_node()->__free() use
-> >>> test_and_clean_bit() to clean node_bootmem_map, but for 44bits width
-> >>> address, the idx set bit 31 (43 - 12), which consider as a nagetive
-> >>> value for bts.
-> >>>
-> >>> This patch applied to tip/mm.
-> >>
-> >> Hi Sheng,
-> >>
-> >> Could you try the attached patch instead?
-> >
-> > Sorry, wrong patch entirely... here is the right one.
->
-> This time, for real?  Sheesh.  I'm having a morning, apparently.
->
-> 	-hpa
 
-Yeah, this one also works well(lightly tested). :)
+Now shrink_active_list is called several places.
+But if we don't have a swap space, we can't reclaim anon pages.
+So, we don't need deactivating anon pages in anon lru list.
 
-But one thing should be noticed that, bit ops recognized the input as signed. 
-According to SDM 2A 3.1.1.7 Operation Section, Bit(BitBase, BitOffset) can 
-accept BitOffset as negative value, then search backward... Well, I indeed 
-don't know when we need this, but I think keep signed here should be better...
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2f9d555..e4d71f4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1238,6 +1238,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 	enum lru_list lru;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
++	/* 
++	 * we can't shrink anon list in case of no swap space.
++	 */
++	if (file == 0 && nr_swap_pages <= 0)
++		return;
++
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
+-- 
+1.5.4.3
+
 
 -- 
-regards
-Yang, Sheng 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
