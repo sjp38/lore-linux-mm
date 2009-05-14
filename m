@@ -1,77 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D4BE76B019C
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 07:14:08 -0400 (EDT)
-Date: Thu, 14 May 2009 13:14:13 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC][PATCH 6/6] PM/Hibernate: Do not try to allocate too much
-	memory too hard
-Message-ID: <20090514111413.GB8871@elf.ucw.cz>
-References: <200905070040.08561.rjw@sisk.pl> <200905101548.57557.rjw@sisk.pl> <200905131032.53624.rjw@sisk.pl> <200905131042.18137.rjw@sisk.pl>
+	by kanga.kvack.org (Postfix) with SMTP id 483AD6B019D
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 07:25:36 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4EBPv8c017499
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 14 May 2009 20:25:58 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D228745DD75
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 20:25:57 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B376B45DD72
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 20:25:57 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C251E1DB8017
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 20:25:57 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 71CF91DB8012
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 20:25:57 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case of no swap space V2
+In-Reply-To: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
+References: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
+Message-Id: <20090514202538.9B81.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200905131042.18137.rjw@sisk.pl>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 14 May 2009 20:25:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: pm list <linux-pm@lists.linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> We want to avoid attempting to free too much memory too hard during
-> hibernation, so estimate the minimum size of the image to use as the
-> lower limit for preallocating memory.
-
-Why? Is freeing memory too slow?
-
-It used to be that user controlled image size, so he was able to
-balance "time to save image" vs. "responsiveness of system after
-resume".
-
-Does this just override user's preference when he chooses too small
-image size?
-
-> The approach here is based on the (experimental) observation that we
-> can't free more page frames than the sum of:
 > 
-> * global_page_state(NR_SLAB_RECLAIMABLE)
-> * global_page_state(NR_ACTIVE_ANON)
-> * global_page_state(NR_INACTIVE_ANON)
-> * global_page_state(NR_ACTIVE_FILE)
-> * global_page_state(NR_INACTIVE_FILE)
+> Changelog since V2
+>  o Add new function - can_reclaim_anon : it tests anon_list can be reclaim 
 > 
-> and even that is usually impossible to free in practice, because some
-> of the pages reported as global_page_state(NR_SLAB_RECLAIMABLE) can't
-> in fact be freed.  It turns out, however, that if the sum of the
-> above numbers is subtracted from the number of saveable pages in the
-> system and the result is multiplied by 1.25, we get a suitable
-> estimate of the minimum size of the image.
+> Changelog since V1 
+>  o Use nr_swap_pages <= 0 in shrink_active_list to prevent scanning  of active anon list.
+> 
+> Now shrink_active_list is called several places.
+> But if we don't have a swap space, we can't reclaim anon pages.
+> So, we don't need deactivating anon pages in anon lru list.
+> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>	
+
+looks good to me. thanks :)
 
 
-
-> Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
-> ---
->  kernel/power/snapshot.c |   56 ++++++++++++++++++++++++++++++++++++++++++++----
->  1 file changed, 52 insertions(+), 4 deletions(-)
-
-
->  /**
-> + * minimum_image_size - Estimate the minimum acceptable size of an image
-> + * @saveable: The total number of saveable pages in the system.
-> + *
-> + * We want to avoid attempting to free too much memory too hard, so estimate the
-> + * minimum acceptable size of a hibernation image to use as the lower limit for
-> + * preallocating memory.
-
-I don't get it. If user sets image size as 0, we should free as much
-memory as we can. I just don't see why "we want to avoid... it".
-
-									Pavel
-
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
