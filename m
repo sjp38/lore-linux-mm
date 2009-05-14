@@ -1,89 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 679476B014E
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:25:16 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E0PcAr020317
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 14 May 2009 09:25:38 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F1F245DE4F
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:25:38 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D7B1445DE51
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:25:37 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADD39E08007
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:25:37 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CBF0E08005
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:25:37 +0900 (JST)
-Date: Thu, 14 May 2009 09:24:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Low overhead patches for the memory resource controller
-Message-Id: <20090514092405.1c3e6134.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090514090802.c5ac2246.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090513153218.GQ13394@balbir.in.ibm.com>
-	<20090514090802.c5ac2246.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 70B946B014F
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 20:31:12 -0400 (EDT)
+From: Izik Eidus <ieidus@redhat.com>
+Subject: [PATCH 0/4] RFC - ksm api change into madvise
+Date: Thu, 14 May 2009 03:30:44 +0300
+Message-Id: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: hugh@veritas.com
+Cc: linux-kernel@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, linux-mm@kvack.org, riel@redhat.com, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 May 2009 09:08:02 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+This is comment request for ksm api changes.
+The following patchs move the api to use madvise instead of ioctls.
 
-> On Wed, 13 May 2009 21:02:18 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > Important: Not for inclusion, for discussion only
-> > 
-> > I've been experimenting with a version of the patches below. They add
-> > a PCGF_ROOT flag for tracking pages belonging to the root cgroup and
-> > disable LRU manipulation for them
-> > 
-> > Caveats:
-> > 
-> > 1. I've not checked accounting, accounting might be broken
-> > 2. I've not made the root cgroup as non limitable, we need to disable
-> > hard limits once we agree to go with this
-> > 
-> > 
-> > Tests
-> > 
-> > Quick tests show an improvement with AIM9
-> > 
-> >                 mmotm+patch     mmtom-08-may-2009
-> > AIM9            1338.57         1338.17
-> > Dbase           18034.16        16021.58
-> > New Dbase       18482.24        16518.54
-> > Shared          9935.98         8882.11
-> > Compute         16619.81        15226.13
-> > 
-> > Comments on the approach much appreciated
-> > 
-> > Feature: Remove the overhead associated with the root cgroup
-> > 
-> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > This patch changes the memory cgroup and removes the overhead associated
-> > with accounting all pages in the root cgroup. As a side-effect, we can
-> > no longer set a memory hard limit in the root cgroup.
-> > 
-> > A new flag is used to track page_cgroup associated with the root cgroup
-> > pages.
-> 
-> Hmm ? How about ignoring memcg completely when the thread belongs to ROOT
-> cgroup rather than this halfway method ? 
-> 
-BTW, this will make softlimit much harder. Do you have any idea on softlimit after
-this patch ?
+Before i will describe the patchs, i want to note that i rewrote this
+patch seires alot of times, all the other methods that i have tried had some
+fandumatel issues with them.
+The current implemantion does have some issues with it, but i belive they are
+all solveable and better than the other ways to do it.
+If you feel you have better way how to do it, please tell me :).
 
-Thanks,
--Kame
+Ok when we changed ksm to use madvise instead of ioctls we wanted to keep
+the following rules:
+
+Not to increase the host memory usage if ksm is not being used (even when it
+is compiled), this mean not to add fields into mm_struct / vm_area_struct...
+
+Not to effect the system performence with notifiers that will have to block
+while ksm code is running under some lock - ksm is helper, it should do it
+work quitely, - this why i dropped patch that i did that add mmu notifiers
+support inside ksm.c and recived notifications from the MM (for example
+when vma is destroyed (invalidate_range...)
+
+Not to change the MM logic.
+
+Trying to touch as less code as we can outisde ksm.c
+
+
+Taking into account all this rules, the end result that we have came with is:
+mmlist is now not used only by swapoff, but by ksm as well, this mean that
+each time you call to madvise for to set vma as MERGEABLE, madvise will check
+if the mm_struct is inside the mmlist and will insert it in case it isnt.
+It is belived that it is better to hurt little bit the performence of swapoff
+than adding another list into the mm_struct.
+
+One issue that should be note is: after mm_struct is going into the mmlist, it
+wont be kicked from it until the procsses is die (even if there are no more
+VM_MERGEABLE vmas), this doesnt mean memory is wasted, but it does mean ksm
+will spend little more time in doing cur = cur->next if(...).
+
+Another issue is: when procsess is die, ksm will have to find (when scanning)
+that its mm_users == 1 and then do mmput(), this mean that there might be dealy
+from the time that someone do kill until the mm is really free -
+i am open for suggestions on how to improve this...
+
+(when someone do echo 0 > /sys/kernel/mm/ksm/run ksm will throw away all the
+memory, so condtion when the memory wont ever be free wont happen)
+
+
+Another important thing is: this is request for comment, i still not sure few
+things that we have made here are totaly safe:
+(the mmlist sync with drain_mmlist, and the handle_vmas() function in madvise,
+the logic inside ksm for searching the next virtual address on the vmas,
+and so on...)
+The main purpuse of this is to ask if the new interface is what you guys
+want..., and if you like the impelmantion desgin.
+
+(I have added option to scan closed support applications as well)
+
+
+Thanks.
+
+Izik Eidus (4):
+  madvice: add MADV_SHAREABLE and MADV_UNSHAREABLE calls.
+  mmlist: share mmlist with ksm.
+  ksm: change ksm api to use madvise instead of ioctls.
+  ksm: add support for scanning procsses that were not modifided to use
+    ksm
+
+ include/asm-generic/mman.h |    2 +
+ include/linux/ksm.h        |   40 --
+ include/linux/mm.h         |    2 +
+ include/linux/sched.h      |    3 +
+ include/linux/swap.h       |    4 +
+ mm/Kconfig                 |    2 +-
+ mm/ksm.c                   | 1102 ++++++++++++++++++++++----------------------
+ mm/madvise.c               |  124 ++++--
+ mm/rmap.c                  |    8 +
+ mm/swapfile.c              |    9 +-
+ 10 files changed, 686 insertions(+), 610 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
