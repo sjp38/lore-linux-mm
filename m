@@ -1,79 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 00D676B01B4
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:05:15 -0400 (EDT)
-Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0KJM004DRXOTPX@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Thu, 14 May 2009 14:05:18 +0100 (BST)
-Received: from amdc030 ([106.116.37.122])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0KJM00HLAXO72E@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 14 May 2009 14:05:17 +0100 (BST)
-Date: Thu, 14 May 2009 15:04:55 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH] Physical Memory Management [0/1]
-In-reply-to: <1242302702.6642.1140.camel@laptop>
-Message-id: <op.utw7yhv67p4s8u@amdc030>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 8BIT
-References: <op.utu26hq77p4s8u@amdc030>
- <20090513151142.5d166b92.akpm@linux-foundation.org>
- <op.utwwmpsf7p4s8u@amdc030> <1242300002.6642.1091.camel@laptop>
- <op.utw4fdhz7p4s8u@amdc030> <1242302702.6642.1140.camel@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5EC506B004D
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 09:08:56 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so2413141gxk.14
+        for <linux-mm@kvack.org>; Thu, 14 May 2009 06:09:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4A0C1571.2020106@redhat.com>
+References: <20090514201150.8536f86e.minchan.kim@barrios-desktop>
+	 <4A0C1571.2020106@redhat.com>
+Date: Thu, 14 May 2009 22:09:03 +0900
+Message-ID: <28c262360905140609y580b6835m759dee08f08a26ab@mail.gmail.com>
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case
+	of no swap space V2
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 2009-05-14 at 13:48 +0200, MichaA? Nazarewicz wrote:
->>> On Thu, 2009-05-14 at 11:00 +0200, MichaA? Nazarewicz wrote:
->>>>   PMM solves this problem since the buffers are allocated when they
->>>>   are needed.
+HI, Rik
 
->> On Thu, 14 May 2009 13:20:02 +0200, Peter Zijlstra wrote:
->>> Ha - only when you actually manage to allocate things. Physically
->>> contiguous allocations are exceedingly hard once the machine has been
->>> running for a while.
+Thanks for careful review. :)
 
->> PMM reserves memory during boot time using alloc_bootmem_low_pages().
->> After this is done, it can allocate buffers from reserved pool.
->>
->> The idea here is that there are n hardware accelerators, each
->> can operate on 1MiB blocks (to simplify assume that's the case).
->> However, we know that at most m < n devices will be used at the same
->> time so instead of reserving n MiBs of memory we reserve only m MiBs.
+On Thu, May 14, 2009 at 9:58 PM, Rik van Riel <riel@redhat.com> wrote:
+> Minchan Kim wrote:
+>
+>> Now shrink_active_list is called several places.
+>> But if we don't have a swap space, we can't reclaim anon pages.
+>
+> If swap space has run out, get_scan_ratio() will return
+> 0 for the anon scan ratio, meaning we do not scan the
+> anon lists.
 
-On Thu, 14 May 2009 14:05:02 +0200, Peter Zijlstra wrote:
-> And who says your pre-allocated pool won't fragment with repeated PMM
-> use?
+I think get_scan_ration can't prevent scanning of anon pages in no
+swap system(like embedded system).
+That's because in shrink_zone, you add following as
 
-Yes, this is a good question.  What's more, there's no good answer. ;)
+        /*
+         * Even if we did not try to evict anon pages at all, we want to
+         * rebalance the anon lru active/inactive ratio.
+         */
+        if (inactive_anon_is_low(zone, sc))
+                shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0)=
+;
 
-There is no guarantee and it depends on use cases.  The biggest problem
-is a lot of small buffers allocated by different applications which get
-freed at different times.  However, if in most cases one or two
-applications use PMM, we can assume that buffers are allocated and
-freed in groups.  If that's the case, fragmentation is less likely to
-occur.
+>> So, we don't need deactivating anon pages in anon lru list.
+>
+> If we are close to running out of swap space, with
+> swapins freeing up swap space on a regular basis,
+> I believe we do want to do aging on the active
+> pages, just so we can pick a decent page to swap
+> out next time swap space becomes available.
 
-I'm not claiming that PMM is panacea for all the problems present on
-systems with no scatter-gather capability -- it is an attempt to gather
-different functionality and existing solutions in one place which is
-easier to manage and improve if needed.
+I agree your opinion.
 
-Problem with allocation of continuous blocks hos no universal solution
--- you can increased reserved area but then overall performance of the
-system will decrease.  PMM is trying to find a compromise between the
-two.
+>> +static int can_reclaim_anon(struct zone *zone, struct scan_control *sc)
+>> +{
+>> + =C2=A0 =C2=A0 =C2=A0 return (inactive_anon_is_low(zone, sc) && nr_swap=
+_pages <=3D 0);
+>> +}
+>> +
+>
+> This function name is misleading, because when we do have
+> swap space available but inactive_anon_is_low is false,
+> we still want to reclaim inactive anon pages!
 
--- 
-Best regards,                                            _     _
- .o. | Liege of Serenly Enlightened Majesty of         o' \,=./ `o
- ..o | Computer Science,  MichaA? "mina86" Nazarewicz      (o o)
- ooo +-<m.nazarewicz@samsung.com>-<mina86@jabber.org>-ooO--(_)--Ooo--
+Indeed. I will rename it.
+
+> What problem did you encounter that you think this patch
+> solves?
+
+I thought In embedded system most products don't have swap space.
+In such environment, We don't need anon lru list.
+I think even scanning of anon list is much bad
+
+
+> --
+> All rights reversed.
+>
+
+
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
