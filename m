@@ -1,619 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 118576B0181
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 04:20:42 -0400 (EDT)
-Date: Thu, 14 May 2009 11:15:57 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: [GIT PULL] SLAB updates for 2.6.30-rc5
-Message-ID: <Pine.LNX.4.64.0905141114540.7518@melkki.cs.Helsinki.FI>
+	by kanga.kvack.org (Postfix) with ESMTP id 8D80C6B0184
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 04:23:02 -0400 (EDT)
+Subject: Re: kernel BUG at mm/slqb.c:1411!
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20090513163826.7232.A69D9226@jp.fujitsu.com>
+References: <20090513163826.7232.A69D9226@jp.fujitsu.com>
+Date: Thu, 14 May 2009 11:23:20 +0300
+Message-Id: <1242289400.21646.2.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: torvalds@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux-foundation.org, linux-mm@kvack.org, mpm@selenic.com, npiggin@suse.de, randy.dunlap@oracle.com, rientjes@google.com, stable@kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+On Wed, 2009-05-13 at 16:42 +0900, KOSAKI Motohiro wrote:
+> Todays test (repeated large file copy) hit kernel panic. mm/slqb.c:1411! mean
 
-Here are some last minute fixes and documentation updates for the slab
-allocators.
+Can you post your .config, please? I assume this is with CONFIG_NUMA?
 
-The most important one is a fix from Nick Piggin to a long-standing memory
-reclaim regression in SLUB and SLOB. The problem is that during reclaim,
-we don't update ->reclaim_state properly so vmscan doesn't know how many pages
-SLUB or SLOB has reclaimed. See the full discussion here:
-
-  http://marc.info/?l=linux-mm&m=124151497107092&w=2
-
-I've also included a SLUB ABI documentation update and a MAX_ORDER bug fix from
-David Rientjes.
-
-			Pekka
-
-The following changes since commit ce8a7424d23a36f043d0de8484f888971c831119:
-  Tim Abbott (1):
-        sparc: convert to use __HEAD and HEAD_TEXT macros.
-
-are available in the git repository at:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6 for-linus
-
-David Rientjes (2):
-      slub: enforce MAX_ORDER
-      slub: add Documentation/ABI/testing/sysfs-kernel-slab
-
-Nick Piggin (2):
-      mm: SLUB fix reclaim_state
-      mm: SLOB fix reclaim_state
-
-Pekka Enberg (1):
-      Merge branches 'topic/documentation', 'topic/slub/fixes' and 'topic/urgent' into for-linus
-
- Documentation/ABI/testing/sysfs-kernel-slab |  479 +++++++++++++++++++++++++++
- mm/slob.c                                   |    5 +-
- mm/slub.c                                   |    6 +-
- 3 files changed, 488 insertions(+), 2 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-kernel-slab
-
- Documentation/ABI/testing/sysfs-kernel-slab |  479 +++++++++++++++++++++++++++
- mm/slob.c                                   |    5 +-
- mm/slub.c                                   |    6 +-
- 3 files changed, 488 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/ABI/testing/sysfs-kernel-slab
-new file mode 100644
-index 0000000..6dcf75e
---- /dev/null
-+++ b/Documentation/ABI/testing/sysfs-kernel-slab
-@@ -0,0 +1,479 @@
-+What:		/sys/kernel/slab
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The /sys/kernel/slab directory contains a snapshot of the
-+		internal state of the SLUB allocator for each cache.  Certain
-+		files may be modified to change the behavior of the cache (and
-+		any cache it aliases, if any).
-+Users:		kernel memory tuning tools
-+
-+What:		/sys/kernel/slab/cache/aliases
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The aliases file is read-only and specifies how many caches
-+		have merged into this cache.
-+
-+What:		/sys/kernel/slab/cache/align
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The align file is read-only and specifies the cache's object
-+		alignment in bytes.
-+
-+What:		/sys/kernel/slab/cache/alloc_calls
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_calls file is read-only and lists the kernel code
-+		locations from which allocations for this cache were performed.
-+		The alloc_calls file only contains information if debugging is
-+		enabled for that cache (see Documentation/vm/slub.txt).
-+
-+What:		/sys/kernel/slab/cache/alloc_fastpath
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_fastpath file is read-only and specifies how many
-+		objects have been allocated using the fast path.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/alloc_from_partial
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_from_partial file is read-only and specifies how
-+		many times a cpu slab has been full and it has been refilled
-+		by using a slab from the list of partially used slabs.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/alloc_refill
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_refill file is read-only and specifies how many
-+		times the per-cpu freelist was empty but there were objects
-+		available as the result of remote cpu frees.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/alloc_slab
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_slab file is read-only and specifies how many times
-+		a new slab had to be allocated from the page allocator.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/alloc_slowpath
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The alloc_slowpath file is read-only and specifies how many
-+		objects have been allocated using the slow path because of a
-+		refill or allocation from a partial or new slab.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/cache_dma
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The cache_dma file is read-only and specifies whether objects
-+		are from ZONE_DMA.
-+		Available when CONFIG_ZONE_DMA is enabled.
-+
-+What:		/sys/kernel/slab/cache/cpu_slabs
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The cpu_slabs file is read-only and displays how many cpu slabs
-+		are active and their NUMA locality.
-+
-+What:		/sys/kernel/slab/cache/cpuslab_flush
-+Date:		April 2009
-+KernelVersion:	2.6.31
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file cpuslab_flush is read-only and specifies how many
-+		times a cache's cpu slabs have been flushed as the result of
-+		destroying or shrinking a cache, a cpu going offline, or as
-+		the result of forcing an allocation from a certain node.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/ctor
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The ctor file is read-only and specifies the cache's object
-+		constructor function, which is invoked for each object when a
-+		new slab is allocated.
-+
-+What:		/sys/kernel/slab/cache/deactivate_empty
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file deactivate_empty is read-only and specifies how many
-+		times an empty cpu slab was deactivated.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/deactivate_full
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file deactivate_full is read-only and specifies how many
-+		times a full cpu slab was deactivated.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/deactivate_remote_frees
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file deactivate_remote_frees is read-only and specifies how
-+		many times a cpu slab has been deactivated and contained free
-+		objects that were freed remotely.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/deactivate_to_head
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file deactivate_to_head is read-only and specifies how
-+		many times a partial cpu slab was deactivated and added to the
-+		head of its node's partial list.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/deactivate_to_tail
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file deactivate_to_tail is read-only and specifies how
-+		many times a partial cpu slab was deactivated and added to the
-+		tail of its node's partial list.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/destroy_by_rcu
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The destroy_by_rcu file is read-only and specifies whether
-+		slabs (not objects) are freed by rcu.
-+
-+What:		/sys/kernel/slab/cache/free_add_partial
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file free_add_partial is read-only and specifies how many
-+		times an object has been freed in a full slab so that it had to
-+		added to its node's partial list.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/free_calls
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The free_calls file is read-only and lists the locations of
-+		object frees if slab debugging is enabled (see
-+		Documentation/vm/slub.txt).
-+
-+What:		/sys/kernel/slab/cache/free_fastpath
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The free_fastpath file is read-only and specifies how many
-+		objects have been freed using the fast path because it was an
-+		object from the cpu slab.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/free_frozen
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The free_frozen file is read-only and specifies how many
-+		objects have been freed to a frozen slab (i.e. a remote cpu
-+		slab).
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/free_remove_partial
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file free_remove_partial is read-only and specifies how
-+		many times an object has been freed to a now-empty slab so
-+		that it had to be removed from its node's partial list.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/free_slab
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The free_slab file is read-only and specifies how many times an
-+		empty slab has been freed back to the page allocator.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/free_slowpath
-+Date:		February 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The free_slowpath file is read-only and specifies how many
-+		objects have been freed using the slow path (i.e. to a full or
-+		partial slab).
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/hwcache_align
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The hwcache_align file is read-only and specifies whether
-+		objects are aligned on cachelines.
-+
-+What:		/sys/kernel/slab/cache/min_partial
-+Date:		February 2009
-+KernelVersion:	2.6.30
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		David Rientjes <rientjes@google.com>
-+Description:
-+		The min_partial file specifies how many empty slabs shall
-+		remain on a node's partial list to avoid the overhead of
-+		allocating new slabs.  Such slabs may be reclaimed by utilizing
-+		the shrink file.
-+
-+What:		/sys/kernel/slab/cache/object_size
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The object_size file is read-only and specifies the cache's
-+		object size.
-+
-+What:		/sys/kernel/slab/cache/objects
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The objects file is read-only and displays how many objects are
-+		active and from which nodes they are from.
-+
-+What:		/sys/kernel/slab/cache/objects_partial
-+Date:		April 2008
-+KernelVersion:	2.6.26
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The objects_partial file is read-only and displays how many
-+		objects are on partial slabs and from which nodes they are
-+		from.
-+
-+What:		/sys/kernel/slab/cache/objs_per_slab
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file objs_per_slab is read-only and specifies how many
-+		objects may be allocated from a single slab of the order
-+		specified in /sys/kernel/slab/cache/order.
-+
-+What:		/sys/kernel/slab/cache/order
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The order file specifies the page order at which new slabs are
-+		allocated.  It is writable and can be changed to increase the
-+		number of objects per slab.  If a slab cannot be allocated
-+		because of fragmentation, SLUB will retry with the minimum order
-+		possible depending on its characteristics.
-+
-+What:		/sys/kernel/slab/cache/order_fallback
-+Date:		April 2008
-+KernelVersion:	2.6.26
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file order_fallback is read-only and specifies how many
-+		times an allocation of a new slab has not been possible at the
-+		cache's order and instead fallen back to its minimum possible
-+		order.
-+		Available when CONFIG_SLUB_STATS is enabled.
-+
-+What:		/sys/kernel/slab/cache/partial
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The partial file is read-only and displays how long many
-+		partial slabs there are and how long each node's list is.
-+
-+What:		/sys/kernel/slab/cache/poison
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The poison file specifies whether objects should be poisoned
-+		when a new slab is allocated.
-+
-+What:		/sys/kernel/slab/cache/reclaim_account
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The reclaim_account file specifies whether the cache's objects
-+		are reclaimable (and grouped by their mobility).
-+
-+What:		/sys/kernel/slab/cache/red_zone
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The red_zone file specifies whether the cache's objects are red
-+		zoned.
-+
-+What:		/sys/kernel/slab/cache/remote_node_defrag_ratio
-+Date:		January 2008
-+KernelVersion:	2.6.25
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The file remote_node_defrag_ratio specifies the percentage of
-+		times SLUB will attempt to refill the cpu slab with a partial
-+		slab from a remote node as opposed to allocating a new slab on
-+		the local node.  This reduces the amount of wasted memory over
-+		the entire system but can be expensive.
-+		Available when CONFIG_NUMA is enabled.
-+
-+What:		/sys/kernel/slab/cache/sanity_checks
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The sanity_checks file specifies whether expensive checks
-+		should be performed on free and, at minimum, enables double free
-+		checks.  Caches that enable sanity_checks cannot be merged with
-+		caches that do not.
-+
-+What:		/sys/kernel/slab/cache/shrink
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The shrink file is written when memory should be reclaimed from
-+		a cache.  Empty partial slabs are freed and the partial list is
-+		sorted so the slabs with the fewest available objects are used
-+		first.
-+
-+What:		/sys/kernel/slab/cache/slab_size
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The slab_size file is read-only and specifies the object size
-+		with metadata (debugging information and alignment) in bytes.
-+
-+What:		/sys/kernel/slab/cache/slabs
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The slabs file is read-only and displays how long many slabs
-+		there are (both cpu and partial) and from which nodes they are
-+		from.
-+
-+What:		/sys/kernel/slab/cache/store_user
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The store_user file specifies whether the location of
-+		allocation or free should be tracked for a cache.
-+
-+What:		/sys/kernel/slab/cache/total_objects
-+Date:		April 2008
-+KernelVersion:	2.6.26
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The total_objects file is read-only and displays how many total
-+		objects a cache has and from which nodes they are from.
-+
-+What:		/sys/kernel/slab/cache/trace
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		The trace file specifies whether object allocations and frees
-+		should be traced.
-+
-+What:		/sys/kernel/slab/cache/validate
-+Date:		May 2007
-+KernelVersion:	2.6.22
-+Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-+		Christoph Lameter <cl@linux-foundation.org>
-+Description:
-+		Writing to the validate file causes SLUB to traverse all of its
-+		cache's objects and check the validity of metadata.
-diff --git a/mm/slob.c b/mm/slob.c
-index a2d4ab3..f92e66d 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -60,6 +60,7 @@
- #include <linux/kernel.h>
- #include <linux/slab.h>
- #include <linux/mm.h>
-+#include <linux/swap.h> /* struct reclaim_state */
- #include <linux/cache.h>
- #include <linux/init.h>
- #include <linux/module.h>
-@@ -255,6 +256,8 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
- 
- static void slob_free_pages(void *b, int order)
- {
-+	if (current->reclaim_state)
-+		current->reclaim_state->reclaimed_slab += 1 << order;
- 	free_pages((unsigned long)b, order);
- }
- 
-@@ -407,7 +410,7 @@ static void slob_free(void *block, int size)
- 		spin_unlock_irqrestore(&slob_lock, flags);
- 		clear_slob_page(sp);
- 		free_slob_page(sp);
--		free_page((unsigned long)b);
-+		slob_free_pages(b, 0);
- 		return;
- 	}
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index 7ab54ec..65ffda5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -9,6 +9,7 @@
-  */
- 
- #include <linux/mm.h>
-+#include <linux/swap.h> /* struct reclaim_state */
- #include <linux/module.h>
- #include <linux/bit_spinlock.h>
- #include <linux/interrupt.h>
-@@ -1170,6 +1171,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 
- 	__ClearPageSlab(page);
- 	reset_page_mapcount(page);
-+	if (current->reclaim_state)
-+		current->reclaim_state->reclaimed_slab += pages;
- 	__free_pages(page, order);
- }
- 
-@@ -1909,7 +1912,7 @@ static inline int calculate_order(int size)
- 	 * Doh this slab cannot be placed using slub_max_order.
- 	 */
- 	order = slab_order(size, 1, MAX_ORDER, 1);
--	if (order <= MAX_ORDER)
-+	if (order < MAX_ORDER)
- 		return order;
- 	return -ENOSYS;
- }
-@@ -2522,6 +2525,7 @@ __setup("slub_min_order=", setup_slub_min_order);
- static int __init setup_slub_max_order(char *str)
- {
- 	get_option(&str, &slub_max_order);
-+	slub_max_order = min(slub_max_order, MAX_ORDER - 1);
- 
- 	return 1;
- }
+> 
+> ----------------------------------------------------------------
+> static noinline void *__slab_alloc_page(struct kmem_cache *s,
+>                                 gfp_t gfpflags, int node)
+> {
+> (snip)
+> 
+>         } else {
+> #ifdef CONFIG_NUMA
+>                 struct kmem_cache_node *n;
+> 
+>                 n = s->node_slab[slqb_page_to_nid(page)];
+>                 l = &n->list;
+>                 page->list = l;
+> 
+>                 spin_lock(&n->list_lock);
+>                 l->nr_slabs++;
+>                 l->nr_partial++;
+>                 list_add(&page->lru, &l->partial);
+>                 slqb_stat_inc(l, ALLOC);
+>                 slqb_stat_inc(l, ALLOC_SLAB_NEW);
+>                 object = __cache_list_get_page(s, l);
+>                 spin_unlock(&n->list_lock);
+> #endif
+>         }
+>         VM_BUG_ON(!object);			// here
+>         return object;
+> }
+> ----------------------------------------------------------------
+> 
+> 
+> Who have any suggestions?
+> 
+> 
+> 
+> -------------------------------------------------------------------
+> kernel BUG at mm/slqb.c:1411!
+> pdflush[324]: bugcheck! 0 [1]
+> Modules linked in: binfmt_misc nls_iso8859_1 nls_cp437 dm_multipath scsi_dh fan sg processor button container thermal e100 mii dm_snapshot dm_zero dm_mirror dm_region_hash dm_log dm_mod lpfc mptspi mptscsih mptbase ehci_hcd ohci_hcd uhci_hcd usbcore
+> 
+> Pid: 324, CPU 1, comm:              pdflush
+> psr : 00001010085a2010 ifs : 8000000000000916 ip  : [<a0000001001bb960>]    Not tainted (2.6.30-rc4-mm1-g384655e-dirty)
+> ip is at __slab_alloc_page+0x800/0x9e0
+> unat: 0000000000000000 pfs : 0000000000000916 rsc : 0000000000000003
+> rnat: 0000000000000001 bsps: a000000100d5b880 pr  : 005599aa55559599
+> ldrs: 0000000000000000 ccv : 0000000000000000 fpsr: 0009804c8a70433f
+> csd : 0000000000000000 ssd : 0000000000000000
+> b0  : a0000001001bb960 b6  : a0000001005a78e0 b7  : a00000010048bac0
+> f6  : 1003e000005cef074293b f7  : 1003e0000000000000190
+> f8  : 1003e000005cef07427ab f9  : 1003e0000000000000001
+> f10 : 1003e0000000000000100 f11 : 1003e0000000000000100
+> r1  : a000000100f52d40 r2  : a000000100d263a0 r3  : a000000100d53708
+> r8  : 0000000000000021 r9  : 0000000000000001 r10 : e000000001110000
+> r11 : ffffffffffff0420 r12 : e0000040c1ccfc20 r13 : e0000040c1cc0000
+> r14 : a000000100d263b8 r15 : e00001600b91fe18 r16 : ffffffffffff5538
+> r17 : 00000000dead4ead r18 : a000000100cd222c r19 : a000000100d5b850
+> r20 : a0000001005a78e0 r21 : a000000101144ae0 r22 : 0000000000099a63
+> r23 : 00000000000fffff r24 : 0000000000100000 r25 : a0000001009e7a68
+> r26 : a00000010048bb60 r27 : 0000000000000100 r28 : 0000000000000001
+> r29 : e0000040c1cc0de4 r30 : a00000010048bac0 r31 : 0000000000000000
+> 
+> Call Trace:
+>  [<a0000001000179c0>] show_stack+0x80/0xa0
+>                                 sp=e0000040c1ccf7f0 bsp=e0000040c1cc1730
+>  [<a0000001000182d0>] show_regs+0x890/0x8c0
+>                                 sp=e0000040c1ccf9c0 bsp=e0000040c1cc16d8
+>  [<a000000100040b50>] die+0x1b0/0x2e0
+>                                 sp=e0000040c1ccf9c0 bsp=e0000040c1cc1690
+>  [<a000000100040cd0>] die_if_kernel+0x50/0x80
+>                                 sp=e0000040c1ccf9c0 bsp=e0000040c1cc1660
+>  [<a0000001007cc5f0>] ia64_bad_break+0x4b0/0x700
+>                                 sp=e0000040c1ccf9c0 bsp=e0000040c1cc1638
+>  [<a00000010000c980>] ia64_native_leave_kernel+0x0/0x270
+>                                 sp=e0000040c1ccfa50 bsp=e0000040c1cc1638
+>  [<a0000001001bb960>] __slab_alloc_page+0x800/0x9e0
+>                                 sp=e0000040c1ccfc20 bsp=e0000040c1cc1580
+>  [<a0000001001bd570>] kmem_cache_alloc+0x510/0x700
+>                                 sp=e0000040c1ccfc20 bsp=e0000040c1cc14f0
+>  [<a000000100149ad0>] mempool_alloc_slab+0x30/0x60
+>                                 sp=e0000040c1ccfc20 bsp=e0000040c1cc14c8
+>  [<a00000010014a1a0>] mempool_alloc+0xc0/0x360	
+>                                 sp=e0000040c1ccfc20 bsp=e0000040c1cc1440
+>  [<a00000010022f4d0>] bio_alloc_bioset+0x50/0x240
+>                                 sp=e0000040c1ccfc50 bsp=e0000040c1cc13f0
+>  [<a00000010022f790>] bio_alloc+0x30/0x80	
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc13c8
+>  [<a000000100220a90>] submit_bh+0x130/0x3e0
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc1398
+>  [<a000000100226d90>] __block_write_full_page+0x510/0xbc0
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc1310
+>  [<a0000001002275f0>] block_write_full_page_endio+0x1b0/0x220
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc12d0
+>  [<a000000100227690>] block_write_full_page+0x30/0x60
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc12a0
+>  [<a0000001002a9210>] ext3_writeback_writepage+0x190/0x380
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc1260
+>  [<a0000001001566b0>] __writepage+0x50/0x1a0
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc1230
+>  [<a000000100157370>] write_cache_pages+0x530/0x940
+>                                 sp=e0000040c1ccfc60 bsp=e0000040c1cc1140
+>  [<a0000001001577e0>] generic_writepages+0x60/0x80
+>                                 sp=e0000040c1ccfcf0 bsp=e0000040c1cc1118
+>  [<a000000100157910>] do_writepages+0x110/0x140
+>                                 sp=e0000040c1ccfcf0 bsp=e0000040c1cc10e8
+>  [<a000000100214c20>] __writeback_single_inode+0x160/0x9a0
+>                                 sp=e0000040c1ccfcf0 bsp=e0000040c1cc1088
+>  [<a000000100215d40>] generic_sync_sb_inodes+0x3c0/0xa00
+>                                 sp=e0000040c1ccfd30 bsp=e0000040c1cc1018
+>  [<a000000100216420>] sync_sb_inodes+0xa0/0xc0
+>                                 sp=e0000040c1ccfd30 bsp=e0000040c1cc0fe8
+>  [<a000000100216620>] writeback_inodes+0x1e0/0x280
+>                                 sp=e0000040c1ccfd30 bsp=e0000040c1cc0f98
+>  [<a000000100159ba0>] background_writeout+0x160/0x240
+>                                 sp=e0000040c1ccfd30 bsp=e0000040c1cc0f30
+>  [<a00000010015b010>] pdflush+0x290/0x500
+>                                 sp=e0000040c1ccfd80 bsp=e0000040c1cc0ec0
+>  [<a0000001000df800>] kthread+0x100/0x140
+>                                 sp=e0000040c1ccfdf0 bsp=e0000040c1cc0e88
+>  [<a000000100015970>] kernel_thread_helper+0xd0/0x100
+>                                 sp=e0000040c1ccfe30 bsp=e0000040c1cc0e60
+>  [<a00000010000a580>] start_kernel_thread+0x20/0x40
+>                                 sp=e0000040c1ccfe30 bsp=e0000040c1cc0e60
+> Disabling lock debugging due to kernel taint
+> Kernel panic - not syncing: Fatal exception
+> Rebooting in 1 seconds..
+> 
+> 
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
