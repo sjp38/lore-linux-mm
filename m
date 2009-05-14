@@ -1,64 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 557296B0055
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 19:37:33 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4ENc6gH004838
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 15 May 2009 08:38:06 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 159A345DE55
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:38:06 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E907945DE53
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:38:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CE1CB1DB803F
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:38:05 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AD741DB803E
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:38:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: kernel BUG at mm/slqb.c:1411!
-In-Reply-To: <20090514175332.9B7B.A69D9226@jp.fujitsu.com>
-References: <1242289830.21646.5.camel@penberg-laptop> <20090514175332.9B7B.A69D9226@jp.fujitsu.com>
-Message-Id: <20090515083726.F5BF.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7F2796B005C
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 19:42:54 -0400 (EDT)
+Message-ID: <4A0CAC78.7060107@redhat.com>
+Date: Thu, 14 May 2009 19:42:48 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH -mm] vmscan: protect a fraction of file backed mapped
+ pages from reclaim
+References: <20090513084306.5874.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905141612100.15881@qirst.com> <20090515082312.F5B6.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090515082312.F5B6.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Fri, 15 May 2009 08:38:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> > On Wed, 2009-05-13 at 17:37 +0900, Minchan Kim wrote:
-> > > On Wed, 13 May 2009 16:42:37 +0900 (JST)
-> > > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > > 
-> > > Hmm. I don't know slqb well.
-> > > So, It's just my guess. 
-> > > 
-> > > We surely increase l->nr_partial in  __slab_alloc_page.
-> > > In between l->nr_partial++ and call __cache_list_get_page, Who is decrease l->nr_partial again.
-> > > After all, __cache_list_get_page return NULL and hit the VM_BUG_ON.
-> > > 
-> > > Comment said :
-> > > 
-> > >         /* Protects nr_partial, nr_slabs, and partial */
-> > >   spinlock_t    page_lock;
-> > > 
-> > > As comment is right, We have to hold the l->page_lock ?
-> > 
-> > Makes sense. Nick? Motohiro-san, can you try this patch please?
+KOSAKI Motohiro wrote:
+
+>>>> The percentage of file backed pages protected is set via
+>>>> /proc/sys/vm/file_mapped_ratio. This defaults to 20%.
+>>> Why do you think typical mapped ratio is less than 20% on desktop machine?
+>> Observation of the typical mapped size of Firefox under KDE.
 > 
-> This issue is very rarely. please give me one night.
+> My point is, desktop people have very various mapped ratio.
+> Do you oppose this?
 
--ENOTREPRODUCED
+I suspect that the mapped ratio could be much higher
+on my system.  I have only 2GB of RAM dedicated to my
+dom0 (which is also my desktop) and the amount of page
+cache often goes down to about 150MB.
 
-I guess your patch is right fix. thanks!
+At the moment nr_mapped is 26400 and the amount of
+memory taken up by buffer and page cache together is
+a little over 300MB.  That's close to 50%.
 
-
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
