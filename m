@@ -1,105 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 872E96B016D
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 23:02:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E32F8b013199
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 14 May 2009 12:02:19 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D22EA45DD75
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:02:14 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D0CC45DD74
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:02:14 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 916D41DB8017
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:02:14 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 482411DB8013
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 12:02:14 +0900 (JST)
-Date: Thu, 14 May 2009 12:00:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Low overhead patches for the memory resource controller
-Message-Id: <20090514120042.d5576d4e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090514023930.GT13394@balbir.in.ibm.com>
-References: <20090513153218.GQ13394@balbir.in.ibm.com>
-	<20090514090802.c5ac2246.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090514092405.1c3e6134.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090514023930.GT13394@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5CCAF6B0173
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 23:43:38 -0400 (EDT)
+From: Sheng Yang <sheng@linux.intel.com>
+Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to 64 bits in X86_64
+Date: Thu, 14 May 2009 11:45:05 +0800
+References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <87zldhl7ne.fsf@basil.nowhere.org>
+In-Reply-To: <87zldhl7ne.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200905141145.05591.sheng@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 May 2009 08:09:30 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-14 09:24:05]:
-> 
-> > On Thu, 14 May 2009 09:08:02 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > On Wed, 13 May 2009 21:02:18 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > Important: Not for inclusion, for discussion only
-> > > > 
-> > > > I've been experimenting with a version of the patches below. They add
-> > > > a PCGF_ROOT flag for tracking pages belonging to the root cgroup and
-> > > > disable LRU manipulation for them
-> > > > 
-> > > > Caveats:
-> > > > 
-> > > > 1. I've not checked accounting, accounting might be broken
-> > > > 2. I've not made the root cgroup as non limitable, we need to disable
-> > > > hard limits once we agree to go with this
-> > > > 
-> > > > 
-> > > > Tests
-> > > > 
-> > > > Quick tests show an improvement with AIM9
-> > > > 
-> > > >                 mmotm+patch     mmtom-08-may-2009
-> > > > AIM9            1338.57         1338.17
-> > > > Dbase           18034.16        16021.58
-> > > > New Dbase       18482.24        16518.54
-> > > > Shared          9935.98         8882.11
-> > > > Compute         16619.81        15226.13
-> > > > 
-> > > > Comments on the approach much appreciated
-> > > > 
-> > > > Feature: Remove the overhead associated with the root cgroup
-> > > > 
-> > > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > > 
-> > > > This patch changes the memory cgroup and removes the overhead associated
-> > > > with accounting all pages in the root cgroup. As a side-effect, we can
-> > > > no longer set a memory hard limit in the root cgroup.
-> > > > 
-> > > > A new flag is used to track page_cgroup associated with the root cgroup
-> > > > pages.
-> > > 
-> > > Hmm ? How about ignoring memcg completely when the thread belongs to ROOT
-> > > cgroup rather than this halfway method ? 
-> > > 
-> > BTW, this will make softlimit much harder. Do you have any idea on softlimit after
-> > this patch ?
+On Wednesday 13 May 2009 16:38:29 Andi Kleen wrote:
+> Sheng Yang <sheng@linux.intel.com> writes:
+> > -static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
+> > +static inline int test_and_set_bit(long int nr, volatile unsigned long
+> > *addr) {
+> >  	int oldbit;
 > >
-> 
-> Why would this make soft limit much harder? Since we charge up
-> hierarchially even now we ignore a cgroup if its soft limit is not
-> set. I am not sure I understand why. 
-> 
-I doubt I misunderstand something.
-Anyway, disabling soft limit to root cgroup is necessary because we have no LRU.
+> > -	asm volatile(LOCK_PREFIX "bts %2,%1\n\t"
+> > +	asm volatile(LOCK_PREFIX REX_X86 "bts %2,%1\n\t"
+>
+> Use btsq on 64bit, then you don't need the explicit rex prefix.
 
-Sorry for noise.
+Hi Andi
 
--Kame
+Well, I just think lots of "#ifdef/#else" is a little annoying here, then use 
+REX...
+
+-- 
+regards
+Yang, Sheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
