@@ -1,42 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 32FF36B01D1
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:36:16 -0400 (EDT)
-Message-ID: <4A0C2C5F.4030008@zytor.com>
-Date: Thu, 14 May 2009 07:36:15 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+	by kanga.kvack.org (Postfix) with SMTP id C7E106B01D2
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 10:40:44 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so2517772gxk.14
+        for <linux-mm@kvack.org>; Thu, 14 May 2009 07:39:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: Extend test_and_set_bit() test_and_clean_bit() to
- 64 bits in X86_64
-References: <1242202647-32446-1-git-send-email-sheng@linux.intel.com> <87zldhl7ne.fsf@basil.nowhere.org> <200905141145.05591.sheng@linux.intel.com> <20090514083250.GD19296@one.firstfloor.org> <4A0C262B.3060303@zytor.com> <20090514141649.GD10933@one.firstfloor.org> <4A0C27AA.4010006@zytor.com> <20090514142749.GE10933@one.firstfloor.org> <4A0C29D2.9050101@zytor.com> <20090514143312.GF10933@one.firstfloor.org>
-In-Reply-To: <20090514143312.GF10933@one.firstfloor.org>
+In-Reply-To: <2f11576a0905140727j5ba02b07t94826f57dd99839c@mail.gmail.com>
+References: <20090514231555.f52c81eb.minchan.kim@gmail.com>
+	 <2f11576a0905140727j5ba02b07t94826f57dd99839c@mail.gmail.com>
+Date: Thu, 14 May 2009 23:39:49 +0900
+Message-ID: <44c63dc40905140739n271d3d2w2e0cc364c0012d71@mail.gmail.com>
+Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in case
+	of no swap space V3
+From: Minchan Kim <barrioskmc@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Sheng Yang <sheng@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: MinChan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> 
-> Well they have to fix a lot of more stuff then, when I did 
-> all the inline assembler >2GB objects were a explicit non goal. 
-> It also wouldn't surprise me if that wasn't true on other architectures too.
+On Thu, May 14, 2009 at 11:27 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> =C2=A0mm/vmscan.c | =C2=A0 =C2=A02 +-
+>> =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 2f9d555..621708f 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1577,7 +1577,7 @@ static void shrink_zone(int priority, struct zone =
+*zone,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Even if we did not try to evict anon pages=
+ at all, we want to
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * rebalance the anon lru active/inactive rat=
+io.
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+>> - =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc))
+>> + =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc) && nr_swap_pag=
+es > 0)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0shrink_active_lis=
+t(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+>
+>
+> =C2=A0 =C2=A0 =C2=A0 if (nr_swap_pages > 0 && inactive_anon_is_low(zone, =
+sc))
+>
+> is better?
+> compiler can't swap evaluate order around &&.
 
-512 MB, fwiw...
+If GCC optimizes away that branch with CONFIG_SWAP=3Dn as Rik mentioned,
+we don't have a concern.
 
-> It would be better to just use open coded C for that case and avoid inline 
-> assembler.
-
-It's not like the extra REX prefix is going to matter significantly for
-any application, and given how trivial it is it doesn't seem like a big
-deal at all.
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+--=20
+Thanks,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
