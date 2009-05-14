@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id EFB8B6B0160
-	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:05:34 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E25bx7027333
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 741E26B0161
+	for <linux-mm@kvack.org>; Wed, 13 May 2009 22:15:40 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4E2FpgF025918
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 14 May 2009 11:05:37 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BAAE345DE51
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:05:36 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EDFB45DE4F
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:05:36 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 795051DB8040
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:05:36 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FBF7E18002
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:05:36 +0900 (JST)
+	Thu, 14 May 2009 11:15:52 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 722B245DD7B
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:15:51 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 424E845DD7D
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:15:51 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E00F51DB8038
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:15:50 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 33D78E08003
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 11:15:50 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: =?ISO-2022-JP?B?W1BBVENIGyRCISEbKEIxLzJd?=
- remove CONFIG_UNEVICTABLE_LRU config option
-Message-Id: <20090514110357.9B54.A69D9226@jp.fujitsu.com>
+Subject: [PATCH 2/2] remove CONFIG_UNEVICTABLE_LRU definition from defconfig
+In-Reply-To: <20090514110357.9B54.A69D9226@jp.fujitsu.com>
+References: <20090514110357.9B54.A69D9226@jp.fujitsu.com>
+Message-Id: <20090514111519.9B5D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 14 May 2009 11:05:35 +0900 (JST)
+Date: Thu, 14 May 2009 11:15:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Matt Mackall <mpm@selenic.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-Subject: [PATCH] remove CONFIG_UNEVICTABLE_LRU config option
+Subject: [PATCH] remove CONFIG_UNEVICTABLE_LRU definition from defconfig
 
-Currently, nobody want to turn UNEVICTABLE_LRU off. Thus
-this configurability is unnecessary.
+Now, There isn't CONFIG_UNEVICTABLE_LRU. these line are unnecessary.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
@@ -44,557 +44,2556 @@ Cc: Minchan Kim <minchan.kim@gmail.com>
 Cc: David Woodhouse <dwmw2@infradead.org>
 Cc: Matt Mackall <mpm@selenic.com>
 ---
- drivers/base/node.c        |    4 ----
- fs/proc/meminfo.c          |    4 ----
- fs/proc/page.c             |    2 --
- include/linux/mmzone.h     |   13 -------------
- include/linux/page-flags.h |   16 +---------------
- include/linux/pagemap.h    |   12 ------------
- include/linux/rmap.h       |    7 -------
- include/linux/swap.h       |   19 -------------------
- include/linux/vmstat.h     |    2 --
- kernel/sysctl.c            |    2 --
- mm/Kconfig                 |   14 +-------------
- mm/internal.h              |    6 ------
- mm/mlock.c                 |   22 ----------------------
- mm/page_alloc.c            |    9 ---------
- mm/rmap.c                  |    3 +--
- mm/vmscan.c                |   17 -----------------
- mm/vmstat.c                |    4 ----
- 17 files changed, 3 insertions(+), 153 deletions(-)
+ arch/arm/configs/cm_x2xx_defconfig                |    1 -
+ arch/arm/configs/colibri_pxa270_defconfig         |    1 -
+ arch/arm/configs/colibri_pxa300_defconfig         |    1 -
+ arch/arm/configs/davinci_all_defconfig            |    1 -
+ arch/arm/configs/em_x270_defconfig                |    1 -
+ arch/arm/configs/eseries_pxa_defconfig            |    1 -
+ arch/arm/configs/kirkwood_defconfig               |    1 -
+ arch/arm/configs/magician_defconfig               |    1 -
+ arch/arm/configs/mv78xx0_defconfig                |    1 -
+ arch/arm/configs/mx1_defconfig                    |    1 -
+ arch/arm/configs/mx27_defconfig                   |    1 -
+ arch/arm/configs/mx31pdk_defconfig                |    1 -
+ arch/arm/configs/mx3_defconfig                    |    1 -
+ arch/arm/configs/omap3_pandora_defconfig          |    1 -
+ arch/arm/configs/omap_3430sdp_defconfig           |    1 -
+ arch/arm/configs/orion5x_defconfig                |    1 -
+ arch/arm/configs/pxa168_defconfig                 |    1 -
+ arch/arm/configs/pxa910_defconfig                 |    1 -
+ arch/arm/configs/realview-smp_defconfig           |    1 -
+ arch/arm/configs/realview_defconfig               |    1 -
+ arch/arm/configs/rx51_defconfig                   |    1 -
+ arch/arm/configs/s3c2410_defconfig                |    1 -
+ arch/arm/configs/s3c6400_defconfig                |    1 -
+ arch/arm/configs/shark_defconfig                  |    1 -
+ arch/arm/configs/stmp378x_defconfig               |    1 -
+ arch/arm/configs/stmp37xx_defconfig               |    1 -
+ arch/avr32/configs/atstk1006_defconfig            |    1 -
+ arch/avr32/configs/hammerhead_defconfig           |    1 -
+ arch/avr32/configs/merisc_defconfig               |    1 -
+ arch/ia64/configs/generic_defconfig               |    1 -
+ arch/ia64/configs/xen_domu_defconfig              |    1 -
+ arch/m68k/configs/amiga_defconfig                 |    1 -
+ arch/m68k/configs/apollo_defconfig                |    1 -
+ arch/m68k/configs/atari_defconfig                 |    1 -
+ arch/m68k/configs/bvme6000_defconfig              |    1 -
+ arch/m68k/configs/hp300_defconfig                 |    1 -
+ arch/m68k/configs/mac_defconfig                   |    1 -
+ arch/m68k/configs/multi_defconfig                 |    1 -
+ arch/m68k/configs/mvme147_defconfig               |    1 -
+ arch/m68k/configs/mvme16x_defconfig               |    1 -
+ arch/m68k/configs/q40_defconfig                   |    1 -
+ arch/m68k/configs/sun3_defconfig                  |    1 -
+ arch/m68k/configs/sun3x_defconfig                 |    1 -
+ arch/m68knommu/configs/m5208evb_defconfig         |    1 -
+ arch/m68knommu/configs/m5249evb_defconfig         |    1 -
+ arch/m68knommu/configs/m5272c3_defconfig          |    1 -
+ arch/m68knommu/configs/m5275evb_defconfig         |    1 -
+ arch/m68knommu/configs/m5307c3_defconfig          |    1 -
+ arch/m68knommu/configs/m5407c3_defconfig          |    1 -
+ arch/mips/configs/cavium-octeon_defconfig         |    1 -
+ arch/mips/configs/fulong_defconfig                |    1 -
+ arch/mips/configs/ip22_defconfig                  |    1 -
+ arch/mips/configs/ip32_defconfig                  |    1 -
+ arch/mips/configs/jmr3927_defconfig               |    1 -
+ arch/mips/configs/malta_defconfig                 |    1 -
+ arch/mips/configs/rbtx49xx_defconfig              |    1 -
+ arch/mn10300/configs/asb2303_defconfig            |    1 -
+ arch/parisc/configs/712_defconfig                 |    1 -
+ arch/parisc/configs/a500_defconfig                |    1 -
+ arch/parisc/configs/b180_defconfig                |    1 -
+ arch/parisc/configs/c3000_defconfig               |    1 -
+ arch/parisc/configs/default_defconfig             |    1 -
+ arch/powerpc/configs/40x/acadia_defconfig         |    1 -
+ arch/powerpc/configs/40x/ep405_defconfig          |    1 -
+ arch/powerpc/configs/40x/hcu4_defconfig           |    1 -
+ arch/powerpc/configs/40x/kilauea_defconfig        |    1 -
+ arch/powerpc/configs/40x/makalu_defconfig         |    1 -
+ arch/powerpc/configs/40x/virtex_defconfig         |    1 -
+ arch/powerpc/configs/40x/walnut_defconfig         |    1 -
+ arch/powerpc/configs/44x/arches_defconfig         |    1 -
+ arch/powerpc/configs/44x/bamboo_defconfig         |    1 -
+ arch/powerpc/configs/44x/canyonlands_defconfig    |    1 -
+ arch/powerpc/configs/44x/ebony_defconfig          |    1 -
+ arch/powerpc/configs/44x/katmai_defconfig         |    1 -
+ arch/powerpc/configs/44x/rainier_defconfig        |    1 -
+ arch/powerpc/configs/44x/redwood_defconfig        |    1 -
+ arch/powerpc/configs/44x/sam440ep_defconfig       |    1 -
+ arch/powerpc/configs/44x/sequoia_defconfig        |    1 -
+ arch/powerpc/configs/44x/taishan_defconfig        |    1 -
+ arch/powerpc/configs/44x/virtex5_defconfig        |    1 -
+ arch/powerpc/configs/44x/warp_defconfig           |    1 -
+ arch/powerpc/configs/52xx/cm5200_defconfig        |    1 -
+ arch/powerpc/configs/52xx/lite5200b_defconfig     |    1 -
+ arch/powerpc/configs/52xx/motionpro_defconfig     |    1 -
+ arch/powerpc/configs/52xx/pcm030_defconfig        |    1 -
+ arch/powerpc/configs/52xx/tqm5200_defconfig       |    1 -
+ arch/powerpc/configs/83xx/asp8347_defconfig       |    1 -
+ arch/powerpc/configs/83xx/mpc8313_rdb_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc8315_rdb_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc832x_mds_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc832x_rdb_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc834x_itx_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc834x_itxgp_defconfig |    1 -
+ arch/powerpc/configs/83xx/mpc834x_mds_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc836x_mds_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc836x_rdk_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc837x_mds_defconfig   |    1 -
+ arch/powerpc/configs/83xx/mpc837x_rdb_defconfig   |    1 -
+ arch/powerpc/configs/83xx/sbc834x_defconfig       |    1 -
+ arch/powerpc/configs/85xx/ksi8560_defconfig       |    1 -
+ arch/powerpc/configs/85xx/mpc8540_ads_defconfig   |    1 -
+ arch/powerpc/configs/85xx/mpc8560_ads_defconfig   |    1 -
+ arch/powerpc/configs/85xx/mpc85xx_cds_defconfig   |    1 -
+ arch/powerpc/configs/85xx/sbc8548_defconfig       |    1 -
+ arch/powerpc/configs/85xx/sbc8560_defconfig       |    1 -
+ arch/powerpc/configs/85xx/stx_gp3_defconfig       |    1 -
+ arch/powerpc/configs/85xx/tqm8540_defconfig       |    1 -
+ arch/powerpc/configs/85xx/tqm8541_defconfig       |    1 -
+ arch/powerpc/configs/85xx/tqm8548_defconfig       |    1 -
+ arch/powerpc/configs/85xx/tqm8555_defconfig       |    1 -
+ arch/powerpc/configs/85xx/tqm8560_defconfig       |    1 -
+ arch/powerpc/configs/86xx/gef_ppc9a_defconfig     |    1 -
+ arch/powerpc/configs/86xx/gef_sbc310_defconfig    |    1 -
+ arch/powerpc/configs/86xx/gef_sbc610_defconfig    |    1 -
+ arch/powerpc/configs/86xx/mpc8610_hpcd_defconfig  |    1 -
+ arch/powerpc/configs/86xx/mpc8641_hpcn_defconfig  |    1 -
+ arch/powerpc/configs/86xx/sbc8641d_defconfig      |    1 -
+ arch/powerpc/configs/adder875_defconfig           |    1 -
+ arch/powerpc/configs/amigaone_defconfig           |    1 -
+ arch/powerpc/configs/c2k_defconfig                |    1 -
+ arch/powerpc/configs/chrp32_defconfig             |    1 -
+ arch/powerpc/configs/ep8248e_defconfig            |    1 -
+ arch/powerpc/configs/ep88xc_defconfig             |    1 -
+ arch/powerpc/configs/g5_defconfig                 |    1 -
+ arch/powerpc/configs/iseries_defconfig            |    1 -
+ arch/powerpc/configs/linkstation_defconfig        |    1 -
+ arch/powerpc/configs/maple_defconfig              |    1 -
+ arch/powerpc/configs/mgcoge_defconfig             |    1 -
+ arch/powerpc/configs/mgsuvd_defconfig             |    1 -
+ arch/powerpc/configs/mpc5200_defconfig            |    1 -
+ arch/powerpc/configs/mpc7448_hpc2_defconfig       |    1 -
+ arch/powerpc/configs/mpc8272_ads_defconfig        |    1 -
+ arch/powerpc/configs/mpc83xx_defconfig            |    1 -
+ arch/powerpc/configs/mpc85xx_defconfig            |    1 -
+ arch/powerpc/configs/mpc85xx_smp_defconfig        |    1 -
+ arch/powerpc/configs/mpc866_ads_defconfig         |    1 -
+ arch/powerpc/configs/mpc86xx_defconfig            |    1 -
+ arch/powerpc/configs/mpc885_ads_defconfig         |    1 -
+ arch/powerpc/configs/pmac32_defconfig             |    1 -
+ arch/powerpc/configs/ppc40x_defconfig             |    1 -
+ arch/powerpc/configs/ppc44x_defconfig             |    1 -
+ arch/powerpc/configs/ppc64_defconfig              |    1 -
+ arch/powerpc/configs/ppc6xx_defconfig             |    1 -
+ arch/powerpc/configs/pq2fads_defconfig            |    1 -
+ arch/powerpc/configs/prpmc2800_defconfig          |    1 -
+ arch/powerpc/configs/ps3_defconfig                |    1 -
+ arch/powerpc/configs/pseries_defconfig            |    1 -
+ arch/powerpc/configs/storcenter_defconfig         |    1 -
+ arch/s390/defconfig                               |    1 -
+ arch/sh/configs/ap325rxa_defconfig                |    1 -
+ arch/sh/configs/cayman_defconfig                  |    1 -
+ arch/sh/configs/dreamcast_defconfig               |    1 -
+ arch/sh/configs/edosk7705_defconfig               |    1 -
+ arch/sh/configs/edosk7760_defconfig               |    1 -
+ arch/sh/configs/espt_defconfig                    |    1 -
+ arch/sh/configs/hp6xx_defconfig                   |    1 -
+ arch/sh/configs/landisk_defconfig                 |    1 -
+ arch/sh/configs/lboxre2_defconfig                 |    1 -
+ arch/sh/configs/magicpanelr2_defconfig            |    1 -
+ arch/sh/configs/microdev_defconfig                |    1 -
+ arch/sh/configs/migor_defconfig                   |    1 -
+ arch/sh/configs/polaris_defconfig                 |    1 -
+ arch/sh/configs/r7780mp_defconfig                 |    1 -
+ arch/sh/configs/r7785rp_defconfig                 |    1 -
+ arch/sh/configs/rsk7201_defconfig                 |    1 -
+ arch/sh/configs/rsk7203_defconfig                 |    1 -
+ arch/sh/configs/rts7751r2d1_defconfig             |    1 -
+ arch/sh/configs/rts7751r2dplus_defconfig          |    1 -
+ arch/sh/configs/sdk7780_defconfig                 |    1 -
+ arch/sh/configs/se7206_defconfig                  |    1 -
+ arch/sh/configs/se7343_defconfig                  |    1 -
+ arch/sh/configs/se7619_defconfig                  |    1 -
+ arch/sh/configs/se7705_defconfig                  |    1 -
+ arch/sh/configs/se7712_defconfig                  |    1 -
+ arch/sh/configs/se7721_defconfig                  |    1 -
+ arch/sh/configs/se7722_defconfig                  |    1 -
+ arch/sh/configs/se7750_defconfig                  |    1 -
+ arch/sh/configs/se7751_defconfig                  |    1 -
+ arch/sh/configs/se7780_defconfig                  |    1 -
+ arch/sh/configs/sh03_defconfig                    |    1 -
+ arch/sh/configs/sh7710voipgw_defconfig            |    1 -
+ arch/sh/configs/sh7724_generic_defconfig          |    1 -
+ arch/sh/configs/sh7763rdp_defconfig               |    1 -
+ arch/sh/configs/sh7785lcr_32bit_defconfig         |    1 -
+ arch/sh/configs/sh7785lcr_defconfig               |    1 -
+ arch/sh/configs/shmin_defconfig                   |    1 -
+ arch/sh/configs/shx3_defconfig                    |    1 -
+ arch/sh/configs/snapgear_defconfig                |    1 -
+ arch/sh/configs/systemh_defconfig                 |    1 -
+ arch/sh/configs/titan_defconfig                   |    1 -
+ arch/sh/configs/ul2_defconfig                     |    1 -
+ arch/sh/configs/urquell_defconfig                 |    1 -
+ arch/sparc/configs/sparc32_defconfig              |    1 -
+ arch/sparc/configs/sparc64_defconfig              |    1 -
+ arch/x86/configs/i386_defconfig                   |    1 -
+ arch/x86/configs/x86_64_defconfig                 |    1 -
+ 196 files changed, 196 deletions(-)
 
-Index: b/drivers/base/node.c
+Index: b/arch/arm/configs/cm_x2xx_defconfig
 ===================================================================
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -72,10 +72,8 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Inactive(anon): %8lu kB\n"
- 		       "Node %d Active(file):   %8lu kB\n"
- 		       "Node %d Inactive(file): %8lu kB\n"
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		       "Node %d Unevictable:    %8lu kB\n"
- 		       "Node %d Mlocked:        %8lu kB\n"
--#endif
- #ifdef CONFIG_HIGHMEM
- 		       "Node %d HighTotal:      %8lu kB\n"
- 		       "Node %d HighFree:       %8lu kB\n"
-@@ -105,10 +103,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
- 		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
- 		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
- 		       nid, K(node_page_state(nid, NR_MLOCK)),
--#endif
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
- 		       nid, K(i.freehigh),
-Index: b/fs/proc/meminfo.c
+--- a/arch/arm/configs/cm_x2xx_defconfig
++++ b/arch/arm/configs/cm_x2xx_defconfig
+@@ -287,7 +287,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/colibri_pxa270_defconfig
 ===================================================================
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -64,10 +64,8 @@ static int meminfo_proc_show(struct seq_
- 		"Inactive(anon): %8lu kB\n"
- 		"Active(file):   %8lu kB\n"
- 		"Inactive(file): %8lu kB\n"
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		"Unevictable:    %8lu kB\n"
- 		"Mlocked:        %8lu kB\n"
--#endif
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
- 		"HighFree:       %8lu kB\n"
-@@ -109,10 +107,8 @@ static int meminfo_proc_show(struct seq_
- 		K(pages[LRU_INACTIVE_ANON]),
- 		K(pages[LRU_ACTIVE_FILE]),
- 		K(pages[LRU_INACTIVE_FILE]),
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		K(pages[LRU_UNEVICTABLE]),
- 		K(global_page_state(NR_MLOCK)),
--#endif
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
- 		K(i.freehigh),
-Index: b/fs/proc/page.c
+--- a/arch/arm/configs/colibri_pxa270_defconfig
++++ b/arch/arm/configs/colibri_pxa270_defconfig
+@@ -260,7 +260,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/colibri_pxa300_defconfig
 ===================================================================
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -176,10 +176,8 @@ static u64 get_uflags(struct page *page)
- 	u |= kpf_copy_bit(k, KPF_HWPOISON,	PG_hwpoison);
- #endif
+--- a/arch/arm/configs/colibri_pxa300_defconfig
++++ b/arch/arm/configs/colibri_pxa300_defconfig
+@@ -270,7 +270,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
  
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	u |= kpf_copy_bit(k, KPF_UNEVICTABLE,	PG_unevictable);
- 	u |= kpf_copy_bit(k, KPF_MLOCKED,	PG_mlocked);
--#endif
- 
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- 	u |= kpf_copy_bit(k, KPF_UNCACHED,	PG_uncached);
-Index: b/include/linux/mmzone.h
+ #
+Index: b/arch/arm/configs/davinci_all_defconfig
 ===================================================================
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -83,13 +83,8 @@ enum zone_stat_item {
- 	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
- 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
- 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
- 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
--#else
--	NR_UNEVICTABLE = NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
--	NR_MLOCK = NR_ACTIVE_FILE,
--#endif
- 	NR_ANON_PAGES,	/* Mapped anonymous pages */
- 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
- 			   only modified from process context */
-@@ -132,11 +127,7 @@ enum lru_list {
- 	LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
- 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
- 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	LRU_UNEVICTABLE,
--#else
--	LRU_UNEVICTABLE = LRU_ACTIVE_FILE, /* avoid compiler errors in dead code */
--#endif
- 	NR_LRU_LISTS
- };
- 
-@@ -156,11 +147,7 @@ static inline int is_active_lru(enum lru
- 
- static inline int is_unevictable_lru(enum lru_list l)
- {
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	return (l == LRU_UNEVICTABLE);
--#else
--	return 0;
--#endif
- }
- 
- struct per_cpu_pages {
-Index: b/include/linux/page-flags.h
+--- a/arch/arm/configs/davinci_all_defconfig
++++ b/arch/arm/configs/davinci_all_defconfig
+@@ -261,7 +261,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_LEDS=y
+Index: b/arch/arm/configs/em_x270_defconfig
 ===================================================================
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -95,9 +95,7 @@ enum pageflags {
- 	PG_reclaim,		/* To be reclaimed asap */
- 	PG_buddy,		/* Page is free, on buddy lists */
- 	PG_swapbacked,		/* Page is backed by RAM/swap */
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	PG_unevictable,		/* Page is "unevictable"  */
--#endif
- #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
- 	PG_mlocked,		/* Page is vma mlocked */
- #endif
-@@ -246,14 +244,8 @@ PAGEFLAG_FALSE(SwapCache)
- 	SETPAGEFLAG_NOOP(SwapCache) CLEARPAGEFLAG_NOOP(SwapCache)
- #endif
+--- a/arch/arm/configs/em_x270_defconfig
++++ b/arch/arm/configs/em_x270_defconfig
+@@ -258,7 +258,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
  
--#ifdef CONFIG_UNEVICTABLE_LRU
- PAGEFLAG(Unevictable, unevictable) __CLEARPAGEFLAG(Unevictable, unevictable)
- 	TESTCLEARFLAG(Unevictable, unevictable)
--#else
--PAGEFLAG_FALSE(Unevictable) TESTCLEARFLAG_FALSE(Unevictable)
--	SETPAGEFLAG_NOOP(Unevictable) CLEARPAGEFLAG_NOOP(Unevictable)
--	__CLEARPAGEFLAG_NOOP(Unevictable)
--#endif
- 
- #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
- #define MLOCK_PAGES 1
-@@ -380,12 +372,6 @@ static inline void __ClearPageTail(struc
- 
- #endif /* !PAGEFLAGS_EXTENDED */
- 
--#ifdef CONFIG_UNEVICTABLE_LRU
--#define __PG_UNEVICTABLE	(1 << PG_unevictable)
--#else
--#define __PG_UNEVICTABLE	0
--#endif
--
- #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
- #define __PG_MLOCKED		(1 << PG_mlocked)
- #else
-@@ -401,7 +387,7 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 __PG_UNEVICTABLE | __PG_MLOCKED)
-+	 1 << PG_unevictable | __PG_MLOCKED)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
-Index: b/include/linux/pagemap.h
+ #
+Index: b/arch/arm/configs/eseries_pxa_defconfig
 ===================================================================
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -22,9 +22,7 @@ enum mapping_flags {
- 	AS_EIO		= __GFP_BITS_SHIFT + 0,	/* IO error on async write */
- 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
- 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
--#endif
- 	AS_EXEC		= __GFP_BITS_SHIFT + 4,	/* mapped PROT_EXEC somewhere */
- };
+--- a/arch/arm/configs/eseries_pxa_defconfig
++++ b/arch/arm/configs/eseries_pxa_defconfig
+@@ -269,7 +269,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
  
-@@ -38,8 +36,6 @@ static inline void mapping_set_error(str
- 	}
- }
- 
--#ifdef CONFIG_UNEVICTABLE_LRU
--
- static inline void mapping_set_unevictable(struct address_space *mapping)
- {
- 	set_bit(AS_UNEVICTABLE, &mapping->flags);
-@@ -56,14 +52,6 @@ static inline int mapping_unevictable(st
- 		return test_bit(AS_UNEVICTABLE, &mapping->flags);
- 	return !!mapping;
- }
--#else
--static inline void mapping_set_unevictable(struct address_space *mapping) { }
--static inline void mapping_clear_unevictable(struct address_space *mapping) { }
--static inline int mapping_unevictable(struct address_space *mapping)
--{
--	return 0;
--}
--#endif
- 
- static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
- {
-Index: b/include/linux/rmap.h
+ #
+Index: b/arch/arm/configs/kirkwood_defconfig
 ===================================================================
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -105,18 +105,11 @@ unsigned long page_address_in_vma(struct
-  */
- int page_mkclean(struct page *);
- 
--#ifdef CONFIG_UNEVICTABLE_LRU
- /*
-  * called in munlock()/munmap() path to check for other vmas holding
-  * the page mlocked.
-  */
- int try_to_munlock(struct page *);
--#else
--static inline int try_to_munlock(struct page *page)
--{
--	return 0;	/* a.k.a. SWAP_SUCCESS */
--}
--#endif
- 
- #if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
- int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
-Index: b/include/linux/swap.h
+--- a/arch/arm/configs/kirkwood_defconfig
++++ b/arch/arm/configs/kirkwood_defconfig
+@@ -253,7 +253,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/magician_defconfig
 ===================================================================
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -235,7 +235,6 @@ static inline int zone_reclaim(struct zo
- }
- #endif
+--- a/arch/arm/configs/magician_defconfig
++++ b/arch/arm/configs/magician_defconfig
+@@ -259,7 +259,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
  
--#ifdef CONFIG_UNEVICTABLE_LRU
- extern int page_evictable(struct page *page, struct vm_area_struct *vma);
- extern void scan_mapping_unevictable_pages(struct address_space *);
- 
-@@ -244,24 +243,6 @@ extern int scan_unevictable_handler(stru
- 					void __user *, size_t *, loff_t *);
- extern int scan_unevictable_register_node(struct node *node);
- extern void scan_unevictable_unregister_node(struct node *node);
--#else
--static inline int page_evictable(struct page *page,
--						struct vm_area_struct *vma)
--{
--	return 1;
--}
--
--static inline void scan_mapping_unevictable_pages(struct address_space *mapping)
--{
--}
--
--static inline int scan_unevictable_register_node(struct node *node)
--{
--	return 0;
--}
--
--static inline void scan_unevictable_unregister_node(struct node *node) { }
--#endif
- 
- extern int kswapd_run(int nid);
- 
-Index: b/include/linux/vmstat.h
+ #
+Index: b/arch/arm/configs/mv78xx0_defconfig
 ===================================================================
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -41,7 +41,6 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
- #endif
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		UNEVICTABLE_PGCULLED,	/* culled to noreclaim list */
- 		UNEVICTABLE_PGSCANNED,	/* scanned for reclaimability */
- 		UNEVICTABLE_PGRESCUED,	/* rescued from noreclaim list */
-@@ -50,7 +49,6 @@ enum vm_event_item { PGPGIN, PGPGOUT, PS
- 		UNEVICTABLE_PGCLEARED,	/* on COW, page truncate */
- 		UNEVICTABLE_PGSTRANDED,	/* unable to isolate on unlock */
- 		UNEVICTABLE_MLOCKFREED,
--#endif
- 		NR_VM_EVENT_ITEMS
- };
- 
-Index: b/mm/Kconfig
+--- a/arch/arm/configs/mv78xx0_defconfig
++++ b/arch/arm/configs/mv78xx0_defconfig
+@@ -246,7 +246,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/mx1_defconfig
 ===================================================================
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -203,25 +203,13 @@ config VIRT_TO_BUS
- 	def_bool y
- 	depends on !ARCH_NO_VIRT_TO_BUS
- 
--config UNEVICTABLE_LRU
--	bool "Add LRU list to track non-evictable pages"
--	default y
--	help
--	  Keeps unevictable pages off of the active and inactive pageout
--	  lists, so kswapd will not waste CPU time or have its balancing
--	  algorithms thrown off by scanning these pages.  Selecting this
--	  will use one page flag and increase the code size a little,
--	  say Y unless you know what you are doing.
--
--	  See Documentation/vm/unevictable-lru.txt for more information.
--
- config HAVE_MLOCK
- 	bool
- 	default y if MMU=y
- 
- config HAVE_MLOCKED_PAGE_BIT
- 	bool
--	default y if HAVE_MLOCK=y && UNEVICTABLE_LRU=y
-+	default y if HAVE_MLOCK=y
- 
- config MMU_NOTIFIER
- 	bool
-Index: b/mm/internal.h
+--- a/arch/arm/configs/mx1_defconfig
++++ b/arch/arm/configs/mx1_defconfig
+@@ -248,7 +248,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/mx27_defconfig
 ===================================================================
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -74,7 +74,6 @@ static inline void munlock_vma_pages_all
- }
- #endif
- 
--#ifdef CONFIG_UNEVICTABLE_LRU
- /*
-  * unevictable_migrate_page() called only from migrate_page_copy() to
-  * migrate unevictable flag to new page.
-@@ -86,11 +85,6 @@ static inline void unevictable_migrate_p
- 	if (TestClearPageUnevictable(old))
- 		SetPageUnevictable(new);
- }
--#else
--static inline void unevictable_migrate_page(struct page *new, struct page *old)
--{
--}
--#endif
- 
- #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
- /*
-Index: b/mm/mlock.c
+--- a/arch/arm/configs/mx27_defconfig
++++ b/arch/arm/configs/mx27_defconfig
+@@ -253,7 +253,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/mx31pdk_defconfig
 ===================================================================
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -31,7 +31,6 @@ int can_do_mlock(void)
- }
- EXPORT_SYMBOL(can_do_mlock);
+--- a/arch/arm/configs/mx31pdk_defconfig
++++ b/arch/arm/configs/mx31pdk_defconfig
+@@ -226,7 +226,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ALIGNMENT_TRAP=y
  
--#ifdef CONFIG_UNEVICTABLE_LRU
- /*
-  * Mlocked pages are marked with PageMlocked() flag for efficient testing
-  * in vmscan and, possibly, the fault path; and to support semi-accurate
-@@ -261,27 +260,6 @@ static int __mlock_posix_error_return(lo
- 	return retval;
- }
- 
--#else /* CONFIG_UNEVICTABLE_LRU */
--
--/*
-- * Just make pages present if VM_LOCKED.  No-op if unlocking.
-- */
--static long __mlock_vma_pages_range(struct vm_area_struct *vma,
--				   unsigned long start, unsigned long end,
--				   int mlock)
--{
--	if (mlock && (vma->vm_flags & VM_LOCKED))
--		return make_pages_present(start, end);
--	return 0;
--}
--
--static inline int __mlock_posix_error_return(long retval)
--{
--	return 0;
--}
--
--#endif /* CONFIG_UNEVICTABLE_LRU */
--
- /**
-  * mlock_vma_pages_range() - mlock pages in specified vma range.
-  * @vma - the vma containing the specfied address range
-Index: b/mm/page_alloc.c
+ #
+Index: b/arch/arm/configs/mx3_defconfig
 ===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2061,19 +2061,14 @@ void show_free_areas(void)
- 
- 	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
- 		" inactive_file:%lu"
--//TODO:  check/adjust line lengths
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		" unevictable:%lu"
--#endif
- 		" dirty:%lu writeback:%lu unstable:%lu\n"
- 		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_ANON),
- 		global_page_state(NR_INACTIVE_FILE),
--#ifdef CONFIG_UNEVICTABLE_LRU
- 		global_page_state(NR_UNEVICTABLE),
--#endif
- 		global_page_state(NR_FILE_DIRTY),
- 		global_page_state(NR_WRITEBACK),
- 		global_page_state(NR_UNSTABLE_NFS),
-@@ -2097,9 +2092,7 @@ void show_free_areas(void)
- 			" inactive_anon:%lukB"
- 			" active_file:%lukB"
- 			" inactive_file:%lukB"
--#ifdef CONFIG_UNEVICTABLE_LRU
- 			" unevictable:%lukB"
--#endif
- 			" present:%lukB"
- 			" pages_scanned:%lu"
- 			" all_unreclaimable? %s"
-@@ -2113,9 +2106,7 @@ void show_free_areas(void)
- 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
--#ifdef CONFIG_UNEVICTABLE_LRU
- 			K(zone_page_state(zone, NR_UNEVICTABLE)),
--#endif
- 			K(zone->present_pages),
- 			zone->pages_scanned,
- 			(zone_is_all_unreclaimable(zone) ? "yes" : "no")
-Index: b/mm/rmap.c
+--- a/arch/arm/configs/mx3_defconfig
++++ b/arch/arm/configs/mx3_defconfig
+@@ -257,7 +257,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/omap3_pandora_defconfig
 ===================================================================
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1344,7 +1344,6 @@ int try_to_unmap(struct page *page, int 
- 	return ret;
- }
+--- a/arch/arm/configs/omap3_pandora_defconfig
++++ b/arch/arm/configs/omap3_pandora_defconfig
+@@ -272,7 +272,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_LEDS is not set
+ CONFIG_ALIGNMENT_TRAP=y
  
--#ifdef CONFIG_UNEVICTABLE_LRU
- /**
-  * try_to_munlock - try to munlock a page
-  * @page: the page to be munlocked
-@@ -1368,4 +1367,4 @@ int try_to_munlock(struct page *page)
- 	else
- 		return try_to_unmap_file(page, 1, 0);
- }
--#endif
-+
-Index: b/mm/vmscan.c
+Index: b/arch/arm/configs/omap_3430sdp_defconfig
 ===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -519,7 +519,6 @@ int remove_mapping(struct address_space 
-  *
-  * lru_lock must not be held, interrupts must be enabled.
-  */
--#ifdef CONFIG_UNEVICTABLE_LRU
- void putback_lru_page(struct page *page)
- {
- 	int lru;
-@@ -573,20 +572,6 @@ redo:
- 	put_page(page);		/* drop ref from isolate */
- }
+--- a/arch/arm/configs/omap_3430sdp_defconfig
++++ b/arch/arm/configs/omap_3430sdp_defconfig
+@@ -277,7 +277,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_LEDS=y
+ CONFIG_ALIGNMENT_TRAP=y
  
--#else /* CONFIG_UNEVICTABLE_LRU */
--
--void putback_lru_page(struct page *page)
--{
--	int lru;
--	VM_BUG_ON(PageLRU(page));
--
--	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
--	lru_cache_add_lru(page, lru);
--	put_page(page);
--}
--#endif /* CONFIG_UNEVICTABLE_LRU */
--
--
- /*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
-@@ -2510,7 +2495,6 @@ int zone_reclaim(struct zone *zone, gfp_
- }
- #endif
- 
--#ifdef CONFIG_UNEVICTABLE_LRU
- /*
-  * page_evictable - test whether a page is evictable
-  * @page: the page to test
-@@ -2757,4 +2741,3 @@ void scan_unevictable_unregister_node(st
- 	sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pages);
- }
- 
--#endif
-Index: b/kernel/sysctl.c
+Index: b/arch/arm/configs/orion5x_defconfig
 ===================================================================
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1307,7 +1307,6 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	{
- 		.ctl_name	= CTL_UNNUMBERED,
- 		.procname	= "scan_unevictable_pages",
-@@ -1316,7 +1315,6 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= &scan_unevictable_handler,
- 	},
--#endif
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
-Index: b/mm/vmstat.c
+--- a/arch/arm/configs/orion5x_defconfig
++++ b/arch/arm/configs/orion5x_defconfig
+@@ -259,7 +259,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_LEDS=y
+Index: b/arch/arm/configs/pxa168_defconfig
 ===================================================================
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -640,10 +640,8 @@ static const char * const vmstat_text[] 
- 	"nr_active_anon",
- 	"nr_inactive_file",
- 	"nr_active_file",
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	"nr_unevictable",
- 	"nr_mlock",
--#endif
- 	"nr_anon_pages",
- 	"nr_mapped",
- 	"nr_file_pages",
-@@ -698,7 +696,6 @@ static const char * const vmstat_text[] 
- 	"htlb_buddy_alloc_success",
- 	"htlb_buddy_alloc_fail",
- #endif
--#ifdef CONFIG_UNEVICTABLE_LRU
- 	"unevictable_pgs_culled",
- 	"unevictable_pgs_scanned",
- 	"unevictable_pgs_rescued",
-@@ -708,7 +705,6 @@ static const char * const vmstat_text[] 
- 	"unevictable_pgs_stranded",
- 	"unevictable_pgs_mlockfreed",
- #endif
--#endif
- };
+--- a/arch/arm/configs/pxa168_defconfig
++++ b/arch/arm/configs/pxa168_defconfig
+@@ -242,7 +242,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
  
- static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ #
+Index: b/arch/arm/configs/pxa910_defconfig
+===================================================================
+--- a/arch/arm/configs/pxa910_defconfig
++++ b/arch/arm/configs/pxa910_defconfig
+@@ -242,7 +242,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/realview-smp_defconfig
+===================================================================
+--- a/arch/arm/configs/realview-smp_defconfig
++++ b/arch/arm/configs/realview-smp_defconfig
+@@ -256,7 +256,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/realview_defconfig
+===================================================================
+--- a/arch/arm/configs/realview_defconfig
++++ b/arch/arm/configs/realview_defconfig
+@@ -250,7 +250,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/rx51_defconfig
+===================================================================
+--- a/arch/arm/configs/rx51_defconfig
++++ b/arch/arm/configs/rx51_defconfig
+@@ -273,7 +273,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_LEDS is not set
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+Index: b/arch/arm/configs/s3c2410_defconfig
+===================================================================
+--- a/arch/arm/configs/s3c2410_defconfig
++++ b/arch/arm/configs/s3c2410_defconfig
+@@ -334,7 +334,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/s3c6400_defconfig
+===================================================================
+--- a/arch/arm/configs/s3c6400_defconfig
++++ b/arch/arm/configs/s3c6400_defconfig
+@@ -249,7 +249,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/arm/configs/shark_defconfig
+===================================================================
+--- a/arch/arm/configs/shark_defconfig
++++ b/arch/arm/configs/shark_defconfig
+@@ -232,7 +232,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_LEDS=y
+ CONFIG_LEDS_TIMER=y
+ # CONFIG_LEDS_CPU is not set
+Index: b/arch/arm/configs/stmp378x_defconfig
+===================================================================
+--- a/arch/arm/configs/stmp378x_defconfig
++++ b/arch/arm/configs/stmp378x_defconfig
+@@ -253,7 +253,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_ALIGNMENT_TRAP=y
+Index: b/arch/arm/configs/stmp37xx_defconfig
+===================================================================
+--- a/arch/arm/configs/stmp37xx_defconfig
++++ b/arch/arm/configs/stmp37xx_defconfig
+@@ -240,7 +240,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ALIGNMENT_TRAP=y
+ 
+ #
+Index: b/arch/avr32/configs/atstk1006_defconfig
+===================================================================
+--- a/arch/avr32/configs/atstk1006_defconfig
++++ b/arch/avr32/configs/atstk1006_defconfig
+@@ -175,7 +175,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_OWNERSHIP_TRACE is not set
+ CONFIG_NMI_DEBUGGING=y
+ # CONFIG_HZ_100 is not set
+Index: b/arch/avr32/configs/hammerhead_defconfig
+===================================================================
+--- a/arch/avr32/configs/hammerhead_defconfig
++++ b/arch/avr32/configs/hammerhead_defconfig
+@@ -172,7 +172,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_OWNERSHIP_TRACE is not set
+ # CONFIG_NMI_DEBUGGING is not set
+ # CONFIG_HZ_100 is not set
+Index: b/arch/avr32/configs/merisc_defconfig
+===================================================================
+--- a/arch/avr32/configs/merisc_defconfig
++++ b/arch/avr32/configs/merisc_defconfig
+@@ -169,7 +169,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_OWNERSHIP_TRACE is not set
+ # CONFIG_NMI_DEBUGGING is not set
+ # CONFIG_HZ_100 is not set
+Index: b/arch/ia64/configs/generic_defconfig
+===================================================================
+--- a/arch/ia64/configs/generic_defconfig
++++ b/arch/ia64/configs/generic_defconfig
+@@ -192,7 +192,6 @@ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_NR_QUICK=1
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ARCH_SELECT_MEMORY_MODEL=y
+ CONFIG_ARCH_DISCONTIGMEM_ENABLE=y
+ CONFIG_ARCH_FLATMEM_ENABLE=y
+Index: b/arch/ia64/configs/xen_domu_defconfig
+===================================================================
+--- a/arch/ia64/configs/xen_domu_defconfig
++++ b/arch/ia64/configs/xen_domu_defconfig
+@@ -192,7 +192,6 @@ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_NR_QUICK=1
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ARCH_SELECT_MEMORY_MODEL=y
+ CONFIG_ARCH_DISCONTIGMEM_ENABLE=y
+ CONFIG_ARCH_FLATMEM_ENABLE=y
+Index: b/arch/m68k/configs/amiga_defconfig
+===================================================================
+--- a/arch/m68k/configs/amiga_defconfig
++++ b/arch/m68k/configs/amiga_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/apollo_defconfig
+===================================================================
+--- a/arch/m68k/configs/apollo_defconfig
++++ b/arch/m68k/configs/apollo_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/atari_defconfig
+===================================================================
+--- a/arch/m68k/configs/atari_defconfig
++++ b/arch/m68k/configs/atari_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/bvme6000_defconfig
+===================================================================
+--- a/arch/m68k/configs/bvme6000_defconfig
++++ b/arch/m68k/configs/bvme6000_defconfig
+@@ -158,7 +158,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/hp300_defconfig
+===================================================================
+--- a/arch/m68k/configs/hp300_defconfig
++++ b/arch/m68k/configs/hp300_defconfig
+@@ -156,7 +156,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/mac_defconfig
+===================================================================
+--- a/arch/m68k/configs/mac_defconfig
++++ b/arch/m68k/configs/mac_defconfig
+@@ -157,7 +157,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/multi_defconfig
+===================================================================
+--- a/arch/m68k/configs/multi_defconfig
++++ b/arch/m68k/configs/multi_defconfig
+@@ -161,7 +161,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/mvme147_defconfig
+===================================================================
+--- a/arch/m68k/configs/mvme147_defconfig
++++ b/arch/m68k/configs/mvme147_defconfig
+@@ -158,7 +158,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/mvme16x_defconfig
+===================================================================
+--- a/arch/m68k/configs/mvme16x_defconfig
++++ b/arch/m68k/configs/mvme16x_defconfig
+@@ -158,7 +158,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/q40_defconfig
+===================================================================
+--- a/arch/m68k/configs/q40_defconfig
++++ b/arch/m68k/configs/q40_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/sun3_defconfig
+===================================================================
+--- a/arch/m68k/configs/sun3_defconfig
++++ b/arch/m68k/configs/sun3_defconfig
+@@ -153,7 +153,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68k/configs/sun3x_defconfig
+===================================================================
+--- a/arch/m68k/configs/sun3x_defconfig
++++ b/arch/m68k/configs/sun3x_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/m68knommu/configs/m5208evb_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5208evb_defconfig
++++ b/arch/m68knommu/configs/m5208evb_defconfig
+@@ -165,7 +165,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ISA_DMA_API=y
+ 
+ #
+Index: b/arch/m68knommu/configs/m5249evb_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5249evb_defconfig
++++ b/arch/m68knommu/configs/m5249evb_defconfig
+@@ -165,7 +165,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ISA_DMA_API=y
+ 
+ #
+Index: b/arch/m68knommu/configs/m5272c3_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5272c3_defconfig
++++ b/arch/m68knommu/configs/m5272c3_defconfig
+@@ -172,7 +172,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ 
+ #
+ # Executable file formats
+Index: b/arch/m68knommu/configs/m5275evb_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5275evb_defconfig
++++ b/arch/m68knommu/configs/m5275evb_defconfig
+@@ -169,7 +169,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ISA_DMA_API=y
+ 
+ #
+Index: b/arch/m68knommu/configs/m5307c3_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5307c3_defconfig
++++ b/arch/m68knommu/configs/m5307c3_defconfig
+@@ -171,7 +171,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ISA_DMA_API=y
+ 
+ #
+Index: b/arch/m68knommu/configs/m5407c3_defconfig
+===================================================================
+--- a/arch/m68knommu/configs/m5407c3_defconfig
++++ b/arch/m68knommu/configs/m5407c3_defconfig
+@@ -172,7 +172,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_VIRT_TO_BUS=y
+-# CONFIG_UNEVICTABLE_LRU is not set
+ CONFIG_ISA_DMA_API=y
+ 
+ #
+Index: b/arch/mips/configs/cavium-octeon_defconfig
+===================================================================
+--- a/arch/mips/configs/cavium-octeon_defconfig
++++ b/arch/mips/configs/cavium-octeon_defconfig
+@@ -149,7 +149,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_SMP=y
+ CONFIG_SYS_SUPPORTS_SMP=y
+ CONFIG_NR_CPUS_DEFAULT_16=y
+Index: b/arch/mips/configs/fulong_defconfig
+===================================================================
+--- a/arch/mips/configs/fulong_defconfig
++++ b/arch/mips/configs/fulong_defconfig
+@@ -139,7 +139,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_TICK_ONESHOT=y
+ CONFIG_NO_HZ=y
+ CONFIG_HIGH_RES_TIMERS=y
+Index: b/arch/mips/configs/ip22_defconfig
+===================================================================
+--- a/arch/mips/configs/ip22_defconfig
++++ b/arch/mips/configs/ip22_defconfig
+@@ -148,7 +148,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_TICK_ONESHOT=y
+ CONFIG_NO_HZ=y
+ CONFIG_HIGH_RES_TIMERS=y
+Index: b/arch/mips/configs/ip32_defconfig
+===================================================================
+--- a/arch/mips/configs/ip32_defconfig
++++ b/arch/mips/configs/ip32_defconfig
+@@ -136,7 +136,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_NO_HZ is not set
+ # CONFIG_HIGH_RES_TIMERS is not set
+ CONFIG_GENERIC_CLOCKEVENTS_BUILD=y
+Index: b/arch/mips/configs/jmr3927_defconfig
+===================================================================
+--- a/arch/mips/configs/jmr3927_defconfig
++++ b/arch/mips/configs/jmr3927_defconfig
+@@ -132,7 +132,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_NO_HZ is not set
+ # CONFIG_HIGH_RES_TIMERS is not set
+ CONFIG_GENERIC_CLOCKEVENTS_BUILD=y
+Index: b/arch/mips/configs/malta_defconfig
+===================================================================
+--- a/arch/mips/configs/malta_defconfig
++++ b/arch/mips/configs/malta_defconfig
+@@ -164,7 +164,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_SMP=y
+ CONFIG_SMP_UP=y
+ CONFIG_SYS_SUPPORTS_SMP=y
+Index: b/arch/mips/configs/rbtx49xx_defconfig
+===================================================================
+--- a/arch/mips/configs/rbtx49xx_defconfig
++++ b/arch/mips/configs/rbtx49xx_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_TICK_ONESHOT=y
+ CONFIG_NO_HZ=y
+ CONFIG_HIGH_RES_TIMERS=y
+Index: b/arch/mn10300/configs/asb2303_defconfig
+===================================================================
+--- a/arch/mn10300/configs/asb2303_defconfig
++++ b/arch/mn10300/configs/asb2303_defconfig
+@@ -145,7 +145,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=1
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/parisc/configs/712_defconfig
+===================================================================
+--- a/arch/parisc/configs/712_defconfig
++++ b/arch/parisc/configs/712_defconfig
+@@ -154,7 +154,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_HPUX is not set
+ 
+ #
+Index: b/arch/parisc/configs/a500_defconfig
+===================================================================
+--- a/arch/parisc/configs/a500_defconfig
++++ b/arch/parisc/configs/a500_defconfig
+@@ -161,7 +161,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_COMPAT=y
+ CONFIG_NR_CPUS=8
+ 
+Index: b/arch/parisc/configs/b180_defconfig
+===================================================================
+--- a/arch/parisc/configs/b180_defconfig
++++ b/arch/parisc/configs/b180_defconfig
+@@ -140,7 +140,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_HPUX is not set
+ 
+ #
+Index: b/arch/parisc/configs/c3000_defconfig
+===================================================================
+--- a/arch/parisc/configs/c3000_defconfig
++++ b/arch/parisc/configs/c3000_defconfig
+@@ -151,7 +151,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_HPUX is not set
+ 
+ #
+Index: b/arch/parisc/configs/default_defconfig
+===================================================================
+--- a/arch/parisc/configs/default_defconfig
++++ b/arch/parisc/configs/default_defconfig
+@@ -155,7 +155,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4096
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_HPUX is not set
+ 
+ #
+Index: b/arch/powerpc/configs/40x/acadia_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/acadia_defconfig
++++ b/arch/powerpc/configs/40x/acadia_defconfig
+@@ -227,7 +227,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/ep405_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/ep405_defconfig
++++ b/arch/powerpc/configs/40x/ep405_defconfig
+@@ -229,7 +229,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/hcu4_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/hcu4_defconfig
++++ b/arch/powerpc/configs/40x/hcu4_defconfig
+@@ -227,7 +227,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/kilauea_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/kilauea_defconfig
++++ b/arch/powerpc/configs/40x/kilauea_defconfig
+@@ -227,7 +227,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/makalu_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/makalu_defconfig
++++ b/arch/powerpc/configs/40x/makalu_defconfig
+@@ -227,7 +227,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/virtex_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/virtex_defconfig
++++ b/arch/powerpc/configs/40x/virtex_defconfig
+@@ -232,7 +232,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/40x/walnut_defconfig
+===================================================================
+--- a/arch/powerpc/configs/40x/walnut_defconfig
++++ b/arch/powerpc/configs/40x/walnut_defconfig
+@@ -230,7 +230,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/arches_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/arches_defconfig
++++ b/arch/powerpc/configs/44x/arches_defconfig
+@@ -233,7 +233,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/bamboo_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/bamboo_defconfig
++++ b/arch/powerpc/configs/44x/bamboo_defconfig
+@@ -237,7 +237,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/canyonlands_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/canyonlands_defconfig
++++ b/arch/powerpc/configs/44x/canyonlands_defconfig
+@@ -237,7 +237,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/ebony_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/ebony_defconfig
++++ b/arch/powerpc/configs/44x/ebony_defconfig
+@@ -237,7 +237,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/katmai_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/katmai_defconfig
++++ b/arch/powerpc/configs/44x/katmai_defconfig
+@@ -231,7 +231,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/rainier_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/rainier_defconfig
++++ b/arch/powerpc/configs/44x/rainier_defconfig
+@@ -235,7 +235,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/redwood_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/redwood_defconfig
++++ b/arch/powerpc/configs/44x/redwood_defconfig
+@@ -238,7 +238,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/sam440ep_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/sam440ep_defconfig
++++ b/arch/powerpc/configs/44x/sam440ep_defconfig
+@@ -237,7 +237,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/sequoia_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/sequoia_defconfig
++++ b/arch/powerpc/configs/44x/sequoia_defconfig
+@@ -237,7 +237,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/taishan_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/taishan_defconfig
++++ b/arch/powerpc/configs/44x/taishan_defconfig
+@@ -235,7 +235,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/virtex5_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/virtex5_defconfig
++++ b/arch/powerpc/configs/44x/virtex5_defconfig
+@@ -238,7 +238,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/44x/warp_defconfig
+===================================================================
+--- a/arch/powerpc/configs/44x/warp_defconfig
++++ b/arch/powerpc/configs/44x/warp_defconfig
+@@ -234,7 +234,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/52xx/cm5200_defconfig
+===================================================================
+--- a/arch/powerpc/configs/52xx/cm5200_defconfig
++++ b/arch/powerpc/configs/52xx/cm5200_defconfig
+@@ -239,7 +239,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/52xx/lite5200b_defconfig
+===================================================================
+--- a/arch/powerpc/configs/52xx/lite5200b_defconfig
++++ b/arch/powerpc/configs/52xx/lite5200b_defconfig
+@@ -248,7 +248,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/52xx/motionpro_defconfig
+===================================================================
+--- a/arch/powerpc/configs/52xx/motionpro_defconfig
++++ b/arch/powerpc/configs/52xx/motionpro_defconfig
+@@ -240,7 +240,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/52xx/pcm030_defconfig
+===================================================================
+--- a/arch/powerpc/configs/52xx/pcm030_defconfig
++++ b/arch/powerpc/configs/52xx/pcm030_defconfig
+@@ -247,7 +247,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/52xx/tqm5200_defconfig
+===================================================================
+--- a/arch/powerpc/configs/52xx/tqm5200_defconfig
++++ b/arch/powerpc/configs/52xx/tqm5200_defconfig
+@@ -245,7 +245,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/83xx/asp8347_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/asp8347_defconfig
++++ b/arch/powerpc/configs/83xx/asp8347_defconfig
+@@ -244,7 +244,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc8313_rdb_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc8313_rdb_defconfig
++++ b/arch/powerpc/configs/83xx/mpc8313_rdb_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc8315_rdb_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc8315_rdb_defconfig
++++ b/arch/powerpc/configs/83xx/mpc8315_rdb_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc832x_mds_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc832x_mds_defconfig
++++ b/arch/powerpc/configs/83xx/mpc832x_mds_defconfig
+@@ -244,7 +244,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc832x_rdb_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc832x_rdb_defconfig
++++ b/arch/powerpc/configs/83xx/mpc832x_rdb_defconfig
+@@ -244,7 +244,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc834x_itx_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc834x_itx_defconfig
++++ b/arch/powerpc/configs/83xx/mpc834x_itx_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc834x_itxgp_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc834x_itxgp_defconfig
++++ b/arch/powerpc/configs/83xx/mpc834x_itxgp_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc834x_mds_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc834x_mds_defconfig
++++ b/arch/powerpc/configs/83xx/mpc834x_mds_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc836x_mds_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc836x_mds_defconfig
++++ b/arch/powerpc/configs/83xx/mpc836x_mds_defconfig
+@@ -242,7 +242,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc836x_rdk_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc836x_rdk_defconfig
++++ b/arch/powerpc/configs/83xx/mpc836x_rdk_defconfig
+@@ -242,7 +242,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc837x_mds_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc837x_mds_defconfig
++++ b/arch/powerpc/configs/83xx/mpc837x_mds_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/mpc837x_rdb_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/mpc837x_rdb_defconfig
++++ b/arch/powerpc/configs/83xx/mpc837x_rdb_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/83xx/sbc834x_defconfig
+===================================================================
+--- a/arch/powerpc/configs/83xx/sbc834x_defconfig
++++ b/arch/powerpc/configs/83xx/sbc834x_defconfig
+@@ -241,7 +241,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/ksi8560_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/ksi8560_defconfig
++++ b/arch/powerpc/configs/85xx/ksi8560_defconfig
+@@ -230,7 +230,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/mpc8540_ads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/mpc8540_ads_defconfig
++++ b/arch/powerpc/configs/85xx/mpc8540_ads_defconfig
+@@ -232,7 +232,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/mpc8560_ads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/mpc8560_ads_defconfig
++++ b/arch/powerpc/configs/85xx/mpc8560_ads_defconfig
+@@ -235,7 +235,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/mpc85xx_cds_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/mpc85xx_cds_defconfig
++++ b/arch/powerpc/configs/85xx/mpc85xx_cds_defconfig
+@@ -233,7 +233,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/sbc8548_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/sbc8548_defconfig
++++ b/arch/powerpc/configs/85xx/sbc8548_defconfig
+@@ -230,7 +230,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/sbc8560_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/sbc8560_defconfig
++++ b/arch/powerpc/configs/85xx/sbc8560_defconfig
+@@ -230,7 +230,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/stx_gp3_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/stx_gp3_defconfig
++++ b/arch/powerpc/configs/85xx/stx_gp3_defconfig
+@@ -240,7 +240,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/tqm8540_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/tqm8540_defconfig
++++ b/arch/powerpc/configs/85xx/tqm8540_defconfig
+@@ -231,7 +231,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/tqm8541_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/tqm8541_defconfig
++++ b/arch/powerpc/configs/85xx/tqm8541_defconfig
+@@ -234,7 +234,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/tqm8548_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/tqm8548_defconfig
++++ b/arch/powerpc/configs/85xx/tqm8548_defconfig
+@@ -245,7 +245,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/tqm8555_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/tqm8555_defconfig
++++ b/arch/powerpc/configs/85xx/tqm8555_defconfig
+@@ -234,7 +234,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/85xx/tqm8560_defconfig
+===================================================================
+--- a/arch/powerpc/configs/85xx/tqm8560_defconfig
++++ b/arch/powerpc/configs/85xx/tqm8560_defconfig
+@@ -234,7 +234,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/gef_ppc9a_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/gef_ppc9a_defconfig
++++ b/arch/powerpc/configs/86xx/gef_ppc9a_defconfig
+@@ -249,7 +249,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/gef_sbc310_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/gef_sbc310_defconfig
++++ b/arch/powerpc/configs/86xx/gef_sbc310_defconfig
+@@ -244,7 +244,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/gef_sbc610_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/gef_sbc610_defconfig
++++ b/arch/powerpc/configs/86xx/gef_sbc610_defconfig
+@@ -243,7 +243,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/mpc8610_hpcd_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/mpc8610_hpcd_defconfig
++++ b/arch/powerpc/configs/86xx/mpc8610_hpcd_defconfig
+@@ -237,7 +237,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/mpc8641_hpcn_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/mpc8641_hpcn_defconfig
++++ b/arch/powerpc/configs/86xx/mpc8641_hpcn_defconfig
+@@ -244,7 +244,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/86xx/sbc8641d_defconfig
+===================================================================
+--- a/arch/powerpc/configs/86xx/sbc8641d_defconfig
++++ b/arch/powerpc/configs/86xx/sbc8641d_defconfig
+@@ -242,7 +242,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/adder875_defconfig
+===================================================================
+--- a/arch/powerpc/configs/adder875_defconfig
++++ b/arch/powerpc/configs/adder875_defconfig
+@@ -232,7 +232,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/amigaone_defconfig
+===================================================================
+--- a/arch/powerpc/configs/amigaone_defconfig
++++ b/arch/powerpc/configs/amigaone_defconfig
+@@ -240,7 +240,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/c2k_defconfig
+===================================================================
+--- a/arch/powerpc/configs/c2k_defconfig
++++ b/arch/powerpc/configs/c2k_defconfig
+@@ -267,7 +267,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/chrp32_defconfig
+===================================================================
+--- a/arch/powerpc/configs/chrp32_defconfig
++++ b/arch/powerpc/configs/chrp32_defconfig
+@@ -237,7 +237,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_FORCE_MAX_ZONEORDER=11
+ CONFIG_PROC_DEVICETREE=y
+ # CONFIG_CMDLINE_BOOL is not set
+Index: b/arch/powerpc/configs/ep8248e_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ep8248e_defconfig
++++ b/arch/powerpc/configs/ep8248e_defconfig
+@@ -221,7 +221,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/ep88xc_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ep88xc_defconfig
++++ b/arch/powerpc/configs/ep88xc_defconfig
+@@ -232,7 +232,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/g5_defconfig
+===================================================================
+--- a/arch/powerpc/configs/g5_defconfig
++++ b/arch/powerpc/configs/g5_defconfig
+@@ -266,7 +266,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_PPC_HAS_HASH_64K is not set
+ # CONFIG_PPC_64K_PAGES is not set
+ CONFIG_FORCE_MAX_ZONEORDER=13
+Index: b/arch/powerpc/configs/iseries_defconfig
+===================================================================
+--- a/arch/powerpc/configs/iseries_defconfig
++++ b/arch/powerpc/configs/iseries_defconfig
+@@ -249,7 +249,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_PPC_HAS_HASH_64K is not set
+ # CONFIG_PPC_64K_PAGES is not set
+ CONFIG_FORCE_MAX_ZONEORDER=13
+Index: b/arch/powerpc/configs/linkstation_defconfig
+===================================================================
+--- a/arch/powerpc/configs/linkstation_defconfig
++++ b/arch/powerpc/configs/linkstation_defconfig
+@@ -249,7 +249,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/maple_defconfig
+===================================================================
+--- a/arch/powerpc/configs/maple_defconfig
++++ b/arch/powerpc/configs/maple_defconfig
+@@ -245,7 +245,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ # CONFIG_PPC_HAS_HASH_64K is not set
+ # CONFIG_PPC_64K_PAGES is not set
+ CONFIG_FORCE_MAX_ZONEORDER=13
+Index: b/arch/powerpc/configs/mgcoge_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mgcoge_defconfig
++++ b/arch/powerpc/configs/mgcoge_defconfig
+@@ -230,7 +230,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mgsuvd_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mgsuvd_defconfig
++++ b/arch/powerpc/configs/mgsuvd_defconfig
+@@ -231,7 +231,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc5200_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc5200_defconfig
++++ b/arch/powerpc/configs/mpc5200_defconfig
+@@ -249,7 +249,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/mpc7448_hpc2_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc7448_hpc2_defconfig
++++ b/arch/powerpc/configs/mpc7448_hpc2_defconfig
+@@ -229,7 +229,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc8272_ads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc8272_ads_defconfig
++++ b/arch/powerpc/configs/mpc8272_ads_defconfig
+@@ -224,7 +224,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc83xx_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc83xx_defconfig
++++ b/arch/powerpc/configs/mpc83xx_defconfig
+@@ -250,7 +250,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc85xx_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc85xx_defconfig
++++ b/arch/powerpc/configs/mpc85xx_defconfig
+@@ -260,7 +260,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/mpc85xx_smp_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc85xx_smp_defconfig
++++ b/arch/powerpc/configs/mpc85xx_smp_defconfig
+@@ -264,7 +264,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/mpc866_ads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc866_ads_defconfig
++++ b/arch/powerpc/configs/mpc866_ads_defconfig
+@@ -231,7 +231,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc86xx_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc86xx_defconfig
++++ b/arch/powerpc/configs/mpc86xx_defconfig
+@@ -246,7 +246,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/mpc885_ads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/mpc885_ads_defconfig
++++ b/arch/powerpc/configs/mpc885_ads_defconfig
+@@ -239,7 +239,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/pmac32_defconfig
+===================================================================
+--- a/arch/powerpc/configs/pmac32_defconfig
++++ b/arch/powerpc/configs/pmac32_defconfig
+@@ -255,7 +255,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_FORCE_MAX_ZONEORDER=11
+ CONFIG_PROC_DEVICETREE=y
+ # CONFIG_CMDLINE_BOOL is not set
+Index: b/arch/powerpc/configs/ppc40x_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ppc40x_defconfig
++++ b/arch/powerpc/configs/ppc40x_defconfig
+@@ -237,7 +237,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/ppc44x_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ppc44x_defconfig
++++ b/arch/powerpc/configs/ppc44x_defconfig
+@@ -249,7 +249,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/ppc64_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ppc64_defconfig
++++ b/arch/powerpc/configs/ppc64_defconfig
+@@ -353,7 +353,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ARCH_MEMORY_PROBE=y
+ CONFIG_PPC_HAS_HASH_64K=y
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/ppc6xx_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ppc6xx_defconfig
++++ b/arch/powerpc/configs/ppc6xx_defconfig
+@@ -326,7 +326,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_FORCE_MAX_ZONEORDER=11
+ CONFIG_PROC_DEVICETREE=y
+ # CONFIG_CMDLINE_BOOL is not set
+Index: b/arch/powerpc/configs/pq2fads_defconfig
+===================================================================
+--- a/arch/powerpc/configs/pq2fads_defconfig
++++ b/arch/powerpc/configs/pq2fads_defconfig
+@@ -224,7 +224,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/prpmc2800_defconfig
+===================================================================
+--- a/arch/powerpc/configs/prpmc2800_defconfig
++++ b/arch/powerpc/configs/prpmc2800_defconfig
+@@ -236,7 +236,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/ps3_defconfig
+===================================================================
+--- a/arch/powerpc/configs/ps3_defconfig
++++ b/arch/powerpc/configs/ps3_defconfig
+@@ -278,7 +278,6 @@ CONFIG_MIGRATION=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_ARCH_MEMORY_PROBE=y
+ CONFIG_PPC_HAS_HASH_64K=y
+ CONFIG_PPC_4K_PAGES=y
+Index: b/arch/powerpc/configs/pseries_defconfig
+===================================================================
+--- a/arch/powerpc/configs/pseries_defconfig
++++ b/arch/powerpc/configs/pseries_defconfig
+@@ -278,7 +278,6 @@ CONFIG_RESOURCES_64BIT=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_NODES_SPAN_OTHER_NODES=y
+ # CONFIG_PPC_HAS_HASH_64K is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/powerpc/configs/storcenter_defconfig
+===================================================================
+--- a/arch/powerpc/configs/storcenter_defconfig
++++ b/arch/powerpc/configs/storcenter_defconfig
+@@ -238,7 +238,6 @@ CONFIG_MIGRATION=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_PPC_4K_PAGES=y
+ # CONFIG_PPC_16K_PAGES is not set
+ # CONFIG_PPC_64K_PAGES is not set
+Index: b/arch/s390/defconfig
+===================================================================
+--- a/arch/s390/defconfig
++++ b/arch/s390/defconfig
+@@ -218,7 +218,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/ap325rxa_defconfig
+===================================================================
+--- a/arch/sh/configs/ap325rxa_defconfig
++++ b/arch/sh/configs/ap325rxa_defconfig
+@@ -208,7 +208,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/cayman_defconfig
+===================================================================
+--- a/arch/sh/configs/cayman_defconfig
++++ b/arch/sh/configs/cayman_defconfig
+@@ -172,7 +172,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/dreamcast_defconfig
+===================================================================
+--- a/arch/sh/configs/dreamcast_defconfig
++++ b/arch/sh/configs/dreamcast_defconfig
+@@ -210,7 +210,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/edosk7705_defconfig
+===================================================================
+--- a/arch/sh/configs/edosk7705_defconfig
++++ b/arch/sh/configs/edosk7705_defconfig
+@@ -166,7 +166,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/edosk7760_defconfig
+===================================================================
+--- a/arch/sh/configs/edosk7760_defconfig
++++ b/arch/sh/configs/edosk7760_defconfig
+@@ -209,7 +209,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/espt_defconfig
+===================================================================
+--- a/arch/sh/configs/espt_defconfig
++++ b/arch/sh/configs/espt_defconfig
+@@ -215,7 +215,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/hp6xx_defconfig
+===================================================================
+--- a/arch/sh/configs/hp6xx_defconfig
++++ b/arch/sh/configs/hp6xx_defconfig
+@@ -192,7 +192,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/landisk_defconfig
+===================================================================
+--- a/arch/sh/configs/landisk_defconfig
++++ b/arch/sh/configs/landisk_defconfig
+@@ -201,7 +201,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/lboxre2_defconfig
+===================================================================
+--- a/arch/sh/configs/lboxre2_defconfig
++++ b/arch/sh/configs/lboxre2_defconfig
+@@ -201,7 +201,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/magicpanelr2_defconfig
+===================================================================
+--- a/arch/sh/configs/magicpanelr2_defconfig
++++ b/arch/sh/configs/magicpanelr2_defconfig
+@@ -207,7 +207,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/microdev_defconfig
+===================================================================
+--- a/arch/sh/configs/microdev_defconfig
++++ b/arch/sh/configs/microdev_defconfig
+@@ -204,7 +204,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/migor_defconfig
+===================================================================
+--- a/arch/sh/configs/migor_defconfig
++++ b/arch/sh/configs/migor_defconfig
+@@ -217,7 +217,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/polaris_defconfig
+===================================================================
+--- a/arch/sh/configs/polaris_defconfig
++++ b/arch/sh/configs/polaris_defconfig
+@@ -208,7 +208,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/r7780mp_defconfig
+===================================================================
+--- a/arch/sh/configs/r7780mp_defconfig
++++ b/arch/sh/configs/r7780mp_defconfig
+@@ -222,7 +222,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/r7785rp_defconfig
+===================================================================
+--- a/arch/sh/configs/r7785rp_defconfig
++++ b/arch/sh/configs/r7785rp_defconfig
+@@ -232,7 +232,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/rsk7201_defconfig
+===================================================================
+--- a/arch/sh/configs/rsk7201_defconfig
++++ b/arch/sh/configs/rsk7201_defconfig
+@@ -201,7 +201,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ 
+ #
+ # Cache configuration
+Index: b/arch/sh/configs/rsk7203_defconfig
+===================================================================
+--- a/arch/sh/configs/rsk7203_defconfig
++++ b/arch/sh/configs/rsk7203_defconfig
+@@ -208,7 +208,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ 
+ #
+ # Cache configuration
+Index: b/arch/sh/configs/rts7751r2d1_defconfig
+===================================================================
+--- a/arch/sh/configs/rts7751r2d1_defconfig
++++ b/arch/sh/configs/rts7751r2d1_defconfig
+@@ -203,7 +203,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/rts7751r2dplus_defconfig
+===================================================================
+--- a/arch/sh/configs/rts7751r2dplus_defconfig
++++ b/arch/sh/configs/rts7751r2dplus_defconfig
+@@ -203,7 +203,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sdk7780_defconfig
+===================================================================
+--- a/arch/sh/configs/sdk7780_defconfig
++++ b/arch/sh/configs/sdk7780_defconfig
+@@ -218,7 +218,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7206_defconfig
+===================================================================
+--- a/arch/sh/configs/se7206_defconfig
++++ b/arch/sh/configs/se7206_defconfig
+@@ -220,7 +220,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ 
+ #
+ # Cache configuration
+Index: b/arch/sh/configs/se7343_defconfig
+===================================================================
+--- a/arch/sh/configs/se7343_defconfig
++++ b/arch/sh/configs/se7343_defconfig
+@@ -207,7 +207,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7619_defconfig
+===================================================================
+--- a/arch/sh/configs/se7619_defconfig
++++ b/arch/sh/configs/se7619_defconfig
+@@ -181,7 +181,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ 
+ #
+ # Cache configuration
+Index: b/arch/sh/configs/se7705_defconfig
+===================================================================
+--- a/arch/sh/configs/se7705_defconfig
++++ b/arch/sh/configs/se7705_defconfig
+@@ -198,7 +198,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7712_defconfig
+===================================================================
+--- a/arch/sh/configs/se7712_defconfig
++++ b/arch/sh/configs/se7712_defconfig
+@@ -200,7 +200,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7721_defconfig
+===================================================================
+--- a/arch/sh/configs/se7721_defconfig
++++ b/arch/sh/configs/se7721_defconfig
+@@ -204,7 +204,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7722_defconfig
+===================================================================
+--- a/arch/sh/configs/se7722_defconfig
++++ b/arch/sh/configs/se7722_defconfig
+@@ -226,7 +226,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7750_defconfig
+===================================================================
+--- a/arch/sh/configs/se7750_defconfig
++++ b/arch/sh/configs/se7750_defconfig
+@@ -200,7 +200,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7751_defconfig
+===================================================================
+--- a/arch/sh/configs/se7751_defconfig
++++ b/arch/sh/configs/se7751_defconfig
+@@ -203,7 +203,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/se7780_defconfig
+===================================================================
+--- a/arch/sh/configs/se7780_defconfig
++++ b/arch/sh/configs/se7780_defconfig
+@@ -200,7 +200,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh03_defconfig
+===================================================================
+--- a/arch/sh/configs/sh03_defconfig
++++ b/arch/sh/configs/sh03_defconfig
+@@ -210,7 +210,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh7710voipgw_defconfig
+===================================================================
+--- a/arch/sh/configs/sh7710voipgw_defconfig
++++ b/arch/sh/configs/sh7710voipgw_defconfig
+@@ -203,7 +203,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh7724_generic_defconfig
+===================================================================
+--- a/arch/sh/configs/sh7724_generic_defconfig
++++ b/arch/sh/configs/sh7724_generic_defconfig
+@@ -215,7 +215,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh7763rdp_defconfig
+===================================================================
+--- a/arch/sh/configs/sh7763rdp_defconfig
++++ b/arch/sh/configs/sh7763rdp_defconfig
+@@ -215,7 +215,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh7785lcr_32bit_defconfig
+===================================================================
+--- a/arch/sh/configs/sh7785lcr_32bit_defconfig
++++ b/arch/sh/configs/sh7785lcr_32bit_defconfig
+@@ -224,7 +224,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/sh7785lcr_defconfig
+===================================================================
+--- a/arch/sh/configs/sh7785lcr_defconfig
++++ b/arch/sh/configs/sh7785lcr_defconfig
+@@ -217,7 +217,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/shmin_defconfig
+===================================================================
+--- a/arch/sh/configs/shmin_defconfig
++++ b/arch/sh/configs/shmin_defconfig
+@@ -186,7 +186,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/shx3_defconfig
+===================================================================
+--- a/arch/sh/configs/shx3_defconfig
++++ b/arch/sh/configs/shx3_defconfig
+@@ -249,7 +249,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/snapgear_defconfig
+===================================================================
+--- a/arch/sh/configs/snapgear_defconfig
++++ b/arch/sh/configs/snapgear_defconfig
+@@ -198,7 +198,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/systemh_defconfig
+===================================================================
+--- a/arch/sh/configs/systemh_defconfig
++++ b/arch/sh/configs/systemh_defconfig
+@@ -200,7 +200,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/titan_defconfig
+===================================================================
+--- a/arch/sh/configs/titan_defconfig
++++ b/arch/sh/configs/titan_defconfig
+@@ -208,7 +208,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/ul2_defconfig
+===================================================================
+--- a/arch/sh/configs/ul2_defconfig
++++ b/arch/sh/configs/ul2_defconfig
+@@ -226,7 +226,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sh/configs/urquell_defconfig
+===================================================================
+--- a/arch/sh/configs/urquell_defconfig
++++ b/arch/sh/configs/urquell_defconfig
+@@ -216,7 +216,6 @@ CONFIG_MIGRATION=y
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=2
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ 
+Index: b/arch/sparc/configs/sparc32_defconfig
+===================================================================
+--- a/arch/sparc/configs/sparc32_defconfig
++++ b/arch/sparc/configs/sparc32_defconfig
+@@ -154,7 +154,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_SUN_PM=y
+Index: b/arch/sparc/configs/sparc64_defconfig
+===================================================================
+--- a/arch/sparc/configs/sparc64_defconfig
++++ b/arch/sparc/configs/sparc64_defconfig
+@@ -199,7 +199,6 @@ CONFIG_MIGRATION=y
+ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=0
+ CONFIG_NR_QUICK=1
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HAVE_MLOCK=y
+ CONFIG_HAVE_MLOCKED_PAGE_BIT=y
+ CONFIG_SCHED_SMT=y
+Index: b/arch/x86/configs/i386_defconfig
+===================================================================
+--- a/arch/x86/configs/i386_defconfig
++++ b/arch/x86/configs/i386_defconfig
+@@ -301,7 +301,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_HIGHPTE=y
+ CONFIG_X86_CHECK_BIOS_CORRUPTION=y
+ CONFIG_X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK=y
+Index: b/arch/x86/configs/x86_64_defconfig
+===================================================================
+--- a/arch/x86/configs/x86_64_defconfig
++++ b/arch/x86/configs/x86_64_defconfig
+@@ -307,7 +307,6 @@ CONFIG_PHYS_ADDR_T_64BIT=y
+ CONFIG_ZONE_DMA_FLAG=1
+ CONFIG_BOUNCE=y
+ CONFIG_VIRT_TO_BUS=y
+-CONFIG_UNEVICTABLE_LRU=y
+ CONFIG_X86_CHECK_BIOS_CORRUPTION=y
+ CONFIG_X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK=y
+ CONFIG_X86_RESERVE_LOW_64K=y
 
 
 --
