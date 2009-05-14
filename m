@@ -1,42 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DBCB6B0055
-	for <linux-mm@kvack.org>; Thu, 14 May 2009 15:32:46 -0400 (EDT)
-Subject: Re: [PATCH] Physical Memory Management [0/1]
-From: Andi Kleen <andi@firstfloor.org>
-References: <op.utu26hq77p4s8u@amdc030>
-	<20090513151142.5d166b92.akpm@linux-foundation.org>
-	<op.utwwmpsf7p4s8u@amdc030> <1242300002.6642.1091.camel@laptop>
-	<op.utw4fdhz7p4s8u@amdc030>
-Date: Thu, 14 May 2009 21:33:11 +0200
-In-Reply-To: <op.utw4fdhz7p4s8u@amdc030> (=?iso-8859-1?Q?Micha=E2?=
- Nazarewicz's message of "Thu, 14 May 2009 13:48:39 +0200")
-Message-ID: <87skj7pjig.fsf@basil.nowhere.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 127146B005A
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 15:51:50 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8B1FF82C380
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 16:05:25 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 2jBt7lwxUOIw for <linux-mm@kvack.org>;
+	Thu, 14 May 2009 16:05:20 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4612882C37D
+	for <linux-mm@kvack.org>; Thu, 14 May 2009 16:05:16 -0400 (EDT)
+Date: Thu, 14 May 2009 15:52:27 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 1/4] vmscan: change the number of the unmapped files in
+ zone reclaim
+In-Reply-To: <20090513120606.587C.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0905141551390.1381@qirst.com>
+References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120606.587C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: =?iso-8859-1?Q?Micha=E2?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Michaa Nazarewicz <m.nazarewicz@samsung.com> writes:
->
-> The idea here is that there are n hardware accelerators, each
-> can operate on 1MiB blocks (to simplify assume that's the case).
 
-You could just define a hugepage size for that and use hugetlbfs
-with a few changes to map in pages with multiple PTEs.
-It supports boot time reservation and is a well established
-interface.
 
-On x86 that would give 2MB units, on other architectures whatever
-you prefer.
+Yup, the use of NR_FILE_PAGES there predates the INACTIVE/ACTIVE stats.
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
