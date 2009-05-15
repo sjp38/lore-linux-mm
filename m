@@ -1,61 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 402B06B004D
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 04:08:47 -0400 (EDT)
-Subject: Re: kernel BUG at mm/slqb.c:1411!
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090515083726.F5BF.A69D9226@jp.fujitsu.com>
-References: <1242289830.21646.5.camel@penberg-laptop>
-	 <20090514175332.9B7B.A69D9226@jp.fujitsu.com>
-	 <20090515083726.F5BF.A69D9226@jp.fujitsu.com>
-Date: Fri, 15 May 2009 11:08:51 +0300
-Message-Id: <1242374931.21646.30.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0406B0055
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 05:35:24 -0400 (EDT)
+Date: Fri, 15 May 2009 11:35:55 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: do we really want to export more pdflush details in sysctls
+Message-ID: <20090515093554.GX4140@kernel.dk>
+References: <20090513130128.GA10382@lst.de> <20090513130811.GE4140@kernel.dk> <1242225024.19182.174.camel@hermosa>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1242225024.19182.174.camel@hermosa>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, matthew.r.wilcox@intel.com
+To: "Peter W. Morreale" <pmorreale@novell.com>
+Cc: Christoph Hellwig <hch@lst.de>, torvalds@osdl.org, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Motohiro-san,
-
-On Wed, 2009-05-13 at 17:37 +0900, Minchan Kim wrote:
-> > > > On Wed, 13 May 2009 16:42:37 +0900 (JST)
-> > > > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > > > 
-> > > > Hmm. I don't know slqb well.
-> > > > So, It's just my guess. 
-> > > > 
-> > > > We surely increase l->nr_partial in  __slab_alloc_page.
-> > > > In between l->nr_partial++ and call __cache_list_get_page, Who is decrease l->nr_partial again.
-> > > > After all, __cache_list_get_page return NULL and hit the VM_BUG_ON.
-> > > > 
-> > > > Comment said :
-> > > > 
-> > > >         /* Protects nr_partial, nr_slabs, and partial */
-> > > >   spinlock_t    page_lock;
-> > > > 
-> > > > As comment is right, We have to hold the l->page_lock ?
+On Wed, May 13 2009, Peter W. Morreale wrote:
+> On Wed, 2009-05-13 at 15:08 +0200, Jens Axboe wrote:
+> > On Wed, May 13 2009, Christoph Hellwig wrote:
+> > > Hi all,
 > > > 
-> > > Makes sense. Nick? Motohiro-san, can you try this patch please?
+> > > commit fafd688e4c0c34da0f3de909881117d374e4c7af titled
+> > > "mm: add /proc controls for pdflush threads" adds two more sysctl
+> > > variables exposing details about pdflush threads.  At the same time
+> > > Jens Axboe is working on the per-bdi writeback patchset which will
+> > > hopefull soon get rid of the pdflush threads in their current form.
+> > > 
+> > > Is it really a good idea to expose more details now or should we revert
+> > > this patch before 2.6.30 is out?
 > > 
-> > This issue is very rarely. please give me one night.
-
-On Fri, 2009-05-15 at 08:38 +0900, KOSAKI Motohiro wrote:
-> -ENOTREPRODUCED
+> > Pained me as well when updating the patchset. I see little value in
+> > these knobs as it is, I'm imagining that the submitter must have had a
+> > use case where it made some difference?
+> > 
 > 
-> I guess your patch is right fix. thanks!
+> No, I didn't.  The rational was as explained in the commit log, merely
+> that one size (eg: 2-8 threads) didn't fit all cases, so give the admin
+> a chance at tuning w/o having to recompile.  
 
-Thank you so much for testing!
+OK. In general I think it's a pretty bad idea to add such knobs before
+there are specific use cases, as we have to maintain them forever. I
+didn't track where this patch came from, I just spotted it in mainline
+during the merge window.
 
-Nick seems to have gone silent for the past few days so I went ahead and
-merged the patch.
+> More importantly, I didn't know that Jens was working on significant
+> changes to writeback.  This is sorely needed as from what I see in the
+> code, writeback is very unfair to 'fast' block devices (when both 'fast'
+> and 'slow' devices co-exist), and consequently, the apps that reference
+> them.  
+> 
+> Jens: When do you expect to complete the per-bdi patchset?
 
-Did you have CONFIG_PROVE_LOCKING enabled, btw? I think I got the lock
-order correct but I don't have a NUMA machine to test it with here.
+Sooner rather than later. I've been working on it the past few days, I
+needed to make some fundemental changes to support WB_SYNC_ALL and
+sync(1) properly, unfortunately. I'll be posting an updated patchset
+early next week.
 
-			Pekka
+> In any event, it is not a good idea to expose knobs that will soon be
+> obviated so please pull the patch. 
+
+Good, I have reverted the commit in my for-linus branch and will be
+asking Linus to pull that soonish.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
