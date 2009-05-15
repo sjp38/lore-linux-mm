@@ -1,46 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7CE5D6B0055
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 14:00:23 -0400 (EDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 11/11] mm: Convert #ifdef DEBUG printk(KERN_DEBUG to pr_debug(
-Date: Fri, 15 May 2009 10:59:45 -0700
-Message-Id: <d2d789905b3ec219d015729a162be7707564fb67.1242407227.git.joe@perches.com>
-In-Reply-To: <cover.1242407227.git.joe@perches.com>
-References: <cover.1242407227.git.joe@perches.com>
-In-Reply-To: <cover.1242407227.git.joe@perches.com>
-References: <cover.1242407227.git.joe@perches.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DBD4B6B005D
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 14:02:05 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B1F5182C2B0
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 14:14:48 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id dDvzsvyNC8+1 for <linux-mm@kvack.org>;
+	Fri, 15 May 2009 14:14:44 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9F7FF82C339
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 14:14:39 -0400 (EDT)
+Date: Fri, 15 May 2009 14:01:45 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+In-Reply-To: <20090515082836.F5B9.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0905151401040.26559@qirst.com>
+References: <20090513152256.GM7601@sgi.com> <alpine.DEB.1.10.0905141602010.1381@qirst.com> <20090515082836.F5B9.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, James Morris <jmorris@namei.org>, David Rientjes <rientjes@google.com>, Serge Hallyn <serue@us.ibm.com>, David Howells <dhowells@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Joe Perches <joe@perches.com>
+On Fri, 15 May 2009, KOSAKI Motohiro wrote:
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/oom_kill.c |    6 ++----
- 1 files changed, 2 insertions(+), 4 deletions(-)
+> How about this?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 92bcf1d..8f7fb51 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -159,10 +159,8 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
- 			points >>= -(p->oomkilladj);
- 	}
- 
--#ifdef DEBUG
--	printk(KERN_DEBUG "OOMkill: task %d (%s) got %lu points\n",
--	p->pid, p->comm, points);
--#endif
-+	pr_debug("OOMkill: task %d (%s) got %lu points\n",
-+		 p->pid, p->comm, points);
- 	return points;
- }
- 
--- 
-1.6.3.1.9.g95405b.dirty
+Rewiewed-by: Christoph Lameter <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
