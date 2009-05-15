@@ -1,100 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6DDF26B005C
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 11:20:15 -0400 (EDT)
-Message-Id: <6.2.5.6.2.20090515110119.0588e120@binnacle.cx>
-Date: Fri, 15 May 2009 11:02:02 -0400
-From: starlight@binnacle.cx
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of
-  process with hugepage shared memory segments attached
-In-Reply-To: <20090515145502.GA9032@csn.ul.ie>
-References: <6.2.5.6.2.20090515012125.057a9c88@binnacle.cx>
- <20090515145502.GA9032@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 74ED76B005C
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 11:21:34 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so988540yxh.26
+        for <linux-mm@kvack.org>; Fri, 15 May 2009 08:21:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1242374931.21646.30.camel@penberg-laptop>
+References: <1242289830.21646.5.camel@penberg-laptop>
+	 <20090514175332.9B7B.A69D9226@jp.fujitsu.com>
+	 <20090515083726.F5BF.A69D9226@jp.fujitsu.com>
+	 <1242374931.21646.30.camel@penberg-laptop>
+Date: Sat, 16 May 2009 00:21:42 +0900
+Message-ID: <2f11576a0905150821m5c602ef7g996766ae5d7f0141@mail.gmail.com>
+Subject: Re: kernel BUG at mm/slqb.c:1411!
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, matthew.r.wilcox@intel.com
 List-ID: <linux-mm.kvack.org>
 
-At 03:55 PM 5/15/2009 +0100, Mel Gorman wrote:
->On Fri, May 15, 2009 at 01:32:38AM -0400, starlight@binnacle.cx 
->wrote:
->> Whacked at a this, attempting to build a testcase from a 
->> combination of the original daemon strace in the bug report
->> and knowledge of what the daemon is doing.
->> 
->> What emerged is something that will destroy RHEL5 
->> 2.6.18-128.1.6.el5 100% every time.  Completely fills the kernel
->> message log with "bad pmd" errors and wrecks hugepages.
+2009/5/15 Pekka Enberg <penberg@cs.helsinki.fi>:
+> Hi Motohiro-san,
 >
->Ok, I can confirm that more or less. I reproduced the problem on 
->2.6.18-92.el5 on x86-64 running RHEL 5.2. I didn't have access 
->to a machine with enough memory though so I dropped the 
->requirements slightly. It still triggered a failure though.
+> On Wed, 2009-05-13 at 17:37 +0900, Minchan Kim wrote:
+>> > > > On Wed, 13 May 2009 16:42:37 +0900 (JST)
+>> > > > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> > > >
+>> > > > Hmm. I don't know slqb well.
+>> > > > So, It's just my guess.
+>> > > >
+>> > > > We surely increase l->nr_partial in =A0__slab_alloc_page.
+>> > > > In between l->nr_partial++ and call __cache_list_get_page, Who is =
+decrease l->nr_partial again.
+>> > > > After all, __cache_list_get_page return NULL and hit the VM_BUG_ON=
+.
+>> > > >
+>> > > > Comment said :
+>> > > >
+>> > > > =A0 =A0 =A0 =A0 /* Protects nr_partial, nr_slabs, and partial */
+>> > > > =A0 spinlock_t =A0 =A0page_lock;
+>> > > >
+>> > > > As comment is right, We have to hold the l->page_lock ?
+>> > >
+>> > > Makes sense. Nick? Motohiro-san, can you try this patch please?
+>> >
+>> > This issue is very rarely. please give me one night.
 >
->However, when I ran 2.6.18, 2.6.19 and 2.6.29.1 on the same 
->machine, I could not reproduce the problem, nor could I cause 
->hugepages to leak so I'm leaning towards believing this is a 
->distribution bug at the moment.
->
->On the plus side, due to your good work, there is enough 
->available for them to bisect this problem hopefully.
-
-Good to hear that the testcase works on other machines.
-
->> Unfortunately it only occasionally breaks 2.6.29.1.  Haven't
->> been able to produce "bad pmd" messages, but did get the
->> kernel to think it's out of large page memory when in
->> theory it was not.  Saw a lot of really strange accounting
->> in the hugepage section of /proc/meminfo.
+> On Fri, 2009-05-15 at 08:38 +0900, KOSAKI Motohiro wrote:
+>> -ENOTREPRODUCED
 >>
-
->What sort of strange accounting? The accounting has changed 
->since 2.6.18 so I want to be sure you're really seeing something 
->weird. When I was testing, I didn't see anything out of the 
->ordinary but maybe I'm looking in a different place.
-
-Saw things like both free and used set to zero, used set to 2048 
-when it should not have been (in association with the failure).  
-Often the counters would correct themselves after segments were 
-removed with 'ipcs'.  Sometimes not--usually when it broke.  
-Also saw some truly insane usage counts like 32520 and less 
-egregious off-by-one-or-two inaccuracies.
-
->> For what it's worth, the testcase code is attached.
->> 
->I cleaned the test up a bit and wrote a wrapper script to run 
->this multiple times while checking for hugepage leaks. I've it 
->running in a loop while the machine runs sysbench as a stress 
->test to see can I cause anything out of the ordinary to happen. 
->Nothing so far though.
+>> I guess your patch is right fix. thanks!
 >
->> Note that hugepages=2048 is assumed--the bug seems to require 
->> use of more than 50% of large page memory.
->> 
->> Definately will be posted under the RHEL5 bug report, which is 
->> the more pressing issue here than far-future kernel support.
->> 
->If you've filed a RedHat bug, this modified testcase and wrapper 
->script might help them. The program exists and cleans up after 
->itself and the memory requirements are less. The script sets the 
->machine up in a way that breaks for me where the breakage is bad 
->pmd messages and hugepages leaking.
+> Thank you so much for testing!
+>
+> Nick seems to have gone silent for the past few days so I went ahead and
+> merged the patch.
+>
+> Did you have CONFIG_PROVE_LOCKING enabled, btw? I think I got the lock
+> order correct but I don't have a NUMA machine to test it with here.
 
-Thank you for your efforts.  Could you post to the RH bug along 
-with a back-reference to this?  Might improve the chances 
-someone will pay attention to it.  It's at
+my x86_64 with CONFIG_PROVE_LOCKING don't output any warnings.
 
-https://bugzilla.redhat.com/show_bug.cgi?id=497653
-
-In a week or two I'll see if I can make time to turn the 100% 
-failure scenario into a testcase.  This is just the run of a
-segment loader followed by running a status checker three times. 
-In 2.6.29.1 I'm wondering if the "bad pmd" I saw was just a bit 
-of bad memory, so might as well focus on the thing that fails 
-with certainty.  Possibly the "bad pmd" case requires a few hours 
-of live data runtime before it emerges--a tougher nut.
+thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
