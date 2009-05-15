@@ -1,85 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0C3E06B0098
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 08:05:28 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0KJO00IMGPKW3L@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 15 May 2009 13:05:20 +0100 (BST)
-Received: from amdc030 ([106.116.37.122])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0KJO00GM9PKUMN@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 15 May 2009 13:05:20 +0100 (BST)
-Date: Fri, 15 May 2009 14:05:17 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH] Physical Memory Management [0/1]
-In-reply-to: <20090515112656.GD16682@one.firstfloor.org>
-Message-id: <op.utyzu3ot7p4s8u@amdc030>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 8BIT
-References: <op.utwwmpsf7p4s8u@amdc030> <1242300002.6642.1091.camel@laptop>
- <op.utw4fdhz7p4s8u@amdc030> <1242302702.6642.1140.camel@laptop>
- <op.utw7yhv67p4s8u@amdc030>
- <20090514100718.d8c20b64.akpm@linux-foundation.org>
- <1242321000.6642.1456.camel@laptop> <op.utyudge07p4s8u@amdc030>
- <20090515101811.GC16682@one.firstfloor.org> <op.utyv89ek7p4s8u@amdc030>
- <20090515112656.GD16682@one.firstfloor.org>
+	by kanga.kvack.org (Postfix) with SMTP id AA8E26B004F
+	for <linux-mm@kvack.org>; Fri, 15 May 2009 09:09:41 -0400 (EDT)
+Date: Fri, 15 May 2009 15:09:31 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 4/6] PM/Hibernate: Rework shrinking of memory
+Message-ID: <20090515130930.GB1976@elf.ucw.cz>
+References: <200905070040.08561.rjw@sisk.pl> <200905132356.39481.rjw@sisk.pl> <20090514094046.GF6417@elf.ucw.cz> <200905141949.53108.rjw@sisk.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200905141949.53108.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-pm@lists.linux-foundation.org, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, nigel@tuxonice.net, rientjes@google.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu 2009-05-14 19:49:52, Rafael J. Wysocki wrote:
+> On Thursday 14 May 2009, Pavel Machek wrote:
+> > 
+> > > > > > The main point (I thought) was to remove shrink_all_memory().  Instead,
+> > > > > > we're retaining it and adding even more stuff?
+> > > > > 
+> > > > > The idea is that afterwards we can drop shrink_all_memory() once the
+> > > > > performance problem has been resolved.  Also, we now allocate memory for the
+> > > > > image using GFP_KERNEL instead of doing it with GFP_ATOMIC after freezing
+> > > > > devices.  I'd think that's an improvement?
+> > > > 
+> > > > Dunno.  GFP_KERNEL might attempt to do writeback/swapout/etc, which
+> > > > could be embarrassing if the devices are frozen.
+> > > 
+> > > They aren't, because the preallocation is done upfront, so once the OOM killer
+> > > has been taken care of, it's totally safe. :-)
+> > 
+> > As is GFP_ATOMIC. Except that GFP_KERNEL will cause catastrophic
+> > consequences when accounting goes wrong. (New kernel's idea of what is
+> > on disk will differ from what is _really_ on disk.)
+> > 
+> > If accounting is right, GFP_ATOMIC and GFP_KERNEL is equivalent.
+> > 
+> > If accounting is wrong, GFP_ATOMIC will fail with NULL, while
+> > GFP_KERNEL will do something bad.
+> > 
+> > I'd keep GFP_ATOMIC (or GFP_NOIO or similar). 
+> 
+> Repeating myself: with this and the next patch applied, we preallocate memory
+> for the image _before_ freezing devices and therefore it is safe to use
+> GFP_KERNEL, because the OOM killer has been taken care of by [3/6].
 
->> On Fri, 15 May 2009 12:18:11 +0200, Andi Kleen wrote:
->>> However for non fragmentation purposes you probably don't
->>> want too many different sizes anyways, the more sizes, the worse
->>> the fragmentation. Ideal is only a single size.
+Aha, I misparsed the sentecnes above.
 
-> On Fri, May 15, 2009 at 12:47:23PM +0200, MichaA? Nazarewicz wrote:
->> Unfortunately, sizes may very from several KiBs to a few MiBs.
-
-On Fri, 15 May 2009 13:26:56 +0200, Andi Kleen <andi@firstfloor.org> wrote:
-> Then your approach will likely not be reliable.
-
->> On the other hand, only a handful of apps will use PMM in our system
->> and at most two or three will be run at the same time so hopefully
->> fragmentation won't be so bad.  But yes, I admit it is a concern.
->
-> Such tight restrictions might work for you, but for mainline Linux the  
-> quality standards are higher.
-
-I understand PMM in current form may be unacceptable, however, hear me
-out and please do correct me if I'm wrong at any point as I would love
-to use an existing solution if any fulfilling my needs is present:
-
-When different sizes of buffers are needed fragmentation is even bigger
-problem in hugetlb (as pages must be aligned) then with PMM.
-
-If a buffer that does not match page size is needed then with hugetlb
-either bigger page needs to be allocated (and memory wasted) or few
-smaller need to be merged (and the same problem as in PMM exists --
-finding contiguous pages).
-
-Reclaiming is not really an option since situation where there is no
-sane bound time for allocation is not acceptable -- you don't want to
-wait 10 seconds for an application to start on your cell phone. ;)
-
-Also, I need an ability to convert any buffer to a Sys V shm, as to
-be able to pass it to X server.  Currently no such API exist, does it?
-
-With PMM and it's notion of memory types, different allocators and/or
-memory pools, etc.  Allocators could be even dynamically loaded as
-modules if one desires that.  My point is, that PMM is to be considered
-a framework for situations similar to the one I described thorough all
-of my mails, rather then a universal solution.
+Acked-by: Pavel Machek <pavel@ucw.cz>
+									Pavel
 
 -- 
-Best regards,                                            _     _
- .o. | Liege of Serenly Enlightened Majesty of         o' \,=./ `o
- ..o | Computer Science,  MichaA? "mina86" Nazarewicz      (o o)
- ooo +-<m.nazarewicz@samsung.com>-<mina86@jabber.org>-ooO--(_)--Ooo--
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
