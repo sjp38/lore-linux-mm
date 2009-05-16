@@ -1,51 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A85BB6B006A
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 15:40:10 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id n4FJeZHv021546
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 12:40:35 -0700
-Received: from pxi37 (pxi37.prod.google.com [10.243.27.37])
-	by wpaz17.hot.corp.google.com with ESMTP id n4FJeXqv011112
-	for <linux-mm@kvack.org>; Fri, 15 May 2009 12:40:33 -0700
-Received: by pxi37 with SMTP id 37so1211177pxi.11
-        for <linux-mm@kvack.org>; Fri, 15 May 2009 12:40:33 -0700 (PDT)
-Date: Fri, 15 May 2009 12:40:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 11/11] mm: Convert #ifdef DEBUG printk(KERN_DEBUG to
- pr_debug(
-In-Reply-To: <d2d789905b3ec219d015729a162be7707564fb67.1242407227.git.joe@perches.com>
-Message-ID: <alpine.DEB.2.00.0905151240080.925@chino.kir.corp.google.com>
-References: <cover.1242407227.git.joe@perches.com> <d2d789905b3ec219d015729a162be7707564fb67.1242407227.git.joe@perches.com>
+	by kanga.kvack.org (Postfix) with SMTP id 843466B004F
+	for <linux-mm@kvack.org>; Sat, 16 May 2009 04:53:51 -0400 (EDT)
+Date: Sat, 16 May 2009 16:54:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH -mm] vmscan: protect a fraction of file backed mapped
+	pages from reclaim
+Message-ID: <20090516085416.GA10221@localhost>
+References: <20090512120002.D616.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905121650090.14226@qirst.com> <20090513084306.5874.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905141612100.15881@qirst.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0905141612100.15881@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Joe Perches <joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, James Morris <jmorris@namei.org>, Serge Hallyn <serue@us.ibm.com>, David Howells <dhowells@redhat.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 May 2009, Joe Perches wrote:
+Hi Christoph,
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 92bcf1d..8f7fb51 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -159,10 +159,8 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  			points >>= -(p->oomkilladj);
->  	}
->  
-> -#ifdef DEBUG
-> -	printk(KERN_DEBUG "OOMkill: task %d (%s) got %lu points\n",
-> -	p->pid, p->comm, points);
-> -#endif
-> +	pr_debug("OOMkill: task %d (%s) got %lu points\n",
-> +		 p->pid, p->comm, points);
->  	return points;
->  }
->  
+On Fri, May 15, 2009 at 04:14:31AM +0800, Christoph Lameter wrote:
+> On Wed, 13 May 2009, KOSAKI Motohiro wrote:
+> 
+> > > All these expiration modifications do not take into account that a desktop
+> > > may sit idle for hours while some other things run in the background (like
+> > > backups at night or updatedb and other maintenance things). This still
+> > > means that the desktop will be usuable in the morning.
+> >
+> > Have you seen this phenomenom?
+> > I always use linux desktop for development. but I haven't seen it.
+> > perhaps I have no luck. I really want to know reproduce way.
+> >
+> > Please let me know reproduce way.
+> 
+> Run a backup (or rsync) over a few hundred GB.
 
-You can just remove the entire printk() since this information is now 
-exported via /proc/pid/oom_score.
+Simple experiments show that rsync is use-once workload:
+
+1) fresh run(full backup): the source file pages in the logo/ dir are cached and
+   referenced *once*:
+
+        rsync -a logo localhost:/tmp/
+
+2) second run(incremental backup): only the updated files are read and
+   read only once:
+
+        rsync -a logo localhost:/tmp/
+
+> > > The percentage of file backed pages protected is set via
+> > > /proc/sys/vm/file_mapped_ratio. This defaults to 20%.
+> >
+> > Why do you think typical mapped ratio is less than 20% on desktop machine?
+> 
+> Observation of the typical mapped size of Firefox under KDE.
+
+Since the explicit PROT_EXEC targeted mmap page protection plus Rik's
+use-once patch works just OK for rsync - a typical backup scenario,
+and it works without an extra sysctl tunable, I tend to continue
+pushing the PROT_EXEC approach :-)
+
+Thanks,
+Fengguang
+
+> > key point is access-once vs access-many.
+> 
+> Nothing against it if it works.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
