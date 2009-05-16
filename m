@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 674E16B0087
-	for <linux-mm@kvack.org>; Sat, 16 May 2009 09:37:17 -0400 (EDT)
-Message-ID: <4A0EC197.2050806@redhat.com>
-Date: Sat, 16 May 2009 09:37:27 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] vmscan: report vm_flags in page_referenced()
-References: <20090516090005.916779788@intel.com> <20090516090448.249602749@intel.com>
-In-Reply-To: <20090516090448.249602749@intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 612AE6B0087
+	for <linux-mm@kvack.org>; Sat, 16 May 2009 09:39:38 -0400 (EDT)
+Date: Sat, 16 May 2009 15:39:50 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] vmscan: merge duplicate code in shrink_active_list()
+Message-ID: <20090516133950.GA5775@cmpxchg.org>
+References: <20090516090005.916779788@intel.com> <20090516090448.535217680@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090516090448.535217680@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> Collect vma->vm_flags of the VMAs that actually referenced the page.
+On Sat, May 16, 2009 at 05:00:08PM +0800, Wu Fengguang wrote:
+> The "move pages to active list" and "move pages to inactive list"
+> code blocks are mostly identical and can be served by a function.
 > 
-> This is preparing for more informed reclaim heuristics,
-> eg. to protect executable file pages more aggressively.
-> For now only the VM_EXEC bit will be used by the caller.
+> Thanks to Andrew Morton for pointing this out.
 > 
-> CC: Minchan Kim <minchan.kim@gmail.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Peter Zijlstra <peterz@infradead.org>
+> Note that buffer_heads_over_limit check will also be carried out
+> for re-activated pages, which is slightly different from pre-2.6.28
+> kernels. Also, Rik's "vmscan: evict use-once pages first" patch
+> could totally stop scans of active list when memory pressure is low.
+> So the net effect could be, the number of buffer heads is now more
+> likely to grow large.
+
+I don't think that this could be harmful.  We just preserve the buffer
+mappings of what we consider the working set and with low memory
+pressure, as you say, this set is not big.
+
+As to stripping of reactivated pages: the only pages we re-activate
+for now are those VM_EXEC mapped ones.  Since we don't expect IO from
+or to these pages, removing the buffer mappings in case they grow too
+large should be okay, I guess.
+
+> CC: Rik van Riel <riel@redhat.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed.
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
