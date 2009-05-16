@@ -1,41 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8C44B6B004F
-	for <linux-mm@kvack.org>; Sat, 16 May 2009 10:35:00 -0400 (EDT)
-Message-ID: <4A0ECF1C.4010700@redhat.com>
-Date: Sat, 16 May 2009 10:35:08 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 08BD06B0055
+	for <linux-mm@kvack.org>; Sat, 16 May 2009 10:52:16 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so1221354ywm.26
+        for <linux-mm@kvack.org>; Sat, 16 May 2009 07:53:05 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] vmscan: merge duplicate code in shrink_active_list()
-References: <20090516090005.916779788@intel.com> <20090516090448.535217680@intel.com>
-In-Reply-To: <20090516090448.535217680@intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Sat, 16 May 2009 22:53:05 +0800
+Message-ID: <ab418ea90905160753v52d82b2bj3fe3c85ea167a811@mail.gmail.com>
+Subject: multiple address_space mappings
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> The "move pages to active list" and "move pages to inactive list"
-> code blocks are mostly identical and can be served by a function.
-> 
-> Thanks to Andrew Morton for pointing this out.
-> 
-> Note that buffer_heads_over_limit check will also be carried out
-> for re-activated pages, which is slightly different from pre-2.6.28
-> kernels. Also, Rik's "vmscan: evict use-once pages first" patch
-> could totally stop scans of active list when memory pressure is low.
-> So the net effect could be, the number of buffer heads is now more
-> likely to grow large.
-> 
-> CC: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Hi, all
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+It may be a stupid question. But if a page (composed of contiguous
+blocks)on a disk was read through two different paths --- one from
+mmap of a regular file and another is direct reading of the block
+device. Can they share the same page frame ?  If they can, should this
+page have two page->mappings ?
+It they cannot (I think this maybe true), how should we consider this
+inconsistency?
 
--- 
-All rights reversed.
+Thanks !
+
+Regards,
+
+Nai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
