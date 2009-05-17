@@ -1,100 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DA0776B0055
-	for <linux-mm@kvack.org>; Sun, 17 May 2009 10:12:18 -0400 (EDT)
-Date: Sun, 17 May 2009 22:12:05 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [rfc] object collection tracing (was: [PATCH 5/5] proc: export
-	more page flags in /proc/kpageflags)
-Message-ID: <20090517141205.GF3254@localhost>
-References: <20090428183237.EBDE.A69D9226@jp.fujitsu.com> <20090428093833.GE21085@elte.hu> <20090428095551.GB21168@localhost> <20090428110553.GD25347@elte.hu> <20090428113616.GA22439@localhost> <20090428121751.GA28157@elte.hu> <20090428133108.GA23560@localhost> <20090512130110.GA6255@nowhere> <20090517133659.GD3254@localhost> <20090517135510.GC4640@nowhere>
+	by kanga.kvack.org (Postfix) with ESMTP id 493C96B004D
+	for <linux-mm@kvack.org>; Sun, 17 May 2009 12:27:27 -0400 (EDT)
+Date: Sun, 17 May 2009 17:27:01 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH] Double check memmap is actually valid with a memmap
+	has unexpected holes V2
+Message-ID: <20090517162701.GB2664@n2100.arm.linux.org.uk>
+References: <20090505082944.GA25904@csn.ul.ie> <20090505083614.GA28688@n2100.arm.linux.org.uk> <20090505084928.GC25904@csn.ul.ie> <20090513163448.GA18006@csn.ul.ie> <20090513124805.9c70c43c.akpm@linux-foundation.org> <20090514083947.GB16639@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090517135510.GC4640@nowhere>
+In-Reply-To: <20090514083947.GB16639@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Li Zefan <lizf@cn.fujitsu.com>, Tom Zanussi <tzanussi@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Steven Rostedt <rostedt@goodmis.org>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hartleys@visionengravers.com, mcrapet@gmail.com, fred99@carolina.rr.com, linux-arm-kernel@lists.arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 17, 2009 at 09:55:12PM +0800, Frederic Weisbecker wrote:
-> On Sun, May 17, 2009 at 09:36:59PM +0800, Wu Fengguang wrote:
-> > On Tue, May 12, 2009 at 09:01:12PM +0800, Frederic Weisbecker wrote:
-> > > On Tue, Apr 28, 2009 at 09:31:08PM +0800, Wu Fengguang wrote:
-> > > > On Tue, Apr 28, 2009 at 08:17:51PM +0800, Ingo Molnar wrote:
-> > > >
-> > > > There are two possible challenges for the conversion:
-> > > >
-> > > > - One trick it does is to select different lists to traverse on
-> > > >   different filter options. Will this be possible in the object
-> > > >   tracing framework?
-> > >
-> > > Yeah, I guess.
-> >
-> > Great.
-> >
-> > >
-> > > > - The file name lookup(last field) is the performance killer. Is it
-> > > >   possible to skip the file name lookup when the filter failed on the
-> > > >   leading fields?
-> > >
-> > > objects collection lays on trace events where filters basically ignore
-> > > a whole entry in case of non-matching. Not sure if we can easily only
-> > > ignore one field.
-> > >
-> > > But I guess we can do something about the performances...
-> >
-> > OK, but it's not as important as the previous requirement, so it could
-> > be the last thing to work on :)
-> >
-> > > Could you send us the (sob'ed) patch you made which implements this.
-> > > I could try to adapt it to object collection.
-> >
-> > Attached for your reference. Be aware that I still have plans to
-> > change it in non trivial way, and there are ongoing works by Nick(on
-> > inode_lock) and Jens(on s_dirty) that can create merge conflicts.
-> > So basically it is not a right time to do the adaption.
-> 
-> 
-> Ah ok, so I will wait a bit :-)
-> 
-> 
-> > However we can still do something to polish up the page object
-> > collection under /debug/tracing/objects/mm/pages/. For example,
-> > the timestamps and function name could be removed from the following
-> > list :)
-> >
-> > # tracer: nop
-> > #
-> > #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> > #              | |       |          |         |
-> >            <...>-3743  [001]  3035.649769: dump_pages: pfn=1 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176403: dump_pages: pfn=1 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176407: dump_pages: pfn=2 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176408: dump_pages: pfn=3 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176409: dump_pages: pfn=4 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176409: dump_pages: pfn=5 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176410: dump_pages: pfn=6 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176410: dump_pages: pfn=7 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176411: dump_pages: pfn=8 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176411: dump_pages: pfn=9 flags=400 count=1 mapcount=0 index=0
-> >            <...>-3743  [001]  3044.176412: dump_pages: pfn=10 flags=400 count=1 mapcount=0 index=0
-> 
-> 
-> echo nocontext-info > /debug/tracing/trace_options :-)
+On Thu, May 14, 2009 at 09:39:47AM +0100, Mel Gorman wrote:
+> It affected at least 2.6.28.4 so minimally, I'd like to see it in for 2.6.30.
+> I think it's a -stable candidate but I'd like to hear from the ARM maintainer
+> on whether he wants to push it or not to that tree.
 
-Nice tip - I should really learn more about ftrace :-)
+I'm inclined to agree.
 
-> But you'll have only the function and the pages specifics. It's not really the
-> function but more specifically the name of the event. It's useful to distinguish
-> multiple events to a trace.
+> > It applies OK to 2.6.28, 2.6.29, current mainline and mmotm, so I'll
+> > just sit tight until I'm told what to do.
+> > 
 > 
-> Hmm, may be it's not that much useful in a object dump...
+> Please merge for 2.6.30 at least. Russell, are you ok with that? Are you ok
+> with this being pushed to -stable?
 
-Yeah - and to enable that option automatically in relevant code :)
-
-Thanks,
-Fengguang
+I'll merge it into my master branch, which'll be going to Linus in the next
+few days.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
