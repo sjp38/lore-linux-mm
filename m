@@ -1,67 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C6D116B005C
-	for <linux-mm@kvack.org>; Sun, 17 May 2009 23:52:50 -0400 (EDT)
-Date: Mon, 18 May 2009 11:53:19 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/4] vmscan: change the number of the unmapped files in
-	zone reclaim
-Message-ID: <20090518035319.GA7940@localhost>
-References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120606.587C.A69D9226@jp.fujitsu.com> <20090518031536.GC5869@localhost> <2f11576a0905172035k3f26b8d6r84af555a94b1d70e@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2f11576a0905172035k3f26b8d6r84af555a94b1d70e@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D26F86B0062
+	for <linux-mm@kvack.org>; Sun, 17 May 2009 23:52:53 -0400 (EDT)
+Received: by pxi37 with SMTP id 37so2355065pxi.12
+        for <linux-mm@kvack.org>; Sun, 17 May 2009 20:53:42 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] lib : make radix_tree_delete() faster
+Date: Mon, 18 May 2009 11:52:15 +0800
+Message-Id: <1242618735-3588-1-git-send-email-root@localhost.localdomain>
+In-Reply-To: <y>
+References: <y>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>, zyzii@tom.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 18, 2009 at 11:35:31AM +0800, KOSAKI Motohiro wrote:
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -2397,6 +2397,7 @@ static int __zone_reclaim(struct zone *z
-> >> A  A  A  A  A  A  A  .isolate_pages = isolate_pages_global,
-> >> A  A  A  };
-> >> A  A  A  unsigned long slab_reclaimable;
-> >> + A  A  long nr_unmapped_file_pages;
-> >>
-> >> A  A  A  disable_swap_token();
-> >> A  A  A  cond_resched();
-> >> @@ -2409,9 +2410,11 @@ static int __zone_reclaim(struct zone *z
-> >> A  A  A  reclaim_state.reclaimed_slab = 0;
-> >> A  A  A  p->reclaim_state = &reclaim_state;
-> >>
-> >> - A  A  if (zone_page_state(zone, NR_FILE_PAGES) -
-> >> - A  A  A  A  A  A  zone_page_state(zone, NR_FILE_MAPPED) >
-> >> - A  A  A  A  A  A  zone->min_unmapped_pages) {
-> >> + A  A  nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> >> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A zone_page_state(zone, NR_ACTIVE_FILE) -
-> >> + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A zone_page_state(zone, NR_FILE_MAPPED);
-> >
-> > This can possibly go negative.
-> 
-> Is this a problem?
-> negative value mean almost pages are mapped. Thus
-> 
->   (nr_unmapped_file_pages > zone->min_unmapped_pages)  => 0
-> 
-> is ok, I think.
+From: Huang Shijie <shijie8@gmail.com>
 
-I wonder why you didn't get a gcc warning, because zone->min_unmapped_pages
-is a "unsigned long".
+	radix_tree_delete() calls radix_tree_tag_clear() to
+clear the tag along the path of  the index. The radix_tree_tag_clear()
+will lookup and create the path which has been created by the
+radix_tree_delete() already.
 
-Anyway, add a simple note to the code if it works *implicitly*?
+	I introduce radix_tree_tag_clear_path() to do the clear for the
+path. The radix_tree_delete() calls radix_tree_tag_clear_path() instead of
+radix_tree_tag_clear(), and this will save the CPU by
+RADIX_TREE_MAX_TAGS*lookup.  This makes the radix_tree_delete() faster.
 
-Thanks,
-Fengguang
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ lib/radix-tree.c |   30 +++++++++++++++++++++---------
+ 1 files changed, 21 insertions(+), 9 deletions(-)
 
-> >
-> >> + A  A  if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
-> >> A  A  A  A  A  A  A  /*
-> >> A  A  A  A  A  A  A  A * Free memory by calling shrink zone with increasing
-> >> A  A  A  A  A  A  A  A * priorities until we have enough memory freed.
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 4bb42a0..f6430eb 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -495,6 +495,24 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
+ }
+ EXPORT_SYMBOL(radix_tree_tag_set);
+ 
++/*
++ * Return 0 on succeeding to clear all the tag along the path,
++ * else return 1.
++ */
++static inline int radix_tree_tag_clear_path(struct radix_tree_path *pathp,
++			struct radix_tree_path *path_start, unsigned int tag)
++{
++	while (pathp->node && pathp > path_start) {
++		if (!tag_get(pathp->node, tag, pathp->offset))
++			return 1;
++		tag_clear(pathp->node, tag, pathp->offset);
++		if (any_tag_set(pathp->node, tag))
++			return 1;
++		pathp--;
++	}
++	return 0;
++}
++
+ /**
+  *	radix_tree_tag_clear - clear a tag on a radix tree node
+  *	@root:		radix tree root
+@@ -546,14 +564,8 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
+ 	if (slot == NULL)
+ 		goto out;
+ 
+-	while (pathp->node) {
+-		if (!tag_get(pathp->node, tag, pathp->offset))
+-			goto out;
+-		tag_clear(pathp->node, tag, pathp->offset);
+-		if (any_tag_set(pathp->node, tag))
+-			goto out;
+-		pathp--;
+-	}
++	if (radix_tree_tag_clear_path(pathp, path, tag))
++		goto out;
+ 
+ 	/* clear the root's tag bit */
+ 	if (root_tag_get(root, tag))
+@@ -1134,7 +1146,7 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+ 	 */
+ 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+ 		if (tag_get(pathp->node, tag, pathp->offset))
+-			radix_tree_tag_clear(root, index, tag);
++			radix_tree_tag_clear_path(pathp, path, tag);
+ 	}
+ 
+ 	to_free = NULL;
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
