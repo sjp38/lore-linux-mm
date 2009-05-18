@@ -1,60 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1E6C86B005A
-	for <linux-mm@kvack.org>; Sun, 17 May 2009 22:40:50 -0400 (EDT)
-Received: by gxk20 with SMTP id 20so6019719gxk.14
-        for <linux-mm@kvack.org>; Sun, 17 May 2009 19:41:25 -0700 (PDT)
-Date: Mon, 18 May 2009 11:40:53 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] mmtom: Prevent shrinking of active anon lru list in
- case of no swap space V3
-Message-Id: <20090518114053.ed5af657.minchan.kim@barrios-desktop>
-In-Reply-To: <20090518023404.GB5869@localhost>
-References: <20090514231555.f52c81eb.minchan.kim@gmail.com>
-	<20090518023404.GB5869@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0040C6B004F
+	for <linux-mm@kvack.org>; Sun, 17 May 2009 23:15:36 -0400 (EDT)
+Date: Mon, 18 May 2009 11:15:36 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/4] vmscan: change the number of the unmapped files in
+	zone reclaim
+Message-ID: <20090518031536.GC5869@localhost>
+References: <20090513120155.5879.A69D9226@jp.fujitsu.com> <20090513120606.587C.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090513120606.587C.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: MinChan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 May 2009 10:34:04 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> On Thu, May 14, 2009 at 11:15:55PM +0900, MinChan Kim wrote:
->  
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 2f9d555..621708f 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1577,7 +1577,7 @@ static void shrink_zone(int priority, struct zone *zone,
-> >  	 * Even if we did not try to evict anon pages at all, we want to
-> >  	 * rebalance the anon lru active/inactive ratio.
-> >  	 */
-> > -	if (inactive_anon_is_low(zone, sc))
-> > +	if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
-> >  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+On Wed, May 13, 2009 at 12:06:28PM +0900, KOSAKI Motohiro wrote:
+> Subject: [PATCH] vmscan: change the number of the unmapped files in zone reclaim
 > 
-> There's another "if (inactive_anon_is_low) shrink_active_list;"
-> occurrence to be fixed in balance_pgdat()? Otherwise:
+> Documentation/sysctl/vm.txt says
+> 
+> 	A percentage of the total pages in each zone.  Zone reclaim will only
+> 	occur if more than this percentage of pages are file backed and unmapped.
+> 	This is to insure that a minimal amount of local pages is still available for
+> 	file I/O even if the node is overallocated.
+> 
+> However, zone_page_state(zone, NR_FILE_PAGES) contain some non file backed pages
+> (e.g. swapcache, buffer-head)
+> 
+> The right calculation is to use NR_{IN}ACTIVE_FILE.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/vmscan.c |   21 ++++++++++++++-------
+>  1 file changed, 14 insertions(+), 7 deletions(-)
+> 
+> Index: b/mm/vmscan.c
+> ===================================================================
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2397,6 +2397,7 @@ static int __zone_reclaim(struct zone *z
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+>  	unsigned long slab_reclaimable;
+> +	long nr_unmapped_file_pages;
+>  
+>  	disable_swap_token();
+>  	cond_resched();
+> @@ -2409,9 +2410,11 @@ static int __zone_reclaim(struct zone *z
+>  	reclaim_state.reclaimed_slab = 0;
+>  	p->reclaim_state = &reclaim_state;
+>  
+> -	if (zone_page_state(zone, NR_FILE_PAGES) -
+> -		zone_page_state(zone, NR_FILE_MAPPED) >
+> -		zone->min_unmapped_pages) {
+> +	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> +				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> +				 zone_page_state(zone, NR_FILE_MAPPED);
 
-I add Rik's comment. Of course, I agree his opinion. 
+This can possibly go negative.
 
-"If we are close to running out of swap space, with
-swapins freeing up swap space on a regular basis,
-I believe we do want to do aging on the active
-pages, just so we can pick a decent page to swap
-out next time swap space becomes available."
+> +	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
+>  		/*
+>  		 * Free memory by calling shrink zone with increasing
+>  		 * priorities until we have enough memory freed.
+> @@ -2458,6 +2461,8 @@ int zone_reclaim(struct zone *zone, gfp_
+>  {
+>  	int node_id;
+>  	int ret;
+> +	long nr_unmapped_file_pages;
+> +	long nr_slab_reclaimable;
+>  
+>  	/*
+>  	 * Zone reclaim reclaims unmapped file backed pages and
+> @@ -2469,10 +2474,12 @@ int zone_reclaim(struct zone *zone, gfp_
+>  	 * if less than a specified percentage of the zone is used by
+>  	 * unmapped file backed pages.
+>  	 */
+> -	if (zone_page_state(zone, NR_FILE_PAGES) -
+> -	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages
+> -	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
+> -			<= zone->min_slab_pages)
+> +	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> +				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> +				 zone_page_state(zone, NR_FILE_MAPPED);
 
-> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Ditto.
 
-Thanks for spending your time for my patch. Wu Fengguang :)
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
--- 
-Kinds Regards
-Minchan Kim
+> +	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> +	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
+> +	    nr_slab_reclaimable <= zone->min_slab_pages)
+>  		return 0;
+>  
+>  	if (zone_is_all_unreclaimable(zone))
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
