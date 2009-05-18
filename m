@@ -1,203 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C37A66B005C
-	for <linux-mm@kvack.org>; Mon, 18 May 2009 12:36:23 -0400 (EDT)
-Date: Mon, 18 May 2009 17:36:51 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
-	with hugepage shared memory segments attached
-Message-ID: <20090518163651.GA13093@csn.ul.ie>
-References: <6.2.5.6.2.20090515144058.03a55298@binnacle.cx>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2109B6B006A
+	for <linux-mm@kvack.org>; Mon, 18 May 2009 13:32:53 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC][PATCH 6/6] PM/Hibernate: Do not try to allocate too much memory too hard
+Date: Mon, 18 May 2009 19:07:41 +0200
+References: <200905070040.08561.rjw@sisk.pl> <200905172314.29850.rjw@sisk.pl> <20090518085648.GB10033@localhost>
+In-Reply-To: <20090518085648.GB10033@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <6.2.5.6.2.20090515144058.03a55298@binnacle.cx>
+Message-Id: <200905181907.42079.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: starlight@binnacle.cx
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: pm list <linux-pm@lists.linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Machek <pavel@ucw.cz>, Nigel Cunningham <nigel@tuxonice.net>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 15, 2009 at 02:44:29PM -0400, starlight@binnacle.cx wrote:
-> This was really bugging me, so I hacked out
-> the test case for the attach failure.
+On Monday 18 May 2009, Wu Fengguang wrote:
+> On Mon, May 18, 2009 at 05:14:29AM +0800, Rafael J. Wysocki wrote:
+> > On Sunday 17 May 2009, Wu Fengguang wrote:
+> > > On Sun, May 17, 2009 at 08:55:05PM +0800, Rafael J. Wysocki wrote:
+> > > > On Sunday 17 May 2009, Wu Fengguang wrote:
+> > > 
+> > > > > > +static unsigned long minimum_image_size(unsigned long saveable)
+> > > > > > +{
+> > > > > > +	unsigned long size;
+> > > > > > +
+> > > > > > +	/* Compute the number of saveable pages we can free. */
+> > > > > > +	size = global_page_state(NR_SLAB_RECLAIMABLE)
+> > > > > > +		+ global_page_state(NR_ACTIVE_ANON)
+> > > > > > +		+ global_page_state(NR_INACTIVE_ANON)
+> > > > > > +		+ global_page_state(NR_ACTIVE_FILE)
+> > > > > > +		+ global_page_state(NR_INACTIVE_FILE);
+> > > > > 
+> > > > > For example, we could drop the 1.25 ratio and calculate the above
+> > > > > reclaimable size with more meaningful constraints:
+> > > > > 
+> > > > >         /* slabs are not easy to reclaim */
+> > > > > 	size = global_page_state(NR_SLAB_RECLAIMABLE) / 2;
+> > > > 
+> > > > Why 1/2?
+> > > 
+> > > Also a very coarse value:
+> > > - we don't want to stress icache/dcache too much
+> > >   (unless they grow too large)
+> > > - my experience was that the icache/dcache are scanned in a slower
+> > >   pace than lru pages.
+> > > - most importantly, inside the NR_SLAB_RECLAIMABLE pages, maybe half
+> > >   of the pages are actually *in use* and cannot be freed:
+> > >         % cat /proc/sys/fs/inode-nr     
+> > >         30450   16605
+> > >         % cat /proc/sys/fs/dentry-state 
+> > >         41598   35731   45      0       0       0
+> > >   See? More than half entries are in-use. Sure many of them will actually
+> > >   become unused when dentries are freed, but in the mean time the internal
+> > >   fragmentations in the slabs can go up.
+> > > 
+> > > > >         /* keep NR_ACTIVE_ANON */
+> > > > > 	size += global_page_state(NR_INACTIVE_ANON);
+> > > > 
+> > > > Why exactly did you omit ACTIVE_ANON?
+> > > 
+> > > To keep the "core working set" :)
+> > >   	
+> > > > >         /* keep mapped files */
+> > > > > 	size += global_page_state(NR_ACTIVE_FILE);
+> > > > > 	size += global_page_state(NR_INACTIVE_FILE);
+> > > > >         size -= global_page_state(NR_FILE_MAPPED);
+> > > > > 
+> > > > > That restores the hard core working set logic in the reverse way ;)
+> > > > 
+> > > > I think the 1/2 factor for NR_SLAB_RECLAIMABLE may be too high in some cases,
+> > > > but I'm going to check that.
+> > > 
+> > > Yes, after updatedb. In that case simple magics numbers may not help.
+> > > In that case we should really first call shrink_slab() in a loop to
+> > > cut down the slab pages to a sane number.
+> > 
+> > I have verified that the appended patch works reasonably well.
 > 
-> Hoses 2.6.29.1 100% every time.  Run it like this:
+> This is illogical: in previous email you complained the formula
 > 
-> tcbm_att
-> tcbm_att -
-> tcbm_att -
-> tcbm_att -
+>         TOTAL - MAPPED - ACTIVE_ANON - SLAB/2
 > 
-> It will break on the last iteration with ENOMEM
-> and ENOMEM is all any shmget() or shmat() call
-> gets forever more.
+> gives too high number, while 
 > 
-> After removing the segments this appears:
+>         TOTAL - MAPPED
 > 
-> HugePages_Total:    2048
-> HugePages_Free:     2048
-> HugePages_Rsvd:     1280
-> HugePages_Surp:        0
+> in this patch is OK.  (I'm not claiming the first formula to be fine.)
+
+I wasn't precise enough. :-)
+
+The problem with the first formula is that it's not really useful when used
+_before_ running shrink_all_memory(), becuase it may give arbitraty result
+in that case (everything depends on the preceding memory usage pattern).
+However, if it is used _after_ running shrink_all_memory(<all saveable pages>),
+the resulting minimum image size is usually (most often) below the real minimum
+number of saveable pages that can stay in memory.
+
+The second formula, OTOH, doesn't depend so much on the preceding memory usage
+pattern and therefore it seems to be suitable for computing the estimate of the
+minimum image size _before_ running shrink_all_memory().  Still, when used
+_after_ running shrink_all_memory(<all saveable pages>), it will give a number
+below the actual minimum number of saveable pages (ie. not a really suitable
+one).
+
+Now, since we're going to get rid of shrink_all_memory() at one point, I think
+we should be looking for a formula suitable for using before it's called.
+This, IMO, the second one is just about right. :-)
+
+> > The value returned as the minimum image size is usually too high, but not very
+> > much (on x86_64 usually about 20%) and there are no "magic" coefficients
 > 
+> It is _OK_ for the minimum image size to be higher, that margin serves
+> as a safety margin as well as the working set size we want to preserve.
 
-Ok, the critical fact was that one process mapped read-write and
-populated the segment. Each subsequent process mapped it read-only. The
-core VM sets VM_SHARED for file-shared-read-write mappings but not
-file-shared-read-only mapping. Hugetlbfs confused how it should be using
-VM_SHARED as it was being used to check if the mapping was MAP_SHARED.
-Straight-forward mistake with the consequence that reservations "leaked"
-and future mappings failed as a result.
+I didn't say it wasn't OK. :-)  It's totally fine by me.
 
-Can you try this patch out please? It is against 2.6.29.1 and mostly
-applies to 2.6.27.7. The reject is trivially resolved by editting
-mm/hugetlb.c and changing the VM_SHARED at the end of
-hugetlb_reserve_pages() to VM_MAYSHARE.
+> > involved any more and the computation of the minimum image size is carried out
+> > before calling shrink_all_memory() (so it's still going to be useful after
+> > we've dropped shrink_all_memory() at one point).
+> 
+> That's OK. Because shrink_all_memory() shrinks memory in a prioritized
+> list-after-list order.
+> 
+> > ---
+> > From: Rafael J. Wysocki <rjw@sisk.pl>
+> > Subject: PM/Hibernate: Do not try to allocate too much memory too hard (rev. 2)
+> > 
+> > We want to avoid attempting to free too much memory too hard during
+> > hibernation, so estimate the minimum size of the image to use as the
+> > lower limit for preallocating memory.
+> 
+> I'd like to advocate to add "working set preservation" as another goal
+> of this function, and I can even do with the formula in this patch :-)
+>
+> That means, when one day more accurate working set estimation is
+> possible, we can extend this function to support that goal.
 
-Thing is, this patch fixes a reservation issue. The bad pmd messages do
-show up for the original test on 2.6.27.7 for x86-64 (not x86) but it's a
-separate issue and I have not determined what it is yet. Can you test this
-patch to begin with please?
+OK, so do you think it's fine to go with the patch below for now?
 
-==== CUT HERE ====
-Account for MAP_SHARED mappings using VM_MAYSHARE and not VM_SHARED in hugetlbfs
+Thanks,
+Rafael
 
-hugetlbfs reserves huge pages and accounts for them differently depending on
-whether the mapping was mapped MAP_SHARED or MAP_PRIVATE. However, the check
-it makes against the VMA in some places is VM_SHARED and not VM_MAYSHARE.
-For file-backed mappings, such as hugetlbfs, VM_SHARED is set only if the
-mapping is MAP_SHARED *and* it is read-write. If a shared memory mapping
-was created read-write for populating of data and mapped read-only by other
-processes, then hugetlbfs gets the accounting wrong and reservations leak.
 
-This patch alters mm/hugetlb.c and replaces VM_SHARED with VM_MAYSHARE when
-the intent of the code was to check whether the VMA was mapped MAP_SHARED
-or MAP_PRIVATE.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- mm/hugetlb.c |   26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 28c655b..e83ad2c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -316,7 +316,7 @@ static void resv_map_release(struct kref *ref)
- static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	if (!(vma->vm_flags & VM_SHARED))
-+	if (!(vma->vm_flags & VM_MAYSHARE))
- 		return (struct resv_map *)(get_vma_private_data(vma) &
- 							~HPAGE_RESV_MASK);
- 	return NULL;
-@@ -325,7 +325,7 @@ static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
- static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	VM_BUG_ON(vma->vm_flags & VM_SHARED);
-+	VM_BUG_ON(vma->vm_flags & VM_MAYSHARE);
- 
- 	set_vma_private_data(vma, (get_vma_private_data(vma) &
- 				HPAGE_RESV_MASK) | (unsigned long)map);
-@@ -334,7 +334,7 @@ static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
- static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	VM_BUG_ON(vma->vm_flags & VM_SHARED);
-+	VM_BUG_ON(vma->vm_flags & VM_MAYSHARE);
- 
- 	set_vma_private_data(vma, get_vma_private_data(vma) | flags);
- }
-@@ -353,7 +353,7 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
- 	if (vma->vm_flags & VM_NORESERVE)
- 		return;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		/* Shared mappings always use reserves */
- 		h->resv_huge_pages--;
- 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-@@ -369,14 +369,14 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
- void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	if (!(vma->vm_flags & VM_SHARED))
-+	if (!(vma->vm_flags & VM_MAYSHARE))
- 		vma->vm_private_data = (void *)0;
- }
- 
- /* Returns true if the VMA has associated reserve pages */
- static int vma_has_reserves(struct vm_area_struct *vma)
- {
--	if (vma->vm_flags & VM_SHARED)
-+	if (vma->vm_flags & VM_MAYSHARE)
- 		return 1;
- 	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
- 		return 1;
-@@ -924,7 +924,7 @@ static long vma_needs_reservation(struct hstate *h,
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		return region_chg(&inode->i_mapping->private_list,
- 							idx, idx + 1);
-@@ -949,7 +949,7 @@ static void vma_commit_reservation(struct hstate *h,
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		region_add(&inode->i_mapping->private_list, idx, idx + 1);
- 
-@@ -1893,7 +1893,7 @@ retry_avoidcopy:
- 	 * at the time of fork() could consume its reserves on COW instead
- 	 * of the full address range.
- 	 */
--	if (!(vma->vm_flags & VM_SHARED) &&
-+	if (!(vma->vm_flags & VM_MAYSHARE) &&
- 			is_vma_resv_set(vma, HPAGE_RESV_OWNER) &&
- 			old_page != pagecache_page)
- 		outside_reserve = 1;
-@@ -2000,7 +2000,7 @@ retry:
- 		clear_huge_page(page, address, huge_page_size(h));
- 		__SetPageUptodate(page);
- 
--		if (vma->vm_flags & VM_SHARED) {
-+		if (vma->vm_flags & VM_MAYSHARE) {
- 			int err;
- 			struct inode *inode = mapping->host;
- 
-@@ -2104,7 +2104,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			goto out_mutex;
- 		}
- 
--		if (!(vma->vm_flags & VM_SHARED))
-+		if (!(vma->vm_flags & VM_MAYSHARE))
- 			pagecache_page = hugetlbfs_pagecache_page(h,
- 								vma, address);
- 	}
-@@ -2289,7 +2289,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * to reserve the full area even if read-only as mprotect() may be
- 	 * called to make the mapping read-write. Assume !vma is a shm mapping
- 	 */
--	if (!vma || vma->vm_flags & VM_SHARED)
-+	if (!vma || vma->vm_flags & VM_MAYSHARE)
- 		chg = region_chg(&inode->i_mapping->private_list, from, to);
- 	else {
- 		struct resv_map *resv_map = resv_map_alloc();
-@@ -2330,7 +2330,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * consumed reservations are stored in the map. Hence, nothing
- 	 * else has to be done for private mappings here
- 	 */
--	if (!vma || vma->vm_flags & VM_SHARED)
-+	if (!vma || vma->vm_flags & VM_MAYSHARE)
- 		region_add(&inode->i_mapping->private_list, from, to);
- 	return 0;
- }
+> > The approach here is based on the (experimental) observation that we
+> > can't free more page frames than the sum of:
+> > 
+> > * global_page_state(NR_SLAB_RECLAIMABLE)
+> > * global_page_state(NR_ACTIVE_ANON)
+> > * global_page_state(NR_INACTIVE_ANON)
+> > * global_page_state(NR_ACTIVE_FILE)
+> > * global_page_state(NR_INACTIVE_FILE)
+> > 
+> > minus
+> > 
+> > * global_page_state(NR_FILE_MAPPED)
+> > 
+> > Namely, if this number is subtracted from the number of saveable
+> > pages in the system, we get a good estimate of the minimum reasonable
+> > size of a hibernation image.
+> > 
+> > Signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+> > ---
+> >  kernel/power/snapshot.c |   43 +++++++++++++++++++++++++++++++++++++++----
+> >  1 file changed, 39 insertions(+), 4 deletions(-)
+> > 
+> > Index: linux-2.6/kernel/power/snapshot.c
+> > ===================================================================
+> > --- linux-2.6.orig/kernel/power/snapshot.c
+> > +++ linux-2.6/kernel/power/snapshot.c
+> > @@ -1204,6 +1204,36 @@ static void free_unnecessary_pages(void)
+> >  }
+> >  
+> >  /**
+> > + * minimum_image_size - Estimate the minimum acceptable size of an image
+> > + * @saveable: Number of saveable pages in the system.
+> > + *
+> > + * We want to avoid attempting to free too much memory too hard, so estimate the
+> > + * minimum acceptable size of a hibernation image to use as the lower limit for
+> > + * preallocating memory.
+> > + *
+> > + * We assume that the minimum image size should be proportional to
+> > + *
+> > + * [number of saveable pages] - [number of pages that can be freed in theory]
+> > + *
+> > + * where the second term is the sum of (1) reclaimable slab pages, (2) active
+> > + * and (3) inactive anonymouns pages, (4) active and (5) inactive file pages,
+> > + * minus mapped file pages.
+> > + */
+> > +static unsigned long minimum_image_size(unsigned long saveable)
+> > +{
+> > +	unsigned long size;
+> > +
+> > +	size = global_page_state(NR_SLAB_RECLAIMABLE)
+> > +		+ global_page_state(NR_ACTIVE_ANON)
+> > +		+ global_page_state(NR_INACTIVE_ANON)
+> > +		+ global_page_state(NR_ACTIVE_FILE)
+> > +		+ global_page_state(NR_INACTIVE_FILE)
+> > +		- global_page_state(NR_FILE_MAPPED);
+> > +
+> > +	return saveable <= size ? 0 : saveable - size;
+> > +}
+> > +
+> > +/**
+> >   * hibernate_preallocate_memory - Preallocate memory for hibernation image
+> >   *
+> >   * To create a hibernation image it is necessary to make a copy of every page
+> > @@ -1220,8 +1250,8 @@ static void free_unnecessary_pages(void)
+> >   *
+> >   * If image_size is set below the number following from the above formula,
+> >   * the preallocation of memory is continued until the total number of saveable
+> > - * pages in the system is below the requested image size or it is impossible to
+> > - * allocate more memory, whichever happens first.
+> > + * pages in the system is below the requested image size or the minimum
+> > + * acceptable image size returned by minimum_image_size(), whichever is greater.
+> >   */
+> >  int hibernate_preallocate_memory(void)
+> >  {
+> > @@ -1282,6 +1312,11 @@ int hibernate_preallocate_memory(void)
+> >  		goto out;
+> >  	}
+> >  
+> > +	/* Estimate the minimum size of the image. */
+> > +	pages = minimum_image_size(saveable);
+> > +	if (size < pages)
+> > +		size = min_t(unsigned long, pages, max_size);
+> > +
+> >  	/*
+> >  	 * Let the memory management subsystem know that we're going to need a
+> >  	 * large number of page frames to allocate and make it free some memory.
+> > @@ -1294,8 +1329,8 @@ int hibernate_preallocate_memory(void)
+> >  	 * The number of saveable pages in memory was too high, so apply some
+> >  	 * pressure to decrease it.  First, make room for the largest possible
+> >  	 * image and fail if that doesn't work.  Next, try to decrease the size
+> > -	 * of the image as much as indicated by image_size using allocations
+> > -	 * from highmem and non-highmem zones separately.
+> > +	 * of the image as much as indicated by 'size' using allocations from
+> > +	 * highmem and non-highmem zones separately.
+> >  	 */
+> >  	pages_highmem = preallocate_image_highmem(highmem / 2);
+> >  	max_size += pages_highmem;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
