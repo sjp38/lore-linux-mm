@@ -1,311 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BD96B0055
-	for <linux-mm@kvack.org>; Mon, 18 May 2009 22:20:08 -0400 (EDT)
-Date: Tue, 19 May 2009 10:50:28 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: handle accounting race in swapin-readahead and
- zap_pte
-Message-Id: <20090519105028.8ce4f8da.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090515190027.e7d48d7a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090515190027.e7d48d7a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A0E3C6B004D
+	for <linux-mm@kvack.org>; Mon, 18 May 2009 22:42:58 -0400 (EDT)
+Date: Tue, 19 May 2009 10:43:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] vmscan: merge duplicate code in
+	shrink_active_list()
+Message-ID: <20090519024316.GA7562@localhost>
+References: <20090517022327.280096109@intel.com> <20090517022742.320921900@intel.com> <20090518091653.GB10439@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090518091653.GB10439@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, hannes@cmpxchg.org, "mingo@elte.hu" <mingo@elte.hu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 May 2009 19:00:27 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Similar to previous series but this version is a bit claerer, I think.
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> When a process exits, zap_pte() is called and free_swap_and_cache()
-> is called for freeing swp_entry. But free_swap_and_cache() uses trylock()
-> and entries may not be freed. (Later, global LRU will handle this.)
-> 
-> 
->            processA                   |           processB
->   -------------------------------------+-------------------------------------
->     (free_swap_and_cache())            |  (read_swap_cache_async())
->                                        |    swap_duplicate()
->                                        |    __set_page_locked()
->                                        |    add_to_swap_cache()
->       swap_entry_free() == 0           |
->       find_get_page() -> found         |
->       try_lock_page() -> fail & return |
->                                        |    lru_cache_add_anon()
->                                        |      doesn't link this page to memcg's
->                                        |      LRU, because of !PageCgroupUsed.
-> 
-> At using memcg, above path is terrible because not freed swapcache will
-> never be freed until global LRU runs. This can be leak of swap entry
-> and cause OOM (as Nishimura reported)
-> 
-> To fix this, one easy way is not to permit swapin-readahead. But it causes
-> unpleasant peformance penalty in case that swapin-readahead hits.
-> 
-> This patch tries to fix above race by adding an private LRU, swapin-buffer.
-> This works as following.
->  1. add swap-cache to swapin-buffer at readahead()
->  2. check SwapCache in swapin-buffer again in delayed work.
->  3. finally pages in swapin-buffer are moved to INACTIVE_ANON list.
-> 
-> This patch uses delayed_work and moves pages from buffer to anon in
-> proportional number to the number of pages in swapin-buffer.
-> 
-> 
-> Changelog:
->  - redesigned again.
->  - A main difference from previous trials is PG_lru is not set until
->    we confirm the entry. We can avoid races and contention of zone's LRU.
->  - # of calls to schedule_work() is reduced.
->  - access to zone->lru is batched.
->  - don't handle races in writeback (handled by other patch)
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+[update2: use !is_active_lru()]
+ 
+---
+vmscan: merge duplicate code in shrink_active_list()
 
-This patch seems to work well.
+The "move pages to active list" and "move pages to inactive list"
+code blocks are mostly identical and can be served by a function.
 
-But, I think it would be a nitpick though, this patch has a race yet theoretically
-like bellow.
+Thanks to Andrew Morton for pointing this out.
 
-     free_swap_and_cache()             |  __check_swap_in_buffer()
-  -------------------------------------+-------------------------------------
-                                       |  trylock_page()
-                                       |    try_to_free_swap()
-                                       |      page_swapcount() -> true & return
-     swap_info_get()                   |
-       swap_entry_free() == 1          |
-       find_get_page() -> found        |
-       trylock_page() -> fail & return |
-                                       |    unlock_page()
+Note that buffer_heads_over_limit check will also be carried out
+for re-activated pages, which is slightly different from pre-2.6.28
+kernels. Also, Rik's "vmscan: evict use-once pages first" patch
+could totally stop scans of active file list when memory pressure is low.
+So the net effect could be, the number of buffer heads is now more
+likely to grow large.
 
-I don't think it happens in practice(unlock_page() would be called soon after
-try_to_free_swap() returns), and this patch seems to work well actually.
-I'm not sure whether we should handle this case more strictly or not, but I think
-it it would be better to add some comments about it at least.
+However that's fine according to Johannes's comments:
 
-And I have a question.
+  I don't think that this could be harmful.  We just preserve the buffer
+  mappings of what we consider the working set and with low memory
+  pressure, as you say, this set is not big.
 
-If the size of swap device(or the number of used swap entries not on SwapCache)
-is small enough not to hit "if (memcg_swapin_buffer.nr > ENOUGH_LARGE_SWAPIN_BUFFER)"
-in mem_cgroup_add_swapin_buffer(), those pages in swapin buffer
-are left and unfreed by swapoff(although swap entries are freed) ?
-Isn't it better to call directly mem_cgroup_drain_swapin_buffer() at the end of swapoff ?
+  As to stripping of reactivated pages: the only pages we re-activate
+  for now are those VM_EXEC mapped ones.  Since we don't expect IO from
+  or to these pages, removing the buffer mappings in case they grow too
+  large should be okay, I guess.
 
-I prefer your v4(remembering only stale swap entries) to be honest,
-but I don't oppose strongly to this direction.
+Acked-by: Peter Zijlstra <peterz@infradead.org>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |   96 ++++++++++++++++++++++----------------------------
+ 1 file changed, 43 insertions(+), 53 deletions(-)
 
-
-Thanks,
-Daisuke Nishimura.
-
-> ---
->  include/linux/swap.h |    8 +++
->  mm/memcontrol.c      |  120 +++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/swap_state.c      |   10 +++-
->  3 files changed, 136 insertions(+), 2 deletions(-)
-> 
-> Index: mmotm-2.6.30-May13/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.30-May13.orig/mm/memcontrol.c	2009-05-15 17:44:14.000000000 +0900
-> +++ mmotm-2.6.30-May13/mm/memcontrol.c	2009-05-15 18:46:35.000000000 +0900
-> @@ -834,6 +834,123 @@
->  	return num;
->  }
->  
-> +#ifdef CONFIG_SWAP
-> +
-> +struct swapin_buffer {
-> +	spinlock_t		lock;
-> +	struct list_head	list;
-> +	int			nr;
-> +	struct delayed_work	work;
-> +} memcg_swapin_buffer;
-> +
-> +/* Used at swapoff */
-> +#define ENOUGH_LARGE_SWAPIN_BUFFER	(1024)
-> +
-> +/* Hide swapin page from LRU for a while */
-> +
-> +static int __check_swapin_buffer(struct page *page)
-> +{
-> +	/* Fast path (PG_writeback never be set.) */
-> +	if (!PageSwapCache(page) || page_mapped(page))
-> +		return 1;
-> +
-> +	if (PageUptodate(page) && trylock_page(page)) {
-> +		try_to_free_swap(page);
-> +		unlock_page(page);
-> +		return 1;
-> +	}
-> +	return 0;
-> +}
-> +
-> +static void mem_cgroup_drain_swapin_buffer(struct work_struct *work)
-> +{
-> +	struct page *page, *tmp;
-> +	LIST_HEAD(scan);
-> +	int nr, fail;
-> +
-> +	if (!memcg_swapin_buffer.nr)
-> +		return;
-> +
-> +	/*
-> +	 * When swapin_buffer increasing rapidly, swapped-in pages tend to be
-> +	 * in use. Because page faulted thread should continue its own work
-> +	 * to cause large swapin, swapin-readahead should _hit_ if nr is large.
-> +	 * In that case, __check_swapin_buffer() will use fast-path.
-> +	 * Then, making _nr_ to be propotional to the total size.
-> +	 */
-> +	nr = memcg_swapin_buffer.nr/8 + 1;
-> +
-> +	spin_lock(&memcg_swapin_buffer.lock);
-> +	while (nr-- && !list_empty(&memcg_swapin_buffer.list)) {
-> +		list_move(memcg_swapin_buffer.list.next, &scan);
-> +		memcg_swapin_buffer.nr--;
-> +	}
-> +	spin_unlock(&memcg_swapin_buffer.lock);
-> +
-> +	fail = 0;
-> +	list_for_each_entry_safe(page, tmp, &scan, lru) {
-> +		if (__check_swapin_buffer(page)) {
-> +			list_del(&page->lru);
-> +			lru_cache_add_anon(page);
-> +			put_page(page);
-> +		} else
-> +			fail++;
-> +	}
-> +	if (!list_empty(&scan)) {
-> +		spin_lock(&memcg_swapin_buffer.lock);
-> +		list_splice_tail(&scan, &memcg_swapin_buffer.list);
-> +		memcg_swapin_buffer.nr += fail;
-> +		spin_unlock(&memcg_swapin_buffer.lock);
-> +	}
-> +
-> +	if (memcg_swapin_buffer.nr)
-> +		schedule_delayed_work(&memcg_swapin_buffer.work, HZ/10);
-> +}
-> +
-> +static void mem_cgroup_force_drain_swapin_buffer(void)
-> +{
-> +	int swapin_buffer_thresh;
-> +
-> +	swapin_buffer_thresh = (num_online_cpus() + 1) * (1 << page_cluster);
-> +	if (memcg_swapin_buffer.nr > swapin_buffer_thresh)
-> +		mem_cgroup_drain_swapin_buffer(NULL);
-> +}
-> +
-> +void mem_cgroup_lazy_drain_swapin_buffer(void)
-> +{
-> +	schedule_delayed_work(&memcg_swapin_buffer.work, HZ/10);
-> +}
-> +
-> +void mem_cgroup_add_swapin_buffer(struct page *page)
-> +{
-> +	get_page(page);
-> +	spin_lock(&memcg_swapin_buffer.lock);
-> +	list_add_tail(&page->lru, &memcg_swapin_buffer.list);
-> +	memcg_swapin_buffer.nr++;
-> +	spin_unlock(&memcg_swapin_buffer.lock);
-> +	/*
-> +	 * Usually, this will not hit. At swapoff, we have to
-> +	 * drain ents manually.
-> +	 */
-> +	if (memcg_swapin_buffer.nr > ENOUGH_LARGE_SWAPIN_BUFFER)
-> +		mem_cgroup_drain_swapin_buffer(NULL);
-> +}
-> +
-> +static __init int init_swapin_buffer(void)
-> +{
-> +	spin_lock_init(&memcg_swapin_buffer.lock);
-> +	INIT_LIST_HEAD(&memcg_swapin_buffer.list);
-> +	INIT_DELAYED_WORK(&memcg_swapin_buffer.work,
-> +			mem_cgroup_drain_swapin_buffer);
-> +	return 0;
-> +}
-> +late_initcall(init_swapin_buffer);
-> +#else
-> +static void mem_cgroup_force_drain_swain_buffer(void)
-> +{
-> +}
-> +#endif /* CONFIG_SWAP */
-> +
->  /*
->   * Visit the first child (need not be the first child as per the ordering
->   * of the cgroup list, since we track last_scanned_child) of @mem and use
-> @@ -892,6 +1009,8 @@
->  	int ret, total = 0;
->  	int loop = 0;
->  
-> +	mem_cgroup_force_drain_swapin_buffer();
-> +
->  	while (loop < 2) {
->  		victim = mem_cgroup_select_victim(root_mem);
->  		if (victim == root_mem)
-> @@ -1560,6 +1679,7 @@
->  }
->  
->  #ifdef CONFIG_SWAP
-> +
->  /*
->   * called after __delete_from_swap_cache() and drop "page" account.
->   * memcg information is recorded to swap_cgroup of "ent"
-> Index: mmotm-2.6.30-May13/include/linux/swap.h
-> ===================================================================
-> --- mmotm-2.6.30-May13.orig/include/linux/swap.h	2009-05-15 17:44:14.000000000 +0900
-> +++ mmotm-2.6.30-May13/include/linux/swap.h	2009-05-15 18:01:43.000000000 +0900
-> @@ -336,11 +336,19 @@
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
->  extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
-> +extern void mem_cgroup_add_swapin_buffer(struct page *page);
-> +extern void mem_cgroup_lazy_drain_swapin_buffer(void);
->  #else
->  static inline void
->  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
->  {
->  }
-> +static inline void mem_cgroup_add_swapin_buffer(struct page *page)
-> +{
-> +}
-> +static inline void  mem_cgroup_lazy_drain_swapin_buffer(void)
-> +{
-> +}
->  #endif
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
-> Index: mmotm-2.6.30-May13/mm/swap_state.c
-> ===================================================================
-> --- mmotm-2.6.30-May13.orig/mm/swap_state.c	2009-05-15 17:44:14.000000000 +0900
-> +++ mmotm-2.6.30-May13/mm/swap_state.c	2009-05-15 18:01:43.000000000 +0900
-> @@ -311,7 +311,10 @@
->  			/*
->  			 * Initiate read into locked page and return.
->  			 */
-> -			lru_cache_add_anon(new_page);
-> +			if (mem_cgroup_disabled())
-> +				lru_cache_add_anon(new_page);
-> +			else
-> +				mem_cgroup_add_swapin_buffer(new_page);
->  			swap_readpage(NULL, new_page);
->  			return new_page;
->  		}
-> @@ -368,6 +371,9 @@
->  			break;
->  		page_cache_release(page);
->  	}
-> -	lru_add_drain();	/* Push any new pages onto the LRU now */
-> +	if (mem_cgroup_disabled())
-> +		lru_add_drain();/* Push any new pages onto the LRU now */
-> +	else
-> +		mem_cgroup_lazy_drain_swapin_buffer();
->  	return read_swap_cache_async(entry, gfp_mask, vma, addr);
->  }
-> 
+--- linux.orig/mm/vmscan.c
++++ linux/mm/vmscan.c
+@@ -1225,6 +1225,43 @@ static inline void note_zone_scanning_pr
+  * But we had to alter page->flags anyway.
+  */
+ 
++static void move_active_pages_to_lru(struct zone *zone,
++				     struct list_head *list,
++				     enum lru_list lru)
++{
++	unsigned long pgmoved = 0;
++	struct pagevec pvec;
++	struct page *page;
++
++	pagevec_init(&pvec, 1);
++
++	while (!list_empty(list)) {
++		page = lru_to_page(list);
++		prefetchw_prev_lru_page(page, list, flags);
++
++		VM_BUG_ON(PageLRU(page));
++		SetPageLRU(page);
++
++		VM_BUG_ON(!PageActive(page));
++		if (!is_active_lru(lru))
++			ClearPageActive(page);	/* we are de-activating */
++
++		list_move(&page->lru, &zone->lru[lru].list);
++		mem_cgroup_add_lru_list(page, lru);
++		pgmoved++;
++
++		if (!pagevec_add(&pvec, page) || list_empty(list)) {
++			spin_unlock_irq(&zone->lru_lock);
++			if (buffer_heads_over_limit)
++				pagevec_strip(&pvec);
++			__pagevec_release(&pvec);
++			spin_lock_irq(&zone->lru_lock);
++		}
++	}
++	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
++	if (!is_active_lru(lru))
++		__count_vm_events(PGDEACTIVATE, pgmoved);
++}
+ 
+ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 			struct scan_control *sc, int priority, int file)
+@@ -1236,8 +1273,6 @@ static void shrink_active_list(unsigned 
+ 	LIST_HEAD(l_active);
+ 	LIST_HEAD(l_inactive);
+ 	struct page *page;
+-	struct pagevec pvec;
+-	enum lru_list lru;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	lru_add_drain();
+@@ -1254,6 +1289,7 @@ static void shrink_active_list(unsigned 
+ 	}
+ 	reclaim_stat->recent_scanned[!!file] += pgmoved;
+ 
++	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+ 	if (file)
+ 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -pgmoved);
+ 	else
+@@ -1283,6 +1319,7 @@ static void shrink_active_list(unsigned 
+ 			 * are ignored, since JVM can create lots of anon
+ 			 * VM_EXEC pages.
+ 			 */
++			if (page_cluster)
+ 			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+@@ -1295,8 +1332,6 @@ static void shrink_active_list(unsigned 
+ 	/*
+ 	 * Move pages back to the lru list.
+ 	 */
+-	pagevec_init(&pvec, 1);
+-
+ 	spin_lock_irq(&zone->lru_lock);
+ 	/*
+ 	 * Count referenced pages from currently used mappings as rotated,
+@@ -1306,57 +1341,12 @@ static void shrink_active_list(unsigned 
+ 	 */
+ 	reclaim_stat->recent_rotated[!!file] += pgmoved;
+ 
+-	pgmoved = 0;  /* count pages moved to inactive list */
+-	lru = LRU_BASE + file * LRU_FILE;
+-	while (!list_empty(&l_inactive)) {
+-		page = lru_to_page(&l_inactive);
+-		prefetchw_prev_lru_page(page, &l_inactive, flags);
+-		VM_BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		VM_BUG_ON(!PageActive(page));
+-		ClearPageActive(page);
+-
+-		list_move(&page->lru, &zone->lru[lru].list);
+-		mem_cgroup_add_lru_list(page, lru);
+-		pgmoved++;
+-		if (!pagevec_add(&pvec, page)) {
+-			spin_unlock_irq(&zone->lru_lock);
+-			if (buffer_heads_over_limit)
+-				pagevec_strip(&pvec);
+-			__pagevec_release(&pvec);
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-	}
+-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+-	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+-	__count_vm_events(PGDEACTIVATE, pgmoved);
+-
+-	pgmoved = 0;  /* count pages moved back to active list */
+-	lru = LRU_ACTIVE + file * LRU_FILE;
+-	while (!list_empty(&l_active)) {
+-		page = lru_to_page(&l_active);
+-		prefetchw_prev_lru_page(page, &l_active, flags);
+-		VM_BUG_ON(PageLRU(page));
+-		SetPageLRU(page);
+-		VM_BUG_ON(!PageActive(page));
+-
+-		list_move(&page->lru, &zone->lru[lru].list);
+-		mem_cgroup_add_lru_list(page, lru);
+-		pgmoved++;
+-		if (!pagevec_add(&pvec, page)) {
+-			spin_unlock_irq(&zone->lru_lock);
+-			if (buffer_heads_over_limit)
+-				pagevec_strip(&pvec);
+-			__pagevec_release(&pvec);
+-			spin_lock_irq(&zone->lru_lock);
+-		}
+-	}
+-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
++	move_active_pages_to_lru(zone, &l_active,
++						LRU_ACTIVE + file * LRU_FILE);
++	move_active_pages_to_lru(zone, &l_inactive,
++						LRU_BASE   + file * LRU_FILE);
+ 
+ 	spin_unlock_irq(&zone->lru_lock);
+-	if (buffer_heads_over_limit)
+-		pagevec_strip(&pvec);
+-	pagevec_release(&pvec);
+ }
+ 
+ static int inactive_anon_is_low_global(struct zone *zone)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
