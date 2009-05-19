@@ -1,116 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 113356B0055
-	for <linux-mm@kvack.org>; Mon, 18 May 2009 21:11:24 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4J1BStj000494
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 May 2009 10:11:32 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4445245DD78
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 10:11:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19B9A45DD74
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 10:11:28 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D1E31DB8018
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 10:11:28 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C8746E08004
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 10:11:27 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] vmscan: change the number of the unmapped files in zone reclaim
-In-Reply-To: <20090518035319.GA7940@localhost>
-References: <2f11576a0905172035k3f26b8d6r84af555a94b1d70e@mail.gmail.com> <20090518035319.GA7940@localhost>
-Message-Id: <20090519094141.4EA2.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 43A3B6B005D
+	for <linux-mm@kvack.org>; Mon, 18 May 2009 21:17:50 -0400 (EDT)
+From: "Zhang, Yanmin" <yanmin.zhang@intel.com>
+Date: Tue, 19 May 2009 09:16:25 +0800
+Subject: RE: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+Message-ID: <4D05DB80B95B23498C72C700BD6C2E0B2EF6E127@pdsmsx502.ccr.corp.intel.com>
+References: <20090513120155.5879.A69D9226@jp.fujitsu.com>
+ <20090513120729.5885.A69D9226@jp.fujitsu.com>
+ <20090518034907.GF5869@localhost>
+In-Reply-To: <20090518034907.GF5869@localhost>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 May 2009 10:11:26 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: "Wu, Fengguang" <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, May 18, 2009 at 11:35:31AM +0800, KOSAKI Motohiro wrote:
-> > >> --- a/mm/vmscan.c
-> > >> +++ b/mm/vmscan.c
-> > >> @@ -2397,6 +2397,7 @@ static int __zone_reclaim(struct zone *z
-> > >> ? ? ? ? ? ? ? .isolate_pages = isolate_pages_global,
-> > >> ? ? ? };
-> > >> ? ? ? unsigned long slab_reclaimable;
-> > >> + ? ? long nr_unmapped_file_pages;
-> > >>
-> > >> ? ? ? disable_swap_token();
-> > >> ? ? ? cond_resched();
-> > >> @@ -2409,9 +2410,11 @@ static int __zone_reclaim(struct zone *z
-> > >> ? ? ? reclaim_state.reclaimed_slab = 0;
-> > >> ? ? ? p->reclaim_state = &reclaim_state;
-> > >>
-> > >> - ? ? if (zone_page_state(zone, NR_FILE_PAGES) -
-> > >> - ? ? ? ? ? ? zone_page_state(zone, NR_FILE_MAPPED) >
-> > >> - ? ? ? ? ? ? zone->min_unmapped_pages) {
-> > >> + ? ? nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> > >> + ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?zone_page_state(zone, NR_ACTIVE_FILE) -
-> > >> + ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?zone_page_state(zone, NR_FILE_MAPPED);
-> > >
-> > > This can possibly go negative.
-> > 
-> > Is this a problem?
-> > negative value mean almost pages are mapped. Thus
-> > 
-> >   (nr_unmapped_file_pages > zone->min_unmapped_pages)  => 0
-> > 
-> > is ok, I think.
-> 
-> I wonder why you didn't get a gcc warning, because zone->min_unmapped_pages
-> is a "unsigned long".
-> 
-> Anyway, add a simple note to the code if it works *implicitly*?
-
-hm, My gcc is wrong version? (gcc version 4.1.2 20070626 (Red Hat 4.1.2-14))
-Anyway, you are right. thanks for good catch :)
-
-incremental fixing patch is here.
-
-Patch name: vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim-fix.patch
-Applied after: vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
----
- mm/vmscan.c |   12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2397,7 +2397,9 @@ static int __zone_reclaim(struct zone *z
- 		.isolate_pages = isolate_pages_global,
- 	};
- 	unsigned long slab_reclaimable;
--	long nr_unmapped_file_pages;
-+	unsigned long nr_file_pages;
-+	unsigned long nr_mapped;
-+	unsigned long nr_unmapped_file_pages = 0;
- 
- 	disable_swap_token();
- 	cond_resched();
-@@ -2410,9 +2412,11 @@ static int __zone_reclaim(struct zone *z
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
--				 zone_page_state(zone, NR_ACTIVE_FILE) -
--				 zone_page_state(zone, NR_FILE_MAPPED);
-+	nr_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-+			zone_page_state(zone, NR_ACTIVE_FILE);
-+	nr_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-+	if (likely(nr_file_pages >= nr_mapped))
-+		nr_unmapped_file_pages = nr_file_pages - nr_mapped;
- 
- 	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
- 		/*
-
-
+Pj4tLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPj5Gcm9tOiBXdSwgRmVuZ2d1YW5nDQo+PlNl
+bnQ6IDIwMDnE6jXUwjE4yNUgMTE6NDkNCj4+VG86IEtPU0FLSSBNb3RvaGlybw0KPj5DYzogTEtN
+TDsgbGludXgtbW07IEFuZHJldyBNb3J0b247IFJpayB2YW4gUmllbDsgQ2hyaXN0b3BoIExhbWV0
+ZXI7IFpoYW5nLA0KPj5ZYW5taW4NCj4+U3ViamVjdDogUmU6IFtQQVRDSCA0LzRdIHpvbmVfcmVj
+bGFpbV9tb2RlIGlzIGFsd2F5cyAwIGJ5IGRlZmF1bHQNCj4+DQo+Pk9uIFdlZCwgTWF5IDEzLCAy
+MDA5IGF0IDEyOjA4OjEyUE0gKzA5MDAsIEtPU0FLSSBNb3RvaGlybyB3cm90ZToNCj4+PiBTdWJq
+ZWN0OiBbUEFUQ0hdIHpvbmVfcmVjbGFpbV9tb2RlIGlzIGFsd2F5cyAwIGJ5IGRlZmF1bHQNCj4+
+Pg0KPj4+IEN1cnJlbnQgbGludXggcG9saWN5IGlzLCBpZiB0aGUgbWFjaGluZSBoYXMgbGFyZ2Ug
+cmVtb3RlIG5vZGUgZGlzdGFuY2UsDQo+Pj4gIHpvbmVfcmVjbGFpbV9tb2RlIGlzIGVuYWJsZWQg
+YnkgZGVmYXVsdCBiZWNhdXNlIHdlJ3ZlIGJlIGFibGUgdG8gYXNzdW1lIHRvDQo+Pj4gbGFyZ2Ug
+ZGlzdGFuY2UgbWVhbiBsYXJnZSBzZXJ2ZXIgdW50aWwgcmVjZW50bHkuDQo+Pj4NCj4+PiBVbmZy
+b3R1bmF0ZWx5LCByZWNlbnQgbW9kZXJuIHg4NiBDUFUgKGUuZy4gQ29yZSBpNywgT3BldGVyb24p
+IGhhdmUgUDJQDQo+PnRyYW5zcG9ydA0KPj4+IG1lbW9yeSBjb250cm9sbGVyLiBJT1cgaXQncyBO
+VU1BIGZyb20gc29mdHdhcmUgdmlldy4NCj4+Pg0KPj4+IFNvbWUgQ29yZSBpNyBtYWNoaW5lIGhh
+cyBsYXJnZSByZW1vdGUgbm9kZSBkaXN0YW5jZSBhbmQgem9uZV9yZWNsYWltIGRvbid0DQo+Pj4g
+Zml0IGRlc2t0b3AgYW5kIHNtYWxsIGZpbGUgc2VydmVyLiBpdCBjYXVzZSBwZXJmb3JtYW5jZSBk
+ZWdyZXNzaW9uLg0KPj4NCj4+SSBjYW4gY29uZmlybSB0aGlzLCBZYW5taW4gcmVjZW50bHkgcmFu
+IGludG8gZXhhY3RseSBzdWNoIGENCj4+cmVncmVzc2lvbiwgd2hpY2ggd2FzIGZpeGVkIGJ5IG1h
+bnVhbGx5IGRpc2FibGluZyB0aGUgem9uZSByZWNsYWltDQo+Pm1vZGUuIFNvIEkgZ3Vlc3MgeW91
+IGNhbiBzYWZlbHkgYWRkIGFuDQpbWU1dIEZlbmdndWFuZyB0b2xkIHRoZSB0cnV0aC4gT25lIE5l
+aGFsZW0gbWFjaGluZSBoYXMgMTJHQiBtZW1vcnksDQpidXQgdGhlcmUgaXMgYWx3YXlzIDJHQiBm
+cmVlIGFsdGhvdWdoIGFwcGxpY2F0aW9ucyBhY2Nlc3NlcyBsb3RzIG9mIGZpbGVzLg0KRXZlbnR1
+YWxseSB3ZSBsb2NhdGVkIHRoZSByb290IGNhdXNlIGFzIHpvbmVfcmVjbGFpbV9tb2RlPTEuDQoN
+CkFja2VkLg0KDQoNCg0KPj4NCj4+VGVzdGVkLWJ5OiAiWmhhbmcsIFlhbm1pbiIgPHlhbm1pbi56
+aGFuZ0BpbnRlbC5jb20+DQo+Pg0KPj4+IFRodXMsIHpvbmVfcmVjbGFpbSA9PSAwIGlzIGJldHRl
+ciBieSBkZWZhdWx0LiBzb3JyeSwgSFBDIGd1c3kuDQo+Pj4geW91IG5lZWQgdG8gdHVybiB6b25l
+X3JlY2xhaW1fbW9kZSBvbiBtYW51YWxseSBub3cuDQo+Pg0KPj5JIGd1ZXNzIHRoZSBib3JkZXJs
+aW5lIHdpbGwgY29udGludWUgdG8gYmx1ciB1cC4gSXQgd2lsbCBiZSBtb3JlDQo+PmRlcGVuZGVu
+dCBvbiB3b3JrbG9hZHMgaW5zdGVhZCBvZiBwaHlzaWNhbCBOVU1BIGNhcGFiaWxpdGllcy4gU28N
+Cj4+DQo+PkFja2VkLWJ5OiBXdSBGZW5nZ3VhbmcgPGZlbmdndWFuZy53dUBpbnRlbC5jb20+DQo+
+Pg0KPj4+IFNpZ25lZC1vZmYtYnk6IEtPU0FLSSBNb3RvaGlybyA8a29zYWtpLm1vdG9oaXJvQGpw
+LmZ1aml0c3UuY29tPg0KPj4+IENjOiBDaHJpc3RvcGggTGFtZXRlciA8Y2xAbGludXgtZm91bmRh
+dGlvbi5vcmc+DQo+Pj4gQ2M6IFJpayB2YW4gUmllbCA8cmllbEByZWRoYXQuY29tPg0KPj4+IC0t
+LQ0KPj4+ICBtbS9wYWdlX2FsbG9jLmMgfCAgICA3IC0tLS0tLS0NCj4+PiAgMSBmaWxlIGNoYW5n
+ZWQsIDcgZGVsZXRpb25zKC0pDQo+Pj4NCj4+PiBJbmRleDogYi9tbS9wYWdlX2FsbG9jLmMNCj4+
+PiA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09DQo+Pj4gLS0tIGEvbW0vcGFnZV9hbGxvYy5jDQo+Pj4gKysrIGIvbW0vcGFn
+ZV9hbGxvYy5jDQo+Pj4gQEAgLTI0OTQsMTMgKzI0OTQsNiBAQCBzdGF0aWMgdm9pZCBidWlsZF96
+b25lbGlzdHMocGdfZGF0YV90ICpwDQo+Pj4gIAkJaW50IGRpc3RhbmNlID0gbm9kZV9kaXN0YW5j
+ZShsb2NhbF9ub2RlLCBub2RlKTsNCj4+Pg0KPj4+ICAJCS8qDQo+Pj4gLQkJICogSWYgYW5vdGhl
+ciBub2RlIGlzIHN1ZmZpY2llbnRseSBmYXIgYXdheSB0aGVuIGl0IGlzIGJldHRlcg0KPj4+IC0J
+CSAqIHRvIHJlY2xhaW0gcGFnZXMgaW4gYSB6b25lIGJlZm9yZSBnb2luZyBvZmYgbm9kZS4NCj4+
+PiAtCQkgKi8NCj4+PiAtCQlpZiAoZGlzdGFuY2UgPiBSRUNMQUlNX0RJU1RBTkNFKQ0KPj4+IC0J
+CQl6b25lX3JlY2xhaW1fbW9kZSA9IDE7DQo+Pj4gLQ0KPj4+IC0JCS8qDQo+Pj4gIAkJICogV2Ug
+ZG9uJ3Qgd2FudCB0byBwcmVzc3VyZSBhIHBhcnRpY3VsYXIgbm9kZS4NCj4+PiAgCQkgKiBTbyBh
+ZGRpbmcgcGVuYWx0eSB0byB0aGUgZmlyc3Qgbm9kZSBpbiBzYW1lDQo+Pj4gIAkJICogZGlzdGFu
+Y2UgZ3JvdXAgdG8gbWFrZSBpdCByb3VuZC1yb2Jpbi4NCj4+Pg0KPj4+DQo+Pj4gLS0NCj4+PiBU
+byB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0n
+IGluDQo+Pj4gdGhlIGJvZHkgdG8gbWFqb3Jkb21vQGt2YWNrLm9yZy4gIEZvciBtb3JlIGluZm8g
+b24gTGludXggTU0sDQo+Pj4gc2VlOiBodHRwOi8vd3d3LmxpbnV4LW1tLm9yZy8gLg0KPj4+IERv
+bid0IGVtYWlsOiA8YSBocmVmPW1haWx0bzoiZG9udEBrdmFjay5vcmciPiBlbWFpbEBrdmFjay5v
+cmcgPC9hPg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
