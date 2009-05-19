@@ -1,98 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CC9D76B004D
-	for <linux-mm@kvack.org>; Mon, 18 May 2009 23:39:03 -0400 (EDT)
-From: "Zhang, Yanmin" <yanmin.zhang@intel.com>
-Date: Tue, 19 May 2009 11:38:26 +0800
-Subject: RE: [PATCH 4/4] zone_reclaim_mode is always 0 by default
-Message-ID: <4D05DB80B95B23498C72C700BD6C2E0B2EF6E29A@pdsmsx502.ccr.corp.intel.com>
-References: <20090513120729.5885.A69D9226@jp.fujitsu.com>
- <20090518034907.GF5869@localhost>
- <20090519102634.4EB4.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090519102634.4EB4.A69D9226@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7DE896B004D
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 00:30:20 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4J4Ukea020539
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 19 May 2009 13:30:46 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CC0822AEA81
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 13:30:45 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A24601EF084
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 13:30:45 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 66B6DE18005
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 13:30:45 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DA112E08004
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 13:30:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+In-Reply-To: <4D05DB80B95B23498C72C700BD6C2E0B2EF6E29A@pdsmsx502.ccr.corp.intel.com>
+References: <20090519102634.4EB4.A69D9226@jp.fujitsu.com> <4D05DB80B95B23498C72C700BD6C2E0B2EF6E29A@pdsmsx502.ccr.corp.intel.com>
+Message-Id: <20090519125744.4EC3.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 19 May 2009 13:30:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: "Zhang, Yanmin" <yanmin.zhang@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Wu, Fengguang" <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Pj4tLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPj5Gcm9tOiBLT1NBS0kgTW90b2hpcm8gW21h
-aWx0bzprb3Nha2kubW90b2hpcm9AanAuZnVqaXRzdS5jb21dDQo+PlNlbnQ6IDIwMDnE6jXUwjE5
-yNUgMTA6NTQNCj4+VG86IFd1LCBGZW5nZ3VhbmcNCj4+Q2M6IGtvc2FraS5tb3RvaGlyb0BqcC5m
-dWppdHN1LmNvbTsgTEtNTDsgbGludXgtbW07IEFuZHJldyBNb3J0b247IFJpayB2YW4NCj4+Umll
-bDsgQ2hyaXN0b3BoIExhbWV0ZXI7IFpoYW5nLCBZYW5taW4NCj4+U3ViamVjdDogUmU6IFtQQVRD
-SCA0LzRdIHpvbmVfcmVjbGFpbV9tb2RlIGlzIGFsd2F5cyAwIGJ5IGRlZmF1bHQNCj4+DQo+Pj4g
-T24gV2VkLCBNYXkgMTMsIDIwMDkgYXQgMTI6MDg6MTJQTSArMDkwMCwgS09TQUtJIE1vdG9oaXJv
-IHdyb3RlOg0KPj4+ID4gU3ViamVjdDogW1BBVENIXSB6b25lX3JlY2xhaW1fbW9kZSBpcyBhbHdh
-eXMgMCBieSBkZWZhdWx0DQo+Pj4gPg0KPj4+ID4gQ3VycmVudCBsaW51eCBwb2xpY3kgaXMsIGlm
-IHRoZSBtYWNoaW5lIGhhcyBsYXJnZSByZW1vdGUgbm9kZSBkaXN0YW5jZSwNCj4+PiA+ICB6b25l
-X3JlY2xhaW1fbW9kZSBpcyBlbmFibGVkIGJ5IGRlZmF1bHQgYmVjYXVzZSB3ZSd2ZSBiZSBhYmxl
-IHRvIGFzc3VtZQ0KDQo+Pg0KPj5vaywgSSB3b3VsZCBleHBsYWluIHpvbmUgcmVjbGFpbSBkZXNp
-Z24gYW5kIHBlcmZvcm1hbmNlIHRlbmRlbmN5Lg0KPj4NCj4+Rmlyc3RseSwgd2UgY2FuIG1ha2Ug
-Y2xhc3NpZmljYXRpb24gb2YgbGludXggZWNvIHN5c3RlbSwgcm91Z2hseS4NCj4+IC0gSFBDDQo+
-PiAtIGhpZ2gtZW5kIHNlcnZlcg0KPj4gLSB2b2x1bWUgc2VydmVyDQo+PiAtIGRlc2t0b3ANCj4+
-IC0gZW1iZWRkZWQNCj4+DQo+Pml0IGlzIHNlcGFyYXRlZCBieSB0eXBpY2FsIHdvcmtsb2FkIG1h
-aW5seS4NCj4+DQo+PlNlY29uZGx5LCB6b25lX3JlY2xhaW0gbWVhbiAiSSBzdHJvbmdseSBkaXNs
-aWtlIHJlbW90ZSBub2RlIGFjY2VzcyB0aGFuDQo+PmRpc2sgYWNjZXNzIi4NCj4+aXQgaXMgdmVy
-eSBmaXR0aW5nIG9uIEhQQyB3b3JrbG9hZC4gaXQgYmVjYXVzZQ0KPj4gIC0gSFBDIHdvcmtsb2Fk
-IHR5cGljYWxseSBtYWtlIHRoZSBudW1iZXIgb2YgdGhlIHNhbWUgYXMgY3B1cyBvZiBwcm9jZXNz
-ZXNzDQo+PihvciB0aHJlYWQpLg0KPj4gICAgSU9XLCB0aGUgd29ya2xvYWQgdHlwaWNhbGx5IHVz
-ZSBtZW1vcnkgZXF1YWxseSBlYWNoIG5vZGUuDQo+PiAgLSBIUEMgd29ya2xvYWQgaXMgdHlwaWNh
-bGx5IENQVSBib3VuZGVkIGpvYi4gQ1BVIG1pZ3JhdGlvbiBpcyByYXJlLg0KPj4gIC0gSFBDIHdv
-cmtsb2FkIGlzIHR5cGljYWxseSBsb25nIGxpdmVkLiAocG9zc2libGUgPjEgeWVhcikNCj4+ICAg
-IElPVywgcmVtb3RlIG5vZGUgYWxsb2NhdGlvbiBtYWtlcyBfdmVyeV8gX3ZlcnlfIG11Y2ggcmVt
-b3RlIG5vZGUgYWNjZXNzLg0KPj4NCj4+YnV0IHpvbmVfcmVjbGFpbSBkb24ndCBmaXQgdHlwaWNh
-bCBzZXJ2ZXIgd29ya2xvYWQuDQo+PiAgLSBzZXJ2ZXIgd29ya2xvYWQgb2Z0ZW4gbWFrZSB0aHJl
-YWQgcG9vbCBhbmQgc29tZSB0aHJlYWQgaXMgc2xlZXBpbmcgdW50aWwNCj4+ICAgIGEgcmVxdWVz
-dCByZWNldmVkLg0KPj4gICAgSU9XLCB3aGVuIHRocmVhZCB3YWtpbmctdXAsIHRoZSB0aHJlYWQg
-bWlnaHQgbW92ZSBhbm90aGVyIGNwdS4NCj4+ICAgIG5vZGUgZGlzdGFuY2UgdGVuZGVuY3kgZG9u
-J3QgbWFrZSBzZW5zZSBvbiB3ZWFrIGNwdSBsb2NhbGl0eSB3b3JrbG9hZC4NCj4+DQo+PlBsdXMs
-IGRpc2stY2FjaGUgaXMgdGhlIGZpbGUtc2VydmVyJ3MgaWRlbnRpdHkuIHdlIHNob3VsZG4ndCB0
-aGluayBpdCdzIG5vdA0KPj5pbXBvcnRhbnQuDQo+PlBsdXMsIERCIHNvZnR3YXJlIGNhbiBjb25z
-dW1lIGFsbW9zdCBzeXN0ZW0gbWVtb3J5IGFuZCAoSW4gZ2VuZXJhbCkgUkRCIGRhdGENCj4+bWFr
-ZXMNCj4+aGFyZGVyIHRvIHNwbGl0IGVxdWFsbHkgYXMgaHBjLg0KPj4NCj4+ZGVza3RvcCB3b3Jr
-bG9hZCBpcyBzcGVjaWFsLiBkZXNrdG9wIHBlb3BvbGUgY2FuIHJ1biB2YXJpb3VzIHdvcmtsb2Fk
-IGJleW9uZA0KPj5vdXIgYXNzdW1wdGlvbi4gU28sIHdlIHNob3VsZG4ndCBoYXZlIGFueSB3b3Jr
-bG9hZCBhc3N1bXB0aW9uIHRvIGRlc2t0b3ANCj4+cGVvcGxlLg0KPj5Ib3dldmVyLCBBRkFJSyBh
-bG1vc3QgZGVza3RvcCBzb2Z0d2FyZSB1c2UgbWVtb3J5IGFzIFVNQS4NCj4+DQo+PndlIGRvbid0
-IG5lZWQgdG8gY2FyZSBlbWJlZGRlZC4gaXQgaXMgdHlwaWNhbGx5IFVNQS4NCj4+DQo+Pg0KPj5J
-T1csIHRoZSBiZW5lZml0IG9mIHpvbmUgcmVjbGFpbSBkZXBlbmQgb24gInN0cm9uZyBjcHUgbG9j
-YWxpdHkiIGFuZA0KPj4id29ya2xvYWQgaXMgY3B1IGJvdW5kZWQiIGFuZCAidGhlYWQgaXMgbG9u
-ZyBsaXZlZCIuDQo+PmJ1dCBtYW55IHdvcmtsb2FkIGRvbid0IGZpbGwgYWJvdmUgcmVxdWlyZW1l
-bnQuIElPVywgem9uZSByZWNsYWltIGlzDQo+Pndvcmtsb2FkIGRlcGVuZGVkIGZlYXR1cmUgKGFz
-IFd1IHNhaWQpLg0KPj4NCj4+DQo+PkluIGdlbmVyYWwsIHRoZSBmZWF0dXJlIG9mIHdvcmtsb2Fk
-IGRlcGVuZGVkIGRvbid0IGZpdCBkZWZhdWx0IG9wdGlvbi4NCj4+d2UgY2FuJ3Qga25vdyBlbmQt
-dXNlciBydW4gd2hhdCB3b3JrbG9hZCBhbnl3YXkuDQo+Pg0KPj5Gb3J0dW5hdGVseSAob3IgVW5m
-b3J0dW5hdGVseSksIHR5cGljYWwgd29ya2xvYWQgYW5kIG1hY2hpbmUgc2l6ZSBoYWQNCj4+c2ln
-bmlmaWNhbnQgbXV0dWFsaXR5Lg0KPj5UaHVzLCB0aGUgY3VycmVudCBkZWZhdWx0IHNldHRpbmcg
-Y2FsY3VsYXRpb24gaGFkIHdvcmtlZCB3ZWxsIGluIHBhc3QgZGF5cy4NCltZTV0gWW91ciBhbmFs
-eXNpcyBpcyBjbGVhciBhbmQgZGVlcC4NCg0KPj4NCj4+Tm93LCBpdCB3YXMgYnJlYWtlZC4gV2hh
-dCBzaG91bGQgd2UgZG8/DQo+Pllhbm1pbiwgV2Uga25vdyA5OSUgbGludXggcGVvcGxlIHVzZSBp
-bnRlbCBjcHUgYW5kIHlvdSBhcmUgb25lIG9mDQo+Pm1vc3QgaGFyZCByZXBlYXRlZCB0ZXN0aW5n
-DQpbWU1dIEl0J3MgdmVyeSBlYXN5IHRvIHJlcHJvZHVjZSB0aGVtIG9uIG15IG1hY2hpbmVzLiA6
-KSBTb21ldGltZXMsIGJlY2F1c2UgdGhlIA0KaXNzdWVzIG9ubHkgZXhpc3Qgb24gbWFjaGluZXMg
-d2l0aCBsb3RzIG9mIGNwdSB3aGlsZSBvdGhlciBjb21tdW5pdHkgZGV2ZWxvcGVycw0KaGF2ZSBu
-byBzdWNoIGVudmlyb25tZW50cy4gDQoNCiBndXkgaW4gbGttbCBhbmQgeW91IGhhdmUgbXVjaCB0
-ZXN0Lg0KPj5NYXkgSSBhc2sgeW91ciB0ZXN0ZWQgbWFjaGluZSBhbmQgYmVuY2htYXJrPw0KW1lN
-XSBVc3VhbGx5IEkgc3RhcnRlZCBsb3RzIG9mIGJlbmNobWFyayB0ZXN0aW5nIGFnYWluc3QgdGhl
-IGxhdGVzdCBrZXJuZWwsIGJ1dCANCmFzIGZvciB0aGlzIGlzc3VlLCBpdCdzIHJlcG9ydGVkIGJ5
-IGEgY3VzdG9tZXIgZmlyc3RseS4gVGhlIGN1c3RvbWVyIHJ1bnMgYXBhY2hlDQpvbiBOZWhhbGVt
-IG1hY2hpbmVzIHRvIGFjY2VzcyBsb3RzIG9mIGZpbGVzLiBTbyB0aGUgaXNzdWUgaXMgYW4gZXhh
-bXBsZSBvZiBmaWxlIA0Kc2VydmVyLg0KDQpCVFcsIEkgZm91bmQgbWFueSB0ZXN0IGNhc2VzIG9m
-IGZpbyBoYXZlIGJpZyBkcm9wIGFmdGVyIEkgdXBncmFkZWQgQklPUyBvZiBvbmUgDQpOZWhhbGVt
-IG1hY2hpbmUuIEJ5IGNoZWNraW5nIHZtc3RhdCBkYXRhLCBJIGZvdW5kIGFsbW9zdCBhIGhhbGYg
-bWVtb3J5IGlzIGFsd2F5cyBmcmVlLiBJdCdzIGFsc28gcmVsYXRlZCB0byB6b25lX3JlY2xhaW1f
-bW9kZSBiZWNhdXNlIG5ldyBCSU9TIGNoYW5nZXMgdGhlIG5vZGUNCmRpc3RhbmNlIHRvIGEgbGFy
-Z2UgdmFsdWUuIEkgdXNlIG51bWFjdGwgLS1pbnRlcmxlYXZlPWFsbCB0byB3YWxrYXJvdW5kIHRo
-ZSBwcm9ibGVtIHRlbXBvcmFyaWx5Lg0KDQpJIGhhdmUgbm8gSFBDIGVudmlyb25tZW50Lg0KDQo+
-Pg0KPj5pZiB6b25lX3JlY2xhaW09MCB0ZW5kZW5jeSB3b3JrbG9hZCBpcyBtdWNoIHRoYW4gem9u
-ZV9yZWNsYWltPTEgdGVuZGVuY3kNCj4+d29ya2xvYWQsDQo+PiB3ZSBjYW4gZHJvcCBvdXIgYWZy
-YWlkIGFuZCB3ZSB3b3VsZCBwcmlvcml0aXplIHlvdXIgb3Bpbmlvbiwgb2YgY291cmNlLg0KU28g
-aXQgc2VlbXMgb25seSBmaWxlIHNlcnZlcnMgaGF2ZSB0aGUgaXNzdWUgY3VycmVudGx5Lg0KDQpZ
-YW5taW4NCg0K
+> >>-----Original Message-----
+> >>From: KOSAKI Motohiro [mailto:kosaki.motohiro@jp.fujitsu.com]
+> >>Sent: 2009$B%Hs%d%D(B19$B%M%f(B 10:54
+> >>To: Wu, Fengguang
+> >>Cc: kosaki.motohiro@jp.fujitsu.com; LKML; linux-mm; Andrew Morton; Rik van
+> >>Riel; Christoph Lameter; Zhang, Yanmin
+> >>Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+> >>
+> >>> On Wed, May 13, 2009 at 12:08:12PM +0900, KOSAKI Motohiro wrote:
+> >>> > Subject: [PATCH] zone_reclaim_mode is always 0 by default
+> >>> >
+> >>> > Current linux policy is, if the machine has large remote node distance,
+> >>> >  zone_reclaim_mode is enabled by default because we've be able to assume
+> 
+> >>
+> >>ok, I would explain zone reclaim design and performance tendency.
+> >>
+> >>Firstly, we can make classification of linux eco system, roughly.
+> >> - HPC
+> >> - high-end server
+> >> - volume server
+> >> - desktop
+> >> - embedded
+> >>
+> >>it is separated by typical workload mainly.
+> >>
+> >>Secondly, zone_reclaim mean "I strongly dislike remote node access than
+> >>disk access".
+> >>it is very fitting on HPC workload. it because
+> >>  - HPC workload typically make the number of the same as cpus of processess
+> >>(or thread).
+> >>    IOW, the workload typically use memory equally each node.
+> >>  - HPC workload is typically CPU bounded job. CPU migration is rare.
+> >>  - HPC workload is typically long lived. (possible >1 year)
+> >>    IOW, remote node allocation makes _very_ _very_ much remote node access.
+> >>
+> >>but zone_reclaim don't fit typical server workload.
+> >>  - server workload often make thread pool and some thread is sleeping until
+> >>    a request receved.
+> >>    IOW, when thread waking-up, the thread might move another cpu.
+> >>    node distance tendency don't make sense on weak cpu locality workload.
+> >>
+> >>Plus, disk-cache is the file-server's identity. we shouldn't think it's not
+> >>important.
+> >>Plus, DB software can consume almost system memory and (In general) RDB data
+> >>makes
+> >>harder to split equally as hpc.
+> >>
+> >>desktop workload is special. desktop peopole can run various workload beyond
+> >>our assumption. So, we shouldn't have any workload assumption to desktop
+> >>people.
+> >>However, AFAIK almost desktop software use memory as UMA.
+> >>
+> >>we don't need to care embedded. it is typically UMA.
+> >>
+> >>
+> >>IOW, the benefit of zone reclaim depend on "strong cpu locality" and
+> >>"workload is cpu bounded" and "thead is long lived".
+> >>but many workload don't fill above requirement. IOW, zone reclaim is
+> >>workload depended feature (as Wu said).
+> >>
+> >>
+> >>In general, the feature of workload depended don't fit default option.
+> >>we can't know end-user run what workload anyway.
+> >>
+> >>Fortunately (or Unfortunately), typical workload and machine size had
+> >>significant mutuality.
+> >>Thus, the current default setting calculation had worked well in past days.
+> [YM] Your analysis is clear and deep.
+
+Thanks!
+
+
+> >>Now, it was breaked. What should we do?
+> >>Yanmin, We know 99% linux people use intel cpu and you are one of
+> >>most hard repeated testing
+> [YM] It's very easy to reproduce them on my machines. :) Sometimes, because the 
+> issues only exist on machines with lots of cpu while other community developers
+> have no such environments. 
+>
+> 
+>  guy in lkml and you have much test.
+> >>May I ask your tested machine and benchmark?
+> [YM] Usually I started lots of benchmark testing against the latest kernel, but 
+> as for this issue, it's reported by a customer firstly. The customer runs apache
+> on Nehalem machines to access lots of files. So the issue is an example of file 
+> server.
+
+hmmm. 
+I'm surprised this report. I didn't know this problem. oh..
+
+Actually, I don't think apache is only file server.
+apache is one of killer application in linux. it run on very widely organization.
+you think large machine don't run apache? I don't think so.
+
+
+
+> BTW, I found many test cases of fio have big drop after I upgraded BIOS of one 
+> Nehalem machine. By checking vmstat data, I found almost a half memory is always free. It's also related to zone_reclaim_mode because new BIOS changes the node
+> distance to a large value. I use numactl --interleave=all to walkaround the problem temporarily.
+> 
+> I have no HPC environment.
+
+Yeah, that's ok. I and cristoph have. My worries is my unknown workload become regression.
+so, May I assume you run your benchmark both zonre reclaim 0 and 1 and you 
+haven't seen regression by non-zone reclaim mode?
+if so, it encourage very much to me.
+
+if zone reclaim mode disabling don't have regression, I'll pushing to 
+remove default zone reclaim mode completely again.
+
+
+> >>if zone_reclaim=0 tendency workload is much than zone_reclaim=1 tendency
+> >>workload,
+> >> we can drop our afraid and we would prioritize your opinion, of cource.
+> So it seems only file servers have the issue currently.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
