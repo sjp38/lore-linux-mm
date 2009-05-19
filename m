@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BAD8B6B004D
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 02:38:52 -0400 (EDT)
-Received: by bwz21 with SMTP id 21so4875026bwz.38
-        for <linux-mm@kvack.org>; Mon, 18 May 2009 23:39:27 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 301766B004D
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 02:52:45 -0400 (EDT)
+Date: Tue, 19 May 2009 14:27:58 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first
+	class citizen
+Message-ID: <20090519062757.GA9639@localhost>
+References: <alpine.DEB.1.10.0905181045340.20244@qirst.com> <20090519032759.GA7608@localhost> <20090519133422.4ECC.A69D9226@jp.fujitsu.com> <20090519050932.GB8769@localhost>
 MIME-Version: 1.0
-In-Reply-To: <20090516090448.410032840@intel.com>
-References: <20090516090005.916779788@intel.com>
-	 <20090516090448.410032840@intel.com>
-Date: Tue, 19 May 2009 09:39:27 +0300
-Message-ID: <84144f020905182339o5fb1e78eved95c4c20fd9ffa7@mail.gmail.com>
-Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first class
-	citizen
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090519050932.GB8769@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Tue, May 19, 2009 at 01:09:32PM +0800, Wu Fengguang wrote:
+> On Tue, May 19, 2009 at 12:41:38PM +0800, KOSAKI Motohiro wrote:
 
-On Sat, May 16, 2009 at 12:00 PM, Wu Fengguang <fengguang.wu@intel.com> wro=
-te:
-> @@ -1272,28 +1273,40 @@ static void shrink_active_list(unsigned
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* page_referenced clears PageReferenced *=
-/
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (page_mapping_inuse(page) &&
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_referenced(page, 0, sc->mem_cg=
-roup, &vm_flags))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_referenced(page, 0, sc->mem_cg=
-roup, &vm_flags)) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pgmoved++;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Identify referenced, f=
-ile-backed active pages and
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* give them one more tri=
-p around the active list. So
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* that executable code g=
-et better chances to stay in
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* memory under moderate =
-memory pressure. =A0Anon pages
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* are ignored, since JVM=
- can create lots of anon
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* VM_EXEC pages.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((vm_flags & VM_EXEC) &&=
- !PageAnon(page)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add(&p=
-age->lru, &l_active);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> Note that I was creating the sparse file in btrfs, which happens to be
+> very slow in sparse file reading:
+> 
+>         151.194384MB/s 284.198252s 100001x 450560b --load pattern-hot-10 --play /b/sparse
+> 
+> In that case, the inactive list is rotated at the speed of 250MB/s,
+> so a full scan of which takes about 3.5 seconds, while a full scan
+> of active file list takes about 77 seconds.
 
-Why do we need to skip JIT'd code? There are plenty of desktop
-applications that use Mono, for example, and it would be nice if we
-gave them the same treatment as native applications. Likewise, I am
-sure all browsers that use JIT for JavaScript need to be considered.
+Hi KOSAKI: you can limit the read speed with iotrace.rb's
+"--think-time" option, or to read the sparse file over network.
 
-                                   Pekka
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
