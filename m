@@ -1,65 +1,1157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F6D06B004D
-	for <linux-mm@kvack.org>; Mon, 18 May 2009 22:56:48 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4J2vdKg024932
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 May 2009 11:57:40 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD9A345DD74
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 11:57:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9034345DD72
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 11:57:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 878161DB8012
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 11:57:39 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 122C51DB8013
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 11:57:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
-In-Reply-To: <20090519102634.4EB4.A69D9226@jp.fujitsu.com>
-References: <20090518034907.GF5869@localhost> <20090519102634.4EB4.A69D9226@jp.fujitsu.com>
-Message-Id: <20090519115645.4EB7.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 12E016B0055
+	for <linux-mm@kvack.org>; Mon, 18 May 2009 23:28:09 -0400 (EDT)
+Date: Tue, 19 May 2009 11:27:59 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first
+	class citizen
+Message-ID: <20090519032759.GA7608@localhost>
+References: <20090516090005.916779788@intel.com> <20090516090448.410032840@intel.com> <20090516092858.GA12104@localhost> <alpine.DEB.1.10.0905181045340.20244@qirst.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 May 2009 11:57:38 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0905181045340.20244@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-nit fix.
+On Mon, May 18, 2009 at 10:46:15PM +0800, Christoph Lameter wrote:
+> On Sat, 16 May 2009, Wu Fengguang wrote:
+> 
+> > vmscan: make mapped executable pages the first class citizen
+> 
+> Nice description!
 
-> In general, the feature of workload depended don't fit default option.
-> we can't know end-user run what workload anyway.
-> 
-> Fortunately (or Unfortunately), typical workload and machine size had
+Thank you!
 
-typical workload and machine size and remote node distance
+> Can you also add the results of a test that shows the benefit of
+> this patch?
 
-> significant mutuality.
-> Thus, the current default setting calculation had worked well in past days.
-> 
-> Now, it was breaked. What should we do?
-> 
-> 
-> 
-> Yanmin, We know 99% linux people use intel cpu and you are one of
-> most hard repeated testing guy in lkml and you have much test.
-> May I ask your tested machine and benchmark? 
-> 
-> if zone_reclaim=0 tendency workload is much than zone_reclaim=1 tendency workload,
->  we can drop our afraid and we would prioritize your opinion, of cource.
-> 
-> thanks.
-> 
-> 
+OK. Here it is
+
+SUMMARY
+=======
+The patch decreases the number of major faults from 50 to 3 during 10% cache hot reads.
 
 
+SCENARIO
+========
+The test scenario is to do 100000 pread(size=110 pages, offset=(i*100) pages),
+where 10% of the pages will be activated:
+
+        for i in `seq 0 100 10000000`; do echo $i 110;  done > pattern-hot-10
+        iotrace.rb --load pattern-hot-10 --play /b/sparse
+
+and monitor /proc/vmstat during the time. The test box has 2G memory.
+
+
+ANALYZES
+========
+
+I carried out two runs on fresh booted console mode 2.6.29 with the VM_EXEC
+patch, and fetched the vmstat numbers on
+
+(1) begin:   shortly after the big read IO starts;
+(2) end:     just before the big read IO stops;
+(3) restore: the big read IO stops and the zsh working set restored
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+begin:       2481             2237             8694              630                0           574299
+end:          275           231976           233914              633           776271         20933042
+restore:      370           232154           234524              691           777183         20958453
+
+begin:       2434             2237             8493              629                0           574195
+end:          284           231970           233536              632           771918         20896129
+restore:      399           232218           234789              690           774526         20957909
+
+and another run on 2.6.30-rc4-mm with the VM_EXEC logic disabled:
+
+begin:       2479             2344             9659              210                0           579643
+end:          284           232010           234142              260           772776         20917184
+restore:      379           232159           234371              301           774888         20967849
+
+The numbers show that
+
+- The startup pgmajfault of 2.6.30-rc4-mm is merely 1/3 that of 2.6.29.
+  I'd attribute that improvement to the mmap readahead improvements :-)
+
+- The pgmajfault increment during the file copy is 633-630=3 vs 260-210=50.
+  That's a huge improvement - which means with the VM_EXEC protection logic,
+  active mmap pages is pretty safe even under partially cache hot streaming IO.
+
+- when active:inactive file lru size reaches 1:1, their scan rates is 1:20.8
+  under 10% cache hot IO. (computed with formula Dpgdeactivate:Dpgfree)
+  That roughly means the active mmap pages get 20.8 more chances to get
+  re-referenced to stay in memory.
+
+- The absolute nr_mapped drops considerably to 1/9 during the big IO, and the
+  dropped pages are mostly inactive ones. The patch has almost no impact in
+  this aspect, that means it won't unnecessarily increase memory pressure.
+  (In contrast, your 20% mmap protection ratio will keep them all, and
+  therefore eliminate the extra 41 major faults to restore working set
+  of zsh etc.)
+
+
+RAW NUMBERS
+===========
+2.6.29 with VM_EXEC protection:
+
+% vmmon  nr_mapped nr_active_file nr_inactive_file   pgmajfault pgdeactivate pgfree
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2291             2236             8256              618                0           573817
+             2415             2236             8473              629                0           574288
+             2481             2237             8694              630                0           574299
+             2481             2237             8784              630                0           574302
+             2484             5054            35432              630                0           603215
+             2484             8453            66861              630                0           640884
+             2484            12017            98113              630                0           678696
+             2484            15434           129512              630                0           715516
+             2484            18885           160628              630                0           754177
+             2484            22407           192170              630                0           790997
+             2484            25845           222804              630                0           829658
+             2484            29379           254830              630                0           866478
+             2484            32918           286107              630                0           905139
+             2484            36359           317482              630                0           943800
+             2484            39919           349761              630                0           980620
+             2484            43379           381024              630                0          1019281
+             2484            46889           412424              630                0          1056101
+             2484            51576           417827              630             4288          1112642
+             2484            54865           414277              630             5149          1179934
+             2484            58052           411414              630             5305          1247292
+             2484            61284           408370              630             5305          1314219
+             2484            64495           405096              630             5305          1381700
+             2484            67765           401637              630             5305          1449106
+             2484            70955           398920              630             5305          1516587
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2484            74225           395122              630             5305          1584926
+             2484            77495           391490              630             5305          1653110
+             2484            80744           388008              630             5305          1720128
+             2484            83983           385136              630             5305          1787562
+             2484            87244           382519              630             5305          1856522
+             2484            90505           379368              630             5305          1923957
+             2484            93797           375211              630             5305          1991843
+             2484            96965           372127              630             5305          2059025
+             2484           100154           369459              630             5305          2125794
+             2484           103405           365181              630             5305          2193589
+             2484           106575           361994              630             5305          2259542
+             2484           109806           358666              630             5305          2326361
+             2484           113034           355544              630             5305          2394012
+             2484           116318           352062              630             5305          2462832
+             2484           119516           349061              630             5305          2530325
+             2484           122755           346227              630             5305          2597400
+             2484           126028           342549              630             5305          2664795
+             2484           129247           339834              630             5305          2732030
+             2484           132416           336033              630             5305          2797594
+             2484           135648           332295              630             5305          2864787
+             2484           138878           329519              630             5305          2932054
+             2484           142098           326411              630             5305          2998663
+             2484           145289           323443              630             5305          3065131
+             2484           148460           319319              630             5305          3132863
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2484           151659           315919              630             5305          3200802
+             2484           154920           313764              630             5305          3267461
+             2484           158181           309460              630             5305          3335252
+             2484           161411           307124              630             5305          3402071
+             2484           164641           303445              630             5305          3469690
+             2484           167809           300304              630             5305          3536669
+             2484           171009           296526              630             5305          3602447
+             2484           174251           293013              630             5305          3669426
+             2484           177483           290077              630             5305          3736885
+             2484           180714           286435              630             5305          3804024
+             2484           183944           283499              630             5305          3871484
+             2484           187174           279857              630             5305          3938623
+             2484           190373           277112              630             5305          4005922
+             2484           193634           272672              630             5305          4074053
+             2484           196802           270632              630             5305          4140360
+             2484           199982           267629              630             5305          4206891
+             2484           203154           263384              630             5305          4272925
+             2484           206312           260751              630             5305          4339008
+             2484           209484           258033              630             5305          4405347
+             2484           212705           253705              630             5305          4473222
+             2484           215935           250463              630             5305          4539945
+             2484           219134           247148              630             5305          4605979
+             2484           222364           243916              630             5305          4672702
+             2484           225588           240250              630             5305          4739873
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2484           228685           237341              630             5305          4806404
+             2484           231886           234140              630             5305          4871543
+             2484           231986           234163              630             8418          4938905
+             2484           231957           234804              630            11610          5004860
+             2484           232177           234675              630            14570          5071647
+             2484           231905           234020              630            18050          5139298
+             2484           232092           233641              630            21074          5205498
+             2484           231868           234025              630            24506          5271959
+             2484           231873           233860              630            27674          5337830
+             2484           232004           233601              630            30682          5404659
+             2466           231782           233983              630            34122          5470432
+             2466           231815           233725              630            37314          5537383
+             2466           231832           233997              630            40522          5604845
+             2466           231904           233604              630            43706          5671893
+             2466           231882           233459              630            46922          5739066
+             2466           231909           234634              630            50058          5804997
+             2466           231988           234018              630            53173          5872013
+             2466           231834           234006              630            56500          5938229
+             2466           231986           233711              630            59604          6006458
+             2466           231905           234020              630            62900          6072048
+             2466           232012           233560              630            66028          6139127
+             2466           231926           233570              630            69308          6206367
+             2466           231961           234398              630            72436          6272228
+             2453           231964           233793              630            75596          6339340
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1098           231930           234024              630            78884          6404853
+             1105           231977           233574              630            82044          6471963
+             1105           231986           233566              630            85260          6539713
+             1105           231699           233234              630            88796          6607400
+             1105           232045           234211              630            91620          6673487
+             1105           232017           234473              630            94852          6739957
+             1105           231730           233854              630            98316          6807612
+             1105           232036           233649              630           101252          6874404
+             1105           231725           233955              630           104740          6940155
+             1105           231854           233665              630           107836          7007042
+             1105           231807           233969              630           111108          7074537
+             1105           231887           233600              630           114284          7141552
+             1105           231857           234015              630           117508          7208918
+             1105           231894           234285              630           120644          7274729
+             1105           231913           233606              630           123788          7341710
+             1105           231859           233981              630           127036          7407302
+             1105           231971           233580              630           130180          7474317
+             1105           231917           233470              630           133428          7541363
+             1105           231896           234036              630           136612          7607516
+             1105           231947           233604              630           139724          7672915
+             1105           231813           233779              630           143052          7740120
+             1105           231856           233980              630           146172          7805952
+             1105           231910           233641              630           149260          7872015
+             1105           231869           233756              630           152516          7938400
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1105           231834           234001              630           155724          8004328
+             1105           231854           233601              630           158836          8070234
+             1105           231823           233365              630           162092          8136804
+             1105           231748           233868              630           165268          8202733
+             1105           231854           233729              630           168356          8267651
+             1105           232129           233922              630           171292          8333847
+             1105           231811           233869              630           174756          8401010
+             1105           231885           233698              630           177876          8467832
+             1105           231799           233977              630           181156          8533550
+             1105           231866           234005              630           184324          8600150
+             1105           232071           234515              630           187268          8666173
+             1105           231793           233951              630           190692          8732773
+             1105           231810           233677              630           193900          8798908
+             1105           231875           233412              630           197060          8866115
+             1105           231862           234005              630           200236          8932138
+             1105           231850           233637              630           203380          8997961
+             1105           231811           233470              630           206644          9064677
+             1105           231791           233761              630           209796          9130637
+             1105           232011           233573              630           212756          9195680
+             1105           231779           233501              630           216196          9263060
+             1105           231760           234380              630           219388          9329018
+             1105           232026           233960              630           222292          9395714
+             1105           231781           233995              630           225724          9461401
+             1105           231862           234169              630           228868          9527840
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1105           232067           234518              630           231812          9594053
+             1105           231757           233955              630           235268          9659804
+             1105           231847           233704              630           238403          9726690
+             1105           231904           233457              630           241571          9793593
+             1105           231757           233827              630           244819          9860115
+             1105           232000           233552              630           247787          9926683
+             1105           231810           233966              630           251195          9992560
+             1105           231891           234140              630           254339         10059027
+             1105           232062           234513              630           257307         10125213
+              668           231778           233966              630           260747         10190928
+              275           231819           234404              630           263931         10257141
+              275           232088           234487              630           266811         10323547
+              275           231746           233902              630           270299         10389361
+              275           231851           233636              630           273419         10456248
+              275           231740           233661              630           276755         10523806
+              275           231817           233735              630           279851         10589636
+              275           231988           233596              630           282819         10655304
+              275           231788           233373              630           286237         10721856
+              275           231784           233864              630           289373         10787879
+              275           232020           233511              630           292317         10854701
+              275           231748           233996              630           295797         10920417
+              275           231853           233954              630           298917         10987061
+              275           232112           234175              630           301869         11053294
+              275           231748           233932              630           305317         11120629
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231853           233698              630           308437         11185673
+              275           231790           233583              630           311725         11253211
+              275           231811           234582              630           314877         11319007
+              275           232012           234499              630           317877         11385924
+              275           231768           234008              630           321277         11453178
+              275           231841           233646              630           324429         11518558
+              275           231810           233442              630           327685         11585924
+              275           231856           234331              630           330813         11651807
+              275           231858           233829              630           334005         11718629
+              275           231789           233966              630           337237         11784378
+              275           231869           233693              630           340413         11851297
+              275           231862           233989              630           343645         11918760
+              275           231943           234067              630           346789         11985307
+              275           231863           234566              630           349949         12051506
+              275           231857           233962              630           353149         12117126
+              275           231921           233929              630           356341         12183815
+              275           231862           234755              630           359501         12249776
+              275           231777           233978              630           362749         12315523
+              275           231905           233561              630           365877         12382537
+              275           231795           233776              630           369181         12449934
+              275           231894           234325              630           372245         12515731
+              275           231873           233593              630           375429         12582712
+              275           231866           234049              630           378661         12648171
+              275           231965           233949              630           381797         12714879
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231999           234457              630           384957         12781077
+              275           231828           233959              630           388229         12848475
+              275           231933           233629              630           391349         12914212
+              275           231799           233834              630           394677         12981076
+              275           231898           233920              630           397741         13046811
+              275           231856           233693              630           400933         13111921
+              275           231831           233679              630           404165         13179383
+              275           231898           234644              633           407261         13245225
+              284           231911           234497              633           410421         13312238
+              284           231854           233944              633           413693         13377856
+              284           231953           233556              633           416829         13444869
+              284           231835           233655              633           420141         13512266
+              284           231926           234710              633           423213         13577998
+              284           231937           234377              633           426365         13645076
+              284           231850           233988              633           429685         13710623
+              284           231988           233594              633           432773         13777603
+              284           231974           233546              633           435981         13844360
+              284           231611           234132              633           439445         13909053
+              284           231893           234329              633           442357         13975267
+              284           231899           234674              633           445493         14041674
+              284           231806           233937              633           448749         14107390
+              284           231974           233576              633           451837         14174306
+              284           231994           233984              633           455021         14240572
+              284           231822           233921              633           458253         14306495
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              284           231918           233632              633           461413         14372641
+              284           231993           234580              633           464501         14438342
+              284           231790           233953              633           467805         14504906
+              284           231879           233703              633           470972         14570942
+              284           232025           233623              633           474020         14637540
+              284           231868           233779              633           477340         14704331
+              284           231857           233661              633           480524         14771185
+              284           231843           233996              633           483732         14836777
+              284           231886           234725              633           486852         14902574
+              284           231897           233682              633           490004         14969555
+              284           231827           233980              633           493268         15035147
+              284           231806           234337              633           496452         15101008
+              284           231888           233818              633           499564         15167796
+              284           231779           233964              633           502836         15233555
+              284           231931           233587              633           505940         15300503
+              284           231805           233418              633           509260         15367801
+              284           231834           233813              633           512404         15433825
+              284           231864           233718              633           515506         15498907
+              284           231821           233832              633           518774         15566267
+              284           231840           234645              633           521918         15632127
+              284           231922           234156              633           525030         15698946
+              284           231829           233946              633           528286         15764663
+              284           231901           233585              633           531470         15831676
+              284           231895           233464              633           534670         15898530
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              284           231914           233893              633           537814         15964807
+              284           231896           233622              633           540974         16031418
+              284           231902           233969              633           544214         16097373
+              284           231977           233573              633           547374         16164418
+              284           231955           233530              633           550590         16231285
+              284           231854           234478              633           553854         16297675
+              284           231929           233960              633           556942         16364657
+              284           231866           234005              633           560230         16430181
+              284           231917           234561              633           563342         16496266
+              284           231968           234264              633           566454         16562926
+              284           231890           234013              633           569726         16628483
+              284           231971           233579              633           572870         16695561
+              284           231855           233781              633           576190         16762892
+              284           231930           234530              633           579278         16828690
+              284           231933           234268              633           582438         16895736
+              284           231881           233553              633           585726         16961760
+              284           231978           233551              633           588854         17028389
+              284           232092           234143              633           591934         17094373
+              284           231865           234017              633           595262         17159833
+              284           231970           233527              633           598382         17226765
+              284           231868           233458              633           601678         17294047
+              284           231880           233970              633           604798         17359860
+              284           231914           233615              633           607958         17425267
+              284           231886           233947              633           611190         17492365
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              284           231953           234546              633           614286         17558257
+              284           231916           233861              633           617486         17625238
+              284           231877           234005              633           620750         17690792
+              284           231943           234386              633           623878         17757053
+              284           231899           234125              633           627054         17823605
+              284           231830           233678              633           630286         17889193
+              284           231850           233904              633           633398         17954958
+              284           231940           233621              633           636502         18020034
+              284           231846           233693              633           639790         18087528
+              284           231843           234189              633           642966         18153324
+              284           231902           233563              633           646070         18220307
+              284           231784           234034              633           649382         18285863
+              284           231835           234782              633           652494         18351788
+              284           231934           233789              633           655582         18418610
+              284           231800           233922              633           658886         18484293
+              284           231866           234265              633           661990         18550092
+              284           231862           233701              633           665134         18615041
+              284           231952           233547              633           668254         18681807
+              284           231712           233947              633           671574         18746554
+              284           232104           233907              633           674414         18812895
+              284           232009           234173              633           677598         18879108
+              284           231696           233802              633           681110         18945047
+              284           232094           233746              633           683934         19011389
+              275           232063           234491              633           687126         19077443
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231632           233810              633           690694         19143446
+              275           231971           233527              633           693566         19210118
+              275           231746           233478              633           697030         19277707
+              275           231777           233972              633           700178         19343505
+              275           231980           233550              633           703077         19410105
+              275           231733           233398              633           706573         19476043
+              275           232054           233743              633           709405         19541713
+              275           232003           233544              633           712621         19608567
+              275           231717           233879              633           716109         19674380
+              275           232039           233581              633           718957         19740306
+              275           231917           233556              633           722197         19805161
+              275           232015           233598              633           725317         19871706
+              275           232033           234459              633           728389         19937490
+              275           231920           233668              633           731701         20003365
+              275           232015           233610              633           734837         20070039
+              275           232017           233571              633           738029         20137007
+              275           231951           233502              633           741245         20203667
+              275           231975           233558              633           744397         20268952
+              275           231936           234053              633           747640         20335755
+              275           231941           234723              633           750807         20401648
+              275           232003           234363              633           753919         20468693
+              275           231936           233562              633           757191         20534601
+              275           231703           233244              633           760663         20602093
+              275           231904           233507              633           763631         20668531
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231952           233924              633           766751         20734392
+              275           232002           233576              633           769887         20799595
+              275           231960           234066              633           773119         20866798
+              275           231976           233914              633           776271         20933042
+              380           232138           234504              691           777183         20958440
+              370           232154           234513              691           777183         20958440
+              370           232154           234513              691           777183         20958440
+              370           232154           234513              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958452
+              370           232154           234524              691           777183         20958453
+              370           232154           234524              691           777183         20958453
+
+% vmmon nr_mapped nr_active_file nr_inactive_file pgmajfault pgdeactivate pgfree
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2434             2237             8493              629                0           574195
+             2438             2238             8683              629                0           574215
+             2438             2331            11501              629                0           574303
+             2441             5675            41599              629                0           610507
+             2441             9137            72271              629                0           647327
+             2441            12638           103601              629                0           686002
+             2442            16118           134919              629                0           722822
+             2442            19507           166348              629                0           760491
+             2442            23040           197624              629                0           798303
+             2442            26489           229010              629                0           835123
+             2442            30063           260270              629                0           873784
+             2442            33511           291592              629                0           912445
+             2442            37033           323924              629                0           949265
+             2442            40512           355053              629                0           987926
+             2442            44003           386586              629                0          1024746
+             2442            47544           417862              629                0          1063407
+             2442            52116           416531              629             2752          1124077
+             2442            55340           413069              629             2752          1191875
+             2442            58611           410119              629             2752          1258804
+             2442            61800           406875              629             2752          1326345
+             2442            65030           404213              629             2752          1392938
+             2442            68229           400524              629             2752          1460840
+             2442            71521           397357              629             2752          1528052
+             2442            74751           394412              629             2752          1595612
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2442            77981           391130              629             2752          1663527
+             2442            81211           387648              629             2752          1730514
+             2442            84441           384680              629             2752          1798045
+             2442            87711           381843              629             2752          1867078
+             2442            90963           378694              629             2752          1934451
+             2442            94253           375455              629             2752          2001637
+             2442            97422           371732              629             2752          2069433
+             2442           100652           369063              629             2752          2136205
+             2442           103883           364909              629             2752          2203998
+             2442           107061           361629              629             2752          2269904
+             2442           110281           358301              629             2752          2336891
+             2442           113511           354923              629             2752          2404642
+             2442           116793           351821              629             2752          2473206
+             2442           120002           348602              629             2752          2540793
+             2442           123232           346050              629             2752          2607772
+             2442           126524           341930              629             2752          2675423
+             2442           129723           339492              629             2752          2742402
+             2442           132881           335542              629             2752          2808052
+             2442           136113           331954              629             2752          2875127
+             2442           139355           329146              629             2752          2942454
+             2442           142535           326367              629             2752          3008747
+             2442           145703           323107              629             2752          3075584
+             2442           148944           318828              629             2752          3143363
+             2442           152124           316560              629             2752          3210182
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2442           155375           312250              629             2752          3277961
+             2442           158574           309031              629             2752          3343899
+             2442           161837           305734              629             2752          3412559
+             2442           165024           302613              629             2752          3478337
+             2442           168256           299131              629             2752          3545316
+             2442           171466           295570              629             2752          3612935
+             2442           174645           293642              629             2752          3678794
+             2442           177805           289974              629             2752          3745774
+             2442           181017           286387              629             2752          3813090
+             2442           184257           282869              629             2752          3880372
+             2442           187477           279778              629             2752          3945990
+             2442           190707           276126              629             2752          4014540
+             2442           193938           273350              629             2752          4080428
+             2442           197167           269547              629             2752          4147728
+             2442           200337           266386              629             2752          4214419
+             2442           203457           263605              629             2752          4278981
+             2442           206687           259867              629             2752          4346216
+             2442           209860           257663              629             2752          4411973
+             2442           213039           253767              629             2752          4479418
+             2442           216207           250219              629             2752          4546525
+             2442           219418           246867              629             2752          4612559
+             2442           222650           243897              629             2752          4679008
+             2442           225727           241363              629             2752          4745109
+             2442           228938           237593              629             2752          4810631
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2442           232182           233855              629             2752          4877866
+             2442           232295           234248              629             5825          4944027
+             2442           232130           234310              629             9153          5011088
+             2442           232124           234428              629            12353          5078163
+             2442           232070           234152              629            15601          5143749
+             2442           232117           233658              629            18793          5210920
+             2442           231993           233951              629            22097          5278283
+             2442           231989           234468              629            25281          5344174
+             2424           232031           234614              629            28409          5411249
+             2424           232010           233541              629            31681          5479064
+             2424           231713           233902              629            35177          5544910
+             2424           232046           233537              629            38105          5613511
+             2424           231779           233965              629            41561          5679262
+             2424           231909           233740              629            44673          5746085
+             2424           231781           233681              629            48009          5813772
+             2424           231827           234807              629            51132          5879571
+             2424           231903           233480              629            54347          5947799
+             2424           231922           234300              629            57563          6014448
+             2424           231912           233475              629            60795          6082347
+             2424           232022           233912              629            63923          6149216
+             2424           232045           234012              629            67099          6215770
+             2424           231984           234417              629            70339          6282656
+             2246           231994           234343              629            73499          6349801
+             1105           231933           234044              629            76779          6416563
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1105           231991           234377              629            79963          6484276
+             1105           231979           233554              629            83187          6551674
+             1105           231736           233889              629            86675          6617873
+             1105           232001           233617              629            89635          6684600
+             1105           231770           233735              629            93091          6752224
+             1105           231828           234766              629            96227          6818101
+             1105           231924           233443              629            99387          6886127
+             1105           231846           234802              629           102659          6952516
+             1105           231966           233560              629           105795          7020489
+             1105           231991           234433              629           108995          7087217
+             1105           231954           234566              629           112203          7153863
+             1105           231848           234033              629           115443          7219389
+             1105           231960           233576              629           118587          7286470
+             1105           231850           233475              629           121891          7353774
+             1105           231932           234812              629           125003          7419731
+             1105           232071           234512              629           128099          7486655
+             1105           231880           233696              629           131427          7554373
+             1105           232025           233635              629           134523          7621100
+             1105           231917           234006              629           137835          7686657
+             1105           232037           234547              629           140899          7752709
+             1105           232012           234604              629           144107          7819409
+             1105           231972           233992              629           147339          7886775
+             1105           231990           234136              629           150507          7953885
+             1105           231966           233602              629           153763          8019826
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1105           231726           233775              629           157235          8087512
+             1105           231994           233711              629           160147          8153664
+             1105           231997           233719              629           163307          8220007
+             1105           231998           233569              629           166475          8286702
+             1105           231998           233576              629           169707          8352656
+             1105           232092           233848              629           172843          8418963
+             1105           232140           233803              629           175971          8485804
+             1105           232049           233988              629           179235          8552806
+             1105           231738           233919              629           182723          8618652
+             1105           231936           233562              629           185755          8685539
+             1105           231947           234030              629           188795          8748923
+             1105           231762           233314              629           192219          8816704
+             1105           231966           233985              629           195195          8883240
+             1105           231993           234759              629           198331          8949103
+             1105           232035           234145              629           201483          9016247
+             1105           231997           233628              629           204715          9082092
+             1105           231726           233344              629           208235          9149743
+             1105           232056           233963              629           211075          9215866
+             1105           232043           234138              629           214251          9282339
+             1105           231726           233899              629           217755          9348186
+             1105           231993           233632              629           220699          9414913
+             1105           231736           233302              629           224195          9482582
+             1105           231755           234394              629           227339          9548461
+             1105           232055           234033              629           230219          9615155
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             1105           231754           233999              629           233707          9680872
+             1105           232027           233598              629           236666          9747726
+             1105           232101           234131              629           239786          9813826
+             1105           231739           233918              629           243242          9881148
+             1105           231987           233606              629           246226          9946097
+             1105           231773           233948              629           249658         10013720
+             1105           231816           234461              629           252778         10079485
+             1105           232076           234014              629           255698         10146245
+              286           231717           233844              629           259234         10212217
+              275           231846           234066              629           262330         10278591
+              275           232138           234510              629           265218         10344593
+              275           231710           233851              629           268802         10412407
+              275           232038           233586              629           271706         10479100
+              275           231801           233984              629           275130         10544817
+              275           231874           234006              629           278282         10611414
+              275           232045           233581              629           281336         10678372
+              275           231884           234117              629           284660         10745028
+              275           231918           234697              629           287820         10811915
+              275           231769           233984              629           291132         10878734
+              275           231937           233655              629           294220         10945400
+              275           231890           234023              629           297492         11011980
+              275           231924           234244              629           300652         11078430
+              275           231999           234423              629           303812         11144947
+              275           231938           234191              629           307036         11212188
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231893           234440              629           310244         11279298
+              275           231902           234043              629           313460         11345607
+              275           231991           233662              629           316596         11413708
+              275           231912           234065              629           319900         11479201
+              275           232001           233623              629           323036         11546279
+              275           231931           234081              629           326300         11613550
+              275           232032           234531              629           329404         11679815
+              275           232128           234149              629           332564         11746811
+              275           232027           233977              629           335828         11814323
+              275           231662           233782              629           339380         11880296
+              275           232001           233582              629           342252         11946861
+              275           231776           233369              629           345716         12014400
+              275           231741           233927              629           348852         12080247
+              275           232001           233603              629           351772         12145196
+              275           231896           233493              629           355092         12212095
+              275           232101           234493              629           358060         12277655
+              275           231937           233603              629           361356         12343609
+              275           231786           233363              629           364756         12410972
+              275           232100           234398              629           367612         12476066
+              275           231955           233563              629           370868         12541974
+              275           231802           233379              629           374260         12609257
+              275           232094           233969              629           377148         12674830
+              275           231955           233617              629           380388         12740432
+              275           231690           233541              629           383892         12807993
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231966           233777              629           386796         12874208
+              275           231993           234139              629           389932         12940356
+              275           232019           233584              629           393100         13007113
+              275           231981           234039              629           396332         13072574
+              275           231977           234619              629           399468         13138724
+              275           232006           234371              629           402612         13205483
+              275           231965           233543              629           405868         13271456
+              275           231870           233415              629           409212         13338340
+              275           232042           233621              629           412220         13404934
+              275           231968           233559              629           415444         13471601
+              275           231662           233782              629           418940         13537606
+              275           232017           233587              629           421796         13604172
+              275           232035           234592              629           424972         13669873
+              275           232031           234563              629           428108         13736630
+              275           231977           233563              629           431356         13802572
+              275           232043           234424              629           434484         13868351
+              275           231978           234368              629           437660         13934966
+              275           231939           234081              629           440924         14000427
+              275           231943           233784              629           444052         14066575
+              275           231954           233585              629           447204         14131492
+              275           231892           233757              629           450460         14198730
+              275           231951           234345              629           453564         14264559
+              275           232017           234174              629           456692         14331647
+              275           231923           233617              629           459980         14397586
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           232015           234151              629           463100         14463665
+              275           231998           234627              629           466272         14529979
+              275           231902           233744              629           469531         14595825
+              275           231991           233612              629           472667         14662582
+              275           232057           234284              629           475795         14728508
+              275           231862           234030              629           479091         14793906
+              275           231967           233636              629           482211         14860920
+              275           232073           234076              629           485299         14927070
+              275           231869           234023              629           488635         14994082
+              275           231954           233636              629           491731         15061098
+              275           231867           234131              629           495035         15126622
+              275           231995           234664              629           498091         15192642
+              275           232039           234522              629           501251         15259527
+              275           231882           234042              629           504571         15325020
+              275           232019           233584              629           507659         15392064
+              275           231909           233863              629           510963         15459397
+              275           231973           234418              629           514062         15525131
+              275           232048           233928              629           517181         15592209
+              275           231898           234090              629           520525         15657766
+              275           231980           234487              629           523637         15723978
+              275           232039           234523              629           526741         15790640
+              275           231906           234018              629           530037         15856163
+              275           231997           233574              629           533181         15923239
+              275           232040           234554              629           536301         15988940
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231932           234024              629           539541         16055975
+              275           231989           233614              629           542709         16123384
+              275           231902           234054              629           546021         16188941
+              275           231861           233424              629           549301         16256287
+              275           231969           233714              629           552373         16323236
+              275           231956           234714              629           555549         16389096
+              275           232046           234580              629           558653         16456206
+              275           231984           233556              629           561909         16523690
+              275           231713           233859              629           565429         16589897
+              275           231980           233603              629           568373         16656593
+              275           231731           233905              629           571861         16724310
+              275           231804           234151              629           575013         16790703
+              275           232159           234244              629           577869         16856974
+              275           231747           233921              629           581365         16922612
+              275           232008           233575              629           584357         16989421
+              275           231936           233488              629           587637         17056270
+              275           231736           233879              629           590917         17122840
+              275           232032           233583              629           593853         17187724
+              275           231754           233343              629           597349         17255155
+              275           231688           233863              629           600485         17319397
+              275           231987           233607              629           603397         17386058
+              275           232038           234536              629           606509         17451824
+              275           231720           233895              629           609973         17517668
+              275           231987           233628              629           612917         17584392
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           232084           234298              629           616045         17650348
+              275           232056           234548              629           619205         17716880
+              275           231939           233644              629           622485         17782755
+              275           231993           234593              629           625573         17848423
+              275           232033           234015              629           628717         17915148
+              275           231955           233660              629           631989         17981056
+              275           231945           234859              629           635141         18046406
+              275           231976           233544              629           638277         18113579
+              275           231941           234049              629           641533         18179009
+              275           231956           235004              629           644637         18244741
+              275           231976           234148              632           647797         18311864
+              284           231902           234076              632           651061         18377453
+              284           231944           233939              632           654181         18443251
+              284           231974           233581              632           657301         18508455
+              284           232048           233957              632           660429         18574682
+              284           231838           234012              632           663725         18639776
+              284           231905           234361              632           666893         18706067
+              284           231931           234327              632           669965         18772385
+              284           231807           234020              632           673285         18838133
+              284           231866           234331              632           676389         18903897
+              284           231924           233741              632           679525         18970781
+              284           231791           233940              632           682821         19036562
+              284           231865           234537              632           685941         19102584
+              284           232030           234588              632           688949         19169148
+                                                                               +72904         +1518800
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              284           231807           233988              632           692325         19235242
+              284           231898           233736              632           695469         19301718
+              284           231948           233554              632           698644         19368757
+              284           231832           233931              632           701892         19435041
+              284           231883           233751              632           705004         19500240
+              284           231812           233922              632           708300         19567609
+              284           231871           234201              632           711404         19633405
+              284           231929           233704              632           714540         19700258
+              284           231780           233983              632           717852         19766007
+              284           231871           234852              632           720924         19831742
+              284           232042           234057              632           723932         19898564
+              284           231798           233997              632           727364         19964311
+              284           231871           233635              632           730516         20031323
+              284           231896           233509              632           733716         20098334
+              284           231835           233895              632           736940         20164578
+              284           231933           233886              632           740036         20231399
+              284           231792           233971              632           743340         20297158
+              284           231934           233604              632           746454         20364106
+              284           231952           233524              632           749630         20430863
+              284           231899           233988              632           752846         20497333
+              284           231888           234055              632           756030         20564219
+              284           231863           233996              632           759270         20629871
+              284           231962           233608              632           762406         20696883
+              284           231956           233552              632           765606         20763640
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              284           231935           233924              632           768790         20830044
+              284           231970           233536              632           771918         20896129
+              346           232160           234770              686           774526         20957437
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957892
+              399           232218           234778              690           774526         20957893
+              399           232218           234778              690           774526         20957893
+              399           232218           234778              690           774526         20957893
+              399           232218           234789              690           774526         20957909
+              399           232218           234789              690           774526         20957909
+
+
+2.6.30-rc4-mm1 without VM_EXEC protection:
+
+% vmmon nr_mapped nr_active_file nr_inactive_file pgmajfault pgdeactivate pgfree
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2289             2343             9104              203                0           579085
+             2289             2343             9104              203                0           579539
+             2471             2344             9572              210                0           579641
+             2479             2344             9659              210                0           579643
+             2479             5289            38207              210                0           610397
+             2482             9074            72302              210                0           650979
+             2482            12824           105416              210                0           691481
+             2482            16592           139536              210                0           733825
+             2482            20355           173670              210                0           774337
+             2482            24197           207706              210                0           814840
+             2482            27937           241854              210                0           855342
+             2482            31808           276489              210                0           897687
+             2482            35579           310980              210                0           938189
+             2482            39431           345047              210                0           980534
+             2482            43240           379138              210                0          1021036
+             2482            47019           413241              210                0          1063380
+             2482            52260           416287              210             2976          1130630
+             2482            55842           412718              210             2976          1205132
+             2482            59372           409640              210             2976          1279194
+             2482            62942           406386              210             2976          1352429
+             2482            66452           402808              210             2976          1426994
+             2482            69994           398164              210             2976          1501599
+             2482            73595           394937              210             2976          1575747
+             2482            77145           391132              210             2976          1650510
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2482            80492           388103              210             2976          1725204
+             2482            84062           384532              210             2976          1800337
+             2482            87445           380942              210             2976          1875056
+             2482            91015           377106              210             2976          1949815
+             2482            94564           373549              210             2976          2023356
+             2482            98059           370849              210             2976          2096912
+             2482           101620           366238              210             2976          2171674
+             2482           104995           362720              210             2976          2244601
+             2482           108567           359153              210             2976          2318078
+             2482           111901           355563              210             2976          2392819
+             2482           115451           352494              210             2976          2466905
+             2482           118980           349152              210             2976          2541233
+             2482           122551           345285              210             2976          2614962
+             2482           126113           342388              210             2976          2688972
+             2482           129621           338839              210             2976          2763473
+             2482           133131           334191              210             2976          2836262
+             2482           136723           330930              210             2976          2910611
+             2482           140287           326605              210             2976          2984775
+             2482           143764           324762              210             2976          3057694
+             2482           147243           320252              210             2976          3131963
+             2482           150827           316352              210             2976          3205274
+             2482           154397           312721              210             2976          3278816
+             2482           157967           309162              210             2976          3353380
+             2482           161528           305576              210             2976          3427882
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2482           165061           302027              210             2976          3502063
+             2482           168538           298928              210             2976          3575091
+             2482           172081           294769              210             2976          3647911
+             2482           175601           292199              210             2976          3720397
+             2482           179081           288771              210             2976          3794930
+             2482           182633           284220              210             2976          3869432
+             2482           186172           280831              210             2976          3942341
+             2482           189742           277112              210             2976          4016673
+             2482           193315           273093              210             2976          4091334
+             2482           196774           270122              210             2976          4163596
+             2482           200287           266444              210             2976          4236532
+             2482           203703           263161              210             2976          4308858
+             2482           207268           259474              210             2976          4381646
+             2482           210838           255351              210             2976          4455666
+             2482           214349           252997              210             2976          4529047
+             2482           217901           248585              210             2976          4603393
+             2482           221440           245816              210             2976          4677127
+             2482           224939           241265              210             2976          4749788
+             2482           228503           237940              210             2976          4824047
+             2482           231949           235169              210             2976          4896872
+             2482           232107           233917              210             6360          4971106
+             2482           232169           233760              210             9864          5044194
+             2482           232137           234282              210            13424          5118215
+             2482           232038           234689              210            17072          5191373
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+             2482           232024           233617              210            20528          5265387
+             2482           231989           234068              210            24112          5338184
+             1633           232017           234121              210            27656          5411131
+             1587           231949           233573              210            31248          5483873
+             1587           231850           233982              210            34896          5558055
+             1587           232088           234191              210            38224          5631094
+             1587           231967           233481              210            41832          5705470
+             1587           231768           233872              210            45528          5777946
+             1587           232038           233825              210            48824          5851185
+             1587           231869           234363              210            52480          5924857
+             1587           231668           233908              210            56168          5997712
+             1587           231570           233846              210            59856          6072410
+             1587           231904           233479              210            63088          6145967
+             1612           231594           233792              219            66792          6218018
+             1615           231566           233568              219            70400          6292701
+             1615           231793           234747              219            73648          6364918
+              275           231637           233748              219            77520          6439606
+              275           231845           234435              219            80816          6513184
+              275           231801           233455              219            84440          6585880
+              275           231727           233586              219            88088          6660339
+              275           231793           233940              219            91560          6734426
+              275           231826           234481              219            95024          6807336
+              275           231855           233430              219            98520          6880864
+              275           231864           233495              219           102080          6954454
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231957           234159              219           105512          7027167
+              275           231924           233393              219           109032          7101461
+              275           231828           233841              219           112656          7173782
+              275           231673           233836              219           116360          7248452
+              275           231930           234442              219           119576          7321068
+              275           231720           233885              219           123304          7395314
+              275           231615           233766              219           126968          7468198
+              275           231603           233714              219           130560          7542765
+              275           231857           233427              219           133872          7616274
+              275           231785           234150              219           137472          7690087
+              275           231917           234104              219           140896          7764542
+              275           231869           234438              219           144472          7837732
+              275           231778           234561              219           148112          7912201
+              275           231850           233467              219           151544          7986152
+              275           231838           233447              219           155136          8059397
+              275           231677           233832              219           158856          8133675
+              275           231641           233836              219           162472          8208212
+              275           231905           234435              219           165712          8280826
+              275           231758           234711              219           169408          8355167
+              275           231700           233713              219           173056          8429750
+              275           231884           234487              219           176376          8503291
+              275           231841           233475              219           179968          8577274
+              275           231670           233678              219           183688          8650455
+              275           231877           234016              219           187016          8724413
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231868           234438              219           190584          8797506
+              275           231877           233482              219           194048          8871912
+              275           231850           233467              219           197624          8944604
+              275           231751           233886              219           201272          9018786
+              275           231904           234436              219           204592          9091561
+              275           231832           233431              219           208192          9164286
+              275           231677           233832              219           211896          9238531
+              275           231609           233804              219           215544          9313130
+              275           231959           233709              219           218760          9386349
+              275           231712           234756              219           222504          9460053
+              275           231543           233678              219           226160          9534447
+              275           231848           233423              219           229408          9606351
+              275           231753           233659              219           233096          9680706
+              275           231955           234149              219           236384          9753491
+              275           231859           233425              219           239960          9827808
+              275           231712           233636              219           243656          9900405
+              275           231918           233975              219           247016          9974344
+              275           231940           234399              219           250512         10047393
+              275           231876           233409              219           254080         10121926
+              275           231844           233483              219           257640         10194556
+              275           231921           233653              219           261112         10267755
+              275           231954           233395              219           264552         10341479
+              275           231840           233477              219           268184         10414172
+              275           231671           233806              219           271912         10488514
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           232021           233913              219           275128         10561524
+              275           231806           233543              219           278768         10635614
+              275           231662           233858              219           282536         10708103
+              275           231872           233445              219           285936         10781785
+              275           231817           234810              219           289464         10854982
+              275           231640           233772              219           293128         10929687
+              275           231630           233760              219           296728         11002396
+              275           231898           233481              219           300016         11075882
+              275           231707           234632              219           303704         11149428
+              275           231898           234440              219           307048         11222912
+              275           231888           234483              219           310576         11297363
+              275           231835           233512              219           314240         11371912
+              275           231891           233457              219           317688         11444589
+              275           231865           233877              219           321304         11518711
+              275           232024           233663              219           324680         11592202
+              275           231938           233476              219           328224         11666015
+              229           231848           233879              219           331952         11738375
+              207           231695           233904              219           335664         11813007
+              207           231667           233772              219           339272         11887671
+              207           231874           234140              219           342600         11960561
+              182           231761           233742              219           346200         12034573
+              179           231889           233517              219           349576         12106308
+              179           231911           233495              219           353144         12180810
+              179           231702           233673              219           356840         12254322
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              179           231942           234519              219           360104         12327738
+              179           231851           233523              219           363744         12400468
+              179           231929           233510              219           367232         12474907
+              179           232026           234466              219           370632         12547363
+              179           231793           233647              219           374336         12620657
+              179           231939           233725              219           377760         12694274
+              240           231864           234467              230           381296         12767642
+              275           231885           233512              237           384784         12842367
+              275           231860           233472              237           388360         12915091
+              275           231858           233937              237           391936         12989196
+              275           231974           234478              237           395288         13062001
+              275           231891           233530              237           398872         13136503
+              275           231793           233955              237           402536         13208844
+              275           231685           233839              237           406320         13283570
+              275           231889           233444              237           409696         13357203
+              275           231889           234754              237           413200         13430403
+              275           231683           233745              237           416872         13503690
+              275           231937           233522              237           420184         13578238
+              275           231821           233542              237           423880         13651326
+              275           231700           234688              237           427488         13724772
+              275           231916           234470              237           430776         13798281
+              275           231852           233543              237           434368         13870910
+              275           231979           234067              237           437776         13944771
+              275           231851           234504              237           441360         14017897
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231736           233691              237           445024         14090495
+              275           231974           233678              237           448352         14164759
+              275           231989           233898              237           451896         14238022
+              275           231958           234440              237           455400         14311984
+              275           231916           233512              237           458960         14384612
+              275           231848           233932              237           462608         14458762
+              275           232016           234403              237           465944         14531600
+              275           231874           233564              237           469552         14604637
+              275           231743           233973              237           473232         14678442
+              275           231803           233370              237           476752         14752415
+              275           231908           234895              237           480120         14825334
+              275           231717           233839              237           483808         14898219
+              275           231665           233795              237           487440         14972833
+              275           231897           234618              237           490712         15045223
+              275           231697           233891              237           494368         15119329
+              275           231879           233516              237           497752         15193331
+              275           231845           233614              237           501376         15265927
+              275           231692           234695              237           505016         15339501
+              275           231974           234494              237           508256         15412914
+              275           231873           233490              237           511888         15486268
+              275           231911           233549              237           515416         15560044
+              275           231823           234063              237           519032         15634131
+              275           231963           233786              237           522472         15707700
+              275           231979           234408              237           525960         15781598
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231906           233554              237           529520         15855678
+              275           231785           233931              237           533200         15928414
+              275           232060           233648              237           536560         16001878
+              275           231933           234549              237           540200         16075626
+              275           231772           233847              237           543848         16149417
+              275           231658           233897              237           547552         16222693
+              275           231920           233506              237           550856         16296304
+              275           231790           234532              237           554504         16369894
+              275           231630           233733              237           558120         16444349
+              275           231908           233486              237           561408         16515960
+              275           231755           234247              237           565120         16589824
+              275           231962           234147              237           568448         16664263
+              275           231960           234521              237           571968         16737370
+              275           231815           233579              237           575600         16811944
+              275           231973           233902              237           579008         16884115
+              275           231957           234524              237           582552         16957007
+              275           231898           233535              237           586144         17031515
+              275           231934           233520              237           589688         17104175
+              275           231819           234019              237           593352         17178310
+              275           231995           234482              237           596680         17251147
+              275           231908           233556              237           600264         17325650
+              275           231721           233893              237           604000         17398153
+              275           231925           233530              237           607376         17471741
+              275           231910           234919              237           610864         17544916
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              275           231759           233823              237           614512         17619311
+              275           231669           233835              237           618200         17692398
+              275           231905           233548              237           621512         17765908
+              275           231720           234758              237           625184         17839356
+              275           231983           234461              237           628456         17912898
+              275           231895           233462              237           632072         17986912
+              275           231828           233625              237           635688         18060029
+              275           231899           234131              237           639152         18133955
+              275           231914           234530              237           642624         18207017
+              275           231921           233501              237           646152         18279677
+              275           231855           234079              237           649736         18353667
+              275           231896           234484              237           653192         18426696
+              275           231936           233518              237           656656         18499262
+              213           231893           234041              237           660248         18573283
+              179           231942           234535              237           663672         18646217
+              179           231918           233546              237           667224         18718877
+              179           231835           234035              237           670856         18792963
+              179           231980           234465              237           674184         18865864
+              179           231890           233532              237           677792         18938526
+              179           231793           233949              237           681448         19012707
+              179           232072           234415              237           684704         19085449
+              179           231911           233927              237           688352         19159567
+              179           231725           233921              237           692056         19232420
+              179           231883           233444              237           695488         19306167
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              279           231711           233823              260           699040         19378595
+              284           231912           234421              260           702312         19451272
+              284           231822           233552              260           705920         19523869
+              284           231723           233907              260           709568         19598188
+              284           231958           234513              260           712816         19670834
+              284           231725           233937              260           716536         19743899
+              284           231733           233909              260           720184         19817821
+              284           231947           234875              260           723472         19890117
+              284           231754           233917              260           727152         19962906
+              284           231704           233807              260           730792         20037568
+              284           231849           234813              260           734120         20109894
+              284           231720           233855              260           737736         20182619
+              284           231620           233827              260           741416         20257250
+              284           231859           234387              260           744712         20329909
+              284           231654           233857              260           748352         20402300
+              284           231911           233554              260           751648         20475809
+              284           231826           234420              260           755264         20549535
+              284           232000           234151              260           758656         20624140
+              284           232013           234487              260           762192         20697299
+              284           231814           233632              260           765888         20771800
+              284           231927           233517              260           769328         20844461
+              284           232010           234142              260           772776         20917184
+              346           232134           234358              301           774888         20967746
+              379           232159           234371              301           774888         20967746
+
+        nr_mapped   nr_active_file nr_inactive_file       pgmajfault     pgdeactivate           pgfree
+              379           232159           234371              301           774888         20967848
+              379           232159           234371              301           774888         20967848
+              379           232159           234371              301           774888         20967849
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
