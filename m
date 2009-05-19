@@ -1,165 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 887DB6B006A
-	for <linux-mm@kvack.org>; Tue, 19 May 2009 04:35:51 -0400 (EDT)
-Date: Tue, 19 May 2009 09:36:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] Determine if mapping is MAP_SHARED using VM_MAYSHARE and
-	not VM_SHARED in hugetlbfs
-Message-ID: <20090519083619.GD19146@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D1D586B0082
+	for <linux-mm@kvack.org>; Tue, 19 May 2009 04:53:40 -0400 (EDT)
+Date: Tue, 19 May 2009 16:53:54 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first
+	class citizen
+Message-ID: <20090519085354.GB2121@localhost>
+References: <20090519161756.4EE4.A69D9226@jp.fujitsu.com> <20090519074925.GA690@localhost> <20090519170208.742C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090519170208.742C.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, npiggin@suse.de, apw@shadowen.org, ebmunson@us.ibm.com, andi@firstfloor.org, hugh@veritas.com, avid@gibson.dropbear.id.au, kenneth.w.chen@intel.com, wli@holomorphy.com
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, starlight@binnacle.cx
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-hugetlbfs reserves huge pages and accounts for them differently depending
-on whether the mapping was mapped MAP_SHARED or MAP_PRIVATE. However, the
-check made against VMA->vm_flags is sometimes VM_SHARED and not VM_MAYSHARE.
-For file-backed mappings, such as hugetlbfs, VM_SHARED is set only if the
-mapping is MAP_SHARED *and* it is read-write. For example, if a shared
-memory mapping was created read-write with shmget() for populating of data
-and mapped SHM_RDONLY by other processes, then hugetlbfs gets the accounting
-wrong and reservations leak.
+On Tue, May 19, 2009 at 04:06:35PM +0800, KOSAKI Motohiro wrote:
+> > > > Like the console mode, the absolute nr_mapped drops considerably - to 1/13 of
+> > > > the original size - during the streaming IO.
+> > > > 
+> > > > The delta of pgmajfault is 3 vs 107 during IO, or 236 vs 393 during the whole
+> > > > process.
+> > > 
+> > > hmmm.
+> > > 
+> > > about 100 page fault don't match Elladan's problem, I think.
+> > > perhaps We missed any addional reproduce condition?
+> > 
+> > Elladan's case is not the point of this test.
+> > Elladan's IO is use-once, so probably not a caching problem at all.
+> > 
+> > This test case is specifically devised to confirm whether this patch
+> > works as expected. Conclusion: it is.
+> 
+> Dejection ;-)
+> 
+> The number should address the patch is useful or not. confirming as expected
+> is not so great.
 
-This patch alters mm/hugetlb.c and replaces VM_SHARED with VM_MAYSHARE when
-the intent of the code was to check whether the VMA was mapped MAP_SHARED
-or MAP_PRIVATE.
+OK, let's make the conclusion in this way:
 
-The patch needs wider review as there are places where we really mean
-VM_SHARED and not VM_MAYSHARE. I believe I got all the right places, but a
-second opinion is needed. When/if this patch passes review, it'll be needed
-for 2.6.30 and -stable as it partially addresses the problem reported in
-http://bugzilla.kernel.org/show_bug.cgi?id=13302 and
-http://bugzilla.kernel.org/show_bug.cgi?id=12134.
+The changelog analyzed the possible beneficial situation, and this
+test backs that theory with real numbers, ie: it successfully stops
+major faults when the active file list is slowly scanned when there
+are partially cache hot streaming IO.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- mm/hugetlb.c |   26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+Another (amazing) finding of the test is, only around 1/10 mapped pages
+are actively referenced in the absence of user activities.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 28c655b..e83ad2c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -316,7 +316,7 @@ static void resv_map_release(struct kref *ref)
- static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	if (!(vma->vm_flags & VM_SHARED))
-+	if (!(vma->vm_flags & VM_MAYSHARE))
- 		return (struct resv_map *)(get_vma_private_data(vma) &
- 							~HPAGE_RESV_MASK);
- 	return NULL;
-@@ -325,7 +325,7 @@ static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
- static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	VM_BUG_ON(vma->vm_flags & VM_SHARED);
-+	VM_BUG_ON(vma->vm_flags & VM_MAYSHARE);
- 
- 	set_vma_private_data(vma, (get_vma_private_data(vma) &
- 				HPAGE_RESV_MASK) | (unsigned long)map);
-@@ -334,7 +334,7 @@ static void set_vma_resv_map(struct vm_area_struct *vma, struct resv_map *map)
- static void set_vma_resv_flags(struct vm_area_struct *vma, unsigned long flags)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	VM_BUG_ON(vma->vm_flags & VM_SHARED);
-+	VM_BUG_ON(vma->vm_flags & VM_MAYSHARE);
- 
- 	set_vma_private_data(vma, get_vma_private_data(vma) | flags);
- }
-@@ -353,7 +353,7 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
- 	if (vma->vm_flags & VM_NORESERVE)
- 		return;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		/* Shared mappings always use reserves */
- 		h->resv_huge_pages--;
- 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-@@ -369,14 +369,14 @@ static void decrement_hugepage_resv_vma(struct hstate *h,
- void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- {
- 	VM_BUG_ON(!is_vm_hugetlb_page(vma));
--	if (!(vma->vm_flags & VM_SHARED))
-+	if (!(vma->vm_flags & VM_MAYSHARE))
- 		vma->vm_private_data = (void *)0;
- }
- 
- /* Returns true if the VMA has associated reserve pages */
- static int vma_has_reserves(struct vm_area_struct *vma)
- {
--	if (vma->vm_flags & VM_SHARED)
-+	if (vma->vm_flags & VM_MAYSHARE)
- 		return 1;
- 	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
- 		return 1;
-@@ -924,7 +924,7 @@ static long vma_needs_reservation(struct hstate *h,
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		return region_chg(&inode->i_mapping->private_list,
- 							idx, idx + 1);
-@@ -949,7 +949,7 @@ static void vma_commit_reservation(struct hstate *h,
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	struct inode *inode = mapping->host;
- 
--	if (vma->vm_flags & VM_SHARED) {
-+	if (vma->vm_flags & VM_MAYSHARE) {
- 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
- 		region_add(&inode->i_mapping->private_list, idx, idx + 1);
- 
-@@ -1893,7 +1893,7 @@ retry_avoidcopy:
- 	 * at the time of fork() could consume its reserves on COW instead
- 	 * of the full address range.
- 	 */
--	if (!(vma->vm_flags & VM_SHARED) &&
-+	if (!(vma->vm_flags & VM_MAYSHARE) &&
- 			is_vma_resv_set(vma, HPAGE_RESV_OWNER) &&
- 			old_page != pagecache_page)
- 		outside_reserve = 1;
-@@ -2000,7 +2000,7 @@ retry:
- 		clear_huge_page(page, address, huge_page_size(h));
- 		__SetPageUptodate(page);
- 
--		if (vma->vm_flags & VM_SHARED) {
-+		if (vma->vm_flags & VM_MAYSHARE) {
- 			int err;
- 			struct inode *inode = mapping->host;
- 
-@@ -2104,7 +2104,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			goto out_mutex;
- 		}
- 
--		if (!(vma->vm_flags & VM_SHARED))
-+		if (!(vma->vm_flags & VM_MAYSHARE))
- 			pagecache_page = hugetlbfs_pagecache_page(h,
- 								vma, address);
- 	}
-@@ -2289,7 +2289,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * to reserve the full area even if read-only as mprotect() may be
- 	 * called to make the mapping read-write. Assume !vma is a shm mapping
- 	 */
--	if (!vma || vma->vm_flags & VM_SHARED)
-+	if (!vma || vma->vm_flags & VM_MAYSHARE)
- 		chg = region_chg(&inode->i_mapping->private_list, from, to);
- 	else {
- 		struct resv_map *resv_map = resv_map_alloc();
-@@ -2330,7 +2330,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * consumed reservations are stored in the map. Hence, nothing
- 	 * else has to be done for private mappings here
- 	 */
--	if (!vma || vma->vm_flags & VM_SHARED)
-+	if (!vma || vma->vm_flags & VM_MAYSHARE)
- 		region_add(&inode->i_mapping->private_list, from, to);
- 	return 0;
- }
+Shall we protect the remaining 9/10 inactive ones? This is a question ;-)
+
+Or, shall we take the "protect active VM_EXEC mapped pages" approach,
+or Christoph's "protect all mapped pages all time, unless they grow
+too large" attitude?  I still prefer the best effort VM_EXEC heuristics.
+
+1) the partially cache hot streaming IO is far more likely to happen
+   on (file) servers. For them, evicting the 9/10 inactive mapped
+   pages over night should be acceptable for sysadms.
+
+2) for use-once IO on desktop, we have Rik's active file list
+   protection heuristics, so nothing to worry at all.
+
+3) for big working set small memory desktop, the active list will
+   still be scanned, in this situation, why not evict some of the
+   inactive mapped pages? If they have not been accessed for 1 minute,
+   they are not likely be the user focus, and the tight memory
+   constraint can only afford to cache the user focused working set.
+
+Does that make sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
