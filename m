@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB7B6B009F
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 15:18:09 -0400 (EDT)
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Subject: RE: [PATCH] mm/slub.c: Use print_hex_dump and remove unnecessary cast
-Date: Wed, 20 May 2009 15:18:22 -0400
-Message-ID: <BD79186B4FD85F4B8E60E381CAEE1909017FEF96@mi8nycmail19.Mi8.com>
-In-Reply-To: <1242844966.22786.52.camel@Joe-Laptop.home>
-References: <1242840314-25635-1-git-send-email-joe@perches.com> <alpine.DEB.1.10.0905201420050.17511@qirst.com> <1242844966.22786.52.camel@Joe-Laptop.home>
-From: "H Hartley Sweeten" <hartleys@visionengravers.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 99B346B005D
+	for <linux-mm@kvack.org>; Wed, 20 May 2009 16:42:04 -0400 (EDT)
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+ allocator
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20090520183045.GB10547@oblivion.subreption.com>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+Content-Type: text/plain
+Date: Wed, 20 May 2009 22:42:38 +0200
+Message-Id: <1242852158.6582.231.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Joe Perches <joe@perches.com>, Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, David Rientjes <rientjes@google.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: "Larry H." <research@subreption.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, May 20, 2009 11:43 AM, Joe Perches wrote:
-> On Wed, 2009-05-20 at 14:23 -0400, Christoph Lameter wrote:
->> This was discussed before.
->> http://lkml.indiana.edu/hypermail/linux/kernel/0705.3/2671.html
->
-> You've got a good memory.
->
->> Was hexdump changed?
->
-> It seems not.
->
->> How does the output look after this change?
->>
->> From reading the code, the last column is unaligned.
->
-> I did submit a patch to fix hexdump once.
-> http://lkml.org/lkml/2007/12/6/304
+On Wed, 2009-05-20 at 11:30 -0700, Larry H. wrote:
+> This patch adds support for the SENSITIVE flag to the low level page
+> allocator. An additional GFP flag is added for use with higher level
+> allocators (GFP_SENSITIVE, which implies GFP_ZERO).
+> 
+> The code is largely based off the memory sanitization feature in the
+> PaX project (licensed under the GPL v2 terms), and allows fine grained
+> marking of pages for sanitization on allocation and release time, as an
+> opt-in feature (instead of its opt-all counterpart in PaX).
+> 
+> This avoids leaking sensitive information when memory is released to
+> the system after use, for example in cryptographic subsystems.
+> 
+> The next patches in this set deploy this flag for different
+> subsystems that could potentially leak cryptographic secrets or other
+> confidential information by means of an information leak or other kinds
+> of security bugs (ex. use of uninitialized variables or use-after-free),
+> besides extending the remanence of this data on memory (allowing
+> Iceman/coldboot attacks possible).
+> 
+> The "Shredding Your Garbage: Reducing Data Lifetime Through Secure
+> Deallocation" paper by Jim Chow et. al from the Stanford University
+> Department of Computer Science, explains the security implications of
+> insecure deallocation, and provides extensive information with figures
+> and applications thoroughly analyzed for this behavior [1]. More recently
+> this issue came to widespread attention when the "Lest We Remember:
+> Cold Boot Attacks on Encryption Keys" (by Halderman et. al) paper was
+> published [2].
 
->From what I can tell the current code does properly align the
-ascii output.
-
-I just chopped the necessary functions out of the kernel and
-created a test program.  If I pass the string:
-
-"This is a sample buffer"
-
-I get the following output:
-
-prefix_type =3D DUMP_PREFIX_NONE
-
-<7>buffer: 54 68 69 73 20 69 73 20 61 20 73 61 6d 70 6c 65  This is a =
-sample
-<7>buffer: 20 62 75 66 66 65 72                              buffer
-
-prefix_type =3D DUMP_PREFIX_ADDRESS
-
-<7>buffer: 0x804a008: 54 68 69 73 20 69 73 20 61 20 73 61 6d 70 6c 65  =
-This is a sample
-<7>buffer: 0x804a018: 20 62 75 66 66 65 72                              =
-buffer
-
-prefix_type =3D DUMP_PREFIX_OFFSET
-
-<7>buffer: 00000000: 54 68 69 73 20 69 73 20 61 20 73 61 6d 70 6c 65  =
-This is a sample
-<7>buffer: 00000010: 20 62 75 66 66 65 72                              =
-buffer
-
-Regards,
-Hartley
+Seems like a particularly wasteful use of a pageflag. Why not simply
+erase the buffer before freeing in those few places where we know its
+important (ie. exactly those places you now put the pageflag in)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
