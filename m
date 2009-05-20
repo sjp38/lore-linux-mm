@@ -1,109 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DF4B76B0062
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 03:25:44 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4K7Q6j9021377
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 20 May 2009 16:26:06 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E30845DD7F
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 16:26:06 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A7AE45DD7D
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 16:26:06 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 30D5D1DB8037
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 16:26:06 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CBEC41DB803C
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 16:26:05 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] add inactive ratio calculation function of each zone
-In-Reply-To: <20090520161936.c86a0e38.minchan.kim@barrios-desktop>
-References: <20090520161936.c86a0e38.minchan.kim@barrios-desktop>
-Message-Id: <20090520162527.7449.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id BA6856B0082
+	for <linux-mm@kvack.org>; Wed, 20 May 2009 03:26:09 -0400 (EDT)
+Received: by pxi37 with SMTP id 37so309705pxi.12
+        for <linux-mm@kvack.org>; Wed, 20 May 2009 00:26:33 -0700 (PDT)
+Date: Wed, 20 May 2009 16:26:23 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/3] clean up setup_per_zone_pages_min
+Message-Id: <20090520162623.1e03a5e4.minchan.kim@barrios-desktop>
+In-Reply-To: <20090520162231.7446.A69D9226@jp.fujitsu.com>
+References: <20090520161853.1bfd415c.minchan.kim@barrios-desktop>
+	<20090520162231.7446.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 20 May 2009 16:26:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-> This patch divides setup_per_zone_inactive_ratio with
-> per zone inactive ratio calculaton.
-> 
-> CC: Rik van Riel <riel@redhat.com>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+On Wed, 20 May 2009 16:23:46 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-looks good.
-  Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
-> ---
->  include/linux/mm.h |    1 +
->  mm/page_alloc.c    |   14 +++++++++-----
->  2 files changed, 10 insertions(+), 5 deletions(-)
+> > 
+> > Mel changed zone->pages_[high/low/min] with zone->watermark array.
+> > So, setup_per_zone_pages_min also have to be changed.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 1b2cb16..cede957 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1059,6 +1059,7 @@ extern void set_dma_reserve(unsigned long new_dma_reserve);
->  extern void memmap_init_zone(unsigned long, int, unsigned long,
->  				unsigned long, enum memmap_context);
->  extern void setup_per_zone_wmark_min(void);
-> +extern void calculate_per_zone_inactive_ratio(struct zone* zone);
->  extern void mem_init(void);
->  extern void __init mmap_init(void);
->  extern void show_mem(void);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 273526b..4601ba0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4552,11 +4552,8 @@ void setup_per_zone_wmark_min(void)
->   *    1TB     101        10GB
->   *   10TB     320        32GB
->   */
-> -static void __init setup_per_zone_inactive_ratio(void)
-> +void calculate_per_zone_inactive_ratio(struct zone* zone)
->  {
-> -	struct zone *zone;
-> -
-> -	for_each_zone(zone) {
->  		unsigned int gb, ratio;
->  
->  		/* Zone size in gigabytes */
-> @@ -4567,7 +4564,14 @@ static void __init setup_per_zone_inactive_ratio(void)
->  			ratio = 1;
->  
->  		zone->inactive_ratio = ratio;
-> -	}
-> +}
-> +
-> +static void __init setup_per_zone_inactive_ratio(void)
-> +{
-> +	struct zone *zone;
-> +
-> +	for_each_zone(zone) 
-> +		calculate_per_zone_inactive_ratio(zone);
->  }
->  
->  /*
-> -- 
-> 1.5.4.3
+> Only naming change?
+> if so, the description sould talk about this explicitly.
 > 
+>  - kosaki
 > 
-> 
-> -- 
-> Kinds Regards
-> Minchan Kim
 
+OK. I will add it in next version. 
+Thanks, Kosaki. 
 
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
