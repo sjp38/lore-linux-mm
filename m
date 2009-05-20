@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1A56B0098
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 14:42:48 -0400 (EDT)
-Subject: Re: [PATCH] mm/slub.c: Use print_hex_dump and remove unnecessary
- cast
-From: Joe Perches <joe@perches.com>
-In-Reply-To: <alpine.DEB.1.10.0905201420050.17511@qirst.com>
-References: <1242840314-25635-1-git-send-email-joe@perches.com>
-	 <alpine.DEB.1.10.0905201420050.17511@qirst.com>
-Content-Type: text/plain
-Date: Wed, 20 May 2009 11:42:46 -0700
-Message-Id: <1242844966.22786.52.camel@Joe-Laptop.home>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 14AE46B0087
+	for <linux-mm@kvack.org>; Wed, 20 May 2009 14:46:58 -0400 (EDT)
+Date: Wed, 20 May 2009 11:47:13 -0700
+From: "Larry H." <research@subreption.com>
+Subject: [patch 2/5] Apply the PG_sensitive flag to mac80211 WEP key
+	handling
+Message-ID: <20090520184713.GB10756@oblivion.subreption.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, H Hartley Sweeten <hartleys@visionengravers.com>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, David Rientjes <rientjes@google.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, linux-wireless@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-05-20 at 14:23 -0400, Christoph Lameter wrote:
-> This was discussed before.
-> http://lkml.indiana.edu/hypermail/linux/kernel/0705.3/2671.html
+This patch deploys the use of the PG_sensitive page allocator flag
+within the mac80211 driver, more specifically the handling of WEP
+RC4 keys during encryption and decryption.
 
-You've got a good memory.
+Signed-off-by: Larry H. <research@subreption.com>
 
-> Was hexdump changed?
+---
+ net/mac80211/wep.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-It seems not.
-
-> How does the output look after this change?
-
->From reading the code, the last column is unaligned.
-
-I did submit a patch to fix hexdump once.
-http://lkml.org/lkml/2007/12/6/304
-
+Index: linux-2.6/net/mac80211/wep.c
+===================================================================
+--- linux-2.6.orig/net/mac80211/wep.c
++++ linux-2.6/net/mac80211/wep.c
+@@ -155,7 +155,7 @@ int ieee80211_wep_encrypt(struct ieee802
+ 		return -1;
+ 
+ 	klen = 3 + key->conf.keylen;
+-	rc4key = kmalloc(klen, GFP_ATOMIC);
++	rc4key = kmalloc(klen, GFP_ATOMIC | GFP_SENSITIVE);
+ 	if (!rc4key)
+ 		return -1;
+ 
+@@ -243,7 +243,7 @@ int ieee80211_wep_decrypt(struct ieee802
+ 
+ 	klen = 3 + key->conf.keylen;
+ 
+-	rc4key = kmalloc(klen, GFP_ATOMIC);
++	rc4key = kmalloc(klen, GFP_ATOMIC | GFP_SENSITIVE);
+ 	if (!rc4key)
+ 		return -1;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
