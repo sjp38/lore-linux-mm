@@ -1,145 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id ED1D66B004F
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 17:05:46 -0400 (EDT)
-Date: Thu, 21 May 2009 22:00:20 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [RFC][PATCH] synchrouns swap freeing at zapping vmas
-In-Reply-To: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0905212035200.15631@sister.anvils>
-References: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 531C46B004D
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 17:46:37 -0400 (EDT)
+Date: Thu, 21 May 2009 14:46:38 -0700
+From: "Larry H." <research@subreption.com>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+	allocator
+Message-ID: <20090521214638.GL10756@oblivion.subreption.com>
+References: <20090520183045.GB10547@oblivion.subreption.com> <1242852158.6582.231.camel@laptop> <4A15A69F.3040604@redhat.com> <20090521202628.39625a5d@lxorguk.ukuu.org.uk> <20090521195603.GK10756@oblivion.subreption.com> <20090521214713.65adfd6e@lxorguk.ukuu.org.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090521214713.65adfd6e@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 May 2009, KAMEZAWA Hiroyuki wrote:
+On 21:47 Thu 21 May     , Alan Cox wrote:
+> In the kernel no and page flags are very precious, very few and if we run
+> out will cost us a vast amount of extra kernel memory. If page flags were
+> free the question would be trivial - but they are not. Thus it is worth
+> asking whether its actually harder to remember to zap the buffer or set
+> and clear the flag correctly.
 > 
-> In these 6-7 weeks, we tried to fix memcg's swap-leak race by checking
-> swap is valid or not after I/O.
-
-I realize you've been working on different solutions for many weeks,
-and would love a positive response.  Sorry, I'm not providing that:
-these patches are not so beautiful that I'm eager to see them go in.
-
-I ought to be attending to other priorities, but you've been clever
-enough to propose intrusive mods that I can't really ignore, just to
-force a response out of me!  And I'd better get a reply in with my
-new address, before the old starts bouncing in a few days time.
-
-> But Andrew Morton pointed out that
-> "trylock in free_swap_and_cache() is not good"
-> Oh, yes. it's not good.
-
-Well, it has served non-memcg very well for years:
-what's so bad about it now?
-
-I've skimmed through the threads, starting from Nishimura-san's mail
-on 17 March, was that the right one?  My head spins like Balbir's.
-
-It seems like you have two leaks, but I may have missed the point.
-
-One, that mem-swap accounting and mem+swap accounting have some
-disagreement about when to (un)account to a memcg, with the result
-that orphaned swapcache pages are liable to be accounted, but not
-on the LRUs of the memcg.  I'd have thought that inconsistency is
-something you should be sorting out at the memcg end, without
-needing changes to the non-memcg code.
-
-Other, that orphaned swapcache pages can build up until swap is
-full, before reaching sufficient global memory pressure to run
-through the global LRUs, which is what has traditionally dealt
-with the issue.  And when swap is filled in this way, memcgs can
-no longer put their pages out to swap, so OOM prematurely instead.
-
-I can imagine (just imagining, haven't checked, may be quite wrong)
-that split LRUs have interfered with that freeing of swapcache pages:
-since vmscan.c is mainly targetted at freeing memory, I think it tries
-to avoid the swapbacked LRUs once swap is full, so may now be missing
-out on freeing such pages?
-
-And it's probably an inefficient way to get at them anyway.
-Why not have a global scan to target swapcache pages whenever swap is
-approaching full (full in a real sense, not vm_swap_full's 50% sense)?
-And run that before OOMing, memcg or not.
-
-Sorry, you're probably going to have to explain for the umpteenth
-time why these approaches do not work.
-
+> There is no kernel paging (except virtualised but that is an entire other
+> can of worms we shouldn't open), you can handle reallocation concerns
+> without page flags by using a SLAB type for 'secure' allocations which
+> clears the entry on free.
 > 
-> Then, this patch series is a trial to remove trylock for swapcache AMAP.
-> Patches are more complex and larger than expected but the behavior itself is
-> much appreciate than prevoius my posts for memcg...
->  
-> This series contains 2 patches.
->   1. change refcounting in swap_map.
->      This is for allowing swap_map to indicate there is swap reference/cache.
+> You don't need a page flag, just a per vma flag and something akin to
+> madvise() to set the flag on the VMA (and/or split the VMA for partial
+> maps as we do for anything else). VMA flags are cheap.
 
-You've gone to a lot of trouble to obscure what this patch is doing:
-lots of changes that didn't need to be made, and an enum of 0 or 1
-which keeps on being translated to a count of 2 or 1.
+The patch already implements a SLAB_CONFIDENTIAL flag now (I finished
+renaming the flags) for this purpose. This is my proposal and summary of
+the changes I'll do to the patch, based off your feedback:
 
-Using the 0x8000 bit in the swap_map to indicate if that swap entry
-is in swapcache, yes, that may well be a good idea - and I don't know
-why that bit isn't already used: might relate to when pids were limited
-to 32000, but more likely was once used as a flag later abandoned.
-But you don't need to change every single call to swap_free() etc,
-they can mostly do just the same as they already do.
+	1. A page flag seems to be frowned upon by you. I can understand
+	this and agree that we must keep in mind that these come in
+	scarce quantities. A page flag is the only way to allow the low
+	level page allocator to mark pages that contain sensitive
+	information (so we support this through normal gfp flags in
+	get_free)pages and so forth).
 
-Whether it works correctly, I haven't tried to decide.  But was
-puzzled when by the end of it, no real use was actually made of
-the changes: the same trylock_page as before, it just wouldn't
-get tried unsuccessfully so often.  Just preparatory work for
-the second patch?
+	2. We can independently make SLAB/SLUB aware of a CONFIDENTIAL
+	flag that:
 
->   2. synchronous freeing of swap entries.
->      For avoiding race, free swap_entries in appropriate way with lock_page().
->      After this patch, race between swapin-readahead v.s. zap_page_range()
->      will go away.
->      Note: the whole code for zap_page_range() will not work until the system
->      or cgroup is very swappy. So, no influence in typical case.
+		a) Sanitizes objects at kfree() time when they've been
+		allocated with the gfp flag or they belong to a cache
+		marked with the SLAB_CONFIDENTIAL flag.
 
-This patch adds quite a lot of ugliness in a hot path which is already
-uglier than we'd like.   Adding overhead to zap_pte_range, for the rare
-swap and memcg case, isn't very welcome.
+		b) Does not require changes to the low level page
+		allocator.
 
+		c) Still can prevent leaks in re-allocation scenarios
+		and other cases.
+
+	3. We can implement a vma flag for this purpose and should be no
+	issue to you or other maintainers.
+
+I'll split the SLAB/SLUB changes, which add support for the flag and the
+gfp counterpart, and then have a separate one which adds the page flag.
+Please read my comments on the latter at the end of this email. We can
+ditch the page flag patch if we finally reject that approach and stick
+to the other one. I'm fine with that.
+
+Let me know if you are keen on this approach and I'll follow with an
+updated patch.
+
+> If you are paging them to a crypted filestore they should be safe on
+> disk. What is your problem with that ? If your suspend image is
+> compromised it doesn't really matter if you wiped the data as what you
+> resume may then wait for the new keys and compromise those. In fact
+> having a page flag makes it easier for the attack code to know what to
+> capture and send to the bad guys...
+
+I wasn't talking about disk based attacks. I'm talking about a rogue
+module or just some information leak which let's an user peek at known
+addresses. For instance, some operating systems implement disk
+encryption with IVs and keys stored as global variables. Microsoft's
+BitLocker operates that way internally if they haven't changed it. Apple
+does the same for swap encryption, etc.
+
+> I was assuming you'd wipe such data from memory on a suspend to disk.
+> However on a suspend to disk its basically as cheap to wipe all of memory
+> and safer than wiping random bits and praying you know what the compiler
+> did and you know what some other bit of library did.
+
+Security conscious users normally disable suspend or hibernation
+altogether. It's far more difficult to get it right than it seems. You
+will *always* need some static place to store your key. Apple's XNU
+kernel stores the key in the image header for instance. I bet other
+systems do the same.
+
+> Indeed - but a technically sound solution that doesn't waste a page flag
+> is still important. It's btw not as simple as a page flag anyway - the
+> kernel stores some stuff in places that do not have page flags, it also
+> has kmaps and other things that will give you suprises.
+
+I haven't identified a single place that stored potentially sensitive
+information which can be reasonably protected with a simple approach
+like this, that doesn't use kmalloc or the low level page allocator
+directly.
+
+I bet there are some, but there are plenty of other, more obvious, ones
+which need our attention.
+
+> Perhaps you should post your threat model to go with the patches. At the
+> moment your model doesn't seem to make sense.
+
+The threat model is simple:
+
+	1. The kernel has interfaces which deal with likely sensitive
+	information (from tty input drivers, to crypto api and network
+	stack implementations).
+
+	2. Memory allocated by these interfaces will suffer of data
+	remanence problems, even post-release. This will scatter such
+	information and make coldboot/Iceman attacks possible to recover
+	cryptographic secrets (ex. scanning for AES key expansion blocks
+	is trivial, and this has been demonstrated for RSA as well, see
+	the Princeton paper about it).
+
+	3. LIFO allocators make re-allocation leaks possible. If an
+	interface allocates a buffer, stores data in it and releases it
+	without clearing, a successive allocation somewhere else can
+	return this same object and let the caller access the original
+	contents out of the context they were meant to. If a network
+	stack implementation allocates a 64 byte buffer after some
+	cryptoapi ctx initialization code got another 64 byte buffer and
+	released it, you've got a problem there. If an attacker couples
+	an uninitialized variable usage bug with this situation, you've
+	got a possibly exploitable problem there. Worst of all, is that
+	he might not need such a bug for abusing it ;)
+
+Let me know if you need any further clarifications, please.
+
+> Surely we can attack the problem far more directly for all but S2R by
 > 
-> There are used trylocks more than this patch treats. But IIUC, they are not
-> racy with memcg and I don't care them.
-> (And....I have no idea to remove trylock() in free_pages_and_swapcache(),
->  which is called via tlb_flush_mmu()....preemption disabled and using percpu.)
-
-I know well the difficulty, several of us have had patches to solve most
-of the percpu mmu_gather problems, but the file truncation case (under
-i_mmap_lock) has so far defeated us; and you can't ignore that case,
-truncation has to remove even the anon (possibly swapcache) pages
-from a private file mapping.
-
-But I'm afraid, if you do nothing about free_pages_and_swapcache,
-then I can't see much point in studying the rest of it, which
-would only be addressing half of your problem.
-
+> - choosing to use encrypted swap and encrypted S2D images (already
+>   possible)
+> - wiping the in memory image on S2D if the user chooses (which would be
+>   smart)
 > 
-> These patches + Nishimura-san's writeback fix will do complete work, I think.
-> But test is not enough.
+> That has the advantage that nobody has to label pages sensitive - which
+> is flawed anyway, we want to label pages "non-sensitive" in the ideal
+> world so we default secure.
 
-Please provide a pointer to Nishimura-san's writeback fix,
-I seem to have missed that.
+I agree the ideal, best approach would be to sanitize all pages. If you
+are interested on a patch doing just that (as long as a Kconfig option
+enables it), I can provide you with a clean one. The original code in
+PaX did just that.
 
-There is indeed little point in attacking the trylock_page()s here,
-unless you also attack all those PageWriteback backoffs.  I can imagine
-a simple patch to do that (removing from swapcache while PageWriteback),
-but it would be adding more atomic ops, and using spin_lock_irq on
-swap_lock everywhere, probably not a good tradeoff.
+BTW, this can be extrapolated to .rodata and DEBUG_RODATA, as well as
+the lack of mprotect restrictions for hosts with SELinux disabled (that
+is, no execmem/execstack/execheap checks). We should really make .rodata
+read-only by default, and disallow mprotect to produce RWX mappings by
+default. Otherwise our NX is flawed. These are matters for another
+patch, and a different discussion too.
 
-> 
-> Any comments are welcome. 
-
-I sincerely wish I could be less discouraging!
-
-Hugh
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
