@@ -1,124 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 68AD66B005C
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 02:06:18 -0400 (EDT)
-Message-Id: <6.0.0.20.2.20090521145005.06f81fe0@172.19.0.2>
-Date: Thu, 21 May 2009 15:01:47 +0900
-From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Subject: Re: [PATCH] readahead:add blk_run_backing_dev
-In-Reply-To: <20090520025123.GB8186@localhost>
-References: <6.0.0.20.2.20090518183752.0581fdc0@172.19.0.2>
- <20090518175259.GL4140@kernel.dk>
- <20090520025123.GB8186@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6F75A6B004D
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 03:41:56 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4L7gXvE010718
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 21 May 2009 16:42:33 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A8EB45DD76
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:42:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ABBD45DD72
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:42:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A82A1DB8013
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:42:33 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F06891DB8014
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:42:32 +0900 (JST)
+Date: Thu, 21 May 2009 16:41:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] synchrouns swap freeing at zapping vmas
+Message-Id: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Jens Axboe <jens.axboe@oracle.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh@veritas.com" <hugh@veritas.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
 
-At 11:51 09/05/20, Wu Fengguang wrote:
->On Mon, May 18, 2009 at 07:53:00PM +0200, Jens Axboe wrote:
->> On Mon, May 18 2009, Hisashi Hifumi wrote:
->> > Hi.
->> > 
->> > I wrote a patch that adds blk_run_backing_dev on page_cache_async_readahead
->> > so readahead I/O is unpluged to improve throughput.
->> > 
->> > Following is the test result with dd.
->> > 
->> > #dd if=testdir/testfile of=/dev/null bs=16384
->> > 
->> > -2.6.30-rc6
->> > 1048576+0 records in
->> > 1048576+0 records out
->> > 17179869184 bytes (17 GB) copied, 224.182 seconds, 76.6 MB/s
->> > 
->> > -2.6.30-rc6-patched
->> > 1048576+0 records in
->> > 1048576+0 records out
->> > 17179869184 bytes (17 GB) copied, 206.465 seconds, 83.2 MB/s
->> > 
->> > Sequential read performance on a big file was improved.
->> > Please merge my patch.
->> > 
->> > Thanks.
->> > 
->> > Signed-off-by: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
->> > 
->> > diff -Nrup linux-2.6.30-rc6.org/mm/readahead.c 
->linux-2.6.30-rc6.unplug/mm/readahead.c
->> > --- linux-2.6.30-rc6.org/mm/readahead.c	2009-05-18 10:46:15.000000000 +0900
->> > +++ linux-2.6.30-rc6.unplug/mm/readahead.c	2009-05-18 
->13:00:42.000000000 +0900
->> > @@ -490,5 +490,7 @@ page_cache_async_readahead(struct addres
->> >  
->> >  	/* do read-ahead */
->> >  	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
->> > +
->> > +	blk_run_backing_dev(mapping->backing_dev_info, NULL);
->> >  }
->> >  EXPORT_SYMBOL_GPL(page_cache_async_readahead);
->> 
->> I'm surprised this makes much of a difference. It seems correct to me to
->> NOT unplug the device, since it will get unplugged when someone ends up
->> actually waiting for a page. And that will then kick off the remaining
->> IO as well. For this dd case, you'll be hitting lock_page() for the
->> readahead page really soon, definitely not long enough to warrant such a
->> big difference in speed.
->
->The possible timing change of this patch is (assuming readahead size=100):
->
->T0   read(100), which triggers readahead(200, 100)
->T1   read(101)
->T2   read(102)
->...
->T100 read(200), find_get_page(200) => readahead(300, 100)
->                lock_page(200) => implicit unplug
->
->The readahead(200, 100) submitted at time T0 *might* be delayed to the
->unplug time of T100.
->
->But that is only a possibility. In normal cases, the read(200) would
->be blocking and there will be a lock_page(200) that will immediately
->unplug device for readahead(300, 100).
+In these 6-7 weeks, we tried to fix memcg's swap-leak race by checking
+swap is valid or not after I/O. But Andrew Morton pointed out that
+"trylock in free_swap_and_cache() is not good"
+Oh, yes. it's not good.
 
-
-Hi Andrew.
-Following patch improves sequential read performance and does not harm
-other performance.
-Please merge my patch.
-Comments?
-Thanks.
-
-#dd if=testdir/testfile of=/dev/null bs=16384
--2.6.30-rc6
-1048576+0 records in
-1048576+0 records out
-17179869184 bytes (17 GB) copied, 224.182 seconds, 76.6 MB/s
-
--2.6.30-rc6-patched
-1048576+0 records in
-1048576+0 records out
-17179869184 bytes (17 GB) copied, 206.465 seconds, 83.2 MB/s
-
-Signed-off-by: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-
-diff -Nrup linux-2.6.30-rc6.org/mm/readahead.c linux-2.6.30-rc6.unplug/mm/readahead.c
---- linux-2.6.30-rc6.org/mm/readahead.c	2009-05-18 10:46:15.000000000 +0900
-+++ linux-2.6.30-rc6.unplug/mm/readahead.c	2009-05-18 13:00:42.000000000 +0900
-@@ -490,5 +490,7 @@ page_cache_async_readahead(struct addres
+Then, this patch series is a trial to remove trylock for swapcache AMAP.
+Patches are more complex and larger than expected but the behavior itself is
+much appreciate than prevoius my posts for memcg...
  
- 	/* do read-ahead */
- 	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
-+
-+	blk_run_backing_dev(mapping->backing_dev_info, NULL);
- }
- EXPORT_SYMBOL_GPL(page_cache_async_readahead);
+This series contains 2 patches.
+  1. change refcounting in swap_map.
+     This is for allowing swap_map to indicate there is swap reference/cache.
+  2. synchronous freeing of swap entries.
+     For avoiding race, free swap_entries in appropriate way with lock_page().
+     After this patch, race between swapin-readahead v.s. zap_page_range()
+     will go away.
+     Note: the whole code for zap_page_range() will not work until the system
+     or cgroup is very swappy. So, no influence in typical case.
 
+There are used trylocks more than this patch treats. But IIUC, they are not
+racy with memcg and I don't care them.
+(And....I have no idea to remove trylock() in free_pages_and_swapcache(),
+ which is called via tlb_flush_mmu()....preemption disabled and using percpu.)
 
+These patches + Nishimura-san's writeback fix will do complete work, I think.
+But test is not enough.
+
+Any comments are welcome. 
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
