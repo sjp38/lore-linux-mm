@@ -1,104 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB60A6B005A
-	for <linux-mm@kvack.org>; Wed, 20 May 2009 23:28:21 -0400 (EDT)
-From: "Zhang, Yanmin" <yanmin.zhang@intel.com>
-Date: Thu, 21 May 2009 11:27:12 +0800
-Subject: RE: [PATCH v3] zone_reclaim is always 0 by default
-Message-ID: <4D05DB80B95B23498C72C700BD6C2E0B2F35B8FA@pdsmsx502.ccr.corp.intel.com>
-References: <20090521114408.63D0.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090521114408.63D0.A69D9226@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 773336B005A
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 00:51:51 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id e12so269432fga.4
+        for <linux-mm@kvack.org>; Wed, 20 May 2009 21:52:38 -0700 (PDT)
+Subject: Re: [patch 2/5] Apply the PG_sensitive flag to mac80211 WEP key handling
+References: <20090520184713.GB10756@oblivion.subreption.com>
+From: Kalle Valo <kalle.valo@iki.fi>
+Date: Thu, 21 May 2009 07:52:36 +0300
+In-Reply-To: <20090520184713.GB10756@oblivion.subreption.com> (Larry H.'s message of "Wed\, 20 May 2009 11\:47\:13 -0700")
+Message-ID: <87ljorm50r.fsf@litku.valot.fi>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Robin Holt <holt@sgi.com>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: "Larry H." <research@subreption.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, linux-wireless@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Pj4tLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPj5Gcm9tOiBLT1NBS0kgTW90b2hpcm8gW21h
-aWx0bzprb3Nha2kubW90b2hpcm9AanAuZnVqaXRzdS5jb21dDQo+PlNlbnQ6IDIwMDnE6jXUwjIx
-yNUgMTA6NDcNCj4+VG86IExLTUw7IGxpbnV4LW1tOyBBbmRyZXcgTW9ydG9uOyBSaWsgdmFuIFJp
-ZWw7IENocmlzdG9waCBMYW1ldGVyOyBSb2JpbiBIb2x0Ow0KPj5aaGFuZywgWWFubWluOyBXdSwg
-RmVuZ2d1YW5nDQo+PkNjOiBrb3Nha2kubW90b2hpcm9AanAuZnVqaXRzdS5jb20NCj4+U3ViamVj
-dDogW1BBVENIIHYzXSB6b25lX3JlY2xhaW0gaXMgYWx3YXlzIDAgYnkgZGVmYXVsdA0KPj4NCj4+
-DQo+PlN1YmplY3Q6IFtQQVRDSCB2M10gem9uZV9yZWNsYWltIGlzIGFsd2F5cyAwIGJ5IGRlZmF1
-bHQNCj4+DQo+PkN1cnJlbnQgbGludXggcG9saWN5IGlzLCB6b25lX3JlY2xhaW1fbW9kZSBpcyBl
-bmFibGVkIGJ5IGRlZmF1bHQgaWYgdGhlIG1hY2hpbmUNCj4+aGFzIGxhcmdlIHJlbW90ZSBub2Rl
-IGRpc3RhbmNlLiBpdCdzIGJlY2F1c2Ugd2UgY291bGQgYXNzdW1lIHRoYXQgbGFyZ2UgZGlzdGFu
-Y2UNCj4+bWVhbiBsYXJnZSBzZXJ2ZXIgdW50aWwgcmVjZW50bHkuDQo+Pg0KPj5VbmZvcnR1bmF0
-ZWx5LCByZWNlbnQgbW9kZXJuIHg4NiBDUFUgKGUuZy4gQ29yZSBpNywgT3BldGVyb24pIGhhdmUg
-UDJQDQo+PnRyYW5zcG9ydA0KPj5tZW1vcnkgY29udHJvbGxlci4gSU9XIGl0J3Mgc2VlbiBhcyBO
-VU1BIGZyb20gc29mdHdhcmUgdmlldy4NCj4+U29tZSBDb3JlIGk3IG1hY2hpbmUgaGFzIGxhcmdl
-IHJlbW90ZSBub2RlIGRpc3RhbmNlLg0KPj4NCj4+WWFubWluIHJlcG9ydGVkIHpvbmVfcmVjbGFp
-bV9tb2RlPTEgY2F1c2UgbGFyZ2UgYXBhY2hlIHJlZ3Jlc3Npb24uDQo+Pg0KPj4gICAgT25lIE5l
-aGFsZW0gbWFjaGluZSBoYXMgMTJHQiBtZW1vcnksDQo+PiAgICBidXQgdGhlcmUgaXMgYWx3YXlz
-IDJHQiBmcmVlIGFsdGhvdWdoIGFwcGxpY2F0aW9ucyBhY2Nlc3NlcyBsb3RzIG9mIGZpbGVzLg0K
-Pj4gICAgRXZlbnR1YWxseSB3ZSBsb2NhdGVkIHRoZSByb290IGNhdXNlIGFzIHpvbmVfcmVjbGFp
-bV9tb2RlPTEuDQo+Pg0KPj5BY3R1YWxseSwgem9uZV9yZWNsYWltX21vZGU9MSBtZWFuICJJIGRp
-c2xpa2UgcmVtb3RlIG5vZGUgYWxsb2NhdGlvbiByYXRoZXINCj4+dGhhbg0KPj5kaXNrIGFjY2Vz
-cyIsIGl0IG1ha2VzIHBlcmZvcm1hbmNlIGltcHJvdmVtZW50IHRvIEhQQyB3b3JrbG9hZC4NCj4+
-YnV0IGl0IG1ha2VzIHBlcmZvcm1hbmNlIGRlZ3Jlc3Npb24gZGVza3RvcCwgZmlsZSBzZXJ2ZXIg
-YW5kIHdlYiBzZXJ2ZXIuDQo+Pg0KPj5JbiBnZW5lcmFsLCB3b3JrbG9hZCBkZXBlbmRlZCBjb25m
-aWdyYXRpb24gc2hvdWxkbid0IHB1dCBpbnRvIGRlZmF1bHQNCj4+c2V0dGluZ3MuDQo+PlBsdXMs
-IGRlc2t0b3AgYW5kIGZpbGUvd2ViIHNlcnZlciBlY28tc3lzdGVtIGlzIG11Y2ggbGFyZ2VyIHRo
-YW4gaHBjJ3MuDQo+Pg0KPj5UaHVzLCB6b25lX3JlY2xhaW0gPT0gMCBpcyBiZXR0ZXIgYnkgZGVm
-YXVsdC4NCltZTV0gVGhhbmtzLiBJIHN0YXJ0ZWQgYSBzZXJpZXMgb2YgdGVzdGluZyBvbiAyIE5l
-aGFsZW0gbWFjaGluZXMgYnkgc2V0dGluZw0Kem9uZV9yZWNsYWltX21vZGU9MCAoVGhlIGRlZmF1
-bHQgaXMgMSBvbiB0aGUgMiBtYWNoaW5lcykuIEkgZGlkbid0IGZpbmQNCnJlZ3Jlc3Npb24gd2l0
-aCBub24tZGlza19JL08gKG1vc3RseSBjcHVib3VuZCkgYmVuY2htYXJrcy4gZGlzayBJL08gYmVu
-Y2htYXJrcyANCmNvdWxkIGJlbmVmaXQgYSBsaXR0bGUgZnJvbSB6b25lX3JlY2xhaW1fbW9kZT0w
-LiBBcyBJIHN0YXJ0IGJlbmNobWFyayBmaW8gd2l0aCANCm51bWFjdGwgLS1pbnRlcmxlYXZlPWFs
-bCwgc28gdGhlIGZpbyBpbXByb3ZlbWVudCBpcyBub3Qgc28gYmlnZ2VyIGxpa2UgYmVmb3JlLg0K
-DQpPbmUgdGhpbmcgSSBuZWVkIG1lbnRpb24gaXMgbXkgdGVzdGluZyB3aXRoIG5vbi1kaXNrX0kv
-TyBtaWdodCBiZSBub3QgZ29vZCBleGFtcGxlcw0KZm9yIHRoaXMgcGF0Y2gsIGJlY2F1c2UgZXZl
-cnkgbm9kZSBoYXMgZmFyIG1vcmUgbWVtb3J5IHRoYW4gdGhlIHRlc3RpbmcgbmVlZHMuDQpPbmx5
-IHNvbWUgZGlzayBJL08gYmVuY2htYXJrcyBoYXZlIGJpZyByZXF1aXJlbWVudCBvbiBwYWdlIGNh
-Y2hlIG1lbW9yeSwgc28gdGhleSBjb3VsZCBiZW5lZml0IGZyb20gem9uZV9yZWNsYWltX21vZGU9
-MC4NCg0KDQo+Pg0KPj4NCj4+U2lnbmVkLW9mZi1ieTogS09TQUtJIE1vdG9oaXJvIDxrb3Nha2ku
-bW90b2hpcm9AanAuZnVqaXRzdS5jb20+DQo+PkNjOiBDaHJpc3RvcGggTGFtZXRlciA8Y2xAbGlu
-dXgtZm91bmRhdGlvbi5vcmc+DQo+PkNjOiBSaWsgdmFuIFJpZWwgPHJpZWxAcmVkaGF0LmNvbT4N
-Cj4+Q2M6IFJvYmluIEhvbHQgPGhvbHRAc2dpLmNvbT4NCj4+VGVzdGVkLWJ5OiAiWmhhbmcsIFlh
-bm1pbiIgPHlhbm1pbi56aGFuZ0BpbnRlbC5jb20+DQo+PkFja2VkLWJ5OiBXdSBGZW5nZ3Vhbmcg
-PGZlbmdndWFuZy53dUBpbnRlbC5jb20+DQo+Pi0tLQ0KPj4gYXJjaC9pYTY0L2luY2x1ZGUvYXNt
-L3RvcG9sb2d5LmggfCAgICA1IC0tLS0tDQo+PiBpbmNsdWRlL2xpbnV4L3RvcG9sb2d5LmggICAg
-ICAgICB8ICAgIDkgKy0tLS0tLS0tDQo+PiBtbS9wYWdlX2FsbG9jLmMgICAgICAgICAgICAgICAg
-ICB8ICAgIDcgLS0tLS0tLQ0KPj4gMyBmaWxlcyBjaGFuZ2VkLCAxIGluc2VydGlvbigrKSwgMjAg
-ZGVsZXRpb25zKC0pDQo+Pg0KPj5JbmRleDogYi9tbS9wYWdlX2FsbG9jLmMNCj4+PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PQ0KPj4tLS0gYS9tbS9wYWdlX2FsbG9jLmMNCj4+KysrIGIvbW0vcGFnZV9hbGxvYy5jDQo+PkBA
-IC0yNDk0LDEzICsyNDk0LDYgQEAgc3RhdGljIHZvaWQgYnVpbGRfem9uZWxpc3RzKHBnX2RhdGFf
-dCAqcA0KPj4gCQlpbnQgZGlzdGFuY2UgPSBub2RlX2Rpc3RhbmNlKGxvY2FsX25vZGUsIG5vZGUp
-Ow0KPj4NCj4+IAkJLyoNCj4+LQkJICogSWYgYW5vdGhlciBub2RlIGlzIHN1ZmZpY2llbnRseSBm
-YXIgYXdheSB0aGVuIGl0IGlzIGJldHRlcg0KPj4tCQkgKiB0byByZWNsYWltIHBhZ2VzIGluIGEg
-em9uZSBiZWZvcmUgZ29pbmcgb2ZmIG5vZGUuDQo+Pi0JCSAqLw0KPj4tCQlpZiAoZGlzdGFuY2Ug
-PiBSRUNMQUlNX0RJU1RBTkNFKQ0KPj4tCQkJem9uZV9yZWNsYWltX21vZGUgPSAxOw0KPj4tDQo+
-Pi0JCS8qDQo+PiAJCSAqIFdlIGRvbid0IHdhbnQgdG8gcHJlc3N1cmUgYSBwYXJ0aWN1bGFyIG5v
-ZGUuDQo+PiAJCSAqIFNvIGFkZGluZyBwZW5hbHR5IHRvIHRoZSBmaXJzdCBub2RlIGluIHNhbWUN
-Cj4+IAkJICogZGlzdGFuY2UgZ3JvdXAgdG8gbWFrZSBpdCByb3VuZC1yb2Jpbi4NCj4+SW5kZXg6
-IGIvYXJjaC9pYTY0L2luY2x1ZGUvYXNtL3RvcG9sb2d5LmgNCj4+PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KPj4tLS0g
-YS9hcmNoL2lhNjQvaW5jbHVkZS9hc20vdG9wb2xvZ3kuaA0KPj4rKysgYi9hcmNoL2lhNjQvaW5j
-bHVkZS9hc20vdG9wb2xvZ3kuaA0KPj5AQCAtMjEsMTEgKzIxLDYgQEANCj4+ICNkZWZpbmUgUEVO
-QUxUWV9GT1JfTk9ERV9XSVRIX0NQVVMgMjU1DQo+Pg0KPj4gLyoNCj4+LSAqIERpc3RhbmNlIGFi
-b3ZlIHdoaWNoIHdlIGJlZ2luIHRvIHVzZSB6b25lIHJlY2xhaW0NCj4+LSAqLw0KPj4tI2RlZmlu
-ZSBSRUNMQUlNX0RJU1RBTkNFIDE1DQo+Pi0NCj4+LS8qDQo+PiAgKiBSZXR1cm5zIHRoZSBudW1i
-ZXIgb2YgdGhlIG5vZGUgY29udGFpbmluZyBDUFUgJ2NwdScNCj4+ICAqLw0KPj4gI2RlZmluZSBj
-cHVfdG9fbm9kZShjcHUpIChpbnQpKGNwdV90b19ub2RlX21hcFtjcHVdKQ0KPj5JbmRleDogYi9p
-bmNsdWRlL2xpbnV4L3RvcG9sb2d5LmgNCj4+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KPj4tLS0gYS9pbmNsdWRlL2xp
-bnV4L3RvcG9sb2d5LmgNCj4+KysrIGIvaW5jbHVkZS9saW51eC90b3BvbG9neS5oDQo+PkBAIC01
-MywxNCArNTMsNyBAQCBpbnQgYXJjaF91cGRhdGVfY3B1X3RvcG9sb2d5KHZvaWQpOw0KPj4gI2lm
-bmRlZiBub2RlX2Rpc3RhbmNlDQo+PiAjZGVmaW5lIG5vZGVfZGlzdGFuY2UoZnJvbSx0bykJKChm
-cm9tKSA9PSAodG8pID8gTE9DQUxfRElTVEFOQ0UgOg0KPj5SRU1PVEVfRElTVEFOQ0UpDQo+PiAj
-ZW5kaWYNCj4+LSNpZm5kZWYgUkVDTEFJTV9ESVNUQU5DRQ0KPj4tLyoNCj4+LSAqIElmIHRoZSBk
-aXN0YW5jZSBiZXR3ZWVuIG5vZGVzIGluIGEgc3lzdGVtIGlzIGxhcmdlciB0aGFuIFJFQ0xBSU1f
-RElTVEFOQ0UNCj4+LSAqIChpbiB3aGF0ZXZlciBhcmNoIHNwZWNpZmljIG1lYXN1cmVtZW50IHVu
-aXRzIHJldHVybmVkIGJ5IG5vZGVfZGlzdGFuY2UoKSkNCj4+LSAqIHRoZW4gc3dpdGNoIG9uIHpv
-bmUgcmVjbGFpbSBvbiBib290Lg0KPj4tICovDQo+Pi0jZGVmaW5lIFJFQ0xBSU1fRElTVEFOQ0Ug
-MjANCj4+LSNlbmRpZg0KPj4rDQo+PiAjaWZuZGVmIFBFTkFMVFlfRk9SX05PREVfV0lUSF9DUFVT
-DQo+PiAjZGVmaW5lIFBFTkFMVFlfRk9SX05PREVfV0lUSF9DUFVTCSgxKQ0KPj4gI2VuZGlmDQo+
-Pg0KDQo=
+"Larry H." <research@subreption.com> writes:
+
+> This patch deploys the use of the PG_sensitive page allocator flag
+> within the mac80211 driver, more specifically the handling of WEP
+> RC4 keys during encryption and decryption.
+
+Why? Always explain the reason for the change in commit log. For
+example, I have no idea why you want to change this.
+
+> Signed-off-by: Larry H. <research@subreption.com>
+
+Please add your last name.
+
+-- 
+Kalle Valo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
