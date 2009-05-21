@@ -1,61 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E00D06B004D
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 09:56:39 -0400 (EDT)
-Date: Thu, 21 May 2009 08:57:30 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 33E856B004D
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 11:21:24 -0400 (EDT)
+Date: Thu, 21 May 2009 10:21:40 -0500
 From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
-Message-ID: <20090521135730.GA7581@sgi.com>
-References: <20090519102003.4EAB.A69D9226@jp.fujitsu.com> <20090520140045.GA29447@sgi.com> <20090521090549.63B5.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905210924520.31888@qirst.com>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+	allocator
+Message-ID: <20090521152140.GB29447@sgi.com>
+References: <20090520183045.GB10547@oblivion.subreption.com> <1242852158.6582.231.camel@laptop> <20090520212413.GF10756@oblivion.subreption.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0905210924520.31888@qirst.com>
+In-Reply-To: <20090520212413.GF10756@oblivion.subreption.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: "Larry H." <research@subreption.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 21, 2009 at 09:31:08AM -0400, Christoph Lameter wrote:
-> On Thu, 21 May 2009, KOSAKI Motohiro wrote:
-> 
-> > I can't catch up your message. Can you post your patch?
-> > Can you explain your sanity check?
-> >
-> > Now, I decide to remove "nr_online_nodes >= 4" condition.
-> > Apache regression is really non-sense.
-> 
-> Not sure what that means? Apache regresses with zone reclaim? My
-> measurements when we introduced zone reclaim showed just the opposite
-> because Apache would get node local memory and thus run faster. You can
-> screw this up of course if you load the system so high that the apache
-> processes are tossed around by the scheduler. Then the node local
-> allocation may be worse than round robin because all the pages allocated
-> by a process are now on one node if the scheduler moves the
-> process to a remote node then all accesses are penalized.
+> > Seems like a particularly wasteful use of a pageflag. Why not simply
+> > erase the buffer before freeing in those few places where we know its
+> > important (ie. exactly those places you now put the pageflag in)?
+...
+> The idea of the patch is not merely "protecting" those few places, but
+> providing a clean, effective generalized method for this purpose. Your
+> approach means forcing all developers to remember where they have to
+> place this explicit clearing, and introducing unnecessary code
+> duplication and an ever growing list of places adding these calls.
 
-I think the point Kosaki is trying to make is that reclaim happens really
-aggressively for processes on node 0 versus node 1.  Maybe I am clinging
-too strongly to one of the earlier posts, but that is what I read between
-the lines.
+I agree with the earlier.  If you know enough to set the flag, then
+you know enough to call a function which does a clear before free.
+Does seem like a waste of a page flag.
 
-That frequent reclaim is impacting allocations when he would rather they
-skip the reclaim and go off node.  Again, it sounds like he prefers tuning
-the default to what works best for him.  I don't too strongly disagree,
-as long as the default isn't being changed capriciously.
+> Also, this let's third-party code (and other kernel interfaces)
+> use this feature effortlessly. Moreover, this flag allows easy
+> integration with MAC/security frameworks (for instance, SELinux) to mark
+> a process as requiring sensitive mappings, in higher level APIs. There are
+> plans to work on such a patch, which could be independently proposed
+> to the SELinux maintainers.
 
-I have always expected that NUMA boxes had reasons for preferring node
-locality.  Maybe I misunderstand.  Maybe Ci7 is special and does not
-have any impact for off socket references.  I would be surprised by that
-after reading to literature, but I have not tested latency or bandwidth
-on one so I can not say.
+That sounds like either a thread group flag or a VMA flag, not a page
+flag.  If you make it a page flag, you would still need to track it
+on the vma or process to handle the event where the page gets migrated
+or swapped out.  Really doesn't feel like a page flag is right, but I
+reserve the right to be wrong.
 
-Personally, it sounds like if I had a box configured as his is, I would
-use a cpuset to restrict most memory hungry things from using cpus
-on node 0 and leave that as the small 'junk processes' cpu.  Maybe even
-restrict things like cron etc to that corner of the system.
-
-Thanks,
 Robin
 
 --
