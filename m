@@ -1,60 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0585F6B0055
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 15:28:18 -0400 (EDT)
-Date: Fri, 22 May 2009 04:58:22 +0930
-From: Ron <ron@debian.org>
-Subject: [PATCH] slab: fix generic PAGE_POISONING conflict with
-	SLAB_RED_ZONE
-Message-ID: <20090521192822.GB4448@homer.shelbyville.oz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 51D746B0062
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 15:31:01 -0400 (EDT)
+Date: Thu, 21 May 2009 12:30:45 -0700
+From: "Larry H." <research@subreption.com>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+	allocator
+Message-ID: <20090521193045.GJ10756@oblivion.subreption.com>
+References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <4A15A8C7.2030505@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+On 15:17 Thu 21 May     , Rik van Riel wrote:
+> Sensitive to what?  Allocation failures?
+>
+> Kidding, I read the rest of your emails.  However,
+> chances are whoever runs into the code later on
+> will not read everything.
+>
+> Would GFP_CONFIDENTIAL & PG_confidential be a better
+> name, since it indicates the page stores confidential
+> information, which should not be leaked?
 
-A generic page poisoning mechanism was added with commit:
- 6a11f75b6a17b5d9ac5025f8d048382fd1f47377
-which destructively poisons full pages with a bitpattern.
+Definitely, I see your point here and this will be modified in the code.
+GFP_CONFIDENTIAL and PG_confidential is more specific and won't raise
+any confusion when people read the code or want to use the flags.
 
-On arches where PAGE_POISONING is used, this conflicts with the slab
-redzone checking enabled by DEBUG_SLAB, scribbling bits all over its
-magic words and making it complain about that quite emphatically.
+Thanks for the input.
 
-On x86 (and I presume at present all the other arches which set
-ARCH_SUPPORTS_DEBUG_PAGEALLOC too), the kernel_map_pages() operation
-is non destructive so it can coexist with the other DEBUG_SLAB
-mechanisms just fine.
-
-This patch favours the expensive full page destruction test for
-cases where there is a collision and it is explicitly selected.
-
-Signed-off-by: Ron Lee <ron@debian.org>
-
-
-diff --git a/mm/slab.c b/mm/slab.c
-index 9a90b00..b5e5b27 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2353,6 +2353,15 @@ kmem_cache_create (const char *name, size_t size, size_t align,
- 		/* really off slab. No need for manual alignment */
- 		slab_size =
- 		    cachep->num * sizeof(kmem_bufctl_t) + sizeof(struct slab);
-+
-+#ifdef CONFIG_PAGE_POISONING
-+		/* If we're going to use the generic kernel_map_pages()
-+		 * poisoning, then it's going to smash the contents of
-+		 * the redzone and userword anyhow, so switch them off.
-+		 */
-+		if (size % PAGE_SIZE == 0 && flags & SLAB_POISON)
-+			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
-+#endif
- 	}
- 
- 	cachep->colour_off = cache_line_size();
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
