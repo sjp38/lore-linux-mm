@@ -1,40 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D746B0062
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 15:31:01 -0400 (EDT)
-Date: Thu, 21 May 2009 12:30:45 -0700
-From: "Larry H." <research@subreption.com>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090521193045.GJ10756@oblivion.subreption.com>
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 81BE76B004D
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 15:38:47 -0400 (EDT)
+Date: Thu, 21 May 2009 20:33:58 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH] hugh: update email address
+Message-ID: <Pine.LNX.4.64.0905212028310.15596@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A15A8C7.2030505@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Rohland <hans-christoph.rohland@sap.com>, Matt Mackall <mpm@selenic.com>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15:17 Thu 21 May     , Rik van Riel wrote:
-> Sensitive to what?  Allocation failures?
->
-> Kidding, I read the rest of your emails.  However,
-> chances are whoever runs into the code later on
-> will not read everything.
->
-> Would GFP_CONFIDENTIAL & PG_confidential be a better
-> name, since it indicates the page stores confidential
-> information, which should not be leaked?
+My old address will shut down in a few days time: remove it from the tree,
+and add a tmpfs (shmem filesystem) maintainer entry with the new address.
 
-Definitely, I see your point here and this will be modified in the code.
-GFP_CONFIDENTIAL and PG_confidential is more specific and won't raise
-any confusion when people read the code or want to use the flags.
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+---
 
-Thanks for the input.
+ Documentation/filesystems/tmpfs.txt |    2 +-
+ MAINTAINERS                         |    8 ++++++++
+ mm/rmap.c                           |    2 +-
+ 3 files changed, 10 insertions(+), 2 deletions(-)
 
-	Larry
+--- 2.6.30-rc6/Documentation/filesystems/tmpfs.txt	2008-07-13 22:51:29.000000000 +0100
++++ linux/Documentation/filesystems/tmpfs.txt	2009-05-20 20:22:50.000000000 +0100
+@@ -133,4 +133,4 @@ RAM/SWAP in 10240 inodes and it is only
+ Author:
+    Christoph Rohland <cr@sap.com>, 1.12.01
+ Updated:
+-   Hugh Dickins <hugh@veritas.com>, 4 June 2007
++   Hugh Dickins, 4 June 2007
+--- 2.6.30-rc6/MAINTAINERS	2009-05-09 09:06:41.000000000 +0100
++++ linux/MAINTAINERS	2009-05-20 20:22:50.000000000 +0100
+@@ -5579,6 +5579,14 @@ M:	ian@mnementh.co.uk
+ S:	Maintained
+ F:	drivers/mmc/host/tmio_mmc.*
+ 
++TMPFS (SHMEM FILESYSTEM)
++P:	Hugh Dickins
++M:	hugh.dickins@tiscali.co.uk
++L:	linux-mm@kvack.org
++S:	Maintained
++F:	include/linux/shmem_fs.h
++F:	mm/shmem.c
++
+ TPM DEVICE DRIVER
+ P:	Debora Velarde
+ M:	debora@linux.vnet.ibm.com
+--- 2.6.30-rc6/mm/rmap.c	2009-03-23 23:12:14.000000000 +0000
++++ linux/mm/rmap.c	2009-05-20 20:22:50.000000000 +0100
+@@ -14,7 +14,7 @@
+  * Original design by Rik van Riel <riel@conectiva.com.br> 2001
+  * File methods by Dave McCracken <dmccr@us.ibm.com> 2003, 2004
+  * Anonymous methods by Andrea Arcangeli <andrea@suse.de> 2004
+- * Contributions by Hugh Dickins <hugh@veritas.com> 2003, 2004
++ * Contributions by Hugh Dickins 2003, 2004
+  */
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
