@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6B4606B004D
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 03:43:57 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4L7iaej011546
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E87D06B0055
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 03:44:42 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4L7jMHi011964
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 21 May 2009 16:44:36 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4441945DD78
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:44:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F306045DD76
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:44:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E041B1DB801E
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:44:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 871F91DB8016
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:44:32 +0900 (JST)
-Date: Thu, 21 May 2009 16:43:00 +0900
+	Thu, 21 May 2009 16:45:22 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 628BF45DE52
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:45:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B5EC45DE51
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:45:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 126821DB8040
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:45:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A8B0B1DB8038
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 16:45:18 +0900 (JST)
+Date: Thu, 21 May 2009 16:43:46 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/2] change swapcount handling
-Message-Id: <20090521164300.af56ff42.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/2] synchrouns swap freeing without trylock.
+Message-Id: <20090521164346.d188b38f.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,456 +34,643 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, there are 2types of reference to swap entry. One is reference from
-page tables (and shmem, etc..) and another is SwapCache.
+While unmap/exiting, zap_page_range() is called and pages on page tables
+and swp_entries on it are freed.
 
-At freeing swap, we cannot know there is still reference or there is
-just a swap cache. This changes swap entry refcnt to be
-  - account by 2 at new reference (SWAP_MAP)
-  - account by 1 at swap cache.   (SWAP_CACHE)
+But At unmapping, all codes are under preepmt_disable and we can't call
+functions which may sleep. (because of tlb_xxxx functions.)
 
-To do this, adds a new argument to swap alloc/free functions.
+By this limitation, free_swap_and_cache() called by zap_pte_range() uses
+trylock() and this creates race-window between other swap ops. At last,
+memcg has to handle this kind of "not used but exists as cache" swap entries.
 
-After this, if swap_entry_free() returns 1, it means "no reference but
-swap cache" state. And this makes
-  get_swap_page/swap_duplicate()->add_to_swap_cache()
-to be an atomic operation. (means no confilcts in add_to_swap_cache())
+This patch tries to remove trylock() for freeing SwapCache under
+zap_page_range(). At freeing swap entry in page table,
+"If there are no other refernce than swap cache", the function remember it
+into stale_swap_buffer and free it later after exiting preempt disable state.
 
-Consideration:
-This makes SWAP_MAX_MAP to be half. If this is bad, can't we
-increase SWAP_MAX_MAP ? (makes SWAP_MAP_BAD to be 0xfff0)
+
+Maybe there are some more points to be cleaned up.
+(And this patch is a little larger than I expected...)
+Any comments are welcome.
+Comments like "you need more explanation here." is helpful.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/swap.h  |   20 +++++++++---
- kernel/power/swsusp.c |    6 +--
- mm/memory.c           |    4 +-
- mm/rmap.c             |    2 -
- mm/shmem.c            |   12 +++----
- mm/swap_state.c       |   14 ++++----
- mm/swapfile.c         |   81 +++++++++++++++++++++++++++++++++++---------------
- mm/vmscan.c           |    2 -
- 8 files changed, 93 insertions(+), 48 deletions(-)
+ include/linux/swap.h |    8 ++
+ mm/fremap.c          |   26 +++++++-
+ mm/memory.c          |  126 ++++++++++++++++++++++++++++++++++++++---
+ mm/shmem.c           |   27 +++++++-
+ mm/swap_state.c      |   16 ++++-
+ mm/swapfile.c        |  154 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 336 insertions(+), 21 deletions(-)
 
+Index: mmotm-2.6.30-May17/mm/fremap.c
+===================================================================
+--- mmotm-2.6.30-May17.orig/mm/fremap.c
++++ mmotm-2.6.30-May17/mm/fremap.c
+@@ -24,7 +24,7 @@
+ #include "internal.h"
+ 
+ static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+-			unsigned long addr, pte_t *ptep)
++		    unsigned long addr, pte_t *ptep, swp_entry_t *swp)
+ {
+ 	pte_t pte = *ptep;
+ 
+@@ -43,8 +43,15 @@ static void zap_pte(struct mm_struct *mm
+ 			dec_mm_counter(mm, file_rss);
+ 		}
+ 	} else {
+-		if (!pte_file(pte))
+-			free_swap_and_cache(pte_to_swp_entry(pte));
++		if (!pte_file(pte)) {
++			if (free_swap_and_check(pte_to_swp_entry(pte)) == 1) {
++				/*
++				 * This swap entry has a swap cache and it can
++				 * be freed.
++				 */
++				*swp = pte_to_swp_entry(pte);
++			}
++		}
+ 		pte_clear_not_present_full(mm, addr, ptep, 0);
+ 	}
+ }
+@@ -59,13 +66,15 @@ static int install_file_pte(struct mm_st
+ 	int err = -ENOMEM;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
++	swp_entry_t swp;
+ 
++	swp.val = ~0UL;
+ 	pte = get_locked_pte(mm, addr, &ptl);
+ 	if (!pte)
+ 		goto out;
+ 
+ 	if (!pte_none(*pte))
+-		zap_pte(mm, vma, addr, pte);
++		zap_pte(mm, vma, addr, pte, &swp);
+ 
+ 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
+ 	/*
+@@ -77,6 +86,15 @@ static int install_file_pte(struct mm_st
+ 	 */
+ 	pte_unmap_unlock(pte, ptl);
+ 	err = 0;
++	if (swp.val != ~0UL) {
++		struct page *page;
++
++		page = find_get_page(&swapper_space, swp.val);
++		lock_page(page);
++		try_to_free_swap(page);
++		unlock_page(page);
++		page_cache_release(page);
++	}
+ out:
+ 	return err;
+ }
 Index: mmotm-2.6.30-May17/include/linux/swap.h
 ===================================================================
 --- mmotm-2.6.30-May17.orig/include/linux/swap.h
 +++ mmotm-2.6.30-May17/include/linux/swap.h
-@@ -129,7 +129,12 @@ enum {
- 
- #define SWAP_CLUSTER_MAX 32
- 
--#define SWAP_MAP_MAX	0x7fff
-+/*
-+ * Reference to swap is incremented by 2 when new reference comes.
-+ * incremented by 1 when swap cache is newly added.
-+ * This means the lowest bit of swap_map indicates there is swapcache or not.
-+ */
-+#define SWAP_MAP_MAX	0x7ffe
- #define SWAP_MAP_BAD	0x8000
- 
- /*
-@@ -298,11 +303,16 @@ extern struct page *swapin_readahead(swp
- extern long nr_swap_pages;
- extern long total_swap_pages;
- extern void si_swapinfo(struct sysinfo *);
--extern swp_entry_t get_swap_page(void);
--extern swp_entry_t get_swap_page_of_type(int);
--extern int swap_duplicate(swp_entry_t);
-+extern swp_entry_t get_swap_page(int);
-+extern swp_entry_t get_swap_page_of_type(int, int);
-+
-+enum {
-+	SWAP_MAP,
-+	SWAP_CACHE,
-+};
-+extern int swap_duplicate(swp_entry_t, int);
+@@ -291,6 +291,7 @@ extern int add_to_swap(struct page *);
+ extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
+ extern void __delete_from_swap_cache(struct page *);
+ extern void delete_from_swap_cache(struct page *);
++extern void delete_from_swap_cache_keep_swap(struct page *);
+ extern void free_page_and_swap_cache(struct page *);
+ extern void free_pages_and_swap_cache(struct page **, int);
+ extern struct page *lookup_swap_cache(swp_entry_t);
+@@ -314,6 +315,9 @@ extern int swap_duplicate(swp_entry_t, i
  extern int valid_swaphandles(swp_entry_t, unsigned long *);
--extern void swap_free(swp_entry_t);
-+extern void swap_free(swp_entry_t, int);
+ extern void swap_free(swp_entry_t, int);
  extern int free_swap_and_cache(swp_entry_t);
++extern int free_swap_and_check(swp_entry_t);
++extern void free_swap_batch(int, swp_entry_t *);
++extern int try_free_swap_and_cache_atomic(swp_entry_t);
  extern int swap_type_of(dev_t, sector_t, struct block_device **);
  extern unsigned int count_swap_pages(int, int);
+ extern sector_t map_swap_page(struct swap_info_struct *, pgoff_t);
+@@ -382,6 +386,10 @@ static inline void show_swap_cache_info(
+ #define free_swap_and_cache(swp)	is_migration_entry(swp)
+ #define swap_duplicate(swp)		is_migration_entry(swp)
+ 
++static inline void swap_free_batch(int swaps, swp_entry_t *swaps)
++{
++}
++
+ static inline void swap_free(swp_entry_t swp)
+ {
+ }
 Index: mmotm-2.6.30-May17/mm/memory.c
 ===================================================================
 --- mmotm-2.6.30-May17.orig/mm/memory.c
 +++ mmotm-2.6.30-May17/mm/memory.c
-@@ -552,7 +552,7 @@ copy_one_pte(struct mm_struct *dst_mm, s
- 		if (!pte_file(pte)) {
- 			swp_entry_t entry = pte_to_swp_entry(pte);
+@@ -758,10 +758,84 @@ int copy_page_range(struct mm_struct *ds
+ 	return ret;
+ }
  
--			swap_duplicate(entry);
-+			swap_duplicate(entry, SWAP_MAP);
- 			/* make sure dst_mm is on swapoff's mmlist. */
- 			if (unlikely(list_empty(&dst_mm->mmlist))) {
- 				spin_lock(&mmlist_lock);
-@@ -2670,7 +2670,7 @@ static int do_swap_page(struct mm_struct
- 	/* It's better to call commit-charge after rmap is established */
- 	mem_cgroup_commit_charge_swapin(page, ptr);
++
++/*
++ * Because we are under preempt_disable (see tlb_xxx functions), we can't call
++ * lcok_page() etc..which may sleep. At freeing swap, gatering swp_entry
++ * which seems of-no-use but has swap cache to this struct and remove them
++ * in batch. Because the condition to gather swp_entry to this bix is
++ * - There is no other swap reference. &&
++ * - There is a swap cache. &&
++ * - Page table entry was "Not Present"
++ * The number of entries which is caught in this is very small.
++ */
++#define NR_SWAP_FREE_BATCH		(63)
++struct stale_swap_buffer {
++	int nr;
++	swp_entry_t ents[NR_SWAP_FREE_BATCH];
++};
++
++#ifdef CONFIG_SWAP
++static inline void push_swap_ssb(struct stale_swap_buffer *ssb, swp_entry_t ent)
++{
++	if (!ssb)
++		return;
++	ssb->ents[ssb->nr++] = ent;
++}
++
++static inline int ssb_full(struct stale_swap_buffer *ssb)
++{
++	if (!ssb)
++		return 0;
++	return ssb->nr == NR_SWAP_FREE_BATCH;
++}
++
++static void free_stale_swaps(struct stale_swap_buffer *ssb)
++{
++	if (!ssb || !ssb->nr)
++		return;
++	free_swap_batch(ssb->nr, ssb->ents);
++	ssb->nr = 0;
++}
++
++static struct stale_swap_buffer *alloc_ssb(void)
++{
++	/*
++	 * Considering the case zap_xxx can be called as a result of OOM,
++	 * gfp_mask here should be GFP_ATOMIC. Even if we fails to allocate,
++	 * global LRU can find and remove stale swap caches in such case.
++	 */
++	return kzalloc(sizeof(struct stale_swap_buffer), GFP_ATOMIC);
++}
++static inline void free_ssb(struct stale_swap_buffer *ssb)
++{
++	kfree(ssb);
++}
++#else
++static inline void push_swap_ssb(struct stale_swap_buffer *ssb, swp_entry_t ent)
++{
++}
++static inline int ssb_full(struct stale_swap_buufer *ssb)
++{
++	return 0;
++}
++static inline void free_stale_swaps(struct stale_swap_buffer *ssb)
++{
++}
++static inline struct stale_swap_buffer *alloc_ssb(void)
++{
++	return NULL;
++}
++static inline void free_ssb(struct stale_swap_buffer *ssb)
++{
++}
++#endif
++
+ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma, pmd_t *pmd,
+ 				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
++				long *zap_work, struct zap_details *details,
++				struct stale_swap_buffer *ssb)
+ {
+ 	struct mm_struct *mm = tlb->mm;
+ 	pte_t *pte;
+@@ -837,8 +911,17 @@ static unsigned long zap_pte_range(struc
+ 		if (pte_file(ptent)) {
+ 			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
+ 				print_bad_pte(vma, addr, ptent, NULL);
+-		} else if
+-		  (unlikely(!free_swap_and_cache(pte_to_swp_entry(ptent))))
++		} else if (likely(ssb)) {
++			int ret = free_swap_and_check(pte_to_swp_entry(ptent));
++			if (unlikely(!ret))
++				print_bad_pte(vma, addr, ptent, NULL);
++			if (ret == 1) {
++				push_swap_ssb(ssb, pte_to_swp_entry(ptent));
++				/* need to free swaps ? */
++				if (ssb_full(ssb))
++					*zap_work = 0;
++			}
++		} else if (free_swap_and_cache(pte_to_swp_entry(ptent)))
+ 			print_bad_pte(vma, addr, ptent, NULL);
+ 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+ 	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
+@@ -853,7 +936,8 @@ static unsigned long zap_pte_range(struc
+ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma, pud_t *pud,
+ 				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
++				long *zap_work, struct zap_details *details,
++				struct stale_swap_buffer *ssb)
+ {
+ 	pmd_t *pmd;
+ 	unsigned long next;
+@@ -866,7 +950,7 @@ static inline unsigned long zap_pmd_rang
+ 			continue;
+ 		}
+ 		next = zap_pte_range(tlb, vma, pmd, addr, next,
+-						zap_work, details);
++						zap_work, details, ssb);
+ 	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
  
--	swap_free(entry);
-+	swap_free(entry, SWAP_MAP);
- 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
- 		try_to_free_swap(page);
- 	unlock_page(page);
-Index: mmotm-2.6.30-May17/mm/rmap.c
-===================================================================
---- mmotm-2.6.30-May17.orig/mm/rmap.c
-+++ mmotm-2.6.30-May17/mm/rmap.c
-@@ -949,7 +949,7 @@ static int try_to_unmap_one(struct page 
- 			 * Store the swap location in the pte.
- 			 * See handle_pte_fault() ...
- 			 */
--			swap_duplicate(entry);
-+			swap_duplicate(entry, SWAP_MAP);
- 			if (list_empty(&mm->mmlist)) {
- 				spin_lock(&mmlist_lock);
- 				if (list_empty(&mm->mmlist))
+ 	return addr;
+@@ -875,7 +959,8 @@ static inline unsigned long zap_pmd_rang
+ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma, pgd_t *pgd,
+ 				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
++				long *zap_work, struct zap_details *details,
++				struct stale_swap_buffer *ssb)
+ {
+ 	pud_t *pud;
+ 	unsigned long next;
+@@ -888,7 +973,7 @@ static inline unsigned long zap_pud_rang
+ 			continue;
+ 		}
+ 		next = zap_pmd_range(tlb, vma, pud, addr, next,
+-						zap_work, details);
++						zap_work, details, ssb);
+ 	} while (pud++, addr = next, (addr != end && *zap_work > 0));
+ 
+ 	return addr;
+@@ -897,7 +982,8 @@ static inline unsigned long zap_pud_rang
+ static unsigned long unmap_page_range(struct mmu_gather *tlb,
+ 				struct vm_area_struct *vma,
+ 				unsigned long addr, unsigned long end,
+-				long *zap_work, struct zap_details *details)
++				long *zap_work, struct zap_details *details,
++				struct stale_swap_buffer *ssb)
+ {
+ 	pgd_t *pgd;
+ 	unsigned long next;
+@@ -915,7 +1001,7 @@ static unsigned long unmap_page_range(st
+ 			continue;
+ 		}
+ 		next = zap_pud_range(tlb, vma, pgd, addr, next,
+-						zap_work, details);
++						zap_work, details, ssb);
+ 	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
+ 	tlb_end_vma(tlb, vma);
+ 
+@@ -967,6 +1053,15 @@ unsigned long unmap_vmas(struct mmu_gath
+ 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
+ 	int fullmm = (*tlbp)->fullmm;
+ 	struct mm_struct *mm = vma->vm_mm;
++	struct stale_swap_buffer *ssb = NULL;
++
++	/*
++	 * At freeing gatherd stale swap, we may sleep.In that case, we can't
++	 * handle spinlock_break. But, If !details, we don't free swap entry.
++	 * (see zap_pte_range())
++	 */
++	if (!i_mmap_lock)
++		ssb = alloc_ssb();
+ 
+ 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
+ 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
+@@ -1012,7 +1107,7 @@ unsigned long unmap_vmas(struct mmu_gath
+ 				start = end;
+ 			} else
+ 				start = unmap_page_range(*tlbp, vma,
+-						start, end, &zap_work, details);
++					 start, end, &zap_work, details, ssb);
+ 
+ 			if (zap_work > 0) {
+ 				BUG_ON(start != end);
+@@ -1021,13 +1116,15 @@ unsigned long unmap_vmas(struct mmu_gath
+ 
+ 			tlb_finish_mmu(*tlbp, tlb_start, start);
+ 
+-			if (need_resched() ||
++			if (need_resched() || ssb_full(ssb) ||
+ 				(i_mmap_lock && spin_needbreak(i_mmap_lock))) {
+ 				if (i_mmap_lock) {
+ 					*tlbp = NULL;
+ 					goto out;
+ 				}
+ 				cond_resched();
++				/* This call may sleep */
++				free_stale_swaps(ssb);
+ 			}
+ 
+ 			*tlbp = tlb_gather_mmu(vma->vm_mm, fullmm);
+@@ -1037,6 +1134,13 @@ unsigned long unmap_vmas(struct mmu_gath
+ 	}
+ out:
+ 	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
++	/* there is stale swap cache. We may sleep and release per-cpu.*/
++	if (ssb && ssb->nr) {
++		tlb_finish_mmu(*tlbp, tlb_start, start);
++		free_stale_swaps(ssb);
++		*tlbp = tlb_gather_mmu(mm, fullmm);
++	}
++	free_ssb(ssb);
+ 	return start;	/* which is now the end (or restart) address */
+ }
+ 
 Index: mmotm-2.6.30-May17/mm/shmem.c
 ===================================================================
 --- mmotm-2.6.30-May17.orig/mm/shmem.c
 +++ mmotm-2.6.30-May17/mm/shmem.c
-@@ -986,7 +986,7 @@ found:
- 		set_page_dirty(page);
- 		info->flags |= SHMEM_PAGEIN;
- 		shmem_swp_set(info, ptr, 0);
--		swap_free(entry);
-+		swap_free(entry, SWAP_MAP);
- 		error = 1;	/* not an error, but entry was found */
- 	}
- 	if (ptr)
-@@ -1051,7 +1051,7 @@ static int shmem_writepage(struct page *
- 	 * want to check if there's a redundant swappage to be discarded.
- 	 */
- 	if (wbc->for_reclaim)
--		swap = get_swap_page();
-+		swap = get_swap_page(SWAP_CACHE);
- 	else
- 		swap.val = 0;
+@@ -466,14 +466,22 @@ static swp_entry_t *shmem_swp_alloc(stru
+  * @edir:       pointer after last entry of the directory
+  * @punch_lock: pointer to spinlock when needed for the holepunch case
+  */
++#define SWAP_FREE_BATCH (16)
+ static int shmem_free_swp(swp_entry_t *dir, swp_entry_t *edir,
+ 						spinlock_t *punch_lock)
+ {
+ 	spinlock_t *punch_unlock = NULL;
++	spinlock_t *punch_lock_saved = punch_lock;
+ 	swp_entry_t *ptr;
++	swp_entry_t swp[SWAP_FREE_BATCH];
+ 	int freed = 0;
++	int swaps;
  
-@@ -1080,7 +1080,7 @@ static int shmem_writepage(struct page *
- 		else
- 			inode = NULL;
- 		spin_unlock(&info->lock);
--		swap_duplicate(swap);
-+		swap_duplicate(swap, SWAP_MAP);
- 		BUG_ON(page_mapped(page));
- 		page_cache_release(page);	/* pagecache ref */
- 		swap_writepage(page, wbc);
-@@ -1097,7 +1097,7 @@ static int shmem_writepage(struct page *
+-	for (ptr = dir; ptr < edir; ptr++) {
++	ptr = dir;
++again:
++	swaps = 0;
++	punch_lock = punch_lock_saved;
++	for (; swaps < SWAP_FREE_BATCH && ptr < edir; ptr++) {
+ 		if (ptr->val) {
+ 			if (unlikely(punch_lock)) {
+ 				punch_unlock = punch_lock;
+@@ -482,13 +490,21 @@ static int shmem_free_swp(swp_entry_t *d
+ 				if (!ptr->val)
+ 					continue;
+ 			}
+-			free_swap_and_cache(*ptr);
++			if (free_swap_and_check(*ptr) == 1)
++				swp[swaps++] = *ptr;
+ 			*ptr = (swp_entry_t){0};
+ 			freed++;
+ 		}
+ 	}
+ 	if (punch_unlock)
+ 		spin_unlock(punch_unlock);
++
++	if (swaps) {
++		/* Drop swap caches if we can */
++		free_swap_batch(swaps, swp);
++		if (ptr < edir)
++			goto again;
++	}
+ 	return freed;
+ }
+ 
+@@ -1065,8 +1081,10 @@ static int shmem_writepage(struct page *
+ 		/*
+ 		 * The more uptodate page coming down from a stacked
+ 		 * writepage should replace our old swappage.
++		 * But we can do only trylock on this. so call try_free.
+ 		 */
+-		free_swap_and_cache(*entry);
++		if (try_free_swap_and_cache_atomic(*entry))
++			goto unmap_unlock;
+ 		shmem_swp_set(info, entry, 0);
+ 	}
+ 	shmem_recalc_inode(inode);
+@@ -1093,11 +1111,12 @@ static int shmem_writepage(struct page *
+ 		}
+ 		return 0;
+ 	}
+-
++unmap_unlock:
  	shmem_swp_unmap(entry);
  unlock:
  	spin_unlock(&info->lock);
--	swap_free(swap);
-+	swap_free(swap, SWAP_CACHE);
+ 	swap_free(swap, SWAP_CACHE);
++
  redirty:
  	set_page_dirty(page);
  	if (wbc->for_reclaim)
-@@ -1325,7 +1325,7 @@ repeat:
- 			flush_dcache_page(filepage);
- 			SetPageUptodate(filepage);
- 			set_page_dirty(filepage);
--			swap_free(swap);
-+			swap_free(swap, SWAP_MAP);
- 		} else if (!(error = add_to_page_cache_locked(swappage, mapping,
- 					idx, GFP_NOWAIT))) {
- 			info->flags |= SHMEM_PAGEIN;
-@@ -1335,7 +1335,7 @@ repeat:
- 			spin_unlock(&info->lock);
- 			filepage = swappage;
- 			set_page_dirty(filepage);
--			swap_free(swap);
-+			swap_free(swap, SWAP_MAP);
- 		} else {
- 			shmem_swp_unmap(entry);
- 			spin_unlock(&info->lock);
-Index: mmotm-2.6.30-May17/mm/swap_state.c
-===================================================================
---- mmotm-2.6.30-May17.orig/mm/swap_state.c
-+++ mmotm-2.6.30-May17/mm/swap_state.c
-@@ -138,7 +138,7 @@ int add_to_swap(struct page *page)
- 	VM_BUG_ON(!PageUptodate(page));
- 
- 	for (;;) {
--		entry = get_swap_page();
-+		entry = get_swap_page(SWAP_CACHE);
- 		if (!entry.val)
- 			return 0;
- 
-@@ -161,12 +161,12 @@ int add_to_swap(struct page *page)
- 			SetPageDirty(page);
- 			return 1;
- 		case -EEXIST:
--			/* Raced with "speculative" read_swap_cache_async */
--			swap_free(entry);
-+			/* Raced with "speculative" read_swap_cache_async ? */
-+			swap_free(entry, SWAP_CACHE);
- 			continue;
- 		default:
- 			/* -ENOMEM radix-tree allocation failure */
--			swap_free(entry);
-+			swap_free(entry, SWAP_CACHE);
- 			return 0;
- 		}
- 	}
-@@ -189,7 +189,7 @@ void delete_from_swap_cache(struct page 
- 	spin_unlock_irq(&swapper_space.tree_lock);
- 
- 	mem_cgroup_uncharge_swapcache(page, entry);
--	swap_free(entry);
-+	swap_free(entry, SWAP_CACHE);
- 	page_cache_release(page);
- }
- 
-@@ -293,7 +293,7 @@ struct page *read_swap_cache_async(swp_e
- 		/*
- 		 * Swap entry may have been freed since our caller observed it.
- 		 */
--		if (!swap_duplicate(entry))
-+		if (!swap_duplicate(entry, SWAP_CACHE))
- 			break;
- 
- 		/*
-@@ -317,7 +317,7 @@ struct page *read_swap_cache_async(swp_e
- 		}
- 		ClearPageSwapBacked(new_page);
- 		__clear_page_locked(new_page);
--		swap_free(entry);
-+		swap_free(entry, SWAP_CACHE);
- 	} while (err != -ENOMEM);
- 
- 	if (new_page)
 Index: mmotm-2.6.30-May17/mm/swapfile.c
 ===================================================================
 --- mmotm-2.6.30-May17.orig/mm/swapfile.c
 +++ mmotm-2.6.30-May17/mm/swapfile.c
-@@ -167,7 +167,7 @@ static int wait_for_discard(void *word)
- #define SWAPFILE_CLUSTER	256
- #define LATENCY_LIMIT		256
- 
--static inline unsigned long scan_swap_map(struct swap_info_struct *si)
-+static inline unsigned long scan_swap_map(struct swap_info_struct *si, int ops)
- {
- 	unsigned long offset;
- 	unsigned long scan_base;
-@@ -285,7 +285,12 @@ checks:
- 		si->lowest_bit = si->max;
- 		si->highest_bit = 0;
- 	}
--	si->swap_map[offset] = 1;
-+
-+	if (ops == SWAP_CACHE)
-+		si->swap_map[offset] = 1; /* usually start from swap-cache */
-+	else
-+		si->swap_map[offset] = 2; /* swsusp does this. */
-+
- 	si->cluster_next = offset + 1;
- 	si->flags -= SWP_SCANNING;
- 
-@@ -374,7 +379,7 @@ no_page:
- 	return 0;
- }
- 
--swp_entry_t get_swap_page(void)
-+swp_entry_t get_swap_page(int ops)
- {
- 	struct swap_info_struct *si;
- 	pgoff_t offset;
-@@ -401,7 +406,7 @@ swp_entry_t get_swap_page(void)
- 			continue;
- 
- 		swap_list.next = next;
--		offset = scan_swap_map(si);
-+		offset = scan_swap_map(si, ops);
- 		if (offset) {
- 			spin_unlock(&swap_lock);
- 			return swp_entry(type, offset);
-@@ -415,7 +420,7 @@ noswap:
- 	return (swp_entry_t) {0};
- }
- 
--swp_entry_t get_swap_page_of_type(int type)
-+swp_entry_t get_swap_page_of_type(int type, int ops)
- {
- 	struct swap_info_struct *si;
- 	pgoff_t offset;
-@@ -424,7 +429,7 @@ swp_entry_t get_swap_page_of_type(int ty
- 	si = swap_info + type;
- 	if (si->flags & SWP_WRITEOK) {
- 		nr_swap_pages--;
--		offset = scan_swap_map(si);
-+		offset = scan_swap_map(si, ops);
- 		if (offset) {
- 			spin_unlock(&swap_lock);
- 			return swp_entry(type, offset);
-@@ -471,13 +476,17 @@ out:
- 	return NULL;
- }
- 
--static int swap_entry_free(struct swap_info_struct *p, swp_entry_t ent)
-+static int
-+swap_entry_free(struct swap_info_struct *p, swp_entry_t ent, int ops)
- {
- 	unsigned long offset = swp_offset(ent);
- 	int count = p->swap_map[offset];
- 
- 	if (count < SWAP_MAP_MAX) {
--		count--;
-+		if (ops == SWAP_CACHE)
-+			count -= 1;
-+		else
-+			count -= 2;
- 		p->swap_map[offset] = count;
- 		if (!count) {
- 			if (offset < p->lowest_bit)
-@@ -498,13 +507,13 @@ static int swap_entry_free(struct swap_i
-  * Caller has made sure that the swapdevice corresponding to entry
-  * is still around or has not been recycled.
-  */
--void swap_free(swp_entry_t entry)
-+void swap_free(swp_entry_t entry, int ops)
- {
- 	struct swap_info_struct * p;
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		swap_entry_free(p, entry);
-+		swap_entry_free(p, entry, ops);
- 		spin_unlock(&swap_lock);
- 	}
- }
-@@ -584,7 +593,7 @@ int free_swap_and_cache(swp_entry_t entr
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		if (swap_entry_free(p, entry) == 1) {
-+		if (swap_entry_free(p, entry, SWAP_MAP) == 1) {
- 			page = find_get_page(&swapper_space, entry.val);
- 			if (page && !trylock_page(page)) {
- 				page_cache_release(page);
-@@ -717,7 +726,7 @@ static int unuse_pte(struct vm_area_stru
- 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	page_add_anon_rmap(page, vma, addr);
- 	mem_cgroup_commit_charge_swapin(page, ptr);
--	swap_free(entry);
-+	swap_free(entry, SWAP_MAP);
- 	/*
- 	 * Move the page to the active list so it is not
- 	 * immediately swapped out again after swapon.
-@@ -1069,9 +1078,13 @@ static int try_to_unuse(unsigned int typ
- 		 * We know "Undead"s can happen, they're okay, so don't
- 		 * report them; but do report if we reset SWAP_MAP_MAX.
- 		 */
--		if (*swap_map == SWAP_MAP_MAX) {
-+		if ((*swap_map == SWAP_MAP_MAX) ||
-+		    (*swap_map == SWAP_MAP_MAX+1)) {
- 			spin_lock(&swap_lock);
--			*swap_map = 1;
-+			if (*swap_map == SWAP_MAP_MAX)
-+				*swap_map = 2; /* there isn't a swap cache */
-+			else
-+				*swap_map = 3; /* there is a swap cache */
- 			spin_unlock(&swap_lock);
- 			reset_overflow = 1;
- 		}
-@@ -1939,11 +1952,13 @@ void si_swapinfo(struct sysinfo *val)
- 
+@@ -582,6 +582,7 @@ int try_to_free_swap(struct page *page)
  /*
-  * Verify that a swap entry is valid and increment its swap map count.
-- *
-+ * If new reference is for new map, increment by 2.(type=SWAP_MAP)
-+ * If new reference is for swap cache, increment by 1 (type = SWAP_CACHE)
-  * Note: if swap_map[] reaches SWAP_MAP_MAX the entries are treated as
-  * "permanent", but will be reclaimed by the next swapoff.
-+ *
+  * Free the swap entry like above, but also try to
+  * free the page cache entry if it is the last user.
++ * Because this uses trylock, "entry" may not be freed.
   */
--int swap_duplicate(swp_entry_t entry)
-+int swap_duplicate(swp_entry_t entry, int ops)
+ int free_swap_and_cache(swp_entry_t entry)
  {
- 	struct swap_info_struct * p;
- 	unsigned long offset, type;
-@@ -1959,15 +1974,35 @@ int swap_duplicate(swp_entry_t entry)
- 	offset = swp_offset(entry);
+@@ -618,6 +619,159 @@ int free_swap_and_cache(swp_entry_t entr
+ 	return p != NULL;
+ }
  
- 	spin_lock(&swap_lock);
--	if (offset < p->max && p->swap_map[offset]) {
--		if (p->swap_map[offset] < SWAP_MAP_MAX - 1) {
--			p->swap_map[offset]++;
--			result = 1;
--		} else if (p->swap_map[offset] <= SWAP_MAP_MAX) {
++/*
++ * Free the swap entry like above, but
++ * returns 1 if swap entry has swap cache and ready to be freed.
++ * returns 2 if swap has other references.
++ */
++int free_swap_and_check(swp_entry_t entry)
++{
++	struct swap_info_struct *p;
++	int ret = 0;
++
++	if (is_migration_entry(entry))
++		return 2;
++
++	p = swap_info_get(entry);
++	if (!p)
++		return ret;
++	if (swap_entry_free(p, entry, SWAP_MAP) == 1)
++		ret = 1;
++	else
++		ret = 2;
++	spin_unlock(&swap_lock);
++
++	return ret;
++}
++
++/*
++ * The caller must guarantee that no other one don:t increase SWAP_MAP
++ * reference at this call. This function frees a swap cache and a swap entry
++ * with guarantee that
++ *   - free swap cache and entry only when refcnt goes down to 0.
++ * returns 0 if success. returns 1 if busy.
++ */
++int try_free_swap_and_cache_atomic(swp_entry_t entry)
++{
++	struct swap_info_struct *p;
++	struct page *page;
++	int count, cache_released = 0;
++
++	page = find_get_page(&swapper_space, entry.val);
++	if (page) {
++		if (!trylock_page(page)) {
++			page_cache_release(page);
++			return 1;
++		}
++		/* Under contention ? */
++		if (!PageSwapCache(page) || PageWriteback(page)) {
++			unlock_page(page);
++			page_cache_release(page);
++			return 1;
++		}
++		count = page_swapcount(page);
++		if (count != 2) { /* SWAP_CACHE + SWAP_MAP */
++			/*
++			 * seems to have another reference. So, the caller
++			 * failed to guarantee "no extra refence" to swap.
++			 */
++			unlock_page(page);
++			page_cache_release(page);
++			return 1;
++		}
++		/* This delete_from_swap_cache doesn't drop SWAP_CACHE ref */
++		delete_from_swap_cache_keep_swap(page);
++		SetPageDirty(page);
++		unlock_page(page);
++		page_cache_release(page);
++		cache_released = 1;
++		p = swap_info_get(entry);
++	} else {
++		p = swap_info_get(entry);
++		count = p->swap_map[swp_offset(entry)];
++		if (count > 2) {
++			/*
++			 * seems to have another reference. So, the caller
++			 * failed to guarantee "no extra refence" to swap.
++			 */
++			spin_unlock(&swap_lock);
++			return 1;
++		}
++	}
++	/* Drop all refs at once */
++	swap_entry_free(p, entry, SWAP_MAP);
 +	/*
-+	 * When we tries to create new SwapCache, increment count by 1.
-+	 * When we adds new reference to swap entry, increment count by 2.
-+	 * If type==SWAP_CACHE and swap_map[] shows there is a swap cache,
-+	 * it means racy swapin. The caller should cancel his work.
++	 * Free SwapCache reference at last (this prevents to create new
++	 * swap cache to this entry).
 +	 */
-+	if (offset < p->max && (p->swap_map[offset])) {
-+		if (p->swap_map[offset] < SWAP_MAP_MAX - 2) {
-+			if (ops == SWAP_CACHE) {
-+				if (!(p->swap_map[offset] & 0x1)) {
-+					p->swap_map[offset] += 1;
-+					result = 1;
-+				}
-+			} else {
-+				p->swap_map[offset] += 2;
-+				result = 1;
-+			}
-+		} else if (p->swap_map[offset] <= SWAP_MAP_MAX - 1) {
- 			if (swap_overflow++ < 5)
- 				printk(KERN_WARNING "swap_dup: swap entry overflow\n");
--			p->swap_map[offset] = SWAP_MAP_MAX;
--			result = 1;
-+			if (ops == SWAP_CACHE) {
-+				if (!(p->swap_map[offset] & 0x1)) {
-+					p->swap_map[offset] += 1;
-+					result = 1;
-+				}
-+			} else {
-+				p->swap_map[offset] += 2;
-+				result = 1;
-+			}
- 		}
- 	}
- 	spin_unlock(&swap_lock);
-Index: mmotm-2.6.30-May17/mm/vmscan.c
++	if (cache_released)
++		swap_entry_free(p, entry, SWAP_CACHE);
++	spin_unlock(&swap_lock);
++	return 0;
++}
++
++
++/*
++ * Free swap cache in syncronous way.
++ */
++#ifdef CONFIG_CGROUP_MEM_RES_CTRL
++static int check_and_wait_swap_free(swp_entry_t entry)
++{
++	int count = 0;
++	struct swap_info_struct *p;
++
++	p = swap_info_get(entry);
++	if (!p)
++		return 0;
++	count = p->swap_map[swp_offset(entry)];
++	spin_unlock(&swap_lock);
++	if (count == 1) {
++		/*
++		 * in the race window of readahead.(we'll wait in lock_page,
++		 * anyway. So, its ok to do congestion wait here.
++		 */
++		congestion_wait(READ, HZ/10);
++		return 1;
++	}
++	/*
++	 * This means there are another references to this swap.
++	 * or swap is already freed. Do nothing more.
++	 */
++	return 0;
++}
++#else
++static int check_and_wait_swap_free(swp_entry_t entry)
++{
++	return 0;
++}
++#endif
++
++/*
++ * This function is used with free_swap_and_check(). When free_swap_and_check()
++ * returns 1, there are no refence to the swap_entry and we only need to free
++ * swap cache. This function is for freeing SwapCache, not swap.
++ */
++void free_swap_batch(int swaps, swp_entry_t *ents)
++{
++	int i;
++	struct page *page;
++	swp_entry_t entry;
++
++	for (i = 0; i < swaps; i++) {
++		entry = ents[i];
++redo:
++		page = find_get_page(&swapper_space, entry.val);
++		if (likely(page)) {
++			lock_page(page);
++			/* try_to_free_swap does all necessary checks. */
++			try_to_free_swap(page);
++			unlock_page(page);
++			page_cache_release(page);
++		} else if (check_and_wait_swap_free(entry))
++				goto redo;
++	}
++}
++
+ #ifdef CONFIG_HIBERNATION
+ /*
+  * Find the swap type that corresponds to given device (if any).
+Index: mmotm-2.6.30-May17/mm/swap_state.c
 ===================================================================
---- mmotm-2.6.30-May17.orig/mm/vmscan.c
-+++ mmotm-2.6.30-May17/mm/vmscan.c
-@@ -478,7 +478,7 @@ static int __remove_mapping(struct addre
- 		__delete_from_swap_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
- 		mem_cgroup_uncharge_swapcache(page, swap);
--		swap_free(swap);
-+		swap_free(swap, SWAP_CACHE);
- 	} else {
- 		__remove_from_page_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-Index: mmotm-2.6.30-May17/kernel/power/swsusp.c
-===================================================================
---- mmotm-2.6.30-May17.orig/kernel/power/swsusp.c
-+++ mmotm-2.6.30-May17/kernel/power/swsusp.c
-@@ -120,10 +120,10 @@ sector_t alloc_swapdev_block(int swap)
+--- mmotm-2.6.30-May17.orig/mm/swap_state.c
++++ mmotm-2.6.30-May17/mm/swap_state.c
+@@ -178,7 +178,7 @@ int add_to_swap(struct page *page)
+  * It will never put the page into the free list,
+  * the caller has a reference on the page.
+  */
+-void delete_from_swap_cache(struct page *page)
++static void delete_from_swap_cache_internal(struct page *page, int freeswap)
  {
- 	unsigned long offset;
+ 	swp_entry_t entry;
  
--	offset = swp_offset(get_swap_page_of_type(swap));
-+	offset = swp_offset(get_swap_page_of_type(swap, SWAP_MAP));
- 	if (offset) {
- 		if (swsusp_extents_insert(offset))
--			swap_free(swp_entry(swap, offset));
-+			swap_free(swp_entry(swap, offset), SWAP_MAP);
- 		else
- 			return swapdev_block(swap, offset);
- 	}
-@@ -147,7 +147,7 @@ void free_all_swap_pages(int swap)
- 		ext = container_of(node, struct swsusp_extent, node);
- 		rb_erase(node, &swsusp_extents);
- 		for (offset = ext->start; offset <= ext->end; offset++)
--			swap_free(swp_entry(swap, offset));
-+			swap_free(swp_entry(swap, offset), SWAP_MAP);
+@@ -189,10 +189,22 @@ void delete_from_swap_cache(struct page 
+ 	spin_unlock_irq(&swapper_space.tree_lock);
  
- 		kfree(ext);
- 	}
+ 	mem_cgroup_uncharge_swapcache(page, entry);
+-	swap_free(entry, SWAP_CACHE);
++	if (freeswap)
++		swap_free(entry, SWAP_CACHE);
+ 	page_cache_release(page);
+ }
+ 
++void delete_from_swap_cache(struct page *page)
++{
++	delete_from_swap_cache_internal(page, 1);
++}
++
++void delete_from_swap_cache_keep_swap(struct page *page)
++{
++	delete_from_swap_cache_internal(page, 0);
++}
++
++
+ /* 
+  * If we are the only user, then try to free up the swap cache. 
+  * 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
