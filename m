@@ -1,250 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BE7326B004D
-	for <linux-mm@kvack.org>; Thu, 21 May 2009 19:47:12 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4LNlsrx005067
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 337126B004D
+	for <linux-mm@kvack.org>; Thu, 21 May 2009 20:28:05 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4M0STQw025709
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 22 May 2009 08:47:55 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A26B645DD7F
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 08:47:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 801FD45DD78
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 08:47:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 616C11DB803F
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 08:47:54 +0900 (JST)
+	Fri, 22 May 2009 09:28:29 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DCDB45DE61
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 09:28:29 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B9EE45DE57
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 09:28:29 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E39BE1DB803F
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 09:28:28 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E8841DB8037
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 08:47:54 +0900 (JST)
-Date: Fri, 22 May 2009 08:46:22 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 65FED1DB803B
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 09:28:28 +0900 (JST)
+Date: Fri, 22 May 2009 09:26:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/2] synchrouns swap freeing without trylock.
-Message-Id: <20090522084622.b1791283.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090521124419.GC1820@cmpxchg.org>
+Subject: Re: [RFC][PATCH] synchrouns swap freeing at zapping vmas
+Message-Id: <20090522092656.21e76d8f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0905212035200.15631@sister.anvils>
 References: <20090521164100.5f6a0b75.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090521164346.d188b38f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090521124419.GC1820@cmpxchg.org>
+	<Pine.LNX.4.64.0905212035200.15631@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 May 2009 14:44:20 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Thu, 21 May 2009 22:00:20 +0100 (BST)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-> On Thu, May 21, 2009 at 04:43:46PM +0900, KAMEZAWA Hiroyuki wrote:
-> > Index: mmotm-2.6.30-May17/mm/memory.c
-> > ===================================================================
-> > --- mmotm-2.6.30-May17.orig/mm/memory.c
-> > +++ mmotm-2.6.30-May17/mm/memory.c
-> > @@ -758,10 +758,84 @@ int copy_page_range(struct mm_struct *ds
-> >  	return ret;
-> >  }
+> On Thu, 21 May 2009, KAMEZAWA Hiroyuki wrote:
+> > 
+> > In these 6-7 weeks, we tried to fix memcg's swap-leak race by checking
+> > swap is valid or not after I/O.
+> 
+> I realize you've been working on different solutions for many weeks,
+> and would love a positive response.  Sorry, I'm not providing that:
+> these patches are not so beautiful that I'm eager to see them go in.
+> 
+> I ought to be attending to other priorities, but you've been clever
+> enough to propose intrusive mods that I can't really ignore, just to
+> force a response out of me!
+
+Sorry and thank you for your time and kindness.
+
+>  And I'd better get a reply in with my new address, before the old
+ > starts bouncing in a few days time.
+> 
+Updated my address book.
+
+
+> > But Andrew Morton pointed out that
+> > "trylock in free_swap_and_cache() is not good"
+> > Oh, yes. it's not good.
+> 
+> Well, it has served non-memcg very well for years:
+> what's so bad about it now?
+> 
+> I've skimmed through the threads, starting from Nishimura-san's mail
+> on 17 March, was that the right one?  My head spins like Balbir's.
+> 
+Maybe right.
+
+> It seems like you have two leaks, but I may have missed the point.
+> 
+> One, that mem-swap accounting and mem+swap accounting have some
+> disagreement about when to (un)account to a memcg, with the result
+> that orphaned swapcache pages are liable to be accounted, but not
+> on the LRUs of the memcg.  I'd have thought that inconsistency is
+> something you should be sorting out at the memcg end, without
+> needing changes to the non-memcg code.
+> 
+I did these things in memcg. But finally,
+
+-----------------------------------------------
+                       |     free_swap_and_cache()
+lock_page()            |        
+ try_to_free_swap()    |
+   check swap refcnt   |
+                       |   swap refcnt goes to 1.
+                             trylock failure
+unlock_page()          | 
+------------------------------------------------
+This race was the last obstacle in front of me in previous patch.
+This patch is a trial to remove trylock. (this patch teach me much ;)
+
+> Other, that orphaned swapcache pages can build up until swap is
+> full, before reaching sufficient global memory pressure to run
+> through the global LRUs, which is what has traditionally dealt
+> with the issue.  And when swap is filled in this way, memcgs can
+> no longer put their pages out to swap, so OOM prematurely instead.
+> 
+yes.
+
+> I can imagine (just imagining, haven't checked, may be quite wrong)
+> that split LRUs have interfered with that freeing of swapcache pages:
+> since vmscan.c is mainly targetted at freeing memory, I think it tries
+> to avoid the swapbacked LRUs once swap is full, so may now be missing
+> out on freeing such pages?
+> 
+Hmm, I feel it is possible. 
+
+> And it's probably an inefficient way to get at them anyway.
+> Why not have a global scan to target swapcache pages whenever swap is
+> approaching full (full in a real sense, not vm_swap_full's 50% sense)?
+> And run that before OOMing, memcg or not.
+> 
+It's one of points.
+I or Nishimura have to modify vm_swap_full() to see memcg information.
+
+But the problem in readahead case is
+ - swap entry is used.
+ - it's accoutned to a memcg by swap_cgroup
+ - but not on memcg's LRU and we can't free it.
+
+> Sorry, you're probably going to have to explain for the umpteenth
+> time why these approaches do not work.
+> 
+IIRC, Nishimura and guys walks mainly for HPC and they tends to have tons of
+memory. Then, I'd like to avoid scanning global LRU without any hints, as much as
+possible.
+
+
+
+
+> > 
+> > Then, this patch series is a trial to remove trylock for swapcache AMAP.
+> > Patches are more complex and larger than expected but the behavior itself is
+> > much appreciate than prevoius my posts for memcg...
 > >  
-> > +
-> > +/*
-> > + * Because we are under preempt_disable (see tlb_xxx functions), we can't call
-> > + * lcok_page() etc..which may sleep. At freeing swap, gatering swp_entry
-> > + * which seems of-no-use but has swap cache to this struct and remove them
-> > + * in batch. Because the condition to gather swp_entry to this bix is
-> > + * - There is no other swap reference. &&
-> > + * - There is a swap cache. &&
-> > + * - Page table entry was "Not Present"
-> > + * The number of entries which is caught in this is very small.
-> > + */
-> > +#define NR_SWAP_FREE_BATCH		(63)
-> > +struct stale_swap_buffer {
-> > +	int nr;
-> > +	swp_entry_t ents[NR_SWAP_FREE_BATCH];
-> > +};
-> > +
-> > +#ifdef CONFIG_SWAP
-> > +static inline void push_swap_ssb(struct stale_swap_buffer *ssb, swp_entry_t ent)
-> > +{
-> > +	if (!ssb)
-> > +		return;
-> > +	ssb->ents[ssb->nr++] = ent;
-> > +}
-> > +
-> > +static inline int ssb_full(struct stale_swap_buffer *ssb)
-> > +{
-> > +	if (!ssb)
-> > +		return 0;
-> > +	return ssb->nr == NR_SWAP_FREE_BATCH;
-> > +}
-> > +
-> > +static void free_stale_swaps(struct stale_swap_buffer *ssb)
-> > +{
-> > +	if (!ssb || !ssb->nr)
-> > +		return;
-> > +	free_swap_batch(ssb->nr, ssb->ents);
-> > +	ssb->nr = 0;
-> > +}
+> > This series contains 2 patches.
+> >   1. change refcounting in swap_map.
+> >      This is for allowing swap_map to indicate there is swap reference/cache.
 > 
-> Could you name it swapvec analogous to pagevec and make the API
-> similar?
+> You've gone to a lot of trouble to obscure what this patch is doing:
+> lots of changes that didn't need to be made, and an enum of 0 or 1
+> which keeps on being translated to a count of 2 or 1.
 > 
-sure.
+Ah, ok. it's not good.
 
-> > +static struct stale_swap_buffer *alloc_ssb(void)
-> > +{
-> > +	/*
-> > +	 * Considering the case zap_xxx can be called as a result of OOM,
-> > +	 * gfp_mask here should be GFP_ATOMIC. Even if we fails to allocate,
-> > +	 * global LRU can find and remove stale swap caches in such case.
-> > +	 */
-> > +	return kzalloc(sizeof(struct stale_swap_buffer), GFP_ATOMIC);
-> > +}
-> > +static inline void free_ssb(struct stale_swap_buffer *ssb)
-> > +{
-> > +	kfree(ssb);
-> > +}
-> > +#else
-> > +static inline void push_swap_ssb(struct stale_swap_buffer *ssb, swp_entry_t ent)
-> > +{
-> > +}
-> > +static inline int ssb_full(struct stale_swap_buufer *ssb)
-> > +{
-> > +	return 0;
-> > +}
-> > +static inline void free_stale_swaps(struct stale_swap_buffer *ssb)
-> > +{
-> > +}
-> > +static inline struct stale_swap_buffer *alloc_ssb(void)
-> > +{
-> > +	return NULL;
-> > +}
-> > +static inline void free_ssb(struct stale_swap_buffer *ssb)
-> > +{
-> > +}
-> > +#endif
-> > +
-> >  static unsigned long zap_pte_range(struct mmu_gather *tlb,
-> >  				struct vm_area_struct *vma, pmd_t *pmd,
-> >  				unsigned long addr, unsigned long end,
-> > -				long *zap_work, struct zap_details *details)
-> > +				long *zap_work, struct zap_details *details,
-> > +				struct stale_swap_buffer *ssb)
-> >  {
-> >  	struct mm_struct *mm = tlb->mm;
-> >  	pte_t *pte;
-> > @@ -837,8 +911,17 @@ static unsigned long zap_pte_range(struc
-> >  		if (pte_file(ptent)) {
-> >  			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
-> >  				print_bad_pte(vma, addr, ptent, NULL);
-> > -		} else if
-> > -		  (unlikely(!free_swap_and_cache(pte_to_swp_entry(ptent))))
-> > +		} else if (likely(ssb)) {
-> > +			int ret = free_swap_and_check(pte_to_swp_entry(ptent));
-> > +			if (unlikely(!ret))
-> > +				print_bad_pte(vma, addr, ptent, NULL);
-> > +			if (ret == 1) {
-> > +				push_swap_ssb(ssb, pte_to_swp_entry(ptent));
-> > +				/* need to free swaps ? */
-> > +				if (ssb_full(ssb))
-> > +					*zap_work = 0;
+> Using the 0x8000 bit in the swap_map to indicate if that swap entry
+> is in swapcache, yes, that may well be a good idea - and I don't know
+> why that bit isn't already used: might relate to when pids were limited
+> to 32000, but more likely was once used as a flag later abandoned.
+> But you don't need to change every single call to swap_free() etc,
+> they can mostly do just the same as they already do.
 > 
-> if (!swapvec_add(swapvec, pte_to_swp_entry(ptent)))
-> 	*zap_work = 0;
-> 
-> would look more familiar, I think.
-> 
-sure.
+yes. Using 0x8000 as flag is the choice.
 
-> > @@ -1021,13 +1116,15 @@ unsigned long unmap_vmas(struct mmu_gath
-> >  
-> >  			tlb_finish_mmu(*tlbp, tlb_start, start);
-> >  
-> > -			if (need_resched() ||
-> > +			if (need_resched() || ssb_full(ssb) ||
-> >  				(i_mmap_lock && spin_needbreak(i_mmap_lock))) {
-> >  				if (i_mmap_lock) {
-> >  					*tlbp = NULL;
-> >  					goto out;
-> >  				}
-> >  				cond_resched();
-> > +				/* This call may sleep */
-> > +				free_stale_swaps(ssb);
+> Whether it works correctly, I haven't tried to decide.  But was
+> puzzled when by the end of it, no real use was actually made of
+> the changes: the same trylock_page as before, it just wouldn't
+> get tried unsuccessfully so often.  Just preparatory work for
+> the second patch?
 > 
-> This checks both !!ssb and !!ssb->number in ssb_full() and in
-> free_stale_swaps().  It's not the only place, by the way.
+When swap count returns 1, there are 2 possibilities.
+  - there is a swap cache
+  - there is swap reference.
+
+In second patch, I wanted to avoid unnecesasry call for
+  find_get_page() -> lock_page() -> try_to_free_swap().
+because I know I can't use large buffer for batched work.
+
+Without second patch, I have a chace to fix this race
+-----------------------------------------------
+                       |     free_swap_and_cache()
+lock_page()            |        
+ try_to_free_swap()    |
+   check swap refcnt   |
+                       |   swap refcnt goes to 1.
+                       |   trylock failure
+unlock_page()          | 
+------------------------------------------------
+
+There will be no race between swap cache handling v.s. swap usage.
+
+
+
+> >   2. synchronous freeing of swap entries.
+> >      For avoiding race, free swap_entries in appropriate way with lock_page().
+> >      After this patch, race between swapin-readahead v.s. zap_page_range()
+> >      will go away.
+> >      Note: the whole code for zap_page_range() will not work until the system
+> >      or cgroup is very swappy. So, no influence in typical case.
 > 
-> I think it's better to swap two lines here, doing free_stale_swaps()
-> before cond_resched().  Because if we are going to sleep, we might as
-> well be waiting for a page lock meanwhile.
+> This patch adds quite a lot of ugliness in a hot path which is already
+> uglier than we'd like.   Adding overhead to zap_pte_range, for the rare
+> swap and memcg case, isn't very welcome.
 > 
-ok.
+Ok, I have to agree.
 
-> > @@ -1037,6 +1134,13 @@ unsigned long unmap_vmas(struct mmu_gath
-> >  	}
-> >  out:
-> >  	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
-> > +	/* there is stale swap cache. We may sleep and release per-cpu.*/
-> > +	if (ssb && ssb->nr) {
-> > +		tlb_finish_mmu(*tlbp, tlb_start, start);
-> > +		free_stale_swaps(ssb);
-> > +		*tlbp = tlb_gather_mmu(mm, fullmm);
-> > +	}
-> > +	free_ssb(ssb);
-> >  	return start;	/* which is now the end (or restart) address */
-> >  }
-> >  
+> > 
+> > There are used trylocks more than this patch treats. But IIUC, they are not
+> > racy with memcg and I don't care them.
+> > (And....I have no idea to remove trylock() in free_pages_and_swapcache(),
+> >  which is called via tlb_flush_mmu()....preemption disabled and using percpu.)
 > 
-> > Index: mmotm-2.6.30-May17/mm/swapfile.c
-> > ===================================================================
-> > --- mmotm-2.6.30-May17.orig/mm/swapfile.c
-> > +++ mmotm-2.6.30-May17/mm/swapfile.c
+> I know well the difficulty, several of us have had patches to solve most
+> of the percpu mmu_gather problems, but the file truncation case (under
+> i_mmap_lock) has so far defeated us; and you can't ignore that case,
+> truncation has to remove even the anon (possibly swapcache) pages
+> from a private file mapping.
 > 
-> > @@ -618,6 +619,159 @@ int free_swap_and_cache(swp_entry_t entr
-> >  	return p != NULL;
-> >  }
-> >  
-> > +/*
-> > + * Free the swap entry like above, but
-> > + * returns 1 if swap entry has swap cache and ready to be freed.
-> > + * returns 2 if swap has other references.
-> > + */
-> > +int free_swap_and_check(swp_entry_t entry)
-> > +{
-> > +	struct swap_info_struct *p;
-> > +	int ret = 0;
-> > +
-> > +	if (is_migration_entry(entry))
-> > +		return 2;
-> > +
-> > +	p = swap_info_get(entry);
-> > +	if (!p)
-> > +		return ret;
-> > +	if (swap_entry_free(p, entry, SWAP_MAP) == 1)
-> > +		ret = 1;
-> > +	else
-> > +		ret = 2;
+Ah, I may misunderstand following lines.
+== zap_pte_range()
+ 832                  * If details->check_mapping, we leave swap entries;
+ 833                  * if details->nonlinear_vma, we leave file entries.
+ 834                  */
+ 835                 if (unlikely(details))
+ 836                         continue;
+==
+Then...this is bug ?
+
+> But I'm afraid, if you do nothing about free_pages_and_swapcache,
+> then I can't see much point in studying the rest of it, which
+> would only be addressing half of your problem.
 > 
-> Wouldn't it be possible to drop the previous patch and in case
-> swap_entry_free() returns 1, look up the entry in the page cache to
-> see whether the last user is the cache and not a pte?
+> > 
+> > These patches + Nishimura-san's writeback fix will do complete work, I think.
+> > But test is not enough.
+> 
+> Please provide a pointer to Nishimura-san's writeback fix,
+> I seem to have missed that.
+> 
+This one.
+  http://marc.info/?l=linux-kernel&m=124236139502335&w=2
 
-there is a race at swapin-readahead
+> There is indeed little point in attacking the trylock_page()s here,
+> unless you also attack all those PageWriteback backoffs.  I can imagine
+> a simple patch to do that (removing from swapcache while PageWriteback),
+> but it would be adding more atomic ops, and using spin_lock_irq on
+> swap_lock everywhere, probably not a good tradeoff.
+> 
+Ok, I should consider more.
+> > 
+> > Any comments are welcome. 
+> 
+> I sincerely wish I could be less discouraging!
+> 
+I've been feeling like to crash my head by hitting it against an edge ot a tofu
+in these days. But if patch 1/2 is acceptable with the modification you suggested,
+there will be a way to go. 
 
-   swap_duplicate()
-   =>
-   add_to_swap_cache().
+You encouraged me :) thanks.
 
-So, I wrote 1/2.
-
-After reading Hugh's comment, it seems I have to drop this all or rewrite all ;)
-Anyway, Thank you for review.
-
+Thanks,
 -Kame
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
