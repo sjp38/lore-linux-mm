@@ -1,107 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BE8316B005C
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 04:07:10 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4M87FmH021103
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 27A506B005D
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 04:17:38 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4M8Hqx6025532
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 22 May 2009 17:07:15 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DCFB745DE51
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:07:14 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BCEEB45DE4F
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:07:14 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A8573E08001
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:07:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 645251DB803F
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:07:14 +0900 (JST)
-Date: Fri, 22 May 2009 17:05:41 +0900
+	Fri, 22 May 2009 17:17:53 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8911845DD7B
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:17:52 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 47E8745DD74
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:17:52 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2541B1DB8016
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:17:52 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA4D8E18006
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 17:17:50 +0900 (JST)
+Date: Fri, 22 May 2009 17:16:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 3/3] count swap caches whose swp_entry can be freed.
-Message-Id: <20090522170541.ae14df90.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090522165730.8791c2dd.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090522165730.8791c2dd.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: remove some redundant checks
+Message-Id: <20090522171618.6cea6dde.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4A1645CC.8000600@cn.fujitsu.com>
+References: <4A1645CC.8000600@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, 22 May 2009 14:27:24 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-Count a swap entry which is just a swapcache.
-i.e. swap entry can be freed immediately.
+> We don't need to check do_swap_account in the case that the
+> function which checks do_swap_account will never get called if
+> do_swap_account == 0.
+> 
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 
-This counter tells us there is a chance to reclaim swap entries.
-Maybe good for mem+swap controller.
-(Freeing routine itself is a homework...)
+Exactly. thanks.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/swap.h |    1 +
- mm/swapfile.c        |   15 ++++++++++++---
- 2 files changed, 13 insertions(+), 3 deletions(-)
-
-Index: mmotm-2.6.30-May17/include/linux/swap.h
-===================================================================
---- mmotm-2.6.30-May17.orig/include/linux/swap.h
-+++ mmotm-2.6.30-May17/include/linux/swap.h
-@@ -156,6 +156,7 @@ struct swap_info_struct {
- 	unsigned int max;
- 	unsigned int inuse_pages;
- 	unsigned int old_block_size;
-+	unsigned int orphan_swap_cache;
- };
- 
- struct swap_list_t {
-Index: mmotm-2.6.30-May17/mm/swapfile.c
-===================================================================
---- mmotm-2.6.30-May17.orig/mm/swapfile.c
-+++ mmotm-2.6.30-May17/mm/swapfile.c
-@@ -291,9 +291,10 @@ checks:
- 		si->lowest_bit = si->max;
- 		si->highest_bit = 0;
- 	}
--	if (cache)
-+	if (cache) {
- 		si->swap_map[offset] = SWAP_HAS_CACHE; /* via get_swap_page() */
--	else
-+		si->orphan_swap_cache++;
-+	} else
- 		si->swap_map[offset] = 1; /* via alloc_swap_block()  */
- 
- 	si->cluster_next = offset + 1;
-@@ -521,9 +522,14 @@ static int swap_entry_free(struct swap_i
- 			swap_list.next = p - swap_info;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
-+		if (cache)
-+			p->orphan_swap_cache--;
- 	}
--	if (!swap_has_ref(count))
-+	if (!swap_has_ref(count)) {
- 		mem_cgroup_uncharge_swap(ent);
-+		if (count & SWAP_HAS_CACHE)
-+			p->orphan_swap_cache++;
-+	}
- 	return count;
- }
- 
-@@ -2022,6 +2028,9 @@ int swap_duplicate(swp_entry_t entry)
- 		goto out_unlock;
- 
- 	count = p->swap_map[offset] & SWAP_MAP_MASK;
-+	if (!count && (p->swap_map[offset] & SWAP_HAS_CACHE))
-+		p->orphan_swap_cache++;
-+
- 	if (count < SWAP_MAP_MAX - 1) {
- 		p->swap_map[offset] += 1;
- 		result = 1;
+> ---
+>  memcontrol.c  |   11 ++++-------
+>  page_cgroup.c |    8 --------
+>  2 files changed, 4 insertions(+), 15 deletions(-)
+> 
+> --- a/mm/memcontrol.c	2009-05-22 11:38:06.000000000 +0800
+> +++ b/mm/memcontrol.c	2009-05-22 11:40:38.000000000 +0800
+> @@ -45,7 +45,7 @@ struct cgroup_subsys mem_cgroup_subsys _
+>  #define MEM_CGROUP_RECLAIM_RETRIES	5
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> -/* Turned on only when memory cgroup is enabled && really_do_swap_account = 0 */
+> +/* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+>  int do_swap_account __read_mostly;
+>  static int really_do_swap_account __initdata = 1; /* for remember boot option*/
+>  #else
+> @@ -1771,16 +1771,14 @@ static int mem_cgroup_resize_limit(struc
+>  	return ret;
+>  }
+>  
+> -int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+> -				unsigned long long val)
+> +static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+> +					unsigned long long val)
+>  {
+>  	int retry_count;
+>  	u64 memlimit, oldusage, curusage;
+>  	int children = mem_cgroup_count_children(memcg);
+>  	int ret = -EBUSY;
+>  
+> -	if (!do_swap_account)
+> -		return -EINVAL;
+>  	/* see mem_cgroup_resize_res_limit */
+>   	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
+>  	oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+> @@ -2015,8 +2013,7 @@ static u64 mem_cgroup_read(struct cgroup
+>  		val = res_counter_read_u64(&mem->res, name);
+>  		break;
+>  	case _MEMSWAP:
+> -		if (do_swap_account)
+> -			val = res_counter_read_u64(&mem->memsw, name);
+> +		val = res_counter_read_u64(&mem->memsw, name);
+>  		break;
+>  	default:
+>  		BUG();
+> --- a/mm/page_cgroup.c	2009-05-22 11:41:35.000000000 +0800
+> +++ b/mm/page_cgroup.c	2009-05-22 11:44:13.000000000 +0800
+> @@ -316,8 +316,6 @@ static int swap_cgroup_prepare(int type)
+>  	struct swap_cgroup_ctrl *ctrl;
+>  	unsigned long idx, max;
+>  
+> -	if (!do_swap_account)
+> -		return 0;
+>  	ctrl = &swap_cgroup_ctrl[type];
+>  
+>  	for (idx = 0; idx < ctrl->length; idx++) {
+> @@ -354,9 +352,6 @@ unsigned short swap_cgroup_record(swp_en
+>  	struct swap_cgroup *sc;
+>  	unsigned short old;
+>  
+> -	if (!do_swap_account)
+> -		return 0;
+> -
+>  	ctrl = &swap_cgroup_ctrl[type];
+>  
+>  	mappage = ctrl->map[idx];
+> @@ -385,9 +380,6 @@ unsigned short lookup_swap_cgroup(swp_en
+>  	struct swap_cgroup *sc;
+>  	unsigned short ret;
+>  
+> -	if (!do_swap_account)
+> -		return 0;
+> -
+>  	ctrl = &swap_cgroup_ctrl[type];
+>  	mappage = ctrl->map[idx];
+>  	sc = page_address(mappage);
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
