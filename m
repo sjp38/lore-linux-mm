@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9252C6B004D
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 03:34:19 -0400 (EDT)
-Date: Fri, 22 May 2009 09:34:36 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090522073436.GA3612@elte.hu>
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A15A8C7.2030505@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5E2906B0055
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 03:58:14 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4M7x3Hx017254
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 22 May 2009 16:59:07 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28C8845DE5F
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 16:59:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 047C545DE5C
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 16:59:03 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF7FF1DB803E
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 16:59:02 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BA1C1DB8037
+	for <linux-mm@kvack.org>; Fri, 22 May 2009 16:59:02 +0900 (JST)
+Date: Fri, 22 May 2009 16:57:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/3] fix memcg to do swap account in right way (avoid
+ swap account leak)
+Message-Id: <20090522165730.8791c2dd.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
+Thank you all for comments to previous patches. This is new one.
+(Please see when you have free time, I don't want to annoy anyone ;)
 
-* Rik van Riel <riel@redhat.com> wrote:
+Major difference of this version to old ones is
+ - old ones tries to fix swap handling itself...
+ - this one tries to fix memcg's swap accounting.
 
-> Larry H. wrote:
->> This patch adds support for the SENSITIVE flag to the low level page
->> allocator. An additional GFP flag is added for use with higher level
->> allocators (GFP_SENSITIVE, which implies GFP_ZERO).
->
-> Sensitive to what?  Allocation failures?
->
-> Kidding, I read the rest of your emails.  However,
-> chances are whoever runs into the code later on
-> will not read everything.
->
-> Would GFP_CONFIDENTIAL & PG_confidential be a better
-> name, since it indicates the page stores confidential
-> information, which should not be leaked?
+I like ideas in this patch set. (But I may need more tests.)
 
-The whole kernel contains data that 'should not be leaked'.
+Major concept of this patch set for fixing mis-accounting of memcg is
+"ignore a ref from swapcache when we uncharge swap."
 
-_If_ any of this is done, i'd _very_ strongly suggest to describe it 
-by what it does, not by what its subjective security attribute is.
+Consists of following 3 patches. Maybe patch 1/3 can be a concern for people who
+don't use memcg.
 
-'PG_eyes_only' or 'PG_eagle_azf_compartmented' is silly naming. It 
-is silly because it hardcodes one particular expectation/model of 
-'security'.
+ [1/3] Adding SWAP_HAS_CACHE flag to swap_map[] array.
+ Add an flag to indicate "there is swap cache" instead of "refcnt from swapcache"
+ By this, we'll be able to know refcnt to swap without find_get_page(swapper_space).
 
-GFP_NON_PERSISTENT & PG_non_persistent is a _lot_ better, because it 
-is a technical description of how information spreads. (which is the 
-underlying principle of every security model)
+ [2/3] fix memcg to handle refcnt to swap.
+ There is an issue that "all swap references gone but it can't be freed/uncharged
+ because its swapcache is not on memcg's LRU".
+ To fix this, this patch tries to unaccount swap even if there is swap-cache.
+ Need careful tests (and some fix) but I think this is a good way to go.
 
-That name alone tells us everyting what this does: it does not allow 
-this data to reach or touch persistent storage. It wont be swapped 
-and it wont by saved by hibernation. It will also be cleared when 
-freed, to achieve its goal of never touching persistent storage.
+ This patch uncharge swap account but swp_entry is still used by swap-cache.
+ So, some more work to reclaim unnecesary swap-cache will be required (at vm_swap_full())
 
-What (if any) security relevance this has, is left to the user of 
-such facilities.
+ [3/3] count # of swap caches with "unused swp_entries".
+ This patch just counts # of swap caches whose swp_entry has no reference.
+ This counter + vm_swap_full() will allow us to write a function to reclaim
+ swp_entry which is unused.
 
-In-kernel crypto key storage using GFP_NON_PERSISTENT makes some 
-sense - as long as the kernel stack itself is mared 
-GFP_NON_PERSISTENT as well ... which is quite hairy from a 
-performance point of view: we _dont_ want to clear the full stack 
-page for every kernel thread exiting.
+Any comments are welcome.
 
-For user-space keys it is easier to isolate the spreading of that 
-data, because the kernel never reads it. So MAP_NON_PERSISTENT makes 
-some sense.
-
-	Ingo
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
