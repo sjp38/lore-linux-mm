@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E52B96B004D
-	for <linux-mm@kvack.org>; Sat, 23 May 2009 08:49:05 -0400 (EDT)
-Date: Sat, 23 May 2009 14:49:44 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F32746B004D
+	for <linux-mm@kvack.org>; Sat, 23 May 2009 11:56:16 -0400 (EDT)
+Date: Sat, 23 May 2009 08:56:53 -0700
+From: Arjan van de Ven <arjan@infradead.org>
 Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090523124944.GA23042@elte.hu>
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090522113809.GB13971@oblivion.subreption.com>
+ allocator
+Message-ID: <20090523085653.0ad217f8@infradead.org>
+In-Reply-To: <20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+	<4A15A8C7.2030505@redhat.com>
+	<20090522073436.GA3612@elte.hu>
+	<20090522113809.GB13971@oblivion.subreption.com>
+	<20090522143914.2019dd47@lxorguk.ukuu.org.uk>
+	<20090522180351.GC13971@oblivion.subreption.com>
+	<20090522192158.28fe412e@lxorguk.ukuu.org.uk>
+	<20090522234031.GH13971@oblivion.subreption.com>
+	<20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Larry H." <research@subreption.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 23 May 2009 09:09:10 +0100
+Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 
-* Larry H. <research@subreption.com> wrote:
-
-> NOTE: Let's keep the PaX Team on CC from now on, they might have further
-> input to this discussion. (pageexec at freemail dot hu)
+> > Enabling SLAB poisoning by default will be a bad idea
 > 
-> On 09:34 Fri 22 May     , Ingo Molnar wrote:
-> > The whole kernel contains data that 'should not be leaked'.
-> > _If_ any of this is done, i'd _very_ strongly suggest to describe it 
-> > by what it does, not by what its subjective security attribute is.
+> Why ?
+> 
+> > I looked for unused/re-usable flags too, but found none. It's
+> > interesting to see SLUB and SLOB have their own page flags. Did
+> > anybody oppose those when they were proposed? 
+> 
+> Certainly they were looked at - but the memory allocator is right at
+> the core of the system rather than an add on.
+> 
+> > > Ditto - which is why I'm coming from the position of an "if we
+> > > free it clear it" option. If you need that kind of security the
+> > > cost should be more than acceptable - especially with modern
+> > > processors that can do cache bypass on the clears.
 > > 
-> > 'PG_eyes_only' or 'PG_eagle_azf_compartmented' is silly naming. It 
-> > is silly because it hardcodes one particular expectation/model of 
-> > 'security'.
-> > 
-> > GFP_NON_PERSISTENT & PG_non_persistent is a _lot_ better, because it 
-> > is a technical description of how information spreads. (which is the 
-> > underlying principle of every security model)
-> >
-> > That name alone tells us everyting what this does: it does not 
-> > allow this data to reach or touch persistent storage. It wont be 
-> > swapped and it wont by saved by hibernation. It will also be 
-> > cleared when freed, to achieve its goal of never touching 
-> > persistent storage.
+> > Are you proposing that we should simply remove the confidential
+> > flags and just stick to the unconditional sanitization when the
+> > boot option is enabled? If positive, it will make things more
+> > simple and definitely is better than nothing. I would have (still)
+> > preferred the other old approach to be merged, but whatever works
+> > at this point.
 > 
-> The problem is that these patches have a more broad purpose and I 
-> never mentioned persistent storage as one of them (initially). 
-> Check earlier messages to see what has been discussed so far.
+> I am because
+> - its easy to merge
+> - its non controversial
+> - it meets the security good practice and means we don't miss any
+>   alloc/free cases
+> - it avoid providing flags to help a trojan identify "interesting"
+> data to acquire
+> - modern cpu memory clearing can be very cheap
 
-You need to address my specific concerns instead of referring back 
-to an earlier discussion. The patches touch code i maintain and i 
-find them (and your latest resend) unacceptable.
+.. and if we zero on free, we don't need to zero on allocate.
+While this is a little controversial, it does mean that at least part of
+the cost is just time-shifted, which means it'll not be TOO bad
+hopefully...
 
-> Regarding the naming changes, those have been done as of Rik's 
-> comments and I would rather focus on the technical and 
-> implementation side now.
 
-Naming _is_ a technical issue. Especially here.
 
-> > In-kernel crypto key storage using GFP_NON_PERSISTENT makes some 
-> > sense - as long as the kernel stack itself is mared 
-> > GFP_NON_PERSISTENT as well ... which is quite hairy from a 
-> > performance point of view: we _dont_ want to clear the full 
-> > stack page for every kernel thread exiting.
-> 
-> Burning the stack there is beyond overkill.
-
-What you are missing is that your patch makes _no technical sense_ 
-if you allow the same information to leak over the kernel stack. 
-Kernel stacks can be freed and reused, swapped out and thus 
-'exposed'.
-
-	Ingo
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
