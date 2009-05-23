@@ -1,95 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 709666B0055
-	for <linux-mm@kvack.org>; Fri, 22 May 2009 19:49:05 -0400 (EDT)
-Received: from ::ffff:71.182.83.218 ([71.182.83.218]) by xenotime.net for <linux-mm@kvack.org>; Fri, 22 May 2009 16:49:39 -0700
-Message-ID: <4A173AAE.3050500@xenotime.net>
-Date: Fri, 22 May 2009 16:52:14 -0700
-From: Randy Dunlap <rdunlap@xenotime.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Support for kernel memory sanitization
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090522143914.2019dd47@lxorguk.ukuu.org.uk> <20090522180351.GC13971@oblivion.subreption.com> <20090522192158.28fe412e@lxorguk.ukuu.org.uk> <20090522232526.GG13971@oblivion.subreption.com>
-In-Reply-To: <20090522232526.GG13971@oblivion.subreption.com>
-Content-Type: text/plain; charset=windows-1251
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F32016B004F
+	for <linux-mm@kvack.org>; Sat, 23 May 2009 00:42:20 -0400 (EDT)
+Date: Fri, 22 May 2009 21:38:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Warn if we run out of swap space
+Message-Id: <20090522213847.5f4a276b.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Larry H. wrote:
-> [PATCH] Support for kernel memory sanitization
-> 
-> This patch adds support for the CONFIDENTIAL flag to the SLAB and SLUB
-> allocators. An additional GFP flag is added for use with higher level
-> allocators (GFP_CONFIDENTIAL, which implies GFP_ZERO).
-> 
-> A boot command line option (sanitize_mem) is added for the page
-> allocator to perform sanitization of all pages upon release and
-> allocation.
-> 
-> The code is largely based off the memory sanitization feature in the
-> PaX project (licensed under the GPL v2 terms) and the original
-> PG_sensitive patch which allowed fine-grained marking of pages using
-> a page flag. The lack of a page flag makes the gfp flag mostly useless,
-> since we can't track pages with the sensitive/confidential bit, and
-> properly sanitize them on release. The only way to overcome this
-> limitation is to enable the sanitize_mem boot option and perform
-> unconditional page sanitization.
-> 
-> This avoids leaking sensitive information when memory is released to
-> the system after use, for example in cryptographic subsystems. More
-> specifically, the following threats are addressed:
-> 
-> 	1. Information leaks in use-after-free or uninitialized
-> 	variable usage scenarios, such as CVE-2005-0400,
-> 	CVE-2009-0787 and CVE-2007-6417.
-> 
-> 	2. Data remanence based attacks, such as Iceman/Coldboot,
-> 	which combine cold rebooting and memory image scanning
-> 	to extract cryptographic secrets (ex. detecting AES key
-> 	expansion blocks, RSA key patterns, etc) or other
-> 	confidential information.
-> 
-> 	3. Re-allocation based information leaks, especially in the
-> 	SLAB/SLUB allocators which use LIFO caches and might expose
-> 	sensitive data out of context (when a caller allocates an
-> 	object and receives a pointer to a location which was used
-> 	previously by another user).
-> 
-> The "Shredding Your Garbage: Reducing Data Lifetime Through Secure
-> Deallocation" paper by Jim Chow et. al from the Stanford University
-> Department of Computer Science, explains the security implications of
-> insecure deallocation, and provides extensive information with figures
-> and applications thoroughly analyzed for this behavior [1]. More recently
-> this issue came to widespread attention when the "Lest We Remember:
-> Cold Boot Attacks on Encryption Keys" (by Halderman et. al) paper was
-> published [2].
-> 
-> This patch has been tested on x86 and amd64, with and without HIGHMEM.
-> 
-> 	[1] http://www.stanford.edu/~blp/papers/shredding.html
-> 	[2] http://citp.princeton.edu/memory/
-> 	[3] http://marc.info/?l=linux-mm&m=124284428226461&w=2
-> 	[4] http://marc.info/?t=124284431000002&r=1&w=2
-> 
-> Signed-off-by: Larry H. <research@subreption.com>
+On Fri, 22 May 2009 14:58:19 -0400 (EDT) Christoph Lameter <cl@linux-foundation.org> wrote:
 
+> 
+> Subject: Warn if we run out of swap space
+> 
+> Running out of swap space means that the evicton of anonymous pages may no longer
+> be possible which can lead to OOM conditions.
+> 
+> Print a warning when swap space first becomes exhausted.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> ---
+>  mm/swapfile.c |    5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> Index: linux-2.6/mm/swapfile.c
+> ===================================================================
+> --- linux-2.6.orig/mm/swapfile.c	2009-05-22 12:25:19.000000000 -0500
+> +++ linux-2.6/mm/swapfile.c	2009-05-22 13:56:10.000000000 -0500
+> @@ -380,6 +380,7 @@ swp_entry_t get_swap_page(void)
+>  	pgoff_t offset;
+>  	int type, next;
+>  	int wrapped = 0;
+> +	static int printed = 0;
+> 
+>  	spin_lock(&swap_lock);
+>  	if (nr_swap_pages <= 0)
+> @@ -410,6 +411,10 @@ swp_entry_t get_swap_page(void)
+>  	}
+> 
+>  	nr_swap_pages++;
+> +	if (!printed) {
+> +		printed = 1;
+> +		printk(KERN_WARNING "All of swap is in use. Some pages cannot be swapped out.");
+> +	}
+>  noswap:
+>  	spin_unlock(&swap_lock);
+>  	return (swp_entry_t) {0};
 
-BTW, are you familiar with Documentation/SubmittingPatches,
-section 12: Sign your work ?  in particular, this part:
+I think the warning is useful.  (Although the missing \n makes me wonder
+how well tested this is).
 
-"then you just add a line saying
+However the once-per-boot thing weakens it quite a lot.  Suppose someone
+runs out of swap, sees the message, adds more swap then later runs out
+again?
 
-	Signed-off-by: Random J Developer <random@developer.example.org>
-
-using your real name (sorry, no pseudonyms or anonymous contributions.)"
-
-
--- 
-~Randy
-LPC 2009, Sept. 23-25, Portland, Oregon
-http://linuxplumbersconf.org/2009/
+Perhaps we could clear the `printed' flag each time the amount of online
+swap is altered?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
