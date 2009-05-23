@@ -1,68 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A89A6B004F
-	for <linux-mm@kvack.org>; Sat, 23 May 2009 00:46:40 -0400 (EDT)
-Date: Fri, 22 May 2009 21:43:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Fw: [Bugme-new] [Bug 13366] New: About 80% of shutdowns fail
- (blocking)
-Message-Id: <20090522214305.8e2d474a.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4854C6B004D
+	for <linux-mm@kvack.org>; Sat, 23 May 2009 04:08:22 -0400 (EDT)
+Date: Sat, 23 May 2009 09:09:10 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+ allocator
+Message-ID: <20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
+In-Reply-To: <20090522234031.GH13971@oblivion.subreption.com>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+	<4A15A8C7.2030505@redhat.com>
+	<20090522073436.GA3612@elte.hu>
+	<20090522113809.GB13971@oblivion.subreption.com>
+	<20090522143914.2019dd47@lxorguk.ukuu.org.uk>
+	<20090522180351.GC13971@oblivion.subreption.com>
+	<20090522192158.28fe412e@lxorguk.ukuu.org.uk>
+	<20090522234031.GH13971@oblivion.subreption.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, mrb74@gmx.at
+To: "Larry H." <research@subreption.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
+> Enabling SLAB poisoning by default will be a bad idea
 
-Guys, I'm still in Australia and won't be much use until next week.  We
-have a post-2.6.29 regression here, something to do with mlockall() and its
-cross-CPU LRU draining.  Could someone please take a look?
+Why ?
 
-Thanks.
+> I looked for unused/re-usable flags too, but found none. It's
+> interesting to see SLUB and SLOB have their own page flags. Did anybody
+> oppose those when they were proposed? 
 
+Certainly they were looked at - but the memory allocator is right at the
+core of the system rather than an add on.
 
-Begin forwarded message:
+> > Ditto - which is why I'm coming from the position of an "if we free it
+> > clear it" option. If you need that kind of security the cost should be
+> > more than acceptable - especially with modern processors that can do
+> > cache bypass on the clears.
+> 
+> Are you proposing that we should simply remove the confidential flags
+> and just stick to the unconditional sanitization when the boot option is
+> enabled? If positive, it will make things more simple and definitely is
+> better than nothing. I would have (still) preferred the other old
+> approach to be merged, but whatever works at this point.
 
-Date: Sat, 23 May 2009 00:58:25 GMT
-From: bugzilla-daemon@bugzilla.kernel.org
-To: bugme-new@lists.osdl.org
-Subject: [Bugme-new] [Bug 13366] New: About 80% of shutdowns fail (blocking)
+I am because
+- its easy to merge
+- its non controversial
+- it meets the security good practice and means we don't miss any
+  alloc/free cases
+- it avoid providing flags to help a trojan identify "interesting" data
+  to acquire
+- modern cpu memory clearing can be very cheap
 
+and if it proves to expensive (which I don't think it will based upon
+distro beta builds with slab poisoning enabled etc) then the more complex
+approach you put forward can be built on top of it. Going this way first
+doesn't have to exclude doing the more complex job later if it proves
+needed.
 
-http://bugzilla.kernel.org/show_bug.cgi?id=13366
-
-           Summary: About 80% of shutdowns fail (blocking)
-           Product: Process Management
-           Version: 2.5
-    Kernel Version: 2.6.30-rc6+latest git patches
-          Platform: All
-        OS/Version: Linux
-              Tree: Mainline
-            Status: NEW
-          Severity: blocking
-          Priority: P1
-         Component: Other
-        AssignedTo: process_other@kernel-bugs.osdl.org
-        ReportedBy: mrb74@gmx.at
-        Regression: Yes
-
-
-Created an attachment (id=21499)
- --> (http://bugzilla.kernel.org/attachment.cgi?id=21499)
-Screenshot of kernel crash output.
-
-When the system shuts down/reboots nearly every shutdown stops when trying to
-kill all processes with killall5. Pressing the power button has no effect in
-most cases. Only the magic key sequences work.
-This problem occures since 2.6.30-rc6. 2.6.30-rc5 had no problems with shutting
-down/rebooting.
-
--- 
-Configure bugmail: http://bugzilla.kernel.org/userprefs.cgi?tab=email
-------- You are receiving this mail because: -------
-You are on the CC list for the bug.
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
