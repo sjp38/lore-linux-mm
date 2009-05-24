@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C600B6B004D
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 09:43:51 -0400 (EDT)
-Date: Sun, 24 May 2009 22:44:30 +0900 (JST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 79D046B004D
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 09:43:52 -0400 (EDT)
+Date: Sun, 24 May 2009 22:44:28 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
-In-Reply-To: <alpine.DEB.1.10.0905210924520.31888@qirst.com>
-References: <20090521090549.63B5.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905210924520.31888@qirst.com>
-Message-Id: <20090524223857.0852.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] Warn if we run out of swap space
+In-Reply-To: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+Message-Id: <20090524144056.0849.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi
 
-sorry I missed this mail
+I have two question.
 
-> > > Even with 128 nodes and 256 cpus, I _NEVER_ see the
-> > > system swapping out before allocating off node so I can certainly not
-> > > reproduce the situation you are seeing.
-> >
-> > hmhm. but I don't think we can assume hpc workload.
+
+> Subject: Warn if we run out of swap space
 > 
-> System swapping due to zone reclaim? zone reclaim only reclaims unmapped
-> pages so it will not swap. Maybe some bug crept in in the recent changes?
-> Or you overrode the defaults for zone reclaim?
+> Running out of swap space means that the evicton of anonymous pages may no longer
+> be possible which can lead to OOM conditions.
+> 
+> Print a warning when swap space first becomes exhausted.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> ---
+>  mm/swapfile.c |    5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> Index: linux-2.6/mm/swapfile.c
+> ===================================================================
+> --- linux-2.6.orig/mm/swapfile.c	2009-05-22 12:25:19.000000000 -0500
+> +++ linux-2.6/mm/swapfile.c	2009-05-22 13:56:10.000000000 -0500
+> @@ -380,6 +380,7 @@ swp_entry_t get_swap_page(void)
+>  	pgoff_t offset;
+>  	int type, next;
+>  	int wrapped = 0;
+> +	static int printed = 0;
+> 
+>  	spin_lock(&swap_lock);
+>  	if (nr_swap_pages <= 0)
+> @@ -410,6 +411,10 @@ swp_entry_t get_swap_page(void)
+>  	}
+> 
+>  	nr_swap_pages++;
+> +	if (!printed) {
+> +		printed = 1;
+> +		printk(KERN_WARNING "All of swap is in use. Some pages cannot be swapped out.");
+> +	}
 
-I guess he use zone_reclaim_mode=7 or similar.
+Why don't you use WARN_ONCE()?
 
-However, I have to explain recent zone reclaim change. current zone reclaim is
+lumpy reclaim on no swap system makes this warnings, right?
+if so, I think it's a bit annoy.
 
- 1. zone reclaim can make high order reclaim (by hanns)
- 2. determine file-backed page by get_scan_ratio
 
-it mean, high order allocation makes lumpy zone reclaim. and shrink_inactive_list()
-don't care may_swap. then, zone_reclaim_mode=1 can makes swap-out if your
-driver makes high order allocation request.
+
+>  noswap:
+>  	spin_unlock(&swap_lock);
+>  	return (swp_entry_t) {0};
 
 
 
