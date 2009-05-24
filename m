@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5374D6B005D
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 09:44:34 -0400 (EDT)
-Date: Sun, 24 May 2009 22:44:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process with hugepage shared memory segments attached
-In-Reply-To: <20090522164101.GA9196@csn.ul.ie>
-References: <20090521094057.63B8.A69D9226@jp.fujitsu.com> <20090522164101.GA9196@csn.ul.ie>
-Message-Id: <20090524213838.084C.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4E46B004F
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 12:38:45 -0400 (EDT)
+Date: Sun, 24 May 2009 09:38:51 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: [PATCH] Support for unconditional page sanitization
+Message-ID: <20090524093851.37cbb4d6@infradead.org>
+In-Reply-To: <4A191F44.24468.2C006647@pageexec.freemail.hu>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+	<20090523182141.GK13971@oblivion.subreption.com>
+	<20090523140509.5b4a59e4@infradead.org>
+	<4A191F44.24468.2C006647@pageexec.freemail.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, starlight@binnacle.cx, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>, riel@redhat.com, hugh.dickins@tiscali.co.uk, kenchen@google.com
+To: pageexec@freemail.hu
+Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> --- 
->  arch/x86/mm/hugetlbpage.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+On Sun, 24 May 2009 12:19:48 +0200
+pageexec@freemail.hu wrote:
+
+> On 23 May 2009 at 14:05, Arjan van de Ven wrote:
 > 
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 8f307d9..16e4bcc 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -26,12 +26,16 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
->  	unsigned long sbase = saddr & PUD_MASK;
->  	unsigned long s_end = sbase + PUD_SIZE;
->  
-> +	/* Allow segments to share if only one is locked */
-> +	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
-> +	unsigned long svm_flags = vma->vm_flags & ~VM_LOCKED;
-                                  svma?
+> > On Sat, 23 May 2009 11:21:41 -0700
+> > "Larry H." <research@subreption.com> wrote:
+> > 
+> > > +static inline void sanitize_highpage(struct page *page)
+> > 
+> > any reason we're not reusing clear_highpage() for this?
+> > (I know it's currently slightly different, but that is fixable)
+> 
+> KM_USER0 users are not supposed to be called from soft/hard irq
+> contexts for high memory pages, something that cannot be guaranteed
+> at this low level of page freeing (i.e., we could be interrupting
+> a clear_highmem and overwrite its KM_USER0 mapping, leaving it dead
+> in the water when we return there). in other words, sanitization
+> must be able to nest within KM_USER*, so that pretty much calls for
+> its own slot.
 
- - kosaki
-
-> +
->  	/*
->  	 * match the virtual addresses, permission and the alignment of the
->  	 * page table page.
->  	 */
->  	if (pmd_index(addr) != pmd_index(saddr) ||
-> -	    vma->vm_flags != svma->vm_flags ||
-> +	    vm_flags != svm_flags ||
->  	    sbase < svma->vm_start || svma->vm_end < s_end)
->  		return 0;
->  
+no arguement that current clear_highpage isn't a fit. I was more
+thinking about using the content of sanitize_highpage(), and just
+calling that clear_highpage(). (or in other words, improve
+clear_highpage to be usable in more situations)
 
 
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
