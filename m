@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B6176B004D
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 06:21:52 -0400 (EDT)
-From: pageexec@freemail.hu
-Date: Sun, 24 May 2009 12:19:48 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C600B6B004D
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 09:43:51 -0400 (EDT)
+Date: Sun, 24 May 2009 22:44:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] zone_reclaim_mode is always 0 by default
+In-Reply-To: <alpine.DEB.1.10.0905210924520.31888@qirst.com>
+References: <20090521090549.63B5.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0905210924520.31888@qirst.com>
+Message-Id: <20090524223857.0852.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Support for unconditional page sanitization
-Reply-to: pageexec@freemail.hu
-Message-ID: <4A191F44.24468.2C006647@pageexec.freemail.hu>
-In-reply-to: <20090523140509.5b4a59e4@infradead.org>
-References: <20090520183045.GB10547@oblivion.subreption.com>, <20090523182141.GK13971@oblivion.subreption.com>, <20090523140509.5b4a59e4@infradead.org>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>, Arjan van de Ven <arjan@infradead.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 23 May 2009 at 14:05, Arjan van de Ven wrote:
 
-> On Sat, 23 May 2009 11:21:41 -0700
-> "Larry H." <research@subreption.com> wrote:
+sorry I missed this mail
+
+> > > Even with 128 nodes and 256 cpus, I _NEVER_ see the
+> > > system swapping out before allocating off node so I can certainly not
+> > > reproduce the situation you are seeing.
+> >
+> > hmhm. but I don't think we can assume hpc workload.
 > 
-> > +static inline void sanitize_highpage(struct page *page)
-> 
-> any reason we're not reusing clear_highpage() for this?
-> (I know it's currently slightly different, but that is fixable)
+> System swapping due to zone reclaim? zone reclaim only reclaims unmapped
+> pages so it will not swap. Maybe some bug crept in in the recent changes?
+> Or you overrode the defaults for zone reclaim?
 
-KM_USER0 users are not supposed to be called from soft/hard irq
-contexts for high memory pages, something that cannot be guaranteed
-at this low level of page freeing (i.e., we could be interrupting
-a clear_highmem and overwrite its KM_USER0 mapping, leaving it dead
-in the water when we return there). in other words, sanitization
-must be able to nest within KM_USER*, so that pretty much calls for
-its own slot.
+I guess he use zone_reclaim_mode=7 or similar.
 
-the alternative is to change KM_USER* semantics and allow its use
-from the same contexts as free_page et al., but given the existing
-users, that may very well be considered overkill.
+However, I have to explain recent zone reclaim change. current zone reclaim is
 
-on a related note, one could already say that disabling interrupts
-during a memset over a page or more is already bad enough for your
-real-time response times, so you may want to make this whole change
-depend on the kernel's preemption model or at least document it.
+ 1. zone reclaim can make high order reclaim (by hanns)
+ 2. determine file-backed page by get_scan_ratio
 
-> also, have you checked that you stopped clearing the page in the
-> normal anonymous memory pagefault handler path? If the page is 
-> guaranteed to be clear already you can save that copy
-> (basically you move the clear from allocate to free..)
+it mean, high order allocation makes lumpy zone reclaim. and shrink_inactive_list()
+don't care may_swap. then, zone_reclaim_mode=1 can makes swap-out if your
+driver makes high order allocation request.
 
-all new page allocations end up in prep_new_page and the clear_highpage
-(memset) there depends on !sanitize_all_mem.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
