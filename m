@@ -1,37 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5E76B0055
-	for <linux-mm@kvack.org>; Sat, 23 May 2009 18:42:24 -0400 (EDT)
-Message-ID: <4A187BDE.5070601@redhat.com>
-Date: Sat, 23 May 2009 18:42:38 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B6176B004D
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 06:21:52 -0400 (EDT)
+From: pageexec@freemail.hu
+Date: Sun, 24 May 2009 12:19:48 +0200
 MIME-Version: 1.0
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page	allocator
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090523124944.GA23042@elte.hu>
-In-Reply-To: <20090523124944.GA23042@elte.hu>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] Support for unconditional page sanitization
+Reply-to: pageexec@freemail.hu
+Message-ID: <4A191F44.24468.2C006647@pageexec.freemail.hu>
+In-reply-to: <20090523140509.5b4a59e4@infradead.org>
+References: <20090520183045.GB10547@oblivion.subreption.com>, <20090523182141.GK13971@oblivion.subreption.com>, <20090523140509.5b4a59e4@infradead.org>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu
+To: "Larry H." <research@subreption.com>, Arjan van de Ven <arjan@infradead.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
+On 23 May 2009 at 14:05, Arjan van de Ven wrote:
 
-> What you are missing is that your patch makes _no technical sense_ 
-> if you allow the same information to leak over the kernel stack. 
-> Kernel stacks can be freed and reused, swapped out and thus 
-> 'exposed'.
+> On Sat, 23 May 2009 11:21:41 -0700
+> "Larry H." <research@subreption.com> wrote:
+> 
+> > +static inline void sanitize_highpage(struct page *page)
+> 
+> any reason we're not reusing clear_highpage() for this?
+> (I know it's currently slightly different, but that is fixable)
 
-Kernel stacks may be freed and reused, but Larry's latest
-patch takes care of that by clearing them at page free
-time.
+KM_USER0 users are not supposed to be called from soft/hard irq
+contexts for high memory pages, something that cannot be guaranteed
+at this low level of page freeing (i.e., we could be interrupting
+a clear_highmem and overwrite its KM_USER0 mapping, leaving it dead
+in the water when we return there). in other words, sanitization
+must be able to nest within KM_USER*, so that pretty much calls for
+its own slot.
 
-As for being swapped out - I do not believe that kernel
-stacks can ever be swapped out in Linux.
+the alternative is to change KM_USER* semantics and allow its use
+from the same contexts as free_page et al., but given the existing
+users, that may very well be considered overkill.
 
--- 
-All rights reversed.
+on a related note, one could already say that disabling interrupts
+during a memset over a page or more is already bad enough for your
+real-time response times, so you may want to make this whole change
+depend on the kernel's preemption model or at least document it.
+
+> also, have you checked that you stopped clearing the page in the
+> normal anonymous memory pagefault handler path? If the page is 
+> guaranteed to be clear already you can save that copy
+> (basically you move the clear from allocate to free..)
+
+all new page allocations end up in prep_new_page and the clear_highpage
+(memset) there depends on !sanitize_all_mem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
