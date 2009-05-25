@@ -1,96 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 60FCC6B004D
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 20:54:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4P0t09A004532
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 25 May 2009 09:55:00 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0FF245DD7F
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DBEA45DD78
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FFD7E08003
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C9A71DB8038
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
-Date: Mon, 25 May 2009 09:53:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Warn if we run out of swap space
-Message-Id: <20090525095326.8c8335e2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090522213847.5f4a276b.akpm@linux-foundation.org>
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
-	<20090522213847.5f4a276b.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F056B005A
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 21:18:26 -0400 (EDT)
+Date: Sun, 24 May 2009 18:17:24 -0700
+From: "Larry H." <research@subreption.com>
+Subject: [PATCH] Sanitize memory on kfree() and kmem_cache_free()
+Message-ID: <20090525011724.GS13971@oblivion.subreption.com>
+References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090523124944.GA23042@elte.hu> <4A187BDE.5070601@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A187BDE.5070601@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 22 May 2009 21:38:47 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+(Was Re: [patch 0/5] Support for sanitization flag in low-level page
+allocator)
 
-> On Fri, 22 May 2009 14:58:19 -0400 (EDT) Christoph Lameter <cl@linux-foundation.org> wrote:
-> 
-> > 
-> > Subject: Warn if we run out of swap space
-> > 
-> > Running out of swap space means that the evicton of anonymous pages may no longer
-> > be possible which can lead to OOM conditions.
-> > 
-> > Print a warning when swap space first becomes exhausted.
-> > 
-> > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> > 
-> > ---
-> >  mm/swapfile.c |    5 +++++
-> >  1 file changed, 5 insertions(+)
-> > 
-> > Index: linux-2.6/mm/swapfile.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/swapfile.c	2009-05-22 12:25:19.000000000 -0500
-> > +++ linux-2.6/mm/swapfile.c	2009-05-22 13:56:10.000000000 -0500
-> > @@ -380,6 +380,7 @@ swp_entry_t get_swap_page(void)
-> >  	pgoff_t offset;
-> >  	int type, next;
-> >  	int wrapped = 0;
-> > +	static int printed = 0;
-> > 
-> >  	spin_lock(&swap_lock);
-> >  	if (nr_swap_pages <= 0)
-> > @@ -410,6 +411,10 @@ swp_entry_t get_swap_page(void)
-> >  	}
-> > 
-> >  	nr_swap_pages++;
-> > +	if (!printed) {
-> > +		printed = 1;
-> > +		printk(KERN_WARNING "All of swap is in use. Some pages cannot be swapped out.");
-> > +	}
-> >  noswap:
-> >  	spin_unlock(&swap_lock);
-> >  	return (swp_entry_t) {0};
-> 
-> I think the warning is useful.  (Although the missing \n makes me wonder
-> how well tested this is).
-> 
-> However the once-per-boot thing weakens it quite a lot.  Suppose someone
-> runs out of swap, sees the message, adds more swap then later runs out
-> again?
-> 
-> Perhaps we could clear the `printed' flag each time the amount of online
-> swap is altered?
-> 
-How about clearing it in the condition vm_swap_full() returns false ?
-Anyway, I welcome this patch :)
+On 18:42 Sat 23 May     , Rik van Riel wrote:
+> Ingo Molnar wrote:
+>
+>> What you are missing is that your patch makes _no technical sense_ if you 
+>> allow the same information to leak over the kernel stack. Kernel stacks 
+>> can be freed and reused, swapped out and thus 'exposed'.
+>
+> Kernel stacks may be freed and reused, but Larry's latest
+> patch takes care of that by clearing them at page free
+> time.
 
-Thanks,
--Kame
+[PATCH] Sanitize memory on kfree() and kmem_cache_free()
+
+This depends on the previous sanitize-mem.patch and implements object
+clearing for SLAB and SLUB. Only the SLUB allocator has been tested,
+and this patch successfully enforces clearing on kfree() for both
+standard caches and private ones (through kmem_cache_free()).
+
+The following test results can be observed when this patch is applied
+along sanitize-mem:
+
+   Name 	  Result 	 Object
+  ---------------------------------------
+   get_free_page 	OK. 	 e4011000
+       vmalloc(256) 	OK. 	 e632e000
+      vmalloc(2048) 	OK. 	 e6331000
+      vmalloc(4096) 	OK. 	 e6334000
+      vmalloc(8192) 	OK. 	 e6337000
+     vmalloc(32768) 	OK. 	 e633b000
+         kmalloc-32 	OK. 	 e5009904
+         kmalloc-64 	OK. 	 e404bc04
+         kmalloc-96 	OK. 	 e5230b44
+        kmalloc-128 	OK. 	 e5221f84
+        kmalloc-256 	OK. 	 e4104304
+        kmalloc-512 	OK. 	 e40a9804
+       kmalloc-1024 	OK. 	 e5137404
+       kmalloc-2048 	OK. 	 e5277004
+       kmalloc-4096 	OK. 	 e415c004
+       kmalloc-8192 	OK. 	 e4092004
+
+Without both:
+
+   Name 	  Result 	 Object
+  ---------------------------------------
+   get_free_page 	FAILED. 	 e412d000
+       vmalloc(256) 	FAILED. 	 e6020000
+      vmalloc(2048) 	FAILED. 	 e6023000
+      vmalloc(4096) 	FAILED. 	 e6026000
+      vmalloc(8192) 	FAILED. 	 e6029000
+     vmalloc(32768) 	FAILED. 	 e602d000
+         kmalloc-32 	FAILED. 	 e5009924
+         kmalloc-64 	FAILED. 	 e5146fc4
+         kmalloc-96 	FAILED. 	 e5320d84
+        kmalloc-128 	FAILED. 	 e5019484
+        kmalloc-256 	FAILED. 	 e4128104
+        kmalloc-512 	FAILED. 	 e40df804
+       kmalloc-1024 	FAILED. 	 e4a36c04
+       kmalloc-2048 	FAILED. 	 e4159004
+       kmalloc-4096 	FAILED. 	 e417f004
+       kmalloc-8192 	FAILED. 	 e4180004
+
+It takes care of handling empty slabs by ignoring them to avoid
+duplication of the clearing operation. In addition, it performs
+basic validation of the object and cache pointers, since it is
+lacking for kmem_cache_free(). Furthermore, when a cache has
+poisoning enabled (SLAB_POISON), the clearing process is skipped,
+since poisoning itself will overwrite the object's contents with
+a known pattern.
+
+Signed-off-by: Larry Highsmith <research@subreption.com>
+
+---
+ mm/slab.c |    9 +++++++++
+ mm/slub.c |   32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
+
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c
++++ linux-2.6/mm/slab.c
+@@ -3520,6 +3520,15 @@ static inline void __cache_free(struct k
+ 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
+ 
+ 	/*
++	 * If unconditional memory sanitization is enabled, the object is
++	 * cleared before it's put back into the cache. Using obj_offset and
++	 * obj_size we can coexist with the debugging (redzone, poisoning, etc)
++	 * facilities.
++	 */
++	if (sanitize_all_mem)
++		memset(objp + obj_offset(cachep), 0, obj_size(cachep));
++
++	/*
+ 	 * Skip calling cache_free_alien() when the platform is not numa.
+ 	 * This will avoid cache misses that happen while accessing slabp (which
+ 	 * is per page memory  reference) to get nodeid. Instead use a global
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c
++++ linux-2.6/mm/slub.c
+@@ -1269,6 +1269,36 @@ static inline int lock_and_freeze_slab(s
+ }
+ 
+ /*
++ * Slab object sanitization
++ */
++static void sanitize_slab_obj(struct kmem_cache *s, struct page *page, void *object)
++{
++	if (!sanitize_all_mem)
++		return;
++
++	/* SLAB_POISON makes clearing unnecessary */
++	if (s->offset || unlikely(s->flags & SLAB_POISON))
++		return;
++
++	/*
++	 * The slab is empty, it will be returned to page allocator by
++	 * discard_slab()->__slab_free(). It will be cleared there, thus
++	 * we skip it here.
++	 */
++	if (unlikely(!page->inuse))
++		return;
++
++	/* Validate that pointer indeed belongs to slab page */
++	if (!PageSlab(page) || (page->slab != s))
++		return;
++
++	if (!check_valid_pointer(s, page, object))
++		return;
++
++	memset(object, 0, s->objsize);
++}
++
++/*
+  * Try to allocate a partial slab from a specific node.
+  */
+ static struct page *get_partial_node(struct kmem_cache_node *n)
+@@ -1741,6 +1771,7 @@ void kmem_cache_free(struct kmem_cache *
+ 
+ 	page = virt_to_head_page(x);
+ 
++	sanitize_slab_obj(s, page, x);
+ 	slab_free(s, page, x, _RET_IP_);
+ }
+ EXPORT_SYMBOL(kmem_cache_free);
+@@ -2752,6 +2783,7 @@ void kfree(const void *x)
+ 		put_page(page);
+ 		return;
+ 	}
++	sanitize_slab_obj(page->slab, page, object);
+ 	slab_free(page->slab, page, object, _RET_IP_);
+ }
+ EXPORT_SYMBOL(kfree);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
