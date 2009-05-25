@@ -1,43 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A859E6B004D
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 07:12:36 -0400 (EDT)
-Date: Mon, 25 May 2009 13:12:44 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: kernel BUG at mm/slqb.c:1411!
-Message-ID: <20090525111244.GA24071@wotan.suse.de>
-References: <1242289830.21646.5.camel@penberg-laptop> <20090514175332.9B7B.A69D9226@jp.fujitsu.com> <20090515083726.F5BF.A69D9226@jp.fujitsu.com> <1242374931.21646.30.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B5CFF6B005D
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 07:29:42 -0400 (EDT)
+Date: Mon, 25 May 2009 12:30:05 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
+	errors in flags passed to the page allocator
+Message-ID: <20090525113004.GD12160@csn.ul.ie>
+References: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1242374931.21646.30.camel@penberg-laptop>
+In-Reply-To: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, matthew.r.wilcox@intel.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 15, 2009 at 11:08:51AM +0300, Pekka Enberg wrote:
-> Hi Motohiro-san,
+On Fri, May 22, 2009 at 02:42:32PM -0400, Christoph Lameter wrote:
 > 
-> On Wed, 2009-05-13 at 17:37 +0900, Minchan Kim wrote:
-> On Fri, 2009-05-15 at 08:38 +0900, KOSAKI Motohiro wrote:
-> > -ENOTREPRODUCED
-> > 
-> > I guess your patch is right fix. thanks!
+> Subject: Use integer fields lookup for gfp_zone and check for errors in flags passed to the page allocator
 > 
-> Thank you so much for testing!
+> This simplifies the code in gfp_zone() and also keeps the ability of the
+> compiler to use constant folding to get rid of gfp_zone processing.
 > 
-> Nick seems to have gone silent for the past few days so I went ahead and
-> merged the patch.
+> The lookup of the zone is done using a bitfield stored in an integer. So
+> the code in gfp_zone is a simple extraction of bits from a constant bitfield.
+> The compiler is generating a load of a constant into a register and then
+> performs a shift and mask operation to get the zone from a gfp_t.
+> 
+> No cachelines are touched and no branches have to be predicted by the
+> compiler.
+> 
+> We are doing some macro tricks here to convince the compiler to always do the
+> constant folding if possible.
+> 
+> Tested on:
+> i386 (kvm), x86_64(native)
+> 
 
-Sorry Pekka... I do think the patch looks OK, thanks for that.
+How was this tested? This patch boots on x86 for example, but when I
+patched further to validate that gfp_zone() returned sensible values, I got
+mismatches for GFP_HIGHUSER. These were the results I got for common GFP
+flags on three architectures
 
- 
-> Did you have CONFIG_PROVE_LOCKING enabled, btw? I think I got the lock
-> order correct but I don't have a NUMA machine to test it with here.
+x86
+[    0.000000] mminit::gfp_zone GFP_DMA              PASS
+[    0.000000] mminit::gfp_zone GFP_DMA32            FAIL 1 != 0
+[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
+[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
+[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
+[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
+[    0.000000] mminit::gfp_zone GFP_USER             PASS
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER         FAIL 2 != 1
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I expect that the machine would start running into reclaim issues with
+enough uptime because it'll not be using Highmem as it should. Similarly,
+the GFP_DMA32 may also be a problem as the new implementation is going
+ZONE_DMA when ZONE_NORMAL would have been ok in this case.
+
+x86-64
+[    0.000000] mminit::gfp_zone GFP_DMA              PASS
+[    0.000000] mminit::gfp_zone GFP_DMA32            PASS
+[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
+[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
+[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
+[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
+[    0.000000] mminit::gfp_zone GFP_USER             PASS
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER         PASS
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
+
+Happy days on x86-64.
+
+ppc64
+[    0.000000] mminit::gfp_zone GFP_DMA              PASS
+[    0.000000] mminit::gfp_zone GFP_DMA32            FAIL 1 != 0
+[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
+[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
+[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
+[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
+[    0.000000] mminit::gfp_zone GFP_USER             PASS
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER         PASS
+[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
+
+This mismatch on GFP_DMA32 is similar to x86. However, on ppc64 this error
+is harmless as ZONE_NORMAL is never populated anyway so GFP_DMA32 going to
+ZONE_DMA is just fine.
+
+This is similar difficulty that earlier versions of the patch ran into although
+this version is much closer to being correct. I'll look again tomorrow to
+see can it be repaired. In the meantime, here is the patch I used to validate
+your gfp_zone() implementation and maybe you'll spot the problem faster.
+
+==== CUT HERE ====
