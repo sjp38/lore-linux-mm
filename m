@@ -1,100 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0CB6B0082
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:16:53 -0400 (EDT)
-Date: Mon, 25 May 2009 14:17:03 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
-	with hugepage shared memory segments attached
-Message-ID: <20090525131703.GE12160@csn.ul.ie>
-References: <20090521094057.63B8.A69D9226@jp.fujitsu.com> <20090522164101.GA9196@csn.ul.ie> <20090524213838.084C.A69D9226@jp.fujitsu.com> <20090525085137.GA12160@csn.ul.ie> <Pine.LNX.4.64.0905251058480.16521@sister.anvils>
+	by kanga.kvack.org (Postfix) with ESMTP id 219506B0055
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 12:08:23 -0400 (EDT)
+Message-ID: <4A1AC234.9020307@kernel.org>
+Date: Tue, 26 May 2009 01:07:16 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0905251058480.16521@sister.anvils>
+Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
+References: <1242805059-18338-1-git-send-email-tj@kernel.org> <1242805059-18338-4-git-send-email-tj@kernel.org> <200905251537.35981.rusty@rustcorp.com.au>
+In-Reply-To: <200905251537.35981.rusty@rustcorp.com.au>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, starlight@binnacle.cx, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>, riel@redhat.com, kenchen@google.com
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: mingo@elte.hu, linux-kernel@vger.kernel.org, x86@kernel.org, ink@jurassic.park.msu.ru, rth@twiddle.net, linux@arm.linux.org.uk, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, jesper.nilsson@axis.com, dhowells@redhat.com, ysato@users.sourceforge.jp, tony.luck@intel.com, takata@linux-m32r.org, geert@linux-m68k.org, monstr@monstr.eu, ralf@linux-mips.org, kyle@mcmartin.ca, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, lethal@linux-sh.org, davem@davemloft.net, jdike@addtoit.com, chris@zankel.net, Jens Axboe <jens.axboe@oracle.com>, Dave Jones <davej@redhat.com>, Jeremy Fitzhardinge <jeremy@xensource.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 25, 2009 at 11:10:11AM +0100, Hugh Dickins wrote:
-> On Mon, 25 May 2009, Mel Gorman wrote:
-> > On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
-> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > --- 
-> > > >  arch/x86/mm/hugetlbpage.c |    6 +++++-
-> > > >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > > > 
-> > > > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> > > > index 8f307d9..16e4bcc 100644
-> > > > --- a/arch/x86/mm/hugetlbpage.c
-> > > > +++ b/arch/x86/mm/hugetlbpage.c
-> > > > @@ -26,12 +26,16 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
-> > > >  	unsigned long sbase = saddr & PUD_MASK;
-> > > >  	unsigned long s_end = sbase + PUD_SIZE;
-> > > >  
-> > > > +	/* Allow segments to share if only one is locked */
-> > > > +	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
-> > > > +	unsigned long svm_flags = vma->vm_flags & ~VM_LOCKED;
-> > >                                   svma?
-> > > 
-> > 
-> > /me slaps self
-> > 
-> > svma indeed.
-> > 
-> > With the patch corrected, I still cannot trigger the bad pmd messages as
-> > applied so I'm convinced the bug is related to hugetlb pagetable
-> > sharing and this is more or less the fix. Any opinions?
+Rusty Russell wrote:
+> On Wed, 20 May 2009 05:07:35 pm Tejun Heo wrote:
+>> Percpu variable definition is about to be updated such that
+>>
+>> * percpu symbols must be unique even the static ones
+>>
+>> * in-function static definition is not allowed
 > 
-> Yes, you gave a very good analysis, and I agree with you, your patch
-> does seem to be needed for 2.6.27.N, and the right thing to do there
-> (though I prefer the way 2.6.28 mlocking skips huge areas completely).
+> That spluttering noise is be choking on the title of this patch :)
 > 
-
-I similarly prefer how 2.6.28 simply makes the pages present and then gets
-rid of the flag. I was tempted to back-porting something similar but it felt
-better to fix where hugetlb was going wrong. Even though it's essentially a
-no-op on mainline, I'd like to apply the patch there as well in case there
-is ever another change in mlock() with respect to hugetlbfs.
-
-> One nit, doesn't really matter, but if I'm not too late: please change
-> -	/* Allow segments to share if only one is locked */
-> +	/* Allow segments to share if only one is marked locked */
-> since locking is such a no-op on hugetlb areas.
+> Making these pseudo statics is in no way a cleanup.  How about we just
+> say "they can't be static" and do something like:
 > 
+> /* Sorry, can't be static: that breaks archs which need these weak. */
+> #define DEFINE_PER_CPU(type, var) \
+> 	extern typeof(type) var; DEFINE_PER_CPU_SECTION(type, name, "")
 
-It's not too late and that change makes sense.
+Heh... well, even though I authored the patch, I kind of agree with
+you.  Maybe it would be better to simply disallow static declaration /
+definition at all.  I wanted to give a go at the original idea as it
+seemed to have some potential.  The result isn't too disappointing but
+I can't really say there are distinctively compelling advantages to
+justify the added complexity and subtlety.
 
-> Hugetlb pagetable sharing does scare me some nights: it's a very easily
-> forgotten corner of mm, worrying that we do something so different in
-> there; but IIRC this is actually the first bug related to it, much to
-> Ken's credit (and Dave McCracken's).
-> 
-
-I had totally forgotten about it which is why it took me so long to identify
-it as the problem area. I don't remember there ever being a problem with
-this area either.
-
-> (I'm glad Kosaki-san noticed the svma before I acked your previous
-> version!  And I've still got to go back to your VM_MAYSHARE patch:
-> seems right, but still wondering about the remaining VM_SHAREDs -
-> will report back later.)
-> 
+What do others think?  Is everyone happy with going extern only?
 
 Thanks.
 
-> Feel free to add an
-> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> to your fixed version.
-> 
-
-Thanks again Hugh.
-
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
