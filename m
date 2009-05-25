@@ -1,96 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B5CFF6B005D
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 07:29:42 -0400 (EDT)
-Date: Mon, 25 May 2009 12:30:05 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
-	errors in flags passed to the page allocator
-Message-ID: <20090525113004.GD12160@csn.ul.ie>
-References: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A08626B006A
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 07:40:59 -0400 (EDT)
+Date: Mon, 25 May 2009 06:41:35 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH v3] zone_reclaim is always 0 by default
+Message-ID: <20090525114135.GD29447@sgi.com>
+References: <20090521114408.63D0.A69D9226@jp.fujitsu.com> <20090522122609.GC29447@sgi.com> <20090524214554.084F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
+In-Reply-To: <20090524214554.084F.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 22, 2009 at 02:42:32PM -0400, Christoph Lameter wrote:
+On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
+...
+> > Your root cause analysis is suspect.  You found a knob to turn which
+> > suddenly improved performance for one specific un-tuned server workload.
+...
+> The fact is, workload dependency charactetistics of zone reclaim is
+> widely known from very ago.
+> Even Documentaion/sysctl/vm.txt said, 
 > 
-> Subject: Use integer fields lookup for gfp_zone and check for errors in flags passed to the page allocator
+> > It may be beneficial to switch off zone reclaim if the system is
+> > used for a file server and all of memory should be used for caching files
+> > from disk. In that case the caching effect is more important than
+> > data locality.
 > 
-> This simplifies the code in gfp_zone() and also keeps the ability of the
-> compiler to use constant folding to get rid of gfp_zone processing.
+> Nobody except you oppose this.
+
+I don't disagree with that statement.  I agree this is a workload specific
+tuneable that for the case where you want to use the system for nothing
+other than file serving, you need to turn it off.  It has been this way
+for ages.  I am saying let's not change that default behavior.
+
+> > How did you determine better by default?  I think we already established
+> > that apache is a server workload and not a desktop workload.  Earlier
+> > you were arguing that we need this turned off to improve the desktop
+> > environment.  You have not established this improves desktop performance.
+> > Actually, you have not established it improves apache performance or
+> > server performance.  You have documented it improves memory utilization,
+> > but that is not always the same as faster.
 > 
-> The lookup of the zone is done using a bitfield stored in an integer. So
-> the code in gfp_zone is a simple extraction of bits from a constant bitfield.
-> The compiler is generating a load of a constant into a register and then
-> performs a shift and mask operation to get the zone from a gfp_t.
+> The fact is, low-end machine performace depend on cache hitting ratio widely.
+> improving memory utilization mean improving cache hitting ratio.
 > 
-> No cachelines are touched and no branches have to be predicted by the
-> compiler.
+> Plus, I already explained about desktop use case. multiple worst case scenario 
+> can happend on it easily.
 > 
-> We are doing some macro tricks here to convince the compiler to always do the
-> constant folding if possible.
+> if big process consume memory rather than node size, zone-reclaim
+> decrease performance largely.
+
+It may improve performance as well.  I agree we can come up with
+theoretical cases that show both.  I am asking for documented cases where
+it does.  Your original post indicated an apache regression.  In that
+case apache was being used under server type loads.  If you have a machine
+with this condition, you should probably be considered the exception.
+
+> zone reclaim decrease page-cache hitting ratio. some desktop don't have
+> much memory. cache missies does'nt only increase latency, but also
+> increase unnecessary I/O. desktop don't have rich I/O bandwidth rather than
+> server or hpc. it makes bad I/O affect.
+
+If low I/O performance should be turning it off, then shouldn't that
+case be coded into the default as opposed to changing the default to
+match your specific opinion?
+
+> However, your past explanation is really wrong and bogus.
+> I wrote
 > 
-> Tested on:
-> i386 (kvm), x86_64(native)
+> > If this imbalance is an x86_64 only problem, then we could do something
+> > simple like the following untested patch.  This leaves the default
+> > for everyone except x86_64.
 > 
+> and I wrote it isn't true. after that, you haven't provide addisional
+> explanation.
 
-How was this tested? This patch boots on x86 for example, but when I
-patched further to validate that gfp_zone() returned sensible values, I got
-mismatches for GFP_HIGHUSER. These were the results I got for common GFP
-flags on three architectures
+I don't recall seeing your response.  Sorry, but this has been, and will
+remain, low priority for me.  If the default gets changed, we will detect
+the performance regression very early after we start testing this bad
+of a change on a low memory machine and then we will put a tweak into
+place at the next distro release to turn this off following boot.
 
-x86
-[    0.000000] mminit::gfp_zone GFP_DMA              PASS
-[    0.000000] mminit::gfp_zone GFP_DMA32            FAIL 1 != 0
-[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
-[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
-[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
-[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
-[    0.000000] mminit::gfp_zone GFP_USER             PASS
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER         FAIL 2 != 1
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
+> Nobody ack CODE-ONLY-PATCH. _You_ have to explain _why_ you think 
+> your approach is better.
 
-I expect that the machine would start running into reclaim issues with
-enough uptime because it'll not be using Highmem as it should. Similarly,
-the GFP_DMA32 may also be a problem as the new implementation is going
-ZONE_DMA when ZONE_NORMAL would have been ok in this case.
+Because it doesn't throw out a lot of history based upon your opinion of
+one server type test found under lab conditions on a poorly tuned machine.
 
-x86-64
-[    0.000000] mminit::gfp_zone GFP_DMA              PASS
-[    0.000000] mminit::gfp_zone GFP_DMA32            PASS
-[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
-[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
-[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
-[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
-[    0.000000] mminit::gfp_zone GFP_USER             PASS
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER         PASS
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
+Robin
 
-Happy days on x86-64.
-
-ppc64
-[    0.000000] mminit::gfp_zone GFP_DMA              PASS
-[    0.000000] mminit::gfp_zone GFP_DMA32            FAIL 1 != 0
-[    0.000000] mminit::gfp_zone GFP_NOIO             PASS
-[    0.000000] mminit::gfp_zone GFP_NOFS             PASS
-[    0.000000] mminit::gfp_zone GFP_KERNEL           PASS
-[    0.000000] mminit::gfp_zone GFP_TEMPORARY        PASS
-[    0.000000] mminit::gfp_zone GFP_USER             PASS
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER         PASS
-[    0.000000] mminit::gfp_zone GFP_HIGHUSER_MOVABLE PASS
-
-This mismatch on GFP_DMA32 is similar to x86. However, on ppc64 this error
-is harmless as ZONE_NORMAL is never populated anyway so GFP_DMA32 going to
-ZONE_DMA is just fine.
-
-This is similar difficulty that earlier versions of the patch ran into although
-this version is much closer to being correct. I'll look again tomorrow to
-see can it be repaired. In the meantime, here is the patch I used to validate
-your gfp_zone() implementation and maybe you'll spot the problem faster.
-
-==== CUT HERE ====
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
