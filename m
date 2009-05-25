@@ -1,65 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 605066B004D
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 04:50:55 -0400 (EDT)
-Date: Mon, 25 May 2009 09:51:38 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D2A626B005A
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 05:00:52 -0400 (EDT)
+Date: Mon, 25 May 2009 10:00:41 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
-	with hugepage shared memory segments attached
-Message-ID: <20090525085137.GA12160@csn.ul.ie>
-References: <20090521094057.63B8.A69D9226@jp.fujitsu.com> <20090522164101.GA9196@csn.ul.ie> <20090524213838.084C.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] add inactive ratio calculation function of each
+	zone V2
+Message-ID: <20090525090041.GB12160@csn.ul.ie>
+References: <20090521092321.ee57585e.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090524213838.084C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090521092321.ee57585e.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, starlight@binnacle.cx, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>, riel@redhat.com, hugh.dickins@tiscali.co.uk, kenchen@google.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > --- 
-> >  arch/x86/mm/hugetlbpage.c |    6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> > index 8f307d9..16e4bcc 100644
-> > --- a/arch/x86/mm/hugetlbpage.c
-> > +++ b/arch/x86/mm/hugetlbpage.c
-> > @@ -26,12 +26,16 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
-> >  	unsigned long sbase = saddr & PUD_MASK;
-> >  	unsigned long s_end = sbase + PUD_SIZE;
-> >  
-> > +	/* Allow segments to share if only one is locked */
-> > +	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
-> > +	unsigned long svm_flags = vma->vm_flags & ~VM_LOCKED;
->                                   svma?
+On Thu, May 21, 2009 at 09:23:21AM +0900, Minchan Kim wrote:
+> Changelog since V1 
+>  o Change function name from calculate_zone_inactive_ratio to calculate_inactive_ratio
+>    - by Mel Gorman advise
+>  o Modify tab indent - by Mel Gorman advise
 > 
-
-/me slaps self
-
-svma indeed.
-
-With the patch corrected, I still cannot trigger the bad pmd messages as
-applied so I'm convinced the bug is related to hugetlb pagetable
-sharing and this is more or less the fix. Any opinions?
-
->  - kosaki
+> This patch devide setup_per_zone_inactive_ratio with
+> per-zone inactive ratio calculaton.
 > 
-> > +
-> >  	/*
-> >  	 * match the virtual addresses, permission and the alignment of the
-> >  	 * page table page.
-> >  	 */
-> >  	if (pmd_index(addr) != pmd_index(saddr) ||
-> > -	    vma->vm_flags != svma->vm_flags ||
-> > +	    vm_flags != svm_flags ||
-> >  	    sbase < svma->vm_start || svma->vm_end < s_end)
-> >  		return 0;
-> >  
+> This patch is just for helping my next patch.
+> (reset wmark_min and inactive ratio of zone when hotplug happens)
 > 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/mm.h |    1 +
+>  mm/page_alloc.c    |   28 ++++++++++++++++------------
+>  2 files changed, 17 insertions(+), 12 deletions(-)
 > 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 7ea4d1b..5d7a835 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1059,6 +1059,7 @@ extern void set_dma_reserve(unsigned long new_dma_reserve);
+>  extern void memmap_init_zone(unsigned long, int, unsigned long,
+>  				unsigned long, enum memmap_context);
+>  extern void setup_per_zone_wmarks(void);
+> +extern void calculate_zone_inactive_ratio(struct zone *zone);
+>  extern void mem_init(void);
+>  extern void __init mmap_init(void);
+>  extern void show_mem(void);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b518ea7..f11cfbf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4553,22 +4553,26 @@ void setup_per_zone_wmarks(void)
+>   *    1TB     101        10GB
+>   *   10TB     320        32GB
+>   */
+> -static void __init setup_per_zone_inactive_ratio(void)
+> +void calculate_zone_inactive_ratio(struct zone *zone)
+>  {
+> -	struct zone *zone;
+> +	unsigned int gb, ratio;
+>  
+> -	for_each_zone(zone) {
+> -		unsigned int gb, ratio;
+> +	/* Zone size in gigabytes */
+> +	gb = zone->present_pages >> (30 - PAGE_SHIFT);
+> +	if (gb)
+> +		ratio = int_sqrt(10 * gb);
+> +	else
+> +		ratio = 1;
+>  
+> -		/* Zone size in gigabytes */
+> -		gb = zone->present_pages >> (30 - PAGE_SHIFT);
+> -		if (gb)
+> -			ratio = int_sqrt(10 * gb);
+> -		else
+> -			ratio = 1;
+> +	zone->inactive_ratio = ratio;
+> +}
+>  
+> -		zone->inactive_ratio = ratio;
+> -	}
+> +static void __init setup_per_zone_inactive_ratio(void)
+> +{
+> +	struct zone *zone;
+> +
+> +	for_each_zone(zone)
+> +		calculate_zone_inactive_ratio(zone);	
+>  }
+>  
+>  /*
+> -- 
+> 1.5.4.3
 > 
 
 -- 
