@@ -1,177 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 75F056B005A
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 21:18:26 -0400 (EDT)
-Date: Sun, 24 May 2009 18:17:24 -0700
-From: "Larry H." <research@subreption.com>
-Subject: [PATCH] Sanitize memory on kfree() and kmem_cache_free()
-Message-ID: <20090525011724.GS13971@oblivion.subreption.com>
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090523124944.GA23042@elte.hu> <4A187BDE.5070601@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A187BDE.5070601@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C78376B005A
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 21:51:52 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4P1qdmB029402
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 25 May 2009 10:52:39 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1658345DD76
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 10:52:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E5B3F45DD72
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 10:52:38 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D25141DB801A
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 10:52:38 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 71B721DB8016
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 10:52:38 +0900 (JST)
+Date: Mon, 25 May 2009 10:51:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
+ errors in flags passed to the page allocator
+Message-Id: <20090525105105.b760aba5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
+References: <alpine.DEB.1.10.0905221438120.5515@qirst.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-(Was Re: [patch 0/5] Support for sanitization flag in low-level page
-allocator)
+On Fri, 22 May 2009 14:42:32 -0400 (EDT)
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-On 18:42 Sat 23 May     , Rik van Riel wrote:
-> Ingo Molnar wrote:
->
->> What you are missing is that your patch makes _no technical sense_ if you 
->> allow the same information to leak over the kernel stack. Kernel stacks 
->> can be freed and reused, swapped out and thus 'exposed'.
->
-> Kernel stacks may be freed and reused, but Larry's latest
-> patch takes care of that by clearing them at page free
-> time.
+> 
+> Subject: Use integer fields lookup for gfp_zone and check for errors in flags passed to the page allocator
+> 
+> This simplifies the code in gfp_zone() and also keeps the ability of the
+> compiler to use constant folding to get rid of gfp_zone processing.
+> 
+> The lookup of the zone is done using a bitfield stored in an integer. So
+> the code in gfp_zone is a simple extraction of bits from a constant bitfield.
+> The compiler is generating a load of a constant into a register and then
+> performs a shift and mask operation to get the zone from a gfp_t.
+> 
+> No cachelines are touched and no branches have to be predicted by the
+> compiler.
+> 
+> We are doing some macro tricks here to convince the compiler to always do the
+> constant folding if possible.
+> 
+> Tested on:
+> i386 (kvm), x86_64(native)
+> 
+> Compile tested on:
+> s390 arm sparc sparc64 mips ia64
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> ---
+>  include/linux/gfp.h |   85 ++++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 70 insertions(+), 15 deletions(-)
+> 
+> Index: linux-2.6/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/gfp.h	2009-04-13 14:04:29.000000000 -0500
+> +++ linux-2.6/include/linux/gfp.h	2009-04-24 14:21:59.000000000 -0500
+> @@ -20,7 +20,8 @@ struct vm_area_struct;
+>  #define __GFP_DMA	((__force gfp_t)0x01u)
+>  #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
+>  #define __GFP_DMA32	((__force gfp_t)0x04u)
+> -
+> +#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
+> +#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
+>  /*
+>   * Action modifiers - doesn't change the zoning
+>   *
+> @@ -50,7 +51,6 @@ struct vm_area_struct;
+>  #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+>  #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
+> -#define __GFP_MOVABLE	((__force gfp_t)0x100000u)  /* Page is movable */
+> 
+>  #define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+> @@ -112,24 +112,79 @@ static inline int allocflags_to_migratet
+>  		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+>  }
+> 
+> -static inline enum zone_type gfp_zone(gfp_t flags)
+> -{
+> +#ifdef CONFIG_ZONE_HIGHMEM
+> +#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
+> +#else
+> +#define OPT_ZONE_HIGHMEM ZONE_NORMAL
+> +#endif
+> +
+>  #ifdef CONFIG_ZONE_DMA
+> -	if (flags & __GFP_DMA)
+> -		return ZONE_DMA;
+> +#define OPT_ZONE_DMA ZONE_DMA
+> +#else
+> +#define OPT_ZONE_DMA ZONE_NORMAL
+>  #endif
+> +
+>  #ifdef CONFIG_ZONE_DMA32
+> -	if (flags & __GFP_DMA32)
+> -		return ZONE_DMA32;
+> +#define OPT_ZONE_DMA32 ZONE_DMA32
+> +#else
+> +#define OPT_ZONE_DMA32 OPT_ZONE_DMA
+>  #endif
+> -	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
+> -			(__GFP_HIGHMEM | __GFP_MOVABLE))
+> -		return ZONE_MOVABLE;
+> -#ifdef CONFIG_HIGHMEM
+> -	if (flags & __GFP_HIGHMEM)
+> -		return ZONE_HIGHMEM;
+> +
+> +#if 16 * ZONES_SHIFT > BITS_PER_LONG
+> +#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+> +#endif
+> +
+> +/*
+> + * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
+> + * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
+> + * and there are 16 of them to cover all possible combinations of
+> + * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM
+> + *
+> + */
+> +#define GFP_ZONE_TABLE ( \
+> +	(ZONE_NORMAL << 0 * ZONES_SHIFT)				\
+> +	| (OPT_ZONE_DMA << __GFP_DMA * ZONES_SHIFT) 			\
+> +	| (OPT_ZONE_HIGHMEM << __GFP_HIGHMEM * ZONES_SHIFT)		\
+> +	| (OPT_ZONE_DMA32 << __GFP_DMA32 * ZONES_SHIFT)			\
+> +	| (ZONE_NORMAL << __GFP_MOVABLE * ZONES_SHIFT)			\
+> +	| (OPT_ZONE_DMA << (__GFP_MOVABLE | __GFP_DMA) * ZONES_SHIFT)	\
+> +	| (ZONE_MOVABLE << (__GFP_MOVABLE | __GFP_HIGHMEM) * ZONES_SHIFT)\
+> +	| (OPT_ZONE_DMA32 << (__GFP_MOVABLE | __GFP_DMA32) * ZONES_SHIFT)\
+> +)
+Could you add a comment to explain this as..
 
-[PATCH] Sanitize memory on kfree() and kmem_cache_free()
+==
+/*
+ * Zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA
+ * But GFP_MOVABLE is not only zone specifier but also allocating policy.
+ * Then, __GFP_MOVABLE+other zone selector is a valid configuration.
+ * Only 1bit of the lowest 3 bit (DMA,DMA32,HIGHMEM) can be set to "1".
+ */
 
-This depends on the previous sanitize-mem.patch and implements object
-clearing for SLAB and SLUB. Only the SLUB allocator has been tested,
-and this patch successfully enforces clearing on kfree() for both
-standard caches and private ones (through kmem_cache_free()).
+        bit       result
+        =================
+        0x0    => NORMAL
+        0x1    => DMA or NORMAL 
+        0x2    => HIGHMEM or NORMAL 
+        0x3    => BAD (DMA+HIGHMEM)
+        0x4    => DMA32 or DMA or NORMAL
+        0x5    => BAD (DMA+DMA32)
+        0x6    => BAD (HIGHMEM+DMA32)
+        0x7    => BAD (HIGHMEM+DMA32+DMA)
+        0x8    => NORMAL
+        0x9    => DMA or NORMAL
+        0xa    => MOVABLE     (MOVABLE is selected only when specified with HIGHMEM)
+	0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+        0xc    => DMA32
+        0xd    => BAD (MOVABLE+DMA32+DMA)
+        0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+        0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
 
-The following test results can be observed when this patch is applied
-along sanitize-mem:
+        ZONES_SHIFT must be < 2.
+==
+?
 
-   Name 	  Result 	 Object
-  ---------------------------------------
-   get_free_page 	OK. 	 e4011000
-       vmalloc(256) 	OK. 	 e632e000
-      vmalloc(2048) 	OK. 	 e6331000
-      vmalloc(4096) 	OK. 	 e6334000
-      vmalloc(8192) 	OK. 	 e6337000
-     vmalloc(32768) 	OK. 	 e633b000
-         kmalloc-32 	OK. 	 e5009904
-         kmalloc-64 	OK. 	 e404bc04
-         kmalloc-96 	OK. 	 e5230b44
-        kmalloc-128 	OK. 	 e5221f84
-        kmalloc-256 	OK. 	 e4104304
-        kmalloc-512 	OK. 	 e40a9804
-       kmalloc-1024 	OK. 	 e5137404
-       kmalloc-2048 	OK. 	 e5277004
-       kmalloc-4096 	OK. 	 e415c004
-       kmalloc-8192 	OK. 	 e4092004
+Thanks,
+-Kame
 
-Without both:
-
-   Name 	  Result 	 Object
-  ---------------------------------------
-   get_free_page 	FAILED. 	 e412d000
-       vmalloc(256) 	FAILED. 	 e6020000
-      vmalloc(2048) 	FAILED. 	 e6023000
-      vmalloc(4096) 	FAILED. 	 e6026000
-      vmalloc(8192) 	FAILED. 	 e6029000
-     vmalloc(32768) 	FAILED. 	 e602d000
-         kmalloc-32 	FAILED. 	 e5009924
-         kmalloc-64 	FAILED. 	 e5146fc4
-         kmalloc-96 	FAILED. 	 e5320d84
-        kmalloc-128 	FAILED. 	 e5019484
-        kmalloc-256 	FAILED. 	 e4128104
-        kmalloc-512 	FAILED. 	 e40df804
-       kmalloc-1024 	FAILED. 	 e4a36c04
-       kmalloc-2048 	FAILED. 	 e4159004
-       kmalloc-4096 	FAILED. 	 e417f004
-       kmalloc-8192 	FAILED. 	 e4180004
-
-It takes care of handling empty slabs by ignoring them to avoid
-duplication of the clearing operation. In addition, it performs
-basic validation of the object and cache pointers, since it is
-lacking for kmem_cache_free(). Furthermore, when a cache has
-poisoning enabled (SLAB_POISON), the clearing process is skipped,
-since poisoning itself will overwrite the object's contents with
-a known pattern.
-
-Signed-off-by: Larry Highsmith <research@subreption.com>
-
----
- mm/slab.c |    9 +++++++++
- mm/slub.c |   32 ++++++++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
-
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -3520,6 +3520,15 @@ static inline void __cache_free(struct k
- 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
- 
- 	/*
-+	 * If unconditional memory sanitization is enabled, the object is
-+	 * cleared before it's put back into the cache. Using obj_offset and
-+	 * obj_size we can coexist with the debugging (redzone, poisoning, etc)
-+	 * facilities.
-+	 */
-+	if (sanitize_all_mem)
-+		memset(objp + obj_offset(cachep), 0, obj_size(cachep));
-+
-+	/*
- 	 * Skip calling cache_free_alien() when the platform is not numa.
- 	 * This will avoid cache misses that happen while accessing slabp (which
- 	 * is per page memory  reference) to get nodeid. Instead use a global
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -1269,6 +1269,36 @@ static inline int lock_and_freeze_slab(s
- }
- 
- /*
-+ * Slab object sanitization
-+ */
-+static void sanitize_slab_obj(struct kmem_cache *s, struct page *page, void *object)
-+{
-+	if (!sanitize_all_mem)
-+		return;
-+
-+	/* SLAB_POISON makes clearing unnecessary */
-+	if (s->offset || unlikely(s->flags & SLAB_POISON))
-+		return;
-+
-+	/*
-+	 * The slab is empty, it will be returned to page allocator by
-+	 * discard_slab()->__slab_free(). It will be cleared there, thus
-+	 * we skip it here.
-+	 */
-+	if (unlikely(!page->inuse))
-+		return;
-+
-+	/* Validate that pointer indeed belongs to slab page */
-+	if (!PageSlab(page) || (page->slab != s))
-+		return;
-+
-+	if (!check_valid_pointer(s, page, object))
-+		return;
-+
-+	memset(object, 0, s->objsize);
-+}
-+
-+/*
-  * Try to allocate a partial slab from a specific node.
-  */
- static struct page *get_partial_node(struct kmem_cache_node *n)
-@@ -1741,6 +1771,7 @@ void kmem_cache_free(struct kmem_cache *
- 
- 	page = virt_to_head_page(x);
- 
-+	sanitize_slab_obj(s, page, x);
- 	slab_free(s, page, x, _RET_IP_);
- }
- EXPORT_SYMBOL(kmem_cache_free);
-@@ -2752,6 +2783,7 @@ void kfree(const void *x)
- 		put_page(page);
- 		return;
- 	}
-+	sanitize_slab_obj(page->slab, page, object);
- 	slab_free(page->slab, page, object, _RET_IP_);
- }
- EXPORT_SYMBOL(kfree);
+> +
+> +/*
+> + * GFP_ZONE_BAD is a bitmap for all combination of __GFP_DMA, __GFP_DMA32
+> + * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
+> + * entry starting with bit 0. Bit is set if the combination is not
+> + * allowed.
+> + */
+> +#define GFP_ZONE_BAD ( \
+> +	1 << (__GFP_DMA | __GFP_HIGHMEM)				\
+> +	| 1 << (__GFP_DMA | __GFP_DMA32)				\
+> +	| 1 << (__GFP_DMA32 | __GFP_HIGHMEM)				\
+> +	| 1 << (__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)		\
+> +	| 1 << (__GFP_MOVABLE | __GFP_HIGHMEM | __GFP_DMA)		\
+> +	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA)		\
+> +	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_HIGHMEM)		\
+> +	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA | __GFP_HIGHMEM)\
+> +)
+> +
+> +static inline enum zone_type gfp_zone(gfp_t flags)
+> +{
+> +	enum zone_type z;
+> +	int bit = flags & GFP_ZONEMASK;
+> +
+> +	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+> +					 ((1 << ZONES_SHIFT) - 1);
+> +
+> +	if (__builtin_constant_p(bit))
+> +		BUILD_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+> +	else {
+> +#ifdef CONFIG_DEBUG_VM
+> +		BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+>  #endif
+> -	return ZONE_NORMAL;
+> +	}
+> +	return z;
+>  }
+> 
+>  /*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
