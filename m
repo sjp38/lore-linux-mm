@@ -1,55 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4E46B004F
-	for <linux-mm@kvack.org>; Sun, 24 May 2009 12:38:45 -0400 (EDT)
-Date: Sun, 24 May 2009 09:38:51 -0700
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [PATCH] Support for unconditional page sanitization
-Message-ID: <20090524093851.37cbb4d6@infradead.org>
-In-Reply-To: <4A191F44.24468.2C006647@pageexec.freemail.hu>
-References: <20090520183045.GB10547@oblivion.subreption.com>
-	<20090523182141.GK13971@oblivion.subreption.com>
-	<20090523140509.5b4a59e4@infradead.org>
-	<4A191F44.24468.2C006647@pageexec.freemail.hu>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 60FCC6B004D
+	for <linux-mm@kvack.org>; Sun, 24 May 2009 20:54:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4P0t09A004532
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 25 May 2009 09:55:00 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0FF245DD7F
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DBEA45DD78
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FFD7E08003
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C9A71DB8038
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:54:59 +0900 (JST)
+Date: Mon, 25 May 2009 09:53:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Warn if we run out of swap space
+Message-Id: <20090525095326.8c8335e2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090522213847.5f4a276b.akpm@linux-foundation.org>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+	<20090522213847.5f4a276b.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: pageexec@freemail.hu
-Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 May 2009 12:19:48 +0200
-pageexec@freemail.hu wrote:
+On Fri, 22 May 2009 21:38:47 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On 23 May 2009 at 14:05, Arjan van de Ven wrote:
+> On Fri, 22 May 2009 14:58:19 -0400 (EDT) Christoph Lameter <cl@linux-foundation.org> wrote:
 > 
-> > On Sat, 23 May 2009 11:21:41 -0700
-> > "Larry H." <research@subreption.com> wrote:
 > > 
-> > > +static inline void sanitize_highpage(struct page *page)
+> > Subject: Warn if we run out of swap space
 > > 
-> > any reason we're not reusing clear_highpage() for this?
-> > (I know it's currently slightly different, but that is fixable)
+> > Running out of swap space means that the evicton of anonymous pages may no longer
+> > be possible which can lead to OOM conditions.
+> > 
+> > Print a warning when swap space first becomes exhausted.
+> > 
+> > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> > 
+> > ---
+> >  mm/swapfile.c |    5 +++++
+> >  1 file changed, 5 insertions(+)
+> > 
+> > Index: linux-2.6/mm/swapfile.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/swapfile.c	2009-05-22 12:25:19.000000000 -0500
+> > +++ linux-2.6/mm/swapfile.c	2009-05-22 13:56:10.000000000 -0500
+> > @@ -380,6 +380,7 @@ swp_entry_t get_swap_page(void)
+> >  	pgoff_t offset;
+> >  	int type, next;
+> >  	int wrapped = 0;
+> > +	static int printed = 0;
+> > 
+> >  	spin_lock(&swap_lock);
+> >  	if (nr_swap_pages <= 0)
+> > @@ -410,6 +411,10 @@ swp_entry_t get_swap_page(void)
+> >  	}
+> > 
+> >  	nr_swap_pages++;
+> > +	if (!printed) {
+> > +		printed = 1;
+> > +		printk(KERN_WARNING "All of swap is in use. Some pages cannot be swapped out.");
+> > +	}
+> >  noswap:
+> >  	spin_unlock(&swap_lock);
+> >  	return (swp_entry_t) {0};
 > 
-> KM_USER0 users are not supposed to be called from soft/hard irq
-> contexts for high memory pages, something that cannot be guaranteed
-> at this low level of page freeing (i.e., we could be interrupting
-> a clear_highmem and overwrite its KM_USER0 mapping, leaving it dead
-> in the water when we return there). in other words, sanitization
-> must be able to nest within KM_USER*, so that pretty much calls for
-> its own slot.
+> I think the warning is useful.  (Although the missing \n makes me wonder
+> how well tested this is).
+> 
+> However the once-per-boot thing weakens it quite a lot.  Suppose someone
+> runs out of swap, sees the message, adds more swap then later runs out
+> again?
+> 
+> Perhaps we could clear the `printed' flag each time the amount of online
+> swap is altered?
+> 
+How about clearing it in the condition vm_swap_full() returns false ?
+Anyway, I welcome this patch :)
 
-no arguement that current clear_highpage isn't a fit. I was more
-thinking about using the content of sanitize_highpage(), and just
-calling that clear_highpage(). (or in other words, improve
-clear_highpage to be usable in more situations)
-
-
--- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
