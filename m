@@ -1,97 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A08626B006A
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 07:40:59 -0400 (EDT)
-Date: Mon, 25 May 2009 06:41:35 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH v3] zone_reclaim is always 0 by default
-Message-ID: <20090525114135.GD29447@sgi.com>
-References: <20090521114408.63D0.A69D9226@jp.fujitsu.com> <20090522122609.GC29447@sgi.com> <20090524214554.084F.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0CB6B0082
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 09:16:53 -0400 (EDT)
+Date: Mon, 25 May 2009 14:17:03 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [Bugme-new] [Bug 13302] New: "bad pmd" on fork() of process
+	with hugepage shared memory segments attached
+Message-ID: <20090525131703.GE12160@csn.ul.ie>
+References: <20090521094057.63B8.A69D9226@jp.fujitsu.com> <20090522164101.GA9196@csn.ul.ie> <20090524213838.084C.A69D9226@jp.fujitsu.com> <20090525085137.GA12160@csn.ul.ie> <Pine.LNX.4.64.0905251058480.16521@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090524214554.084F.A69D9226@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0905251058480.16521@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, starlight@binnacle.cx, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, Adam Litke <agl@us.ibm.com>, Eric B Munson <ebmunson@us.ibm.com>, riel@redhat.com, kenchen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
-...
-> > Your root cause analysis is suspect.  You found a knob to turn which
-> > suddenly improved performance for one specific un-tuned server workload.
-...
-> The fact is, workload dependency charactetistics of zone reclaim is
-> widely known from very ago.
-> Even Documentaion/sysctl/vm.txt said, 
+On Mon, May 25, 2009 at 11:10:11AM +0100, Hugh Dickins wrote:
+> On Mon, 25 May 2009, Mel Gorman wrote:
+> > On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
+> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > > > --- 
+> > > >  arch/x86/mm/hugetlbpage.c |    6 +++++-
+> > > >  1 file changed, 5 insertions(+), 1 deletion(-)
+> > > > 
+> > > > diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> > > > index 8f307d9..16e4bcc 100644
+> > > > --- a/arch/x86/mm/hugetlbpage.c
+> > > > +++ b/arch/x86/mm/hugetlbpage.c
+> > > > @@ -26,12 +26,16 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
+> > > >  	unsigned long sbase = saddr & PUD_MASK;
+> > > >  	unsigned long s_end = sbase + PUD_SIZE;
+> > > >  
+> > > > +	/* Allow segments to share if only one is locked */
+> > > > +	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
+> > > > +	unsigned long svm_flags = vma->vm_flags & ~VM_LOCKED;
+> > >                                   svma?
+> > > 
+> > 
+> > /me slaps self
+> > 
+> > svma indeed.
+> > 
+> > With the patch corrected, I still cannot trigger the bad pmd messages as
+> > applied so I'm convinced the bug is related to hugetlb pagetable
+> > sharing and this is more or less the fix. Any opinions?
 > 
-> > It may be beneficial to switch off zone reclaim if the system is
-> > used for a file server and all of memory should be used for caching files
-> > from disk. In that case the caching effect is more important than
-> > data locality.
+> Yes, you gave a very good analysis, and I agree with you, your patch
+> does seem to be needed for 2.6.27.N, and the right thing to do there
+> (though I prefer the way 2.6.28 mlocking skips huge areas completely).
 > 
-> Nobody except you oppose this.
 
-I don't disagree with that statement.  I agree this is a workload specific
-tuneable that for the case where you want to use the system for nothing
-other than file serving, you need to turn it off.  It has been this way
-for ages.  I am saying let's not change that default behavior.
+I similarly prefer how 2.6.28 simply makes the pages present and then gets
+rid of the flag. I was tempted to back-porting something similar but it felt
+better to fix where hugetlb was going wrong. Even though it's essentially a
+no-op on mainline, I'd like to apply the patch there as well in case there
+is ever another change in mlock() with respect to hugetlbfs.
 
-> > How did you determine better by default?  I think we already established
-> > that apache is a server workload and not a desktop workload.  Earlier
-> > you were arguing that we need this turned off to improve the desktop
-> > environment.  You have not established this improves desktop performance.
-> > Actually, you have not established it improves apache performance or
-> > server performance.  You have documented it improves memory utilization,
-> > but that is not always the same as faster.
+> One nit, doesn't really matter, but if I'm not too late: please change
+> -	/* Allow segments to share if only one is locked */
+> +	/* Allow segments to share if only one is marked locked */
+> since locking is such a no-op on hugetlb areas.
 > 
-> The fact is, low-end machine performace depend on cache hitting ratio widely.
-> improving memory utilization mean improving cache hitting ratio.
+
+It's not too late and that change makes sense.
+
+> Hugetlb pagetable sharing does scare me some nights: it's a very easily
+> forgotten corner of mm, worrying that we do something so different in
+> there; but IIRC this is actually the first bug related to it, much to
+> Ken's credit (and Dave McCracken's).
 > 
-> Plus, I already explained about desktop use case. multiple worst case scenario 
-> can happend on it easily.
+
+I had totally forgotten about it which is why it took me so long to identify
+it as the problem area. I don't remember there ever being a problem with
+this area either.
+
+> (I'm glad Kosaki-san noticed the svma before I acked your previous
+> version!  And I've still got to go back to your VM_MAYSHARE patch:
+> seems right, but still wondering about the remaining VM_SHAREDs -
+> will report back later.)
 > 
-> if big process consume memory rather than node size, zone-reclaim
-> decrease performance largely.
 
-It may improve performance as well.  I agree we can come up with
-theoretical cases that show both.  I am asking for documented cases where
-it does.  Your original post indicated an apache regression.  In that
-case apache was being used under server type loads.  If you have a machine
-with this condition, you should probably be considered the exception.
+Thanks.
 
-> zone reclaim decrease page-cache hitting ratio. some desktop don't have
-> much memory. cache missies does'nt only increase latency, but also
-> increase unnecessary I/O. desktop don't have rich I/O bandwidth rather than
-> server or hpc. it makes bad I/O affect.
-
-If low I/O performance should be turning it off, then shouldn't that
-case be coded into the default as opposed to changing the default to
-match your specific opinion?
-
-> However, your past explanation is really wrong and bogus.
-> I wrote
+> Feel free to add an
+> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> to your fixed version.
 > 
-> > If this imbalance is an x86_64 only problem, then we could do something
-> > simple like the following untested patch.  This leaves the default
-> > for everyone except x86_64.
-> 
-> and I wrote it isn't true. after that, you haven't provide addisional
-> explanation.
 
-I don't recall seeing your response.  Sorry, but this has been, and will
-remain, low priority for me.  If the default gets changed, we will detect
-the performance regression very early after we start testing this bad
-of a change on a low memory machine and then we will put a tweak into
-place at the next distro release to turn this off following boot.
+Thanks again Hugh.
 
-> Nobody ack CODE-ONLY-PATCH. _You_ have to explain _why_ you think 
-> your approach is better.
-
-Because it doesn't throw out a lot of history based upon your opinion of
-one server type test found under lab conditions on a poorly tuned machine.
-
-Robin
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
