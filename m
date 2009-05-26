@@ -1,60 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 871E46B0088
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 17:42:53 -0400 (EDT)
-Date: Tue, 26 May 2009 17:43:13 -0400
-From: Kyle McMartin <kyle@mcmartin.ca>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 63DB36B0055
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 18:55:58 -0400 (EDT)
+Date: Tue, 26 May 2009 23:55:50 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Subject: Re: [PATCH] drm: i915: ensure objects are allocated below 4GB on
-	PAE
-Message-ID: <20090526214313.GA16929@bombadil.infradead.org>
-References: <20090526162717.GC14808@bombadil.infradead.org> <1243365473.23657.32.camel@twins> <1243373730.8400.26.camel@gaiman.anholt.net> <1243374085.6600.25.camel@laptop>
+ PAE
+In-Reply-To: <20090526162717.GC14808@bombadil.infradead.org>
+Message-ID: <Pine.LNX.4.64.0905262343140.13452@sister.anvils>
+References: <20090526162717.GC14808@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1243374085.6600.25.camel@laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Eric Anholt <eric@anholt.net>, Kyle McMartin <kyle@mcmartin.ca>, airlied@redhat.com, dri-devel@lists.sf.net, linux-kernel@vger.kernel.org, jbarnes@virtuousgeek.org, stable@kernel.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, shaohua.li@intel.com
+To: Kyle McMartin <kyle@mcmartin.ca>
+Cc: airlied@redhat.com, dri-devel@lists.sf.net, linux-kernel@vger.kernel.org, jbarnes@virtuousgeek.org, eric@anholt.net, stable@kernel.org, linux-mm@kvack.org, shaohua.li@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 26, 2009 at 11:41:25PM +0200, Peter Zijlstra wrote:
-> On Tue, 2009-05-26 at 14:35 -0700, Eric Anholt wrote:
-> > On Tue, 2009-05-26 at 21:17 +0200, Peter Zijlstra wrote:
-> > > On Tue, 2009-05-26 at 12:27 -0400, Kyle McMartin wrote:
-> > > > From: Kyle McMartin <kyle@redhat.com>
-> > > > 
-> > > > Ensure we allocate GEM objects below 4GB on PAE machines, otherwise
-> > > > misery ensues. This patch is based on a patch found on dri-devel by
-> > > > Shaohua Li, but Keith P. expressed reticence that the changes unfairly
-> > > > penalized other hardware.
-> > > > 
-> > > > (The mm/shmem.c hunk is necessary to ensure the DMA32 flag isn't used
-> > > >  by the slab allocator via radix_tree_preload, which will hit a
-> > > >  WARN_ON.)
-> > > 
-> > > Why is this, is the gart not PAE friendly?
-> > > 
-> > > Seems to me its a grand way of promoting 64bit hard/soft-ware.
-> > 
-> > No, the GART's fine.  But the APIs required to make the AGP code
-> > PAE-friendly got deprecated, so the patches to fix the AGP code got
-> > NAKed, and Venkatesh  never sent out his patches to undeprecate the APIs
-> > and use them.
-> > 
-> > It's been like 6 months now, and it's absurd.  I'd like to see this
-> > patch go in so people's graphics can start working again and stop
-> > corrupting system memory.
+On Tue, 26 May 2009, Kyle McMartin wrote:
+> From: Kyle McMartin <kyle@redhat.com>
 > 
-> For .30 yes, for .31 we need to resolve that AGP issue, 6 months does
-> seem excessive to get something like that sorted.
+> Ensure we allocate GEM objects below 4GB on PAE machines, otherwise
+> misery ensues. This patch is based on a patch found on dri-devel by
+> Shaohua Li, but Keith P. expressed reticence that the changes unfairly
+> penalized other hardware.
 > 
+> (The mm/shmem.c hunk is necessary to ensure the DMA32 flag isn't used
+>  by the slab allocator via radix_tree_preload, which will hit a
+>  WARN_ON.)
+> 
+> Signed-off-by: Kyle McMartin <kyle@redhat.com>
 
-Yeah, sorry, I should have explained it in the description better, this
-is just a paper-over fix for the problem on >4GB 32-bit machines (which
-is why I CC'd stable@.)
+I'm confused: I thought GFP_DMA32 only applies on x86_64:
+my 32-bit PAE machine with (slightly!) > 4GB shows no ZONE_DMA32.
+Does this patch perhaps depend on another, to enable DMA32 on 32-bit
+PAE, or am I just in a muddle?
 
-Thanks,
-	Kyle
+Regarding the mm/shmem.c hunk:
+> -		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
+> +		error = radix_tree_preload(gfp & ~(__GFP_HIGHMEM|__GFP_DMA32));
+
+Yes, that would make sense.  I dislike it, but my dislike is no
+reason to hold you up: what it ought to say is
+		error = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
+and similarly the several other (gfp & ~__GFP_HIGHMEM)s to be found
+in nearby files: it's just an accident of history that nobody has
+hit this issue with __GFP_DMA or __GFP_DMA32 before.  I intended
+to change these months ago, my slowness is no reason to delay you.
+
+Hugh
+
+> ---
+> 
+> We're shipping a variant of this in Fedora 11 to fix a myriad of bugs on
+> PAE hardware.
+> 
+> cheers, Kyle
+> 
+> ---
+> diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+> index 4984aa8..ae52edc 100644
+> --- a/drivers/gpu/drm/drm_gem.c
+> +++ b/drivers/gpu/drm/drm_gem.c
+> @@ -142,6 +142,9 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
+>  		return NULL;
+>  	}
+>  
+> +	if (dev->gem_flags)
+> +		mapping_set_gfp_mask(obj->filp->f_mapping, dev->gem_flags);
+> +
+>  	kref_init(&obj->refcount);
+>  	kref_init(&obj->handlecount);
+>  	obj->size = size;
+> diff --git a/drivers/gpu/drm/i915/i915_dma.c b/drivers/gpu/drm/i915/i915_dma.c
+> index 53d5445..c89ae3d 100644
+> --- a/drivers/gpu/drm/i915/i915_dma.c
+> +++ b/drivers/gpu/drm/i915/i915_dma.c
+> @@ -1153,12 +1153,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
+>  	}
+>  
+>  #ifdef CONFIG_HIGHMEM64G
+> -	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
+> -	dev_priv->has_gem = 0;
+> -#else
+> +	/* avoid allocating buffers above 4GB on PAE */
+> +	dev->gem_flags = GFP_USER | GFP_DMA32;
+> +#endif
+> +
+>  	/* enable GEM by default */
+>  	dev_priv->has_gem = 1;
+> -#endif
+>  
+>  	dev->driver->get_vblank_counter = i915_get_vblank_counter;
+>  	if (IS_GM45(dev))
+> diff --git a/include/drm/drmP.h b/include/drm/drmP.h
+> index c8c4221..3744c1f 100644
+> --- a/include/drm/drmP.h
+> +++ b/include/drm/drmP.h
+> @@ -1019,6 +1019,7 @@ struct drm_device {
+>  	uint32_t gtt_total;
+>  	uint32_t invalidate_domains;    /* domains pending invalidation */
+>  	uint32_t flush_domains;         /* domains pending flush */
+> +	gfp_t gem_flags;		/* object allocation flags */
+>  	/*@} */
+>  
+>  };
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index b25f95c..e615887 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1241,7 +1241,7 @@ repeat:
+>  		 * Try to preload while we can wait, to not make a habit of
+>  		 * draining atomic reserves; but don't latch on to this cpu.
+>  		 */
+> -		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
+> +		error = radix_tree_preload(gfp & ~(__GFP_HIGHMEM|__GFP_DMA32));
+>  		if (error)
+>  			goto failed;
+>  		radix_tree_preload_end();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
