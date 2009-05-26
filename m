@@ -1,84 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 432F46B005A
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 19:26:01 -0400 (EDT)
-Date: Wed, 27 May 2009 00:26:20 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
-	errors in flags passed to the page allocator
-Message-ID: <20090526232620.GA6189@csn.ul.ie>
-References: <alpine.DEB.1.10.0905221438120.5515@qirst.com> <20090525113004.GD12160@csn.ul.ie> <alpine.DEB.1.10.0905261401100.5632@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0905261401100.5632@gentwo.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 60E5D6B005A
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 19:31:28 -0400 (EDT)
+Received: by bwz21 with SMTP id 21so5765277bwz.38
+        for <linux-mm@kvack.org>; Tue, 26 May 2009 16:31:56 -0700 (PDT)
+Date: Wed, 27 May 2009 08:31:31 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH][mmtom] clean up printk_once of get_cpu_vendor
+Message-Id: <20090527083131.7e2d161d.minchan.kim@barrios-desktop>
+In-Reply-To: <20090526134134.bb3e1e23.akpm@linux-foundation.org>
+References: <20090526135733.3c38f758.minchan.kim@barrios-desktop>
+	<20090526155155.6871.A69D9226@jp.fujitsu.com>
+	<20090526155943.aef3ba62.minchan.kim@barrios-desktop>
+	<20090526134134.bb3e1e23.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, kosaki.motohiro@jp.fujitsu.com, randy.dunlap@oracle.com, cl@linux-foundation.org, linux-mm@kvack.org, pavel@ucw.cz, dave@linux.vnet.ibm.com, davem@davemloft.net, linux@dominikbrodowski.net, mingo@elte.hu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 26, 2009 at 02:04:35PM -0400, Christoph Lameter wrote:
-> On Mon, 25 May 2009, Mel Gorman wrote:
-> 
-> > I expect that the machine would start running into reclaim issues with
-> > enough uptime because it'll not be using Highmem as it should. Similarly,
-> > the GFP_DMA32 may also be a problem as the new implementation is going
-> > ZONE_DMA when ZONE_NORMAL would have been ok in this case.
-> 
-> Right. The fallback for DMA32 is wrong. Should fall back to ZONE_NORMAL.
-> Not to DMA. And the config variable to check for highmem was wrong.
-> 
+On Tue, 26 May 2009 13:41:34 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-That fixed things right up on x86 at least and it looks good. I've queued
-up a few tests with the patch applied on x86, x86-64 and ppc64. Hopefully
-it'll go smoothly.
+> On Tue, 26 May 2009 15:59:43 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > On Tue, 26 May 2009 15:52:32 +0900 (JST)
+> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > 
+> > > > == CUT HERE ==
+> > > > 
+> > > > There are some places to be able to use printk_once instead of hard coding.
+> > > > 
+> > > > It will help code readability and maintenance.
+> > > > This patch doesn't change function's behavior.
+> > > > 
+> > > > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> > > > CC: Dominik Brodowski <linux@dominikbrodowski.net>
+> > > > CC: David S. Miller <davem@davemloft.net>
+> > > > CC: Ingo Molnar <mingo@elte.hu>
+> > > > ---
+> > > >  arch/x86/kernel/cpu/common.c  |    8 ++------
+> > > >  drivers/net/3c515.c           |    7 ++-----
+> > > >  drivers/pcmcia/pcmcia_ioctl.c |    9 +++------
+> > > >  3 files changed, 7 insertions(+), 17 deletions(-)
+> > > 
+> > > Please separete to three patches ;)
+> > 
+> > After I listen about things I missed, I will repost it at all once with each patch.
+> 
+> Yes, that would be better.  But for a trivial little patch like this I
+> expect we can just merge it and move on.  But please do split up these
+> multi-subsystem patches in future.
 
-For your patch + fix merged
+Thanks. Andrew. 
+I confiremd what you merged. 
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+I modifed get_cpu_vendor's printk-once by Pavel Machek's adivse.
+Please, merge with this based on my previous version.
 
-> 
-> Subject: Fix gfp zone patch
-> 
-> 1. If there is no DMA32 fall back to NORMAL instead of DMA
-> 
-> 2. Use the correct config variable for HIGHMEM
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> 
-> ---
->  include/linux/gfp.h |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/include/linux/gfp.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/gfp.h	2009-05-26 12:59:19.000000000 -0500
-> +++ linux-2.6/include/linux/gfp.h	2009-05-26 12:59:31.000000000 -0500
-> @@ -112,7 +112,7 @@ static inline int allocflags_to_migratet
->  		((gfp_flags & __GFP_RECLAIMABLE) != 0);
->  }
-> 
-> -#ifdef CONFIG_ZONE_HIGHMEM
-> +#ifdef CONFIG_HIGHMEM
->  #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
->  #else
->  #define OPT_ZONE_HIGHMEM ZONE_NORMAL
-> @@ -127,7 +127,7 @@ static inline int allocflags_to_migratet
->  #ifdef CONFIG_ZONE_DMA32
->  #define OPT_ZONE_DMA32 ZONE_DMA32
->  #else
-> -#define OPT_ZONE_DMA32 OPT_ZONE_DMA
-> +#define OPT_ZONE_DMA32 ZONE_NORMAL
->  #endif
-> 
->  /*
-> 
+== CUT HERE ==
+
+[PATCH] clean up printk_once of get_cpu_vendor
+
+It remove unnecessary variable and change two static variable
+with one.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: Pavel Machek <pavel@ucw.cz>
+
+---
+ arch/x86/kernel/cpu/common.c |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index dc0f694..c6feb68 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -479,7 +479,6 @@ out:
+ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
+ {
+ 	char *v = c->x86_vendor_id;
+-	static int printed;
+ 	int i;
+ 
+ 	for (i = 0; i < X86_VENDOR_NUM; i++) {
+@@ -497,8 +496,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
+ 	}
+ 
+ 	printk_once(KERN_ERR
+-		    "CPU: vendor_id '%s' unknown, using generic init.\n", v);
+-	printk_once(KERN_ERR "CPU: Your system may be unstable.\n");
++			"CPU: vendor_id '%s' unknown, using generic init.\n" \
++			"CPU: Your system may be unstable.\n", v);
+ 
+ 	c->x86_vendor = X86_VENDOR_UNKNOWN;
+ 	this_cpu = &default_cpu;
+-- 
+1.5.4.3
+
+
+
+
+
+
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
