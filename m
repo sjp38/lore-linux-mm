@@ -1,67 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F696B007E
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:22:27 -0400 (EDT)
-Date: Tue, 26 May 2009 15:29:14 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [0/16] POISON: Intro
-Message-ID: <20090526132914.GF846@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <4A1BE58A.9060708@hitachi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F11E6B0083
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:36:22 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e37.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4QDaFG3015274
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 07:36:15 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4QDaqgD207002
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 07:36:52 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4QDap22017241
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 07:36:52 -0600
+Date: Tue, 26 May 2009 21:30:50 +0800
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Fix build warning and avoid checking for mem != null
+	twice
+Message-ID: <20090526133050.GS4858@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <200905261844.33864.knikanth@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4A1BE58A.9060708@hitachi.com>
+In-Reply-To: <200905261844.33864.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 26, 2009 at 09:50:18PM +0900, Hidehiro Kawai wrote:
-> I believe people concerning high reliable system are expecting
-> this kind of functionality.
-> But I wonder why this patch set (including former MCE improvements
-> patches) has not been merged into any subsystem trees yet.
+* Nikanth Karthikesan <knikanth@suse.de> [2009-05-26 18:44:32]:
 
+> Fix build warning, "mem_cgroup_is_obsolete defined but not used" when
+> CONFIG_DEBUG_VM is not set. Also avoid checking for !mem twice.
+> 
+> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-> What is the problem?  Because of the deadlock bug and the ref counter
-
-I hadn't asked for a mm merge for the hwpoison version because
-it still needed some work. mce has been ready for some time for
-merge, although of course as we do more testing we still
-find occasional bugs that are getting fixed.
-
-There was some work recently on fixing problems found in the
-hwpoison code during further review (me with Fengguang Wu). 
-I'm hoping to do a repost with all the fixes soon
-and then it's a mm candidate and hopefully ready for merge really soon.
-
-Also there was a lot of work (mostly by Ying Huang) on the
-mce-test testsuite which is covering more and more code, 
-but of course could always need more work too.
-
-> problem?  Or are we waiting for 32bit unification to complete?
-
-The 32bit unification is complete, but the x86 maintainers
-haven't merged it yet. 
-
-> If so, I'd like to try to narrow down the problems or review
-> patches (although I'm afraid I'm not so skillful).
-
-Sure any review or additional testing is welcome.
-
-I wanted to do full reposts this week anyways, so you
-can start from there again.
-
-> BTW, I looked over this patch set, and I couldn't
-> find any problems except for one minor point.  I'll post
-> a comment about it later.  It is very late, but better than nothing.
-
-Great. Thanks. Can I add your Reviewed-by tags then?
-
--Andi
-
+I thought we fixed this, could you check the latest mmotm please!
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
