@@ -1,118 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0F26D6B004D
-	for <linux-mm@kvack.org>; Mon, 25 May 2009 23:14:22 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4Q3EYZE019530
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3886C6B005A
+	for <linux-mm@kvack.org>; Mon, 25 May 2009 23:15:33 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4Q3FjmA019986
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 26 May 2009 12:14:34 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 06F2245DE51
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:14:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CE6E045DD72
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:14:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BF4811DB803E
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:14:33 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 65C411DB8037
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:14:33 +0900 (JST)
-Date: Tue, 26 May 2009 12:12:59 +0900
+	Tue, 26 May 2009 12:15:46 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FDB345DE65
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:15:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F5E345DE64
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:15:45 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 56BEAE08002
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:15:45 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 089E3E08001
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:15:45 +0900 (JST)
+Date: Tue, 26 May 2009 12:14:12 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] memcg: fix swap account (26/May)[0/5]
-Message-Id: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 1/5] change swap cache interfaces
+Message-Id: <20090526121412.e61ae78c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-As Nishimura reported, there is a race at handling swap cache.
+In following patch, usage of swap cache will be recorded into swap_map.
+This patch is for necessary interface changes to do that.
 
-Typical cases are following (from Nishimura's mail)
+2 interfaces:
+  - swapcache_prepare()
+  - swapcache_free()
+is added for allocating/freeing refcnt from swap-cache to existing
+swap entries. But implementation itself is not changed under this patch.
+At adding swapcache_free(), memcg's hook code is moved under swapcache_free().
+This is better than using scattered hooks.
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/swap.h |    7 +++++++
+ mm/swap_state.c      |   11 +++++------
+ mm/swapfile.c        |   19 +++++++++++++++++++
+ mm/vmscan.c          |    3 +--
+ 4 files changed, 32 insertions(+), 8 deletions(-)
 
-== Type-1 ==
-  If some pages of processA has been swapped out, it calls free_swap_and_cache().
-  And if at the same time, processB is calling read_swap_cache_async() about
-  a swap entry *that is used by processA*, a race like below can happen.
-
-            processA                   |           processB
-  -------------------------------------+-------------------------------------
-    (free_swap_and_cache())            |  (read_swap_cache_async())
-                                       |    swap_duplicate()
-                                       |    __set_page_locked()
-                                       |    add_to_swap_cache()
-      swap_entry_free() == 0           |
-      find_get_page() -> found         |
-      try_lock_page() -> fail & return |
-                                       |    lru_cache_add_anon()
-                                       |      doesn't link this page to memcg's
-                                       |      LRU, because of !PageCgroupUsed.
-
-  This type of leak can be avoided by setting /proc/sys/vm/page-cluster to 0.
-
-
-== Type-2 ==
-    Assume processA is exiting and pte points to a page(!PageSwapCache).
-    And processB is trying reclaim the page.
-
-              processA                   |           processB
-    -------------------------------------+-------------------------------------
-      (page_remove_rmap())               |  (shrink_page_list())
-         mem_cgroup_uncharge_page()      |
-            ->uncharged because it's not |
-              PageSwapCache yet.         |
-              So, both mem/memsw.usage   |
-              are decremented.           |
-                                         |    add_to_swap() -> added to swap cache.
-
-    If this page goes thorough without being freed for some reason, this page
-    doesn't goes back to memcg's LRU because of !PageCgroupUsed.
-==
-
-This patch is a trial for fixing above problems by fixing memcg's swap account logic.
-But this requires some amount of changes in swap.
-
-Comaparing with my previous post (22/May)
-(http://marc.info/?l=linux-mm&m=124297915418698&w=2),
-I think this one is much easier to read...
-
-
-[1/5] change interface of swap_duplicate()/swap_free()
-    Adds an function swapcache_prepare() and swapcache_free().
-
-[2/5] add SWAP_HAS_CACHE flag to swap_map
-    Add SWAP_HAS_CACHE flag to swap_map array for knowing an information that
-    "there is an only swap cache and swap has no reference" 
-    without calling find_get_page().
-
-[3/5] Count the number of swap-cache-only swaps
-    After repeating swap-in/out, there are tons of cache-only swaps.
-   (via a mapped swapcache under vm_swap_full()==false)
-    This patch counts the number of entry and show it in debug information.
-   (for example, sysrq-m)
-
-[4/5] fix memcg's swap accounting.
-    change the memcg's swap accounting logic to see # of references to swap.
-
-[5/5] experimental garbage collection for cache-only swaps.
-    reclaim swap enty which is not used.
-
-patch [4/5] is for type-1
-patch [5/5] is for type-2 and sanity of swaps control...
-
-Thank you for all helps. Any comments are welcome.
-
-Thanks,
--Kame
-
-
-
+Index: new-trial-swapcount/include/linux/swap.h
+===================================================================
+--- new-trial-swapcount.orig/include/linux/swap.h
++++ new-trial-swapcount/include/linux/swap.h
+@@ -301,8 +301,10 @@ extern void si_swapinfo(struct sysinfo *
+ extern swp_entry_t get_swap_page(void);
+ extern swp_entry_t get_swap_page_of_type(int);
+ extern int swap_duplicate(swp_entry_t);
++extern int swapcache_prepare(swp_entry_t);
+ extern int valid_swaphandles(swp_entry_t, unsigned long *);
+ extern void swap_free(swp_entry_t);
++extern void swapcache_free(swp_entry_t, struct page *page);
+ extern int free_swap_and_cache(swp_entry_t);
+ extern int swap_type_of(dev_t, sector_t, struct block_device **);
+ extern unsigned int count_swap_pages(int, int);
+@@ -371,11 +373,16 @@ static inline void show_swap_cache_info(
+ 
+ #define free_swap_and_cache(swp)	is_migration_entry(swp)
+ #define swap_duplicate(swp)		is_migration_entry(swp)
++#define swapcache_prepare(swp)		is_migration_entry(swp)
+ 
+ static inline void swap_free(swp_entry_t swp)
+ {
+ }
+ 
++static inline void swapcache_free(swp_entry_t swp, struct page *page)
++{
++}
++
+ static inline struct page *swapin_readahead(swp_entry_t swp, gfp_t gfp_mask,
+ 			struct vm_area_struct *vma, unsigned long addr)
+ {
+Index: new-trial-swapcount/mm/swap_state.c
+===================================================================
+--- new-trial-swapcount.orig/mm/swap_state.c
++++ new-trial-swapcount/mm/swap_state.c
+@@ -162,11 +162,11 @@ int add_to_swap(struct page *page)
+ 			return 1;
+ 		case -EEXIST:
+ 			/* Raced with "speculative" read_swap_cache_async */
+-			swap_free(entry);
++			swapcache_free(entry, NULL);
+ 			continue;
+ 		default:
+ 			/* -ENOMEM radix-tree allocation failure */
+-			swap_free(entry);
++			swapcache_free(entry, NULL);
+ 			return 0;
+ 		}
+ 	}
+@@ -188,8 +188,7 @@ void delete_from_swap_cache(struct page 
+ 	__delete_from_swap_cache(page);
+ 	spin_unlock_irq(&swapper_space.tree_lock);
+ 
+-	mem_cgroup_uncharge_swapcache(page, entry);
+-	swap_free(entry);
++	swapcache_free(entry, page);
+ 	page_cache_release(page);
+ }
+ 
+@@ -293,7 +292,7 @@ struct page *read_swap_cache_async(swp_e
+ 		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+-		if (!swap_duplicate(entry))
++		if (!swapcache_prepare(entry))
+ 			break;
+ 
+ 		/*
+@@ -317,7 +316,7 @@ struct page *read_swap_cache_async(swp_e
+ 		}
+ 		ClearPageSwapBacked(new_page);
+ 		__clear_page_locked(new_page);
+-		swap_free(entry);
++		swapcache_free(entry, NULL);
+ 	} while (err != -ENOMEM);
+ 
+ 	if (new_page)
+Index: new-trial-swapcount/mm/swapfile.c
+===================================================================
+--- new-trial-swapcount.orig/mm/swapfile.c
++++ new-trial-swapcount/mm/swapfile.c
+@@ -510,6 +510,16 @@ void swap_free(swp_entry_t entry)
+ }
+ 
+ /*
++ * Called after dropping swapcache to decrease refcnt to swap entries.
++ */
++void swapcache_free(swp_entry_t entry, struct page *page)
++{
++	if (page)
++		mem_cgroup_uncharge_swapcache(page, entry);
++	return swap_free(entry);
++}
++
++/*
+  * How many references to page are currently swapped out?
+  */
+ static inline int page_swapcount(struct page *page)
+@@ -1979,6 +1989,15 @@ bad_file:
+ 	goto out;
+ }
+ 
++/*
++ * Called when allocating swap cache for exising swap entry,
++ */
++int swapcache_prepare(swp_entry_t entry)
++{
++	return swap_duplicate(entry);
++}
++
++
+ struct swap_info_struct *
+ get_swap_info_struct(unsigned type)
+ {
+Index: new-trial-swapcount/mm/vmscan.c
+===================================================================
+--- new-trial-swapcount.orig/mm/vmscan.c
++++ new-trial-swapcount/mm/vmscan.c
+@@ -477,8 +477,7 @@ static int __remove_mapping(struct addre
+ 		swp_entry_t swap = { .val = page_private(page) };
+ 		__delete_from_swap_cache(page);
+ 		spin_unlock_irq(&mapping->tree_lock);
+-		mem_cgroup_uncharge_swapcache(page, swap);
+-		swap_free(swap);
++		swapcache_free(swap, page);
+ 	} else {
+ 		__remove_from_page_cache(page);
+ 		spin_unlock_irq(&mapping->tree_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
