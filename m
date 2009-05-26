@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EFB036B005A
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:19:29 -0400 (EDT)
-Received: by fxm12 with SMTP id 12so5439494fxm.38
-        for <linux-mm@kvack.org>; Tue, 26 May 2009 06:19:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <200905261844.33864.knikanth@suse.de>
-References: <200905261844.33864.knikanth@suse.de>
-Date: Tue, 26 May 2009 16:19:46 +0300
-Message-ID: <84144f020905260619j301c130ev8906a15942397678@mail.gmail.com>
-Subject: Re: [PATCH] Fix build warning and avoid checking for mem != null
-	twice
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 22F696B007E
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:22:27 -0400 (EDT)
+Date: Tue, 26 May 2009 15:29:14 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [0/16] POISON: Intro
+Message-ID: <20090526132914.GF846@one.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org> <4A1BE58A.9060708@hitachi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A1BE58A.9060708@hitachi.com>
 Sender: owner-linux-mm@kvack.org
-To: Nikanth Karthikesan <knikanth@suse.de>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 26, 2009 at 4:14 PM, Nikanth Karthikesan <knikanth@suse.de> wro=
-te:
-> Fix build warning, "mem_cgroup_is_obsolete defined but not used" when
-> CONFIG_DEBUG_VM is not set. Also avoid checking for !mem twice.
->
-> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+On Tue, May 26, 2009 at 09:50:18PM +0900, Hidehiro Kawai wrote:
+> I believe people concerning high reliable system are expecting
+> this kind of functionality.
+> But I wonder why this patch set (including former MCE improvements
+> patches) has not been merged into any subsystem trees yet.
 
-I also sent a patch to fix this but yours is much nicer.
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> What is the problem?  Because of the deadlock bug and the ref counter
 
->
-> ---
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 01c2d8f..420fc61 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -314,14 +314,6 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm=
-(struct mm_struct *mm)
-> =A0 =A0 =A0 =A0return mem;
-> =A0}
->
-> -static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
-> -{
-> - =A0 =A0 =A0 if (!mem)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return true;
-> - =A0 =A0 =A0 return css_is_removed(&mem->css);
-> -}
-> -
-> -
-> =A0/*
-> =A0* Call callback function against all cgroup under hierarchy tree.
-> =A0*/
-> @@ -932,7 +924,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *=
-mm,
-> =A0 =A0 =A0 =A0if (unlikely(!mem))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return 0;
->
-> - =A0 =A0 =A0 VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
-> + =A0 =A0 =A0 VM_BUG_ON(!mem || css_is_removed(&mem->css));
->
-> =A0 =A0 =A0 =A0while (1) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0int ret;
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+I hadn't asked for a mm merge for the hwpoison version because
+it still needed some work. mce has been ready for some time for
+merge, although of course as we do more testing we still
+find occasional bugs that are getting fixed.
+
+There was some work recently on fixing problems found in the
+hwpoison code during further review (me with Fengguang Wu). 
+I'm hoping to do a repost with all the fixes soon
+and then it's a mm candidate and hopefully ready for merge really soon.
+
+Also there was a lot of work (mostly by Ying Huang) on the
+mce-test testsuite which is covering more and more code, 
+but of course could always need more work too.
+
+> problem?  Or are we waiting for 32bit unification to complete?
+
+The 32bit unification is complete, but the x86 maintainers
+haven't merged it yet. 
+
+> If so, I'd like to try to narrow down the problems or review
+> patches (although I'm afraid I'm not so skillful).
+
+Sure any review or additional testing is welcome.
+
+I wanted to do full reposts this week anyways, so you
+can start from there again.
+
+> BTW, I looked over this patch set, and I couldn't
+> find any problems except for one minor point.  I'll post
+> a comment about it later.  It is very late, but better than nothing.
+
+Great. Thanks. Can I add your Reviewed-by tags then?
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
