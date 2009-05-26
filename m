@@ -1,46 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E5B56B005C
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:12:02 -0400 (EDT)
-Date: Tue, 26 May 2009 15:18:38 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [7/16] POISON: Add basic support for poisoned pages in fault handler
-Message-ID: <20090526131838.GE846@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151004.2F5D21D0470@basil.firstfloor.org> <4A1BE6BE.90209@hitachi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	by kanga.kvack.org (Postfix) with ESMTP id BBA0F6B006A
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 09:12:57 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: [PATCH] Fix build warning and avoid checking for mem != null twice
+Date: Tue, 26 May 2009 18:44:32 +0530
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <4A1BE6BE.90209@hitachi.com>
+Message-Id: <200905261844.33864.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 26, 2009 at 09:55:26PM +0900, Hidehiro Kawai wrote:
-> > +			print_bad_pte(vma, address, pte, NULL);
-> > +			ret = VM_FAULT_OOM;
-> > +		}
-> >  		goto out;
-> >  	}
-> >  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-> > @@ -2451,6 +2459,9 @@
-> >  		/* Had to read the page from swap area: Major fault */
-> >  		ret = VM_FAULT_MAJOR;
-> >  		count_vm_event(PGMAJFAULT);
-> > +	} else if (PagePoison(page)) {
-> > +		ret = VM_FAULT_POISON;
-> 
-> delayacct_clear_flag(DELAYACCT_PF_SWAPIN) would be needed here.
+Fix build warning, "mem_cgroup_is_obsolete defined but not used" when
+CONFIG_DEBUG_VM is not set. Also avoid checking for !mem twice.
 
-Thanks for the review. Added.
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-Must have been a forward port error, I could swear that wasn't there
-yet when I wrote this originally :)
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 01c2d8f..420fc61 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -314,14 +314,6 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+ 	return mem;
+ }
+ 
+-static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
+-{
+-	if (!mem)
+-		return true;
+-	return css_is_removed(&mem->css);
+-}
+-
+-
+ /*
+  * Call callback function against all cgroup under hierarchy tree.
+  */
+@@ -932,7 +924,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 	if (unlikely(!mem))
+ 		return 0;
+ 
+-	VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
++	VM_BUG_ON(!mem || css_is_removed(&mem->css));
+ 
+ 	while (1) {
+ 		int ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
