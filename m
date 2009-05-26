@@ -1,43 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 40DDD6B005A
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 16:54:32 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0CCF482C474
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 17:09:23 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id TKww4hblOmHu for <linux-mm@kvack.org>;
-	Tue, 26 May 2009 17:09:22 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 3A3D982C4CA
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 17:09:11 -0400 (EDT)
-Date: Tue, 26 May 2009 16:54:58 -0400 (EDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BE21A6B005C
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 16:55:10 -0400 (EDT)
+Date: Tue, 26 May 2009 13:55:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] Warn if we run out of swap space
-In-Reply-To: <20090526131540.70fd410a.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.1.10.0905261653160.23631@gentwo.org>
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <20090524144056.0849.A69D9226@jp.fujitsu.com> <4A1A057A.3080203@oracle.com> <20090526032934.GC9188@linux-sh.org> <alpine.DEB.1.10.0905261022170.7242@gentwo.org>
- <20090526131540.70fd410a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20090526135527.750e7df2.akpm@linux-foundation.org>
+In-Reply-To: <4A1C54D9.4030702@oracle.com>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>
+	<20090524144056.0849.A69D9226@jp.fujitsu.com>
+	<4A1A057A.3080203@oracle.com>
+	<20090526032934.GC9188@linux-sh.org>
+	<alpine.DEB.1.10.0905261022170.7242@gentwo.org>
+	<20090526131540.70fd410a.akpm@linux-foundation.org>
+	<4A1C54D9.4030702@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lethal@linux-sh.org, randy.dunlap@oracle.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, pavel@ucw.cz, dave@linux.vnet.ibm.com
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: cl@linux.com, lethal@linux-sh.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, pavel@ucw.cz, dave@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 May 2009, Andrew Morton wrote:
+On Tue, 26 May 2009 13:45:13 -0700
+Randy Dunlap <randy.dunlap@oracle.com> wrote:
 
-> I still worry that there may be usage patterns which will result in
-> this message coming out many times.
+> Andrew Morton wrote:
+> > On Tue, 26 May 2009 10:23:36 -0400 (EDT)
+> > Christoph Lameter <cl@linux.com> wrote:
+> > 
+> >> @@ -410,6 +412,11 @@ swp_entry_t get_swap_page(void)
+> >>  	}
+> >>
+> >>  	nr_swap_pages++;
+> >> +	if (!out_of_swap_message_printed) {
+> >> +		out_of_swap_message_printed = 1;
+> >> +		printk(KERN_WARNING "All of swap is in use. Some pages "
+> >> +			"cannot be swapped out.\n");
+> >> +	}
+> >>  noswap:
+> >>  	spin_unlock(&swap_lock);
+> >>  	return (swp_entry_t) {0};
+> >> Index: linux-2.6/mm/vmscan.c
+> >> ===================================================================
+> >> --- linux-2.6.orig/mm/vmscan.c	2009-05-26 09:06:03.000000000 -0500
+> >> +++ linux-2.6/mm/vmscan.c	2009-05-26 09:20:30.000000000 -0500
+> >> @@ -1945,6 +1945,15 @@ out:
+> >>  		goto loop_again;
+> >>  	}
+> >>
+> >> +	/*
+> >> +	 * If we had an out of swap condition but things have improved then
+> >> +	 * reset the flag so that we print the message again when we run
+> >> +	 * out of swap again.
+> >> +	 */
+> >> +#ifdef CONFIG_SWAP
+> >> +	if (out_of_swap_message_printed && !vm_swap_full())
+> >> +		out_of_swap_message_printed = 0;
+> >> +#endif
+> >>  	return sc.nr_reclaimed;
+> >>  }
+> > 
+> > I still worry that there may be usage patterns which will result in
+> > this message coming out many times.
+> 
+> and using printk_ratelimit() or printk_timed_ratelimit() would be OK or not?
 
-Note that vm_swa_full is defined the following way
+Well...  it would help.  We'd then get the same thing in the logs
+thousands of times rather than hundreds of thousands of times.
 
-#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
-This means that vm_swap_full is true when more than 50% of swap are in
-use. The printed flag will therefore only be cleared if swap use falls to
-less than half.
+But what's wrong with printing the thing just once, and not printing it
+again until after someone ran swapon or swapoff?  I think that matches up
+with the operator's actions pretty closely?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
