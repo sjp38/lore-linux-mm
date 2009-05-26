@@ -1,75 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E90AE6B004F
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 10:30:12 -0400 (EDT)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: Re: [PATCH] Fix build warning and avoid checking for mem != null twice
-Date: Tue, 26 May 2009 20:02:00 +0530
-References: <200905261844.33864.knikanth@suse.de> <20090526133050.GS4858@balbir.in.ibm.com>
-In-Reply-To: <20090526133050.GS4858@balbir.in.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C14AE6B0055
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 12:27:10 -0400 (EDT)
+Date: Tue, 26 May 2009 12:27:17 -0400
+From: Kyle McMartin <kyle@mcmartin.ca>
+Subject: [PATCH] drm: i915: ensure objects are allocated below 4GB on PAE
+Message-ID: <20090526162717.GC14808@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200905262002.00708.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Pavel Emelyanov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: airlied@redhat.com
+Cc: dri-devel@lists.sf.net, linux-kernel@vger.kernel.org, jbarnes@virtuousgeek.org, eric@anholt.net, stable@kernel.org, hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, shaohua.li@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 26 May 2009 19:00:50 Balbir Singh wrote:
-> * Nikanth Karthikesan <knikanth@suse.de> [2009-05-26 18:44:32]:
-> > Fix build warning, "mem_cgroup_is_obsolete defined but not used" when
-> > CONFIG_DEBUG_VM is not set. Also avoid checking for !mem twice.
-> >
-> > Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
->
-> I thought we fixed this, could you check the latest mmotm please!
+From: Kyle McMartin <kyle@redhat.com>
 
-I am unable to find this in mmotm. Also the !mem check can be avoided even in
-the VM_BUG_ON as we check for it just before that. If it is not fixed already,
-please take this else ignore.
+Ensure we allocate GEM objects below 4GB on PAE machines, otherwise
+misery ensues. This patch is based on a patch found on dri-devel by
+Shaohua Li, but Keith P. expressed reticence that the changes unfairly
+penalized other hardware.
 
-Thanks
-Nikanth
+(The mm/shmem.c hunk is necessary to ensure the DMA32 flag isn't used
+ by the slab allocator via radix_tree_preload, which will hit a
+ WARN_ON.)
 
-Fix build warning, "mem_cgroup_is_obsolete defined but not used" when
-CONFIG_DEBUG_VM is not set. Also avoid checking for !mem again and again.
-
-Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
+Signed-off-by: Kyle McMartin <kyle@redhat.com>
 ---
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 01c2d8f..d253846 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -314,14 +314,6 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
- 	return mem;
- }
+We're shipping a variant of this in Fedora 11 to fix a myriad of bugs on
+PAE hardware.
+
+cheers, Kyle
+
+---
+diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+index 4984aa8..ae52edc 100644
+--- a/drivers/gpu/drm/drm_gem.c
++++ b/drivers/gpu/drm/drm_gem.c
+@@ -142,6 +142,9 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
+ 		return NULL;
+ 	}
  
--static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
--{
--	if (!mem)
--		return true;
--	return css_is_removed(&mem->css);
--}
--
--
- /*
-  * Call callback function against all cgroup under hierarchy tree.
-  */
-@@ -932,7 +924,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	if (unlikely(!mem))
- 		return 0;
++	if (dev->gem_flags)
++		mapping_set_gfp_mask(obj->filp->f_mapping, dev->gem_flags);
++
+ 	kref_init(&obj->refcount);
+ 	kref_init(&obj->handlecount);
+ 	obj->size = size;
+diff --git a/drivers/gpu/drm/i915/i915_dma.c b/drivers/gpu/drm/i915/i915_dma.c
+index 53d5445..c89ae3d 100644
+--- a/drivers/gpu/drm/i915/i915_dma.c
++++ b/drivers/gpu/drm/i915/i915_dma.c
+@@ -1153,12 +1153,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
+ 	}
  
--	VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
-+	VM_BUG_ON(css_is_removed(&mem->css));
+ #ifdef CONFIG_HIGHMEM64G
+-	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
+-	dev_priv->has_gem = 0;
+-#else
++	/* avoid allocating buffers above 4GB on PAE */
++	dev->gem_flags = GFP_USER | GFP_DMA32;
++#endif
++
+ 	/* enable GEM by default */
+ 	dev_priv->has_gem = 1;
+-#endif
  
- 	while (1) {
- 		int ret;
+ 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
+ 	if (IS_GM45(dev))
+diff --git a/include/drm/drmP.h b/include/drm/drmP.h
+index c8c4221..3744c1f 100644
+--- a/include/drm/drmP.h
++++ b/include/drm/drmP.h
+@@ -1019,6 +1019,7 @@ struct drm_device {
+ 	uint32_t gtt_total;
+ 	uint32_t invalidate_domains;    /* domains pending invalidation */
+ 	uint32_t flush_domains;         /* domains pending flush */
++	gfp_t gem_flags;		/* object allocation flags */
+ 	/*@} */
+ 
+ };
+diff --git a/mm/shmem.c b/mm/shmem.c
+index b25f95c..e615887 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1241,7 +1241,7 @@ repeat:
+ 		 * Try to preload while we can wait, to not make a habit of
+ 		 * draining atomic reserves; but don't latch on to this cpu.
+ 		 */
+-		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
++		error = radix_tree_preload(gfp & ~(__GFP_HIGHMEM|__GFP_DMA32));
+ 		if (error)
+ 			goto failed;
+ 		radix_tree_preload_end();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
