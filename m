@@ -1,122 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 63DB36B0055
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 18:55:58 -0400 (EDT)
-Date: Tue, 26 May 2009 23:55:50 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] drm: i915: ensure objects are allocated below 4GB on
- PAE
-In-Reply-To: <20090526162717.GC14808@bombadil.infradead.org>
-Message-ID: <Pine.LNX.4.64.0905262343140.13452@sister.anvils>
-References: <20090526162717.GC14808@bombadil.infradead.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 432F46B005A
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 19:26:01 -0400 (EDT)
+Date: Wed, 27 May 2009 00:26:20 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
+	errors in flags passed to the page allocator
+Message-ID: <20090526232620.GA6189@csn.ul.ie>
+References: <alpine.DEB.1.10.0905221438120.5515@qirst.com> <20090525113004.GD12160@csn.ul.ie> <alpine.DEB.1.10.0905261401100.5632@gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0905261401100.5632@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: Kyle McMartin <kyle@mcmartin.ca>
-Cc: airlied@redhat.com, dri-devel@lists.sf.net, linux-kernel@vger.kernel.org, jbarnes@virtuousgeek.org, eric@anholt.net, stable@kernel.org, linux-mm@kvack.org, shaohua.li@intel.com
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 May 2009, Kyle McMartin wrote:
-> From: Kyle McMartin <kyle@redhat.com>
+On Tue, May 26, 2009 at 02:04:35PM -0400, Christoph Lameter wrote:
+> On Mon, 25 May 2009, Mel Gorman wrote:
 > 
-> Ensure we allocate GEM objects below 4GB on PAE machines, otherwise
-> misery ensues. This patch is based on a patch found on dri-devel by
-> Shaohua Li, but Keith P. expressed reticence that the changes unfairly
-> penalized other hardware.
+> > I expect that the machine would start running into reclaim issues with
+> > enough uptime because it'll not be using Highmem as it should. Similarly,
+> > the GFP_DMA32 may also be a problem as the new implementation is going
+> > ZONE_DMA when ZONE_NORMAL would have been ok in this case.
 > 
-> (The mm/shmem.c hunk is necessary to ensure the DMA32 flag isn't used
->  by the slab allocator via radix_tree_preload, which will hit a
->  WARN_ON.)
+> Right. The fallback for DMA32 is wrong. Should fall back to ZONE_NORMAL.
+> Not to DMA. And the config variable to check for highmem was wrong.
 > 
-> Signed-off-by: Kyle McMartin <kyle@redhat.com>
 
-I'm confused: I thought GFP_DMA32 only applies on x86_64:
-my 32-bit PAE machine with (slightly!) > 4GB shows no ZONE_DMA32.
-Does this patch perhaps depend on another, to enable DMA32 on 32-bit
-PAE, or am I just in a muddle?
+That fixed things right up on x86 at least and it looks good. I've queued
+up a few tests with the patch applied on x86, x86-64 and ppc64. Hopefully
+it'll go smoothly.
 
-Regarding the mm/shmem.c hunk:
-> -		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
-> +		error = radix_tree_preload(gfp & ~(__GFP_HIGHMEM|__GFP_DMA32));
+For your patch + fix merged
 
-Yes, that would make sense.  I dislike it, but my dislike is no
-reason to hold you up: what it ought to say is
-		error = radix_tree_preload(gfp & GFP_RECLAIM_MASK);
-and similarly the several other (gfp & ~__GFP_HIGHMEM)s to be found
-in nearby files: it's just an accident of history that nobody has
-hit this issue with __GFP_DMA or __GFP_DMA32 before.  I intended
-to change these months ago, my slowness is no reason to delay you.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-Hugh
-
-> ---
 > 
-> We're shipping a variant of this in Fedora 11 to fix a myriad of bugs on
-> PAE hardware.
+> Subject: Fix gfp zone patch
 > 
-> cheers, Kyle
+> 1. If there is no DMA32 fall back to NORMAL instead of DMA
+> 
+> 2. Use the correct config variable for HIGHMEM
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
 > 
 > ---
-> diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
-> index 4984aa8..ae52edc 100644
-> --- a/drivers/gpu/drm/drm_gem.c
-> +++ b/drivers/gpu/drm/drm_gem.c
-> @@ -142,6 +142,9 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
->  		return NULL;
->  	}
->  
-> +	if (dev->gem_flags)
-> +		mapping_set_gfp_mask(obj->filp->f_mapping, dev->gem_flags);
-> +
->  	kref_init(&obj->refcount);
->  	kref_init(&obj->handlecount);
->  	obj->size = size;
-> diff --git a/drivers/gpu/drm/i915/i915_dma.c b/drivers/gpu/drm/i915/i915_dma.c
-> index 53d5445..c89ae3d 100644
-> --- a/drivers/gpu/drm/i915/i915_dma.c
-> +++ b/drivers/gpu/drm/i915/i915_dma.c
-> @@ -1153,12 +1153,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
->  	}
->  
->  #ifdef CONFIG_HIGHMEM64G
-> -	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
-> -	dev_priv->has_gem = 0;
-> -#else
-> +	/* avoid allocating buffers above 4GB on PAE */
-> +	dev->gem_flags = GFP_USER | GFP_DMA32;
-> +#endif
-> +
->  	/* enable GEM by default */
->  	dev_priv->has_gem = 1;
-> -#endif
->  
->  	dev->driver->get_vblank_counter = i915_get_vblank_counter;
->  	if (IS_GM45(dev))
-> diff --git a/include/drm/drmP.h b/include/drm/drmP.h
-> index c8c4221..3744c1f 100644
-> --- a/include/drm/drmP.h
-> +++ b/include/drm/drmP.h
-> @@ -1019,6 +1019,7 @@ struct drm_device {
->  	uint32_t gtt_total;
->  	uint32_t invalidate_domains;    /* domains pending invalidation */
->  	uint32_t flush_domains;         /* domains pending flush */
-> +	gfp_t gem_flags;		/* object allocation flags */
->  	/*@} */
->  
->  };
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index b25f95c..e615887 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1241,7 +1241,7 @@ repeat:
->  		 * Try to preload while we can wait, to not make a habit of
->  		 * draining atomic reserves; but don't latch on to this cpu.
->  		 */
-> -		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
-> +		error = radix_tree_preload(gfp & ~(__GFP_HIGHMEM|__GFP_DMA32));
->  		if (error)
->  			goto failed;
->  		radix_tree_preload_end();
+>  include/linux/gfp.h |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Index: linux-2.6/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/gfp.h	2009-05-26 12:59:19.000000000 -0500
+> +++ linux-2.6/include/linux/gfp.h	2009-05-26 12:59:31.000000000 -0500
+> @@ -112,7 +112,7 @@ static inline int allocflags_to_migratet
+>  		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+>  }
+> 
+> -#ifdef CONFIG_ZONE_HIGHMEM
+> +#ifdef CONFIG_HIGHMEM
+>  #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
+>  #else
+>  #define OPT_ZONE_HIGHMEM ZONE_NORMAL
+> @@ -127,7 +127,7 @@ static inline int allocflags_to_migratet
+>  #ifdef CONFIG_ZONE_DMA32
+>  #define OPT_ZONE_DMA32 ZONE_DMA32
+>  #else
+> -#define OPT_ZONE_DMA32 OPT_ZONE_DMA
+> +#define OPT_ZONE_DMA32 ZONE_NORMAL
+>  #endif
+> 
+>  /*
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
