@@ -1,142 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 32E816B0055
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 04:06:17 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4R86JgF005927
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 27 May 2009 17:06:20 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC07045DE5D
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 17:06:19 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CF3145DE55
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 17:06:19 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 729C3E1800A
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 17:06:19 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 19577E18007
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 17:06:19 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v3] zone_reclaim is always 0 by default
-In-Reply-To: <20090525114135.GD29447@sgi.com>
-References: <20090524214554.084F.A69D9226@jp.fujitsu.com> <20090525114135.GD29447@sgi.com>
-Message-Id: <20090527164549.68B4.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AB776B004F
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 05:48:18 -0400 (EDT)
+Date: Wed, 27 May 2009 10:48:58 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Use integer fields lookup for gfp_zone and check for
+	errors in flags passed to the page allocator
+Message-ID: <20090527094857.GA633@csn.ul.ie>
+References: <alpine.DEB.1.10.0905221438120.5515@qirst.com> <20090525113004.GD12160@csn.ul.ie> <alpine.DEB.1.10.0905261401100.5632@gentwo.org> <20090526232620.GA6189@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 27 May 2009 17:06:18 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090526232620.GA6189@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Robin Holt <holt@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, npiggin@suse.de, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Sun, May 24, 2009 at 10:44:29PM +0900, KOSAKI Motohiro wrote:
-> ...
-> > > Your root cause analysis is suspect.  You found a knob to turn which
-> > > suddenly improved performance for one specific un-tuned server workload.
-> ...
-> > The fact is, workload dependency charactetistics of zone reclaim is
-> > widely known from very ago.
-> > Even Documentaion/sysctl/vm.txt said, 
+On Wed, May 27, 2009 at 12:26:20AM +0100, Mel Gorman wrote:
+> On Tue, May 26, 2009 at 02:04:35PM -0400, Christoph Lameter wrote:
+> > On Mon, 25 May 2009, Mel Gorman wrote:
 > > 
-> > > It may be beneficial to switch off zone reclaim if the system is
-> > > used for a file server and all of memory should be used for caching files
-> > > from disk. In that case the caching effect is more important than
-> > > data locality.
+> > > I expect that the machine would start running into reclaim issues with
+> > > enough uptime because it'll not be using Highmem as it should. Similarly,
+> > > the GFP_DMA32 may also be a problem as the new implementation is going
+> > > ZONE_DMA when ZONE_NORMAL would have been ok in this case.
 > > 
-> > Nobody except you oppose this.
-> 
-> I don't disagree with that statement.  I agree this is a workload specific
-> tuneable that for the case where you want to use the system for nothing
-> other than file serving, you need to turn it off.  It has been this way
-> for ages.  I am saying let's not change that default behavior.
-> 
-> > > How did you determine better by default?  I think we already established
-> > > that apache is a server workload and not a desktop workload.  Earlier
-> > > you were arguing that we need this turned off to improve the desktop
-> > > environment.  You have not established this improves desktop performance.
-> > > Actually, you have not established it improves apache performance or
-> > > server performance.  You have documented it improves memory utilization,
-> > > but that is not always the same as faster.
+> > Right. The fallback for DMA32 is wrong. Should fall back to ZONE_NORMAL.
+> > Not to DMA. And the config variable to check for highmem was wrong.
 > > 
-> > The fact is, low-end machine performace depend on cache hitting ratio widely.
-> > improving memory utilization mean improving cache hitting ratio.
+> 
+> That fixed things right up on x86 at least and it looks good. I've queued
+> up a few tests with the patch applied on x86, x86-64 and ppc64. Hopefully
+> it'll go smoothly.
+> 
+
+It didn't go perfectly smoothly but I have some results. First off the new
+gfp_zone() is now returning the same results for the old gfp_zone() for the
+common flag combinations on ppc64, x86 and x86-64. That is good.
+
+On x86-64 (Phenom II X4)
+	netperf is showing +/- 1.8% on UDP and TCP tests, consider level
+	sysbench is showing +/- 1% on postgres, mostly level
+	kernbench is showing +1.7% on system time
+	kernbench is showing 0.25% on elapsed time
+
+On ppc64 (ppc970)
+	netperf failed to run overnight, my own fault
+	sysbench is showing, +1.95%
+	kernbench is showing +0.21% on system time
+	kernbench is showing -0.01% on elapsed time
+
+The x86 machine was running other tests and didn't catch up in time.
+
+The performance results are mostly good. kernbench is the most allocator
+intensive by far and it showed reasonable gains on the system time for both
+machines where you'd expect an allocator improvement to have the most impact.
+Other results were either flat or showed small gains.
+
+> For your patch + fix merged
+> 
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> 
+
+I'm happier with this now. After the tests and another read through the
+patch, nothing else jumps out at me.
+
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+
+Good work.
+
 > > 
-> > Plus, I already explained about desktop use case. multiple worst case scenario 
-> > can happend on it easily.
+> > Subject: Fix gfp zone patch
 > > 
-> > if big process consume memory rather than node size, zone-reclaim
-> > decrease performance largely.
-> 
-> It may improve performance as well.  I agree we can come up with
-> theoretical cases that show both.  I am asking for documented cases where
-> it does.  Your original post indicated an apache regression.  In that
-> case apache was being used under server type loads.  If you have a machine
-> with this condition, you should probably be considered the exception.
-> 
-> > zone reclaim decrease page-cache hitting ratio. some desktop don't have
-> > much memory. cache missies does'nt only increase latency, but also
-> > increase unnecessary I/O. desktop don't have rich I/O bandwidth rather than
-> > server or hpc. it makes bad I/O affect.
-> 
-> If low I/O performance should be turning it off, then shouldn't that
-> case be coded into the default as opposed to changing the default to
-> match your specific opinion?
-> 
-> > However, your past explanation is really wrong and bogus.
-> > I wrote
+> > 1. If there is no DMA32 fall back to NORMAL instead of DMA
 > > 
-> > > If this imbalance is an x86_64 only problem, then we could do something
-> > > simple like the following untested patch.  This leaves the default
-> > > for everyone except x86_64.
+> > 2. Use the correct config variable for HIGHMEM
 > > 
-> > and I wrote it isn't true. after that, you haven't provide addisional
-> > explanation.
+> > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> > 
+> > 
+> > ---
+> >  include/linux/gfp.h |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > Index: linux-2.6/include/linux/gfp.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/gfp.h	2009-05-26 12:59:19.000000000 -0500
+> > +++ linux-2.6/include/linux/gfp.h	2009-05-26 12:59:31.000000000 -0500
+> > @@ -112,7 +112,7 @@ static inline int allocflags_to_migratet
+> >  		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+> >  }
+> > 
+> > -#ifdef CONFIG_ZONE_HIGHMEM
+> > +#ifdef CONFIG_HIGHMEM
+> >  #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
+> >  #else
+> >  #define OPT_ZONE_HIGHMEM ZONE_NORMAL
+> > @@ -127,7 +127,7 @@ static inline int allocflags_to_migratet
+> >  #ifdef CONFIG_ZONE_DMA32
+> >  #define OPT_ZONE_DMA32 ZONE_DMA32
+> >  #else
+> > -#define OPT_ZONE_DMA32 OPT_ZONE_DMA
+> > +#define OPT_ZONE_DMA32 ZONE_NORMAL
+> >  #endif
+> > 
+> >  /*
+> > 
 > 
-> I don't recall seeing your response.  Sorry, but this has been, and will
-> remain, low priority for me.  If the default gets changed, we will detect
-> the performance regression very early after we start testing this bad
-> of a change on a low memory machine and then we will put a tweak into
-> place at the next distro release to turn this off following boot.
-> 
-> > Nobody ack CODE-ONLY-PATCH. _You_ have to explain _why_ you think 
-> > your approach is better.
-> 
-> Because it doesn't throw out a lot of history based upon your opinion of
-> one server type test found under lab conditions on a poorly tuned machine.
 
-Robin, sorry, if this is all of your intention, I can't agree it. firstly,
-poorly tuned machine is not wrong at all. valume zone server (low-end sever)
-and deskrop people never change kernel parameter. default parameter shold
-be optimal. because they are majority user. Yanmin did test proper condition.
-secondly, a lot history is not good enough reason in this case. in past days,
-larger distance remote node machine is verrrrrrrrrrry few. it was very expensive.
-but Core i7 is cheap. There are Ci7 user much x1000 times than high-end
-hpc machine user.
-
-your last patch is one of considerable thing. but it has one weakness.
-in general "ifdef x86" is wrong idea. almost minor architecture don't
-have sufficient tester. the difference against x86 often makes bug.
-Then, unnecessary difference is hated by much people.
-
-So, I think we have two selectable choice.
-
-1. remove zone_reclaim default setting completely (this patch)
-2. Only PowerPC and IA64 have default zone_reclaim_mode settings,
-   other architecture always use zone_reclaim_mode=0.
-
-it mean larger distance remote node machine are only in ia64 and power
-as a matter of practice. (nobody sale high-end linux on parisc nor sparc)
-
-Changing "as a matter of practice" to "formally" is not caused your worried
-risk.
-
-
-
-Here is your turn. comments?
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
