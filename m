@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 644B66B00B4
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A4A726B00AD
 	for <linux-mm@kvack.org>; Wed, 27 May 2009 13:43:17 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v16][PATCH 18/43] c/r: restore anonymous- and file-mapped- shared memory
-Date: Wed, 27 May 2009 13:32:44 -0400
-Message-Id: <1243445589-32388-19-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v16][PATCH 21/43] c/r: restart-blocks
+Date: Wed, 27 May 2009 13:32:47 -0400
+Message-Id: <1243445589-32388-22-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -13,324 +13,512 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-The bulk of the work is in ckpt_read_vma(), which has been refactored:
-the part that create the suitable 'struct file *' for the mapping is
-now larger and moved to a separate function. What's left is to read
-the VMA description, get the file pointer, create the mapping, and
-proceed to read the contents in.
+(Paraphrasing what's said this message:
+http://lists.openwall.net/linux-kernel/2007/12/05/64)
 
-Both anonymous shared VMAs that have been read earlier (as indicated
-by a look up to objhash) and file-mapped shared VMAs are skipped.
-Anonymous shared VMAs seen for the first time have their contents
-read in directly to the backing inode, as indexed by the page numbers
-(as opposed to virtual addresses).
+Restart blocks are callbacks used cause a system call to be restarted
+with the arguments specified in the system call restart block. It is
+useful for system call that are not idempotent, i.e. the argument(s)
+might be a relative timeout, where some adjustments are required when
+restarting the system call. It relies on the system call itself to set
+up its restart point and the argument save area.  They are rare: an
+actual signal would turn that it an EINTR. The only case that should
+ever trigger this is some kernel action that interrupts the system
+call, but does not actually result in any user-visible state changes -
+like freeze and thaw.
 
-Changelog[v14]:
-  - Introduce patch
+So restart blocks are about time remaining for the system call to
+sleep/wait. Generally in c/r, there are two possible time models that
+we can follow: absolute, relative. Here, I chose to save the relative
+timeout, measured from the beginning of the checkpoint. The time when
+the checkpoint (and restart) begin is also saved. This information is
+sufficient to restart in either model (absolute or negative).
+
+Which model to use should eventually be a per application choice (and
+possible configurable via cradvise() or some sort). For now, we adopt
+the relative model, namely, at restart the timeout is set relative to
+the beginning of the restart.
+
+To checkpoint, we check if a task has a valid restart block, and if so
+we save the *remaining* time that is has to wait/sleep, and the type
+of the restart block.
+
+To restart, we fill in the data required at the proper place in the
+thread information. If the system call return an error (which is
+possibly an -ERESTARTSYS eg), we not only use that error as our own
+return value, but also arrange for the task to execute the signal
+handler (by faking a signal). The handler, in turn, already has the
+code to handle these restart request gracefully.
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- checkpoint/memory.c        |   66 ++++++++++++++++++++++++++++++++-----------
- include/linux/checkpoint.h |    6 ++++
- include/linux/mm.h         |    2 +
- mm/filemap.c               |   13 ++++++++-
- mm/shmem.c                 |   49 ++++++++++++++++++++++++++++++++
- 5 files changed, 118 insertions(+), 18 deletions(-)
+ arch/x86/include/asm/checkpoint_hdr.h |    1 -
+ arch/x86/mm/checkpoint.c              |   10 +-
+ checkpoint/checkpoint.c               |    1 +
+ checkpoint/process.c                  |  226 +++++++++++++++++++++++++++++++++
+ checkpoint/restart.c                  |   35 +++++-
+ checkpoint/sys.c                      |    1 +
+ include/linux/checkpoint.h            |    4 +
+ include/linux/checkpoint_hdr.h        |   22 +++
+ include/linux/checkpoint_types.h      |    3 +
+ 9 files changed, 293 insertions(+), 10 deletions(-)
 
-diff --git a/checkpoint/memory.c b/checkpoint/memory.c
-index 2b73abc..c163b76 100644
---- a/checkpoint/memory.c
-+++ b/checkpoint/memory.c
-@@ -785,13 +785,36 @@ static int restore_read_page(struct ckpt_ctx *ctx, struct page *page, void *p)
- 	return 0;
+diff --git a/arch/x86/include/asm/checkpoint_hdr.h b/arch/x86/include/asm/checkpoint_hdr.h
+index cf90170..ee23df9 100644
+--- a/arch/x86/include/asm/checkpoint_hdr.h
++++ b/arch/x86/include/asm/checkpoint_hdr.h
+@@ -57,7 +57,6 @@ struct ckpt_hdr_header_arch {
+ 
+ struct ckpt_hdr_thread {
+ 	struct ckpt_hdr h;
+-	/* FIXME: restart blocks */
+ 	__u16 gdt_entry_tls_entries;
+ 	__u16 sizeof_tls_array;
+ 	__u16 ntls;	/* number of TLS entries to follow */
+diff --git a/arch/x86/mm/checkpoint.c b/arch/x86/mm/checkpoint.c
+index c781416..7cd7494 100644
+--- a/arch/x86/mm/checkpoint.c
++++ b/arch/x86/mm/checkpoint.c
+@@ -63,13 +63,9 @@ int checkpoint_thread(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	 * FIXME: the TLS descriptors in the GDT should be called out and
+ 	 * not tied to the in-kernel representation.
+ 	 */
+-	ret = ckpt_write_obj_type(ctx, thread->tls_array,
+-				  sizeof(thread->tls_array),
+-				  CKPT_HDR_THREAD_TLS);
+-
+-	/* IGNORE RESTART BLOCKS FOR NOW ... */
+-
+-	return ret;
++	return ckpt_write_obj_type(ctx, thread->tls_array,
++				   sizeof(thread->tls_array),
++				   CKPT_HDR_THREAD_TLS);
  }
  
-+static struct page *bring_private_page(unsigned long addr)
-+{
-+	struct page *page;
-+	int ret;
-+
-+	ret = get_user_pages(current, current->mm, addr, 1, 1, 1, &page, NULL);
-+	if (ret < 0)
-+		page = ERR_PTR(ret);
-+	return page;
-+}
-+
-+static struct page *bring_shared_page(unsigned long idx, struct inode *ino)
-+{
-+	struct page *page = NULL;
-+	int ret;
-+
-+	ret = shmem_getpage(ino, idx, &page, SGP_WRITE, NULL);
-+	if (ret < 0)
-+		return ERR_PTR(ret);
-+	if (page)
-+		unlock_page(page);
-+	return page;
-+}
-+
- /**
-  * read_pages_contents - read in data of pages in page-array chain
-  * @ctx - restart context
-  */
--static int read_pages_contents(struct ckpt_ctx *ctx)
-+static int read_pages_contents(struct ckpt_ctx *ctx, struct inode *inode)
- {
--	struct mm_struct *mm = current->mm;
- 	struct ckpt_pgarr *pgarr;
- 	unsigned long *vaddrs;
- 	char *buf;
-@@ -801,17 +824,22 @@ static int read_pages_contents(struct ckpt_ctx *ctx)
- 	if (!buf)
- 		return -ENOMEM;
+ #ifndef CONFIG_X86_64
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index 086f2d9..3999d80 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -23,6 +23,7 @@
+ #include <linux/mount.h>
+ #include <linux/utsname.h>
+ #include <linux/magic.h>
++#include <linux/hrtimer.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
  
--	down_read(&mm->mmap_sem);
-+	down_read(&current->mm->mmap_sem);
- 	list_for_each_entry_reverse(pgarr, &ctx->pgarr_list, list) {
- 		vaddrs = pgarr->vaddrs;
- 		for (i = 0; i < pgarr->nr_used; i++) {
- 			struct page *page;
+diff --git a/checkpoint/process.c b/checkpoint/process.c
+index 3ce82cb..876be3e 100644
+--- a/checkpoint/process.c
++++ b/checkpoint/process.c
+@@ -12,6 +12,9 @@
+ #define CKPT_DFLAG  CKPT_DSYS
  
- 			_ckpt_debug(CKPT_DPAGE, "got page %#lx\n", vaddrs[i]);
--			ret = get_user_pages(current, mm, vaddrs[i],
--					     1, 1, 1, &page, NULL);
--			if (ret < 0)
-+			if (inode)
-+				page = bring_shared_page(vaddrs[i], inode);
-+			else
-+				page = bring_private_page(vaddrs[i]);
-+
-+			if (IS_ERR(page)) {
-+				ret = PTR_ERR(page);
- 				goto out;
-+			}
+ #include <linux/sched.h>
++#include <linux/posix-timers.h>
++#include <linux/futex.h>
++#include <linux/poll.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
  
- 			ret = restore_read_page(ctx, page, buf);
- 			page_cache_release(page);
-@@ -822,14 +850,15 @@ static int read_pages_contents(struct ckpt_ctx *ctx)
- 	}
- 
-  out:
--	up_read(&mm->mmap_sem);
-+	up_read(&current->mm->mmap_sem);
- 	kfree(buf);
- 	return 0;
- }
- 
- /**
-- * restore_memory_contents - restore contents of a VMA with private memory
-+ * restore_memory_contents - restore contents of a memory region
-  * @ctx - restart context
-+ * @inode - backing inode
-  *
-  * Reads a header that specifies how many pages will follow, then reads
-  * a list of virtual addresses into ctx->pgarr_list page-array chain,
-@@ -837,7 +866,7 @@ static int read_pages_contents(struct ckpt_ctx *ctx)
-  * these steps until reaching a header specifying "0" pages, which marks
-  * the end of the contents.
-  */
--static int restore_memory_contents(struct ckpt_ctx *ctx)
-+int restore_memory_contents(struct ckpt_ctx *ctx, struct inode *inode)
- {
- 	struct ckpt_hdr_pgarr *h;
- 	unsigned long nr_pages;
-@@ -864,7 +893,7 @@ static int restore_memory_contents(struct ckpt_ctx *ctx)
- 		ret = read_pages_vaddrs(ctx, nr_pages);
- 		if (ret < 0)
- 			break;
--		ret = read_pages_contents(ctx);
-+		ret = read_pages_contents(ctx, inode);
- 		if (ret < 0)
- 			break;
- 		pgarr_reset_all(ctx);
-@@ -922,9 +951,9 @@ static unsigned long calc_map_flags_bits(unsigned long orig_vm_flags)
-  * @file - file to map (NULL for anonymous)
-  * @h - vma header data
-  */
--static unsigned long generic_vma_restore(struct mm_struct *mm,
--					 struct file *file,
--					 struct ckpt_hdr_vma *h)
-+unsigned long generic_vma_restore(struct mm_struct *mm,
-+				  struct file *file,
-+				  struct ckpt_hdr_vma *h)
- {
- 	unsigned long vm_size, vm_start, vm_flags, vm_prot, vm_pgoff;
- 	unsigned long addr;
-@@ -971,7 +1000,7 @@ int private_vma_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
- 	if (IS_ERR((void *) addr))
- 		return PTR_ERR((void *) addr);
- 
--	return restore_memory_contents(ctx);
-+	return restore_memory_contents(ctx, NULL);
- }
- 
- /**
-@@ -1031,16 +1060,19 @@ static struct restore_vma_ops restore_vma_ops[] = {
- 	{
- 		.vma_name = "ANON SHARED",
- 		.vma_type = CKPT_VMA_SHM_ANON,
-+		.restore = shmem_restore,
- 	},
- 	/* anonymous shared (skipped) */
- 	{
- 		.vma_name = "ANON SHARED (skip)",
- 		.vma_type = CKPT_VMA_SHM_ANON_SKIP,
-+		.restore = shmem_restore,
- 	},
- 	/* file-mapped shared */
- 	{
- 		.vma_name = "FILE SHARED",
- 		.vma_type = CKPT_VMA_SHM_FILE,
-+		.restore = filemap_restore,
- 	},
- };
- 
-@@ -1059,15 +1091,15 @@ static int restore_vma(struct ckpt_ctx *ctx, struct mm_struct *mm)
- 	if (IS_ERR(h))
- 		return PTR_ERR(h);
- 
--	ckpt_debug("vma %#lx-%#lx flags %#lx type %d vmaref %d\n",
-+	ckpt_debug("vma %#lx-%#lx flags %#lx type %d vmaref %d inoref %d\n",
- 		   (unsigned long) h->vm_start, (unsigned long) h->vm_end,
- 		   (unsigned long) h->vm_flags, (int) h->vma_type,
--		   (int) h->vma_objref);
-+		   (int) h->vma_objref, (int) h->ino_objref);
- 
- 	ret = -EINVAL;
- 	if (h->vm_end < h->vm_start)
- 		goto out;
--	if (h->vma_objref < 0)
-+	if (h->vma_objref < 0 || h->ino_objref < 0)
- 		goto out;
- 	if (h->vma_type >= CKPT_VMA_MAX)
- 		goto out;
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 18b4941..169aa70 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -106,9 +106,15 @@ extern int restore_obj_mm(struct ckpt_ctx *ctx, int mm_objref);
- extern int checkpoint_mm(struct ckpt_ctx *ctx, void *ptr);
- extern void *restore_mm(struct ckpt_ctx *ctx);
- 
-+extern unsigned long generic_vma_restore(struct mm_struct *mm,
-+					 struct file *file,
-+					 struct ckpt_hdr_vma *h);
-+
- extern int private_vma_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
- 			       struct file *file, struct ckpt_hdr_vma *h);
- 
-+extern int restore_memory_contents(struct ckpt_ctx *ctx, struct inode *inode);
-+
- 
- #define CKPT_VMA_NOT_SUPPORTED						\
- 	(VM_IO | VM_HUGETLB | VM_NONLINEAR | VM_PFNMAP |		\
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 53e916a..c8e8972 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1203,6 +1203,8 @@ extern int filemap_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
- 			   struct ckpt_hdr_vma *hh);
- extern int special_mapping_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
- 				   struct ckpt_hdr_vma *hh);
-+extern int shmem_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
-+			 struct ckpt_hdr_vma *hh);
- #endif
- 
- /* readahead.c */
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 0d28481..d669395 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1691,17 +1691,28 @@ int filemap_restore(struct ckpt_ctx *ctx,
- 		    struct ckpt_hdr_vma *h)
- {
- 	struct file *file;
-+	unsigned long addr;
- 	int ret;
- 
- 	if (h->vma_type == CKPT_VMA_FILE &&
- 	    (h->vm_flags & (VM_SHARED | VM_MAYSHARE)))
- 		return -EINVAL;
-+	if (h->vma_type == CKPT_VMA_SHM_FILE &&
-+	    !(h->vm_flags & (VM_SHARED | VM_MAYSHARE)))
-+		return -EINVAL;
- 
- 	file = ckpt_obj_fetch(ctx, h->vma_objref, CKPT_OBJ_FILE);
- 	if (IS_ERR(file))
- 		return PTR_ERR(file);
- 
--	ret = private_vma_restore(ctx, mm, file, h);
-+	if (h->vma_type == CKPT_VMA_FILE) {
-+		/* private mapped file */
-+		ret = private_vma_restore(ctx, mm, file, h);
-+	} else {
-+		/* shared mapped file */
-+		addr = generic_vma_restore(mm, file, h);
-+		ret = (IS_ERR((void *) addr) ? PTR_ERR((void *) addr) : 0);
-+	}
+@@ -80,6 +83,116 @@ static int checkpoint_task_objs(struct ckpt_ctx *ctx, struct task_struct *t)
  	return ret;
  }
- #endif /* CONFIG_CHECKPOINT */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index d349c10..829eefa 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2409,6 +2409,55 @@ static int shmem_checkpoint(struct ckpt_ctx *ctx, struct vm_area_struct *vma)
  
- 	return shmem_vma_checkpoint(ctx, vma, vma_type, ino_objref);
- }
-+
-+int shmem_restore(struct ckpt_ctx *ctx,
-+		  struct mm_struct *mm, struct ckpt_hdr_vma *h)
++/* dump the task_struct of a given task */
++int checkpoint_restart_block(struct ckpt_ctx *ctx, struct task_struct *t)
 +{
-+	unsigned long addr;
-+	struct file *file;
-+	int ret = 0;
++	struct ckpt_hdr_restart_block *h;
++	struct restart_block *restart_block;
++	long (*fn)(struct restart_block *);
++	s64 base, expire = 0;
++	int ret;
 +
-+	file = ckpt_obj_fetch(ctx, h->ino_objref, CKPT_OBJ_FILE);
-+	if (PTR_ERR(file) == -EINVAL)
-+		file = NULL;
-+	if (IS_ERR(file))
-+		return PTR_ERR(file);
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
++	if (!h)
++		return -ENOMEM;
 +
-+	/* if file is NULL, this is the premiere - create and insert */
-+	if (!file) {
-+		if (h->vma_type != CKPT_VMA_SHM_ANON)
-+			return -EINVAL;
-+		/*
-+		 * in theory could pass NULL to mmap and let it create
-+		 * the file. But, if 'shm_size != vm_end - vm_start',
-+		 * or if 'vm_pgoff != 0', then the vma reflects only a
-+		 * portion of the shm object and we need to "manually"
-+		 * create the full shm object.
-+		 */
-+		file = shmem_file_setup("/dev/zero", h->ino_size, h->vm_flags);
-+		if (IS_ERR(file))
-+			return PTR_ERR(file);
-+		ret = ckpt_obj_insert(ctx, file, h->ino_objref, CKPT_OBJ_FILE);
-+		if (ret < 0)
-+			goto out;
++	base = ktime_to_ns(ctx->ktime_begin);
++	restart_block = &task_thread_info(t)->restart_block;
++	fn = restart_block->fn;
++
++	/* FIX: enumerate clockid_t so we're immune to changes */
++
++	if (fn == do_no_restart_syscall) {
++
++		h->function_type = CKPT_RESTART_BLOCK_NONE;
++		ckpt_debug("restart_block: non\n");
++
++	} else if (fn == hrtimer_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long) restart_block->nanosleep.rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: hrtimer expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == posix_cpu_nsleep_restart) {
++		struct timespec ts;
++
++		h->function_type = CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP;
++		h->arg_0 = restart_block->arg0;
++		h->arg_1 = restart_block->arg1;
++		ts.tv_sec = restart_block->arg2;
++		ts.tv_nsec = restart_block->arg3;
++		expire = timespec_to_ns(&ts);
++		ckpt_debug("restart_block: posix_cpu expire %lld now %lld\n",
++			 expire, base);
++
++#ifdef CONFIG_COMPAT
++	} else if (fn == compat_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
++		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: compat expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == compat_clock_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
++		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: compat_clock expire %lld now %lld\n",
++			 expire, base);
++
++#endif
++	} else if (fn == futex_wait_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_FUTEX;
++		h->arg_0 = (unsigned long) restart_block->futex.uaddr;
++		h->arg_1 = restart_block->futex.val;
++		h->arg_2 = restart_block->futex.flags;
++		h->arg_3 = restart_block->futex.bitset;
++		expire = restart_block->futex.time;
++		ckpt_debug("restart_block: futex expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == do_restart_poll) {
++		struct timespec ts;
++
++		h->function_type = CKPT_RESTART_BLOCK_POLL;
++		h->arg_0 = (unsigned long) restart_block->poll.ufds;
++		h->arg_1 = restart_block->poll.nfds;
++		h->arg_2 = restart_block->poll.has_timeout;
++		ts.tv_sec = restart_block->poll.tv_sec;
++		ts.tv_nsec = restart_block->poll.tv_nsec;
++		expire = timespec_to_ns(&ts);
++		ckpt_debug("restart_block: poll expire %lld now %lld\n",
++			 expire, base);
++
 +	} else {
-+		if (h->vma_type != CKPT_VMA_SHM_ANON_SKIP)
-+			return -EINVAL;
-+		/* Already need fput() for the file above; keep path simple */
-+		get_file(file);
++
++		BUG();
++
 +	}
 +
-+	addr = generic_vma_restore(mm, file, h);
-+	if (IS_ERR((void *) addr))
-+		return PTR_ERR((void *) addr);
++	/* common to all restart blocks: */
++	h->arg_4 = (base < expire ? expire - base : 0);
 +
-+	if (h->vma_type == CKPT_VMA_SHM_ANON)
-+		ret = restore_memory_contents(ctx, file->f_dentry->d_inode);
-+ out:
-+	fput(file);
++	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
++		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
++
++	ret = ckpt_write_obj(ctx, &h->h);
++	ckpt_hdr_put(ctx, h);
++
++	ckpt_debug("restart_block ret %d\n", ret);
 +	return ret;
 +}
 +
- #endif /* CONFIG_CHECKPOINT */
+ /* dump the entire state of a given task */
+ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ {
+@@ -97,6 +210,10 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = checkpoint_restart_block(ctx, t);
++	ckpt_debug("restart-blocks %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = checkpoint_cpu(ctx, t);
+ 	ckpt_debug("cpu %d\n", ret);
+  out:
+@@ -150,6 +267,111 @@ static int restore_task_objs(struct ckpt_ctx *ctx)
+ 	return ret;
+ }
  
- static void init_once(void *foo)
++int restore_restart_block(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_restart_block *h;
++	struct restart_block restart_block;
++	struct timespec ts;
++	clockid_t clockid;
++	s64 expire;
++	int ret = 0;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
++
++	expire = ktime_to_ns(ctx->ktime_begin) + h->arg_4;
++	restart_block.fn = NULL;
++
++	ckpt_debug("restart_block: expire %lld begin %lld\n",
++		 expire, ktime_to_ns(ctx->ktime_begin));
++	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
++		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
++
++	switch (h->function_type) {
++	case CKPT_RESTART_BLOCK_NONE:
++		restart_block.fn = do_no_restart_syscall;
++		break;
++	case CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = hrtimer_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.expires = expire;
++		break;
++	case CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = posix_cpu_nsleep_restart;
++		restart_block.arg0 = clockid;
++		restart_block.arg1 = h->arg_1;
++		ts = ns_to_timespec(expire);
++		restart_block.arg2 = ts.tv_sec;
++		restart_block.arg3 = ts.tv_nsec;
++		break;
++#ifdef CONFIG_COMPAT
++	case CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = compat_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.compat_rmtp =
++			(struct compat_timespec __user *)
++				(unsigned long) h->arg_2;
++		resatrt_block.nanosleep.expires = expire;
++		break;
++	case CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = compat_clock_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.compat_rmtp =
++			(struct compat_timespec __user *)
++				(unsigned long) h->arg_2;
++		resatrt_block.nanosleep.expires = expire;
++		break;
++#endif
++	case CKPT_RESTART_BLOCK_FUTEX:
++		restart_block.fn = futex_wait_restart;
++		restart_block.futex.uaddr = (u32 *) (unsigned long) h->arg_0;
++		restart_block.futex.val = h->arg_1;
++		restart_block.futex.flags = h->arg_2;
++		restart_block.futex.bitset = h->arg_3;
++		restart_block.futex.time = expire;
++		break;
++	case CKPT_RESTART_BLOCK_POLL:
++		restart_block.fn = do_restart_poll;
++		restart_block.poll.ufds =
++			(struct pollfd __user *) (unsigned long) h->arg_0;
++		restart_block.poll.nfds = h->arg_1;
++		restart_block.poll.has_timeout = h->arg_2;
++		ts = ns_to_timespec(expire);
++		restart_block.poll.tv_sec = ts.tv_sec;
++		restart_block.poll.tv_nsec = ts.tv_nsec;
++		break;
++	default:
++		break;
++	}
++
++	if (restart_block.fn)
++		task_thread_info(current)->restart_block = restart_block;
++	else
++		ret = -EINVAL;
++
++	ckpt_hdr_put(ctx, h);
++	return ret;
++}
++
+ /* read the entire state of the current task */
+ int restore_task(struct ckpt_ctx *ctx)
+ {
+@@ -167,6 +389,10 @@ int restore_task(struct ckpt_ctx *ctx)
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = restore_restart_block(ctx);
++	ckpt_debug("restart-blocks %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = restore_cpu(ctx);
+ 	ckpt_debug("cpu %d\n", ret);
+  out:
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index ca33539..e5067a9 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -16,6 +16,8 @@
+ #include <linux/file.h>
+ #include <linux/magic.h>
+ #include <linux/utsname.h>
++#include <asm/syscall.h>
++#include <linux/elf.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
+ 
+@@ -357,6 +359,34 @@ static int init_restart_ctx(struct ckpt_ctx *ctx, pid_t pid)
+ 	return 0;
+ }
+ 
++static int restore_retval(void)
++{
++	struct pt_regs *regs = task_pt_regs(current);
++	int ret = 0;
++
++	/*
++	 * The retval should be either zero if the checkpointed task
++	 * had been in user-space when frozen, or the retval from the
++	 * syscall that had been interrupted then.
++	 *
++	 * In the latter, if the syscall succeeded (perhaps partially)
++	 * then the retval is non-negative. If it failed, the error
++	 * may be one of -ERESTART... gang, interpreted in the signal
++	 * handling code. In restart it must happen, too.
++	 *
++	 * To force execution of the signal handler now, too, we fake
++	 * a signal to ourselves (a la freeze/thaw) when ret < 0.
++	 */
++
++	/* were we from a system call?  if so, get old error/retval */
++	if (syscall_get_nr(current, regs) >= 0)
++		ret = syscall_get_error(current, regs);
++	/* old error ?  if so, make sure signal handling kicks in */
++	if (ret < 0)
++		set_tsk_thread_flag(current, TIF_SIGPENDING);
++	return ret;
++}
++
+ int do_restart(struct ckpt_ctx *ctx, pid_t pid)
+ {
+ 	int ret;
+@@ -371,7 +401,8 @@ int do_restart(struct ckpt_ctx *ctx, pid_t pid)
+ 	if (ret < 0)
+ 		return ret;
+ 	ret = restore_read_tail(ctx);
++	if (ret < 0)
++		return ret;
+ 
+-	/* on success, adjust the return value if needed [TODO] */
+-	return ret;
++	return restore_retval();
+ }
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index c809120..5b91a39 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -194,6 +194,7 @@ static struct ckpt_ctx *ckpt_ctx_alloc(int fd, unsigned long uflags,
+ 
+ 	ctx->uflags = uflags;
+ 	ctx->kflags = kflags;
++	ctx->ktime_begin = ktime_get();
+ 
+ 	INIT_LIST_HEAD(&ctx->pgarr_list);
+ 	INIT_LIST_HEAD(&ctx->pgarr_pool);
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 169aa70..e1204cf 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -69,6 +69,10 @@ extern int restore_thread(struct ckpt_ctx *ctx);
+ extern int restore_cpu(struct ckpt_ctx *ctx);
+ extern int restore_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm);
+ 
++extern int checkpoint_restart_block(struct ckpt_ctx *ctx,
++				    struct task_struct *t);
++extern int restore_restart_block(struct ckpt_ctx *ctx);
++
+ /* file table */
+ extern int checkpoint_obj_file_table(struct ckpt_ctx *ctx,
+ 				     struct task_struct *t);
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 6ab3c8b..939f4e3 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -48,6 +48,7 @@ enum {
+ 
+ 	CKPT_HDR_TASK = 101,
+ 	CKPT_HDR_TASK_OBJS,
++	CKPT_HDR_RESTART_BLOCK,
+ 	CKPT_HDR_THREAD,
+ 	CKPT_HDR_CPU,
+ 
+@@ -144,6 +145,27 @@ struct ckpt_hdr_task_objs {
+ 	__s32 mm_objref;
+ } __attribute__((aligned(8)));
+ 
++/* restart blocks */
++struct ckpt_hdr_restart_block {
++	struct ckpt_hdr h;
++	__u64 function_type;
++	__u64 arg_0;
++	__u64 arg_1;
++	__u64 arg_2;
++	__u64 arg_3;
++	__u64 arg_4;
++} __attribute__((aligned(8)));
++
++enum restart_block_type {
++	CKPT_RESTART_BLOCK_NONE = 1,
++	CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP,
++	CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP,
++	CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP,
++	CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP,
++	CKPT_RESTART_BLOCK_POLL,
++	CKPT_RESTART_BLOCK_FUTEX
++};
++
+ /* file system */
+ struct ckpt_hdr_file_table {
+ 	struct ckpt_hdr h;
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index 4369f90..72052ef 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -21,12 +21,15 @@ struct ckpt_hdr_vma;
+ #include <linux/list.h>
+ #include <linux/path.h>
+ #include <linux/fs.h>
++#include <linux/ktime.h>
+ 
+ #include <linux/sched.h>
+ 
+ struct ckpt_ctx {
+ 	int crid;		/* unique checkpoint id */
+ 
++	ktime_t ktime_begin;	/* checkpoint start time */
++
+ 	pid_t root_pid;		/* container identifier */
+ 	struct task_struct *root_task;	/* container root task */
+ 	struct nsproxy *root_nsproxy;	/* container root nsproxy */
 -- 
 1.6.0.4
 
