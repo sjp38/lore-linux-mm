@@ -1,56 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 925BF6B005A
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 02:07:15 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 5so1930448ywm.26
-        for <linux-mm@kvack.org>; Tue, 26 May 2009 23:07:11 -0700 (PDT)
-Date: Wed, 27 May 2009 15:06:41 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 1/3]  clean up functions related to pages_min V2
-Message-Id: <20090527150641.5f1eef75.minchan.kim@barrios-desktop>
-In-Reply-To: <20090526222510.ad054b8a.akpm@linux-foundation.org>
-References: <20090521092304.0eb3c4cb.minchan.kim@barrios-desktop>
-	<20090526222510.ad054b8a.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 634786B005D
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 02:25:01 -0400 (EDT)
+Message-Id: <6.0.0.20.2.20090527151725.076b1038@172.19.0.2>
+Date: Wed, 27 May 2009 15:20:40 +0900
+From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
+Subject: Re: [PATCH] readahead:add blk_run_backing_dev
+In-Reply-To: <20090527043601.GA26361@localhost>
+References: <20090526193601.b825af5f.akpm@linux-foundation.org>
+ <20090527035505.GA16916@localhost>
+ <20090527130358.689C.A69D9226@jp.fujitsu.com>
+ <20090527043601.GA26361@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 May 2009 22:25:10 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Thu, 21 May 2009 09:23:04 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
-> 
-> > Changelog since V1 
-> >  o Change function name from setup_per_zone_wmark_min to setup_per_zone_wmarks
-> >    - by Mel Gorman advise
-> >  o Modify description - by KOSAKI advise
-> > 
-> > Mel changed zone->pages_[high/low/min] with zone->watermark array.
-> > So, the functions related to pages_min also have to be changed.
-> > 
-> > * setup_per_zone_pages_min
-> > * init_per_zone_pages_min
-> > 
-> > This patch is just clean up. so it doesn't affect behavior.
-> > 
-> 
-> I cannot actually find a usable changelog amongst all that text.  Can
-> you try again please?
-> 
-> afacit the patch simply changes the names of a couple of functions. 
-> The changelog should concisely and completely describe what those naming
-> changes are, and the reason for making them.
-> 
+At 13:36 09/05/27, Wu Fengguang wrote:
+>On Wed, May 27, 2009 at 12:06:12PM +0800, KOSAKI Motohiro wrote:
+>> > > Ah.  So it's likely to be some strange interaction with the RAID setup.
+>> > 
+>> > The normal case is, if page N become uptodate at time T(N), then
+>> > T(N) <= T(N+1) holds. But for RAID, the data arrival time depends on
+>> > runtime status of individual disks, which breaks that formula. So
+>> > in do_generic_file_read(), just after submitting the async readahead IO
+>> > request, the current page may well be uptodate, so the page won't be locked,
+>> > and the block device won't be implicitly unplugged:
+>> 
+>> Hifumi-san, Can you get blktrace data and confirm Wu's assumption?
+>
+>To make the reasoning more obvious:
+>
+>Assume we just submitted readahead IO request for pages N ~ N+M, then
+>        T(N) <= T(N+1)
+>        T(N) <= T(N+2)
+>        T(N) <= T(N+3)
+>        ...
+>        T(N) <= T(N+M)   (M = readahead size)
+>So if the reader is going to block on any page in the above chunk,
+>it is going to first block on page N.
+>
+>With RAID (and NFS to some degree), there is no strict ordering,
+>so the reader is more likely to block on some random pages.
+>
+>In the first case, the effective async_size = M, in the second case,
+>the effective async_size <= M. The more async_size, the more degree of
+>readahead pipeline, hence the more low level IO latencies are hidden
+>to the application.
 
-Okay. I will do that :)
+I got your explanation especially about RAID specific matters.
 
--- 
-Kinds Regards
-Minchan Kim
+>
+>Thanks,
+>Fengguang
+>
+>> 
+>> > 
+>> >                if (PageReadahead(page))
+>> >                         page_cache_async_readahead()
+>> >                 if (!PageUptodate(page))
+>> >                                 goto page_not_up_to_date;
+>> >                 //...
+>> > page_not_up_to_date:
+>> >                 lock_page_killable(page);
+>> > 
+>> > 
+>> > Therefore explicit unplugging can help, so
+>> > 
+>> >         Acked-by: Wu Fengguang <fengguang.wu@intel.com> 
+>> > 
+>> > The only question is, shall we avoid the double unplug by doing this?
+>> > 
+>> > ---
+>> >  mm/readahead.c |   10 ++++++++++
+>> >  1 file changed, 10 insertions(+)
+>> > 
+>> > --- linux.orig/mm/readahead.c
+>> > +++ linux/mm/readahead.c
+>> > @@ -490,5 +490,15 @@ page_cache_async_readahead(struct addres
+>> >  
+>> >  	/* do read-ahead */
+>> >  	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
+>> > +
+>> > +	/*
+>> > +	* Normally the current page is !uptodate and lock_page() will be
+>> > +	* immediately called to implicitly unplug the device. However this
+>> > +	* is not always true for RAID conifgurations, where data arrives
+>> > +	* not strictly in their submission order. In this case we need to
+>> > +	* explicitly kick off the IO.
+>> > +	*/
+>> > +	if (PageUptodate(page))
+>> > +		blk_run_backing_dev(mapping->backing_dev_info, NULL);
+>> >  }
+>> >  EXPORT_SYMBOL_GPL(page_cache_async_readahead);
+
+I am for this to avoid double unplug.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
