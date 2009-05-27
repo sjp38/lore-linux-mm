@@ -1,60 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB9E96B004D
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 03:04:29 -0400 (EDT)
-Received: from mlsv2.hitachi.co.jp (unknown [133.144.234.166])
-	by mail4.hitachi.co.jp (Postfix) with ESMTP id 9613333CC8
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 16:04:31 +0900 (JST)
-Message-ID: <4A1CE5F5.7080207@hitachi.com>
-Date: Wed, 27 May 2009 16:04:21 +0900
-From: Satoru Moriya <satoru.moriya.br@hitachi.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1B54D6B004D
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 03:40:18 -0400 (EDT)
+Received: by pxi37 with SMTP id 37so4715423pxi.12
+        for <linux-mm@kvack.org>; Wed, 27 May 2009 00:40:56 -0700 (PDT)
+Message-ID: <4A1CEE3F.6030504@gmail.com>
+Date: Wed, 27 May 2009 15:39:43 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Subject: Re: Problem with oom-killer in memcg
-References: <4A1BBEB3.1010701@hitachi.com> <20090527101039.f9de2229.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090527101039.f9de2229.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] lib : provide a more precise radix_tree_gang_lookup_slot
+References: <1243223635-3449-1-git-send-email-shijie8@gmail.com> <20090526143058.c59e6dc1.akpm@linux-foundation.org>
+In-Reply-To: <20090526143058.c59e6dc1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, satoshi.oshima.fk@hitachi.com, taketoshi.sakuraba.hc@hitachi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
 
-> How many cpus are you using ?
+>> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+>> index 355f6e8..03e25f4 100644
+>> --- a/include/linux/radix-tree.h
+>> +++ b/include/linux/radix-tree.h
+>> @@ -164,7 +164,8 @@ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+>>  			unsigned long first_index, unsigned int max_items);
+>>  unsigned int
+>>  radix_tree_gang_lookup_slot(struct radix_tree_root *root, void ***results,
+>> -			unsigned long first_index, unsigned int max_items);
+>> +			unsigned long first_index, unsigned int max_items,
+>> +			int contig);
+>>     
+>
+> Variable `contig' could have the type `bool'.  Did you consider and
+> reject that option, or just didn't think of it?
+>
+>
+>   
+Yes, type `bool' is better.
+>> ...
+>> +			if (contig)
+>> +				goto out;
+>> +
+>> +		} else if (contig) {
+>> +			index--;
+>> +			goto out;
+>> +
+>> +		if (contig) {
+>> +			if (slots_found == 0)
+>> +				break;
+>> +			if (next_index & RADIX_TREE_MAP_MASK)
+>> +				break;
+>> +		}
+>> -				(void ***)pages, start, nr_pages);
+>> +				(void ***)pages, start, nr_pages, 0);
+>> -				(void ***)pages, index, nr_pages);
+>> +				(void ***)pages, index, nr_pages, 1);
+>>     
+>
+> The patch adds cycles in some cases and saves them in others.
+>
+> Does the saving exceed the adding?  How do we know that the patch is a
+> net benefit?
+>
+>   
 
-I'm using Xeon E5345(4 core).
- 
-> I think Balbir (and other people) is planning to add "oom handler" for memcg
-> or oom handler cgroup. But we need more study.
+Assume that:
+    f0 = called frequency of find_get_pages() (contig == 0)
+    f1 = called frequency of find_get_pages_contig() (contig == 1)
 
-Thank you for sharing that with me.
+The primary user of find_get_pages() is ->writepage[s] of some file 
+systems such as ext4.
+( I think the shmem_lock() ,truncate() run occasionally which also call it.)
 
-> I assume that you use x86. If so, current bahavior is a bit complicated.
-> 
-> do_page_fault()
->    -> allocate and charge memory account
->          -> memcg's oom kill is called
->               -> no progress.
-> User says "don't use OOM Kill" but no other way than "OOM Kill"
-> 
-> We don't have much choices here..
->    - kill in force ?
->    - add some sleep ?
->    - freeze cgroup under OOM ? (this seems not easy)
->    - Ask admin to increase size of memory limit ?
-> 
-> Thank you for reporting, but I can't think of quick fix right now.
-> I'll remember this in my TO-DO List.
+The primary user of find_get_pages_contig()  is also the ->writepage[s] 
+of some filesystem
+such as afs.( I am not sure whether btrfs is also the main user of it )
 
-Ok, thank you very much.
+   So if (f0 nearly equal f1)
+         cycles saving >> cycles adding
 
--- 
---- 
-Satoru MORIYA
-Linux Technology Center
-Hitachi, Ltd., Systems Development Laboratory
-E-mail: satoru.moriya.br@hitachi.com
+  __lookup() saves much cycles when there are holes and the contig==1.
+     
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
