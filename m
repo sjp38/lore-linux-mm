@@ -1,194 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6E66B005D
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 11:06:44 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [rfc][patch] swap: virtual swap readahead
-Date: Wed, 27 May 2009 17:05:46 +0200
-Message-Id: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 1987E6B004D
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:38:29 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4RGbAfx003639
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:37:10 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4RGd3B7210052
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:39:03 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4RGd1KE018299
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:39:03 -0600
+Date: Wed, 27 May 2009 17:38:58 +0100
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: Re: [PATCH 1/2] x86: Ignore VM_LOCKED when determining if
+	hugetlb-backed page tables can be shared or not
+Message-ID: <20090527163858.GB5145@us.ibm.com>
+References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="uZ3hkaAS1mZxFaxD"
+Content-Disposition: inline
+In-Reply-To: <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, starlight@binnacle.cx, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, wli@movementarian.org
 List-ID: <linux-mm.kvack.org>
 
-The current swap readahead implementation reads a physically
-contiguous group of swap slots around the faulting page to take
-advantage of the disk head's position and in the hope that the
-surrounding pages will be needed soon as well.
 
-This works as long as the physical swap slot order approximates the
-LRU order decently, otherwise it wastes memory and IO bandwidth to
-read in pages that are unlikely to be needed soon.
+--uZ3hkaAS1mZxFaxD
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-However, the physical swap slot layout diverges from the LRU order
-with increasing swap activity, i.e. high memory pressure situations,
-and this is exactly the situation where swapin should not waste any
-memory or IO bandwidth as both are the most contended resources at
-this point.
+On Wed, 27 May 2009, Mel Gorman wrote:
 
-This patch makes swap-in base its readaround window on the virtual
-proximity of pages in the faulting VMA, as an indicator for pages
-needed in the near future, while still taking physical locality of
-swap slots into account.
+> On x86 and x86-64, it is possible that page tables are shared beween shar=
+ed
+> mappings backed by hugetlbfs. As part of this, page_table_shareable() che=
+cks
+> a pair of vma->vm_flags and they must match if they are to be shared. All
+> VMA flags are taken into account, including VM_LOCKED.
+>=20
+> The problem is that VM_LOCKED is cleared on fork(). When a process with a
+> shared memory segment forks() to exec() a helper, there will be shared VM=
+As
+> with different flags. The impact is that the shared segment is sometimes
+> considered shareable and other times not, depending on what process is
+> checking.
+>=20
+> What happens is that the segment page tables are being shared but the cou=
+nt is
+> inaccurate depending on the ordering of events. As the page tables are fr=
+eed
+> with put_page(), bad pmd's are found when some of the children exit. The
+> hugepage counters also get corrupted and the Total and Free count will
+> no longer match even when all the hugepage-backed regions are freed. This
+> requires a reboot of the machine to "fix".
+>=20
+> This patch addresses the problem by comparing all flags except VM_LOCKED =
+when
+> deciding if pagetables should be shared or not for hugetlbfs-backed mappi=
+ng.
+>=20
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-This has the advantage of reading in big batches when the LRU order
-matches the swap slot order while automatically throttling readahead
-when the system is thrashing and swap slots are no longer nicely
-grouped by LRU order.
+I tested this patch using 2.6.30-rc7 and the libhugetlbfs test suite on x86=
+_64.
+Everything looks good to me.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/swap_state.c |   80 +++++++++++++++++++++++++++++++++++++++----------------
- 1 files changed, 57 insertions(+), 23 deletions(-)
+Acked-by: Eric B Munson <ebmunson@us.ibm.com>
+Tested-by: Eric B Munson <ebmunson@us.ibm.com>
 
-qsbench, 20 runs each, 1.7GB RAM, 2GB swap, 4 cores:
+--uZ3hkaAS1mZxFaxD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-         "mean (standard deviation) median"
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
 
-All values are given in seconds.  I used a t-test to make sure there
-is a statistical difference of at least 95% probability in the
-compared runs for the given number of samples, arithmetic mean and
-standard deviation.
+iEYEARECAAYFAkodbKIACgkQsnv9E83jkzogbQCgpQE/pgIniPcRRWpJbQTOGOQ4
+MFYAn0Fv0NvaqT1BJ5bwn67fMf5y/iUC
+=Ofoc
+-----END PGP SIGNATURE-----
 
-1 x 2048M
-vanilla: 391.25 ( 71.76) 384.56
-vswapra: 445.55 ( 83.19) 415.41
-
-	This is an actual regression.  I am not yet quite sure why
-	this happens and I am undecided whether one humonguous active
-	vma in the system is a common workload.
-
-	It's also the only regression I found, with qsbench anyway.  I
-	started out with powers of two and tweaked the parameters
-	until the results between the two kernel versions differed.
-
-2 x 1024M
-vanilla: 384.25 ( 75.00) 423.08
-vswapra: 290.26 ( 31.38) 299.51
-
-4 x 540M
-vanilla: 553.91 (100.02) 554.57
-vswapra: 336.58 ( 52.49) 331.52
-
-8 x 280M
-vanilla: 561.08 ( 82.36) 583.12
-vswapra: 319.13 ( 43.17) 307.69
-
-16 x 128M
-vanilla: 285.51 (113.20) 236.62
-vswapra: 214.24 ( 62.37) 214.15
-
-	All these show a nice improvement in performance and runtime
-	stability.
-
-The missing shmem support is a big TODO, I will try to find time to
-tackle this when the overall idea is not refused in the first place.
-
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 3ecea98..8f8daaa 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -336,11 +336,6 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-  *
-  * Returns the struct page for entry and addr, after queueing swapin.
-  *
-- * Primitive swap readahead code. We simply read an aligned block of
-- * (1 << page_cluster) entries in the swap area. This method is chosen
-- * because it doesn't cost us any seek time.  We also make sure to queue
-- * the 'original' request together with the readahead ones...
-- *
-  * This has been extended to use the NUMA policies from the mm triggering
-  * the readahead.
-  *
-@@ -349,27 +344,66 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 			struct vm_area_struct *vma, unsigned long addr)
- {
--	int nr_pages;
--	struct page *page;
--	unsigned long offset;
--	unsigned long end_offset;
--
--	/*
--	 * Get starting offset for readaround, and number of pages to read.
--	 * Adjust starting address by readbehind (for NUMA interleave case)?
--	 * No, it's very unlikely that swap layout would follow vma layout,
--	 * more likely that neighbouring swap pages came from the same node:
--	 * so use the same "addr" to choose the same node for each swap read.
--	 */
--	nr_pages = valid_swaphandles(entry, &offset);
--	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
--		/* Ok, do the async read-ahead now */
--		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
--						gfp_mask, vma, addr);
-+	int cluster = 1 << page_cluster;
-+	int window = cluster << PAGE_SHIFT;
-+	unsigned long start, pos, end;
-+	unsigned long pmin, pmax;
-+
-+	/* XXX: fix this for shmem */
-+	if (!vma || !vma->vm_mm)
-+		goto nora;
-+
-+	/* Physical range to read from */
-+	pmin = swp_offset(entry) & ~(cluster - 1);
-+	pmax = pmin + cluster;
-+
-+	/* Virtual range to read from */
-+	start = addr & ~(window - 1);
-+	end = start + window;
-+
-+	for (pos = start; pos < end; pos += PAGE_SIZE) {
-+		struct page *page;
-+		swp_entry_t swp;
-+		spinlock_t *ptl;
-+		pgd_t *pgd;
-+		pud_t *pud;
-+		pmd_t *pmd;
-+		pte_t *pte;
-+
-+		pgd = pgd_offset(vma->vm_mm, pos);
-+		if (!pgd_present(*pgd))
-+			continue;
-+		pud = pud_offset(pgd, pos);
-+		if (!pud_present(*pud))
-+			continue;
-+		pmd = pmd_offset(pud, pos);
-+		if (!pmd_present(*pmd))
-+			continue;
-+		pte = pte_offset_map_lock(vma->vm_mm, pmd, pos, &ptl);
-+		if (!is_swap_pte(*pte)) {
-+			pte_unmap_unlock(pte, ptl);
-+			continue;
-+		}
-+		swp = pte_to_swp_entry(*pte);
-+		pte_unmap_unlock(pte, ptl);
-+
-+		if (swp_type(swp) != swp_type(entry))
-+			continue;
-+		/*
-+		 * Dont move the disk head too far away.  This also
-+		 * throttles readahead while thrashing, where virtual
-+		 * order diverges more and more from physical order.
-+		 */
-+		if (swp_offset(swp) > pmax)
-+			continue;
-+		if (swp_offset(swp) < pmin)
-+			continue;
-+		page = read_swap_cache_async(swp, gfp_mask, vma, pos);
- 		if (!page)
--			break;
-+			continue;
- 		page_cache_release(page);
- 	}
- 	lru_add_drain();	/* Push any new pages onto the LRU now */
-+nora:
- 	return read_swap_cache_async(entry, gfp_mask, vma, addr);
- }
--- 
-1.6.3
+--uZ3hkaAS1mZxFaxD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
