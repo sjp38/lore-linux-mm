@@ -1,67 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DA7B36B004F
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 21:47:54 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0537A6B004F
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 22:07:30 -0400 (EDT)
+Date: Wed, 27 May 2009 04:06:37 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: release swap slots for actively used pages
-Date: Wed, 27 May 2009 03:47:39 +0200
-Message-Id: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [RFC][PATCH 5/5] (experimental) chase and free cache only swap
+Message-ID: <20090527020637.GA9863@cmpxchg.org>
+References: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com> <20090526121834.dd9a4193.kamezawa.hiroyu@jp.fujitsu.com> <20090526181359.GB2843@cmpxchg.org> <20090527090813.a0e436f8.kamezawa.hiroyu@jp.fujitsu.com> <20090527012658.GA9692@cmpxchg.org> <20090527103107.9c04eb55.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090527103107.9c04eb55.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-For anonymous pages activated by the reclaim scan or faulted from an
-evicted page table entry we should always try to free up swap space.
+On Wed, May 27, 2009 at 10:31:07AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 27 May 2009 03:26:58 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > On Wed, May 27, 2009 at 09:08:13AM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Tue, 26 May 2009 20:14:00 +0200
+> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > 
+> > > > On Tue, May 26, 2009 at 12:18:34PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > > > 
+> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > > 
+> > > > > Just a trial/example patch.
+> > > > > I'd like to consider more. Better implementation idea is welcome.
+> > > > > 
+> > > > > When the system does swap-in/swap-out repeatedly, there are 
+> > > > > cache-only swaps in general.
+> > > > > Typically,
+> > > > >  - swapped out in past but on memory now while vm_swap_full() returns true
+> > > > > pages are cache-only swaps. (swap_map has no references.)
+> > > > > 
+> > > > > This cache-only swaps can be an obstacles for smooth page reclaiming.
+> > > > > Current implemantation is very naive, just scan & free.
+> > > > 
+> > > > I think we can just remove that vm_swap_full() check in do_swap_page()
+> > > > and try to remove the page from swap cache unconditionally.
+> > > > 
+> > > I'm not sure why reclaim swap entry only at write fault.
+> > 
+> > How do you come to that conclusion?  Do you mean the current code does
+> > that? 
+> yes.
+> 
+> 2474         pte = mk_pte(page, vma->vm_page_prot);
+> 2475         if (write_access && reuse_swap_page(page)) {
+> 2476                 pte = maybe_mkwrite(pte_mkdirty(pte), vma);
+> 2477                 write_access = 0;
+> 2478         }
 
-Both events indicate that the page is in active use and a possible
-change in the working set.  Thus removing the slot association from
-the page increases the chance of the page being placed near its new
-LRU buddies on the next eviction and helps keeping the amount of stale
-swap cache entries low.
+Ahh.  But further down after installing the PTE, it does
 
-try_to_free_swap() inherently only succeeds when the last user of the
-swap slot vanishes so it is safe to use from places where that single
-mapping just brought the page back to life.
+	swap_free(entry);
+	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+	        try_to_free_swap(page);
+	unlock_page(page);
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
- mm/memory.c |    3 +--
- mm/vmscan.c |    2 +-
- 2 files changed, 2 insertions(+), 3 deletions(-)
+You are right, it tries to reuse the page and free the swap slot for
+writes, but later it removes the swap reference from the pte and then
+tries to free the slot again, also for reads.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 8b4e40e..407ebf7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2671,8 +2671,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	mem_cgroup_commit_charge_swapin(page, ptr);
- 
- 	swap_free(entry);
--	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
--		try_to_free_swap(page);
-+	try_to_free_swap(page);
- 	unlock_page(page);
- 
- 	if (write_access) {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 621708f..2f0549d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -788,7 +788,7 @@ cull_mlocked:
- 
- activate_locked:
- 		/* Not a candidate for swapping, so reclaim swap space. */
--		if (PageSwapCache(page) && vm_swap_full())
-+		if (PageSwapCache(page))
- 			try_to_free_swap(page);
- 		VM_BUG_ON(PageActive(page));
- 		SetPageActive(page);
--- 
-1.6.3
+My suggestion was to remove these checks in the second attempt and
+just try regardless of swap usage or mlock.  I just sent out a patch
+that does that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
