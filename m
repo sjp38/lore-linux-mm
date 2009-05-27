@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E158A6B0093
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 01:25:27 -0400 (EDT)
-Date: Tue, 26 May 2009 22:25:10 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E336B0093
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 01:30:09 -0400 (EDT)
+Date: Tue, 26 May 2009 22:30:02 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3]  clean up functions related to pages_min V2
-Message-Id: <20090526222510.ad054b8a.akpm@linux-foundation.org>
-In-Reply-To: <20090521092304.0eb3c4cb.minchan.kim@barrios-desktop>
-References: <20090521092304.0eb3c4cb.minchan.kim@barrios-desktop>
+Subject: Re: [PATCH 2/3] add inactive ratio calculation function of each
+ zone V2
+Message-Id: <20090526223002.f283bcd2.akpm@linux-foundation.org>
+In-Reply-To: <20090521092321.ee57585e.minchan.kim@barrios-desktop>
+References: <20090521092321.ee57585e.minchan.kim@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,28 +17,41 @@ To: Minchan Kim <minchan.kim@gmail.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 May 2009 09:23:04 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
+On Thu, 21 May 2009 09:23:21 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
 
 > Changelog since V1 
->  o Change function name from setup_per_zone_wmark_min to setup_per_zone_wmarks
+>  o Change function name from calculate_zone_inactive_ratio to calculate_inactive_ratio
 >    - by Mel Gorman advise
->  o Modify description - by KOSAKI advise
-> 
-> Mel changed zone->pages_[high/low/min] with zone->watermark array.
-> So, the functions related to pages_min also have to be changed.
-> 
-> * setup_per_zone_pages_min
-> * init_per_zone_pages_min
-> 
-> This patch is just clean up. so it doesn't affect behavior.
-> 
+>  o Modify tab indent - by Mel Gorman advise
 
-I cannot actually find a usable changelog amongst all that text.  Can
-you try again please?
+The first two patches still had various trivial whitespace bustages. 
+You don't need Mel to find these things when we have the very nice
+scripts/checkpatch.pl.  Please incorporate that script into your patch
+preparation tools
 
-afacit the patch simply changes the names of a couple of functions. 
-The changelog should concisely and completely describe what those naming
-changes are, and the reason for making them.
+> This patch devide setup_per_zone_inactive_ratio with
+> per-zone inactive ratio calculaton.
+
+The above sentence appears to be the changelog for this patch but it
+doesn't make a lot of sense.
+
+afaict the changelog should be:
+
+"factor the per-zone arithemetic inside
+setup_per_zone_inactive_ratio()'s loop into a a separate function,
+calculate_zone_inactive_ratio().  This function will be used in a later
+patch".
+
+yes?
+
+
+> This patch is just for helping my next patch.
+> (reset wmark_min and inactive ratio of zone when hotplug happens)
+> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
