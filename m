@@ -1,122 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7596B005C
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 05:55:20 -0400 (EDT)
-Date: Wed, 27 May 2009 10:56:08 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A0D16B0055
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 07:12:23 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Determine if mapping is MAP_SHARED using VM_MAYSHARE
-	and not VM_SHARED in hugetlbfs
-Message-ID: <20090527095607.GB633@csn.ul.ie>
-References: <Pine.LNX.4.64.0905262056150.958@sister.anvils> <20090527004859.GB6189@csn.ul.ie> <20090527111652.688B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090527111652.688B.A69D9226@jp.fujitsu.com>
+Subject: [PATCH 0/2] Fixes for hugetlbfs-related problems on shared memory
+Date: Wed, 27 May 2009 12:12:27 +0100
+Message-Id: <1243422749-6256-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, npiggin@suse.de, apw@shadowen.org, agl@us.ibm.com, ebmunson@us.ibm.com, andi@firstfloor.org, david@gibson.dropbear.id.au, kenchen@google.com, wli@holomorphy.com, akpm@linux-foundation.org, starlight@binnacle.cx, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, starlight@binnacle.cx, Eric B Munson <ebmunson@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, wli@movementarian.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 27, 2009 at 12:17:41PM +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> > > > follow_hugetlb_page
-> > > > 	This is checking of the zero page can be shared or not. Crap,
-> > > > 	this one looks like it should have been converted to VM_MAYSHARE
-> > > > 	as well.
-> > > 
-> > > Now, what makes you say that?
-> > > 
-> > > I really am eager to understand, because I don't comprehend
-> > > that VM_SHARED at all. 
-> > 
-> > I think I understand it, but I keep changing my mind on whether
-> > VM_SHARED is sufficient or not.
-> > 
-> > In this specific case, the zeropage must not be used by process A where
-> > it's possible that process B has populated it with data. when I said "Crap"
-> > earlier, the scenario I imagined went something like;
-> > 
-> > o Process A opens a hugetlbfs file read/write but does not map the file
-> > o Process B opens the same hugetlbfs read-only and maps it
-> >   MAP_SHARED. hugetlbfs allows mmaps to files that have not been ftruncate()
-> >   so it can fault pages without SIGBUS
-> > o Process A writes the file - currently this is impossible as hugetlbfs
-> >   does not support write() but lets pretend it was possible
-> > o Process B calls mlock() which calls into follow_hugetlb_page().
-> >   VM_SHARED is not set because it's a read-only mapping and it returns
-> >   the wrong page.
-> > 
-> > This last step is where I went wrong. As process 2 had no PTE for that
-> > location, it would have faulted the page as normal and gotten the correct
-> > page and never considered the zero page so VM_SHARED was ok after all.
-> > 
-> > But this is sufficiently difficult that I'm worried that there is some other
-> > scenario where Process B uses the zero page when it shouldn't. Testing for
-> > VM_MAYSHARE would prevent the zero page being used incorrectly whether the
-> > mapping is read-only or read-write but maybe that's too paranoid.
-> > 
-> > Kosaki, can you comment on what impact (if any) testing for VM_MAYSHARE
-> > would have here with respect to core-dumping?
-> 
-> Thank you for very kindful explanation.
-> 
-> Perhaps, I don't understand this issue yet. Honestly I didn't think this
-> issue at my patch making time.
-> 
-> following is my current analysis. if I'm misunderstanding anythink, please
-> correct me.
-> 
-> hugepage mlocking call make_pages_present().
-> above case, follow_page_page() don't use ZERO_PAGE because vma don't have
-> VM_SHARED.
-> but that's ok. make_pages_present's intention is not get struct page,
-> it is to make page population. in this case, we need follow_hugetlb_page() call
-> hugetlb_fault(), I think.
-> 
-> 
-> In the other hand, when core-dump case
-> 
-> .text segment: open(O_RDONLY) + mmap(MAP_SHARED)
-> .data segment: open(O_RDONLY) + mmap(MAP_PRIVATE)
-> 
-> it mean .text can't use ZERO_PAGE. but I think no problem. In general
-> .text is smaller than .data. It doesn't make so slowness.
-> 
+The following two patches are required to fix problems reported by
+starlight@binnacle.cx. The tests cases both involve two processes interacting
+with shared memory segments backed by hugetlbfs.
 
-Ok, in that case, I'm going to leave VM_SHARED here alone rather than
-switching it to VM_MAYSHARE. Right now, VM_SHARED appears to be covering
-the cases we care about in this instance.
+Patch 1 fixes an x86-specific problem where regions sharing page tables
+are not being reference counted properly. The page tables get freed early
+resulting in bad PMD messages printed to the kernel log and the hugetlb
+counters getting corrupted. Strictly speaking, this affects mainline but
+the problem is masked by UNEVITABLE_LRU as it never leaves VM_LOCKED set for
+hugetlbfs-backed mapping. This does affect the stable branch of 2.6.27 and
+distributions based on that kernel such as SLES 11. This patch is required
+for 2.6.27-stable and while it is optional for mainline, it should be merged
+so that the stable branch does not contain patches that are not in mainline.
 
-Thanks.
+Patch 2 fixes a general hugetlbfs problem where it is using VM_SHARED instead
+of VM_MAYSHARE to detect if the mapping was MAP_SHARED or MAP_PRIVATE. This
+causes hugetlbfs to attempt reserving more pages than is required for
+MAP_SHARED and mmap() fails when it should succeed. This patch is needed
+for 2.6.30 and -stable. It rejects against 2.6.27.24 but the reject is
+trivially resolved by changing the last VM_SHARED in hugetlb_reserve_pages()
+to VM_MAYSHARE.
 
-> 
-> 
-> > > I believe Kosaki-san's 4b2e38ad simply
-> > > copied it from Linus's 672ca28e to mm/memory.c.  But even back
-> > > when that change was made, I confessed to having lost the plot
-> > > on it: so far as I can see, putting a VM_SHARED test in there
-> > > just happened to prevent some VMware code going the wrong way,
-> > > but I don't see the actual justification for it.
-> > > 
-> > 
-> > Having no idea how vmware broke exactly, I'm not sure what exactly was
-> > fixed. Maybe by not checking VM_SHARED, it was possible that a caller of
-> > get_user_pages() would not see updates made by a parallel writer.
-> > 
-> > > So, given that I don't understand it in the first place,
-> > > I can't really support changing that VM_SHARED to VM_MAYSHARE.
-> > > 
-> > 
-> > Lets see what Kosaki says. If he's happy with VM_SHARED, I'll leave it
-> > alone.
-> 
-> 
+Starlight, if you are still watching, can you reconfirm that this patches
+fix the problems you were having?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+ arch/x86/mm/hugetlbpage.c |    6 +++++-
+ mm/hugetlb.c              |   26 +++++++++++++-------------
+ 2 files changed, 18 insertions(+), 14 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
