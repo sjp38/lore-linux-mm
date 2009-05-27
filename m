@@ -1,138 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 381B46B00AF
+	by kanga.kvack.org (Postfix) with ESMTP id 854ED6B00B1
 	for <linux-mm@kvack.org>; Wed, 27 May 2009 13:43:19 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v16][PATCH 20/43] c/r: export functionality used in next patch for restart-blocks
-Date: Wed, 27 May 2009 13:32:46 -0400
-Message-Id: <1243445589-32388-21-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v16][PATCH 30/43] c/r: stub implementation for IPC namespace
+Date: Wed, 27 May 2009 13:32:56 -0400
+Message-Id: <1243445589-32388-31-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Dan Smith <danms@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-To support c/r of restart-blocks (system call that need to be
-restarted because they were interrupted but there was no userspace
-visible side-effect), export restart-block callbacks for poll()
-and futex() syscalls.
+From: Dan Smith <danms@us.ibm.com>
 
-More details on c/r of restart-blocks and how it works in the
-following patch.
+Changes:
+ - Update to match UTS changes
 
+Signed-off-by: Dan Smith <danms@us.ibm.com>
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
-Acked-by: Serge Hallyn <serue@us.ibm.com>
 ---
- fs/select.c                  |    2 +-
- include/linux/futex.h        |   10 ++++++++++
- include/linux/poll.h         |    3 +++
- include/linux/posix-timers.h |    2 ++
- kernel/futex.c               |   11 +----------
- kernel/posix-timers.c        |    2 +-
- 6 files changed, 18 insertions(+), 12 deletions(-)
+ checkpoint/checkpoint.c        |    2 --
+ checkpoint/objhash.c           |   28 ++++++++++++++++++++++++++++
+ checkpoint/process.c           |   24 ++++++++++++++++++++++--
+ include/linux/checkpoint.h     |   15 +++++++++++++++
+ include/linux/checkpoint_hdr.h |    3 +++
+ 5 files changed, 68 insertions(+), 4 deletions(-)
 
-diff --git a/fs/select.c b/fs/select.c
-index 0fe0e14..e64ddc6 100644
---- a/fs/select.c
-+++ b/fs/select.c
-@@ -833,7 +833,7 @@ out_fds:
- 	return err;
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index 904f19b..afc7300 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -310,8 +310,6 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 
+ 	rcu_read_lock();
+ 	nsproxy = task_nsproxy(t);
+-	if (nsproxy->ipc_ns != ctx->root_nsproxy->ipc_ns)
+-		ret = -EPERM;
+ 	if (nsproxy->mnt_ns != ctx->root_nsproxy->mnt_ns)
+ 		ret = -EPERM;
+ 	if (nsproxy->pid_ns != ctx->root_nsproxy->pid_ns)
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
+index 8b7adc6..045a920 100644
+--- a/checkpoint/objhash.c
++++ b/checkpoint/objhash.c
+@@ -15,6 +15,8 @@
+ #include <linux/hash.h>
+ #include <linux/file.h>
+ #include <linux/fdtable.h>
++#include <linux/sched.h>
++#include <linux/ipc_namespace.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
+ 
+@@ -159,6 +161,22 @@ static int obj_uts_ns_users(void *ptr)
+ 	return atomic_read(&((struct uts_namespace *) ptr)->kref.refcount);
  }
  
--static long do_restart_poll(struct restart_block *restart_block)
-+long do_restart_poll(struct restart_block *restart_block)
- {
- 	struct pollfd __user *ufds = restart_block->poll.ufds;
- 	int nfds = restart_block->poll.nfds;
-diff --git a/include/linux/futex.h b/include/linux/futex.h
-index 3bf5bb5..dd0e06b 100644
---- a/include/linux/futex.h
-+++ b/include/linux/futex.h
-@@ -130,6 +130,16 @@ extern int
- handle_futex_death(u32 __user *uaddr, struct task_struct *curr, int pi);
- 
- /*
-+ * In case we must use restart_block to restart a futex_wait,
-+ * we encode in the 'flags' shared capability
-+ */
-+#define FLAGS_SHARED		0x01
-+#define FLAGS_CLOCKRT		0x02
++static int obj_ipc_ns_grab(void *ptr)
++{
++	get_ipc_ns((struct ipc_namespace *) ptr);
++	return 0;
++}
 +
-+/* referenced by checkpoint/restart */
-+extern long futex_wait_restart(struct restart_block *restart);
++static void obj_ipc_ns_drop(void *ptr)
++{
++	put_ipc_ns((struct ipc_namespace *) ptr);
++}
 +
-+/*
-  * Futexes are matched on equal values of this key.
-  * The key type depends on whether it's a shared or private mapping.
-  * Don't rearrange members without looking at hash_futex().
-diff --git a/include/linux/poll.h b/include/linux/poll.h
-index 8c24ef8..97f95a7 100644
---- a/include/linux/poll.h
-+++ b/include/linux/poll.h
-@@ -131,6 +131,9 @@ extern int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
- 
- extern int poll_select_set_timeout(struct timespec *to, long sec, long nsec);
- 
-+/* used by checkpoint/restart */
-+extern long do_restart_poll(struct restart_block *restart_block);
++static int obj_ipc_ns_users(void *ptr)
++{
++	return atomic_read(&((struct ipc_namespace *) ptr)->count);
++}
 +
- #endif /* KERNEL */
+ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 	/* ignored object */
+ 	{
+@@ -226,6 +244,16 @@ static struct ckpt_obj_ops ckpt_obj_ops[] = {
+ 		.checkpoint = checkpoint_bad,
+ 		.restore = restore_bad,
+ 	},
++	/* ipc_ns object */
++	{
++		.obj_name = "IPC_NS",
++		.obj_type = CKPT_OBJ_IPC_NS,
++		.ref_drop = obj_ipc_ns_drop,
++		.ref_grab = obj_ipc_ns_grab,
++		.ref_users = obj_ipc_ns_users,
++		.checkpoint = checkpoint_bad,
++		.restore = restore_bad,
++	},
+ };
  
- #endif /* _LINUX_POLL_H */
-diff --git a/include/linux/posix-timers.h b/include/linux/posix-timers.h
-index 4f71bf4..3d0e946 100644
---- a/include/linux/posix-timers.h
-+++ b/include/linux/posix-timers.h
-@@ -119,4 +119,6 @@ long clock_nanosleep_restart(struct restart_block *restart_block);
  
- void update_rlimit_cpu(unsigned long rlim_new);
+diff --git a/checkpoint/process.c b/checkpoint/process.c
+index a827987..eff3d76 100644
+--- a/checkpoint/process.c
++++ b/checkpoint/process.c
+@@ -89,6 +89,7 @@ static int do_checkpoint_ns(struct ckpt_ctx *ctx, struct nsproxy *nsproxy)
+ 	struct ckpt_hdr_ns *h;
+ 	int ns_flags = 0;
+ 	int uts_objref;
++	int ipc_objref;
+ 	int first, ret;
  
-+int invalid_clockid(const clockid_t which_clock);
+ 	uts_objref = ckpt_obj_lookup_add(ctx, nsproxy->uts_ns,
+@@ -98,12 +99,20 @@ static int do_checkpoint_ns(struct ckpt_ctx *ctx, struct nsproxy *nsproxy)
+ 	if (first)
+ 		ns_flags |= CLONE_NEWUTS;
+ 
++	ipc_objref = ckpt_obj_lookup_add(ctx, nsproxy->ipc_ns,
++					 CKPT_OBJ_IPC_NS, &first);
++	if (ipc_objref < 0)
++		return ipc_objref;
++	if (first)
++		ns_flags |= CLONE_NEWIPC;
 +
- #endif
-diff --git a/kernel/futex.c b/kernel/futex.c
-index d546b2d..f405c73 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -1113,15 +1113,6 @@ handle_fault:
- 	goto retry;
- }
+ 	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_NS);
+ 	if (!h)
+ 		return -ENOMEM;
  
--/*
-- * In case we must use restart_block to restart a futex_wait,
-- * we encode in the 'flags' shared capability
-- */
--#define FLAGS_SHARED		0x01
--#define FLAGS_CLOCKRT		0x02
--
--static long futex_wait_restart(struct restart_block *restart);
--
- static int futex_wait(u32 __user *uaddr, int fshared,
- 		      u32 val, ktime_t *abs_time, u32 bitset, int clockrt)
- {
-@@ -1286,7 +1277,7 @@ out:
- }
+ 	h->flags = ns_flags;
+ 	h->uts_objref = uts_objref;
++	h->ipc_objref = ipc_objref;
  
+ 	ret = ckpt_write_obj(ctx, &h->h);
+ 	ckpt_hdr_put(ctx, h);
+@@ -112,6 +121,10 @@ static int do_checkpoint_ns(struct ckpt_ctx *ctx, struct nsproxy *nsproxy)
  
--static long futex_wait_restart(struct restart_block *restart)
-+long futex_wait_restart(struct restart_block *restart)
- {
- 	u32 __user *uaddr = (u32 __user *)restart->futex.uaddr;
- 	int fshared = 0;
-diff --git a/kernel/posix-timers.c b/kernel/posix-timers.c
-index 052ec4d..589aed2 100644
---- a/kernel/posix-timers.c
-+++ b/kernel/posix-timers.c
-@@ -205,7 +205,7 @@ static int no_timer_create(struct k_itimer *new_timer)
- /*
-  * Return nonzero if we know a priori this clockid_t value is bogus.
-  */
--static inline int invalid_clockid(const clockid_t which_clock)
-+int invalid_clockid(const clockid_t which_clock)
- {
- 	if (which_clock < 0)	/* CPU clock, posix_cpu_* will check it */
- 		return 0;
+ 	if (ns_flags & CLONE_NEWUTS)
+ 		ret = checkpoint_uts_ns(ctx, nsproxy->uts_ns);
++#if 0
++	if (!ret && (ns_flags & CLONE_NEWIPC))
++		ret = checkpoint_ipc_ns(ctx, nsproxy->ipc_ns);
++#endif
+ 
+ 	/* FIX: Write other namespaces here */
+ 	return ret;
+@@ -438,9 +451,10 @@ static struct nsproxy *do_restore_ns(struct ckpt_ctx *ctx)
+ 		return (struct nsproxy *) h;
+ 
+ 	ret = -EINVAL;
+-	if (h->uts_objref <= 0)
++	if (h->uts_objref <= 0 ||
++	    h->ipc_objref <= 0)
+ 		goto out;
+-	if (h->flags & ~CLONE_NEWUTS)
++	if (h->flags & ~(CLONE_NEWUTS | CLONE_NEWIPC))
+ 		goto out;
+ 
+ 	/* each unseen-before namespace will be un-shared now */
+@@ -456,6 +470,12 @@ static struct nsproxy *do_restore_ns(struct ckpt_ctx *ctx)
+ 	 */
+ 	ret = restore_uts_ns(ctx, h->uts_objref, h->flags);
+ 	ckpt_debug("uts ns: %d\n", ret);
++	if (ret < 0)
++		goto out;
++#if 0
++	ret = restore_ipc_ns(ctx, h->ipc_objref, h->flags);
++	ckpt_debug("ipc ns: %d\n", ret);
++#endif
+ 
+ 	/* FIX: add more namespaces here */
+  out:
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index a7125fc..5a42399 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -81,6 +81,21 @@ extern int restore_restart_block(struct ckpt_ctx *ctx);
+ extern int checkpoint_ns(struct ckpt_ctx *ctx, void *ptr);
+ extern void *restore_ns(struct ckpt_ctx *ctx);
+ 
++#if 0
++/* ipc-ns */
++#ifdef CONFIG_SYSVIPC
++extern int checkpoint_ipc_ns(struct ckpt_ctx *ctx,
++			     struct ipc_namespace *ipc_ns);
++extern int restore_ipc_ns(struct ckpt_ctx *ctx, int ns_objref, int flags);
++#else
++static inline int checkpoint_ipc_ns(struct ckpt_ctx *ctx,
++				    struct ipc_namespace *ipc_ns)
++{ return 0; }
++static inline int restore_ipc_ns(struct ckpt_ctx *ctx)
++{ return 0; }
++#endif /* CONFIG_SYSVIPC */
++#endif
++
+ /* file table */
+ extern int checkpoint_obj_file_table(struct ckpt_ctx *ctx,
+ 				     struct task_struct *t);
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 1603279..44a48dc 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -55,6 +55,7 @@ enum {
+ 	CKPT_HDR_CPU,
+ 	CKPT_HDR_NS,
+ 	CKPT_HDR_UTS_NS,
++	CKPT_HDR_IPC_NS,
+ 
+ 	/* 201-299: reserved for arch-dependent */
+ 
+@@ -95,6 +96,7 @@ enum obj_type {
+ 	CKPT_OBJ_MM,
+ 	CKPT_OBJ_NS,
+ 	CKPT_OBJ_UTS_NS,
++	CKPT_OBJ_IPC_NS,
+ 	CKPT_OBJ_MAX
+ };
+ 
+@@ -167,6 +169,7 @@ struct ckpt_hdr_ns {
+ 	struct ckpt_hdr h;
+ 	__u32 flags;
+ 	__s32 uts_objref;
++	__u32 ipc_objref;
+ } __attribute__((aligned(8)));
+ 
+ /* task's shared resources */
 -- 
 1.6.0.4
 
