@@ -1,84 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ED25F6B00B0
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 16:12:32 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 196A76B00B1
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 16:12:34 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200905271012.668777061@firstfloor.org>
 In-Reply-To: <200905271012.668777061@firstfloor.org>
-Subject: [PATCH] [5/16] HWPOISON: Add new SIGBUS error codes for hardware poison signals
-Message-Id: <20090527201231.379EE1D028F@basil.firstfloor.org>
-Date: Wed, 27 May 2009 22:12:31 +0200 (CEST)
+Subject: [PATCH] [6/16] HWPOISON: Add basic support for poisoned pages in fault handler v2
+Message-Id: <20090527201232.555281D0290@basil.firstfloor.org>
+Date: Wed, 27 May 2009 22:12:32 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-Add new SIGBUS codes for reporting machine checks as signals. When 
-the hardware detects an uncorrected ECC error it can trigger these
-signals.
+- Add a new VM_FAULT_HWPOISON error code to handle_mm_fault. Right now
+architectures have to explicitely enable poison page support, so
+this is forward compatible to all architectures. They only need
+to add it when they enable poison page support.
+- Add poison page handling in swap in fault code
 
-This is needed for telling KVM's qemu about machine checks that happen to
-guests, so that it can inject them, but might be also useful for other programs.
-I find it useful in my test programs.
-
-This patch merely defines the new types.
-
-- Define two new si_codes for SIGBUS.  BUS_MCEERR_AO and BUS_MCEERR_AR
-* BUS_MCEERR_AO is for "Action Optional" machine checks, which means that some
-corruption has been detected in the background, but nothing has been consumed
-so far. The program can ignore those if it wants (but most programs would
-already get killed)
-* BUS_MCEERR_AR is for "Action Required" machine checks. This happens
-when corrupted data is consumed or the application ran into an area
-which has been known to be corrupted earlier. These require immediate
-action and cannot just returned to. Most programs would kill themselves.
-- They report the address of the corruption in the user address space
-in si_addr.
-- Define a new si_addr_lsb field that reports the extent of the corruption
-to user space. That's currently always a (small) page. The user application
-cannot tell where in this page the corruption happened.
-
-AK: I plan to write a man page update before anyone asks.
+v2: Add missing delayacct_clear_flag (Hidehiro Kawai)
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/asm-generic/siginfo.h |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ include/linux/mm.h |    3 ++-
+ mm/memory.c        |   18 +++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)
 
-Index: linux/include/asm-generic/siginfo.h
+Index: linux/mm/memory.c
 ===================================================================
---- linux.orig/include/asm-generic/siginfo.h	2009-05-27 21:13:54.000000000 +0200
-+++ linux/include/asm-generic/siginfo.h	2009-05-27 21:14:21.000000000 +0200
-@@ -82,6 +82,7 @@
- #ifdef __ARCH_SI_TRAPNO
- 			int _trapno;	/* TRAP # which caused the signal */
- #endif
-+			short _addr_lsb; /* LSB of the reported address */
- 		} _sigfault;
+--- linux.orig/mm/memory.c	2009-05-27 21:13:54.000000000 +0200
++++ linux/mm/memory.c	2009-05-27 21:19:19.000000000 +0200
+@@ -1315,7 +1315,8 @@
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+ 						return i ? i : -ENOMEM;
+-					else if (ret & VM_FAULT_SIGBUS)
++					if (ret &
++					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+ 						return i ? i : -EFAULT;
+ 					BUG();
+ 				}
+@@ -2459,8 +2460,15 @@
+ 		goto out;
  
- 		/* SIGPOLL */
-@@ -112,6 +113,7 @@
- #ifdef __ARCH_SI_TRAPNO
- #define si_trapno	_sifields._sigfault._trapno
- #endif
-+#define si_addr_lsb	_sifields._sigfault._addr_lsb
- #define si_band		_sifields._sigpoll._band
- #define si_fd		_sifields._sigpoll._fd
+ 	entry = pte_to_swp_entry(orig_pte);
+-	if (is_migration_entry(entry)) {
+-		migration_entry_wait(mm, pmd, address);
++	if (unlikely(non_swap_entry(entry))) {
++		if (is_migration_entry(entry)) {
++			migration_entry_wait(mm, pmd, address);
++		} else if (is_hwpoison_entry(entry)) {
++			ret = VM_FAULT_HWPOISON;
++		} else {
++			print_bad_pte(vma, address, pte, NULL);
++			ret = VM_FAULT_OOM;
++		}
+ 		goto out;
+ 	}
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+@@ -2484,6 +2492,10 @@
+ 		/* Had to read the page from swap area: Major fault */
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
++	} else if (PageHWPoison(page)) {
++		ret = VM_FAULT_HWPOISON;
++		delayacct_set_flag(DELAYACCT_PF_SWAPIN);
++		goto out;
+ 	}
  
-@@ -192,7 +194,11 @@
- #define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
- #define BUS_ADRERR	(__SI_FAULT|2)	/* non-existant physical address */
- #define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
--#define NSIGBUS		3
-+/* hardware memory error consumed on a machine check: action required */
-+#define BUS_MCEERR_AR	(__SI_FAULT|4)
-+/* hardware memory error detected in process but not consumed: action optional*/
-+#define BUS_MCEERR_AO	(__SI_FAULT|5)
-+#define NSIGBUS		5
+ 	lock_page(page);
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h	2009-05-27 21:13:54.000000000 +0200
++++ linux/include/linux/mm.h	2009-05-27 21:19:18.000000000 +0200
+@@ -702,11 +702,12 @@
+ #define VM_FAULT_SIGBUS	0x0002
+ #define VM_FAULT_MAJOR	0x0004
+ #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
++#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
+ 
+ #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+ #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+ 
+-#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
++#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
  
  /*
-  * SIGTRAP si_codes
+  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
