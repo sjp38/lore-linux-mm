@@ -1,69 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D63D76B007E
-	for <linux-mm@kvack.org>; Tue, 26 May 2009 23:26:17 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4R3QeJK009261
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 27 May 2009 12:26:40 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD9745DE5D
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:26:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2447745DE55
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:26:40 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EDE20E38005
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:26:39 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F0741DB8040
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:26:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5C5EA6B006A
+	for <linux-mm@kvack.org>; Tue, 26 May 2009 23:54:33 -0400 (EDT)
+Date: Wed, 27 May 2009 11:55:05 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] readahead:add blk_run_backing_dev
-In-Reply-To: <6.0.0.20.2.20090527120248.076abe38@172.19.0.2>
-References: <20090527025721.GA11153@localhost> <6.0.0.20.2.20090527120248.076abe38@172.19.0.2>
-Message-Id: <20090527122540.6897.A69D9226@jp.fujitsu.com>
+Message-ID: <20090527035505.GA16916@localhost>
+References: <20090520025123.GB8186@localhost> <6.0.0.20.2.20090521145005.06f81fe0@172.19.0.2> <20090522010538.GB6010@localhost> <6.0.0.20.2.20090522102551.0705aea0@172.19.0.2> <20090522023323.GA10864@localhost> <20090526164252.0741b392.akpm@linux-foundation.org> <6.0.0.20.2.20090527092105.076be238@172.19.0.2> <20090527020909.GB17658@localhost> <6.0.0.20.2.20090527110937.0770c420@172.19.0.2> <20090526193601.b825af5f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 27 May 2009 12:26:38 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090526193601.b825af5f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-> >> >The numbers look too small for a 7 disk RAID:
-> >> >
-> >> >        > #dd if=testdir/testfile of=/dev/null bs=16384
-> >> >        >
-> >> >        > -2.6.30-rc6
-> >> >        > 1048576+0 records in
-> >> >        > 1048576+0 records out
-> >> >        > 17179869184 bytes (17 GB) copied, 224.182 seconds, 76.6 MB/s
-> >> >        >
-> >> >        > -2.6.30-rc6-patched
-> >> >        > 1048576+0 records in
-> >> >        > 1048576+0 records out
-> >> >        > 17179869184 bytes (17 GB) copied, 206.465 seconds, 83.2 MB/s
-> >> >
-> >> >I'd suggest you to configure the array properly before coming back to
-> >> >measuring the impact of this patch.
-> >> 
-> >> 
-> >> I created 16GB file to this disk array, and mounted to testdir, dd to 
-> >this directory.
-> >
-> >I mean, you should get >300MB/s throughput with 7 disks, and you
-> >should seek ways to achieve that before testing out this patch :-)
+On Wed, May 27, 2009 at 10:36:01AM +0800, Andrew Morton wrote:
+> On Wed, 27 May 2009 11:21:53 +0900 Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp> wrote:
 > 
-> Throughput number of storage array is very from one product to another.
-> On my hardware environment I think this number is valid and
-> my patch is effective.
+> > 
+> > At 11:09 09/05/27, Wu Fengguang wrote:
+> > >On Wed, May 27, 2009 at 08:25:04AM +0800, Hisashi Hifumi wrote:
+> > >> 
+> > >> At 08:42 09/05/27, Andrew Morton wrote:
+> > >> >On Fri, 22 May 2009 10:33:23 +0800
+> > >> >Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > >> >
+> > >> >> > I tested above patch, and I got same performance number.
+> > >> >> > I wonder why if (PageUptodate(page)) check is there...
+> > >> >> 
+> > >> >> Thanks!  This is an interesting micro timing behavior that
+> > >> >> demands some research work.  The above check is to confirm if it's
+> > >> >> the PageUptodate() case that makes the difference. So why that case
+> > >> >> happens so frequently so as to impact the performance? Will it also
+> > >> >> happen in NFS?
+> > >> >> 
+> > >> >> The problem is readahead IO pipeline is not running smoothly, which is
+> > >> >> undesirable and not well understood for now.
+> > >> >
+> > >> >The patch causes a remarkably large performance increase.  A 9%
+> > >> >reduction in time for a linear read? I'd be surprised if the workload
+> > >> 
+> > >> Hi Andrew.
+> > >> Yes, I tested this with dd.
+> > >> 
+> > >> >even consumed 9% of a CPU, so where on earth has the kernel gone to?
+> > >> >
+> > >> >Have you been able to reproduce this in your testing?
+> > >> 
+> > >> Yes, this test on my environment is reproducible.
+> > >
+> > >Hisashi, does your environment have some special configurations?
+> > 
+> > Hi.
+> > My testing environment is as follows:
+> > Hardware: HP DL580 
+> > CPU:Xeon 3.2GHz *4 HT enabled
+> > Memory:8GB
+> > Storage: Dothill SANNet2 FC (7Disks RAID-0 Array)
+> > 
+> > I did dd to this disk-array and got improved performance number.
+> > 
+> > I noticed that when a disk is just one HDD, performance improvement
+> > is very small.
+> > 
+> 
+> Ah.  So it's likely to be some strange interaction with the RAID setup.
 
-Hifumi-san, if you really want to merge, you should reproduce this
-issue on typical hardware, I think.
+The normal case is, if page N become uptodate at time T(N), then
+T(N) <= T(N+1) holds. But for RAID, the data arrival time depends on
+runtime status of individual disks, which breaks that formula. So
+in do_generic_file_read(), just after submitting the async readahead IO
+request, the current page may well be uptodate, so the page won't be locked,
+and the block device won't be implicitly unplugged:
+
+               if (PageReadahead(page))
+                        page_cache_async_readahead()
+                if (!PageUptodate(page))
+                                goto page_not_up_to_date;
+                //...
+page_not_up_to_date:
+                lock_page_killable(page);
 
 
+Therefore explicit unplugging can help, so
+
+        Acked-by: Wu Fengguang <fengguang.wu@intel.com> 
+
+The only question is, shall we avoid the double unplug by doing this?
+
+---
+ mm/readahead.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+--- linux.orig/mm/readahead.c
++++ linux/mm/readahead.c
+@@ -490,5 +490,15 @@ page_cache_async_readahead(struct addres
+ 
+ 	/* do read-ahead */
+ 	ondemand_readahead(mapping, ra, filp, true, offset, req_size);
++
++	/*
++	 * Normally the current page is !uptodate and lock_page() will be
++	 * immediately called to implicitly unplug the device. However this
++	 * is not always true for RAID conifgurations, where data arrives
++	 * not strictly in their submission order. In this case we need to
++	 * explicitly kick off the IO.
++	 */
++	if (PageUptodate(page))
++		blk_run_backing_dev(mapping->backing_dev_info, NULL);
+ }
+ EXPORT_SYMBOL_GPL(page_cache_async_readahead);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
