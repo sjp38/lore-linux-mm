@@ -1,285 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D54855F0004
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 13:43:20 -0400 (EDT)
-From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v16][PATCH 31/43] deferqueue: generic queue to defer work
-Date: Wed, 27 May 2009 13:32:57 -0400
-Message-Id: <1243445589-32388-32-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
-References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A8236B008A
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 14:24:05 -0400 (EDT)
+Date: Wed, 27 May 2009 14:23:07 -0400
+From: Kyle McMartin <kyle@mcmartin.ca>
+Subject: Re: [PATCH] drm: i915: ensure objects are allocated below 4GB on
+	PAE
+Message-ID: <20090527182307.GA30228@bombadil.infradead.org>
+References: <20090526162717.GC14808@bombadil.infradead.org> <Pine.LNX.4.64.0905262343140.13452@sister.anvils> <20090527001840.GC16929@bombadil.infradead.org> <20090527004250.GA11835@sli10-desk.sh.intel.com> <1243446012.8400.37.camel@gaiman.anholt.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1243446012.8400.37.camel@gaiman.anholt.net>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
+To: Eric Anholt <eric@anholt.net>
+Cc: Shaohua Li <shaohua.li@intel.com>, Kyle McMartin <kyle@mcmartin.ca>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "airlied@redhat.com" <airlied@redhat.com>, "dri-devel@lists.sf.net" <dri-devel@lists.sf.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jbarnes@virtuousgeek.org" <jbarnes@virtuousgeek.org>, "stable@kernel.org" <stable@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Add a interface to postpone an action until the end of the entire
-checkpoint or restart operation. This is useful when during the
-scan of tasks an operation cannot be performed in place, to avoid
-the need for a second scan.
+On Wed, May 27, 2009 at 10:40:12AM -0700, Eric Anholt wrote:
+> On Wed, 2009-05-27 at 08:42 +0800, Shaohua Li wrote:
+> > On Wed, May 27, 2009 at 08:18:40AM +0800, Kyle McMartin wrote:
+> > > On Tue, May 26, 2009 at 11:55:50PM +0100, Hugh Dickins wrote:
+> > > > I'm confused: I thought GFP_DMA32 only applies on x86_64:
+> > > > my 32-bit PAE machine with (slightly!) > 4GB shows no ZONE_DMA32.
+> > > > Does this patch perhaps depend on another, to enable DMA32 on 32-bit
+> > > > PAE, or am I just in a muddle?
+> > > > 
+> > > 
+> > > No, you're exactly right, I'm just a muppet and missed the obvious.
+> > > Looks like the "correct" fix is the fact that the allocation is thus
+> > > filled out with GFP_USER, therefore, from ZONE_NORMAL, and below
+> > > max_low_pfn.
+> > > 
+> > > Looks like we'll need some additional thinking to get true ZONE_DMA32 on
+> > > i386... ugh, I'll look into it tonight.
+> > For i386, GFP_USER is enough. But 945G GART can only map to physical page < 4G,
+> > so for x64, we need GFP_DMA32. This is the reason I add extra GFP_DMA32.
+> 
+> Those 945Gs don't have memory located above 4G, from my reading of the
+> chipset specs.
+> 
 
-One use case is when restoring an ipc shared memory region that has
-been deleted (but is still attached), during restart it needs to be
-create, attached and then deleted. However, creation and attachment
-are performed in distinct locations, so deletion can not be performed
-on the spot. Instead, this work (delete) is deferred until later.
-(This example is in one of the following patches).
+Indeed, I thought they were clipped to 3G memory, max. (I assume we mean
+945 in the strictest sense, and not "son of 945" like the G33 series?)
 
-This interface allows chronic procrastination in the kernel:
+(But yeah, the ifdef in my patch should be nuked strictly, I guess.)
 
-deferqueue_create(void):
-    Allocates and returns a new deferqueue.
-
-deferqueue_run(deferqueue):
-    Executes all the pending works in the queue. Returns the number
-    of works executed, or an error upon the first error reported by
-    a deferred work.
-
-deferqueue_add(deferqueue, data, size, func, dtor):
-    Enqueue a deferred work. @function is the callback function to
-    do the work, which will be called with @data as an argument.
-    @size tells the size of data. @dtor is a destructor callback
-    that is invoked for deferred works remaining in the queue when
-    the queue is destroyed. NOTE: for a given deferred work, @dtor
-    is _not_ called if @func was already called (regardless of the
-    return value of the latter).
-
-deferqueue_destroy(deferqueue):
-    Free the deferqueue and any queued items while invoking the
-    @dtor callback for each queued item.
-
-Why aren't we using the existing kernel workqueue mechanism?  We need
-to defer to work until the end of the operation: not earlier, since we
-need other things to be in place; not later, to not block waiting for
-it. However, the workqueue schedules the work for 'some time later'.
-Also, the kernel workqueue may run in any task context, but we require
-many times that an operation be run in the context of some specific
-restarting task (e.g., restoring IPC state of a certain ipc_ns).
-
-Instead, this mechanism is a simple way for the c/r operation as a
-whole, and later a task in particular, to defer some action until
-later (but not arbitrarily later) _in the restore_ operation.
-
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
----
- checkpoint/Kconfig         |    5 ++
- include/linux/deferqueue.h |   58 +++++++++++++++++++++++
- kernel/Makefile            |    1 +
- kernel/deferqueue.c        |  109 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 173 insertions(+), 0 deletions(-)
-
-diff --git a/checkpoint/Kconfig b/checkpoint/Kconfig
-index 1761b0a..53ed6fa 100644
---- a/checkpoint/Kconfig
-+++ b/checkpoint/Kconfig
-@@ -2,9 +2,14 @@
- # implemented the hooks for processor state etc. needed by the
- # core checkpoint/restart code.
- 
-+config DEFERQUEUE
-+	bool
-+	default n
-+
- config CHECKPOINT
- 	bool "Enable checkpoint/restart (EXPERIMENTAL)"
- 	depends on CHECKPOINT_SUPPORT && EXPERIMENTAL
-+	select DEFERQUEUE
- 	help
- 	  Application checkpoint/restart is the ability to save the
- 	  state of a running application so that it can later resume
-diff --git a/include/linux/deferqueue.h b/include/linux/deferqueue.h
-new file mode 100644
-index 0000000..2eb58cf
---- /dev/null
-+++ b/include/linux/deferqueue.h
-@@ -0,0 +1,58 @@
-+/*
-+ * deferqueue.h --- deferred work queue handling for Linux.
-+ */
-+
-+#ifndef _LINUX_DEFERQUEUE_H
-+#define _LINUX_DEFERQUEUE_H
-+
-+#include <linux/list.h>
-+#include <linux/slab.h>
-+#include <linux/spinlock.h>
-+
-+/*
-+ * This interface allows chronic procrastination in the kernel:
-+ *
-+ * deferqueue_create(void):
-+ *     Allocates and returns a new deferqueue.
-+ *
-+ * deferqueue_run(deferqueue):
-+ *     Executes all the pending works in the queue. Returns the number
-+ *     of works executed, or an error upon the first error reported by
-+ *     a deferred work.
-+ *
-+ * deferqueue_add(deferqueue, data, size, func, dtor):
-+ * 	Enqueue a deferred work. @function is the callback function to
-+ *      do the work, which will be called with @data as an argument.
-+ *      @size tells the size of data. @dtor is a destructor callback
-+ *      that is invoked for deferred works remaining in the queue when
-+ *      the queue is destroyed. NOTE: for a given deferred work, @dtor
-+ *      is _not_ called if @func was already called (regardless of the
-+ *      return value of the latter).
-+ *
-+ * deferqueue_destroy(deferqueue):
-+ *      Free the deferqueue and any queued items while invoking the
-+ *      @dtor callback for each queued item.
-+ */
-+
-+
-+typedef int (*deferqueue_func_t)(void *);
-+
-+struct deferqueue_entry {
-+	deferqueue_func_t function;
-+	deferqueue_func_t destructor;
-+	struct list_head list;
-+	char data[0];
-+};
-+
-+struct deferqueue_head {
-+	spinlock_t lock;
-+	struct list_head list;
-+};
-+
-+struct deferqueue_head *deferqueue_create(void);
-+void deferqueue_destroy(struct deferqueue_head *head);
-+int deferqueue_add(struct deferqueue_head *head, void *data, int size,
-+		   deferqueue_func_t func, deferqueue_func_t dtor);
-+int deferqueue_run(struct deferqueue_head *head);
-+
-+#endif
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 4242366..6bc638d 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -22,6 +22,7 @@ CFLAGS_REMOVE_cgroup-debug.o = -pg
- CFLAGS_REMOVE_sched_clock.o = -pg
- endif
- 
-+obj-$(CONFIG_DEFERQUEUE) += deferqueue.o
- obj-$(CONFIG_FREEZER) += freezer.o
- obj-$(CONFIG_PROFILING) += profile.o
- obj-$(CONFIG_SYSCTL_SYSCALL_CHECK) += sysctl_check.o
-diff --git a/kernel/deferqueue.c b/kernel/deferqueue.c
-new file mode 100644
-index 0000000..efd99d5
---- /dev/null
-+++ b/kernel/deferqueue.c
-@@ -0,0 +1,109 @@
-+/*
-+ *  Infrastructure to manage deferred work
-+ *
-+ *  This differs from a workqueue in that the work must be deferred
-+ *  until specifically run by the caller.
-+ *
-+ *  As the only user currently is checkpoint/restart, which has
-+ *  very simple usage, the locking is kept simple.  Adding rules
-+ *  is protected by the head->lock.  But deferqueue_run() is only
-+ *  called once, after all entries have been added.  So it is not
-+ *  protected.  Similarly, _destroy is only called once when the
-+ *  ckpt_ctx is releeased, so it is not locked or refcounted.  These
-+ *  can of course be added if needed by other users.
-+ *
-+ *  Why not use workqueue ?  We need to defer work until the end of an
-+ *  operation: not earlier, since we need other things to be in place;
-+ *  not later, to not block waiting for it. However, the workqueue
-+ *  schedules the work for 'some time later'. Also, workqueue may run
-+ *  in any task context, but we require many times that an operation
-+ *  be run in the context of some specific restarting task (e.g.,
-+ *  restoring IPC state of a certain ipc_ns).
-+ *
-+ *  Instead, this mechanism is a simple way for the c/r operation as a
-+ *  whole, and later a task in particular, to defer some action until
-+ *  later (but not arbitrarily later) _in the restore_ operation.
-+ *
-+ *  Copyright (C) 2009 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ *
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/kernel.h>
-+#include <linux/deferqueue.h>
-+
-+struct deferqueue_head *deferqueue_create(void)
-+{
-+	struct deferqueue_head *h = kmalloc(sizeof(*h), GFP_KERNEL);
-+	if (h) {
-+		spin_lock_init(&h->lock);
-+		INIT_LIST_HEAD(&h->list);
-+	}
-+	return h;
-+}
-+
-+void deferqueue_destroy(struct deferqueue_head *h)
-+{
-+	if (!list_empty(&h->list)) {
-+		struct deferqueue_entry *dq, *n;
-+
-+		pr_debug("%s: freeing non-empty queue\n", __func__);
-+		list_for_each_entry_safe(dq, n, &h->list, list) {
-+			dq->destructor(dq->data);
-+			list_del(&dq->list);
-+			kfree(dq);
-+		}
-+	}
-+	kfree(h);
-+}
-+
-+int deferqueue_add(struct deferqueue_head *head, void *data, int size,
-+		   deferqueue_func_t func, deferqueue_func_t dtor)
-+{
-+	struct deferqueue_entry *dq;
-+
-+	dq = kmalloc(sizeof(dq) + size, GFP_KERNEL);
-+	if (!dq)
-+		return -ENOMEM;
-+
-+	dq->function = func;
-+	dq->destructor = dtor;
-+	memcpy(dq->data, data, size);
-+
-+	pr_debug("%s: adding work %p func %p dtor %p\n",
-+		 __func__, dq, func, dtor);
-+	spin_lock(&head->lock);
-+	list_add_tail(&head->list, &dq->list);
-+	spin_unlock(&head->lock);
-+	return 0;
-+}
-+
-+/*
-+ * deferqueue_run - perform all work in the work queue
-+ * @head: deferqueue_head from which to run
-+ *
-+ * returns: number of works performed, or < 0 on error
-+ */
-+int deferqueue_run(struct deferqueue_head *head)
-+{
-+	struct deferqueue_entry *dq, *n;
-+	int nr = 0;
-+	int ret;
-+
-+	list_for_each_entry_safe(dq, n, &head->list, list) {
-+		pr_debug("doing work %p function %p\n", dq, dq->function);
-+		/* don't call destructor - function callback should do it */
-+		ret = dq->function(dq->data);
-+		if (ret < 0)
-+			pr_debug("wq function failed %d\n", ret);
-+		list_del(&dq->list);
-+		kfree(dq);
-+		nr++;
-+	}
-+
-+	return nr;
-+}
--- 
-1.6.0.4
+cheers, Kyle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
