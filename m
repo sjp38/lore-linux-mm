@@ -1,79 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1987E6B004D
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:38:29 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4RGbAfx003639
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:37:10 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4RGd3B7210052
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:39:03 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4RGd1KE018299
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:39:03 -0600
-Date: Wed, 27 May 2009 17:38:58 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB7E6B0055
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 12:39:53 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4RGavmq028911
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:36:57 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4RGeTMZ148614
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:40:29 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4RGeSLW032459
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 10:40:29 -0600
+Date: Wed, 27 May 2009 17:40:25 +0100
 From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: Re: [PATCH 1/2] x86: Ignore VM_LOCKED when determining if
-	hugetlb-backed page tables can be shared or not
-Message-ID: <20090527163858.GB5145@us.ibm.com>
-References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 2/2] mm: Account for MAP_SHARED mappings using
+	VM_MAYSHARE and not VM_SHARED in hugetlbfs
+Message-ID: <20090527164025.GC5145@us.ibm.com>
+References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <1243422749-6256-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="uZ3hkaAS1mZxFaxD"
+	protocol="application/pgp-signature"; boundary="GZVR6ND4mMseVXL/"
 Content-Disposition: inline
-In-Reply-To: <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1243422749-6256-3-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, starlight@binnacle.cx, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, wli@movementarian.org
 List-ID: <linux-mm.kvack.org>
 
 
---uZ3hkaAS1mZxFaxD
+--GZVR6ND4mMseVXL/
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
 On Wed, 27 May 2009, Mel Gorman wrote:
 
-> On x86 and x86-64, it is possible that page tables are shared beween shar=
-ed
-> mappings backed by hugetlbfs. As part of this, page_table_shareable() che=
-cks
-> a pair of vma->vm_flags and they must match if they are to be shared. All
-> VMA flags are taken into account, including VM_LOCKED.
+> hugetlbfs reserves huge pages but does not fault them at mmap() time to e=
+nsure
+> that future faults succeed. The reservation behaviour differs depending on
+> whether the mapping was mapped MAP_SHARED or MAP_PRIVATE. For MAP_SHARED
+> mappings, hugepages are reserved when mmap() is first called and are trac=
+ked
+> based on information associated with the inode. Other processes mapping
+> MAP_SHARED use the same reservation. MAP_PRIVATE track the reservations
+> based on the VMA created as part of the mmap() operation. Each process
+> mapping MAP_PRIVATE must make its own reservation.
 >=20
-> The problem is that VM_LOCKED is cleared on fork(). When a process with a
-> shared memory segment forks() to exec() a helper, there will be shared VM=
-As
-> with different flags. The impact is that the shared segment is sometimes
-> considered shareable and other times not, depending on what process is
-> checking.
+> hugetlbfs currently checks if a VMA is MAP_SHARED with the VM_SHARED flag=
+ and
+> not VM_MAYSHARE.  For file-backed mappings, such as hugetlbfs, VM_SHARED =
+is
+> set only if the mapping is MAP_SHARED and the file was opened read-write.=
+ If a
+> shared memory mapping was mapped shared-read-write for populating of data=
+ and
+> mapped shared-read-only by other processes, then hugetlbfs would account =
+for
+> the mapping as if it was MAP_PRIVATE.  This causes processes to fail to m=
+ap
+> the file MAP_SHARED even though it should succeed as the reservation is t=
+here.
 >=20
-> What happens is that the segment page tables are being shared but the cou=
-nt is
-> inaccurate depending on the ordering of events. As the page tables are fr=
-eed
-> with put_page(), bad pmd's are found when some of the children exit. The
-> hugepage counters also get corrupted and the Total and Free count will
-> no longer match even when all the hugepage-backed regions are freed. This
-> requires a reboot of the machine to "fix".
->=20
-> This patch addresses the problem by comparing all flags except VM_LOCKED =
-when
-> deciding if pagetables should be shared or not for hugetlbfs-backed mappi=
-ng.
+> This patch alters mm/hugetlb.c and replaces VM_SHARED with VM_MAYSHARE wh=
+en
+> the intent of the code was to check whether the VMA was mapped MAP_SHARED
+> or MAP_PRIVATE.
 >=20
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-I tested this patch using 2.6.30-rc7 and the libhugetlbfs test suite on x86=
-_64.
-Everything looks good to me.
+I tested this patch on both x86_64 and ppc64 using 2.6.30-rc7 with the libh=
+ugetlbfs
+test suite and everything looks good.
 
 Acked-by: Eric B Munson <ebmunson@us.ibm.com>
 Tested-by: Eric B Munson <ebmunson@us.ibm.com>
 
---uZ3hkaAS1mZxFaxD
+--GZVR6ND4mMseVXL/
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 Content-Disposition: inline
@@ -81,12 +83,12 @@ Content-Disposition: inline
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.9 (GNU/Linux)
 
-iEYEARECAAYFAkodbKIACgkQsnv9E83jkzogbQCgpQE/pgIniPcRRWpJbQTOGOQ4
-MFYAn0Fv0NvaqT1BJ5bwn67fMf5y/iUC
-=Ofoc
+iEYEARECAAYFAkodbPkACgkQsnv9E83jkzp8WgCg1pjmpoxQXXZgnPwTlFDRtYNK
+cw8AoIzWvhKvPJVOnTwkUzwhiCdpgSTc
+=w+yF
 -----END PGP SIGNATURE-----
 
---uZ3hkaAS1mZxFaxD--
+--GZVR6ND4mMseVXL/--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
