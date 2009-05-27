@@ -1,84 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A7D06B0092
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 01:08:37 -0400 (EDT)
-Date: Wed, 27 May 2009 14:00:01 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 2/5] add SWAP_HAS_CACHE flag to swap_map
-Message-Id: <20090527140001.80360afb.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090527133629.142aa42f.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0DA6B6B0093
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 01:16:06 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4R5GJYP014503
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 27 May 2009 14:16:19 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A038045DD7A
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 14:16:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C8AB45DD77
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 14:16:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F653E08001
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 14:16:19 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 124DA1DB8012
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 14:16:16 +0900 (JST)
+Date: Wed, 27 May 2009 14:14:42 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 5/5] (experimental) chase and free cache only swap
+Message-Id: <20090527141442.d191dc2d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090526121834.dd9a4193.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090526121547.ce866fe4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090527130246.95dadb2c.nishimura@mxp.nes.nec.co.jp>
-	<20090527133629.142aa42f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090526121834.dd9a4193.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 May 2009 13:36:29 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 27 May 2009 13:02:46 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Tue, 26 May 2009 12:18:34 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
 > 
-> > > @@ -1067,21 +1113,21 @@ static int try_to_unuse(unsigned int typ
-> > >  		}
-> > >  
-> > >  		/*
-> > > -		 * How could swap count reach 0x7fff when the maximum
-> > > -		 * pid is 0x7fff, and there's no way to repeat a swap
-> > > -		 * page within an mm (except in shmem, where it's the
-> > > -		 * shared object which takes the reference count)?
-> > > -		 * We believe SWAP_MAP_MAX cannot occur in Linux 2.4.
-> > > -		 *
-> > > +		 * How could swap count reach 0x7ffe ?
-> > > +		 * There's no way to repeat a swap page within an mm
-> > > +		 * (except in shmem, where it's the shared object which takes
-> > > +		 * the reference count)?
-> > > +		 * We believe SWAP_MAP_MAX cannot occur.(if occur, unsigned
-> > > +		 * short is too small....)
-> > >  		 * If that's wrong, then we should worry more about
-> > >  		 * exit_mmap() and do_munmap() cases described above:
-> > >  		 * we might be resetting SWAP_MAP_MAX too early here.
-> > >  		 * We know "Undead"s can happen, they're okay, so don't
-> > >  		 * report them; but do report if we reset SWAP_MAP_MAX.
-> > >  		 */
-> > > -		if (*swap_map == SWAP_MAP_MAX) {
-> > > +		if (swap_count(*swap_map) == SWAP_MAP_MAX) {
-> > >  			spin_lock(&swap_lock);
-> > > -			*swap_map = 1;
-> > > +			*swap_map = make_swap_count(0, 1);
-> > Can we assume the entry has SWAP_HAS_CACHE here ?
-> > Shouldn't we check PageSwapCache beforehand ?
-> > 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> IIUC, in this try_to_unuse code, the page is added to swap cache and locked
-> before reaches here. But....ah,ok, unuse_mm() may release lock_page() before
-> reach here. Then...
-> 
-And the owner process might have removed the swap cache before we take the lock,
-as the following comments in try_to_unuse() says.
+This is a replacement for this. (just an idea, not testd.)
 
-> if (PageSwapCache(page) && swap_count(*swap_map) == SWAP_MAP_MAX)
-> 
-> is right ? (maybe original code, set to "1" is also buggy.)
-> 
-Reading the following code in try_to_unuse(), I think
+I think this works well. Does anyone has concerns ?
+Do I have to modify swap-cluster code to do this in sane way ?
 
-	int valid_swap_cache = !!(PageSwapCache(page) &&
-					page_private(page) == entry.val)
-	  :
-	*swap_map = make_swap_count(0(or 1?), valid_swap_cache);
+---
+ mm/swapfile.c |   40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
 
-might be better.
-
-But I can't confirm it anyway. I've never hit SWAP_MAP_MAX.
-
-
-Thanks,
-Daisuke Nishimura.
+Index: new-trial-swapcount/mm/swapfile.c
+===================================================================
+--- new-trial-swapcount.orig/mm/swapfile.c
++++ new-trial-swapcount/mm/swapfile.c
+@@ -74,6 +74,26 @@ static inline unsigned short make_swap_c
+ 	return ret;
+ }
+ 
++static int try_to_reuse_swap(struct swap_info_struct *si, unsigned long offset)
++{
++	int type = si - swap_info;
++	swp_entry_t entry = swp_entry(type, offset);
++	struct page *page;
++
++	page = find_get_page(page);
++	if (!page)
++		return 0;
++	if (!trylock_page(page)) {
++		page_cache_release(page);
++		return 0;
++	}
++	try_to_free_swap(page);
++	unlock_page(page);
++	page_cache_release(page);
++	return 1;
++}
++
++
+ /*
+  * We need this because the bdev->unplug_fn can sleep and we cannot
+  * hold swap_lock while calling the unplug_fn. And swap_lock
+@@ -295,6 +315,18 @@ checks:
+ 		goto no_page;
+ 	if (offset > si->highest_bit)
+ 		scan_base = offset = si->lowest_bit;
++
++	/* reuse swap entry of cache-only swap if not busy. */
++	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++		int ret;
++		spin_unlock(&swap_lock);
++		ret = try_to_reuse_swap(si, offset));
++		spin_lock(&swap_lock);
++		if (ret)
++			goto checks; /* we released swap_lock */
++		goto scan;
++	}
++
+ 	if (si->swap_map[offset])
+ 		goto scan;
+ 
+@@ -378,6 +410,10 @@ scan:
+ 			spin_lock(&swap_lock);
+ 			goto checks;
+ 		}
++		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++			spin_lock(&swap_lock);
++			goto checks;
++		}
+ 		if (unlikely(--latency_ration < 0)) {
+ 			cond_resched();
+ 			latency_ration = LATENCY_LIMIT;
+@@ -389,6 +425,10 @@ scan:
+ 			spin_lock(&swap_lock);
+ 			goto checks;
+ 		}
++		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++			spin_lock(&swap_lock);
++			goto checks;
++		}
+ 		if (unlikely(--latency_ration < 0)) {
+ 			cond_resched();
+ 			latency_ration = LATENCY_LIMIT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
