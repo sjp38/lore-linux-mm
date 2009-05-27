@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA3D6B005D
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B416B0098
 	for <linux-mm@kvack.org>; Wed, 27 May 2009 13:42:58 -0400 (EDT)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v16][PATCH 35/43] c/r (ipc): export interface from ipc/shm.c to delete ipc shm
-Date: Wed, 27 May 2009 13:33:01 -0400
-Message-Id: <1243445589-32388-36-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v16][PATCH 37/43] c/r (ipc): make 'struct msg_msgseg' visible in ipc/util.h
+Date: Wed, 27 May 2009 13:33:03 -0400
+Message-Id: <1243445589-32388-38-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -13,46 +13,84 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Export shmctl_down() which will be used in the next patch during
-restart to delete an ipc shm (the shm is mapped already, so it
-won't be lost).
+Move the definition of 'struct msg_msgseg' and constants DATALEN_*
+to ipc/util.h, where they are visible to ipc/ckpt_msg.c
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- include/linux/shm.h |    4 ++++
- ipc/shm.c           |    4 ++--
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ ipc/msg.c     |    3 +--
+ ipc/msgutil.c |    8 --------
+ ipc/util.h    |   10 ++++++++++
+ 3 files changed, 11 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/shm.h b/include/linux/shm.h
-index eca6235..ec36e99 100644
---- a/include/linux/shm.h
-+++ b/include/linux/shm.h
-@@ -118,6 +118,10 @@ static inline int is_file_shm_hugepages(struct file *file)
- }
- #endif
+diff --git a/ipc/msg.c b/ipc/msg.c
+index 1db7c45..1d5d087 100644
+--- a/ipc/msg.c
++++ b/ipc/msg.c
+@@ -72,7 +72,6 @@ struct msg_sender {
  
-+struct ipc_namespace;
-+extern int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
-+		       struct shmid_ds __user *buf, int version);
-+
- #endif /* __KERNEL__ */
+ #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
  
- #endif /* _LINUX_SHM_H_ */
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 7dd5f0c..8aba22f 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -598,8 +598,8 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
-  * to be held in write mode.
-  * NOTE: no locks must be held, the rw_mutex is taken inside this function.
+-static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
+ static int newque(struct ipc_namespace *, struct ipc_params *, int);
+ #ifdef CONFIG_PROC_FS
+ static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
+@@ -278,7 +277,7 @@ static void expunge_all(struct msg_queue *msq, int res)
+  * msg_ids.rw_mutex (writer) and the spinlock for this message queue are held
+  * before freeque() is called. msg_ids.rw_mutex remains locked on exit.
   */
--static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
--		       struct shmid_ds __user *buf, int version)
-+int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
-+		struct shmid_ds __user *buf, int version)
+-static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
++void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
  {
- 	struct kern_ipc_perm *ipcp;
- 	struct shmid64_ds shmid64;
+ 	struct list_head *tmp;
+ 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
+diff --git a/ipc/msgutil.c b/ipc/msgutil.c
+index f095ee2..e119243 100644
+--- a/ipc/msgutil.c
++++ b/ipc/msgutil.c
+@@ -36,14 +36,6 @@ struct ipc_namespace init_ipc_ns = {
+ 
+ atomic_t nr_ipc_ns = ATOMIC_INIT(1);
+ 
+-struct msg_msgseg {
+-	struct msg_msgseg* next;
+-	/* the next part of the message follows immediately */
+-};
+-
+-#define DATALEN_MSG	(PAGE_SIZE-sizeof(struct msg_msg))
+-#define DATALEN_SEG	(PAGE_SIZE-sizeof(struct msg_msgseg))
+-
+ struct msg_msg *load_msg(const void __user *src, int len)
+ {
+ 	struct msg_msg *msg;
+diff --git a/ipc/util.h b/ipc/util.h
+index 5a6373f..db067b0 100644
+--- a/ipc/util.h
++++ b/ipc/util.h
+@@ -140,6 +140,14 @@ extern void free_msg(struct msg_msg *msg);
+ extern struct msg_msg *load_msg(const void __user *src, int len);
+ extern int store_msg(void __user *dest, struct msg_msg *msg, int len);
+ 
++struct msg_msgseg {
++	struct msg_msgseg *next;
++	/* the next part of the message follows immediately */
++};
++
++#define DATALEN_MSG	(PAGE_SIZE-sizeof(struct msg_msg))
++#define DATALEN_SEG	(PAGE_SIZE-sizeof(struct msg_msgseg))
++
+ extern void recompute_msgmni(struct ipc_namespace *);
+ 
+ static inline int ipc_buildid(int id, int seq)
+@@ -175,6 +183,8 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+ 
+ /* for checkpoint/restart */
+ extern int do_shmget(key_t key, size_t size, int shmflg, int req_id);
++extern int do_msgget(key_t key, int msgflg, int req_id);
++extern void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
+ 
+ extern void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
+ 
 -- 
 1.6.0.4
 
