@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B29D96B00A4
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 18:34:01 -0400 (EDT)
-Date: Thu, 28 May 2009 00:34:21 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090527223421.GA9503@elte.hu>
-References: <20090520183045.GB10547@oblivion.subreption.com> <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090523124944.GA23042@elte.hu> <4A187BDE.5070601@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A187BDE.5070601@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E166B00B3
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 19:15:33 -0400 (EDT)
+Date: Wed, 27 May 2009 16:15:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: release swap slots for actively used pages
+Message-Id: <20090527161535.ac2dd1ba.akpm@linux-foundation.org>
+In-Reply-To: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+References: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, hugh.dickins@tiscali.co.uk
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 27 May 2009 03:47:39 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-* Rik van Riel <riel@redhat.com> wrote:
+> For anonymous pages activated by the reclaim scan or faulted from an
+> evicted page table entry we should always try to free up swap space.
+> 
+> Both events indicate that the page is in active use and a possible
+> change in the working set.  Thus removing the slot association from
+> the page increases the chance of the page being placed near its new
+> LRU buddies on the next eviction and helps keeping the amount of stale
+> swap cache entries low.
+> 
+> try_to_free_swap() inherently only succeeds when the last user of the
+> swap slot vanishes so it is safe to use from places where that single
+> mapping just brought the page back to life.
+> 
 
-> Ingo Molnar wrote:
->
->> What you are missing is that your patch makes _no technical 
->> sense_ if you allow the same information to leak over the kernel 
->> stack. Kernel stacks can be freed and reused, swapped out and 
->> thus 'exposed'.
->
-> Kernel stacks may be freed and reused, but Larry's latest patch 
-> takes care of that by clearing them at page free time.
->
-> As for being swapped out - I do not believe that kernel stacks can 
-> ever be swapped out in Linux.
+Seems that this has a risk of worsening swap fragmentation for some
+situations.  Or not, I have no way of knowing, really.
 
-yes, i referred to that as an undesirable option - because it slows 
-down pthread_create() quite substantially.
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8b4e40e..407ebf7 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2671,8 +2671,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	mem_cgroup_commit_charge_swapin(page, ptr);
+>  
+>  	swap_free(entry);
+> -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> -		try_to_free_swap(page);
+> +	try_to_free_swap(page);
+>  	unlock_page(page);
+>  
+>  	if (write_access) {
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 621708f..2f0549d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -788,7 +788,7 @@ cull_mlocked:
+>  
+>  activate_locked:
+>  		/* Not a candidate for swapping, so reclaim swap space. */
+> -		if (PageSwapCache(page) && vm_swap_full())
+> +		if (PageSwapCache(page))
+>  			try_to_free_swap(page);
+>  		VM_BUG_ON(PageActive(page));
+>  		SetPageActive(page);
 
-This needs before/after pthread_create() benchmark results.
-
-	Ingo
+How are we to know that this is a desirable patch for Linux??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
