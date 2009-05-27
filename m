@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B74536B00B4
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 19:18:23 -0400 (EDT)
-Date: Thu, 28 May 2009 01:18:03 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 015F16B00B6
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 19:20:04 -0400 (EDT)
+Date: Thu, 28 May 2009 01:19:49 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] x86: Ignore VM_LOCKED when determining if
-	hugetlb-backed page tables can be shared or not
-Message-ID: <20090527231803.GA30002@elte.hu>
-References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 0/2] Fixes for hugetlbfs-related problems on shared
+	memory
+Message-ID: <20090527231949.GB30002@elte.hu>
+References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <20090527131437.5870e342.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <20090527131437.5870e342.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, starlight@binnacle.cx, Eric B Munson <ebmunson@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, wli@movementarian.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, stable@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh.dickins@tiscali.co.uk, Lee.Schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, starlight@binnacle.cx, ebmunson@us.ibm.com, agl@us.ibm.com, apw@canonical.com, wli@movementarian.org
 List-ID: <linux-mm.kvack.org>
 
 
-* Mel Gorman <mel@csn.ul.ie> wrote:
+* Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On x86 and x86-64, it is possible that page tables are shared 
-> beween shared mappings backed by hugetlbfs. As part of this, 
-> page_table_shareable() checks a pair of vma->vm_flags and they 
-> must match if they are to be shared. All VMA flags are taken into 
-> account, including VM_LOCKED.
+> On Wed, 27 May 2009 12:12:27 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> The problem is that VM_LOCKED is cleared on fork(). When a process 
-> with a shared memory segment forks() to exec() a helper, there 
-> will be shared VMAs with different flags. The impact is that the 
-> shared segment is sometimes considered shareable and other times 
-> not, depending on what process is checking.
+> > The following two patches are required to fix problems reported by
+> > starlight@binnacle.cx. The tests cases both involve two processes interacting
+> > with shared memory segments backed by hugetlbfs.
 > 
-> What happens is that the segment page tables are being shared but 
-> the count is inaccurate depending on the ordering of events. As 
-> the page tables are freed with put_page(), bad pmd's are found 
-> when some of the children exit. The hugepage counters also get 
-> corrupted and the Total and Free count will no longer match even 
-> when all the hugepage-backed regions are freed. This requires a 
-> reboot of the machine to "fix".
+> Thanks.
 > 
-> This patch addresses the problem by comparing all flags except 
-> VM_LOCKED when deciding if pagetables should be shared or not for 
-> hugetlbfs-backed mapping.
+> Both of these address 
+> http://bugzilla.kernel.org/show_bug.cgi?id=13302, yes? I added 
+> that info to the changelogs, to close the loop.
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> ---
->  arch/x86/mm/hugetlbpage.c |    6 +++++-
->  1 files changed, 5 insertions(+), 1 deletions(-)
+> Ingo, I'd propose merging both these together rather than routing 
+> one via the x86 tree, OK?
 
-i suspect it would be best to do this due -mm, due to the (larger) 
-mm/hugetlb.c cross section, right?
+sure.
 
-	Ingo
+> Question is: when?  Are we confident enough to merge it into 
+> 2.6.30 now, or should we hold off for 2.6.30.1?  I guess we have a 
+> week or more, and if the changes do break something, we can fix 
+> that in 2.6.30.1 ;)
+
+With an Acked-by from Hugh i feel pretty confident about it - and as 
+long as it get into -rc8 i think we should do it in .30.
+
+	Ingo 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
