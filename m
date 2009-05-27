@@ -1,79 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1D86B00BD
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 16:12:44 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 905806B00BA
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 16:12:45 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200905271012.668777061@firstfloor.org>
 In-Reply-To: <200905271012.668777061@firstfloor.org>
-Subject: [PATCH] [12/16] HWPOISON: check and isolate corrupted free pages
-Message-Id: <20090527201238.BD1661D0290@basil.firstfloor.org>
-Date: Wed, 27 May 2009 22:12:38 +0200 (CEST)
+Subject: [PATCH] [15/16] HWPOISON: Add madvise() based injector for hardware poisoned pages v3
+Message-Id: <20090527201242.1D4991D0291@basil.firstfloor.org>
+Date: Wed, 27 May 2009 22:12:42 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.orgfengguang.wu@intel.com
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+Impact: optional, useful for debugging
 
-If memory corruption hits the free buddy pages, we can safely ignore them.
-No one will access them until page allocation time, then prep_new_page()
-will automatically check and isolate PG_hwpoison page for us (for 0-order
-allocation).
+Add a new madvice sub command to inject poison for some
+pages in a process' address space.  This is useful for
+testing the poison page handling.
 
-This patch expands prep_new_page() to check every component page in a high
-order page allocation, in order to completely stop PG_hwpoison pages from
-being recirculated.
+Open issues:
 
-Note that the common case -- only allocating a single page, doesn't
-do any more work than before. Allocating > order 0 does a bit more work,
-but that's relatively uncommon.
+- This patch allows root to tie up arbitary amounts of memory.
+Should this be disabled inside containers?
+- There's a small race window between getting the page and injecting.
+The patch drops the ref count because otherwise memory_failure
+complains about dangling references. In theory with a multi threaded
+injector one could inject poison for a process foreign page this way.
+Not a serious issue right now.
 
-This simple implementation may drop some innocent neighbor pages, hopefully
-it is not a big problem because the event should be rare enough.
+v2: Use write flag for get_user_pages to make sure to always get
+a fresh page
+v3: Don't request write mapping (Fengguang Wu)
 
-This patch adds some runtime costs to high order page users.
-
-[AK: Improved description]
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/page_alloc.c |   22 ++++++++++++++++------
- 1 file changed, 16 insertions(+), 6 deletions(-)
+ include/asm-generic/mman.h |    1 +
+ mm/madvise.c               |   37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)
 
-Index: linux/mm/page_alloc.c
+Index: linux/mm/madvise.c
 ===================================================================
---- linux.orig/mm/page_alloc.c	2009-05-27 21:13:54.000000000 +0200
-+++ linux/mm/page_alloc.c	2009-05-27 21:14:21.000000000 +0200
-@@ -633,12 +633,22 @@
-  */
- static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- {
--	if (unlikely(page_mapcount(page) |
--		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
--		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
--		bad_page(page);
--		return 1;
-+	int i;
-+
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page *p = page + i;
-+
-+		if (unlikely(page_mapcount(p) |
-+			(p->mapping != NULL)  |
-+			(page_count(p) != 0)  |
-+			(p->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
-+			/*
-+			 * The whole array of pages will be dropped,
-+			 * hopefully this is a rare and abnormal event.
-+			 */
-+			bad_page(p);
-+			return 1;
-+		}
- 	}
+--- linux.orig/mm/madvise.c	2009-05-27 21:13:54.000000000 +0200
++++ linux/mm/madvise.c	2009-05-27 21:14:21.000000000 +0200
+@@ -208,6 +208,38 @@
+ 	return error;
+ }
  
- 	set_page_private(page, 0);
++#ifdef CONFIG_MEMORY_FAILURE
++/*
++ * Error injection support for memory error handling.
++ */
++static int madvise_hwpoison(unsigned long start, unsigned long end)
++{
++	/*
++	 * RED-PEN
++	 * This allows to tie up arbitary amounts of memory.
++	 * Might be a good idea to disable it inside containers even for root.
++	 */
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	for (; start < end; start += PAGE_SIZE) {
++		struct page *p;
++		int ret = get_user_pages(current, current->mm, start, 1,
++						0, 0, &p, NULL);
++		if (ret != 1)
++			return ret;
++		put_page(p);
++		/*
++		 * RED-PEN page can be reused, but otherwise we'll have to fight with the
++		 * refcnt
++		 */
++		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
++		       page_to_pfn(p), start);
++		memory_failure(page_to_pfn(p), 0);
++	}
++	return 0;
++}
++#endif
++
+ static long
+ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 		unsigned long start, unsigned long end, int behavior)
+@@ -290,6 +322,11 @@
+ 	int write;
+ 	size_t len;
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++	if (behavior == MADV_HWPOISON)
++		return madvise_hwpoison(start, start+len_in);
++#endif
++
+ 	write = madvise_need_mmap_write(behavior);
+ 	if (write)
+ 		down_write(&current->mm->mmap_sem);
+Index: linux/include/asm-generic/mman.h
+===================================================================
+--- linux.orig/include/asm-generic/mman.h	2009-05-27 21:13:54.000000000 +0200
++++ linux/include/asm-generic/mman.h	2009-05-27 21:14:21.000000000 +0200
+@@ -34,6 +34,7 @@
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
++#define MADV_HWPOISON	12		/* hw poison the page (root only) */
+ 
+ /* compatibility flags */
+ #define MAP_FILE	0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
