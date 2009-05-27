@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E166B00B3
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 19:15:33 -0400 (EDT)
-Date: Wed, 27 May 2009 16:15:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: release swap slots for actively used pages
-Message-Id: <20090527161535.ac2dd1ba.akpm@linux-foundation.org>
-In-Reply-To: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
-References: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B74536B00B4
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 19:18:23 -0400 (EDT)
+Date: Thu, 28 May 2009 01:18:03 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/2] x86: Ignore VM_LOCKED when determining if
+	hugetlb-backed page tables can be shared or not
+Message-ID: <20090527231803.GA30002@elte.hu>
+References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1243422749-6256-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, hugh.dickins@tiscali.co.uk
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, starlight@binnacle.cx, Eric B Munson <ebmunson@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, wli@movementarian.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 May 2009 03:47:39 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> For anonymous pages activated by the reclaim scan or faulted from an
-> evicted page table entry we should always try to free up swap space.
+* Mel Gorman <mel@csn.ul.ie> wrote:
+
+> On x86 and x86-64, it is possible that page tables are shared 
+> beween shared mappings backed by hugetlbfs. As part of this, 
+> page_table_shareable() checks a pair of vma->vm_flags and they 
+> must match if they are to be shared. All VMA flags are taken into 
+> account, including VM_LOCKED.
 > 
-> Both events indicate that the page is in active use and a possible
-> change in the working set.  Thus removing the slot association from
-> the page increases the chance of the page being placed near its new
-> LRU buddies on the next eviction and helps keeping the amount of stale
-> swap cache entries low.
+> The problem is that VM_LOCKED is cleared on fork(). When a process 
+> with a shared memory segment forks() to exec() a helper, there 
+> will be shared VMAs with different flags. The impact is that the 
+> shared segment is sometimes considered shareable and other times 
+> not, depending on what process is checking.
 > 
-> try_to_free_swap() inherently only succeeds when the last user of the
-> swap slot vanishes so it is safe to use from places where that single
-> mapping just brought the page back to life.
+> What happens is that the segment page tables are being shared but 
+> the count is inaccurate depending on the ordering of events. As 
+> the page tables are freed with put_page(), bad pmd's are found 
+> when some of the children exit. The hugepage counters also get 
+> corrupted and the Total and Free count will no longer match even 
+> when all the hugepage-backed regions are freed. This requires a 
+> reboot of the machine to "fix".
 > 
+> This patch addresses the problem by comparing all flags except 
+> VM_LOCKED when deciding if pagetables should be shared or not for 
+> hugetlbfs-backed mapping.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> ---
+>  arch/x86/mm/hugetlbpage.c |    6 +++++-
+>  1 files changed, 5 insertions(+), 1 deletions(-)
 
-Seems that this has a risk of worsening swap fragmentation for some
-situations.  Or not, I have no way of knowing, really.
+i suspect it would be best to do this due -mm, due to the (larger) 
+mm/hugetlb.c cross section, right?
 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 8b4e40e..407ebf7 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2671,8 +2671,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	mem_cgroup_commit_charge_swapin(page, ptr);
->  
->  	swap_free(entry);
-> -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-> -		try_to_free_swap(page);
-> +	try_to_free_swap(page);
->  	unlock_page(page);
->  
->  	if (write_access) {
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 621708f..2f0549d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -788,7 +788,7 @@ cull_mlocked:
->  
->  activate_locked:
->  		/* Not a candidate for swapping, so reclaim swap space. */
-> -		if (PageSwapCache(page) && vm_swap_full())
-> +		if (PageSwapCache(page))
->  			try_to_free_swap(page);
->  		VM_BUG_ON(PageActive(page));
->  		SetPageActive(page);
-
-How are we to know that this is a desirable patch for Linux??
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
