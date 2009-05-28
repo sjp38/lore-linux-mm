@@ -1,157 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 871CF6B005C
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 05:11:42 -0400 (EDT)
-Date: Thu, 28 May 2009 17:11:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [4/16] HWPOISON: Add support for poison swap entries v2
-Message-ID: <20090528091127.GA13856@localhost>
-References: <200905271012.668777061@firstfloor.org> <20090527201230.19B1C1D0286@basil.firstfloor.org> <4A1E4F80.9090404@hitachi.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 705D16B0062
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 05:24:43 -0400 (EDT)
+Date: Thu, 28 May 2009 11:31:41 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090528093141.GD1065@one.firstfloor.org>
+References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A1E4F80.9090404@hitachi.com>
+In-Reply-To: <20090528082616.GG6920@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 04:46:56PM +0800, Hidehiro Kawai wrote:
-> Andi Kleen wrote:
+On Thu, May 28, 2009 at 10:26:16AM +0200, Nick Piggin wrote:
+
+Thanks for the review.
+
+> > + *
+> > + * Also there are some races possible while we get from the
+> > + * error detection to actually handle it.
+> > + */
+> > +
+> > +struct to_kill {
+> > +	struct list_head nd;
+> > +	struct task_struct *tsk;
+> > +	unsigned long addr;
+> > +};
 > 
-> > CPU migration uses special swap entry types to trigger special actions on page
-> > faults. Extend this mechanism to also support poisoned swap entries, to trigger
-> > poison handling on page faults. This allows followon patches to prevent 
-> > processes from faulting in poisoned pages again.
-> > 
-> > v2: Fix overflow in MAX_SWAPFILES (Fengguang Wu)
-> > 
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> > 
-> > ---
-> >  include/linux/swap.h    |   34 ++++++++++++++++++++++++++++------
-> >  include/linux/swapops.h |   38 ++++++++++++++++++++++++++++++++++++++
-> >  mm/swapfile.c           |    4 ++--
-> >  3 files changed, 68 insertions(+), 8 deletions(-)
-> > 
-> > Index: linux/include/linux/swap.h
-> > ===================================================================
-> > --- linux.orig/include/linux/swap.h	2009-05-27 21:13:54.000000000 +0200
-> > +++ linux/include/linux/swap.h	2009-05-27 21:14:21.000000000 +0200
-> > @@ -34,16 +34,38 @@
-> >   * the type/offset into the pte as 5/27 as well.
-> >   */
-> >  #define MAX_SWAPFILES_SHIFT	5
-> > -#ifndef CONFIG_MIGRATION
-> > -#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+> It would be kinda nice to have a field in task_struct that is usable
+> say for anyone holding the tasklist lock for write. Then you could
+
+I don't want to hold the tasklist lock for writing all the time, memory
+failure handling can sleep.
+
+> make a list with them. But I guess it isn't worthwhile unless there
+> are other users.
+
+It would need to be reserved for this, which definitely doesn't make
+worth it. Also I need the  address too, a list head alone wouldn't be enough.
+
+
+
+> > +			printk(KERN_ERR "MCE: Out of memory while machine check handling\n");
+> > +			return;
+> > +		}
+> > +	}
+> > +	tk->addr = page_address_in_vma(p, vma);
+> > +	if (tk->addr == -EFAULT) {
+> > +		printk(KERN_INFO "MCE: Failed to get address in VMA\n");
+> 
+> I don't know if this is very helpful message. I could legitimately happen and
+> nothing anybody can do about it...
+
+Can you suggest a better message?
+
+> 
+> > +		tk->addr = 0;
+> > +		fail = 1;
+> 
+> Fail doesn't seem to be used anywhere.
+
+Ah yes that was a remnant of a error checking scheme I discard later.
+I'll remove it thanks.
+
+> > +	list_add_tail(&tk->nd, to_kill);
+> > +}
 > > +
 > > +/*
-> > + * Use some of the swap files numbers for other purposes. This
-> > + * is a convenient way to hook into the VM to trigger special
-> > + * actions on faults.
+> > + * Kill the processes that have been collected earlier.
 > > + */
+> > +static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
+> > +			  int fail, unsigned long pfn)
+> 
+> I guess "doit" etc is obvious once reading the code and caller, but maybe a
+> quick comment in the header to describe?
+
+Ok.
+
+> 
+> > +{
+> > +	struct to_kill *tk, *next;
 > > +
-> > +/*
-> > + * NUMA node memory migration support
+> > +	list_for_each_entry_safe (tk, next, to_kill, nd) {
+> > +		if (doit) {
+> > +			/*
+> > +			 * In case something went wrong with munmaping
+> > +			 * make sure the process doesn't catch the
+> > +			 * signal and then access the memory. So reset
+> > +			 * the signal handlers
+> > +			 */
+> > +			if (fail)
+> > +				flush_signal_handlers(tk->tsk, 1);
+> 
+> Is this a legitimate thing to do? Is it racy? Why would you not send a
+> sigkill or something if you want them to die right now?
+
+That's a very unlikely case it could be probably just removed, when
+something during unmapping fails (mostly out of memory)
+
+It's more paranoia than real need.
+
+Yes SIGKILL would be probably better.
+
 > > + */
-> > +#ifdef CONFIG_MIGRATION
-> > +#define SWP_MIGRATION_NUM 2
-> > +#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
-> > +#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 2)
-> >  #else
-> > -/* Use last two entries for page migration swap entries */
-> > -#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
-> > -#define SWP_MIGRATION_READ	MAX_SWAPFILES
-> > -#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
-> > +#define SWP_MIGRATION_NUM 0
-> >  #endif
-> >  
-> >  /*
-> > + * Handling of hardware poisoned pages with memory corruption.
-> > + */
-> > +#ifdef CONFIG_MEMORY_FAILURE
-> > +#define SWP_HWPOISON_NUM 1
-> > +#define SWP_HWPOISON		(MAX_SWAPFILES + 1)
-> > +#else
-> > +#define SWP_HWPOISON_NUM 0
-> > +#endif
+> > +static void collect_procs_file(struct page *page, struct list_head *to_kill,
+> > +			      struct to_kill **tkc)
+> > +{
+> > +	struct vm_area_struct *vma;
+> > +	struct task_struct *tsk;
+> > +	struct prio_tree_iter iter;
+> > +	struct address_space *mapping = page_mapping(page);
 > > +
-> > +#define MAX_SWAPFILES \
-> > +	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM - 1)
+> > +	read_lock(&tasklist_lock);
+> > +	spin_lock(&mapping->i_mmap_lock);
 > 
-> I don't prefer this fix against the overflow issue.
-> For example, if both CONFIG_MIGRATION and CONFIG_MEMORY_FAILURE are
-> undefined, MAX_SWAPFILES is defined as 31.  But we should be able to
-> use up to 32 swap files/devices!
+> You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
+> lock. And anon_vma lock nests inside i_mmap_lock.
 > 
-> So instead, we should do:
-> 
-> #define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM)
-> #define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
-> 
-> #define SWP_HWPOISON		MAX_SWAPFILES
-> 
-> #define MAX_SWAPFILES \
-> 	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
-> 
-> and:
-> 
-> static inline int non_swap_entry(swp_entry_t entry)
-> {
-> 	return swp_type(entry) >= MAX_SWAPFILES;
-> }
+> This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
+> type (maybe -rt kernels do it), then you could have a task holding
+> anon_vma lock and waiting for tasklist_lock, and another holding tasklist
+> lock and waiting for i_mmap_lock, and another holding i_mmap_lock and
+> waiting for anon_vma lock.
 
-Yes this is a better way to fix the overflow problem: when
-SWP_HWPOISON=32 and it is shifted by SWP_TYPE_SHIFT and then shift
-back, we get 0 (overflowed).
+So you're saying I should change the order?
 
-Andi, this patch does what Hidehiro describes.
+> 
+> I think nesting either inside or outside these locks consistently is less
+> fragile. Do we already have a dependency?... I don't know of one, but you
+> should document this in mm/rmap.c and mm/filemap.c.
 
----
- include/linux/swap.h    |    8 ++++----
- include/linux/swapops.h |    2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+Ok.
 
---- linux.orig/include/linux/swap.h
-+++ linux/include/linux/swap.h
-@@ -46,8 +46,8 @@ static inline int current_is_kswapd(void
-  */
- #ifdef CONFIG_MIGRATION
- #define SWP_MIGRATION_NUM 2
--#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
--#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 2)
-+#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM)
-+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
- #else
- #define SWP_MIGRATION_NUM 0
- #endif
-@@ -57,13 +57,13 @@ static inline int current_is_kswapd(void
-  */
- #ifdef CONFIG_MEMORY_FAILURE
- #define SWP_HWPOISON_NUM 1
--#define SWP_HWPOISON 		(MAX_SWAPFILES + 1)
-+#define SWP_HWPOISON 		MAX_SWAPFILES
- #else
- #define SWP_HWPOISON_NUM 0
- #endif
- 
- #define MAX_SWAPFILES \
--	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM - 1)
-+	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
- 
- /*
-  * Magic header for a swap area. The first part of the union is
---- linux.orig/include/linux/swapops.h
-+++ linux/include/linux/swapops.h
-@@ -161,7 +161,7 @@ static inline int is_hwpoison_entry(swp_
- #if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
- static inline int non_swap_entry(swp_entry_t entry)
- {
--	return swp_type(entry) > MAX_SWAPFILES;
-+	return swp_type(entry) >= MAX_SWAPFILES;
- }
- #else
- static inline int non_swap_entry(swp_entry_t entry)
+> > +	DELAYED,
+> > +	IGNORED,
+> > +	RECOVERED,
+> > +};
+> > +
+> > +static const char *action_name[] = {
+> > +	[FAILED] = "Failed",
+> > +	[DELAYED] = "Delayed",
+> > +	[IGNORED] = "Ignored",
+> 
+> How is delayed different to ignored (or failed, for that matter)?
+
+Part of it is documentation.
+
+DELAYED means it's handled somewhere else (e.g. in the case of free pages)
+
+> 
+> 
+> > +	[RECOVERED] = "Recovered",
+> 
+> And what does recovered mean? THe processes were killed and the page taken
+
+Not necessarily killed, it might have been a clean page or so.
+
+> out of circulation, but the machine is still in some unknown state of corruption
+> henceforth, right?
+
+It's in a known state of corruption -- there was this error on that page
+and otherwise it's fine (or at least no errors known at this point)
+The CPU generally tells you when it's in a unknown state and in this case this 
+code is not executed, but just panic directly.
+
+
+> > +
+> > +	/*
+> > +	 * remove_from_page_cache assumes (mapping && !mapped)
+> > +	 */
+> > +	if (page_mapping(p) && !page_mapped(p)) {
+> > +		remove_from_page_cache(p);
+> > +		page_cache_release(p);
+> > +	}
+> 
+> remove_mapping would probably be a better idea. Otherwise you can
+> probably introduce pagecache removal vs page fault races whi
+> will make the kernel bug.
+
+Can you be more specific about the problems?
+
+> > +			page_to_pfn(p));
+> > +	if (mapping) {
+> > +		/*
+> > +		 * Truncate does the same, but we're not quite the same
+> > +		 * as truncate. Needs more checking, but keep it for now.
+> > +		 */
+> 
+> What's different about truncate? It would be good to reuse as much as possible.
+
+Truncating removes the block on disk (we don't). Truncating shrinks
+the end of the file (we don't). It's more "temporal hole punch"
+Probably from the VM point of view it's very similar, but it's
+not the same.
+
+> 
+> 
+> > +		cancel_dirty_page(p, PAGE_CACHE_SIZE);
+> > +
+> > +		/*
+> > +		 * IO error will be reported by write(), fsync(), etc.
+> > +		 * who check the mapping.
+> > +		 */
+> > +		mapping_set_error(mapping, EIO);
+> 
+> Interesting. It's not *exactly* an IO error (well, not like one we're usually
+> used to).
+
+It's a new kind, but conceptually it's the same. Dirty IO data got corrupted.
+
+We actually had a lot of grief with the error reporting; a lot of
+code does "report error once then clear from mapping", which
+broke all the tests for that in the test suite. IMHO that's a shady
+area in the kernel.
+
+Right now these are "expected but incorrect failures" in the tester.
+
+
+> > +
+> > +	delete_from_swap_cache(p);
+> > +
+> > +	return RECOVERED;
+> > +}
+> 
+> All these handlers are quite interesting in that they need to
+> know about most of the mm. What are you trying to do in each
+> of them would be a good idea to say, and probably they should
+> rather go into their appropriate files instead of all here
+> (eg. swapcache stuff should go in mm/swap_state for example).
+
+Hmm. I think I would prefer to first merge before
+thinking about such things. But they could be moved at some 
+point.
+
+I suspect people first need to get more used to the idea of poisoned pages
+before we can force it to them directly like this.
+
+> 
+> You haven't waited on writeback here AFAIKS, and have you
+> *really* verified it is safe to call delete_from_swap_cache?
+
+Verified in what way? me and Fengguang went over the code.
+The original attempt at doing this was quite broken, but this
+one should be better (it's the third iteration or so)
+
+
+> > +
+> > +#define dirty		(1UL << PG_dirty)
+> > +#define swapcache	(1UL << PG_swapcache)
+> > +#define unevict		(1UL << PG_unevictable)
+> > +#define mlocked		(1UL << PG_mlocked)
+> > +#define writeback	(1UL << PG_writeback)
+> > +#define lru		(1UL << PG_lru)
+> > +#define swapbacked	(1UL << PG_swapbacked)
+> > +#define head		(1UL << PG_head)
+> > +#define tail		(1UL << PG_tail)
+> > +#define compound	(1UL << PG_compound)
+> > +#define slab		(1UL << PG_slab)
+> > +#define buddy		(1UL << PG_buddy)
+> > +#define reserved	(1UL << PG_reserved)
+> 
+> This looks like more work than just putting 1UL << (...) in each entry
+
+I had this originally, but it looked rather ugly.
+
+> in your table. Hmm, does this whole table thing even buy you much (versus a
+> much simpler switch statement?)
+
+I don't think the switch would be particularly simple. Also I like
+tables.
+
+> 
+> And seeing as you are doing a lot of checking for various page flags anyway,
+> (eg. in your prepare function). Just seems like needless complexity.
+
+Yes that grew over time unfortunately. Originally there was very little
+explicit flag checking.
+
+I still think the table is a good approach. 
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
