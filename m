@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 555926B004F
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 03:53:07 -0400 (EDT)
-Date: Thu, 28 May 2009 10:00:34 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE8B6B0055
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 03:55:50 -0400 (EDT)
+Date: Thu, 28 May 2009 10:03:19 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [0/16] POISON: Intro
-Message-ID: <20090528080033.GZ1065@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <4A1BE58A.9060708@hitachi.com> <20090526132914.GF846@one.firstfloor.org> <4A1E1512.1080603@hitachi.com>
+Subject: Re: [PATCH] [9/16] HWPOISON: Use bitmask/action code for try_to_unmap behaviour
+Message-ID: <20090528080319.GA1065@one.firstfloor.org>
+References: <200905271012.668777061@firstfloor.org> <20090527201235.9475E1D0292@basil.firstfloor.org> <20090528072703.GF6920@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A1E1512.1080603@hitachi.com>
+In-Reply-To: <20090528072703.GF6920@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 01:37:38PM +0900, Hidehiro Kawai wrote:
-> >>BTW, I looked over this patch set, and I couldn't
-> >>find any problems except for one minor point.  I'll post
-> >>a comment about it later.  It is very late, but better than nothing.
-> > 
-> > Great. Thanks. Can I add your Reviewed-by tags then?
-> 
-> Yes, of course.
+On Thu, May 28, 2009 at 09:27:03AM +0200, Nick Piggin wrote:
+> Not a bad idea, but I would prefer to have a set of flags which tell
+> try_to_unmap what to do, and then combine them with #defines for
+> callers. Like gfp flags.
 
-Sorry I posted it before seeing your email. If you could take
-a look at the updated patchkit too that would be great?
+That's exactly what the patch does?
 
-> Reviewed-by: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+It just has actions and flags because the actions can be contradictory.
 
-I will add that thanks.
+> And just use regular bitops rather than this TTU_ACTION macro.
+
+TTU_ACTION does mask against multiple bits. None of the regular
+bitops do that. 
 
 -Andi
+
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
