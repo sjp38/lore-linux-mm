@@ -1,69 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 762F66B004F
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 06:32:49 -0400 (EDT)
-Date: Thu, 28 May 2009 18:33:00 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in the VM v3
-Message-ID: <20090528103300.GA15133@localhost>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528101111.GE1065@one.firstfloor.org>
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E696B0055
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 06:35:03 -0400 (EDT)
+Date: Thu, 28 May 2009 12:42:14 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [4/16] HWPOISON: Add support for poison swap entries v2
+Message-ID: <20090528104214.GF1065@one.firstfloor.org>
+References: <200905271012.668777061@firstfloor.org> <20090527201230.19B1C1D0286@basil.firstfloor.org> <4A1E4F80.9090404@hitachi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090528101111.GE1065@one.firstfloor.org>
+In-Reply-To: <4A1E4F80.9090404@hitachi.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 06:11:11PM +0800, Andi Kleen wrote:
-> On Thu, May 28, 2009 at 05:59:34PM +0800, Wu Fengguang wrote:
-> > Dirty swap cache page is tricky to handle. The page could live both in page
-> > cache and swap cache(ie. page is freshly swapped in). So it could be referenced
-> > concurrently by 2 types of PTEs: one normal PTE and another swap PTE. We try to
-> > handle them consistently by calling try_to_unmap(TTU_IGNORE_HWPOISON) to convert
-> > the normal PTEs to swap PTEs, and then
-> >         - clear dirty bit to prevent IO
-> >         - remove from LRU
-> >         - but keep in the swap cache, so that when we return to it on
-> >           a later page fault, we know the application is accessing
-> >           corrupted data and shall be killed (we installed simple
-> >           interception code in do_swap_page to catch it).
+On Thu, May 28, 2009 at 05:46:56PM +0900, Hidehiro Kawai wrote:
+> > + */
+> > +#ifdef CONFIG_MEMORY_FAILURE
+> > +#define SWP_HWPOISON_NUM 1
+> > +#define SWP_HWPOISON		(MAX_SWAPFILES + 1)
+> > +#else
+> > +#define SWP_HWPOISON_NUM 0
+> > +#endif
+> > +
+> > +#define MAX_SWAPFILES \
+> > +	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM - 1)
 > 
-> That's a good description. I'll add it as a comment to the code.
+> I don't prefer this fix against the overflow issue.
+> For example, if both CONFIG_MIGRATION and CONFIG_MEMORY_FAILURE are
+> undefined, MAX_SWAPFILES is defined as 31.  But we should be able to
+> use up to 32 swap files/devices!
 
-OK, thanks.
+Ok. Applied thanks. 
 
-> > > You haven't waited on writeback here AFAIKS, and have you
-> > > *really* verified it is safe to call delete_from_swap_cache?
-> > 
-> > Good catch. I'll soon submit patches for handling the under
-> > read/write IO pages. In this patchset they are simply ignored.
-> 
-> Yes, we assume the IO device does something sensible with the poisoned
-> cache lines and aborts. Later we can likely abort IO requests in a early
-> stage on the Linux, but that's more advanced.
-> 
-> The question is if we need to wait on writeback for correctness? 
-
-Not necessary. Because I'm going to add a me_writeback() handler.
-
-Then the writeback pages simply won't reach here. And it won't
-magically go into writeback state, since the page has been locked.
-
-Thanks,
-Fengguang
-
-> We still don't want to crash if we take a page away that is currently
-> writebacked.
-> 
-> My original assumption was that taking the page lock would take
-> care of that. Is that not true?
-> 
-> -Andi
-> -- 
-> ak@linux.intel.com -- Speaking for myself only.
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
