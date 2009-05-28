@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D4EB06B0055
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 12:55:43 -0400 (EDT)
-Date: Thu, 28 May 2009 11:56:25 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090528165625.GA17572@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090528134520.GH1065@one.firstfloor.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D3F546B005C
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 14:48:12 -0400 (EDT)
+From: pageexec@freemail.hu
+Date: Thu, 28 May 2009 20:48:54 +0200
+MIME-Version: 1.0
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page allocator
+Reply-to: pageexec@freemail.hu
+Message-ID: <4A1EDC96.2322.EEEC13E@pageexec.freemail.hu>
+In-reply-to: <20090528090836.GB6715@elte.hu>
+References: <20090520183045.GB10547@oblivion.subreption.com>, <20090528072702.796622b6@lxorguk.ukuu.org.uk>, <20090528090836.GB6715@elte.hu>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, rja@sgi.com
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>
+Cc: Rik van Riel <riel@redhat.com>, "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 03:45:20PM +0200, Andi Kleen wrote:
-> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
-> > > > > +			printk(KERN_ERR "MCE: Out of memory while machine check handling\n");
-> > > > > +			return;
-> > > > > +		}
-> > > > > +	}
-> > > > > +	tk->addr = page_address_in_vma(p, vma);
-> > > > > +	if (tk->addr == -EFAULT) {
-> > > > > +		printk(KERN_INFO "MCE: Failed to get address in VMA\n");
-> > > > 
-> > > > I don't know if this is very helpful message. I could legitimately happen and
-> > > > nothing anybody can do about it...
+On 28 May 2009 at 11:08, Ingo Molnar wrote:
+
+> 
+> * Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+> 
+> > > > As for being swapped out - I do not believe that kernel stacks can 
+> > > > ever be swapped out in Linux.
 > > > 
-> > > Can you suggest a better message?
+> > > yes, i referred to that as an undesirable option - because it slows 
+> > > down pthread_create() quite substantially.
+> > > 
+> > > This needs before/after pthread_create() benchmark results.
 > > 
-> > Well, for userspace, nothing? At the very least ratelimited, and preferably
-> > telling a more high level of what the problem and consequences are.
+> > kernel stacks can end up places you don't expect on hypervisor 
+> > based systems.
+> > 
+> > In most respects the benchmarks are pretty irrelevant - wiping 
+> > stuff has a performance cost, but its the sort of thing you only 
+> > want to do when you have a security requirement that needs it. At 
+> > that point the performance is secondary.
 > 
-> I changed it to 
+> Bechmarks, of course, are not irrelevant _at all_.
 > 
->  "MCE: Unable to determine user space address during error handling\n")
-> 
-> Still not perfect, but hopefully better.
+> So i'm asking for this "clear kernel stacks on freeing" aspect to be 
+> benchmarked thoroughly, as i expect it to have a negative impact - 
+> otherwise i'm NAK-ing this. Please Cc: me to measurements results.
 
-Is it even worth having a message at all?  Does the fact that page_address_in_vma()
-failed change the behavior in any way?  (Does tk->addr == 0 matter?)  From
-a quick scan of the code I do not believe it does.
+last year while developing/debugging something else i also ran some kernel
+compilation tests and managed to dig out this one for you ('all' refers to
+all of PaX):
 
-If the message is for developers/debugging, it would be nice to have more
-information, such as why did page_address_in_vma() return -EFAULT.  If
-that is important, page_address_in_vma() sould return a different failure 
-status for each of the three failing conditions.  But that would only
-be needed if the code (potentially) was going to do some additional handling.
+------------------------------------------------------------------------------------------
+make -j4 2.6.24-rc7-i386-pax compiling 2.6.24-rc7-i386-pax (all with SANITIZE, no PARAVIRT)
+565.63user 68.52system 5:25.52elapsed 194%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (1major+12486066minor)pagefaults 0swaps
 
+565.10user 68.28system 5:24.72elapsed 195%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+12485742minor)pagefaults 0swaps
+------------------------------------------------------------------------------------------
+make -j4 2.6.24-rc5-i386-pax compiling 2.6.24-rc5-i386-pax (all but SANITIZE, no PARAVIRT)
+559.74user 50.29system 5:12.79elapsed 195%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+12397482minor)pagefaults 0swaps
 
-Thanks,
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+561.41user 51.91system 5:14.55elapsed 194%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (0major+12396877minor)pagefaults 0swaps
+------------------------------------------------------------------------------------------
+
+for the kernel times the overhead is about 68s vs. 51s, or 40% in this particular case.
+while i don't know where this workload (the kernel part) falls in the spectrum of real
+life workloads, it definitely shows that if you're kernel bound, you should think twice
+before using this in production (and there's the real-time latency issue too).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
