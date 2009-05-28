@@ -1,84 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A47E76B008C
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 20:44:17 -0400 (EDT)
-Date: Thu, 28 May 2009 09:41:57 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with SMTP id 172986B005C
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 21:06:31 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4S16ZIx001522
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 28 May 2009 10:06:36 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AC59C45DD81
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 10:06:35 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 85E1E45DD7F
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 10:06:35 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 587F11DB803F
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 10:06:35 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 01BAB1DB8038
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 10:06:35 +0900 (JST)
+Date: Thu, 28 May 2009 10:05:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 2/5] add SWAP_HAS_CACHE flag to swap_map
-Message-Id: <20090528094157.5c39ac57.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090526121547.ce866fe4.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090528100501.ab26953f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090528094157.5c39ac57.nishimura@mxp.nes.nec.co.jp>
 References: <20090526121259.b91b3e9d.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090526121547.ce866fe4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090528094157.5c39ac57.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> @@ -1969,17 +2017,33 @@ int swap_duplicate(swp_entry_t entry)
->  	offset = swp_offset(entry);
->  
->  	spin_lock(&swap_lock);
-> -	if (offset < p->max && p->swap_map[offset]) {
-> -		if (p->swap_map[offset] < SWAP_MAP_MAX - 1) {
-> -			p->swap_map[offset]++;
-> +
-> +	if (unlikely(offset >= p->max))
-> +		goto unlock_out;
-> +
-> +	count = swap_count(p->swap_map[offset]);
-> +	has_cache = swap_has_cache(p->swap_map[offset]);
-> +	if (cache) {
-> +		/* set SWAP_HAS_CACHE if there is no cache and entry is used */
-> +		if (!has_cache && count) {
-Should we check !has_cache here ?
+On Thu, 28 May 2009 09:41:57 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Concurrent read_swap_cache_async() might have set SWAP_HAS_CACHE, but not have added
-a page to swap cache yet when find_get_page() was called.
-add_to_swap_cache() would handle the race of concurrent read_swap_cache_async(),
-but considering more, swapcache_free() at the end of the loop might dangerous in this case...
-So I think it should be like:
+> > @@ -1969,17 +2017,33 @@ int swap_duplicate(swp_entry_t entry)
+> >  	offset = swp_offset(entry);
+> >  
+> >  	spin_lock(&swap_lock);
+> > -	if (offset < p->max && p->swap_map[offset]) {
+> > -		if (p->swap_map[offset] < SWAP_MAP_MAX - 1) {
+> > -			p->swap_map[offset]++;
+> > +
+> > +	if (unlikely(offset >= p->max))
+> > +		goto unlock_out;
+> > +
+> > +	count = swap_count(p->swap_map[offset]);
+> > +	has_cache = swap_has_cache(p->swap_map[offset]);
+> > +	if (cache) {
+> > +		/* set SWAP_HAS_CACHE if there is no cache and entry is used */
+> > +		if (!has_cache && count) {
+> Should we check !has_cache here ?
+I added !has_cache to return 0 in racy case.
 
-	read_swap_cache_async()
-		:
-		valid = swapcache_prepare(entry);
-		if (!valid)
-			break;
-		if (valid == -EAGAIN);
-			continue;
+> 
+> Concurrent read_swap_cache_async() might have set SWAP_HAS_CACHE, but not have added
+> a page to swap cache yet when find_get_page() was called.
+yes.
 
-to let the context that succeeded in swapcache_prepare() do add_to_swap_cache().
+> add_to_swap_cache() would handle the race of concurrent read_swap_cache_async(),
+> but considering more, swapcache_free() at the end of the loop might dangerous in this case...
+
+I can't catch what you mean.
+
+I think swapcache_prepare() returns 0 in racy case and no add_to_swap_cache() happens.
+wrong ?
+
+> So I think it should be like:
+> 
+> 	read_swap_cache_async()
+> 		:
+> 		valid = swapcache_prepare(entry);
+> 		if (!valid)
+> 			break;
+> 		if (valid == -EAGAIN);
+> 			continue;
+> 
+> to let the context that succeeded in swapcache_prepare() do add_to_swap_cache().
+> 
+
+What you reccomend is code like this ?
+
+==
+	ret = swapcache_prapare(entry);
+	if (ret == -ENOENT)
+		break;    /* unused swap entry */
+	if (ret == -EBUSY)
+		continue; /* to call find_get_page() again */
+==
+
+-Kame
 
 
-Thanks,
-Daisuke Nishimura.
 
-> +			p->swap_map[offset] = make_swap_count(count, 1);
-> +			result = 1;
-> +		}
-> +	} else if (count || has_cache) {
-> +		if (count < SWAP_MAP_MAX - 1) {
-> +			p->swap_map[offset] = make_swap_count(count + 1,
-> +							      has_cache);
->  			result = 1;
-> -		} else if (p->swap_map[offset] <= SWAP_MAP_MAX) {
-> +		} else if (count <= SWAP_MAP_MAX) {
->  			if (swap_overflow++ < 5)
-> -				printk(KERN_WARNING "swap_dup: swap entry overflow\n");
-> -			p->swap_map[offset] = SWAP_MAP_MAX;
-> +				printk(KERN_WARNING
-> +				       "swap_dup: swap entry overflow\n");
-> +			p->swap_map[offset] = make_swap_count(SWAP_MAP_MAX,
-> +							      has_cache);
->  			result = 1;
->  		}
->  	}
-> +unlock_out:
->  	spin_unlock(&swap_lock);
->  out:
->  	return result;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
