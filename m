@@ -1,44 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6282B6B0088
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 08:25:45 -0400 (EDT)
-Date: Thu, 28 May 2009 14:26:06 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [9/16] HWPOISON: Use bitmask/action code for try_to_unmap behaviour
-Message-ID: <20090528122606.GN6920@wotan.suse.de>
-References: <200905271012.668777061@firstfloor.org> <20090527201235.9475E1D0292@basil.firstfloor.org> <20090528072703.GF6920@wotan.suse.de> <20090528080319.GA1065@one.firstfloor.org> <20090528082818.GH6920@wotan.suse.de> <874ov5fvm6.fsf@basil.nowhere.org>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D18A86B0055
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 08:48:03 -0400 (EDT)
+Date: Thu, 28 May 2009 14:48:40 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+	allocator
+Message-ID: <20090528124840.GB1421@ucw.cz>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <874ov5fvm6.fsf@basil.nowhere.org>
+In-Reply-To: <20090520183045.GB10547@oblivion.subreption.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Lee.Schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: "Larry H." <research@subreption.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 11:02:41AM +0200, Andi Kleen wrote:
-> Nick Piggin <npiggin@suse.de> writes:
-> 
-> > There are a set of "actions" which is what the callers are, then a
-> > set of modifiers. Just make it all modifiers and the callers can
-> > use things that are | together.
-> 
-> The actions are typically contradictory in some way, that is why
-> I made them "actions". The modifiers are all things that could
-> be made into flags in a straightforward way.
-> 
-> Probably it could be all turned into flags, but that would
-> make the patch much more intrusive for rmap.c than it currently is,
-> with some restructuring needed, which I didn't want to do.
+Hi!
 
-I don't think that's a problem. It's ugly as-is.
+> Index: linux-2.6/mm/Kconfig
+> ===================================================================
+> --- linux-2.6.orig/mm/Kconfig
+> +++ linux-2.6/mm/Kconfig
+> @@ -155,6 +155,26 @@ config PAGEFLAGS_EXTENDED
+>  	def_bool y
+>  	depends on 64BIT || SPARSEMEM_VMEMMAP || !NUMA || !SPARSEMEM
+>  
+> +config PAGE_SENSITIVE
+> +	bool "Support for selective page sanitization"
+> +	help
+> +	 This option provides support for honoring the sensitive bit
+> +	 in the low level page allocator. This bit is used to mark
+> +	 pages that will contain sensitive information (such as
+> +	 cryptographic secrets and credentials).
+> +
+> +	 Pages marked with the sensitive bit will be sanitized upon
+> +	 release, to prevent information leaks and data remanence that
+> +	 could allow Iceman/coldboot attacks to reveal such data.
+> +
+> +	 If you are unsure, select N. This option might introduce a
+> +	 minimal performance impact on those subsystems that make
+> +	 use of the flag associated with the sensitive bit.
+> +
+> +	 If you use the cryptographic API or want to prevent tty
+> +	 information leaks locally, you most likely want to enable
+> +	 this.
 
- 
-> Hwpoison in general is designed to not be intrusive.
+This should not be configurable. Runtime config, defaulting to
+'sanitize' may make some sense, but... better just be secure.
 
-Some cosmetic or code restructuring is the least intrusiveness that
-hwpoison is. It is very intrusive, not for lines added or changed,
-but for how it interacts with the mm.
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
