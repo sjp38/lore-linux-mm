@@ -1,136 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6B2146B004D
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 12:33:11 -0400 (EDT)
-Received: by fxm12 with SMTP id 12so7661481fxm.38
-        for <linux-mm@kvack.org>; Thu, 28 May 2009 09:33:40 -0700 (PDT)
-Date: Thu, 28 May 2009 20:33:42 +0400
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [RFC v16][PATCH 19/43] c/r: external checkpoint of a task other
-	than ourself
-Message-ID: <20090528163342.GA18962@x200.localdomain>
-References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu> <1243445589-32388-20-git-send-email-orenl@cs.columbia.edu> <20090527211950.GA7855@x200.localdomain> <Pine.LNX.4.64.0905271831030.7284@takamine.ncl.cs.columbia.edu>
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D4EB06B0055
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 12:55:43 -0400 (EDT)
+Date: Thu, 28 May 2009 11:56:25 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090528165625.GA17572@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0905271831030.7284@takamine.ncl.cs.columbia.edu>
+In-Reply-To: <20090528134520.GH1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nick Piggin <npiggin@suse.de>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, rja@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 27, 2009 at 06:32:28PM -0400, Oren Laadan wrote:
-> On Thu, 28 May 2009, Alexey Dobriyan wrote:
-> 
-> > On Wed, May 27, 2009 at 01:32:45PM -0400, Oren Laadan wrote:
-> > > Now we can do "external" checkpoint, i.e. act on another task.
+On Thu, May 28, 2009 at 03:45:20PM +0200, Andi Kleen wrote:
+> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
+> > > > > +			printk(KERN_ERR "MCE: Out of memory while machine check handling\n");
+> > > > > +			return;
+> > > > > +		}
+> > > > > +	}
+> > > > > +	tk->addr = page_address_in_vma(p, vma);
+> > > > > +	if (tk->addr == -EFAULT) {
+> > > > > +		printk(KERN_INFO "MCE: Failed to get address in VMA\n");
+> > > > 
+> > > > I don't know if this is very helpful message. I could legitimately happen and
+> > > > nothing anybody can do about it...
+> > > 
+> > > Can you suggest a better message?
 > > 
-> > > +static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
-> > > +{
-> > > +	if (t->state == TASK_DEAD) {
-> > > +		pr_warning("c/r: task %d is TASK_DEAD\n", task_pid_vnr(t));
-> > > +		return -EAGAIN;
-> > > +	}
-> > > +
-> > > +	if (!ptrace_may_access(t, PTRACE_MODE_READ)) {
-> > > +		__ckpt_write_err(ctx, "access to task %d (%s) denied",
-> > > +				 task_pid_vnr(t), t->comm);
-> > > +		return -EPERM;
-> > > +	}
-> > > +
-> > > +	/* verify that the task is frozen (unless self) */
-> > > +	if (t != current && !frozen(t)) {
-> > > +		__ckpt_write_err(ctx, "task %d (%s) is not frozen",
-> > > +				 task_pid_vnr(t), t->comm);
-> > > +		return -EBUSY;
-> > > +	}
-> > > +
-> > > +	/* FIX: add support for ptraced tasks */
-> > > +	if (task_ptrace(t)) {
-> > > +		__ckpt_write_err(ctx, "task %d (%s) is ptraced",
-> > > +				 task_pid_vnr(t), t->comm);
-> > > +		return -EBUSY;
-> > > +	}
-> > > +
-> > > +	return 0;
-> > > +}
-> > > +
-> > > +static int get_container(struct ckpt_ctx *ctx, pid_t pid)
-> > > +{
-> > > +	struct task_struct *task = NULL;
-> > > +	struct nsproxy *nsproxy = NULL;
-> > > +	int ret;
-> > > +
-> > > +	ctx->root_pid = pid;
-> > > +
-> > > +	read_lock(&tasklist_lock);
-> > > +	task = find_task_by_vpid(pid);
-> > > +	if (task)
-> > > +		get_task_struct(task);
-> > > +	read_unlock(&tasklist_lock);
-> > > +
-> > > +	if (!task)
-> > > +		return -ESRCH;
-> > > +
-> > > +	ret = may_checkpoint_task(ctx, task);
-> > > +	if (ret) {
-> > > +		ckpt_write_err(ctx, NULL);
-> > > +		put_task_struct(task);
-> > > +		return ret;
-> > > +	}
-> > > +
-> > > +	rcu_read_lock();
-> > > +	nsproxy = task_nsproxy(task);
-> > > +	get_nsproxy(nsproxy);
-> > 
-> > Will oops if init is multi-threaded and thread group leader exited
-> > (nsproxy = NULL). I need to think what to do, too.
+> > Well, for userspace, nothing? At the very least ratelimited, and preferably
+> > telling a more high level of what the problem and consequences are.
 > 
+> I changed it to 
 > 
-> ood catch. Since all threads share same nsproxy (except those
-> who exits.. duh) we can test for this case, and get the nsproxy
-> from any of the other threads, something like this (untested):
+>  "MCE: Unable to determine user space address during error handling\n")
+> 
+> Still not perfect, but hopefully better.
 
-I don't know if such behaviour was intented, but threads have only common
-pid_ns not whole nsproxy. CLONE_THREAD|CLONE_NEWUTS works just fine.
+Is it even worth having a message at all?  Does the fact that page_address_in_vma()
+failed change the behavior in any way?  (Does tk->addr == 0 matter?)  From
+a quick scan of the code I do not believe it does.
 
-> --- a/checkpoint/checkpoint.c
-> +++ b/checkpoint/checkpoint.c
-> @@ -522,9 +522,33 @@ static int get_container(struct ckpt_ctx *ctx, pid_t pid)
->  
->  	rcu_read_lock();
->  	nsproxy = task_nsproxy(task);
-> -	get_nsproxy(nsproxy);
-> +	if (nsproxy)
-> +		get_nsproxy(nsproxy);
->  	rcu_read_unlock();
->  
-> +	/*
-> +	 * If we hit a zombie thread-group-leader, nsproxy will be NULL,
-> +	 * and we instead grab it from one of the other threads.
-> +	 */
-> +	if (!nsproxy) {
-> +		struct task_struct *p = next_thread(task);
-> +
-> +		BUG_ON(task->state != TASK_DEAD);
-> +		read_lock(&tasklist_lock);
-> +		while (p != task && !task_nsproxy(p))
-> +			p = next_thread(p);
-> +		nsproxy = get_nsproxy(p);
-> +		if (nsproxy)
-> +			get_nsproxy(nsproxy);
-> +		read_unlock(&tasklist_lock);
-> +	}
-> +
-> +	/* still not ... too bad ... */
-> +	if (!nsproxy) {
-> +		put_task_struct(task);
-> +		return -ESRCH;
-> +	}
-> +
->  	ctx->root_task = task;
->  	ctx->root_nsproxy = nsproxy;
->  	ctx->root_init = is_container_init(task);
+If the message is for developers/debugging, it would be nice to have more
+information, such as why did page_address_in_vma() return -EFAULT.  If
+that is important, page_address_in_vma() sould return a different failure 
+status for each of the three failing conditions.  But that would only
+be needed if the code (potentially) was going to do some additional handling.
+
+
+Thanks,
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
