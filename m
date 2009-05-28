@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB966B0082
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 15:35:48 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E26866B0085
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 15:44:33 -0400 (EDT)
 Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
  allocator
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090523085653.0ad217f8@infradead.org>
+In-Reply-To: <20090528125042.28c2676f@lxorguk.ukuu.org.uk>
 References: <20090520183045.GB10547@oblivion.subreption.com>
 	 <4A15A8C7.2030505@redhat.com> <20090522073436.GA3612@elte.hu>
 	 <20090522113809.GB13971@oblivion.subreption.com>
-	 <20090522143914.2019dd47@lxorguk.ukuu.org.uk>
-	 <20090522180351.GC13971@oblivion.subreption.com>
-	 <20090522192158.28fe412e@lxorguk.ukuu.org.uk>
-	 <20090522234031.GH13971@oblivion.subreption.com>
-	 <20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
-	 <20090523085653.0ad217f8@infradead.org>
+	 <20090523124944.GA23042@elte.hu> <4A187BDE.5070601@redhat.com>
+	 <20090527223421.GA9503@elte.hu>
+	 <20090528072702.796622b6@lxorguk.ukuu.org.uk>
+	 <20090528090836.GB6715@elte.hu>
+	 <20090528125042.28c2676f@lxorguk.ukuu.org.uk>
 Content-Type: text/plain
-Date: Thu, 28 May 2009 21:36:01 +0200
-Message-Id: <1243539361.6645.80.camel@laptop>
+Date: Thu, 28 May 2009 21:44:54 +0200
+Message-Id: <1243539894.6645.85.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Larry H." <research@subreption.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2009-05-23 at 08:56 -0700, Arjan van de Ven wrote:
-> On Sat, 23 May 2009 09:09:10 +0100
-> Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> 
-> > > Enabling SLAB poisoning by default will be a bad idea
-> > 
-> > Why ?
-> > 
-> > > I looked for unused/re-usable flags too, but found none. It's
-> > > interesting to see SLUB and SLOB have their own page flags. Did
-> > > anybody oppose those when they were proposed? 
-> > 
-> > Certainly they were looked at - but the memory allocator is right at
-> > the core of the system rather than an add on.
-> > 
-> > > > Ditto - which is why I'm coming from the position of an "if we
-> > > > free it clear it" option. If you need that kind of security the
-> > > > cost should be more than acceptable - especially with modern
-> > > > processors that can do cache bypass on the clears.
-> > > 
-> > > Are you proposing that we should simply remove the confidential
-> > > flags and just stick to the unconditional sanitization when the
-> > > boot option is enabled? If positive, it will make things more
-> > > simple and definitely is better than nothing. I would have (still)
-> > > preferred the other old approach to be merged, but whatever works
-> > > at this point.
-> > 
-> > I am because
-> > - its easy to merge
-> > - its non controversial
-> > - it meets the security good practice and means we don't miss any
-> >   alloc/free cases
-> > - it avoid providing flags to help a trojan identify "interesting"
-> > data to acquire
-> > - modern cpu memory clearing can be very cheap
-> 
-> ... and if we zero on free, we don't need to zero on allocate.
-> While this is a little controversial, it does mean that at least part of
-> the cost is just time-shifted, which means it'll not be TOO bad
-> hopefully...
+On Thu, 2009-05-28 at 12:50 +0100, Alan Cox wrote:
+> The performance cost of such a security action are NIL when the feature
+> is disabled. So the performance cost in the general case is irrelevant.
 
-zero on allocate has the advantage of cache hotness, we're going to use
-the memory, why else allocate it.
+Not really, much of the code posted in this thread has the form:
 
-zero on free only causes extra cache evictions for no gain.
+int sanitize_all_mem; /* note the lack of __read_mostly */
 
+void some_existing_function()
+{
+	if (sanitize_all_mem) { /* extra branch */
+		/* do stuff */
+	}
+}
+
+void sanitize_obj(void *obj)
+{
+	if (!sanitize_all_mem) /* extra branch */
+		return;
+
+	/* do stuff */
+}
+
+
+void another_existing_function()
+{
+	sanitize_obj(obj); /* extra call */
+}
+
+That doesn't equal NIL, that equals extra function calls and branches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
