@@ -1,71 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0F5786B004D
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 10:49:56 -0400 (EDT)
-Date: Thu, 28 May 2009 22:50:21 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in the VM v3
-Message-ID: <20090528145021.GA5503@localhost>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6B2146B004D
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 12:33:11 -0400 (EDT)
+Received: by fxm12 with SMTP id 12so7661481fxm.38
+        for <linux-mm@kvack.org>; Thu, 28 May 2009 09:33:40 -0700 (PDT)
+Date: Thu, 28 May 2009 20:33:42 +0400
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [RFC v16][PATCH 19/43] c/r: external checkpoint of a task other
+	than ourself
+Message-ID: <20090528163342.GA18962@x200.localdomain>
+References: <1243445589-32388-1-git-send-email-orenl@cs.columbia.edu> <1243445589-32388-20-git-send-email-orenl@cs.columbia.edu> <20090527211950.GA7855@x200.localdomain> <Pine.LNX.4.64.0905271831030.7284@takamine.ncl.cs.columbia.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090528134520.GH1065@one.firstfloor.org>
+In-Reply-To: <Pine.LNX.4.64.0905271831030.7284@takamine.ncl.cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
-> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
-
-[snip]
-
+On Wed, May 27, 2009 at 06:32:28PM -0400, Oren Laadan wrote:
+> On Thu, 28 May 2009, Alexey Dobriyan wrote:
+> 
+> > On Wed, May 27, 2009 at 01:32:45PM -0400, Oren Laadan wrote:
+> > > Now we can do "external" checkpoint, i.e. act on another task.
 > > 
-> > BTW. I don't know if you are checking for PG_writeback often enough?
-> > You can't remove a PG_writeback page from pagecache. The normal
-> > pattern is lock_page(page); wait_on_page_writeback(page); which I
+> > > +static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+> > > +{
+> > > +	if (t->state == TASK_DEAD) {
+> > > +		pr_warning("c/r: task %d is TASK_DEAD\n", task_pid_vnr(t));
+> > > +		return -EAGAIN;
+> > > +	}
+> > > +
+> > > +	if (!ptrace_may_access(t, PTRACE_MODE_READ)) {
+> > > +		__ckpt_write_err(ctx, "access to task %d (%s) denied",
+> > > +				 task_pid_vnr(t), t->comm);
+> > > +		return -EPERM;
+> > > +	}
+> > > +
+> > > +	/* verify that the task is frozen (unless self) */
+> > > +	if (t != current && !frozen(t)) {
+> > > +		__ckpt_write_err(ctx, "task %d (%s) is not frozen",
+> > > +				 task_pid_vnr(t), t->comm);
+> > > +		return -EBUSY;
+> > > +	}
+> > > +
+> > > +	/* FIX: add support for ptraced tasks */
+> > > +	if (task_ptrace(t)) {
+> > > +		__ckpt_write_err(ctx, "task %d (%s) is ptraced",
+> > > +				 task_pid_vnr(t), t->comm);
+> > > +		return -EBUSY;
+> > > +	}
+> > > +
+> > > +	return 0;
+> > > +}
+> > > +
+> > > +static int get_container(struct ckpt_ctx *ctx, pid_t pid)
+> > > +{
+> > > +	struct task_struct *task = NULL;
+> > > +	struct nsproxy *nsproxy = NULL;
+> > > +	int ret;
+> > > +
+> > > +	ctx->root_pid = pid;
+> > > +
+> > > +	read_lock(&tasklist_lock);
+> > > +	task = find_task_by_vpid(pid);
+> > > +	if (task)
+> > > +		get_task_struct(task);
+> > > +	read_unlock(&tasklist_lock);
+> > > +
+> > > +	if (!task)
+> > > +		return -ESRCH;
+> > > +
+> > > +	ret = may_checkpoint_task(ctx, task);
+> > > +	if (ret) {
+> > > +		ckpt_write_err(ctx, NULL);
+> > > +		put_task_struct(task);
+> > > +		return ret;
+> > > +	}
+> > > +
+> > > +	rcu_read_lock();
+> > > +	nsproxy = task_nsproxy(task);
+> > > +	get_nsproxy(nsproxy);
+> > 
+> > Will oops if init is multi-threaded and thread group leader exited
+> > (nsproxy = NULL). I need to think what to do, too.
 > 
-> So pages can be in writeback without being locked? I still
-> wasn't able to find such a case (in fact unless I'm misreading
-> the code badly the writeback bit is only used by NFS and a few  
-> obscure cases)
-
-Yes the writeback page is typically not locked. Only read IO requires
-to be exclusive. Read IO is in fact page *writer*, while writeback IO
-is page *reader* :-)
-
-The writeback bit is _widely_ used.  test_set_page_writeback() is
-directly used by NFS/AFS etc. But its main user is in fact
-set_page_writeback(), which is called in 26 places.
-
-> > think would be safest 
 > 
-> Okay. I'll just add it after the page lock.
-> 
-> > (then you never have to bother with the writeback bit again)
-> 
-> Until Fengguang does something fancy with it.
+> ood catch. Since all threads share same nsproxy (except those
+> who exits.. duh) we can test for this case, and get the nsproxy
+> from any of the other threads, something like this (untested):
 
-Yes I'm going to do it without wait_on_page_writeback().
+I don't know if such behaviour was intented, but threads have only common
+pid_ns not whole nsproxy. CLONE_THREAD|CLONE_NEWUTS works just fine.
 
-The reason truncate_inode_pages_range() has to wait on writeback page
-is to ensure data integrity. Otherwise if there comes two events:
-        truncate page A at offset X
-        populate page B at offset X
-If A and B are all writeback pages, then B can hit disk first and then
-be overwritten by A. Which corrupts the data at offset X from user's POV.
-
-But for hwpoison, there are no such worries. If A is poisoned, we do
-our best to isolate it as well as intercepting its IO. If the interception
-fails, it will trigger another machine check before hitting the disk.
-
-After all, poisoned A means the data at offset X is already corrupted.
-It doesn't matter if there comes another B page.
-
-Thanks,
-Fengguang
+> --- a/checkpoint/checkpoint.c
+> +++ b/checkpoint/checkpoint.c
+> @@ -522,9 +522,33 @@ static int get_container(struct ckpt_ctx *ctx, pid_t pid)
+>  
+>  	rcu_read_lock();
+>  	nsproxy = task_nsproxy(task);
+> -	get_nsproxy(nsproxy);
+> +	if (nsproxy)
+> +		get_nsproxy(nsproxy);
+>  	rcu_read_unlock();
+>  
+> +	/*
+> +	 * If we hit a zombie thread-group-leader, nsproxy will be NULL,
+> +	 * and we instead grab it from one of the other threads.
+> +	 */
+> +	if (!nsproxy) {
+> +		struct task_struct *p = next_thread(task);
+> +
+> +		BUG_ON(task->state != TASK_DEAD);
+> +		read_lock(&tasklist_lock);
+> +		while (p != task && !task_nsproxy(p))
+> +			p = next_thread(p);
+> +		nsproxy = get_nsproxy(p);
+> +		if (nsproxy)
+> +			get_nsproxy(nsproxy);
+> +		read_unlock(&tasklist_lock);
+> +	}
+> +
+> +	/* still not ... too bad ... */
+> +	if (!nsproxy) {
+> +		put_task_struct(task);
+> +		return -ESRCH;
+> +	}
+> +
+>  	ctx->root_task = task;
+>  	ctx->root_nsproxy = nsproxy;
+>  	ctx->root_init = is_container_init(task);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
