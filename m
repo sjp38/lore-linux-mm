@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AED2F6B004F
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 00:55:38 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4S4uSXu031514
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 28 May 2009 13:56:29 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B897345DD80
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 13:56:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 954E745DD7E
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 13:56:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 753831DB803E
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 13:56:28 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AFAEE08005
-	for <linux-mm@kvack.org>; Thu, 28 May 2009 13:56:28 +0900 (JST)
-Date: Thu, 28 May 2009 13:54:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/4] memcg fix swap accounting (28/May)
-Message-Id: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 71E456B0055
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 01:06:56 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so2245954ywm.26
+        for <linux-mm@kvack.org>; Wed, 27 May 2009 22:07:01 -0700 (PDT)
+MIME-Version: 1.0
+Date: Thu, 28 May 2009 17:07:01 +1200
+Message-ID: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com>
+Subject: Inconsistency (bug) of vm_insert_page with high order allocations
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: greg@kroah.com, vijaykumar@bravegnu.org
 List-ID: <linux-mm.kvack.org>
 
-Removed "RFC"
+Hi,
+I have the following issue. I need to allocate a big chunk of
+contiguous memory and then transfer it to user mode applications to
+let them operate with given buffers.
 
-This patch series is restructured as following. some bugs are fixed.
-Thank you for all your helps.
+To allocate memory I use standard function alloc_apges(gfp_mask,
+order) which asks buddy allocator to give a chunk of memory of given
+"order".
+Allocator returns page and also sets page count to 1 but for page of
+high order. I.e. pages 2,3 etc inside high order allocation will have
+page->_count==0.
+If I try to mmap allocated area to user space vm_insert_page will
+return error as pages 2,3, etc are not refcounted.
 
-[1/4] ....change interface of swap_duplicate()/swap_free()
-    Adds an function swapcache_prepare() and swapcache_free().
+The issue could be workaround if to set-up refcount to 1 manually for
+each page. But this workaround is not very good, because page refcount
+is used inside mm subsystem only.
 
-[2/4] ....add SWAP_HAS_CACHE flag and modify reference counting in swap_map
-    Add SWAP_HAS_CACHE flag to swap_map array for knowing an information that
-    "there is an only swap cache and swap has no reference" 
-    without extra call of find_get_page().
+While searching a driver with the similar solutions in kernel tree it
+was found a driver which suffers from exactly the same
+problem("poch"). So it is not single problem.
 
-[3/4] ....reclaim swap-cache-only swap_entry when get_swap_page() find it.
-    Now, swap_map can tell "there is no reference other than cache", we
-    can reclaim it if necessary.
-    This code reclaim swap entries if
-    - vm_swap_full()==ture
-    && there is no free swap cluster
-    && get_swap_page() finds unused swap entry.
+What you could suggest to workaround the problem except hacks with page count?
+May be it makes sence to introduce wm_insert_pages function?
 
-[4/4].... fix memcg's swap accounting
-    This is for fixing memcg's swap account leak. like this
-==
-            processA                   |           processB
-  -------------------------------------+-------------------------------------
-    (free_swap_and_cache())            |  (read_swap_cache_async())
-                                       |    swap_duplicate()
-                                       |    __set_page_locked()
-                                       |    add_to_swap_cache()
-      swap_entry_free() == 0           |
-      find_get_page() -> found         |
-      try_lock_page() -> fail & return |
-                                       |    lru_cache_add_anon()
-                                       |      doesn't link this page to memcg's
-                                       |      LRU, because of !PageCgroupUsed.
-==
-    This patch tries to fix this by uncharging account when swap's refcnt goes
-    to 0 even if there is an unused swap-cache.
-
-    Works quite well in my test.
+In this case users would have the following picture:
+zero order page: alloc_page <-> vm_instert_page
+non zero order  : alloc_pages(..., order) <-> vm_instert_pages(...., order)
 
 Thanks,
--Kame
-
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
