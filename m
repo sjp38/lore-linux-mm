@@ -1,152 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 034B46B0087
-	for <linux-mm@kvack.org>; Wed, 27 May 2009 20:15:28 -0400 (EDT)
-Date: Thu, 28 May 2009 02:14:32 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc][patch] swap: virtual swap readahead
-Message-ID: <20090528001432.GA6911@cmpxchg.org>
-References: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org> <20090527144851.832a0375.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 42EC46B008C
+	for <linux-mm@kvack.org>; Wed, 27 May 2009 20:24:59 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4S0PK6U016890
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 28 May 2009 09:25:20 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 22A5D45DE56
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 09:25:20 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F300C45DE52
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 09:25:19 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C751CE08009
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 09:25:19 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 732FA1DB805D
+	for <linux-mm@kvack.org>; Thu, 28 May 2009 09:25:19 +0900 (JST)
+Date: Thu, 28 May 2009 09:23:45 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm: release swap slots for actively used pages
+Message-Id: <20090528092345.58f31056.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090527161535.ac2dd1ba.akpm@linux-foundation.org>
+References: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+	<20090527161535.ac2dd1ba.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090527144851.832a0375.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hugh.dickins@tiscali.co.uk, riel@redhat.com
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com, hugh.dickins@tiscali.co.uk
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 27, 2009 at 02:48:51PM -0700, Andrew Morton wrote:
-> On Wed, 27 May 2009 17:05:46 +0200
+On Wed, 27 May 2009 16:15:35 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Wed, 27 May 2009 03:47:39 +0200
 > Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> > The current swap readahead implementation reads a physically
-> > contiguous group of swap slots around the faulting page to take
-> > advantage of the disk head's position and in the hope that the
-> > surrounding pages will be needed soon as well.
+> > For anonymous pages activated by the reclaim scan or faulted from an
+> > evicted page table entry we should always try to free up swap space.
 > > 
-> > This works as long as the physical swap slot order approximates the
-> > LRU order decently, otherwise it wastes memory and IO bandwidth to
-> > read in pages that are unlikely to be needed soon.
+> > Both events indicate that the page is in active use and a possible
+> > change in the working set.  Thus removing the slot association from
+> > the page increases the chance of the page being placed near its new
+> > LRU buddies on the next eviction and helps keeping the amount of stale
+> > swap cache entries low.
 > > 
-> > However, the physical swap slot layout diverges from the LRU order
-> > with increasing swap activity, i.e. high memory pressure situations,
-> > and this is exactly the situation where swapin should not waste any
-> > memory or IO bandwidth as both are the most contended resources at
-> > this point.
-> > 
-> > This patch makes swap-in base its readaround window on the virtual
-> > proximity of pages in the faulting VMA, as an indicator for pages
-> > needed in the near future, while still taking physical locality of
-> > swap slots into account.
-> > 
-> > This has the advantage of reading in big batches when the LRU order
-> > matches the swap slot order while automatically throttling readahead
-> > when the system is thrashing and swap slots are no longer nicely
-> > grouped by LRU order.
+> > try_to_free_swap() inherently only succeeds when the last user of the
+> > swap slot vanishes so it is safe to use from places where that single
+> > mapping just brought the page back to life.
 > > 
 > 
-> Well.  It would be better to _not_ shrink readaround, but to make it
-> read the right pages (see below).
+> Seems that this has a risk of worsening swap fragmentation for some
+> situations.  Or not, I have no way of knowing, really.
 > 
-> Or perhaps the readaround size is just too large.  I did spend some
-> time playing with its size back in the dark ages and ended up deciding
-> that the current setting is OK, but that was across a range of
-> workloads.
+I'm afraid, too.
+
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 8b4e40e..407ebf7 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2671,8 +2671,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	mem_cgroup_commit_charge_swapin(page, ptr);
+> >  
+> >  	swap_free(entry);
+> > -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> > -		try_to_free_swap(page);
+> > +	try_to_free_swap(page);
+> >  	unlock_page(page);
+> >  
+> >  	if (write_access) {
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 621708f..2f0549d 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -788,7 +788,7 @@ cull_mlocked:
+> >  
+> >  activate_locked:
+> >  		/* Not a candidate for swapping, so reclaim swap space. */
+> > -		if (PageSwapCache(page) && vm_swap_full())
+> > +		if (PageSwapCache(page))
+> >  			try_to_free_swap(page);
+> >  		VM_BUG_ON(PageActive(page));
+> >  		SetPageActive(page);
 > 
-> Did you try simply decreasing the cluster size and seeing if that had a
-> similar effect upon this workload?
+> How are we to know that this is a desirable patch for Linux??
 
-No, I will try that.
+I'm not sure what is the "purpose/benefit" of this patch...
+In patch description,
+"we should always try to free up swap space" ...then, why "should" ?
 
-> Back in 2002 or thereabouts I had a patch <rummage, rummage.  Appended>
-> which does this the other way.  It attempts to ensure that swap space
-> is allocated so that virtually contiguous pages get physically
-> contiguous blocks on disk.  So that when swapspace readaround does its
-> thing, the blocks which it reads are populating pages which are
-> virtually "close" to the page which got the major fault.
-> 
-> Unfortunately I wasn't able to demonstrate much performance benefit
-> from it and didn't get around to working out why.
-
-I did something similar once: broke down swap space into contiguous
-clusters sized 1 << page_cluster and that were maintained on
-free/partial/full lists per swap device.  Then, every anon vma got a
-group of clusters that backed its pages.  I think it's best described
-as extent-based backing of anon VMAs.  I didn't hash offsets into the
-swap device, just allocated a new cluster from the freelist if there
-wasn't already one for that particular part of the vma and then used
-page->index & some_mask for the static in-cluster offset.
-
-But IIRC it was defeated by the extra seeking that came with the
-internal fragmentation of the extents and separation of lru-related
-pages (see below).
-
-> iirc, the way it worked was: divide swap into 1MB hunks.  When we
-> decide to add an anon page to swapcache, grab a 1MB hunk of swap and
-> then add the pages which are virtual neighbours of the target page to
-> swapcache as well.
-> 
-> Obviously the algorithm could be tweaked/tuned/fixed, but the idea
-> seems sound - the cost of reading a contiguous hunk of blocks is not a
-> lot more than reading the single block.
-> 
-> Maybe it's something you might like to have a think about.
-
-I gave up the idea because I think the VMA order is a good hint but
-not useful to layout swap slots based exclusively on it.  The reason
-for that being that one slice of LRU pages with the same access
-frequency (in scan time granularity) doesn't come from one VMA only
-but from several ones and doing strict VMA grouping separates
-LRU-related pages physically on swap and thus unavoidably adds holes
-between data that are used in similar frequencies.
-
-I think this is a realistic memory state:
-
-	vma 1:		 [a b c d e f g]
-	vma 2:		 [h i j k l m n]
-	LRU/swap layout: [c d e i j k l]
-
-A major fault on page d would readahead [c d e] with my patch (and
-maybe also i and j with the current readahead algorithm).
-
-Having swap pages explicitely vma-grouped instead could now very well
-read [a b c d] or [d e f g].  Which is fine unless we need that memory
-for pages like i, j, k and l that are likely to be needed earlier than
-a, b, f and g.
-
-And due to the hashing into swap space by a rather arbitrary value
-like the anon vma address, and the slots for [a b], [f g] and h with
-different access frequency in between, you might now have quite some
-distance between [c d e] and [i j k l] which are likely to be used
-together.
-
-I think our current swap allocation layout is great at keeping things
-compact.  But it will not always keep the LRU order intact, which I
-found very hard to fix without moving the performance hits someplace
-else.
-
-> > - * Primitive swap readahead code. We simply read an aligned block of
-> > - * (1 << page_cluster) entries in the swap area. This method is chosen
-> > - * because it doesn't cost us any seek time.  We also make sure to queue
-> > - * the 'original' request together with the readahead ones...
-> > - *
-> > -	/*
-> > -	 * Get starting offset for readaround, and number of pages to read.
-> > -	 * Adjust starting address by readbehind (for NUMA interleave case)?
-> > -	 * No, it's very unlikely that swap layout would follow vma layout,
-> > -	 * more likely that neighbouring swap pages came from the same node:
-> > -	 * so use the same "addr" to choose the same node for each swap read.
-> > -	 */
-> 
-> The patch deletes the old design description but doesn't add a
-> description of the new design :(
-
-Bad indeed, I will fix it up.
-
-Thanks for your time,
-
-	Hannes
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
