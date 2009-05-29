@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6375F6B0055
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:50:36 -0400 (EDT)
-Date: Fri, 29 May 2009 22:52:02 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C31DA6B005A
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:50:51 -0400 (EDT)
+Date: Fri, 29 May 2009 22:52:43 +0100
 From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH] [0/16] HWPOISON: Intro
-Message-ID: <20090529225202.0c61a4b3@lxorguk.ukuu.org.uk>
-In-Reply-To: <200905291135.124267638@firstfloor.org>
+Subject: Re: [PATCH] [1/16] HWPOISON: Add page flag for poisoned pages
+Message-ID: <20090529225243.000642de@lxorguk.ukuu.org.uk>
+In-Reply-To: <20090529213526.5B9EB1D028F@basil.firstfloor.org>
 References: <200905291135.124267638@firstfloor.org>
+	<20090529213526.5B9EB1D028F@basil.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,31 +17,85 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 May 2009 23:35:25 +0200 (CEST)
+On Fri, 29 May 2009 23:35:26 +0200 (CEST)
 Andi Kleen <andi@firstfloor.org> wrote:
 
 > 
-> Another version of the hwpoison patchkit. I addressed 
-> all feedback, except:
-> I didn't move the handlers into other files for now, prefer
-> to keep things together for now
-> I'm keeping an own pagepoison bit because I think that's 
-> cleaner than any other hacks.
+> Hardware poisoned pages need special handling in the VM and shouldn't be 
+> touched again. This requires a new page flag. Define it here.
 > 
-> Andrew, please put it into mm for .31 track.
+> The page flags wars seem to be over, so it shouldn't be a problem
+> to get a new one.
+> 
+> v2: Add TestSetHWPoison (suggested by Johannes Weiner)
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  include/linux/page-flags.h |   17 ++++++++++++++++-
+>  1 file changed, 16 insertions(+), 1 deletion(-)
+> 
+> Index: linux/include/linux/page-flags.h
+> ===================================================================
+> --- linux.orig/include/linux/page-flags.h	2009-05-29 23:32:10.000000000 +0200
+> +++ linux/include/linux/page-flags.h	2009-05-29 23:32:10.000000000 +0200
+> @@ -51,6 +51,9 @@
+>   * PG_buddy is set to indicate that the page is free and in the buddy system
+>   * (see mm/page_alloc.c).
+>   *
+> + * PG_hwpoison indicates that a page got corrupted in hardware and contains
+> + * data with incorrect ECC bits that triggered a machine check. Accessing is
+> + * not safe since it may cause another machine check. Don't touch!
+>   */
+>  
+>  /*
+> @@ -104,6 +107,9 @@
+>  #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+>  	PG_uncached,		/* Page has been mapped as uncached */
+>  #endif
+> +#ifdef CONFIG_MEMORY_FAILURE
+> +	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+> +#endif
+>  	__NR_PAGEFLAGS,
+>  
+>  	/* Filesystems */
+> @@ -273,6 +279,15 @@
+>  PAGEFLAG_FALSE(Uncached)
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_FAILURE
+> +PAGEFLAG(HWPoison, hwpoison)
+> +TESTSETFLAG(HWPoison, hwpoison)
+> +#define __PG_HWPOISON (1UL << PG_hwpoison)
+> +#else
+> +PAGEFLAG_FALSE(HWPoison)
+> +#define __PG_HWPOISON 0
+> +#endif
+> +
+>  static inline int PageUptodate(struct page *page)
+>  {
+>  	int ret = test_bit(PG_uptodate, &(page)->flags);
+> @@ -403,7 +418,7 @@
+>  	 1 << PG_private | 1 << PG_private_2 | \
+>  	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+>  	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+> -	 __PG_UNEVICTABLE | __PG_MLOCKED)
+> +	 __PG_HWPOISON  | __PG_UNEVICTABLE | __PG_MLOCKED)
+>  
+>  /*
+>   * Flags checked when a page is prepped for return by the page allocator.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Andrew please put it on the "Andi needs to justify his pageflags" non-path
 
-I'm with Rik on this - we may have a few pageflags handy now but being
-slack with them for an obscure feature that can be done other ways and
-isn't performance critical is just lazy and bad planning for the long
-term.
-
-Andi - "I'm doing it my way so nyahh, put it into .31" doesn't fly. If
-you want it in .31 convince Rik and me and others that its a good use of
-a pageflag.
-
-Alan
+-- 
+--
+	"Alan, I'm getting a bit worried about you."
+				-- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
