@@ -1,82 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 108C56B005D
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 02:54:27 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n4T6tGlb005966
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 29 May 2009 15:55:17 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 95C2F45DE4F
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 15:55:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D13245DD72
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 15:55:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EA551DB8037
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 15:55:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 06F3D1DB8045
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 15:55:16 +0900 (JST)
-Date: Fri, 29 May 2009 15:53:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] add swap cache interface for swap reference v2
- (updated)
-Message-Id: <20090529155342.7fcead51.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090529150525.cbbb4be1.nishimura@mxp.nes.nec.co.jp>
-References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090528141049.cc45a116.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090529132153.3a72f2c3.nishimura@mxp.nes.nec.co.jp>
-	<20090529140832.1f4b288b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090529143758.4c3db3eb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090529150525.cbbb4be1.nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id D79FD6B004D
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 10:33:45 -0400 (EDT)
+Date: Fri, 29 May 2009 07:32:17 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+ allocator
+Message-ID: <20090529073217.08eb20e1@infradead.org>
+In-Reply-To: <1243539361.6645.80.camel@laptop>
+References: <20090520183045.GB10547@oblivion.subreption.com>
+	<4A15A8C7.2030505@redhat.com>
+	<20090522073436.GA3612@elte.hu>
+	<20090522113809.GB13971@oblivion.subreption.com>
+	<20090522143914.2019dd47@lxorguk.ukuu.org.uk>
+	<20090522180351.GC13971@oblivion.subreption.com>
+	<20090522192158.28fe412e@lxorguk.ukuu.org.uk>
+	<20090522234031.GH13971@oblivion.subreption.com>
+	<20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
+	<20090523085653.0ad217f8@infradead.org>
+	<1243539361.6645.80.camel@laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Larry H." <research@subreption.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 May 2009 15:05:25 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, 28 May 2009 21:36:01 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-> On Fri, 29 May 2009 14:37:58 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Fri, 29 May 2009 14:08:32 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > IIUC, swap_free() at the end of shmem_writepage() should also be changed to swapcache_free().
-> > > > 
-> > > Hmm!. Oh, yes. shmem_writepage()'s error path. Thank you. It will be fixed.
-> > > 
-> > here. 
-> > 
-> Looks good to me.
+> > ... and if we zero on free, we don't need to zero on allocate.
+> > While this is a little controversial, it does mean that at least
+> > part of the cost is just time-shifted, which means it'll not be TOO
+> > bad hopefully...
 > 
-> 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> 
-> BTW, I'm now testing(with swap-in/out and swap-on/off) [2/4] of this patch set.
-> I think this patch set would work well, but it's a big change to swap,
-> so we should test them very carefully.
-> 
-Indeed. 
+> zero on allocate has the advantage of cache hotness, we're going to
+> use the memory, why else allocate it.
 
-BTW, even we ignores memcg, they are necessary change for us. ([2/4] and [3/4])
+that is why I said it's controversial.
 
-IIUC, I remember a NEC man had a story like below.
+BUT if you zero on free anyway...
 
-1. create 2 cpusets. A and B.
-2. At first, tons of swaps are created by "A".
-3. After size of applications in A shrinks, pages swapped out by "A" is now on-memory.
-4. When running program in B, B can't use enough swaps because "A" uses tons of
-   cache-only swaps.
+And I don't think it's as big a deal as you make it.
+Why?
 
-Why swap_entries are not reclaimed in "4" is because cpuset divides the LRU.
+We recycle pages in LIFO order. And L2 caches are big.
 
-I think patch [3/4] can be a sliver bullet to this problem.
+So if you zero on free, the next allocation will reuse the zeroed page.
+And due to LIFO that is not too far out "often", which makes it likely
+the page is still in L2 cache.
 
-Thanks,
--Kame
+The other thing is that zero-on-allocate puts the WHOLE page in L1,
+while you can study how much of that page is actually used on average,
+and it'll be a percentage lower than 100%.
+In fact, if it IS 100%, you shouldn't have put it in L1 because the app
+does that anyway. If it is not 100% you just blew a chunk of your L1
+for no value.
+
+Don't get me wrong, I'm not arguing that zero-on-free is better, I'm
+just trying to point out that the "advantage" of zero-on-allocate isn't
+nearly as big as people sometimes think it is...
+
+
+
+
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit http://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
