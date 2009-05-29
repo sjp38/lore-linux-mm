@@ -1,74 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D79FD6B004D
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 10:33:45 -0400 (EDT)
-Date: Fri, 29 May 2009 07:32:17 -0700
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
- allocator
-Message-ID: <20090529073217.08eb20e1@infradead.org>
-In-Reply-To: <1243539361.6645.80.camel@laptop>
-References: <20090520183045.GB10547@oblivion.subreption.com>
-	<4A15A8C7.2030505@redhat.com>
-	<20090522073436.GA3612@elte.hu>
-	<20090522113809.GB13971@oblivion.subreption.com>
-	<20090522143914.2019dd47@lxorguk.ukuu.org.uk>
-	<20090522180351.GC13971@oblivion.subreption.com>
-	<20090522192158.28fe412e@lxorguk.ukuu.org.uk>
-	<20090522234031.GH13971@oblivion.subreption.com>
-	<20090523090910.3d6c2e85@lxorguk.ukuu.org.uk>
-	<20090523085653.0ad217f8@infradead.org>
-	<1243539361.6645.80.camel@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 175866B004D
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 12:10:26 -0400 (EDT)
+Message-ID: <4A2008F0.1070304@redhat.com>
+Date: Fri, 29 May 2009 12:10:24 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] [1/16] HWPOISON: Add page flag for poisoned pages
+References: <200905271012.668777061@firstfloor.org> <20090527201226.CCCBB1D028F@basil.firstfloor.org> <20090527221510.5e418e97@lxorguk.ukuu.org.uk> <20090528075416.GY1065@one.firstfloor.org>
+In-Reply-To: <20090528075416.GY1065@one.firstfloor.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Larry H." <research@subreption.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 May 2009 21:36:01 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-
-> > ... and if we zero on free, we don't need to zero on allocate.
-> > While this is a little controversial, it does mean that at least
-> > part of the cost is just time-shifted, which means it'll not be TOO
-> > bad hopefully...
+Andi Kleen wrote:
+> On Wed, May 27, 2009 at 10:15:10PM +0100, Alan Cox wrote:
+>> On Wed, 27 May 2009 22:12:26 +0200 (CEST)
+>> Andi Kleen <andi@firstfloor.org> wrote:
+>>
+>>> Hardware poisoned pages need special handling in the VM and shouldn't be 
+>>> touched again. This requires a new page flag. Define it here.
+>> Why can't you use PG_reserved ? That already indicates the page may not
+>> even be present (which is effectively your situation at that point).
 > 
-> zero on allocate has the advantage of cache hotness, we're going to
-> use the memory, why else allocate it.
+> Right now a page must be present with PG_reserved, otherwise /dev/mem, /proc/kcore
+> lots of other things will explode.
 
-that is why I said it's controversial.
-
-BUT if you zero on free anyway...
-
-And I don't think it's as big a deal as you make it.
-Why?
-
-We recycle pages in LIFO order. And L2 caches are big.
-
-So if you zero on free, the next allocation will reuse the zeroed page.
-And due to LIFO that is not too far out "often", which makes it likely
-the page is still in L2 cache.
-
-The other thing is that zero-on-allocate puts the WHOLE page in L1,
-while you can study how much of that page is actually used on average,
-and it'll be a percentage lower than 100%.
-In fact, if it IS 100%, you shouldn't have put it in L1 because the app
-does that anyway. If it is not 100% you just blew a chunk of your L1
-for no value.
-
-Don't get me wrong, I'm not arguing that zero-on-free is better, I'm
-just trying to point out that the "advantage" of zero-on-allocate isn't
-nearly as big as people sometimes think it is...
-
-
-
+Could we use a combination of, say PG_reserved and
+PG_writeback to keep /dev/mem and /proc/kcore from
+exploding ?
 
 -- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
