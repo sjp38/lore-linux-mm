@@ -1,101 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C31DA6B005A
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:50:51 -0400 (EDT)
-Date: Fri, 29 May 2009 22:52:43 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH] [1/16] HWPOISON: Add page flag for poisoned pages
-Message-ID: <20090529225243.000642de@lxorguk.ukuu.org.uk>
-In-Reply-To: <20090529213526.5B9EB1D028F@basil.firstfloor.org>
-References: <200905291135.124267638@firstfloor.org>
-	<20090529213526.5B9EB1D028F@basil.firstfloor.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CAE186B0055
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:54:58 -0400 (EDT)
+Date: Fri, 29 May 2009 14:55:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/4] reuse unused swap entry if necessary
+Message-Id: <20090529145510.b4ff541e.akpm@linux-foundation.org>
+In-Reply-To: <20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, hugh.dickins@tiscali.co.uk, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 May 2009 23:35:26 +0200 (CEST)
-Andi Kleen <andi@firstfloor.org> wrote:
+On Thu, 28 May 2009 14:20:47 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Hardware poisoned pages need special handling in the VM and shouldn't be 
-> touched again. This requires a new page flag. Define it here.
+> Now, we can know a swap entry is just used as SwapCache via swap_map,
+> without looking up swap cache.
 > 
-> The page flags wars seem to be over, so it shouldn't be a problem
-> to get a new one.
+> Then, we have a chance to reuse swap-cache-only swap entries in
+> get_swap_pages().
 > 
-> v2: Add TestSetHWPoison (suggested by Johannes Weiner)
+> This patch tries to free swap-cache-only swap entries if swap is
+> not enough.
+> Note: We hit following path when swap_cluster code cannot find
+> a free cluster. Then, vm_swap_full() is not only condition to allow
+> the kernel to reclaim unused swap.
 > 
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
->  include/linux/page-flags.h |   17 ++++++++++++++++-
->  1 file changed, 16 insertions(+), 1 deletion(-)
+>  mm/swapfile.c |   39 +++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 39 insertions(+)
 > 
-> Index: linux/include/linux/page-flags.h
+> Index: new-trial-swapcount2/mm/swapfile.c
 > ===================================================================
-> --- linux.orig/include/linux/page-flags.h	2009-05-29 23:32:10.000000000 +0200
-> +++ linux/include/linux/page-flags.h	2009-05-29 23:32:10.000000000 +0200
-> @@ -51,6 +51,9 @@
->   * PG_buddy is set to indicate that the page is free and in the buddy system
->   * (see mm/page_alloc.c).
->   *
-> + * PG_hwpoison indicates that a page got corrupted in hardware and contains
-> + * data with incorrect ECC bits that triggered a machine check. Accessing is
-> + * not safe since it may cause another machine check. Don't touch!
->   */
+> --- new-trial-swapcount2.orig/mm/swapfile.c
+> +++ new-trial-swapcount2/mm/swapfile.c
+> @@ -73,6 +73,25 @@ static inline unsigned short make_swap_c
+>  	return ret;
+>  }
 >  
->  /*
-> @@ -104,6 +107,9 @@
->  #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
->  	PG_uncached,		/* Page has been mapped as uncached */
->  #endif
-> +#ifdef CONFIG_MEMORY_FAILURE
-> +	PG_hwpoison,		/* hardware poisoned page. Don't touch */
-> +#endif
->  	__NR_PAGEFLAGS,
->  
->  	/* Filesystems */
-> @@ -273,6 +279,15 @@
->  PAGEFLAG_FALSE(Uncached)
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_FAILURE
-> +PAGEFLAG(HWPoison, hwpoison)
-> +TESTSETFLAG(HWPoison, hwpoison)
-> +#define __PG_HWPOISON (1UL << PG_hwpoison)
-> +#else
-> +PAGEFLAG_FALSE(HWPoison)
-> +#define __PG_HWPOISON 0
-> +#endif
+> +static int
+> +try_to_reuse_swap(struct swap_info_struct *si, unsigned long offset)
+> +{
+> +	int type = si - swap_info;
+> +	swp_entry_t entry = swp_entry(type, offset);
+> +	struct page *page;
+> +	int ret = 0;
 > +
->  static inline int PageUptodate(struct page *page)
->  {
->  	int ret = test_bit(PG_uptodate, &(page)->flags);
-> @@ -403,7 +418,7 @@
->  	 1 << PG_private | 1 << PG_private_2 | \
->  	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
->  	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
-> -	 __PG_UNEVICTABLE | __PG_MLOCKED)
-> +	 __PG_HWPOISON  | __PG_UNEVICTABLE | __PG_MLOCKED)
->  
+> +	page = find_get_page(&swapper_space, entry.val);
+> +	if (!page)
+> +		return 0;
+> +	if (trylock_page(page)) {
+> +		ret = try_to_free_swap(page);
+> +		unlock_page(page);
+> +	}
+> +	page_cache_release(page);
+> +	return ret;
+> +}
+
+This function could do with some comments explaining what it does, and
+why.  Also describing the semantics of its return value.
+
+afacit it's misnamed.  It doesn't 'reuse' anything.  It in fact tries
+to release a swap entry so that (presumably) its _caller_ can reuse the
+swap slot.
+
+The missing comment should also explain why this function is forced to
+use the nasty trylock_page().
+
+Why _is_ this function forced to use the nasty trylock_page()?
+
 >  /*
->   * Flags checked when a page is prepped for return by the page allocator.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>   * We need this because the bdev->unplug_fn can sleep and we cannot
+>   * hold swap_lock while calling the unplug_fn. And swap_lock
+> @@ -294,6 +313,18 @@ checks:
+>  		goto no_page;
+>  	if (offset > si->highest_bit)
+>  		scan_base = offset = si->lowest_bit;
+> +
+> +	/* reuse swap entry of cache-only swap if not busy. */
+> +	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +		int ret;
+> +		spin_unlock(&swap_lock);
+> +		ret = try_to_reuse_swap(si, offset);
+> +		spin_lock(&swap_lock);
+> +		if (ret)
+> +			goto checks; /* we released swap_lock. retry. */
+> +		goto scan; /* In some racy case */
+> +	}
 
+So..  what prevents an infinite (or long) busy loop here?  It appears
+that if try_to_reuse_swap() returned non-zero, it will have cleared
+si->swap_map[offset], so we don't rerun try_to_reuse_swap().  Yes?
 
--- 
---
-	"Alan, I'm getting a bit worried about you."
-				-- Linus Torvalds
+`ret' is a poor choice of identifier.  It is usually used to hold the
+value which this function will be returning.  Ditto `retval'.  But that
+is not this variable's role in this case.  Perhaps a better name would
+be slot_was_freed or something.
+
+>  	if (si->swap_map[offset])
+>  		goto scan;
+>  
+> @@ -375,6 +406,10 @@ scan:
+>  			spin_lock(&swap_lock);
+>  			goto checks;
+>  		}
+> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +			spin_lock(&swap_lock);
+> +			goto checks;
+> +		}
+>  		if (unlikely(--latency_ration < 0)) {
+>  			cond_resched();
+>  			latency_ration = LATENCY_LIMIT;
+> @@ -386,6 +421,10 @@ scan:
+>  			spin_lock(&swap_lock);
+>  			goto checks;
+>  		}
+> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +			spin_lock(&swap_lock);
+> +			goto checks;
+> +		}
+>  		if (unlikely(--latency_ration < 0)) {
+>  			cond_resched();
+>  			latency_ration = LATENCY_LIMIT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
