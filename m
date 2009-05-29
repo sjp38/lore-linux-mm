@@ -1,70 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 96E326B005A
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:35:09 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 777516B005A
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:35:17 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200905291135.124267638@firstfloor.org>
 In-Reply-To: <200905291135.124267638@firstfloor.org>
-Subject: [PATCH] [3/16] HWPOISON: Export some rmap vma locking to outside world
-Message-Id: <20090529213528.7E5A41D0291@basil.firstfloor.org>
-Date: Fri, 29 May 2009 23:35:28 +0200 (CEST)
+Subject: [PATCH] [7/16] HWPOISON: Add various poison checks in mm/memory.c
+Message-Id: <20090529213532.DD6471D0293@basil.firstfloor.org>
+Date: Fri, 29 May 2009 23:35:32 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-Needed for later patch that walks rmap entries on its own.
+Bail out early when hardware poisoned pages are found in page fault handling.
+Since they are poisoned they should not be mapped freshly into processes,
+because that would cause another (potentially deadly) machine check
 
-This used to be very frowned upon, but memory-failure.c does
-some rather specialized rmap walking and rmap has been stable
-for quite some time, so I think it's ok now to export it.
+This is generally handled in the same way as OOM, just a different
+error code is returned to the architecture code.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/rmap.h |    6 ++++++
- mm/rmap.c            |    4 ++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ mm/memory.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Index: linux/include/linux/rmap.h
+Index: linux/mm/memory.c
 ===================================================================
---- linux.orig/include/linux/rmap.h	2009-05-29 23:32:10.000000000 +0200
-+++ linux/include/linux/rmap.h	2009-05-29 23:33:30.000000000 +0200
-@@ -118,6 +118,12 @@
- }
- #endif
+--- linux.orig/mm/memory.c	2009-05-29 23:32:10.000000000 +0200
++++ linux/mm/memory.c	2009-05-29 23:32:10.000000000 +0200
+@@ -2659,6 +2659,9 @@
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+ 		return ret;
  
-+/*
-+ * Called by memory-failure.c to kill processes.
-+ */
-+struct anon_vma *page_lock_anon_vma(struct page *page);
-+void page_unlock_anon_vma(struct anon_vma *anon_vma);
++	if (unlikely(PageHWPoison(vmf.page)))
++		return VM_FAULT_HWPOISON;
 +
- #else	/* !CONFIG_MMU */
- 
- #define anon_vma_init()		do {} while (0)
-Index: linux/mm/rmap.c
-===================================================================
---- linux.orig/mm/rmap.c	2009-05-29 23:32:10.000000000 +0200
-+++ linux/mm/rmap.c	2009-05-29 23:33:30.000000000 +0200
-@@ -191,7 +191,7 @@
-  * Getting a lock on a stable anon_vma from a page off the LRU is
-  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-  */
--static struct anon_vma *page_lock_anon_vma(struct page *page)
-+struct anon_vma *page_lock_anon_vma(struct page *page)
- {
- 	struct anon_vma *anon_vma;
- 	unsigned long anon_mapping;
-@@ -211,7 +211,7 @@
- 	return NULL;
- }
- 
--static void page_unlock_anon_vma(struct anon_vma *anon_vma)
-+void page_unlock_anon_vma(struct anon_vma *anon_vma)
- {
- 	spin_unlock(&anon_vma->lock);
- 	rcu_read_unlock();
+ 	/*
+ 	 * For consistency in subsequent calls, make the faulted page always
+ 	 * locked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
