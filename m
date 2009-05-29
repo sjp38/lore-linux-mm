@@ -1,39 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C65FA6B004F
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 12:36:52 -0400 (EDT)
-Message-ID: <4A200F40.9050703@redhat.com>
-Date: Fri, 29 May 2009 12:37:20 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] [2/16] HWPOISON: Export poison flag in /proc/kpageflags
-References: <200905271012.668777061@firstfloor.org> <20090527201227.EAEC41D0286@basil.firstfloor.org>
-In-Reply-To: <20090527201227.EAEC41D0286@basil.firstfloor.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 246076B004D
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 14:17:42 -0400 (EDT)
+Date: Fri, 29 May 2009 20:24:40 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [1/16] HWPOISON: Add page flag for poisoned pages
+Message-ID: <20090529182440.GY1065@one.firstfloor.org>
+References: <200905271012.668777061@firstfloor.org> <20090527201226.CCCBB1D028F@basil.firstfloor.org> <20090527221510.5e418e97@lxorguk.ukuu.org.uk> <20090528075416.GY1065@one.firstfloor.org> <4A2008F0.1070304@redhat.com> <20090529163757.GX1065@one.firstfloor.org> <4A200E98.20306@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A200E98.20306@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: fengguang.wu@intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> From: Fengguang Wu <fengguang.wu@intel.com>
+On Fri, May 29, 2009 at 12:34:32PM -0400, Rik van Riel wrote:
+> >They should just check for poisoned pages. 
 > 
-> Export the new poison flag in /proc/kpageflags. Poisoned pages are moderately
-> interesting even for administrators, so export them here. Also useful
-> for debugging.
-> 
-> AK: I extracted this out of a larger patch from Fengguang Wu.
-> 
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> #define PagePoisoned(page) (PageReserved(page) && PageWriteback(page))
 
-OK, this could be a good reason for the use of the PG_poisoned page
-flag in patch 1/16.
+I don't know what the point of that would be. An exercise in code
+obfuscation?
 
-Acked-by: Rik van Riel <riel@redhat.com>
+-Andi
 
 -- 
-All rights reversed.
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
