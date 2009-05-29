@@ -1,136 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CAE186B0055
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:54:58 -0400 (EDT)
-Date: Fri, 29 May 2009 14:55:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/4] reuse unused swap entry if necessary
-Message-Id: <20090529145510.b4ff541e.akpm@linux-foundation.org>
-In-Reply-To: <20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 49FC06B004D
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 18:17:44 -0400 (EDT)
+Date: Sat, 30 May 2009 00:24:44 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [0/16] HWPOISON: Intro
+Message-ID: <20090529222444.GG1065@one.firstfloor.org>
+References: <200905291135.124267638@firstfloor.org> <20090529225202.0c61a4b3@lxorguk.ukuu.org.uk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090529225202.0c61a4b3@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, hugh.dickins@tiscali.co.uk, hannes@cmpxchg.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 May 2009 14:20:47 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, May 29, 2009 at 10:52:02PM +0100, Alan Cox wrote:
+> On Fri, 29 May 2009 23:35:25 +0200 (CEST)
+> Andi Kleen <andi@firstfloor.org> wrote:
 > 
-> Now, we can know a swap entry is just used as SwapCache via swap_map,
-> without looking up swap cache.
+> > 
+> > Another version of the hwpoison patchkit. I addressed 
+> > all feedback, except:
+> > I didn't move the handlers into other files for now, prefer
+> > to keep things together for now
+> > I'm keeping an own pagepoison bit because I think that's 
+> > cleaner than any other hacks.
+> > 
+> > Andrew, please put it into mm for .31 track.
 > 
-> Then, we have a chance to reuse swap-cache-only swap entries in
-> get_swap_pages().
+> Andrew please put it on the "Andi needs to justify his pageflags" non-path
 > 
-> This patch tries to free swap-cache-only swap entries if swap is
-> not enough.
-> Note: We hit following path when swap_cluster code cannot find
-> a free cluster. Then, vm_swap_full() is not only condition to allow
-> the kernel to reclaim unused swap.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/swapfile.c |   39 +++++++++++++++++++++++++++++++++++++++
->  1 file changed, 39 insertions(+)
-> 
-> Index: new-trial-swapcount2/mm/swapfile.c
-> ===================================================================
-> --- new-trial-swapcount2.orig/mm/swapfile.c
-> +++ new-trial-swapcount2/mm/swapfile.c
-> @@ -73,6 +73,25 @@ static inline unsigned short make_swap_c
->  	return ret;
->  }
->  
-> +static int
-> +try_to_reuse_swap(struct swap_info_struct *si, unsigned long offset)
-> +{
-> +	int type = si - swap_info;
-> +	swp_entry_t entry = swp_entry(type, offset);
-> +	struct page *page;
-> +	int ret = 0;
-> +
-> +	page = find_get_page(&swapper_space, entry.val);
-> +	if (!page)
-> +		return 0;
-> +	if (trylock_page(page)) {
-> +		ret = try_to_free_swap(page);
-> +		unlock_page(page);
-> +	}
-> +	page_cache_release(page);
-> +	return ret;
-> +}
+> I'm with Rik on this - we may have a few pageflags handy now but being
+> slack with them for an obscure feature that can be done other ways and
+> isn't performance critical is just lazy and bad planning for the long
+> term.
 
-This function could do with some comments explaining what it does, and
-why.  Also describing the semantics of its return value.
+There's still plenty of space. Especially on 64bit it's an absolute
+non problem.
 
-afacit it's misnamed.  It doesn't 'reuse' anything.  It in fact tries
-to release a swap entry so that (presumably) its _caller_ can reuse the
-swap slot.
+On 32bit the shortage of page flags was really
+artificial because there were some caches put into ->flags, but 
+these are largely obsolete to my understanding:
+- discontigmem is gone (which cached the node)
+- non vmap sparsemem is used a few times, but not on large systems
+where you have a lot of zones, so you are ok with only having a few bits
+for that
+- if we really run out of bits on the sparsemem mapping it's easy
+enough to do another small hash table for this, similar to the discontig
+hash tables.
 
-The missing comment should also explain why this function is forced to
-use the nasty trylock_page().
+Also Christoph L. redid the dynamic allocation, so the boundaries
+are now dynamically growing/shrinking. This means that if an architecture
+doesn't use poison it doesn't use the bit.
 
-Why _is_ this function forced to use the nasty trylock_page()?
 
->  /*
->   * We need this because the bdev->unplug_fn can sleep and we cannot
->   * hold swap_lock while calling the unplug_fn. And swap_lock
-> @@ -294,6 +313,18 @@ checks:
->  		goto no_page;
->  	if (offset > si->highest_bit)
->  		scan_base = offset = si->lowest_bit;
-> +
-> +	/* reuse swap entry of cache-only swap if not busy. */
-> +	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +		int ret;
-> +		spin_unlock(&swap_lock);
-> +		ret = try_to_reuse_swap(si, offset);
-> +		spin_lock(&swap_lock);
-> +		if (ret)
-> +			goto checks; /* we released swap_lock. retry. */
-> +		goto scan; /* In some racy case */
-> +	}
+> Andi - "I'm doing it my way so nyahh, put it into .31" doesn't fly. If
+> you want it in .31 convince Rik and me and others that its a good use of
+> a pageflag.
 
-So..  what prevents an infinite (or long) busy loop here?  It appears
-that if try_to_reuse_swap() returned non-zero, it will have cleared
-si->swap_map[offset], so we don't rerun try_to_reuse_swap().  Yes?
+Sorry, you guys also didn't do a very good job explaining why 
+it is that big a problem to take a page flag. Yes I know it's popular
+folklore, but as far as I understand most of the reasons to be so
+stingy on them have disappeared over time anyways (but the folklore
+staid for some reason)
 
-`ret' is a poor choice of identifier.  It is usually used to hold the
-value which this function will be returning.  Ditto `retval'.  But that
-is not this variable's role in this case.  Perhaps a better name would
-be slot_was_freed or something.
+Anyways here's my pitch:
 
->  	if (si->swap_map[offset])
->  		goto scan;
->  
-> @@ -375,6 +406,10 @@ scan:
->  			spin_lock(&swap_lock);
->  			goto checks;
->  		}
-> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +			spin_lock(&swap_lock);
-> +			goto checks;
-> +		}
->  		if (unlikely(--latency_ration < 0)) {
->  			cond_resched();
->  			latency_ration = LATENCY_LIMIT;
-> @@ -386,6 +421,10 @@ scan:
->  			spin_lock(&swap_lock);
->  			goto checks;
->  		}
-> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +			spin_lock(&swap_lock);
-> +			goto checks;
-> +		}
->  		if (unlikely(--latency_ration < 0)) {
->  			cond_resched();
->  			latency_ration = LATENCY_LIMIT;
+It's a straight forward concept expressable as a page flag. Lots
+of places need to check for it (we expect there will be more users
+in the future). Also even crash dumps should check for it, so
+it's important to have a clean interface.
+
+Also it's an optional flag, if there's still an architecture
+around which needs special caches in ->flags then it's unlikely
+it will turn it on.
+
+Also what's the alternative? Are you suggesting we should do huffman
+encoding on flags or something? That seemed just too ugly, especially to solve 
+a non problem.
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
