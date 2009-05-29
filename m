@@ -1,54 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFEF6B007E
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A90566B005D
 	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:35:18 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200905291135.124267638@firstfloor.org>
 In-Reply-To: <200905291135.124267638@firstfloor.org>
-Subject: [PATCH] [2/16] HWPOISON: Export poison flag in /proc/kpageflags
-Message-Id: <20090529213527.79A6E1D0290@basil.firstfloor.org>
-Date: Fri, 29 May 2009 23:35:27 +0200 (CEST)
+Subject: [PATCH] [5/16] HWPOISON: Add new SIGBUS error codes for hardware poison signals
+Message-Id: <20090529213530.BAC851D028F@basil.firstfloor.org>
+Date: Fri, 29 May 2009 23:35:30 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.orgfengguang.wu@intel.com
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-From: Fengguang Wu <fengguang.wu@intel.com>
+Add new SIGBUS codes for reporting machine checks as signals. When 
+the hardware detects an uncorrected ECC error it can trigger these
+signals.
 
-Export the new poison flag in /proc/kpageflags. Poisoned pages are moderately
-interesting even for administrators, so export them here. Also useful
-for debugging.
+This is needed for telling KVM's qemu about machine checks that happen to
+guests, so that it can inject them, but might be also useful for other programs.
+I find it useful in my test programs.
 
-AK: I extracted this out of a larger patch from Fengguang Wu.
+This patch merely defines the new types.
+
+- Define two new si_codes for SIGBUS.  BUS_MCEERR_AO and BUS_MCEERR_AR
+* BUS_MCEERR_AO is for "Action Optional" machine checks, which means that some
+corruption has been detected in the background, but nothing has been consumed
+so far. The program can ignore those if it wants (but most programs would
+already get killed)
+* BUS_MCEERR_AR is for "Action Required" machine checks. This happens
+when corrupted data is consumed or the application ran into an area
+which has been known to be corrupted earlier. These require immediate
+action and cannot just returned to. Most programs would kill themselves.
+- They report the address of the corruption in the user address space
+in si_addr.
+- Define a new si_addr_lsb field that reports the extent of the corruption
+to user space. That's currently always a (small) page. The user application
+cannot tell where in this page the corruption happened.
+
+AK: I plan to write a man page update before anyone asks.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- fs/proc/page.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ include/asm-generic/siginfo.h |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-Index: linux/fs/proc/page.c
+Index: linux/include/asm-generic/siginfo.h
 ===================================================================
---- linux.orig/fs/proc/page.c	2009-05-29 23:32:10.000000000 +0200
-+++ linux/fs/proc/page.c	2009-05-29 23:32:10.000000000 +0200
-@@ -79,6 +79,7 @@
- #define KPF_WRITEBACK  8
- #define KPF_RECLAIM    9
- #define KPF_BUDDY     10
-+#define KPF_HWPOISON  11
+--- linux.orig/include/asm-generic/siginfo.h	2009-05-29 23:32:10.000000000 +0200
++++ linux/include/asm-generic/siginfo.h	2009-05-29 23:32:10.000000000 +0200
+@@ -82,6 +82,7 @@
+ #ifdef __ARCH_SI_TRAPNO
+ 			int _trapno;	/* TRAP # which caused the signal */
+ #endif
++			short _addr_lsb; /* LSB of the reported address */
+ 		} _sigfault;
  
- #define kpf_copy_bit(flags, dstpos, srcpos) (((flags >> srcpos) & 1) << dstpos)
+ 		/* SIGPOLL */
+@@ -112,6 +113,7 @@
+ #ifdef __ARCH_SI_TRAPNO
+ #define si_trapno	_sifields._sigfault._trapno
+ #endif
++#define si_addr_lsb	_sifields._sigfault._addr_lsb
+ #define si_band		_sifields._sigpoll._band
+ #define si_fd		_sifields._sigpoll._fd
  
-@@ -118,6 +119,9 @@
- 			kpf_copy_bit(kflags, KPF_WRITEBACK, PG_writeback) |
- 			kpf_copy_bit(kflags, KPF_RECLAIM, PG_reclaim) |
- 			kpf_copy_bit(kflags, KPF_BUDDY, PG_buddy);
-+#ifdef CONFIG_MEMORY_FAILURE
-+		uflags |= kpf_copy_bit(kflags, KPF_HWPOISON, PG_hwpoison);
-+#endif
+@@ -192,7 +194,11 @@
+ #define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
+ #define BUS_ADRERR	(__SI_FAULT|2)	/* non-existant physical address */
+ #define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
+-#define NSIGBUS		3
++/* hardware memory error consumed on a machine check: action required */
++#define BUS_MCEERR_AR	(__SI_FAULT|4)
++/* hardware memory error detected in process but not consumed: action optional*/
++#define BUS_MCEERR_AO	(__SI_FAULT|5)
++#define NSIGBUS		5
  
- 		if (put_user(uflags, out++)) {
- 			ret = -EFAULT;
+ /*
+  * SIGTRAP si_codes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
