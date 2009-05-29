@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A9B56B0087
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:35:27 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-References: <200905291135.124267638@firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6375F6B0055
+	for <linux-mm@kvack.org>; Fri, 29 May 2009 17:50:36 -0400 (EDT)
+Date: Fri, 29 May 2009 22:52:02 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH] [0/16] HWPOISON: Intro
+Message-ID: <20090529225202.0c61a4b3@lxorguk.ukuu.org.uk>
 In-Reply-To: <200905291135.124267638@firstfloor.org>
-Subject: [PATCH] [14/16] HWPOISON: FOR TESTING: Enable memory failure code unconditionally
-Message-Id: <20090529213540.540A81D028F@basil.firstfloor.org>
-Date: Fri, 29 May 2009 23:35:40 +0200 (CEST)
+References: <200905291135.124267638@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 29 May 2009 23:35:25 +0200 (CEST)
+Andi Kleen <andi@firstfloor.org> wrote:
 
-Normally the memory-failure.c code is enabled by the architecture, but
-for easier testing independent of architecture changes enable it unconditionally.
+> 
+> Another version of the hwpoison patchkit. I addressed 
+> all feedback, except:
+> I didn't move the handlers into other files for now, prefer
+> to keep things together for now
+> I'm keeping an own pagepoison bit because I think that's 
+> cleaner than any other hacks.
+> 
+> Andrew, please put it into mm for .31 track.
 
-This should not be merged into mainline.
+Andrew please put it on the "Andi needs to justify his pageflags" non-path
 
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
+I'm with Rik on this - we may have a few pageflags handy now but being
+slack with them for an obscure feature that can be done other ways and
+isn't performance critical is just lazy and bad planning for the long
+term.
 
----
- mm/Kconfig |    2 ++
- 1 file changed, 2 insertions(+)
+Andi - "I'm doing it my way so nyahh, put it into .31" doesn't fly. If
+you want it in .31 convince Rik and me and others that its a good use of
+a pageflag.
 
-Index: linux/mm/Kconfig
-===================================================================
---- linux.orig/mm/Kconfig	2009-05-29 23:32:11.000000000 +0200
-+++ linux/mm/Kconfig	2009-05-29 23:33:28.000000000 +0200
-@@ -228,6 +228,8 @@
- 
- config MEMORY_FAILURE
- 	bool
-+	default y
-+	depends on MMU
- 
- config NOMMU_INITIAL_TRIM_EXCESS
- 	int "Turn on mmap() excess space trimming before booting"
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
