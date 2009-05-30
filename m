@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E4CD16B0088
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:35:24 -0400 (EDT)
-Date: Sat, 30 May 2009 08:42:44 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090530064244.GJ1065@one.firstfloor.org>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090528165625.GA17572@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8536A6B008A
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:40:11 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e39.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4U6auIF022443
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 00:36:56 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4U6elQ1145666
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 00:40:47 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4U6elxu028758
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 00:40:47 -0600
+Date: Sat, 30 May 2009 14:40:41 +0800
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/4] reuse unused swap entry if necessary
+Message-ID: <20090530064041.GF24073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com> <20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090528165625.GA17572@sgi.com>
+In-Reply-To: <20090528142047.3069543b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Russ Anderson <rja@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry for late answer, email slipped out earlier.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-28 14:20:47]:
 
-On Thu, May 28, 2009 at 11:56:25AM -0500, Russ Anderson wrote:
-> > I changed it to 
-> > 
-> >  "MCE: Unable to determine user space address during error handling\n")
-> > 
-> > Still not perfect, but hopefully better.
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Is it even worth having a message at all?  Does the fact that page_address_in_vma()
+> Now, we can know a swap entry is just used as SwapCache via swap_map,
+> without looking up swap cache.
+> 
+> Then, we have a chance to reuse swap-cache-only swap entries in
+> get_swap_pages().
+> 
+> This patch tries to free swap-cache-only swap entries if swap is
+> not enough.
+> Note: We hit following path when swap_cluster code cannot find
+> a free cluster. Then, vm_swap_full() is not only condition to allow
+> the kernel to reclaim unused swap.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I like having a message so that I can see when it happens.
+Looks good, except the now changed behaviour where swap will get
+distributed between clusters. Having the vm_swap_full() is a good
+optimization for swap allocation performance though. I'd say lets wait
+to see the results of testing
 
-> failed change the behavior in any way?  (Does tk->addr == 0 matter?)  From
 
-It just doesn't report an address to the user (or rather 0)
-
-> If the message is for developers/debugging, it would be nice to have more
-
-It's not really for debugging only, it's a legitimate case. Typically
-when the process unmaps or remaps in parallel. Of course when it currently
-unmaps you could argue it doesn't need the data anymore and doesn't
-need to be killed (that's true), but that doesn't work for mremap()ing.
-I considered at some point to loop, but that would risk live lock.
-So it just prints and reports nothing.
-
-The only ugly part is the ambiguity of reporting a 0 address (in theory
-there could be real memory 0 on virtual 0), but that didn't seem to be
-enough an issue to fix.
-
--Andi
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
