@@ -1,76 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D16386B006A
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:50:48 -0400 (EDT)
-Date: Fri, 29 May 2009 22:48:56 -0700
-From: "Larry H." <research@subreption.com>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090530054856.GG29711@oblivion.subreption.com>
-References: <20090522073436.GA3612@elte.hu> <20090522113809.GB13971@oblivion.subreption.com> <20090522143914.2019dd47@lxorguk.ukuu.org.uk> <20090522180351.GC13971@oblivion.subreption.com> <20090522192158.28fe412e@lxorguk.ukuu.org.uk> <20090522234031.GH13971@oblivion.subreption.com> <20090523090910.3d6c2e85@lxorguk.ukuu.org.uk> <20090523085653.0ad217f8@infradead.org> <1243539361.6645.80.camel@laptop> <20090529073217.08eb20e1@infradead.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3916B007E
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:10:08 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4U666h1008529
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:06:06 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4U6ADnV257962
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:10:13 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4U6ADR2022053
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 02:10:13 -0400
+Date: Sat, 30 May 2009 14:10:08 +0800
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/4] modify swap_map and add SWAP_HAS_CACHE flag.
+Message-ID: <20090530061008.GE24073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com> <20090528141900.c93fe1d5.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090529073217.08eb20e1@infradead.org>
+In-Reply-To: <20090528141900.c93fe1d5.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Arjan van de Ven <arjan@infradead.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07:32 Fri 29 May     , Arjan van de Ven wrote:
-> On Thu, 28 May 2009 21:36:01 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-28 14:19:00]:
+
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> > > ... and if we zero on free, we don't need to zero on allocate.
-> > > While this is a little controversial, it does mean that at least
-> > > part of the cost is just time-shifted, which means it'll not be TOO
-> > > bad hopefully...
-> > 
-> > zero on allocate has the advantage of cache hotness, we're going to
-> > use the memory, why else allocate it.
-
-Because zero on allocate kills the very purpose of this patch and it has
-obvious security implications. Like races (in information leak
-scenarios, that is). What happens in-between the release of the page and
-the new allocation that yields the same page? What happens if no further
-allocations happen in a while (that can return the old page again)?
-That's the idea.
-
-> that is why I said it's controversial.
+> This is a part of patches for fixing memcg's swap account leak. But, IMHO,
+> not a bad patch even if no memcg.
 > 
-> BUT if you zero on free anyway...
+> Now, reference to swap is counted by swap_map[], an array of unsigned short.
+> There are 2 kinds of references to swap.
+>  - reference from swap entry
+>  - reference from swap cache
+> Then, 
+>  - If there is swap cache && swap's refcnt is 1, there is only swap cache.
+>   (*) swapcount(entry) == 1 && find_get_page(swapper_space, entry) != NULL
 > 
-> And I don't think it's as big a deal as you make it.
-> Why?
+> This counting logic have worked well for a long time. But considering that
+> we cannot know there is a _real_ reference or not by swap_map[], current usage
+> of counter is not very good.
 > 
-> We recycle pages in LIFO order. And L2 caches are big.
+> This patch adds a flag SWAP_HAS_CACHE and recored information that a swap entry
+> has a cache or not. This will remove -1 magic used in swapfile.c and be a help
+> to avoid unnecessary find_get_page().
 > 
-> So if you zero on free, the next allocation will reuse the zeroed page.
-> And due to LIFO that is not too far out "often", which makes it likely
-> the page is still in L2 cache.
-
-Thanks for pointing this out clearly, Arjan.
-
-> The other thing is that zero-on-allocate puts the WHOLE page in L1,
-> while you can study how much of that page is actually used on average,
-> and it'll be a percentage lower than 100%.
-> In fact, if it IS 100%, you shouldn't have put it in L1 because the app
-> does that anyway. If it is not 100% you just blew a chunk of your L1
-> for no value.
+> Changelog: v1->v2
+>  - fixed swapcache_prepare()'s return code.
+>  - changed swap_duplicate() be void function.
+>  - fixed racy case in swapoff().
 > 
-> Don't get me wrong, I'm not arguing that zero-on-free is better, I'm
-> just trying to point out that the "advantage" of zero-on-allocate isn't
-> nearly as big as people sometimes think it is...
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/swap.h |   14 ++-
+>  mm/swap_state.c      |    5 +
+>  mm/swapfile.c        |  203 ++++++++++++++++++++++++++++++++++++---------------
+>  3 files changed, 160 insertions(+), 62 deletions(-)
+> 
+> Index: new-trial-swapcount2/include/linux/swap.h
+> ===================================================================
+> --- new-trial-swapcount2.orig/include/linux/swap.h
+> +++ new-trial-swapcount2/include/linux/swap.h
+> @@ -129,9 +129,10 @@ enum {
+> 
+>  #define SWAP_CLUSTER_MAX 32
+> 
+> -#define SWAP_MAP_MAX	0x7fff
+> -#define SWAP_MAP_BAD	0x8000
+> -
+> +#define SWAP_MAP_MAX	0x7ffe
+> +#define SWAP_MAP_BAD	0x7fff
+> +#define SWAP_HAS_CACHE  0x8000		/* There is a swap cache of entry. */
 
-Performance-wise, I agree with you here. Security-wise, I assure
-you that clearing on allocation time is most certainly hopeless.
+Why count, can't we use swp->flags?
 
-If there's further room for improvement in the patch, and something can
-be optimized, I will do my best with it. I won't be able to provide any
-updates until Sunday, likely. I'll do a kernbench, if someone has
-further benchmarks to suggest, please let me know.
+> +#define SWAP_COUNT_MASK (~SWAP_HAS_CACHE)
+>  /*
+>   * The in-memory structure used to track swap areas.
+>   */
+> @@ -300,7 +301,7 @@ extern long total_swap_pages;
+>  extern void si_swapinfo(struct sysinfo *);
+>  extern swp_entry_t get_swap_page(void);
+>  extern swp_entry_t get_swap_page_of_type(int);
+> -extern int swap_duplicate(swp_entry_t);
+> +extern void swap_duplicate(swp_entry_t);
+>  extern int swapcache_prepare(swp_entry_t);
+>  extern int valid_swaphandles(swp_entry_t, unsigned long *);
+>  extern void swap_free(swp_entry_t);
+> @@ -372,9 +373,12 @@ static inline void show_swap_cache_info(
+>  }
+> 
+>  #define free_swap_and_cache(swp)	is_migration_entry(swp)
+> -#define swap_duplicate(swp)		is_migration_entry(swp)
+>  #define swapcache_prepare(swp)		is_migration_entry(swp)
+> 
+> +static inline void swap_duplicate(swp_entry_t swp)
+> +{
+> +}
+> +
+>  static inline void swap_free(swp_entry_t swp)
+>  {
+>  }
+> Index: new-trial-swapcount2/mm/swapfile.c
+> ===================================================================
+> --- new-trial-swapcount2.orig/mm/swapfile.c
+> +++ new-trial-swapcount2/mm/swapfile.c
+> @@ -53,6 +53,26 @@ static struct swap_info_struct swap_info
+> 
+>  static DEFINE_MUTEX(swapon_mutex);
+> 
+> +/* For reference count accounting in swap_map */
+> +static inline int swap_count(unsigned short ent)
+> +{
+> +	return ent & SWAP_COUNT_MASK;
+> +}
+> +
+> +static inline int swap_has_cache(unsigned short ent)
+> +{
+> +	return ent & SWAP_HAS_CACHE;
+> +}
+> +
+> +static inline unsigned short make_swap_count(int count, int has_cache)
+> +{
+> +	unsigned short ret = count;
+> +
+> +	if (has_cache)
+> +		return SWAP_HAS_CACHE | ret;
+> +	return ret;
+> +}
 
-	Larry
+make_swap_count() does not make too much sense in terms of the name
+for the function. Should it be called generate_swap_count or
+assign_swap_count_info?
+
+> +
+>  /*
+>   * We need this because the bdev->unplug_fn can sleep and we cannot
+>   * hold swap_lock while calling the unplug_fn. And swap_lock
+> @@ -167,7 +187,8 @@ static int wait_for_discard(void *word)
+>  #define SWAPFILE_CLUSTER	256
+>  #define LATENCY_LIMIT		256
+> 
+> -static inline unsigned long scan_swap_map(struct swap_info_struct *si)
+> +static inline unsigned long scan_swap_map(struct swap_info_struct *si,
+> +					  int cache)
+
+Can we please use bool for readability or even better an enum?
+
+Looks good at first glance otherwise. I think distinguishing between
+the counts is good, but also complex. Overall the patch is useful.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
