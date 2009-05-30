@@ -1,54 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B51C55F0001
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 18:14:46 -0400 (EDT)
-Date: Sun, 31 May 2009 00:14:44 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090530221444.GB23204@elte.hu>
-References: <20090528072702.796622b6@lxorguk.ukuu.org.uk> <20090528090836.GB6715@elte.hu> <20090528125042.28c2676f@lxorguk.ukuu.org.uk> <84144f020905300035g1d5461f9n9863d4dcdb6adac0@mail.gmail.com> <20090530075033.GL29711@oblivion.subreption.com> <4A20E601.9070405@cs.helsinki.fi> <20090530082048.GM29711@oblivion.subreption.com> <20090530173428.GA20013@elte.hu> <20090530180333.GH6535@oblivion.subreption.com> <84144f020905301322g7bbdd42cpe1391c619ffda044@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 411DE5F0001
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 18:29:17 -0400 (EDT)
+Date: Sat, 30 May 2009 15:29:39 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH] Change ZERO_SIZE_PTR to point at unmapped space
+In-Reply-To: <20090530192829.GK6535@oblivion.subreption.com>
+Message-ID: <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <84144f020905301322g7bbdd42cpe1391c619ffda044@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+To: "Larry H." <research@subreption.com>
+Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-> Hi Larry,
+On Sat, 30 May 2009, Larry H. wrote:
 > 
-> On Sat, May 30, 2009 at 9:03 PM, Larry H. <research@subreption.com> wrote:
-> > The first issue is that SLOB has a broken ksize, which won't take into
-> > consideration compound pages AFAIK. To fix this you will need to
-> > introduce some changes in the way the slob_page structure is handled,
-> > and add real size tracking to it. You will find these problems if you
-> > try to implement a reliable kmem_ptr_validate for SLOB, too.
-> 
-> Does this mean that kzfree() isn't broken for SLAB/SLUB? Maybe I 
-> read your emails wrong but you seemed to imply that.
+> The ZERO_OR_NULL_PTR macro is changed accordingly. This patch does
+> not modify its behavior nor has any performance nor functionality
+> impact.
 
-Yep, he definitely wrote that:
+I'm sure it makes a code generation difference, with (a) big constants and 
+(b) no longer possible to merge the conditional into one single one.
 
-    http://lkml.org/lkml/2009/5/30/30
-
- [...]
- |
- | That's hopeless, and kzfree is broken. Like I said in my earlier 
- | reply, please test that yourself to see the results. Whoever 
- | wrote that ignored how SLAB/SLUB work and if kzfree had been used 
- | somewhere in the kernel before, it should have been noticed long 
- | time ago.
- |
- [...]
-
-Very puzzling claims i have to say.
-
-	Ingo
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
