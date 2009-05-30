@@ -1,85 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4425F0001
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 14:05:48 -0400 (EDT)
-Date: Sat, 30 May 2009 20:05:40 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 5/5] Apply the PG_sensitive flag to the CryptoAPI
-	subsystem
-Message-ID: <20090530180540.GE20013@elte.hu>
-References: <20090520190519.GE10756@oblivion.subreption.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 27DDC5F0001
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 14:05:53 -0400 (EDT)
+Date: Sat, 30 May 2009 11:03:33 -0700
+From: "Larry H." <research@subreption.com>
+Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
+	allocator
+Message-ID: <20090530180333.GH6535@oblivion.subreption.com>
+References: <4A187BDE.5070601@redhat.com> <20090527223421.GA9503@elte.hu> <20090528072702.796622b6@lxorguk.ukuu.org.uk> <20090528090836.GB6715@elte.hu> <20090528125042.28c2676f@lxorguk.ukuu.org.uk> <84144f020905300035g1d5461f9n9863d4dcdb6adac0@mail.gmail.com> <20090530075033.GL29711@oblivion.subreption.com> <4A20E601.9070405@cs.helsinki.fi> <20090530082048.GM29711@oblivion.subreption.com> <20090530173428.GA20013@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090520190519.GE10756@oblivion.subreption.com>
+In-Reply-To: <20090530173428.GA20013@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, linux-crypto@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On 19:34 Sat 30 May     , Ingo Molnar wrote:
+> You need to provide a more sufficient and more constructive answer 
+> than that, if you propose upstream patches that impact the SLAB 
+> subsystem.
 
-* Larry H. <research@subreption.com> wrote:
+Impact? If you mean introducing changes, definitely. If the word has
+negative connotations in this context, definitely not ;)
 
-> This patch deploys the use of the PG_sensitive page allocator flag 
-> within the CryptoAPI subsystem, in all relevant locations where 
-> algorithm and key contexts are allocated.
-> 
-> Some calls to memset for zeroing the buffers have been removed to 
-> avoid duplication of the sanitizing process, since this is already 
-> taken care of by the allocator during page freeing.
-> 
-> The only noticeable impact on performance might be in the 
-> blkcipher modifications, although this is likely negligible and 
-> balanced with the security benefits of this patch in the long 
-> term.
+> FYI Pekka is one of the SLAB subsystem maintainers so you need to 
+> convince him that your patches are the right approach. Trying to 
+> teach Pekka about SLAB internals in a condescending tone will only 
+> cause your patches to be ignored.
 
-I think there's a rather significant omission here: there's no 
-discussion about on-kernel-stack information leaking out.
+I've never tried to teach you anything but security matters, so far.
+And I've been quite unsuccessful at it, apparently. That said, please
+let me explain why kzfree was broken (as of 2.6.29.4, I've been told
+30-rc2 already has users of it).
 
-If a thread that does a crypto call happens to leave sensitive 
-on-stack data (this can happen easily as stack variables are not 
-cleared on return), or if a future variant or modification of a 
-crypto algorithm leaves such information around - then there's 
-nothing that keeps that data from potentially leaking out.
+The first issue is that SLOB has a broken ksize, which won't take into
+consideration compound pages AFAIK. To fix this you will need to
+introduce some changes in the way the slob_page structure is handled,
+and add real size tracking to it. You will find these problems if you
+try to implement a reliable kmem_ptr_validate for SLOB, too.
 
-This is not academic and it happens all the time: only look at 
-various crash dumps on lkml. For example this crash shows such 
-leaked information:
+The second is that I've experienced issues with kzfree on 2.6.29.4, in
+which something (apparently the freelist pointer) is overwritten and
+leads to a NULL pointer deference in the next allocation in the affected
+cache. I didn't fully analyze what was broken, besides that for
+sanitizing the objects on kfree I needed to rely on the inuse size and
+not the one reported by ksize, if I wanted to avoid hitting that
+trailing meta-data.
 
-[   96.138788]  [<ffffffff810ab62e>] perf_counter_exit_task+0x10e/0x3f3
-[   96.145464]  [<ffffffff8104cf46>] do_exit+0x2e7/0x722
-[   96.150837]  [<ffffffff810630cf>] ? up_read+0x9/0xb
-[   96.156036]  [<ffffffff8151cc0b>] ? do_page_fault+0x27d/0x2a5
-[   96.162141]  [<ffffffff8104d3f4>] do_group_exit+0x73/0xa0
-[   96.167860]  [<ffffffff8104d433>] sys_exit_group+0x12/0x16
-[   96.173665]  [<ffffffff8100bb2b>] system_call_fastpath+0x16/0x1b
+I just noticed Johannes Weiner's patch from February 16.
 
-The 'ffffffff8151cc0b' 64-bit word is actually a leftover from a 
-previous system context. ( And this is at the bottom of the stack 
-that gets cleared all the time - the top of the kernel stack is a 
-lot more more persistent in practice and crypto calls tend to have a 
-healthy stack footprint. )
+BTW, talking about branches and call depth, you are proposing using
+kzfree() which involves further test and call branches (including those
+inside the specific ksize implementation of the allocator being used)
+and it duplicates the check for ZERO_SIZE_PTR/NULL too. The function is
+so simple that it should be a static inline declared in slab.h. It also
+lacks any validation checks as performed in kfree (besides the zero
+size/null ptr one).
 
-So IMO the GFP_SENSITIVE facility (beyond being misnomer - it should 
-be something like GFP_NON_PERSISTENT instead) actually results in 
-_worse_ security in the end: because people (and organizations) 
-'think' that their keys are safe against information leaks via this 
-space, while they are not. The kernel stack can be freed, be reused 
-by something else partially and then written out to disk (say as 
-part of hibernation) where it's recoverable from the disk image.
+Also, users of unconditional sanitization would see unnecessary
+duplication of the clearing, causing a real performance hit (which would
+be almost non existent otherwise). That will make kzfree unsuitable for
+most hot spots like the crypto api and the mac80211 wep code.
 
-So this whole facility probably only makes sense if all kernel 
-stacks that handle sensitive data are zeroed on free. But i havent 
-seen any kernel thread stack clearing functionality in this 
-patch-set - is it an intentional omission? (or have i missed some 
-aspect of the patch-set)
+Honestly your proposed approach seems a little weak.
 
-Also, there's no discussion about long-lived threads keeping 
-sensitive information in there kernel stack indefinitely.
-
-Thanks,
-
-	Ingo
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
