@@ -1,84 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BABF6B00E6
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 13:49:25 -0400 (EDT)
-Date: Sat, 30 May 2009 19:50:03 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B4425F0001
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 14:05:48 -0400 (EDT)
+Date: Sat, 30 May 2009 20:05:40 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090530175003.GD20013@elte.hu>
-References: <20090528090836.GB6715@elte.hu> <4A1EDC96.2322.EEEC13E@pageexec.freemail.hu>
+Subject: Re: [patch 5/5] Apply the PG_sensitive flag to the CryptoAPI
+	subsystem
+Message-ID: <20090530180540.GE20013@elte.hu>
+References: <20090520190519.GE10756@oblivion.subreption.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A1EDC96.2322.EEEC13E@pageexec.freemail.hu>
+In-Reply-To: <20090520190519.GE10756@oblivion.subreption.com>
 Sender: owner-linux-mm@kvack.org
-To: pageexec@freemail.hu
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Larry H." <research@subreption.com>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, linux-crypto@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
 
-* pageexec@freemail.hu <pageexec@freemail.hu> wrote:
+* Larry H. <research@subreption.com> wrote:
 
-> On 28 May 2009 at 11:08, Ingo Molnar wrote:
+> This patch deploys the use of the PG_sensitive page allocator flag 
+> within the CryptoAPI subsystem, in all relevant locations where 
+> algorithm and key contexts are allocated.
 > 
-> > 
-> > * Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> > 
-> > > > > As for being swapped out - I do not believe that kernel stacks can 
-> > > > > ever be swapped out in Linux.
-> > > > 
-> > > > yes, i referred to that as an undesirable option - because it slows 
-> > > > down pthread_create() quite substantially.
-> > > > 
-> > > > This needs before/after pthread_create() benchmark results.
-> > > 
-> > > kernel stacks can end up places you don't expect on hypervisor 
-> > > based systems.
-> > > 
-> > > In most respects the benchmarks are pretty irrelevant - wiping 
-> > > stuff has a performance cost, but its the sort of thing you only 
-> > > want to do when you have a security requirement that needs it. At 
-> > > that point the performance is secondary.
-> > 
-> > Bechmarks, of course, are not irrelevant _at all_.
-> > 
-> > So i'm asking for this "clear kernel stacks on freeing" aspect to be 
-> > benchmarked thoroughly, as i expect it to have a negative impact - 
-> > otherwise i'm NAK-ing this. Please Cc: me to measurements results.
+> Some calls to memset for zeroing the buffers have been removed to 
+> avoid duplication of the sanitizing process, since this is already 
+> taken care of by the allocator during page freeing.
 > 
-> last year while developing/debugging something else i also ran some kernel
-> compilation tests and managed to dig out this one for you ('all' refers to
-> all of PaX):
-> 
-> ------------------------------------------------------------------------------------------
-> make -j4 2.6.24-rc7-i386-pax compiling 2.6.24-rc7-i386-pax (all with SANITIZE, no PARAVIRT)
-> 565.63user 68.52system 5:25.52elapsed 194%CPU (0avgtext+0avgdata 0maxresident)k
-> 0inputs+0outputs (1major+12486066minor)pagefaults 0swaps
-> 
-> 565.10user 68.28system 5:24.72elapsed 195%CPU (0avgtext+0avgdata 0maxresident)k
-> 0inputs+0outputs (0major+12485742minor)pagefaults 0swaps
-> ------------------------------------------------------------------------------------------
-> make -j4 2.6.24-rc5-i386-pax compiling 2.6.24-rc5-i386-pax (all but SANITIZE, no PARAVIRT)
-> 559.74user 50.29system 5:12.79elapsed 195%CPU (0avgtext+0avgdata 0maxresident)k
-> 0inputs+0outputs (0major+12397482minor)pagefaults 0swaps
-> 
-> 561.41user 51.91system 5:14.55elapsed 194%CPU (0avgtext+0avgdata 0maxresident)k
-> 0inputs+0outputs (0major+12396877minor)pagefaults 0swaps
-> ------------------------------------------------------------------------------------------
-> 
-> for the kernel times the overhead is about 68s vs. 51s, or 40% in 
-> this particular case. while i don't know where this workload (the 
-> kernel part) falls in the spectrum of real life workloads, it 
-> definitely shows that if you're kernel bound, you should think 
-> twice before using this in production (and there's the real-time 
-> latency issue too).
+> The only noticeable impact on performance might be in the 
+> blkcipher modifications, although this is likely negligible and 
+> balanced with the security benefits of this patch in the long 
+> term.
 
-Yes, clearing memory causes quite brutal overhead - as expected.
+I think there's a rather significant omission here: there's no 
+discussion about on-kernel-stack information leaking out.
 
-If only kernel stacks are cleared before reuse that will be less 
-overhead - but still it has to be benchmarked (and the overhead has 
-to be justified).
+If a thread that does a crypto call happens to leave sensitive 
+on-stack data (this can happen easily as stack variables are not 
+cleared on return), or if a future variant or modification of a 
+crypto algorithm leaves such information around - then there's 
+nothing that keeps that data from potentially leaking out.
+
+This is not academic and it happens all the time: only look at 
+various crash dumps on lkml. For example this crash shows such 
+leaked information:
+
+[   96.138788]  [<ffffffff810ab62e>] perf_counter_exit_task+0x10e/0x3f3
+[   96.145464]  [<ffffffff8104cf46>] do_exit+0x2e7/0x722
+[   96.150837]  [<ffffffff810630cf>] ? up_read+0x9/0xb
+[   96.156036]  [<ffffffff8151cc0b>] ? do_page_fault+0x27d/0x2a5
+[   96.162141]  [<ffffffff8104d3f4>] do_group_exit+0x73/0xa0
+[   96.167860]  [<ffffffff8104d433>] sys_exit_group+0x12/0x16
+[   96.173665]  [<ffffffff8100bb2b>] system_call_fastpath+0x16/0x1b
+
+The 'ffffffff8151cc0b' 64-bit word is actually a leftover from a 
+previous system context. ( And this is at the bottom of the stack 
+that gets cleared all the time - the top of the kernel stack is a 
+lot more more persistent in practice and crypto calls tend to have a 
+healthy stack footprint. )
+
+So IMO the GFP_SENSITIVE facility (beyond being misnomer - it should 
+be something like GFP_NON_PERSISTENT instead) actually results in 
+_worse_ security in the end: because people (and organizations) 
+'think' that their keys are safe against information leaks via this 
+space, while they are not. The kernel stack can be freed, be reused 
+by something else partially and then written out to disk (say as 
+part of hibernation) where it's recoverable from the disk image.
+
+So this whole facility probably only makes sense if all kernel 
+stacks that handle sensitive data are zeroed on free. But i havent 
+seen any kernel thread stack clearing functionality in this 
+patch-set - is it an intentional omission? (or have i missed some 
+aspect of the patch-set)
+
+Also, there's no discussion about long-lived threads keeping 
+sensitive information in there kernel stack indefinitely.
+
+Thanks,
 
 	Ingo
 
