@@ -1,58 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0158C6B00D7
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 11:05:35 -0400 (EDT)
-Received: by yx-out-1718.google.com with SMTP id 36so2867466yxh.26
-        for <linux-mm@kvack.org>; Sat, 30 May 2009 08:05:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090530082048.GM29711@oblivion.subreption.com>
-References: <20090522113809.GB13971@oblivion.subreption.com>
-	<4A187BDE.5070601@redhat.com> <20090527223421.GA9503@elte.hu>
-	<20090528072702.796622b6@lxorguk.ukuu.org.uk> <20090528090836.GB6715@elte.hu>
-	<20090528125042.28c2676f@lxorguk.ukuu.org.uk> <84144f020905300035g1d5461f9n9863d4dcdb6adac0@mail.gmail.com>
-	<20090530075033.GL29711@oblivion.subreption.com> <4A20E601.9070405@cs.helsinki.fi>
-	<20090530082048.GM29711@oblivion.subreption.com>
-From: Ray Lee <ray-lk@madrabbit.org>
-Date: Sat, 30 May 2009 08:05:17 -0700
-Message-ID: <2c0942db0905300805h4cd3f8eew32a0b7f5bd50e7be@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EBA5A6B00D9
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 13:02:54 -0400 (EDT)
+Date: Sat, 30 May 2009 10:00:31 -0700
+From: "Larry H." <research@subreption.com>
 Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
 	allocator
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20090530170031.GD6535@oblivion.subreption.com>
+References: <20090522073436.GA3612@elte.hu> <20090530054856.GG29711@oblivion.subreption.com> <1243679973.6645.131.camel@laptop> <4A211BA8.8585.17B52182@pageexec.freemail.hu> <1243689707.6645.134.camel@laptop> <20090530153023.45600fd2@lxorguk.ukuu.org.uk> <1243694737.6645.142.camel@laptop> <4A214752.7000303@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A214752.7000303@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu, Arjan van de Ven <arjan@infradead.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 30, 2009 at 1:20 AM, Larry H. <research@subreption.com> wrote:
-> On 10:53 Sat 30 May =C2=A0 =C2=A0 , Pekka Enberg wrote:
->>> That's hopeless, and kzfree is broken. Like I said in my earlier reply,
->>> please test that yourself to see the results. Whoever wrote that ignore=
-d
->>> how SLAB/SLUB work and if kzfree had been used somewhere in the kernel
->>> before, it should have been noticed long time ago.
->>
->> An open-coded version of kzfree was being used in the kernel:
->>
->> http://git.kernel.org/?p=3Dlinux/kernel/git/torvalds/linux-2.6.git;a=3Dc=
-ommitdiff;h=3D00fcf2cb6f6bb421851c3ba062c0a36760ea6e53
->>
->> Can we now get to the part where you explain how it's broken because I
->> obviously "ignored how SLAB/SLUB works"?
->
-> You can find the answer in the code of sanitize_obj, within my kfree
-> patch. Besides, it would have taken less time for you to write a simple
-> module that kmallocs and kzfrees a buffer, than writing these two
-> emails.
+Alright, I wrote some small programs to test the data remanence on
+memory. It works in a really simple way and functionality is provided by
+three different tools:
 
-How about, for the third time, just sharing that information with the
-whole rest of us reading along? Do you really think it's useful for
-dozens of us to go do that test, when you already obviously *have*,
-and could just share the information?
+	scanleak.c
+	Scans physical memory (using /dev/mem) looking for the
+	ulonglong pattern. Filtered /dev/mem access breaks this, so
+	disable it temporarily in your kernel to use it.
 
-Please, act like a member of the community and share what you know. If
-you're unwilling to do so, that's a huge argument in favor of ignoring
-your code, no matter how good or right it might be.
+	secretleak.c
+	Writes the ulonglong pattern to memory (takes two arguments, a size
+	in MB, and a number of seconds to delay after free).
+
+	zeromem.c
+	Zeroes all or given MBs of memory (allocating blocks of 100M which
+	are contiguous). If no argument is given, it allocates more
+	blocks to ensure we can zero past the used memory (might hit
+	swap). This can be used to simulate memory workload.
+
+I've done the following test (x86 vm, 600M RAM, 2.6.29.4):
+
+	1. ./secretleak 600 1
+
+Will allocate 629145600 bytes (600M).
+Zeroing buffer at 0x926bb008... Done.
+Writing pattern to 0x926bb008 (402A25246B61654C)... Done.
+Freeing buffer at 0x926bb008... Done.
+Sleeping for 1 seconds...
+
+	2. (2 minutes afterwards) ./zeromem 700
+
+Zeroing 734003200 bytes of memory
+Zeroing block at 0xb1b01008 (104857600 bytes, 102400 kB)
+Zeroing block at 0xab700008 (104857600 bytes, 102400 kB)
+Zeroing block at 0xa52ff008 (104857600 bytes, 102400 kB)
+Zeroing block at 0x9eefe008 (104857600 bytes, 102400 kB)
+Zeroing block at 0x98afd008 (104857600 bytes, 102400 kB)
+Zeroing block at 0x926fc008 (104857600 bytes, 102400 kB)
+Zeroing block at 0x8c2fb008 (104857600 bytes, 102400 kB)
+Freeing block at 0xb1b01008.
+Freeing block at 0xab700008.
+Freeing block at 0xa52ff008.
+Freeing block at 0x9eefe008.
+Freeing block at 0x98afd008.
+Freeing block at 0x926fc008.
+Freeing block at 0x8c2fb008.
+
+	3. Immediately afterwards, sudo ./scanleak | grep Found | wc -l
+	   Reports 142 occurrences.
+
+	4. Re-issue ./zeromem 700
+
+	5. Re-scan memory, only three occurrences:
+
+Scanning 617398272 bytes of memory from /dev/mem...
+ Found pattern at 0x70d41e8 (402A25246B61654C)
+ Found pattern at 0xf5931f8 (402A25246B61654C)
+ Found pattern at 0xf5e11e8 (402A25246B61654C)
+
+The scanning is PAGE_SIZE aligned, and only one occurrence is considered
+per page (otherwise the output would be hideous in kernels without
+sanitization).
+
+Those three occurrences will stay there indefinitely... like the PaX
+team said, the remanence is proportional to the size of the allocations
+and data itself. The more data allocated, the more time it takes for
+that memory to be requested back by some other user (kernel or non
+kernel). An even more simple test would be to load a file with vim or
+nano, which contains a large (of hundred of megabytes magnitude) amount
+of text patterns (a md5 hash works), and monitor RAM to see how long it
+stays there after you have closed the editor. While most of it will
+slowly disappear, at least there will some gaps that will remain for a
+long time, possibly days, even under irregular high workloads.
+
+I'm compiling a kernel with my current patches and will report back with
+the results of these tools on that one. It will be 2.6.29.4 as well.
+
+I'll make the sources of the tools available somewhere. Because of
+corporate policy It might be wiser to find a place where I can make
+this stuff available for longer time periods. Does anyone know the
+process to request space under pub/linux/kernel/people/?
+
+	Larry
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
