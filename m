@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CE8D06B0096
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 03:12:28 -0400 (EDT)
-Received: by bwz21 with SMTP id 21so8754647bwz.38
-        for <linux-mm@kvack.org>; Sat, 30 May 2009 00:12:39 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 96FA46B0098
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 03:20:17 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4U7HitE029118
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:17:44 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4U7KYfC247586
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:20:35 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4U7KYrg019848
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:20:34 -0600
+Date: Sat, 30 May 2009 15:20:30 +0800
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] memcg: fix swap accounting
+Message-ID: <20090530072030.GG24073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com> <20090528142156.efa97a37.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090529155859.2cf20823.akpm@linux-foundation.org>
-References: <20090520183045.GB10547@oblivion.subreption.com>
-	 <1242852158.6582.231.camel@laptop>
-	 <20090520212413.GF10756@oblivion.subreption.com>
-	 <20090529155859.2cf20823.akpm@linux-foundation.org>
-Date: Sat, 30 May 2009 10:12:38 +0300
-Message-ID: <84144f020905300012h6ca92605ve8fdcbaba39ac054@mail.gmail.com>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090528142156.efa97a37.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Larry H." <research@subreption.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org, mingo@redhat.com, pageexec@freemail.hu
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-28 14:21:56]:
 
-On Sat, May 30, 2009 at 1:58 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> =A0But how to do that? =A0Particular callsites don't get to alter
-> =A0kfree()'s behaviour. =A0So they'd need to use a new kfree_sensitive().
-> =A0Which is just syntactic sugar around the code whihc we presently
-> =A0implement.
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> This patch fixes mis-accounting of swap usage in memcg.
+> 
+> In current implementation, memcg's swap account is uncharged only when
+> swap is completely freed. But there are several cases where swap
+> cannot be freed cleanly. For handling that, this patch changes that
+> memcg uncharges swap account when swap has no references other than cache.
+> 
+> By this, memcg's swap entry accounting can be fully synchronous with
+> the application's behavior.
+> This patch also changes memcg's hooks for swap-out.
+>
 
-Unless I am missing something here, we already have kfree_sensitive(),
-we just call it kzfree().
+Looks good, so for count == 0, we directly free the and uncharge, for
+the others we use retry_to_use_swap(). cool!
 
-                                 Pekka
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+ 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
