@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A4046B004D
-	for <linux-mm@kvack.org>; Fri, 29 May 2009 18:58:28 -0400 (EDT)
-Date: Fri, 29 May 2009 15:58:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
- allocator
-Message-Id: <20090529155859.2cf20823.akpm@linux-foundation.org>
-In-Reply-To: <20090520212413.GF10756@oblivion.subreption.com>
-References: <20090520183045.GB10547@oblivion.subreption.com>
-	<1242852158.6582.231.camel@laptop>
-	<20090520212413.GF10756@oblivion.subreption.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 201DF6B004F
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:21:03 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4U599RR021574
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:09:09 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4U5LIIj234880
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:21:18 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4U5JAEA004343
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:19:11 -0400
+Date: Sat, 30 May 2009 13:21:13 +0800
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/4] add swap cache interface for swap reference v2
+	(updated)
+Message-ID: <20090530052113.GD24073@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com> <20090528141049.cc45a116.kamezawa.hiroyu@jp.fujitsu.com> <20090529132153.3a72f2c3.nishimura@mxp.nes.nec.co.jp> <20090529140832.1f4b288b.kamezawa.hiroyu@jp.fujitsu.com> <20090529143758.4c3db3eb.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090529143758.4c3db3eb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: peterz@infradead.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org, mingo@redhat.com, pageexec@freemail.hu
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 May 2009 14:24:13 -0700
-"Larry H." <research@subreption.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-29 14:37:58]:
 
-> Your
-> approach means forcing all developers to remember where they have to
-> place this explicit clearing, and introducing unnecessary code
-> duplication and an ever growing list of places adding these calls.
+> On Fri, 29 May 2009 14:08:32 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > IIUC, swap_free() at the end of shmem_writepage() should also be changed to swapcache_free().
+> > > 
+> > Hmm!. Oh, yes. shmem_writepage()'s error path. Thank you. It will be fixed.
+> > 
+> here. 
+> 
+> ==
+> 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> In following patch, usage of swap cache will be recorded into swap_map.
+> This patch is for necessary interface changes to do that.
+> 
+> 2 interfaces:
+>   - swapcache_prepare()
+>   - swapcache_free()
+> is added for allocating/freeing refcnt from swap-cache to existing
+> swap entries. But implementation itself is not changed under this patch.
+> At adding swapcache_free(), memcg's hook code is moved under swapcache_free().
+> This is better than using scattered hooks.
+> 
+> Changelog: v1->v2
+>  - fixed shmem_writepage() error path.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-And your proposed approach requires that developers remember to use
-GFP_SENSITIVE at allocation time.  In well-implemented code, there is a
-single memory-freeing site, so there's really no difference here.
 
-Other problems I see with the patch are:
+Looks good to me so far
 
-- Adds a test-n-branch to all page-freeing operations.  Ouch.  The
-  current approach avoids that cost.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
-- Fails to handle kmalloc()'ed memory.  Fixing this will probably
-  require adding a test-n-branch to kmem_cache_alloc().  Ouch * N.
 
-- Once kmalloc() is fixed, the page-allocator changes and
-  GFP_SENSITIVE itself can perhaps go away - I expect that little
-  security-sensitive memory is allocated direct from the page
-  allocator.  Most callsites are probably using
-  kmalloc()/kmem_cache_alloc() (might be wrong).
-
-  If not wrong then we end up with a single requirement: zap the
-  memory in kmem_cache_free().
-
-  But how to do that?  Particular callsites don't get to alter
-  kfree()'s behaviour.  So they'd need to use a new kfree_sensitive(). 
-  Which is just syntactic sugar around the code whihc we presently
-  implement.
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
