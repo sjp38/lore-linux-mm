@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 201DF6B004F
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:21:03 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n4U599RR021574
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:09:09 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n4U5LIIj234880
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:21:18 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n4U5JAEA004343
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:19:11 -0400
-Date: Sat, 30 May 2009 13:21:13 +0800
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/4] add swap cache interface for swap reference v2
-	(updated)
-Message-ID: <20090530052113.GD24073@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090528135455.0c83bedc.kamezawa.hiroyu@jp.fujitsu.com> <20090528141049.cc45a116.kamezawa.hiroyu@jp.fujitsu.com> <20090529132153.3a72f2c3.nishimura@mxp.nes.nec.co.jp> <20090529140832.1f4b288b.kamezawa.hiroyu@jp.fujitsu.com> <20090529143758.4c3db3eb.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6E2D46B0055
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:26:51 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so2797345yxh.26
+        for <linux-mm@kvack.org>; Fri, 29 May 2009 22:27:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090529143758.4c3db3eb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090528095904.GD10334@csn.ul.ie>
+References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com>
+	 <20090528095904.GD10334@csn.ul.ie>
+Date: Sat, 30 May 2009 17:27:15 +1200
+Message-ID: <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
+Subject: Re: Inconsistency (bug) of vm_insert_page with high order allocations
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-05-29 14:37:58]:
+Hi,
+>> To allocate memory I use standard function alloc_apges(gfp_mask,
+>> order) which asks buddy allocator to give a chunk of memory of given
+>> "order".
+>> Allocator returns page and also sets page count to 1 but for page of
+>> high order. I.e. pages 2,3 etc inside high order allocation will have
+>> page->_count==0.
+>> If I try to mmap allocated area to user space vm_insert_page will
+>> return error as pages 2,3, etc are not refcounted.
+>>
+>
+> page = alloc_pages(high_order);
+> split_page(page, high_order);
+>
+> That will fix up the ref-counting of each of the individual pages. You are
+> then responsible for freeing them individually. As you are inserting these
+> into userspace, I suspect that's ok.
 
-> On Fri, 29 May 2009 14:08:32 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > IIUC, swap_free() at the end of shmem_writepage() should also be changed to swapcache_free().
-> > > 
-> > Hmm!. Oh, yes. shmem_writepage()'s error path. Thank you. It will be fixed.
-> > 
-> here. 
-> 
-> ==
-> 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> In following patch, usage of swap cache will be recorded into swap_map.
-> This patch is for necessary interface changes to do that.
-> 
-> 2 interfaces:
->   - swapcache_prepare()
->   - swapcache_free()
-> is added for allocating/freeing refcnt from swap-cache to existing
-> swap entries. But implementation itself is not changed under this patch.
-> At adding swapcache_free(), memcg's hook code is moved under swapcache_free().
-> This is better than using scattered hooks.
-> 
-> Changelog: v1->v2
->  - fixed shmem_writepage() error path.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+It seems it is the only way I have now. It is not so elegant - but should work.
+Thanks for good advise.
 
+BTW: Just out of curiosity what limits mapping high ordered pages into
+user space. I tried to find any except the check in vm_insert but
+failed. Is this checks caused by possible swapping?
 
-Looks good to me so far
-
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
-
-
--- 
-	Balbir
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
