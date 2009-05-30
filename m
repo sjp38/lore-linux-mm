@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7156B00DF
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 13:34:06 -0400 (EDT)
-Date: Sat, 30 May 2009 19:34:28 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090530173428.GA20013@elte.hu>
-References: <20090523124944.GA23042@elte.hu> <4A187BDE.5070601@redhat.com> <20090527223421.GA9503@elte.hu> <20090528072702.796622b6@lxorguk.ukuu.org.uk> <20090528090836.GB6715@elte.hu> <20090528125042.28c2676f@lxorguk.ukuu.org.uk> <84144f020905300035g1d5461f9n9863d4dcdb6adac0@mail.gmail.com> <20090530075033.GL29711@oblivion.subreption.com> <4A20E601.9070405@cs.helsinki.fi> <20090530082048.GM29711@oblivion.subreption.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 029856B00E0
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 13:35:27 -0400 (EDT)
+Date: Sat, 30 May 2009 10:33:36 -0700
+From: "Larry H." <research@subreption.com>
+Subject: Re: [patch 3/5] Apply the PG_sensitive flag to audit subsystem
+Message-ID: <20090530173336.GG6535@oblivion.subreption.com>
+References: <20090520185005.GC10756@oblivion.subreption.com> <alpine.LFD.2.01.0905301020260.3435@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090530082048.GM29711@oblivion.subreption.com>
+In-Reply-To: <alpine.LFD.2.01.0905301020260.3435@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, faith@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-
-* Larry H. <research@subreption.com> wrote:
-
-> On 10:53 Sat 30 May     , Pekka Enberg wrote:
-> >> That's hopeless, and kzfree is broken. Like I said in my earlier reply,
-> >> please test that yourself to see the results. Whoever wrote that ignored
-> >> how SLAB/SLUB work and if kzfree had been used somewhere in the kernel
-> >> before, it should have been noticed long time ago.
-> >
-> > An open-coded version of kzfree was being used in the kernel:
-> >
-> > http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=00fcf2cb6f6bb421851c3ba062c0a36760ea6e53
-> >
-> > Can we now get to the part where you explain how it's broken because I 
-> > obviously "ignored how SLAB/SLUB works"?
+On 10:21 Sat 30 May     , Linus Torvalds wrote:
 > 
-> You can find the answer in the code of sanitize_obj, within my 
-> kfree patch. [...]
+> 
+> On Wed, 20 May 2009, Larry H. wrote:
+> >
+> > +	if (!(gfp_mask & GFP_SENSITIVE))
+> > +		gfp_mask |= GFP_SENSITIVE;
+> 
+> WTF?
 
-You need to provide a more sufficient and more constructive answer 
-than that, if you propose upstream patches that impact the SLAB 
-subsystem.
+Indeed.
 
-FYI Pekka is one of the SLAB subsystem maintainers so you need to 
-convince him that your patches are the right approach. Trying to 
-teach Pekka about SLAB internals in a condescending tone will only 
-cause your patches to be ignored.
+> Why is this different from just "gfp_mask |= GFP_SENSITIVE;"
 
-	Ingo
+Blame anal retentiveness at the time of writing that. Surely the test
+should be ditched. Looking back at that, I honestly think there might be a
+place to plug the flag (in the caller) instead of doing that. I don't
+think there are many places to do it, so this particular patch from the
+set can be ditched and rewritten (if you want to take the selective
+clearing road...)
+
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
