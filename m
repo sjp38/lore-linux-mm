@@ -1,82 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AFFB46B00EA
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 14:32:42 -0400 (EDT)
-Date: Sat, 30 May 2009 20:32:57 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AC9B86B00ED
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 14:47:15 -0400 (EDT)
+Date: Sat, 30 May 2009 11:45:34 -0700
+From: "Larry H." <research@subreption.com>
 Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
 	allocator
-Message-ID: <20090530183257.GB25237@elte.hu>
-References: <20090522073436.GA3612@elte.hu> <20090530054856.GG29711@oblivion.subreption.com> <1243679973.6645.131.camel@laptop> <4A211BA8.8585.17B52182@pageexec.freemail.hu> <1243689707.6645.134.camel@laptop> <20090530153023.45600fd2@lxorguk.ukuu.org.uk> <1243694737.6645.142.camel@laptop> <4A214752.7000303@redhat.com> <20090530170031.GD6535@oblivion.subreption.com> <20090530172515.GE6535@oblivion.subreption.com>
+Message-ID: <20090530184534.GJ6535@oblivion.subreption.com>
+References: <20090528072702.796622b6@lxorguk.ukuu.org.uk> <20090528090836.GB6715@elte.hu> <20090528125042.28c2676f@lxorguk.ukuu.org.uk> <84144f020905300035g1d5461f9n9863d4dcdb6adac0@mail.gmail.com> <20090530075033.GL29711@oblivion.subreption.com> <4A20E601.9070405@cs.helsinki.fi> <20090530082048.GM29711@oblivion.subreption.com> <20090530173428.GA20013@elte.hu> <20090530180333.GH6535@oblivion.subreption.com> <20090530182113.GA25237@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090530172515.GE6535@oblivion.subreption.com>
+In-Reply-To: <20090530182113.GA25237@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On 20:21 Sat 30 May     , Ingo Molnar wrote:
+> SLOB is a rarely used (and high overhead) allocator. But the right 
+> answer there: fix kzalloc().
 
-* Larry H. <research@subreption.com> wrote:
+If it's rarely used and nobody cares, why nobody has removed it yet?
+Sames like the very same argument Peter and you used at some point
+against these patches. Later in your response here you state the same
+for kzfree. Interesting.
 
-> Done. I just tested with different 'leak' sizes on a kernel 
-> patched with the latest memory sanitization patch and the 
-> kfree/kmem_cache_free one:
+> if kzfree() is broken then a number of places in the kernel that 
+> currently rely on it are potentially broken as well.
+
+Indeed, but it was sitting there unused up to 2.6.29.4. Apparently only
+-30-rc2 introduces users of the patch. Someone didn't do his homework
+signing off the patch without testing it properly.
+
+> So as far as i'm concerned, your patchset is best expressed in the 
+> following form: Cryto, WEP and other sensitive places should be 
+> updated to use kzfree() to free keys.
 > 
-> 	10M	- no occurrences with immediate scanmem
-> 	40M	- no occurrences with immediate scanmem
-> 	80M	- no occurrences with immediate scanmem
-> 	160M	- no occurrences with immediate scanmem
-> 	250M	- no occurrences with immediate scanmem
-> 	300M	- no occurrences with immediate scanmem
-> 	500M	- no occurrences with immediate scanmem
-> 	600M	- with immediate zeromem 600 and scanmem afterwards,
-> 		 no occurrences.
+> This can be done unconditionally (without any Kconfig flag), as it's 
+> all in slow-paths - and because there's a real security value in 
+> sanitizing buffers that held sensitive keys, when they are freed.
 
-Is the sensitive data (or portions/transformations of it) copied to 
-the kernel stack and used there?
+And the tty buffers, and the audit buffers, and the crypto block alg
+contexts, and the generic algorithm contexts, and the input buffers
+contexts, and ... alright, I get the picture!
 
-If not then this isnt a complete/sufficient/fair test of how 
-sensitive data like crypto keys gets used by the kernel.
+> Regarding a whole-sale 'clear everything on free' approach - that's 
+> both pointless security wise (sensitive information can still leak 
+> indefinitely [if you disagree i can provide an example]) and has a 
+> very high cost so it's not acceptable to normal Linux distros.
 
-In reality sensitive data, if it's relied upon by the kernel, can 
-(and does) make it to the kernel stack. We see it happen every day 
-with function return values. Let me quote the example i mentioned 
-earlier today:
+Go ahead, I want to see your example.
 
-[   96.138788]  [<ffffffff810ab62e>] perf_counter_exit_task+0x10e/0x3f3
-[   96.145464]  [<ffffffff8104cf46>] do_exit+0x2e7/0x722
-[   96.150837]  [<ffffffff810630cf>] ? up_read+0x9/0xb
-[   96.156036]  [<ffffffff8151cc0b>] ? do_page_fault+0x27d/0x2a5
-[   96.162141]  [<ffffffff8104d3f4>] do_group_exit+0x73/0xa0
-[   96.167860]  [<ffffffff8104d433>] sys_exit_group+0x12/0x16
-[   96.173665]  [<ffffffff8100bb2b>] system_call_fastpath+0x16/0x1b
+I don't even know why I'm still wasting my time replying to you, it's
+clearly hopeless to try to get you off your egotistical, red herring
+argument fueled attitude, which is likely a burden beyond this list for
+you and everyone around, sadly.
 
-This is a real stackdump and the 'ffffffff8151cc0b' 64-bit word is 
-actually a leftover from a previous system entry. ( And this is at 
-the bottom of the stack that gets cleared all the time - the top of 
-the kernel stack is a lot more more persistent in practice and 
-crypto calls tend to have a healthy stack footprint. )
+> > Honestly your proposed approach seems a little weak.
+> 
+> Unconditional honesty is definitely welcome ;-)
 
-Similarly, other sensitive data can be leaked via the kernel stack 
-too.
+When it's people's security at stake, if your reasoning and logic is
+flawed, I have the moral obligation to tell you.
 
-So IMO the GFP_SENSITIVE facility (beyond being a technical misnomer 
-- it should be something like GFP_NON_PERSISTENT instead) actually 
-results in subtly _worse_ security in the end: because people (and 
-organizations) 'think' that their keys are safe against information 
-leaks via this space, while they are not.
+I'm here to make the kernel more secure, not to deal with your inability
+to work with others without continuous conflicts and attempts to fall
+into ridicule, that backfire at you in the end.
 
-The kernel stack can be freed, be reused by something else partially 
-and then written out to disk (say as part of hibernation) where it's 
-recoverable from the disk image.
+> Freeing keys is an utter slow-path (if not then the clearing is the 
+> least of our performance worries), so any clearing cost is in the 
+> noise. Furthermore, kzfree() is an existing facility already in use. 
+> If it's reused by your patches that brings further advantages: 
+> kzfree(), if it has any bugs, will be fixed. While if you add a 
+> parallel facility kzfree() stays broken.
 
-Furthermore, there's no guarantee at all that a task wont stay 
-around for a long time - with sensitive data still on its kernel 
-stack.
+Have you benchmarked the addition of these changes? I would like to see
+benchmarks done for these (crypto api included), since you are proposing
+them.
 
-	Ingo
+> So your examples about real or suspected kzfree() breakages only 
+> strengthen the point that your patches should be using it. Keeping a 
+> rarely used kernel facility (like kzfree) correct is hard - 
+> splintering it by creating a parallel facility is actively harmful 
+> for that reason.
+
+Fallacy ad hitlerum delivered. Impressive.
+
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
