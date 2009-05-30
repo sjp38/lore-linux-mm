@@ -1,48 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6E2D46B0055
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:26:51 -0400 (EDT)
-Received: by yx-out-1718.google.com with SMTP id 36so2797345yxh.26
-        for <linux-mm@kvack.org>; Fri, 29 May 2009 22:27:15 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E1CAA6B005D
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 01:41:56 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so2799162yxh.26
+        for <linux-mm@kvack.org>; Fri, 29 May 2009 22:42:35 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090528095904.GD10334@csn.ul.ie>
+In-Reply-To: <20090528162108.a6adcc36.kamezawa.hiroyu@jp.fujitsu.com>
 References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com>
-	 <20090528095904.GD10334@csn.ul.ie>
-Date: Sat, 30 May 2009 17:27:15 +1200
-Message-ID: <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
+	 <20090528143524.e8a2cde7.kamezawa.hiroyu@jp.fujitsu.com>
+	 <202cde0e0905280002o5614f279r9db7c8c52ad7df10@mail.gmail.com>
+	 <20090528162108.a6adcc36.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sat, 30 May 2009 17:42:35 +1200
+Message-ID: <202cde0e0905292242k313148b8nbc1a47e558f97a1c@mail.gmail.com>
 Subject: Re: Inconsistency (bug) of vm_insert_page with high order allocations
 From: Alexey Korolev <akorolex@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
->> To allocate memory I use standard function alloc_apges(gfp_mask,
->> order) which asks buddy allocator to give a chunk of memory of given
->> "order".
->> Allocator returns page and also sets page count to 1 but for page of
->> high order. I.e. pages 2,3 etc inside high order allocation will have
->> page->_count==0.
->> If I try to mmap allocated area to user space vm_insert_page will
->> return error as pages 2,3, etc are not refcounted.
->>
->
-> page = alloc_pages(high_order);
-> split_page(page, high_order);
->
-> That will fix up the ref-counting of each of the individual pages. You are
-> then responsible for freeing them individually. As you are inserting these
-> into userspace, I suspect that's ok.
+Kame San,
 
-It seems it is the only way I have now. It is not so elegant - but should work.
-Thanks for good advise.
-
-BTW: Just out of curiosity what limits mapping high ordered pages into
-user space. I tried to find any except the check in vm_insert but
-failed. Is this checks caused by possible swapping?
+Thank you for your answers. I've decided to use split_pages function.
+>
+>  - write a patch for adding alloc_page_exact_nodemask()  // this is not difficult.
+>  - explain why you need this.
+>  - discuss.
+>
+Writing the patch is not dificult - but it will be hard to explain why
+it is necessary in kernel...
+> IMHO, considering other mmap/munmap/zap_pte, etc... page_count() and page_mapocunt()
+> should be controlled per pte. Then, you'll have to map pages one by one.
+>
+This is quite interesting. I tried to understand this code but it is
+much complicated. I clearly understand why pages have to be mapped one
+by one. By I don't understand how counters relate to this. (it is just
+a curiosity question - I won't be upset if no one answer it)
 
 Thanks,
 Alexey
