@@ -1,32 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0362F5F0001
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:02:16 -0400 (EDT)
-Date: Sat, 30 May 2009 19:02:14 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C64FD5F0001
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:04:43 -0400 (EDT)
+Date: Sat, 30 May 2009 19:04:43 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH] Change ZERO_SIZE_PTR to point at unmapped space
-In-Reply-To: <20090530230022.GO6535@oblivion.subreption.com>
-Message-ID: <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
-References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com>
+Subject: Re: [PATCH] Use kzfree in tty buffer management to enforce data
+ sanitization
+In-Reply-To: <20090531015537.GA8941@oblivion.subreption.com>
+Message-ID: <alpine.LFD.2.01.0905301902530.3435@localhost.localdomain>
+References: <20090531015537.GA8941@oblivion.subreption.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Larry H." <research@subreption.com>
-Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
 
 
 On Sat, 30 May 2009, Larry H. wrote:
-> 
-> Like I said in the reply to Peter, this is 3 extra bytes for amd64 with
-> gcc 4.3.3. I can't be bothered to check other architectures at the
-> moment.
+>
+> This patch doesn't affect fastpaths.
 
-.. and I can't be bothered with applying this. I'm just not convinced.
+This patch is ugly as hell.
 
-It's 3 extra bytes just for the constant. It's also another test, and 
-another branch.
+You already know the size of the data to clear.
+
+If we actually wanted this (and I am in _no_way_ saying we do), the only 
+sane thing to do is to just do
+
+	memset(buf->data, 0, N_TTY_BUF_SIZE);
+	if (PAGE_SIZE != N_TTY_BUF_SIZE)
+		kfree(...)
+	else
+		free_page(...)
+
+
+but quite frankly, I'm not convinced about these patches at all.
+
+I'm also not in the least convinced about how you just dismiss everybodys 
+concerns.
 
 		Linus
 
