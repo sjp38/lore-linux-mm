@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 688026B00FE
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:24:05 -0400 (EDT)
-Date: Sat, 30 May 2009 19:21:58 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 096B15F0001
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:37:49 -0400 (EDT)
+Date: Sat, 30 May 2009 19:35:56 -0700
 From: "Larry H." <research@subreption.com>
-Subject: Re: [PATCH] Change ZERO_SIZE_PTR to point at unmapped space
-Message-ID: <20090531022158.GA9033@oblivion.subreption.com>
-References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
+Subject: Re: [PATCH] Use kzfree in tty buffer management to enforce data
+	sanitization
+Message-ID: <20090531023556.GB9033@oblivion.subreption.com>
+References: <20090531015537.GA8941@oblivion.subreption.com> <alpine.LFD.2.01.0905301902530.3435@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.01.0905301902530.3435@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On 19:02 Sat 30 May     , Linus Torvalds wrote:
+On 19:04 Sat 30 May     , Linus Torvalds wrote:
 > 
 > 
 > On Sat, 30 May 2009, Larry H. wrote:
-> > 
-> > Like I said in the reply to Peter, this is 3 extra bytes for amd64 with
-> > gcc 4.3.3. I can't be bothered to check other architectures at the
-> > moment.
+> >
+> > This patch doesn't affect fastpaths.
 > 
-> .. and I can't be bothered with applying this. I'm just not convinced.
+> This patch is ugly as hell.
+> 
+> You already know the size of the data to clear.
+> 
+> If we actually wanted this (and I am in _no_way_ saying we do), the only 
+> sane thing to do is to just do
+> 
+> 	memset(buf->data, 0, N_TTY_BUF_SIZE);
+> 	if (PAGE_SIZE != N_TTY_BUF_SIZE)
+> 		kfree(...)
+> 	else
+> 		free_page(...)
+> 
 
-The changes don't conflict with anything else (including ERR_PTR and
-company). When I said bothered, I implied the change was obviously not
-going to differ in any significant way for other architectures.
+It wasn't me who proposed using kzfree in these places. Ask Ingo and
+Peter or refer to the entire thread about my previous patches.
 
-Like I said, small changes like this are done so we don't need to rely
-on mmap_min_addr, which is disabled by default (albeit some
-distributions enable it, normally set to 65536).
+In a way it's convenient that a patch written as of their
+'recommendations' and 'positive feedback' is being ditched and properly
+outed as an overkill. Surprisingly we might agree on this one.
 
-Let me provide you with a realistic scenario:
+> but quite frankly, I'm not convinced about these patches at all.
+> 
+> I'm also not in the least convinced about how you just dismiss everybodys 
+> concerns.
 
-	1. foo.c network protocol implementation takes a sockopt which
-	sets some ACME_OPTLEN value taken from userland.
+This was proposed by Ingo, Andrew, Peter and later agreed upon by Alan.
+I'm not sure whose concerns are being dismissed, but it looks like when
+I make a perfectly valid technical point, and document it or provide
+references, it's my concerns that get dismissed. It's also typically the
+same people who do it, without providing true reasoning nor facts that
+support their claims.
 
-	2. the length is not validated properly: it can be zero or an
-	integer overflow / signedness issue allows it to wrap to zero.
+And every time I submit a patch which _exactly_ follows what other
+people suddenly decided to agree upon, it is dismissed as well. In the
+end it looks like there's no intention to close some
+serious security loopholes in the kernel, but engage in endless
+arguments about who's right or wrong, more often than not with people
+whose area of expertise is definitely not security, making ad hominem
+statements and so forth.
 
-	3. kmalloc(0) ensues, and data is copied to the pointer
-	returned. if this is the default ZERO_SIZE_PTR*, a malicious user
-	can mmap a page at NULL, and read data leaked from kernel memory
-	everytime that setsockopt is issued.
-	(*: kmalloc of zero returns ZERO_SIZE_PTR)
-
-If ZERO_SIZE_PTR points to an unmapped top memory address, this will
-trigger a distinctive page fault and the user won't be able to abuse
-this for elevating privileges or read kernel memory. Variations of the
-scenario above have been present in the kernel, some with exploits being
-made available publicly. Most recently, a SCTP sockopt issue.
-
-> It's 3 extra bytes just for the constant. It's also another test, and 
-> another branch.
-
-What's the total difference, less than 40 bytes? Do the users of this
-macro get impacted? No. Who uses the macro? kzfree/kfree/do_kmalloc/etc.
-A dozen users, all in SLAB.
-
-The performance impact, if any, is completely negligible. The security
-benefits of this utterly simple change well surpass the downsides.
+The next time a kernel vulnerability appears that is remotely related to
+some of the venues of attack I've commented, it will be useful to be
+able to refer to these responses.
 
 	Larry
 
