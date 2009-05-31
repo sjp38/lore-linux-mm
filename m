@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EF96B00FE
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 19:20:26 -0400 (EDT)
-Date: Sat, 30 May 2009 16:18:13 -0700
-From: "Larry H." <research@subreption.com>
-Subject: Re: [patch 0/5] Support for sanitization flag in low-level page
-	allocator
-Message-ID: <20090530231813.GP6535@oblivion.subreption.com>
-References: <20090530082048.GM29711@oblivion.subreption.com> <20090530173428.GA20013@elte.hu> <20090530180333.GH6535@oblivion.subreption.com> <20090530182113.GA25237@elte.hu> <20090530184534.GJ6535@oblivion.subreption.com> <20090530190828.GA31199@elte.hu> <4A21999E.5050606@redhat.com> <84144f020905301353y2f8c232na4c5f9dfb740eec4@mail.gmail.com> <20090530213311.GM6535@oblivion.subreption.com> <20090531001318.093e3665@lxorguk.ukuu.org.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 689286B00E2
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 20:48:23 -0400 (EDT)
+Date: Sun, 31 May 2009 08:49:05 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: [PATCH] drm: i915: ensure objects are allocated below 4GB on
+	PAE
+Message-ID: <20090531004905.GA14691@sli10-desk.sh.intel.com>
+References: <20090526162717.GC14808@bombadil.infradead.org> <Pine.LNX.4.64.0905262343140.13452@sister.anvils> <20090527001840.GC16929@bombadil.infradead.org> <20090527004250.GA11835@sli10-desk.sh.intel.com> <1243446012.8400.37.camel@gaiman.anholt.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090531001318.093e3665@lxorguk.ukuu.org.uk>
+In-Reply-To: <1243446012.8400.37.camel@gaiman.anholt.net>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, pageexec@freemail.hu, Linus Torvalds <torvalds@linux-foundation.org>
+To: Eric Anholt <eric@anholt.net>
+Cc: Kyle McMartin <kyle@mcmartin.ca>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "airlied@redhat.com" <airlied@redhat.com>, "dri-devel@lists.sf.net" <dri-devel@lists.sf.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jbarnes@virtuousgeek.org" <jbarnes@virtuousgeek.org>, "stable@kernel.org" <stable@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 00:13 Sun 31 May     , Alan Cox wrote:
-> > I was pointing out that the 'those test and jump/call branches have
-> > performance hits' argument, while nonsensical, applies to kzfree and
-> > with even more negative connotations (deeper call depth, more test
-> > branches used in ksize and kfree, lack of pointer validation).
+On Thu, May 28, 2009 at 01:40:12AM +0800, Eric Anholt wrote:
+> On Wed, 2009-05-27 at 08:42 +0800, Shaohua Li wrote:
+> > On Wed, May 27, 2009 at 08:18:40AM +0800, Kyle McMartin wrote:
+> > > On Tue, May 26, 2009 at 11:55:50PM +0100, Hugh Dickins wrote:
+> > > > I'm confused: I thought GFP_DMA32 only applies on x86_64:
+> > > > my 32-bit PAE machine with (slightly!) > 4GB shows no ZONE_DMA32.
+> > > > Does this patch perhaps depend on another, to enable DMA32 on 32-bit
+> > > > PAE, or am I just in a muddle?
+> > > > 
+> > > 
+> > > No, you're exactly right, I'm just a muppet and missed the obvious.
+> > > Looks like the "correct" fix is the fact that the allocation is thus
+> > > filled out with GFP_USER, therefore, from ZONE_NORMAL, and below
+> > > max_low_pfn.
+> > > 
+> > > Looks like we'll need some additional thinking to get true ZONE_DMA32 on
+> > > i386... ugh, I'll look into it tonight.
+> > For i386, GFP_USER is enough. But 945G GART can only map to physical page < 4G,
+> > so for x64, we need GFP_DMA32. This is the reason I add extra GFP_DMA32.
 > 
-> But they only apply to kzfree - there isn't a cost to anyone else. You've
-> move the decision to compile time which for the fast path stuff when you
-> just want to clear keys and other oddments is a big win.
-
-OK, I'm going to squeeze some time and provide patches that perform the
-same my original page bit ones did, but using kzfree. Behold code like
-in the tty buffer management, which uses the page allocator directly for
-allocations greater than PAGE_SIZE in length. That needs special
-treatment, and is exactly the reason I've proposed unconditional
-sanitization since the original patches were rejected.
-
-	Larry
+> Those 945Gs don't have memory located above 4G, from my reading of the
+> chipset specs.
+ok, then GFP_DMA32 can be removed from the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
