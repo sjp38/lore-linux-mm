@@ -1,57 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 50EDD6B0055
-	for <linux-mm@kvack.org>; Sun, 31 May 2009 13:05:41 -0400 (EDT)
-Date: Sun, 31 May 2009 10:05:36 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A6986B0055
+	for <linux-mm@kvack.org>; Sun, 31 May 2009 13:09:04 -0400 (EDT)
+Date: Sun, 31 May 2009 18:10:20 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Subject: Re: [PATCH] Use kzfree in tty buffer management to enforce data
  sanitization
-In-Reply-To: <20090531112630.2c7f4f1d@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.LFD.2.01.0905311002010.3435@localhost.localdomain>
-References: <20090531015537.GA8941@oblivion.subreption.com> <alpine.LFD.2.01.0905301902530.3435@localhost.localdomain> <84144f020905302324r5e342f2dlfd711241ecfc8374@mail.gmail.com> <20090531112630.2c7f4f1d@lxorguk.ukuu.org.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-14
-Content-Transfer-Encoding: 8BIT
+Message-ID: <20090531181020.05fb89d5@lxorguk.ukuu.org.uk>
+In-Reply-To: <alpine.LFD.2.01.0905311002010.3435@localhost.localdomain>
+References: <20090531015537.GA8941@oblivion.subreption.com>
+	<alpine.LFD.2.01.0905301902530.3435@localhost.localdomain>
+	<84144f020905302324r5e342f2dlfd711241ecfc8374@mail.gmail.com>
+	<20090531112630.2c7f4f1d@lxorguk.ukuu.org.uk>
+	<alpine.LFD.2.01.0905311002010.3435@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Larry H." <research@subreption.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+> I think Pekka meant the other way around - why don't we always just use 
+> kmalloc(N_TTY_BUF_SIZE)/kfree(), and drop the whole conditional "use page 
+> allocator" entirely?
 
+We certainly can nowdays - the old allocator used to allocate 8K for 4K
+and a bit of memory and its many years single we acquired slab so yes it
+can go.
 
-On Sun, 31 May 2009, Alan Cox wrote:
+> If I'm right, then we could just use kmalloc/kfree unconditionally. Pekka?
 
-> > >        memset(buf->data, 0, N_TTY_BUF_SIZE);
-> > >        if (PAGE_SIZE != N_TTY_BUF_SIZE)
-> > >                kfree(...)
-> > >        else
-> > >                free_page(...)
-> > >
-> > >
-> > > but quite frankly, I'm not convinced about these patches at all.
-> > 
-> > I wonder why the tty code has that N_TTY_BUF_SIZE special casing in
-> > the first place? I think we can probably just get rid of it and thus
-> > we can use kzfree() here if we want to.
-> 
-> Some platforms with very large page sizes override the use of page based
-> allocators (eg older ARM would go around allocating 32K). The normal path
-> is 4K or 8K page sized buffers.
-
-I think Pekka meant the other way around - why don't we always just use 
-kmalloc(N_TTY_BUF_SIZE)/kfree(), and drop the whole conditional "use page 
-allocator" entirely?
-
-I suspect the "use page allocator" is historical - ie the tty layer 
-originally always did that, and then when people wanted to suppotr smaller 
-areas than one page, they added the special case. I have this dim memory 
-of the _original_ kmalloc not handling page-sized allocations well (due to 
-embedded size/pointer overheads), but I think all current allocators are 
-perfectly happy to allocate PAGE_SIZE buffers without slop.
-
-If I'm right, then we could just use kmalloc/kfree unconditionally. Pekka?
-
-			Linus
+Added to the tty queue will do that tomorrow
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
