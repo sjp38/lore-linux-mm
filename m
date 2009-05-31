@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C64FD5F0001
-	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:04:43 -0400 (EDT)
-Date: Sat, 30 May 2009 19:04:43 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH] Use kzfree in tty buffer management to enforce data
- sanitization
-In-Reply-To: <20090531015537.GA8941@oblivion.subreption.com>
-Message-ID: <alpine.LFD.2.01.0905301902530.3435@localhost.localdomain>
-References: <20090531015537.GA8941@oblivion.subreption.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 294936B00FD
+	for <linux-mm@kvack.org>; Sat, 30 May 2009 22:14:52 -0400 (EDT)
+Message-ID: <4A21E816.4050203@redhat.com>
+Date: Sat, 30 May 2009 22:14:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Use kzfree in mac80211 key handling to enforce data	sanitization
+References: <20090531015801.GB8941@oblivion.subreption.com>
+In-Reply-To: <20090531015801.GB8941@oblivion.subreption.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: "Larry H." <research@subreption.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, pageexec@freemail.hu, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Sat, 30 May 2009, Larry H. wrote:
->
+Larry H. wrote:
+> [PATCH] Use kzfree in mac80211 key handling to enforce data sanitization
+> 
+> This patch replaces the kfree() calls within the mac80211 WEP RC4 key
+> handling and ieee80211 management APIs with kzfree(), to enforce
+> sanitization of the key buffer contents.
+> 
+> This prevents the keys from persisting on memory, potentially
+> leaking to other kernel users after re-allocation of the memory by
+> the LIFO allocators, or in coldboot attack scenarios. Information can be
+> leaked as well due to use of uninitialized variables, or other bugs.
+> 
 > This patch doesn't affect fastpaths.
 
-This patch is ugly as hell.
+This seems to be essentially what Ingo proposed.
 
-You already know the size of the data to clear.
+Clearing out a buffer that held a wifi key on free
+makes sense, even for systems that are not in
+paranoid mode.
 
-If we actually wanted this (and I am in _no_way_ saying we do), the only 
-sane thing to do is to just do
+> Signed-off-by: Larry Highsmith <research@subreption.com>
 
-	memset(buf->data, 0, N_TTY_BUF_SIZE);
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		kfree(...)
-	else
-		free_page(...)
+Acked-by: Rik van Riiel <riel@redhat.com>
 
-
-but quite frankly, I'm not convinced about these patches at all.
-
-I'm also not in the least convinced about how you just dismiss everybodys 
-concerns.
-
-		Linus
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
