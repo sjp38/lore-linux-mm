@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3351A6B00FB
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7D8A06B00FC
 	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:17:44 -0400 (EDT)
 From: "Eric W. Biederman" <ebiederm@xmission.com>
-Date: Mon,  1 Jun 2009 14:50:46 -0700
-Message-Id: <1243893048-17031-21-git-send-email-ebiederm@xmission.com>
+Date: Mon,  1 Jun 2009 14:50:48 -0700
+Message-Id: <1243893048-17031-23-git-send-email-ebiederm@xmission.com>
 In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
 References: <m1oct739xu.fsf@fess.ebiederm.org>
-Subject: [PATCH 21/23] vfs: Teach fsync to use file_hotplug_lock
+Subject: [PATCH 23/23] vfs: Teach readahead to use the file_hotplug_lock
 Sender: owner-linux-mm@kvack.org
 To: Al Viro <viro@ZenIV.linux.org.uk>
 Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
@@ -17,43 +17,46 @@ From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
 
 Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
 ---
- fs/sync.c |    9 ++++++++-
- 1 files changed, 8 insertions(+), 1 deletions(-)
+ mm/filemap.c |   25 ++++++++++++++++---------
+ 1 files changed, 16 insertions(+), 9 deletions(-)
 
-diff --git a/fs/sync.c b/fs/sync.c
-index e9d56f6..ac6da60 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -197,6 +197,9 @@ int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
- 	 * don't have a struct file available.  Damn nfsd..
- 	 */
- 	if (file) {
-+		ret = -EIO;
-+		if (!file_hotplug_read_trylock(file))
-+			goto out;
- 		mapping = file->f_mapping;
- 		fop = file->f_op;
- 	} else {
-@@ -206,7 +209,7 @@ int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 379ff0b..5016aa5 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1402,16 +1402,23 @@ SYSCALL_DEFINE(readahead)(int fd, loff_t offset, size_t count)
  
- 	if (!fop || !fop->fsync) {
- 		ret = -EINVAL;
--		goto out;
-+		goto out_unlock;
- 	}
- 
- 	ret = filemap_fdatawrite(mapping);
-@@ -223,6 +226,10 @@ int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
- 	err = filemap_fdatawait(mapping);
- 	if (!ret)
- 		ret = err;
+ 	ret = -EBADF;
+ 	file = fget(fd);
+-	if (file) {
+-		if (file->f_mode & FMODE_READ) {
+-			struct address_space *mapping = file->f_mapping;
+-			pgoff_t start = offset >> PAGE_CACHE_SHIFT;
+-			pgoff_t end = (offset + count - 1) >> PAGE_CACHE_SHIFT;
+-			unsigned long len = end - start + 1;
+-			ret = do_readahead(mapping, file, start, len);
+-		}
+-		fput(file);
++	if (!file)
++		goto out;
 +
-+out_unlock:
-+	if (file)
++	if (!(file->f_mode & FMODE_READ))
++		goto out_fput;
++
++	if (file_hotplug_read_trylock(file)) {
++		struct address_space *mapping = file->f_mapping;
++		pgoff_t start = offset >> PAGE_CACHE_SHIFT;
++		pgoff_t end = (offset + count - 1) >> PAGE_CACHE_SHIFT;
++		unsigned long len = end - start + 1;
++		ret = do_readahead(mapping, file, start, len);
 +		file_hotplug_read_unlock(file);
- out:
+ 	}
++out_fput:
++	fput(file);
++out:
  	return ret;
  }
+ #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
 -- 
 1.6.3.1.54.g99dd.dirty
 
