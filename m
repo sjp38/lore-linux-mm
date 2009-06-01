@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8DFF46B00C2
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BB5405F0006
 	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:17:42 -0400 (EDT)
 From: "Eric W. Biederman" <ebiederm@xmission.com>
-Date: Mon,  1 Jun 2009 14:50:30 -0700
-Message-Id: <1243893048-17031-5-git-send-email-ebiederm@xmission.com>
+Date: Mon,  1 Jun 2009 14:50:39 -0700
+Message-Id: <1243893048-17031-14-git-send-email-ebiederm@xmission.com>
 In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
 References: <m1oct739xu.fsf@fess.ebiederm.org>
-Subject: [PATCH 05/23] vfs: Teach lseek to use file_hotplug_lock
+Subject: [PATCH 14/23] vfs: Teach flock to use file_hotplug_lock
 Sender: owner-linux-mm@kvack.org
 To: Al Viro <viro@ZenIV.linux.org.uk>
 Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.arastra.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
@@ -17,45 +17,37 @@ From: Eric W. Biederman <ebiederm@maxwell.arastra.com>
 
 Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
 ---
- fs/read_write.c |   24 +++++++++++++++++-------
- 1 files changed, 17 insertions(+), 7 deletions(-)
+ fs/locks.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
-diff --git a/fs/read_write.c b/fs/read_write.c
-index 9d1e76b..c9511ce 100644
---- a/fs/read_write.c
-+++ b/fs/read_write.c
-@@ -136,14 +136,24 @@ EXPORT_SYMBOL(default_llseek);
- loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
- {
- 	loff_t (*fn)(struct file *, loff_t, int);
-+	loff_t retval = -ESPIPE;
+diff --git a/fs/locks.c b/fs/locks.c
+index ec3deea..f74794e 100644
+--- a/fs/locks.c
++++ b/fs/locks.c
+@@ -1584,9 +1584,13 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
+ 	    !(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
+ 		goto out_putf;
  
--	fn = no_llseek;
--	if (file->f_mode & FMODE_LSEEK) {
--		fn = default_llseek;
--		if (file->f_op && file->f_op->llseek)
--			fn = file->f_op->llseek;
--	}
--	return fn(file, offset, origin);
-+	if (!(file->f_mode & FMODE_LSEEK))
-+		goto out;
++	error = -EIO;
++	if (!file_hotplug_read_trylock(filp))
++		goto out_putf;
 +
-+	retval = -EIO;
-+	if (!file_hotplug_read_trylock(file))
-+		goto out;
-+
-+	fn = default_llseek;
-+	if (file->f_op && file->f_op->llseek)
-+		fn = file->f_op->llseek;
-+
-+	retval = fn(file, offset, origin);
-+
-+	file_hotplug_read_unlock(file);
-+out:
-+	return retval;
- }
- EXPORT_SYMBOL(vfs_llseek);
+ 	error = flock_make_lock(filp, &lock, cmd);
+ 	if (error)
+-		goto out_putf;
++		goto out_unlock;
+ 	if (can_sleep)
+ 		lock->fl_flags |= FL_SLEEP;
  
+@@ -1604,6 +1608,8 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
+  out_free:
+ 	locks_free_lock(lock);
+ 
++ out_unlock:
++	file_hotplug_read_unlock(filp);
+  out_putf:
+ 	fput(filp);
+  out:
 -- 
 1.6.3.1.54.g99dd.dirty
 
