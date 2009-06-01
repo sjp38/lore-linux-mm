@@ -1,63 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC915F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:44:54 -0400 (EDT)
-Date: Wed, 3 Jun 2009 09:44:30 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <7e0fb38c0906030932o28d5c963y8059672e5c2c7ecf@mail.gmail.com>
-Message-ID: <alpine.LFD.2.01.0906030936350.4880@localhost.localdomain>
-References: <20090530192829.GK6535@oblivion.subreption.com>  <20090531022158.GA9033@oblivion.subreption.com>  <alpine.DEB.1.10.0906021130410.23962@gentwo.org>  <20090602203405.GC6701@oblivion.subreption.com>  <alpine.DEB.1.10.0906031047390.15621@gentwo.org>
-  <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>  <alpine.DEB.1.10.0906031121030.15621@gentwo.org>  <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>  <7e0fb38c0906030922u3af8c2abi8a2cfdcd66151a5a@mail.gmail.com>
- <alpine.LFD.2.01.0906030925480.4880@localhost.localdomain> <7e0fb38c0906030932o28d5c963y8059672e5c2c7ecf@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id AEF635F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:13 -0400 (EDT)
+From: "Eric W. Biederman" <ebiederm@xmission.com>
+Date: Mon,  1 Jun 2009 14:50:45 -0700
+Message-Id: <1243893048-17031-20-git-send-email-ebiederm@xmission.com>
+In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+Subject: [PATCH 20/23] vfs: Teach aio to use file_hotplug_lock
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@parisplace.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
+From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
 
+Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+---
+ fs/aio.c |   51 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 files changed, 38 insertions(+), 13 deletions(-)
 
-On Wed, 3 Jun 2009, Eric Paris wrote:
-> >
-> > We probably should, since the "capability" security version should
-> > generally essentially emulate the regular non-SECURITY case for root.
-> 
-> Will poke/patch this afternoon.
-
-Btw, a perhaps more interesting case would be to _really_ make the 
-"!SECURITY" case just be essentially a hardcoding of the capability case.
-
-Right now the Kconfig option is actually actively misleading, because it 
-says that "if you don't enable SECURITY, the default security model will 
-be used". 
-
-And that's not automatically true, as shown by this example. You can 
-easily get out of sync between security/capability.c and the hardcoded 
-non-security rules in include/linux/security.h.
-
-Wouldn't it be kind of nice if the "security/capability.c" file would work 
-something like 
-
- - make the meat of it just a header file ("<linux/cap_security.h>")
-
- - if !SECURITY, the functions become inline functions named 
-   "security_xyz()", and the header file gets included from 
-   <linux/security.h>
-
- - if SECURITY, the functions become static functions named "cap_xyz()", 
-   and get included from security/capability.c.
-
-IOW, we'd _guarantee_ that the !SECURITY case is exactly the same as the 
-SECURITY+default capabilities case, because we'd be sharing the source 
-code.
-
-Hmm? Wouldn't that be a nice way to always avoid the potential "oops, 
-!SECURITY has different semantics than intended".
-
-		Linus
+diff --git a/fs/aio.c b/fs/aio.c
+index 76da125..eceb215 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -1362,13 +1362,20 @@ static void aio_advance_iovec(struct kiocb *iocb, ssize_t ret)
+ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
+ {
+ 	struct file *file = iocb->ki_filp;
+-	struct address_space *mapping = file->f_mapping;
+-	struct inode *inode = mapping->host;
++	struct address_space *mapping;
++	struct inode *inode;
+ 	ssize_t (*rw_op)(struct kiocb *, const struct iovec *,
+ 			 unsigned long, loff_t);
+ 	ssize_t ret = 0;
+ 	unsigned short opcode;
+ 
++	ret = -EIO;
++	if (!file_hotplug_read_trylock(file))
++		goto out;
++
++	mapping = file->f_mapping;
++	inode = mapping->host;
++
+ 	if ((iocb->ki_opcode == IOCB_CMD_PREADV) ||
+ 		(iocb->ki_opcode == IOCB_CMD_PREAD)) {
+ 		rw_op = file->f_op->aio_read;
+@@ -1379,8 +1386,9 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
+ 	}
+ 
+ 	/* This matches the pread()/pwrite() logic */
++	ret = -EINVAL;
+ 	if (iocb->ki_pos < 0)
+-		return -EINVAL;
++		goto out_unlock;
+ 
+ 	do {
+ 		ret = rw_op(iocb, &iocb->ki_iovec[iocb->ki_cur_seg],
+@@ -1407,26 +1415,37 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
+ 	    && iocb->ki_nbytes - iocb->ki_left)
+ 		ret = iocb->ki_nbytes - iocb->ki_left;
+ 
++out_unlock:
++	file_hotplug_read_unlock(file);
++out:
+ 	return ret;
+ }
+ 
+ static ssize_t aio_fdsync(struct kiocb *iocb)
+ {
+ 	struct file *file = iocb->ki_filp;
+-	ssize_t ret = -EINVAL;
++	ssize_t ret = -EIO;
+ 
+-	if (file->f_op->aio_fsync)
+-		ret = file->f_op->aio_fsync(iocb, 1);
++	if (file_hotplug_read_trylock(file)) {
++		ret = -EINVAL;
++		if (file->f_op->aio_fsync)
++			ret = file->f_op->aio_fsync(iocb, 1);
++		file_hotplug_read_unlock(file);
++	}
+ 	return ret;
+ }
+ 
+ static ssize_t aio_fsync(struct kiocb *iocb)
+ {
+ 	struct file *file = iocb->ki_filp;
+-	ssize_t ret = -EINVAL;
++	ssize_t ret = -EIO;
+ 
+-	if (file->f_op->aio_fsync)
+-		ret = file->f_op->aio_fsync(iocb, 0);
++	if (file_hotplug_read_trylock(file)) {
++		ret = -EINVAL;
++		if (file->f_op->aio_fsync)
++			ret = file->f_op->aio_fsync(iocb, 0);
++		file_hotplug_read_unlock(file);
++	}
+ 	return ret;
+ }
+ 
+@@ -1469,7 +1488,11 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
+ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
+ {
+ 	struct file *file = kiocb->ki_filp;
+-	ssize_t ret = 0;
++	ssize_t ret;
++
++	ret = -EIO;
++	if (!file_hotplug_read_trylock(file))
++		goto out;
+ 
+ 	switch (kiocb->ki_opcode) {
+ 	case IOCB_CMD_PREAD:
+@@ -1551,10 +1574,12 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
+ 		ret = -EINVAL;
+ 	}
+ 
+-	if (!kiocb->ki_retry)
+-		return ret;
++	if (kiocb->ki_retry)
++		ret = 0;
+ 
+-	return 0;
++	file_hotplug_read_unlock(file);
++out:
++	return ret;
+ }
+ 
+ /*
+-- 
+1.6.3.1.54.g99dd.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
