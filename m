@@ -1,175 +1,129 @@
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9B0296B0088
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 00:30:36 -0400 (EDT)
+Date: Mon, 1 Jun 2009 12:30:51 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/3] vmscan: merge duplicate code in shrink_active_list()
-Date: Sun, 17 May 2009 10:23:30 +0800
-Message-ID: <20090517022742.320921900@intel.com>
-References: <20090517022327.280096109@intel.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 39E8A6B006A
-	for <linux-mm@kvack.org>; Sat, 16 May 2009 22:30:43 -0400 (EDT)
-Content-Disposition: inline; filename=mm-vmscan-reduce-code.patch
+Subject: Re: [PATCH] readahead:add blk_run_backing_dev
+Message-ID: <20090601043051.GA6446@localhost>
+References: <20090527020909.GB17658@localhost> <6.0.0.20.2.20090527110937.0770c420@172.19.0.2> <20090527023638.GA27079@localhost> <6.0.0.20.2.20090527114200.076aab00@172.19.0.2> <20090527025721.GA11153@localhost> <6.0.0.20.2.20090527120248.076abe38@172.19.0.2> <20090601023758.GA8795@localhost> <6.0.0.20.2.20090601115104.0739dac0@172.19.0.2> <20090601030249.GA10348@localhost> <6.0.0.20.2.20090601120706.0739e790@172.19.0.2>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6.0.0.20.2.20090601120706.0739e790@172.19.0.2>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
-List-Id: linux-mm.kvack.org
+To: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>
+List-ID: <linux-mm.kvack.org>
 
-The "move pages to active list" and "move pages to inactive list"
-code blocks are mostly identical and can be served by a function.
+On Mon, Jun 01, 2009 at 11:07:42AM +0800, Hisashi Hifumi wrote:
+> 
+> At 12:02 09/06/01, Wu Fengguang wrote:
+> >On Mon, Jun 01, 2009 at 10:51:56AM +0800, Hisashi Hifumi wrote:
+> >> 
+> >> At 11:37 09/06/01, Wu Fengguang wrote:
+> >> >On Wed, May 27, 2009 at 11:06:37AM +0800, Hisashi Hifumi wrote:
+> >> >> 
+> >> >> At 11:57 09/05/27, Wu Fengguang wrote:
+> >> >> >On Wed, May 27, 2009 at 10:47:47AM +0800, Hisashi Hifumi wrote:
+> >> >> >> 
+> >> >> >> At 11:36 09/05/27, Wu Fengguang wrote:
+> >> >> >> >On Wed, May 27, 2009 at 10:21:53AM +0800, Hisashi Hifumi wrote:
+> >> >> >> >>
+> >> >> >> >> At 11:09 09/05/27, Wu Fengguang wrote:
+> >> >> >> >> >On Wed, May 27, 2009 at 08:25:04AM +0800, Hisashi Hifumi wrote:
+> >> >> >> >> >>
+> >> >> >> >> >> At 08:42 09/05/27, Andrew Morton wrote:
+> >> >> >> >> >> >On Fri, 22 May 2009 10:33:23 +0800
+> >> >> >> >> >> >Wu Fengguang <fengguang.wu@intel.com> wrote:
+> >> >> >> >> >> >
+> >> >> >> >> >> >> > I tested above patch, and I got same performance number.
+> >> >> >> >> >> >> > I wonder why if (PageUptodate(page)) check is there...
+> >> >> >> >> >> >>
+> >> >> >> >> >> >> Thanks!  This is an interesting micro timing behavior that
+> >> >> >> >> >> >> demands some research work.  The above check is to confirm 
+> >if it's
+> >> >> >> >> >> >> the PageUptodate() case that makes the difference. So why 
+> >that case
+> >> >> >> >> >> >> happens so frequently so as to impact the performance? 
+> >Will it also
+> >> >> >> >> >> >> happen in NFS?
+> >> >> >> >> >> >>
+> >> >> >> >> >> >> The problem is readahead IO pipeline is not running smoothly, 
+> >> >which is
+> >> >> >> >> >> >> undesirable and not well understood for now.
+> >> >> >> >> >> >
+> >> >> >> >> >> >The patch causes a remarkably large performance increase.  A 9%
+> >> >> >> >> >> >reduction in time for a linear read? I'd be surprised if the 
+> >workload
+> >> >> >> >> >>
+> >> >> >> >> >> Hi Andrew.
+> >> >> >> >> >> Yes, I tested this with dd.
+> >> >> >> >> >>
+> >> >> >> >> >> >even consumed 9% of a CPU, so where on earth has the kernel 
+> >gone to?
+> >> >> >> >> >> >
+> >> >> >> >> >> >Have you been able to reproduce this in your testing?
+> >> >> >> >> >>
+> >> >> >> >> >> Yes, this test on my environment is reproducible.
+> >> >> >> >> >
+> >> >> >> >> >Hisashi, does your environment have some special configurations?
+> >> >> >> >>
+> >> >> >> >> Hi.
+> >> >> >> >> My testing environment is as follows:
+> >> >> >> >> Hardware: HP DL580
+> >> >> >> >> CPU:Xeon 3.2GHz *4 HT enabled
+> >> >> >> >> Memory:8GB
+> >> >> >> >> Storage: Dothill SANNet2 FC (7Disks RAID-0 Array)
+> >> >> >> >
+> >> >> >> >This is a big hardware RAID. What's the readahead size?
+> >> >> >> >
+> >> >> >> >The numbers look too small for a 7 disk RAID:
+> >> >> >> >
+> >> >> >> >        > #dd if=testdir/testfile of=/dev/null bs=16384
+> >> >> >> >        >
+> >> >> >> >        > -2.6.30-rc6
+> >> >> >> >        > 1048576+0 records in
+> >> >> >> >        > 1048576+0 records out
+> >> >> >> >        > 17179869184 bytes (17 GB) copied, 224.182 seconds, 76.6 MB/s
+> >> >> >> >        >
+> >> >> >> >        > -2.6.30-rc6-patched
+> >> >> >> >        > 1048576+0 records in
+> >> >> >> >        > 1048576+0 records out
+> >> >> >> >        > 17179869184 bytes (17 GB) copied, 206.465 seconds, 83.2 MB/s
+> >> >> >> >
+> >> >> >> >I'd suggest you to configure the array properly before coming back to
+> >> >> >> >measuring the impact of this patch.
+> >> >> >> 
+> >> >> >> 
+> >> >> >> I created 16GB file to this disk array, and mounted to testdir, dd to 
+> >> >> >this directory.
+> >> >> >
+> >> >> >I mean, you should get >300MB/s throughput with 7 disks, and you
+> >> >> >should seek ways to achieve that before testing out this patch :-)
+> >> >> 
+> >> >> Throughput number of storage array is very from one product to another.
+> >> >> On my hardware environment I think this number is valid and
+> >> >> my patch is effective.
+> >> >
+> >> >What's your readahead size? Is it large enough to cover the stripe width?
+> >> 
+> >> Do you mean strage's readahead size?
+> >
+> >What's strage? I mean if your RAID's block device file is /dev/sda, then
+> >
+> >        blockdev --getra /dev/sda
+> >
+> >will tell its readahead size in unit of 512 bytes.
+> 
+> 256 sectors.
 
-Thanks to Andrew Morton for pointing this out.
+That's too small! Try this:
 
-Note that buffer_heads_over_limit check will also be carried out
-for re-activated pages, which is slightly different from pre-2.6.28
-kernels. Also, Rik's "vmscan: evict use-once pages first" patch
-could totally stop scans of active list when memory pressure is low.
-So the net effect could be, the number of buffer heads is now more
-likely to grow large.
+        blockdev --setra 8192 /dev/sda
 
-Acked-by: Peter Zijlstra <peterz@infradead.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/vmscan.c |   95 ++++++++++++++++++++++----------------------------
- 1 file changed, 42 insertions(+), 53 deletions(-)
-
---- linux.orig/mm/vmscan.c
-+++ linux/mm/vmscan.c
-@@ -1225,6 +1225,43 @@ static inline void note_zone_scanning_pr
-  * But we had to alter page->flags anyway.
-  */
- 
-+static void move_active_pages_to_lru(struct zone *zone,
-+				     struct list_head *list,
-+				     enum lru_list lru)
-+{
-+	unsigned long pgmoved = 0;
-+	struct pagevec pvec;
-+	struct page *page;
-+
-+	pagevec_init(&pvec, 1);
-+
-+	while (!list_empty(list)) {
-+		page = lru_to_page(list);
-+		prefetchw_prev_lru_page(page, list, flags);
-+
-+		VM_BUG_ON(PageLRU(page));
-+		SetPageLRU(page);
-+
-+		VM_BUG_ON(!PageActive(page));
-+		if (lru == LRU_INACTIVE_ANON || lru == LRU_INACTIVE_FILE)
-+			ClearPageActive(page);	/* we are de-activating */
-+
-+		list_move(&page->lru, &zone->lru[lru].list);
-+		mem_cgroup_add_lru_list(page, lru);
-+		pgmoved++;
-+
-+		if (!pagevec_add(&pvec, page) || list_empty(list)) {
-+			spin_unlock_irq(&zone->lru_lock);
-+			if (buffer_heads_over_limit)
-+				pagevec_strip(&pvec);
-+			__pagevec_release(&pvec);
-+			spin_lock_irq(&zone->lru_lock);
-+		}
-+	}
-+	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-+	if (lru == LRU_INACTIVE_ANON || lru == LRU_INACTIVE_FILE)
-+		__count_vm_events(PGDEACTIVATE, pgmoved);
-+}
- 
- static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 			struct scan_control *sc, int priority, int file)
-@@ -1236,8 +1273,6 @@ static void shrink_active_list(unsigned 
- 	LIST_HEAD(l_active);
- 	LIST_HEAD(l_inactive);
- 	struct page *page;
--	struct pagevec pvec;
--	enum lru_list lru;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 
- 	lru_add_drain();
-@@ -1254,6 +1289,7 @@ static void shrink_active_list(unsigned 
- 	}
- 	reclaim_stat->recent_scanned[!!file] += pgmoved;
- 
-+	__count_zone_vm_events(PGREFILL, zone, pgscanned);
- 	if (file)
- 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -pgmoved);
- 	else
-@@ -1295,8 +1331,6 @@ static void shrink_active_list(unsigned 
- 	/*
- 	 * Move pages back to the lru list.
- 	 */
--	pagevec_init(&pvec, 1);
--
- 	spin_lock_irq(&zone->lru_lock);
- 	/*
- 	 * Count referenced pages from currently used mappings as rotated,
-@@ -1306,57 +1340,12 @@ static void shrink_active_list(unsigned 
- 	 */
- 	reclaim_stat->recent_rotated[!!file] += pgmoved;
- 
--	pgmoved = 0;  /* count pages moved to inactive list */
--	lru = LRU_BASE + file * LRU_FILE;
--	while (!list_empty(&l_inactive)) {
--		page = lru_to_page(&l_inactive);
--		prefetchw_prev_lru_page(page, &l_inactive, flags);
--		VM_BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		VM_BUG_ON(!PageActive(page));
--		ClearPageActive(page);
--
--		list_move(&page->lru, &zone->lru[lru].list);
--		mem_cgroup_add_lru_list(page, lru);
--		pgmoved++;
--		if (!pagevec_add(&pvec, page)) {
--			spin_unlock_irq(&zone->lru_lock);
--			if (buffer_heads_over_limit)
--				pagevec_strip(&pvec);
--			__pagevec_release(&pvec);
--			spin_lock_irq(&zone->lru_lock);
--		}
--	}
--	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
--	__count_zone_vm_events(PGREFILL, zone, pgscanned);
--	__count_vm_events(PGDEACTIVATE, pgmoved);
--
--	pgmoved = 0;  /* count pages moved back to active list */
--	lru = LRU_ACTIVE + file * LRU_FILE;
--	while (!list_empty(&l_active)) {
--		page = lru_to_page(&l_active);
--		prefetchw_prev_lru_page(page, &l_active, flags);
--		VM_BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		VM_BUG_ON(!PageActive(page));
--
--		list_move(&page->lru, &zone->lru[lru].list);
--		mem_cgroup_add_lru_list(page, lru);
--		pgmoved++;
--		if (!pagevec_add(&pvec, page)) {
--			spin_unlock_irq(&zone->lru_lock);
--			if (buffer_heads_over_limit)
--				pagevec_strip(&pvec);
--			__pagevec_release(&pvec);
--			spin_lock_irq(&zone->lru_lock);
--		}
--	}
--	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-+	move_active_pages_to_lru(zone, &l_active,
-+						LRU_ACTIVE + file * LRU_FILE);
-+	move_active_pages_to_lru(zone, &l_inactive,
-+						LRU_BASE   + file * LRU_FILE);
- 
- 	spin_unlock_irq(&zone->lru_lock);
--	if (buffer_heads_over_limit)
--		pagevec_strip(&pvec);
--	pagevec_release(&pvec);
- }
- 
- static int inactive_anon_is_low_global(struct zone *zone)
-
--- 
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
