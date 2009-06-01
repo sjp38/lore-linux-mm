@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 468716B004F
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 03:56:46 -0400 (EDT)
-Date: Mon, 1 Jun 2009 08:58:14 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH] Use kzfree in crypto API context initialization and
- key/iv handling
-Message-ID: <20090601085814.3e010533@lxorguk.ukuu.org.uk>
-In-Reply-To: <20090601044837.GA9220@gondor.apana.org.au>
-References: <20090531025720.GC9033@oblivion.subreption.com>
-	<20090530.230213.73434433.davem@davemloft.net>
-	<4A22967C.3080304@redhat.com>
-	<20090531.214623.76344831.davem@davemloft.net>
-	<20090601044837.GA9220@gondor.apana.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 426A26B004F
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 04:05:27 -0400 (EDT)
+Subject: Re: [rfc][patch] swap: virtual swap readahead
+From: Andi Kleen <andi@firstfloor.org>
+References: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org>
+Date: Mon, 01 Jun 2009 10:05:22 +0200
+In-Reply-To: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org> (Johannes Weiner's message of "Wed, 27 May 2009 17:05:46 +0200")
+Message-ID: <87zlcscrb1.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: David Miller <davem@davemloft.net>, riel@redhat.com, research@subreption.com, linux-kernel@vger.kernel.org, pageexec@freemail.hu, linux-mm@kvack.org, torvalds@osdl.org, linux-crypto@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Jun 2009 14:48:37 +1000
-Herbert Xu <herbert@gondor.apana.org.au> wrote:
+Johannes Weiner <hannes@cmpxchg.org> writes:
+>
+> This patch makes swap-in base its readaround window on the virtual
+> proximity of pages in the faulting VMA, as an indicator for pages
+> needed in the near future, while still taking physical locality of
+> swap slots into account.
 
-> On Sun, May 31, 2009 at 09:46:23PM -0700, David Miller wrote:
-> > 
-> > I don't even want to think about what this does to IPSEC rule creation
-> > rates, that that matters heavily for cell phone networks where
-> > hundreds of thousands of nodes come in and out of the server and each
-> > such entry requires creating 4 IPSEC rules.
-> 
-> I completely agree.  The zeroing of metadata is gratuitous.
+I think it's a good idea, something that needed fixing in Linux forever.
 
-Zeroing long term keys makes sense but for the short lifepsan keys used on
-the wire its a bit pointless irrespective of speed (I suspect done
-properly the performance impact would be close to nil anyway)
+Now if we can only start swapping out in larger cluster too.
+
+> +		if (swp_type(swp) != swp_type(entry))
+> +			continue;
+> +		/*
+> +		 * Dont move the disk head too far away.  This also
+> +		 * throttles readahead while thrashing, where virtual
+> +		 * order diverges more and more from physical order.
+> +		 */
+> +		if (swp_offset(swp) > pmax)
+> +			continue;
+> +		if (swp_offset(swp) < pmin)
+> +			continue;
+> +		page = read_swap_cache_async(swp, gfp_mask, vma, pos);
+
+It would be a good idea then to fix r_s_c_a() to pass down the VMA
+and use alloc_page_vma() down below, so that NUMA Policy is preserved
+over swapin. 
+
+I originally tried this when I did the NUMA policy code, but then Hugh
+pointed out it was useless because the prefetched pages are not
+necessarily from this VMA anyways. With your virtual readahead it would
+make sense again.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
