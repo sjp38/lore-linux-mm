@@ -1,43 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 920F86B004F
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 05:39:33 -0400 (EDT)
-Date: Mon, 01 Jun 2009 02:40:06 -0700 (PDT)
-Message-Id: <20090601.024006.98975069.davem@davemloft.net>
-Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1243846708-805-4-git-send-email-tj@kernel.org>
-References: <1243846708-805-1-git-send-email-tj@kernel.org>
-	<1243846708-805-4-git-send-email-tj@kernel.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5986B004F
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 07:16:32 -0400 (EDT)
+Date: Mon, 1 Jun 2009 13:16:41 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v4
+Message-ID: <20090601111641.GA5018@wotan.suse.de>
+References: <200905291135.124267638@firstfloor.org> <20090529213539.4FACC1D0296@basil.firstfloor.org>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090529213539.4FACC1D0296@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: tj@kernel.org
-Cc: JBeulich@novell.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, tglx@linutronix.de, linux-kernel@vger.kernel.org, x86@kernel.org, ink@jurassic.park.msu.ru, rth@twiddle.net, linux@arm.linux.org.uk, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, jesper.nilsson@axis.com, dhowells@redhat.com, ysato@users.sourceforge.jp, tony.luck@intel.com, takata@linux-m32r.org, geert@linux-m68k.org, monstr@monstr.eu, ralf@linux-mips.org, kyle@mcmartin.ca, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, chris@zankel.net, rusty@rustcorp.com.au, jens.axboe@oracle.com, davej@redhat.com, jeremy@xensource.com, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: hugh@veritas.com, riel@redhat.com, chris.mason@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-From: Tejun Heo <tj@kernel.org>
-Date: Mon,  1 Jun 2009 17:58:24 +0900
+On Fri, May 29, 2009 at 11:35:39PM +0200, Andi Kleen wrote:
+> +	mapping = page_mapping(p);
+> +	if (!PageDirty(p) && !PageWriteback(p) &&
+> +	    !PageAnon(p) && !PageSwapBacked(p) &&
+> +	    mapping && mapping_cap_account_dirty(mapping)) {
 
-> --- a/arch/cris/include/asm/mmu_context.h
-> +++ b/arch/cris/include/asm/mmu_context.h
-> @@ -17,7 +17,7 @@ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
->   * registers like cr3 on the i386
->   */
->  
-> -extern volatile DEFINE_PER_CPU(pgd_t *,current_pgd); /* defined in arch/cris/mm/fault.c */
-> +DECLARE_PER_CPU(pgd_t *,current_pgd); /* defined in arch/cris/mm/fault.c */
->  
->  static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
->  {
-
-Yes volatile sucks, but might this break something?
-
-Whether the volatile is actually needed or not, it's bad to have this
-kind of potential behavior changing nugget hidden in this seemingly
-inocuous change.  Especially if you're the poor soul who ends up
-having to debug it :-/
+Haven't had another good look at this yet, but if you hold the
+page locked, and have done a wait_on_page_writeback, then
+PageWriteback == true is a kernel bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
