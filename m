@@ -1,47 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E3B76B00D1
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:39:38 -0400 (EDT)
-Date: Wed, 3 Jun 2009 08:38:47 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
-Message-ID: <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
-References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com>
- <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain> <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C77B36B00D4
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:40:06 -0400 (EDT)
+From: "Eric W. Biederman" <ebiederm@xmission.com>
+Date: Mon,  1 Jun 2009 14:50:37 -0700
+Message-Id: <1243893048-17031-12-git-send-email-ebiederm@xmission.com>
+In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+Subject: [PATCH 12/23] vfs: Teach fcntl to use file_hotplug_lock
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: "Larry H." <research@subreption.com>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.arastra.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
+From: Eric W. Biederman <ebiederm@maxwell.arastra.com>
 
+Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+---
+ fs/fcntl.c |   28 +++++++++++++++++++---------
+ 1 files changed, 19 insertions(+), 9 deletions(-)
 
-On Wed, 3 Jun 2009, Christoph Lameter wrote:
-
-> On Wed, 3 Jun 2009, Linus Torvalds wrote:
-> 
-> > The point being that we do need to support mmap at zero. Not necessarily
-> > universally, but it can't be some fixed "we don't allow that".
-> 
-> Hmmm... Depend on some capability? CAP_SYS_PTRACE may be something
-> remotely related?
-
-But as mentioned several times, we do have the system-wide setting in
-'mmap_min_addr' (that then can be overridden by CAP_SYS_RAWIO, so in that 
-sense a capability already exists).
-
-It defaults to 64kB in at least the x86 defconfig files, but to 0 in the 
-Kconfig defaults. Also, for some reason it has a "depends on SECURITY", 
-which means that if you just default to the old-style unix security you'll 
-lose it.
-
-So there are several ways to disable it by mistake. I don't know what 
-distros do.
-
-		Linus
+diff --git a/fs/fcntl.c b/fs/fcntl.c
+index cc8e4de..05d8961 100644
+--- a/fs/fcntl.c
++++ b/fs/fcntl.c
+@@ -344,14 +344,19 @@ SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
+ 	if (!filp)
+ 		goto out;
+ 
++	err = -EIO;
++	if (!file_hotplug_read_trylock(filp))
++		goto out_fput;
++
+ 	err = security_file_fcntl(filp, cmd, arg);
+-	if (err) {
+-		fput(filp);
+-		return err;
+-	}
++	if (err)
++		goto out_unlock;
+ 
+ 	err = do_fcntl(fd, cmd, arg, filp);
+ 
++out_unlock:
++	file_hotplug_read_unlock(filp);
++out_fput:
+  	fput(filp);
+ out:
+ 	return err;
+@@ -369,13 +374,15 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+ 	if (!filp)
+ 		goto out;
+ 
++	err = -EIO;
++	if (!file_hotplug_read_trylock(filp))
++		goto out_fput;
++
+ 	err = security_file_fcntl(filp, cmd, arg);
+-	if (err) {
+-		fput(filp);
+-		return err;
+-	}
++	if (err)
++		goto out_unlock;
++
+ 	err = -EBADF;
+-	
+ 	switch (cmd) {
+ 		case F_GETLK64:
+ 			err = fcntl_getlk64(filp, (struct flock64 __user *) arg);
+@@ -389,6 +396,9 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+ 			err = do_fcntl(fd, cmd, arg, filp);
+ 			break;
+ 	}
++out_unlock:
++	file_hotplug_read_unlock(filp);
++out_fput:
+ 	fput(filp);
+ out:
+ 	return err;
+-- 
+1.6.3.1.54.g99dd.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
