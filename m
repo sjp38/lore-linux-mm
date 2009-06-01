@@ -1,43 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AB3325F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:13:19 -0400 (EDT)
-Date: Wed, 3 Jun 2009 17:14:09 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-Message-ID: <20090603171409.5c60422c@lxorguk.ukuu.org.uk>
-In-Reply-To: <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
-References: <20090530192829.GK6535@oblivion.subreption.com>
-	<alpine.LFD.2.01.0905301528540.3435@localhost.localdomain>
-	<20090530230022.GO6535@oblivion.subreption.com>
-	<alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
-	<20090531022158.GA9033@oblivion.subreption.com>
-	<alpine.DEB.1.10.0906021130410.23962@gentwo.org>
-	<20090602203405.GC6701@oblivion.subreption.com>
-	<alpine.DEB.1.10.0906031047390.15621@gentwo.org>
-	<alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>
-	<alpine.DEB.1.10.0906031121030.15621@gentwo.org>
-	<alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
+	by kanga.kvack.org (Postfix) with SMTP id 96AE45F0003
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:01:40 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n51Nsvu8007709
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Jun 2009 08:54:57 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 68AE745DE57
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 43AC045DD79
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 173C91DB803A
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B915D1DB8038
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:53 +0900 (JST)
+Date: Tue, 2 Jun 2009 08:53:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Inconsistency (bug) of vm_insert_page with high order
+ allocations
+Message-Id: <20090602085319.e0c23910.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <202cde0e0905292242k313148b8nbc1a47e558f97a1c@mail.gmail.com>
+References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com>
+	<20090528143524.e8a2cde7.kamezawa.hiroyu@jp.fujitsu.com>
+	<202cde0e0905280002o5614f279r9db7c8c52ad7df10@mail.gmail.com>
+	<20090528162108.a6adcc36.kamezawa.hiroyu@jp.fujitsu.com>
+	<202cde0e0905292242k313148b8nbc1a47e558f97a1c@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Alexey Korolev <akorolex@gmail.com>
+Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
 List-ID: <linux-mm.kvack.org>
 
-> It defaults to 64kB in at least the x86 defconfig files, but to 0 in the 
-> Kconfig defaults. Also, for some reason it has a "depends on SECURITY", 
-> which means that if you just default to the old-style unix security you'll 
-> lose it.
-> 
-> So there are several ways to disable it by mistake. I don't know what 
-> distros do.
+On Sat, 30 May 2009 17:42:35 +1200
+Alexey Korolev <akorolex@gmail.com> wrote:
 
-Fedora at least uses SELinux to manage it. You need some kind of security
-policy engine running as a few apps really need to map low space (mostly
-for vm86)
+> Kame San,
+> 
+> Thank you for your answers. I've decided to use split_pages function.
+> >
+> >  - write a patch for adding alloc_page_exact_nodemask()  // this is not difficult.
+> >  - explain why you need this.
+> >  - discuss.
+> >
+> Writing the patch is not dificult - but it will be hard to explain why
+> it is necessary in kernel...
+> > IMHO, considering other mmap/munmap/zap_pte, etc... page_count() and page_mapocunt()
+> > should be controlled per pte. Then, you'll have to map pages one by one.
+> >
+> This is quite interesting. I tried to understand this code but it is
+> much complicated. I clearly understand why pages have to be mapped one
+> by one. By I don't understand how counters relate to this. (it is just
+> a curiosity question - I won't be upset if no one answer it)
+> 
+The kernel/cpu cannot handle changes to multiple ptes/TLBs at once. Then,
+if mapcount/count is not per pte, there will be "partially mapped/unmapped" racy
+state. That's a bad and we'll need a complicated synchronization technique to
+map/unmap multiple ptes/TLBs at once. It seems impossible.(and not worth to try)
+
+Thanks
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
