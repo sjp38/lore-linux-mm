@@ -1,37 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DBA3D6B0095
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 00:48:08 -0400 (EDT)
-Date: Mon, 1 Jun 2009 14:48:37 +1000
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH] Use kzfree in crypto API context initialization and
-	key/iv handling
-Message-ID: <20090601044837.GA9220@gondor.apana.org.au>
-References: <20090531025720.GC9033@oblivion.subreption.com> <20090530.230213.73434433.davem@davemloft.net> <4A22967C.3080304@redhat.com> <20090531.214623.76344831.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090531.214623.76344831.davem@davemloft.net>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F02056B0096
+	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 01:13:34 -0400 (EDT)
+Date: Mon, 1 Jun 2009 14:01:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC] Low overhead patches for the memory cgroup controller
+ (v2)
+Message-Id: <20090601140102.c55bdf03.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090601132505.2fe9c870.nishimura@mxp.nes.nec.co.jp>
+References: <b7dd123f0a15fff62150bc560747d7f0.squirrel@webmail-b.css.fujitsu.com>
+	<20090517041543.GA5156@balbir.in.ibm.com>
+	<20090601132505.2fe9c870.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Miller <davem@davemloft.net>
-Cc: riel@redhat.com, research@subreption.com, linux-kernel@vger.kernel.org, pageexec@freemail.hu, linux-mm@kvack.org, torvalds@osdl.org, alan@lxorguk.ukuu.org.uk, linux-crypto@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 31, 2009 at 09:46:23PM -0700, David Miller wrote:
+> > @@ -1114,9 +1125,24 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+> >  		css_put(&mem->css);
+> >  		return;
+> >  	}
+> > +
+> >  	pc->mem_cgroup = mem;
+> >  	smp_wmb();
+> > -	pc->flags = pcg_default_flags[ctype];
+> > +	switch (ctype) {
+> > +	case MEM_CGROUP_CHARGE_TYPE_CACHE:
+> > +	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
+> > +		SetPageCgroupCache(pc);
+> > +		SetPageCgroupUsed(pc);
+> > +		break;
+> > +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+> > +		SetPageCgroupUsed(pc);
+> > +		break;
+> > +	default:
+> > +		break;
+> > +	}
+> > +
+> > +	if (mem == root_mem_cgroup)
+> > +		SetPageCgroupRoot(pc);
+> >  
+> >  	mem_cgroup_charge_statistics(mem, pc, true);
+> >  
+> Shouldn't we set PCG_LOCK ?
+> unlock_page_cgroup() will be called after this.
 > 
-> I don't even want to think about what this does to IPSEC rule creation
-> rates, that that matters heavily for cell phone networks where
-> hundreds of thousands of nodes come in and out of the server and each
-> such entry requires creating 4 IPSEC rules.
+Ah, lock_page_cgroup() has already set it.
+please ignore this comment.
 
-I completely agree.  The zeroing of metadata is gratuitous.
+Sorry for noise.
 
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
