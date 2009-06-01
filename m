@@ -1,117 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D35E06B0055
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:33:13 -0400 (EDT)
-Date: Tue, 2 Jun 2009 15:20:02 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602132002.GJ1065@one.firstfloor.org>
-References: <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090601120537.GF5018@wotan.suse.de> <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org> <20090602123720.GF1392@wotan.suse.de> <20090602125538.GH1065@one.firstfloor.org> <20090602130306.GA6262@wotan.suse.de>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C190A6B005A
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:34:07 -0400 (EDT)
+Date: Mon, 1 Jun 2009 15:25:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/23] mm: Introduce revoke_file_mappings.
+Message-Id: <20090601152553.b2de027a.akpm@linux-foundation.org>
+In-Reply-To: <1243893048-17031-1-git-send-email-ebiederm@xmission.com>
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	<1243893048-17031-1-git-send-email-ebiederm@xmission.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602130306.GA6262@wotan.suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: viro@ZenIV.linux.org.uk, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, hch@infradead.org, ebiederm@aristanetworks.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 03:03:06PM +0200, Nick Piggin wrote:
-> > > > > I'm suggesting that EIO is traditionally for when the data still
-> > > > > dirty in pagecache and was not able to get back to backing
-> > > > > store. Do you deny that?
-> > > > 
-> > > > Yes. That is exactly the case when memory-failure triggers EIO
-> > > > 
-> > > > Memory error on a dirty file mapped page.
-> > > 
-> > > But it is no longer dirty, and the problem was not that the data
-> > > was unable to be written back.
-> > 
-> > Sorry I don't understand. What do you mean with "no longer dirty"
-> > 
-> > Of course it's still dirty, just has to be discarded because it's 
-> > corrupted.
-> 
-> The pagecache location is no longer dirty. Userspace only cares
-> about pagecache locations and their contents, not the page that
-> was once there and has now been taken out.
+On Mon,  1 Jun 2009 14:50:26 -0700
+"Eric W. Biederman" <ebiederm@xmission.com> wrote:
 
-Sorry, but that just sounds wrong to me. User space has no clue
-about the page cache, it just wants to know that the write it just
-did didn't reach the disk. And that's what happened and
-what we report here.
+> +static void revoke_vma(struct vm_area_struct *vma)
 
-Retries can make sense in some cases, but in these cases the
-user space should do it in other EIO cases too.
+This looks odd.
 
-> > > > > And I think the application might try to handle the case of a
-> > > > > page becoming corrupted differently. Do you deny that?
-> > > > 
-> > > > You mean a clean file-mapped page? In this case there is no EIO,
-> > > > memory-failure just drops the page and it is reloaded.
-> > > > 
-> > > > If the page is dirty we trigger EIO which as you said above is the 
-> > > > right reaction.
-> > > 
-> > > No I mean the difference between the case of dirty page unable to
-> > > be written to backing sotre, and the case of dirty page becoming
-> > > corrupted.
-> > 
-> > Nick, I have really a hard time following you here.
-> > 
-> > What exactly do you want? 
-> > 
-> > A new errno? Or something else? If yes what precisely?
-> 
-> Yeah a new errno would be nice. Precisely one to say that the
-> memory was corrupted.
+> +{
+> +	struct file *file = vma->vm_file;
+> +	struct address_space *mapping = file->f_mapping;
+> +	unsigned long start_addr, end_addr, size;
+> +	struct mm_struct *mm;
+> +
+> +	start_addr = vma->vm_start;
+> +	end_addr = vma->vm_end;
 
-Ok.  I firmly think a new errno is a bad idea because I don't
-want to explain to a lot of people how to fix their applications.
-Compatibility is important.
+We take a copy of start_addr/end_addr (and this end_addr value is never used)
 
-> > I currently don't see any sane way to report this to the application
-> > through write().  That is because adding a new errno for something
-> > is incredibly hard and often impossible, and that's certainly
-> > the case here.
-> > 
-> > The application can detect it if it maps the 
-> > shared page and waits for a SIGBUS, but not through write().
-> > 
-> > But I doubt there will be really any apps that do anything differently
-> > here anyways. A clever app could retry a few times if it still
-> > has a copy of the data, but that might even make sense on normal
-> > IO errors (e.g. on a SAN).
-> 
-> I'm sure some of the ones that really care would.
+> +	/* Switch out the locks so I can maninuplate this under the mm sem.
+> +	 * Needed so I can call vm_ops->close.
+> +	 */
+> +	mm = vma->vm_mm;
+> +	atomic_inc(&mm->mm_users);
+> +	spin_unlock(&mapping->i_mmap_lock);
+> +
+> +	/* Block page faults and other code modifying the mm. */
+> +	down_write(&mm->mmap_sem);
+> +
+> +	/* Lookup a vma for my file address */
+> +	vma = find_vma(mm, start_addr);
 
-Even if they would there would be still old binaries around.
-Compatibility is important.
+Then we look up a vma.  Is there reason to believe that this will
+differ from the incoming arg which we just overwrote?  Maybe the code
+is attempting to handle racing concurrent mmap/munmap activity?  If so,
+what are the implications of this?
 
-> 
-> 
-> > > They would presumably exit or do some default thing, which I
-> > > think would be fine.
-> > 
-> > No it's not fine if they would handle EIO. e.g. consider
-> > a sophisticated database which likely has sophisticated
-> > IO error mechanisms too (e.g. only abort the current commit)
-> 
-> Umm, if it is a generic "this failed, we can abort" then why
-> would not this be the default case. The issue is if it does
-> something differnet specifically for EIO, and specifically
-> assuming the pagecache is still valid and dirty.
+I _think_ that what the function is attempting to do is "unmap the vma
+which covers the address at vma->start_addr".  If so, why not just pass
+it that virtual address?
 
-How would it make such an assumption?
+Anyway, it's all a bit obscure and I do think that the semantics and
+behaviour should be carefully explained in a comment, no?
 
-I assume that if an application does something with EIO it 
-can either retry a few times or give up. Both is ok here.
+> +	if (vma->vm_file != file)
+> +		goto out;
 
--Andi
+This strengthens the theory that some sort of race-management is
+happening here.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+> +	start_addr = vma->vm_start;
+> +	end_addr   = vma->vm_end;
+> +	size	   = end_addr - start_addr;
+> +
+> +	/* Unlock the pages */
+> +	if (mm->locked_vm && (vma->vm_flags & VM_LOCKED)) {
+> +		mm->locked_vm -= vma_pages(vma);
+> +		vma->vm_flags &= ~VM_LOCKED;
+> +	}
+> +
+> +	/* Unmap the vma */
+> +	zap_page_range(vma, start_addr, size, NULL);
+> +
+> +	/* Unlink the vma from the file */
+> +	unlink_file_vma(vma);
+> +
+> +	/* Close the vma */
+> +	if (vma->vm_ops && vma->vm_ops->close)
+> +		vma->vm_ops->close(vma);
+> +	fput(vma->vm_file);
+> +	vma->vm_file = NULL;
+> +	if (vma->vm_flags & VM_EXECUTABLE)
+> +		removed_exe_file_vma(vma->vm_mm);
+> +
+> +	/* Repurpose the vma  */
+> +	vma->vm_private_data = NULL;
+> +	vma->vm_ops = &revoked_vm_ops;
+> +	vma->vm_flags &= ~(VM_NONLINEAR | VM_CAN_NONLINEAR);
+> +out:
+> +	up_write(&mm->mmap_sem);
+> +	spin_lock(&mapping->i_mmap_lock);
+> +}
+
+Also, I'm not a bit fan of the practice of overwriting the value of a
+formal argument, especially in a function which is this large and
+complex.  It makes the code harder to follow, because the one variable
+holds two conceptually different things within the span of the same
+function.  And it adds risk that someone will will later access a field
+of *vma and it will be the wrong vma.  Worse, the bug is only exposed
+under exeedingly rare conditions.
+
+So..  Use a new local, please.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
