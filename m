@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DDD206B00C8
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:28:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n538MFP2003485
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 3 Jun 2009 17:22:16 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AC9F45DE61
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 34D7F45DE57
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D26EFE08015
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:14 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4896BE08008
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:14 +0900 (JST)
-Date: Wed, 3 Jun 2009 17:20:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm 2/2] memcg: allow mem.limit bigger than
- memsw.limit iff unlimited
-Message-Id: <20090603172039.71e6df7c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
-References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
-	<20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
-	<20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EDA876B00C8
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:33:31 -0400 (EDT)
+Date: Tue, 2 Jun 2009 16:33:26 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602143326.GA17448@wotan.suse.de>
+References: <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601140553.GA1979@localhost> <20090601144050.GA12099@wotan.suse.de> <20090602111407.GA17234@localhost> <20090602121940.GD1392@wotan.suse.de> <20090602125134.GA20462@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602125134.GA20462@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009 14:01:02 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Wed, 3 Jun 2009 12:52:28 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 3 Jun 2009 11:50:27 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > Now users cannot set mem.limit bigger than memsw.limit.
-> > > This patch allows mem.limit bigger than memsw.limit iff mem.limit==unlimited.
+On Tue, Jun 02, 2009 at 08:51:34PM +0800, Wu Fengguang wrote:
+> On Tue, Jun 02, 2009 at 08:19:40PM +0800, Nick Piggin wrote:
+> > On Tue, Jun 02, 2009 at 07:14:07PM +0800, Wu Fengguang wrote:
+> > > On Mon, Jun 01, 2009 at 10:40:51PM +0800, Nick Piggin wrote:
+> > > > But you just said that you try to intercept the IO. So the underlying
+> > > > data is not necessarily corrupt. And even if it was then what if it
+> > > > was reinitialized to something else in the meantime (such as filesystem
+> > > > metadata blocks?) You'd just be introducing worse possibilities for
+> > > > coruption.
 > > > 
-> > > By this, users can set memsw.limit without setting mem.limit.
-> > > I think it's usefull if users want to limit memsw only.
-> > > They must set mem.limit first and memsw.limit to the same value now for this purpose.
-> > > They can save the first step by this patch.
+> > > The IO interception will be based on PFN instead of file offset, so it
+> > > won't affect innocent pages such as your example of reinitialized data.
+> > 
+> > OK, if you could intercept the IO so it never happens at all, yes
+> > of course that could work.
+> > 
+> > > poisoned dirty page == corrupt data      => process shall be killed
+> > > poisoned clean page == recoverable data  => process shall survive
 > > > 
+> > > In the case of dirty hwpoison page, if we reload the on disk old data
+> > > and let application proceed with it, it may lead to *silent* data
+> > > corruption/inconsistency, because the application will first see v2
+> > > then v1, which is illogical and hence may mess up its internal data
+> > > structure.
 > > 
-> > I don't like this. No benefits to users.
-> > The user should know when they set memsw.limit they have to set memory.limit.
-> > This just complicates things.
-> > 
-> Hmm, I think there is a user who cares only limitting logical memory(mem+swap),
-> not physical memory, and wants kswapd to reclaim physical memory when congested. 
-> At least, I'm a such user.
+> > Right, but how do you prevent that? There is no way to reconstruct the
+> > most updtodate data because it was destroyed.
 > 
-> Do you disagree even if I add a file like "memory.allow_limit_memsw_only" ?
-> 
-We can it _now_.
+> To kill the application ruthlessly, rather than allow it go rotten quietly.
 
-Thanks,
--Kame
+Right, but you don't because you just do EIO in a lot of cases. See
+EIO subthread.
+
+
+> > > > You will need to demonstrate a *big* advantage before doing crazy things
+> > > > with writeback ;)
+> > > 
+> > > OK. We can do two things about poisoned writeback pages:
+> > > 
+> > > 1) to stop IO for them, thus avoid corrupted data to hit disk and/or
+> > >    trigger further machine checks
+> > 
+> > 1b) At which point, you invoke the end-io handlers, and the page is
+> > no longer writeback.
+> > 
+> > > 2) to isolate them from page cache, thus preventing possible
+> > >    references in the writeback time window
+> > 
+> > And then this is possible because you aren't violating mm
+> > assumptions due to 1b. This proceeds just as the existing
+> > pagecache mce error handler case which exists now.
+> 
+> Yeah that's a good scheme - we are talking about two interception
+> scheme. Mine is passive one and yours is active one.
+
+Oh, hmm, not quite. I had assumed your IO interception is based
+on another MCE from DMA transfer (Andi said you get another exception
+in that case).
+
+If you are just hoping to get an MCE from CPU access in order to
+intercept IO, then you may as well not bother because it is not
+closing the window much (very likely that the page will never be
+touched again by the CPU).
+
+So if you can get an MCE from the DMA, then you would fail the
+request, which will automatically clear writeback, so your CPU MCE
+handler never has to bother with writeback pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
