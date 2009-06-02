@@ -1,45 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4526C5F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:36:45 -0400 (EDT)
-Message-ID: <4A26A689.1090300@redhat.com>
-Date: Wed, 03 Jun 2009 12:36:25 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 967705F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:37:08 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3386E82CA35
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 11:51:49 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id W2t8rkUDkNnM for <linux-mm@kvack.org>;
+	Tue,  2 Jun 2009 11:51:44 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8A3AC82CA92
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 11:51:44 -0400 (EDT)
+Date: Tue, 2 Jun 2009 11:37:01 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] Change ZERO_SIZE_PTR to point at unmapped space
+In-Reply-To: <20090531022158.GA9033@oblivion.subreption.com>
+Message-ID: <alpine.DEB.1.10.0906021130410.23962@gentwo.org>
+References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
+ <20090531022158.GA9033@oblivion.subreption.com>
 MIME-Version: 1.0
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change	ZERO_SIZE_PTR
- to point at unmapped space)
-References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org> <20090603162831.GF6701@oblivion.subreption.com>
-In-Reply-To: <20090603162831.GF6701@oblivion.subreption.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Larry H." <research@subreption.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Stephen Smalley <sds@tycho.nsa.gov>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Larry H. wrote:
+On Sat, 30 May 2009, Larry H. wrote:
 
-> Christopher, crippling the system is truly not the way to fix this.
-> There are many legitimate users of private|fixed mappings at 0. In
-> addition, if you want to go ahead and break POSIX, at least make sure
-> your patch closes the loophole.
+> Let me provide you with a realistic scenario:
+>
+> 	1. foo.c network protocol implementation takes a sockopt which
+> 	sets some ACME_OPTLEN value taken from userland.
+>
+> 	2. the length is not validated properly: it can be zero or an
+> 	integer overflow / signedness issue allows it to wrap to zero.
+>
+> 	3. kmalloc(0) ensues, and data is copied to the pointer
+> 	returned. if this is the default ZERO_SIZE_PTR*, a malicious user
+> 	can mmap a page at NULL, and read data leaked from kernel memory
+> 	everytime that setsockopt is issued.
+> 	(*: kmalloc of zero returns ZERO_SIZE_PTR)
 
-I suspect there aren't many at all, and restricting them through
-SELinux may be enough to mitigate the risk.
+Cannot happen. The page at 0L is not mapped. This will cause a fault.
 
-> If SELinux isn't present, that's not useful. If mmap_min_addr is
-> enabled, that still won't solve what my original, utterly simple patch
-> fixes.
+You are assuming the system has already been breached. Then of course all
+bets are off.
 
-Would anybody paranoid run their system without SELinux?
+> The performance impact, if any, is completely negligible. The security
+> benefits of this utterly simple change well surpass the downsides.
 
-> The patch provides a no-impact, clean solution to prevent kmalloc(0)
-> situations from becoming a security hazard. Nothing else.
+Dont see any security benefit. If there is a way to breach security
+of the kernel via mmap then please tell us and then lets fix
+the problem and not engage in dealing with secondary issues.
 
-True, the changes in your patch only affect a few code paths.
-
--- 
-All rights reversed.
+Semantics of mmap(NULL, ...) is that the kernel selects a valid address
+for you. How are you mapping something at 0L?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
