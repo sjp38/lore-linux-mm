@@ -1,114 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C190A6B005A
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:34:07 -0400 (EDT)
-Date: Mon, 1 Jun 2009 15:25:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/23] mm: Introduce revoke_file_mappings.
-Message-Id: <20090601152553.b2de027a.akpm@linux-foundation.org>
-In-Reply-To: <1243893048-17031-1-git-send-email-ebiederm@xmission.com>
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-1-git-send-email-ebiederm@xmission.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8FF6B004F
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:34:27 -0400 (EDT)
+Date: Tue, 2 Jun 2009 15:41:26 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602134126.GM1065@one.firstfloor.org>
+References: <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602132538.GK1065@one.firstfloor.org> <20090602132441.GC6262@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602132441.GC6262@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: viro@ZenIV.linux.org.uk, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, hch@infradead.org, ebiederm@aristanetworks.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  1 Jun 2009 14:50:26 -0700
-"Eric W. Biederman" <ebiederm@xmission.com> wrote:
+On Tue, Jun 02, 2009 at 03:24:41PM +0200, Nick Piggin wrote:
+> On Tue, Jun 02, 2009 at 03:25:38PM +0200, Andi Kleen wrote:
+> > On Tue, Jun 02, 2009 at 02:57:13PM +0200, Nick Piggin wrote:
+> > > > > not a big deal and just avoids duplicating code. I attached an
+> > > > > (untested) patch.
+> > > > 
+> > > > Thanks. But the function in the patch is not doing the same what
+> > > > the me_pagecache_clean/dirty are doing. For once there is no error
+> > > > checking, as in the second try_to_release_page()
+> > > > 
+> > > > Then it doesn't do all the IO error and missing mapping handling.
+> > > 
+> > > Obviously I don't mean just use that single call for the entire
+> > > handler. You can set the EIO bit or whatever you like. The
+> > > "error handling" you have there also seems strange. You could
+> > > retain it, but the page is assured to be removed from pagecache.
+> > 
+> > The reason this code double checks is that someone could have 
+> > a reference (remember we can come in any time) we cannot kill immediately.
+> 
+> Can't kill what? The page is gone from pagecache. It may remain
+> other kernel references, but I don't see why this code will
+> consider this as a failure (and not, for example, a raised error
+> count).
 
-> +static void revoke_vma(struct vm_area_struct *vma)
+It's a failure because the page was still used and not successfully
+isolated.
 
-This looks odd.
+> +        * remove_from_page_cache assumes (mapping && !mapped)
+> +        */
+> +       if (page_mapping(p) && !page_mapped(p)) {
 
-> +{
-> +	struct file *file = vma->vm_file;
-> +	struct address_space *mapping = file->f_mapping;
-> +	unsigned long start_addr, end_addr, size;
-> +	struct mm_struct *mm;
-> +
-> +	start_addr = vma->vm_start;
-> +	end_addr = vma->vm_end;
+Ok you're right. That one is not needed. I will remove it.
 
-We take a copy of start_addr/end_addr (and this end_addr value is never used)
+> > 
+> > User page tables was on the todo list, these are actually relatively
+> > easy. The biggest issue is to detect them.
+> > 
+> > Metadata would likely need file system callbacks, which I would like to 
+> > avoid at this point.
+> 
+> So I just don't know why you argue the point that you have lots
+> of large holes left.
 
-> +	/* Switch out the locks so I can maninuplate this under the mm sem.
-> +	 * Needed so I can call vm_ops->close.
-> +	 */
-> +	mm = vma->vm_mm;
-> +	atomic_inc(&mm->mm_users);
-> +	spin_unlock(&mapping->i_mmap_lock);
-> +
-> +	/* Block page faults and other code modifying the mm. */
-> +	down_write(&mm->mmap_sem);
-> +
-> +	/* Lookup a vma for my file address */
-> +	vma = find_vma(mm, start_addr);
+I didn't argue that. My point was just that I currently don't have
+data what holes are the worst on given workloads. If I figure out at
+some point that writeback pages are a significant part of some important
+workload I would be interested in tackling them.
+That said I think that's unlikely, but I'm not ruling it out.
 
-Then we look up a vma.  Is there reason to believe that this will
-differ from the incoming arg which we just overwrote?  Maybe the code
-is attempting to handle racing concurrent mmap/munmap activity?  If so,
-what are the implications of this?
+-Andi
 
-I _think_ that what the function is attempting to do is "unmap the vma
-which covers the address at vma->start_addr".  If so, why not just pass
-it that virtual address?
-
-Anyway, it's all a bit obscure and I do think that the semantics and
-behaviour should be carefully explained in a comment, no?
-
-> +	if (vma->vm_file != file)
-> +		goto out;
-
-This strengthens the theory that some sort of race-management is
-happening here.
-
-> +	start_addr = vma->vm_start;
-> +	end_addr   = vma->vm_end;
-> +	size	   = end_addr - start_addr;
-> +
-> +	/* Unlock the pages */
-> +	if (mm->locked_vm && (vma->vm_flags & VM_LOCKED)) {
-> +		mm->locked_vm -= vma_pages(vma);
-> +		vma->vm_flags &= ~VM_LOCKED;
-> +	}
-> +
-> +	/* Unmap the vma */
-> +	zap_page_range(vma, start_addr, size, NULL);
-> +
-> +	/* Unlink the vma from the file */
-> +	unlink_file_vma(vma);
-> +
-> +	/* Close the vma */
-> +	if (vma->vm_ops && vma->vm_ops->close)
-> +		vma->vm_ops->close(vma);
-> +	fput(vma->vm_file);
-> +	vma->vm_file = NULL;
-> +	if (vma->vm_flags & VM_EXECUTABLE)
-> +		removed_exe_file_vma(vma->vm_mm);
-> +
-> +	/* Repurpose the vma  */
-> +	vma->vm_private_data = NULL;
-> +	vma->vm_ops = &revoked_vm_ops;
-> +	vma->vm_flags &= ~(VM_NONLINEAR | VM_CAN_NONLINEAR);
-> +out:
-> +	up_write(&mm->mmap_sem);
-> +	spin_lock(&mapping->i_mmap_lock);
-> +}
-
-Also, I'm not a bit fan of the practice of overwriting the value of a
-formal argument, especially in a function which is this large and
-complex.  It makes the code harder to follow, because the one variable
-holds two conceptually different things within the span of the same
-function.  And it adds risk that someone will will later access a field
-of *vma and it will be the wrong vma.  Worse, the bug is only exposed
-under exeedingly rare conditions.
-
-So..  Use a new local, please.
-
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
