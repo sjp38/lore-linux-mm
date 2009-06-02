@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BB525F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:19:39 -0400 (EDT)
-Date: Wed, 3 Jun 2009 10:21:23 -0700
-From: "Larry H." <research@subreption.com>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
-	ZERO_SIZE_PTR to point at unmapped space)
-Message-ID: <20090603172123.GG6701@oblivion.subreption.com>
-References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org> <20090603162831.GF6701@oblivion.subreption.com> <4A26A689.1090300@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E4C3B5F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:21:02 -0400 (EDT)
+Date: Tue, 2 Jun 2009 11:14:14 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] Warn if we run out of swap space
+Message-ID: <20090602091413.GB15756@elf.ucw.cz>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A26A689.1090300@redhat.com>
+In-Reply-To: <4A242F94.9010704@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Stephen Smalley <sds@tycho.nsa.gov>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Avi Kivity <avi@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org, linux-mm@kvack.org, dave@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 12:36 Wed 03 Jun     , Rik van Riel wrote:
-> Larry H. wrote:
+On Mon 2009-06-01 22:44:20, Avi Kivity wrote:
+> Andrew Morton wrote:
+>>> We really should have a machine readable channel for this sort of  
+>>> information, so it can be plumbed to a userspace notification bubble 
+>>> the user can ignore.
+>>>     
+>>
+>> That could just be printk().  It's a question of a) how to tell
+>> userspace which bits to pay attention to and maybe b) adding some
+>> more structure to the text.
+>>
+>> Perhaps careful use of faciliy levels would suffice for a), but I
+>> expect that some new tagging scheme would be more practical.
+>>   
 >
->> Christopher, crippling the system is truly not the way to fix this.
->> There are many legitimate users of private|fixed mappings at 0. In
->> addition, if you want to go ahead and break POSIX, at least make sure
->> your patch closes the loophole.
->
-> I suspect there aren't many at all, and restricting them through
-> SELinux may be enough to mitigate the risk.
+> I thought dmesg was an unreliable channel which can overflow.  It's also  
+> prone to attacks by spell checkers.
 
-It's still perfectly valid POSIX, but I'm definitely keen on using this
-patch together with a convenient mmap_min_addr value. I'm just trying to
-show how both things are orthogonal to each other, without additional
-cost for us (as in people doing kernel/drivers development) and users.
+Well, I believe that any used-enough channecl will eventually
+overflow. So dmesg still looks like the best we can do.
 
->> If SELinux isn't present, that's not useful. If mmap_min_addr is
->> enabled, that still won't solve what my original, utterly simple patch
->> fixes.
->
-> Would anybody paranoid run their system without SELinux?
+> I prefer reliable binary interfaces to shell explorable text interfaces  
+> as I think any feature worth having is much more useful controlled by an  
+> application rather than a bored sysadmin.
 
-Does everyone who is conscious about security must use SELinux? Is
-SELinux the only acceptable solution? What about people who decide to
-use AppArmor, or LIDS, or grsecurity?
-
-That's not a valid point. People should stay safe without SELinux
-whenever it is feasible, IMHO. I think everyone here will agree that
-SELinux has a track of being disabled by users after installation
-because they don't want to invest the necessary time on understanding
-and learning the policy language or management tools.
-
->> The patch provides a no-impact, clean solution to prevent kmalloc(0)
->> situations from becoming a security hazard. Nothing else.
->
-> True, the changes in your patch only affect a few code paths.
-
-Only SLAB code itself is affected, users of kmalloc won't see a
-functional difference. They just won't be as easily abused if a zero
-length ends up passed to kmalloc and the pointer is used for something
-later. There's an issue here that I must note: a wraparound can happen
-and make the pointer land back somewhere near NULL.
-
-It could be changed to point at the start of the fixmap.
-
-It might be wise to see if expanding the fixmap on runtime can deter
-this, although I had trouble using it within vm guests. This can be done
-using reservetop boot option.
-
-	Larry
+You are free to parse syslog. In fact, I guess some tags could be
+added for messages where userland reaction is expected...
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
