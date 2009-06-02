@@ -1,62 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 597266B0083
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:53:40 -0400 (EDT)
-Date: Tue, 2 Jun 2009 21:53:24 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 73A266B0082
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:53:58 -0400 (EDT)
+Date: Tue, 2 Jun 2009 21:46:59 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
 	in the VM v3
-Message-ID: <20090602135324.GB21338@localhost>
-References: <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602132538.GK1065@one.firstfloor.org> <20090602132441.GC6262@wotan.suse.de> <20090602134126.GM1065@one.firstfloor.org>
+Message-ID: <20090602134659.GA21338@localhost>
+References: <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090602134126.GM1065@one.firstfloor.org>
+In-Reply-To: <20090602125713.GG1392@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 09:41:26PM +0800, Andi Kleen wrote:
-> On Tue, Jun 02, 2009 at 03:24:41PM +0200, Nick Piggin wrote:
-> > On Tue, Jun 02, 2009 at 03:25:38PM +0200, Andi Kleen wrote:
-> > > On Tue, Jun 02, 2009 at 02:57:13PM +0200, Nick Piggin wrote:
-> > > > > > not a big deal and just avoids duplicating code. I attached an
-> > > > > > (untested) patch.
-> > > > > 
-> > > > > Thanks. But the function in the patch is not doing the same what
-> > > > > the me_pagecache_clean/dirty are doing. For once there is no error
-> > > > > checking, as in the second try_to_release_page()
-> > > > > 
-> > > > > Then it doesn't do all the IO error and missing mapping handling.
-> > > > 
-> > > > Obviously I don't mean just use that single call for the entire
-> > > > handler. You can set the EIO bit or whatever you like. The
-> > > > "error handling" you have there also seems strange. You could
-> > > > retain it, but the page is assured to be removed from pagecache.
-> > > 
-> > > The reason this code double checks is that someone could have 
-> > > a reference (remember we can come in any time) we cannot kill immediately.
+On Tue, Jun 02, 2009 at 08:57:13PM +0800, Nick Piggin wrote:
+> On Tue, Jun 02, 2009 at 02:47:57PM +0200, Andi Kleen wrote:
+> > On Tue, Jun 02, 2009 at 02:00:42PM +0200, Nick Piggin wrote:
+> > > not a big deal and just avoids duplicating code. I attached an
+> > > (untested) patch.
 > > 
-> > Can't kill what? The page is gone from pagecache. It may remain
-> > other kernel references, but I don't see why this code will
-> > consider this as a failure (and not, for example, a raised error
-> > count).
+> > Thanks. But the function in the patch is not doing the same what
+> > the me_pagecache_clean/dirty are doing. For once there is no error
+> > checking, as in the second try_to_release_page()
+> > 
+> > Then it doesn't do all the IO error and missing mapping handling.
 > 
-> It's a failure because the page was still used and not successfully
-> isolated.
+> Obviously I don't mean just use that single call for the entire
+> handler. You can set the EIO bit or whatever you like. The
+> "error handling" you have there also seems strange. You could
+> retain it, but the page is assured to be removed from pagecache.
+
+You mean this?
+
+        if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO))
+                return FAILED;
+
+If page->private cannot be removed, that means some fs may start IO on it, so
+we return FAILED.
+
+> > The page_mapped() check is useless because the pages are not 
+> > mapped here etc.
 > 
-> > +        * remove_from_page_cache assumes (mapping && !mapped)
-> > +        */
-> > +       if (page_mapping(p) && !page_mapped(p)) {
+> That's OK, it is a core part of the protocol to prevent
+> truncated pages from being mapped, so I like it to be in
+> that function.
+ 
+Right.
+
+> (you are also doing extraneous page_mapped tests in your handler,
+> so surely your concern isn't from the perspective of this
+> error handler code)
+ 
+That's because the initial try_to_unmap() may fail and page still remain
+mapped, and remove_from_page_cache() assumes !page_mapped(). 
+
+> > We could probably call truncate_complete_page(), but then
+> > we would also need to duplicate most of the checking outside
+> > the function anyways and there wouldn't be any possibility
+> > to share the clean/dirty variants. If you insist I can
+> > do it, but I think it would be significantly worse code
+> > than before and I'm reluctant to do that.
 > 
-> Ok you're right. That one is not needed. I will remove it.
+> I can write you the patch for that too if you like.
 
-No! Please read the comment. In fact __remove_from_page_cache() has a
+I have already posted one on truncate_complete_page(). Not the way you want it?
+ 
+> > I don't also really see what the big deal is of just
+> > calling these few functions directly. After all we're not
+> > truncating here and they're all already called from other files.
+> >
+> > > > > No, it seems rather insane to do something like this here that no other
+> > > > > code in the mm ever does.
+> > > > 
+> > > > Just because the rest of the VM doesn't do it doesn't mean it might make sense.
+> > > 
+> > > It is going to be possible to do it somehow surely, but it is insane
+> > > to try to add such constraints to the VM to close a few small windows
+> > 
+> > We don't know currently if they are small. If they are small I would
+> > agree with you, but that needs numbers. That said fancy writeback handling
+> > is currently not on my agenda.
+> 
+> Yes, writeback pages are very limited, a tiny number at any time and
+> the faction gets relatively smaller as total RAM size gets larger.
 
-                BUG_ON(page_mapped(page));
+Yes they are less interesting for now.
+ 
+> > > if you already have other large ones.
+> > 
+> > That's unclear too.
+> 
+> You can't do much about most kernel pages, and dirty metadata pages
+> are both going to cause big problems. User pagetable pages. Lots of
+> stuff.
 
-Or, at least correct that BUG_ON() line together.
+Yes, that's a network of pointers that's hard to break away with.
 
 Thanks,
 Fengguang
