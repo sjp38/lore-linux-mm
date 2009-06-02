@@ -1,80 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0EA046B00A3
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:10:11 -0400 (EDT)
-Date: Wed, 3 Jun 2009 16:45:52 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH] ksm: fix rmap_item use after free
-Message-ID: <20090603144552.GB30426@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 21D656B00A5
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:10:55 -0400 (EDT)
+Date: Tue, 2 Jun 2009 22:10:31 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
+	in the VM v3
+Message-ID: <20090602141031.GC21338@localhost>
+References: <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602140830.GR1065@one.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090602140830.GR1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, Izik Eidus <ieidus@redhat.com>, nickpiggin@yahoo.com.au, chrisw@redhat.com, linux-mm@kvack.org, riel@redhat.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+On Tue, Jun 02, 2009 at 10:08:30PM +0800, Andi Kleen wrote:
+> > > > We could probably call truncate_complete_page(), but then
+> > > > we would also need to duplicate most of the checking outside
+> > > > the function anyways and there wouldn't be any possibility
+> > > > to share the clean/dirty variants. If you insist I can
+> > > > do it, but I think it would be significantly worse code
+> > > > than before and I'm reluctant to do that.
+> > > 
+> > > I can write you the patch for that too if you like.
+> > 
+> > I have already posted one on truncate_complete_page(). Not the way you want it?
+> 
+> Sorry I must have missed it (too much mail I guess). Can you repost please?
 
-This avoid crashing with slab debugging enabled by removing a window
-for memory corruption if freed slab entries are reused before we read
-the next pointer. Against mmotm.
+OK, here it is, a more simplified one.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
+ mm/memory-failure.c |   13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 74d921b..f060e87 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -892,7 +892,7 @@ static struct rmap_item *stable_tree_search(struct page *page,
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -324,23 +324,16 @@ static int me_free(struct page *p)
+  */
+ static int me_pagecache_clean(struct page *p)
  {
- 	struct rb_node *node = root_stable_tree.rb_node;
- 	struct tree_item *tree_item;
--	struct rmap_item *found_rmap_item;
-+	struct rmap_item *found_rmap_item, *next_rmap_item;
++	if (page_mapping(p))
++                truncate_complete_page(p->mapping, p);
++
+ 	if (!isolate_lru_page(p))
+ 		page_cache_release(p);
  
- 	while (node) {
- 		int ret;
-@@ -907,9 +907,11 @@ static struct rmap_item *stable_tree_search(struct page *page,
- 			      found_rmap_item->address == rmap_item->address)) {
- 				if (!is_zapped_item(found_rmap_item, page2))
- 					break;
-+				next_rmap_item = found_rmap_item->next;
- 				remove_rmap_item_from_tree(found_rmap_item);
--			}
--			found_rmap_item = found_rmap_item->next;
-+				found_rmap_item = next_rmap_item;
-+			} else
-+				found_rmap_item = found_rmap_item->next;
- 		}
- 		if (!found_rmap_item)
- 			goto out_didnt_find;
-@@ -959,7 +961,7 @@ static int stable_tree_insert(struct page *page,
+-	if (page_has_private(p))
+-		do_invalidatepage(p, 0);
+ 	if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO))
+ 		Dprintk(KERN_ERR "MCE %#lx: failed to release buffers\n",
+ 			page_to_pfn(p));
  
- 	while (*new) {
- 		int ret;
--		struct rmap_item *insert_rmap_item;
-+		struct rmap_item *insert_rmap_item, *next_rmap_item;
+-	/*
+-	 * remove_from_page_cache assumes (mapping && !mapped)
+-	 */
+-	if (page_mapping(p) && !page_mapped(p)) {
+-		remove_from_page_cache(p);
+-		page_cache_release(p);
+-	}
+-
+ 	return RECOVERED;
+ }
  
- 		tree_item = rb_entry(*new, struct tree_item, node);
- 		BUG_ON(!tree_item);
-@@ -973,9 +975,11 @@ static int stable_tree_insert(struct page *page,
- 			     insert_rmap_item->address == rmap_item->address)) {
- 				if (!is_zapped_item(insert_rmap_item, page2))
- 					break;
-+				next_rmap_item = insert_rmap_item->next;
- 				remove_rmap_item_from_tree(insert_rmap_item);
--			}
--			insert_rmap_item = insert_rmap_item->next;
-+				insert_rmap_item = next_rmap_item;
-+			} else
-+				insert_rmap_item = insert_rmap_item->next;
- 		}
- 		if (!insert_rmap_item)
- 			return 1;
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
