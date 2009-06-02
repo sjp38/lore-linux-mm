@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F060B6B00B5
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:14:20 -0400 (EDT)
-Date: Tue, 2 Jun 2009 16:14:16 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602141416.GC26982@wotan.suse.de>
-References: <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602140830.GR1065@one.firstfloor.org> <20090602141031.GC21338@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602141031.GC21338@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6C93F6B00B6
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:14:57 -0400 (EDT)
+Received: by fxm12 with SMTP id 12so10989824fxm.38
+        for <linux-mm@kvack.org>; Tue, 02 Jun 2009 00:08:14 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <m1ws7vyvoz.fsf@fess.ebiederm.org>
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	 <1243893048-17031-4-git-send-email-ebiederm@xmission.com>
+	 <84144f020906012216n715a04d0ha492abc12175816@mail.gmail.com>
+	 <m1ws7vyvoz.fsf@fess.ebiederm.org>
+Date: Tue, 2 Jun 2009 10:08:14 +0300
+Message-ID: <84144f020906020008w54b1c628hc6e41dcddd208f5f@mail.gmail.com>
+Subject: Re: [PATCH 04/23] vfs: Introduce infrastructure for revoking a file
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 10:10:31PM +0800, Wu Fengguang wrote:
-> On Tue, Jun 02, 2009 at 10:08:30PM +0800, Andi Kleen wrote:
-> > > > > We could probably call truncate_complete_page(), but then
-> > > > > we would also need to duplicate most of the checking outside
-> > > > > the function anyways and there wouldn't be any possibility
-> > > > > to share the clean/dirty variants. If you insist I can
-> > > > > do it, but I think it would be significantly worse code
-> > > > > than before and I'm reluctant to do that.
-> > > > 
-> > > > I can write you the patch for that too if you like.
-> > > 
-> > > I have already posted one on truncate_complete_page(). Not the way you want it?
-> > 
-> > Sorry I must have missed it (too much mail I guess). Can you repost please?
-> 
-> OK, here it is, a more simplified one.
+Hi Eric,
 
-I prefer mine because I don't want truncate_complete_page escaping
-mm/truncate.c because the caller has to deal with truncate races.
+On Tue, Jun 2, 2009 at 9:51 AM, Eric W. Biederman <ebiederm@xmission.com> w=
+rote:
+> Pekka Enberg <penberg@cs.helsinki.fi> writes:
+>
+>> Hi Eric,
+>>
+>> On Tue, Jun 2, 2009 at 12:50 AM, Eric W. Biederman
+>> <ebiederm@xmission.com> wrote:
+>>> +#ifdef CONFIG_FILE_HOTPLUG
+>>> +
+>>> +static bool file_in_use(struct file *file)
+>>> +{
+>>> + =A0 =A0 =A0 struct task_struct *leader, *task;
+>>> + =A0 =A0 =A0 bool in_use =3D false;
+>>> + =A0 =A0 =A0 int i;
+>>> +
+>>> + =A0 =A0 =A0 rcu_read_lock();
+>>> + =A0 =A0 =A0 do_each_thread(leader, task) {
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D 0; i < MAX_FILE_HOTPLUG_LOCK_D=
+EPTH; i++) {
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (task->file_hotplug_lo=
+ck[i] =3D=3D file) {
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 in_use =
+=3D true;
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto foun=
+d;
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>>> + =A0 =A0 =A0 } while_each_thread(leader, task);
+>>> +found:
+>>> + =A0 =A0 =A0 rcu_read_unlock();
+>>> + =A0 =A0 =A0 return in_use;
+>>> +}
+>>
+>> This seems rather heavy-weight. If we're going to use this
+>> infrastructure for forced unmount, I think this will be a problem.
+>
+>> Can't we two this in two stages: (1) mark a bit that forces
+>> file_hotplug_read_trylock to always fail and (2) block until the last
+>> remaining in-kernel file_hotplug_read_unlock() has executed?
+>
+> Yes there is room for more optimization in the slow path.
+> I haven't noticed being a problem yet so I figured I would start
+> with stupid and simple.
 
+Yup, just wanted to point it out.
 
-> ---
->  mm/memory-failure.c |   13 +++----------
->  1 file changed, 3 insertions(+), 10 deletions(-)
-> 
-> --- sound-2.6.orig/mm/memory-failure.c
-> +++ sound-2.6/mm/memory-failure.c
-> @@ -324,23 +324,16 @@ static int me_free(struct page *p)
->   */
->  static int me_pagecache_clean(struct page *p)
->  {
-> +	if (page_mapping(p))
-> +                truncate_complete_page(p->mapping, p);
-> +
->  	if (!isolate_lru_page(p))
->  		page_cache_release(p);
->  
-> -	if (page_has_private(p))
-> -		do_invalidatepage(p, 0);
->  	if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO))
->  		Dprintk(KERN_ERR "MCE %#lx: failed to release buffers\n",
->  			page_to_pfn(p));
->  
-> -	/*
-> -	 * remove_from_page_cache assumes (mapping && !mapped)
-> -	 */
-> -	if (page_mapping(p) && !page_mapped(p)) {
-> -		remove_from_page_cache(p);
-> -		page_cache_release(p);
-> -	}
-> -
->  	return RECOVERED;
->  }
+On Tue, Jun 2, 2009 at 9:51 AM, Eric W. Biederman <ebiederm@xmission.com> w=
+rote:
+> I can easily see two passes. =A0The first setting the flag an calling
+> f_op->dead. =A0The second some kind of consolidate walk through the task
+> list, allowing checking on multiple files at once.
+>
+> I'm not ready to consider anything that will add cost to the fast
+> path in the file descriptors though.
+
+Makes sense.
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
