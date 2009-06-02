@@ -1,100 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 903286B004F
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:29:55 -0400 (EDT)
-Date: Wed, 3 Jun 2009 15:27:52 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch][v2] swap: virtual swap readahead
-Message-ID: <20090603132751.GA1813@cmpxchg.org>
-References: <20090602223738.GA15475@cmpxchg.org> <20090602233457.GY1065@one.firstfloor.org>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 70C7C6B004F
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:32:39 -0400 (EDT)
+Date: Tue, 2 Jun 2009 21:02:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
+	in the VM v3
+Message-ID: <20090602130216.GB20462@localhost>
+References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090602233457.GY1065@one.firstfloor.org>
+In-Reply-To: <20090602124757.GG1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 03, 2009 at 01:34:57AM +0200, Andi Kleen wrote:
-> On Wed, Jun 03, 2009 at 12:37:39AM +0200, Johannes Weiner wrote:
-> > + *
-> > + * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
-> > + */
-> > +struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
-> > +			struct vm_area_struct *vma, unsigned long addr)
-> > +{
-> > +	unsigned long start, pos, end;
-> > +	unsigned long pmin, pmax;
-> > +	int cluster, window;
-> > +
-> > +	if (!vma || !vma->vm_mm)	/* XXX: shmem case */
-> > +		return swapin_readahead_phys(entry, gfp_mask, vma, addr);
-> > +
-> > +	cluster = 1 << page_cluster;
-> > +	window = cluster << PAGE_SHIFT;
-> > +
-> > +	/* Physical range to read from */
-> > +	pmin = swp_offset(entry) & ~(cluster - 1);
+On Tue, Jun 02, 2009 at 08:47:57PM +0800, Andi Kleen wrote:
+> On Tue, Jun 02, 2009 at 02:00:42PM +0200, Nick Piggin wrote:
+> > > On Mon, Jun 01, 2009 at 01:50:46PM +0200, Nick Piggin wrote:
+> > > > > Another major complexity is on calling the isolation routines to
+> > > > > remove references from
+> > > > >         - PTE
+> > > > >         - page cache
+> > > > >         - swap cache
+> > > > >         - LRU list
+> > > > > They more or less made some assumptions on their operating environment
+> > > > > that we have to take care of.  Unfortunately these complexities are
+> > > > > also not easily resolvable.
+> > > > > 
+> > > > > > (and few comments) of all the files in mm/. If you want to get rid
+> > > > > 
+> > > > > I promise I'll add more comments :)
+> > > > 
+> > > > OK, but they should still go in their relevant files. Or as best as
+> > > > possible. Right now it's just silly to have all this here when much
+> > > > of it could be moved out to filemap.c, swap_state.c, page_alloc.c, etc.
+> > > 
+> > > Can you be more specific what that "all this" is? 
+> > 
+> > The functions which take action in response to a bad page being 
+> > detected. They belong with the subsystem that the page belongs
+> > to. I'm amazed this is causing so much argument or confusion
+> > because it is how the rest of mm/ code is arranged. OK, Hugh has
+> > a point about ifdefs, but OTOH we have lots of ifdefs like this.
 > 
-> Is cluster really properly sign extended on 64bit? Looks a little
-> dubious. long from the start would be safer
-
-Fixed.
-
-> > +	/* Virtual range to read from */
-> > +	start = addr & ~(window - 1);
+> Well we're already calling into that subsystem, just not with
+> a single function call.
 > 
-> Same.
-
-Fixed.
-
-> > +		pgd = pgd_offset(vma->vm_mm, pos);
-> > +		if (!pgd_present(*pgd))
-> > +			continue;
-> > +		pud = pud_offset(pgd, pos);
-> > +		if (!pud_present(*pud))
-> > +			continue;
-> > +		pmd = pmd_offset(pud, pos);
-> > +		if (!pmd_present(*pmd))
-> > +			continue;
-> > +		pte = pte_offset_map_lock(vma->vm_mm, pmd, pos, &ptl);
+> > > > > > of the page and don't care what it's count or dirtyness is, then
+> > > > > > truncate_inode_pages_range is the correct API to use.
+> > > > > >
+> > > > > > (or you could extract out some of it so you can call it directly on
+> > > > > > individual locked pages, if that helps).
+> > > > >  
+> > > > > The patch to move over to truncate_complete_page() would like this.
+> > > > > It's not a big win indeed.
+> > > > 
+> > > > No I don't mean to do this, but to move the truncate_inode_pages
+> > > > code for truncating a single, locked, page into another function
+> > > > in mm/truncate.c and then call that from here.
+> > > 
+> > > I took a look at that.  First there's no direct equivalent of
+> > > me_pagecache_clean/dirty in truncate.c and to be honest I don't
+> > > see a clean way to refactor any of the existing functions to 
+> > > do the same.
+> > 
+> > With all that writing you could have just done it. It's really
 > 
-> You could be more efficient here by using the standard mm/* nested loop
-> pattern that avoids relookup of everything in each iteration. I suppose
-> it would mainly make a difference with 32bit highpte where mapping a pte
-> can be somewhat costly. And you would take less locks this way.
-
-I ran into weird problems here.  The above version is actually faster
-in the benchmarks than writing a nested level walker or using
-walk_page_range().  Still digging but it can take some time.  Busy
-week :(
-
-> > +		page = read_swap_cache_async(swp, gfp_mask, vma, pos);
-> > +		if (!page)
-> > +			continue;
+> I would have done it if it made sense to me, but so far it hasn't.
 > 
-> That's out of memory, break would be better here because prefetch
-> while oom is usually harmful.
-
-It can also happen due to a race with something releasing the swap
-slot (i.e. swap_duplicate() fails).  But the old version did a break
-too and this patch shouldn't do it differently.  Fixed.
-
-> > +		page_cache_release(page);
-> > +	}
-> > +	lru_add_drain();	/* Push any new pages onto the LRU now */
-> > +	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+> The problem with your suggestion is that you do the big picture,
+> but seem to skip over a lot of details. But details matter.
 > 
-> Shouldn't that page be already handled in the loop earlier? Why doing that
-> again? It would be better to remember it from there.
+> > not a big deal and just avoids duplicating code. I attached an
+> > (untested) patch.
+> 
+> Thanks. But the function in the patch is not doing the same what
+> the me_pagecache_clean/dirty are doing. For once there is no error
+> checking, as in the second try_to_release_page()
+> 
+> Then it doesn't do all the IO error and missing mapping handling.
+> 
+> The page_mapped() check is useless because the pages are not 
+> mapped here etc.
+> 
+> We could probably call truncate_complete_page(), but then
+> we would also need to duplicate most of the checking outside
+> the function anyways and there wouldn't be any possibility
+> to share the clean/dirty variants. If you insist I can
+> do it, but I think it would be significantly worse code
+> than before and I'm reluctant to do that.
+> 
+> I don't also really see what the big deal is of just
+> calling these few functions directly. After all we're not
+> truncating here and they're all already called from other files.
 
-When doing the nested page table level walker, communicating even more
-state back and forth gets pretty ugly.  I see what I can do.
+Yes I like the current "one code block calling one elemental function
+to isolate from one reference source" scenario:
+         - PTE
+         - page cache
+         - swap cache
+         - LRU list
 
-Thanks for your input Andi,
+Calling into the generic truncate code only messes up the concepts.
 
-	Hannes
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
