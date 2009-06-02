@@ -1,61 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CEA9D5F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:37 -0400 (EDT)
-Date: Tue, 2 Jun 2009 09:38:52 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Inconsistency (bug) of vm_insert_page with high order
-	allocations
-Message-ID: <20090602083852.GC5960@csn.ul.ie>
-References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com> <20090528095904.GD10334@csn.ul.ie> <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1125F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:46:24 -0400 (EDT)
+Date: Tue, 2 Jun 2009 14:19:40 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602121940.GD1392@wotan.suse.de>
+References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601140553.GA1979@localhost> <20090601144050.GA12099@wotan.suse.de> <20090602111407.GA17234@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
+In-Reply-To: <20090602111407.GA17234@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolex@gmail.com>
-Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 30, 2009 at 05:27:15PM +1200, Alexey Korolev wrote:
-> Hi,
-> >> To allocate memory I use standard function alloc_apges(gfp_mask,
-> >> order) which asks buddy allocator to give a chunk of memory of given
-> >> "order".
-> >> Allocator returns page and also sets page count to 1 but for page of
-> >> high order. I.e. pages 2,3 etc inside high order allocation will have
-> >> page->_count==0.
-> >> If I try to mmap allocated area to user space vm_insert_page will
-> >> return error as pages 2,3, etc are not refcounted.
-> >>
-> >
-> > page = alloc_pages(high_order);
-> > split_page(page, high_order);
-> >
-> > That will fix up the ref-counting of each of the individual pages. You are
-> > then responsible for freeing them individually. As you are inserting these
-> > into userspace, I suspect that's ok.
+On Tue, Jun 02, 2009 at 07:14:07PM +0800, Wu Fengguang wrote:
+> On Mon, Jun 01, 2009 at 10:40:51PM +0800, Nick Piggin wrote:
+> > But you just said that you try to intercept the IO. So the underlying
+> > data is not necessarily corrupt. And even if it was then what if it
+> > was reinitialized to something else in the meantime (such as filesystem
+> > metadata blocks?) You'd just be introducing worse possibilities for
+> > coruption.
 > 
-> It seems it is the only way I have now. It is not so elegant - but should work.
-> Thanks for good advise.
+> The IO interception will be based on PFN instead of file offset, so it
+> won't affect innocent pages such as your example of reinitialized data.
+
+OK, if you could intercept the IO so it never happens at all, yes
+of course that could work.
+
+
+> poisoned dirty page == corrupt data      => process shall be killed
+> poisoned clean page == recoverable data  => process shall survive
 > 
-> BTW: Just out of curiosity what limits mapping high ordered pages into
-> user space. I tried to find any except the check in vm_insert but
-> failed. Is this checks caused by possible swapping?
+> In the case of dirty hwpoison page, if we reload the on disk old data
+> and let application proceed with it, it may lead to *silent* data
+> corruption/inconsistency, because the application will first see v2
+> then v1, which is illogical and hence may mess up its internal data
+> structure.
+
+Right, but how do you prevent that? There is no way to reconstruct the
+most updtodate data because it was destroyed.
+
+ 
+> > You will need to demonstrate a *big* advantage before doing crazy things
+> > with writeback ;)
 > 
+> OK. We can do two things about poisoned writeback pages:
+> 
+> 1) to stop IO for them, thus avoid corrupted data to hit disk and/or
+>    trigger further machine checks
 
-Nothing limits it as such other than it's usually not required. There is
-nothing really that special about high-order pages other than they are
-physically contiguous. The expectation is normally that userspace does
-not care about physical contiguity.
+1b) At which point, you invoke the end-io handlers, and the page is
+no longer writeback.
 
-There is expected to be a 1 to 1 mapping of PTE to ref-counted pages so that
-they get freed at the right times so it's not just about swapping.
+> 2) to isolate them from page cache, thus preventing possible
+>    references in the writeback time window
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+And then this is possible because you aren't violating mm
+assumptions due to 1b. This proceeds just as the existing
+pagecache mce error handler case which exists now.
+
+ 
+> > > Now it's obvious that reusing more code than truncate_complete_page()
+> > > is not easy (or natural).
+> > 
+> > Just lock the page and wait for writeback, then do the truncate
+> > work in another function. In your case if you've already unmapped
+> > the page then it won't try to unmap again so no problem.
+> > 
+> > Truncating from pagecache does not change ->index so you can
+> > move the loop logic out.
+> 
+> Right. So effectively the reusable function is exactly
+> truncate_complete_page(). As I said this reuse is not a big gain.
+
+Anyway, we don't have to argue about it. I already send a patch
+because it was so hard to do, so let's move past this ;)
+
+
+> > > Yes it's kind of insane.  I'm interested in reasoning it out though.
+
+Well with the IO interception (I missed this point), then it seems
+maybe no longer so insane. We could see how it looks.
+
+
+> > I guess it is a good idea to start simple.
+> 
+> Agreed.
+> 
+> > Considering that there are so many other types of pages that are
+> > impossible to deal with or have holes, then I very strongly doubt
+> > it will be worth so much complexity for closing the gap from 90%
+> > to 90.1%. But we'll see.
+> 
+> Yes, the plan is to first focus on the more important cases.
+
+Great.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
