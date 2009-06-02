@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6864C5F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:29 -0400 (EDT)
-Received: from makko.or.mcafeemobile.com
-	by x35.xmailserver.org with [XMail 1.26 ESMTP Server]
-	id <S2ED6AC> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
-	Tue, 2 Jun 2009 17:58:42 -0400
-Date: Tue, 2 Jun 2009 14:52:41 -0700 (PDT)
-From: Davide Libenzi <davidel@xmailserver.org>
-Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
-In-Reply-To: <m1eiu2qqho.fsf@fess.ebiederm.org>
-Message-ID: <alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
-References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-18-git-send-email-ebiederm@xmission.com> <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> <m1eiu2qqho.fsf@fess.ebiederm.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA9D5F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:37 -0400 (EDT)
+Date: Tue, 2 Jun 2009 09:38:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Inconsistency (bug) of vm_insert_page with high order
+	allocations
+Message-ID: <20090602083852.GC5960@csn.ul.ie>
+References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com> <20090528095904.GD10334@csn.ul.ie> <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <202cde0e0905292227tc619a17h41df83d22bc922fa@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Alexey Korolev <akorolex@gmail.com>
+Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Jun 2009, Eric W. Biederman wrote:
-
-> Davide Libenzi <davidel@xmailserver.org> writes:
-> 
-> > On Mon, 1 Jun 2009, Eric W. Biederman wrote:
+On Sat, May 30, 2009 at 05:27:15PM +1200, Alexey Korolev wrote:
+> Hi,
+> >> To allocate memory I use standard function alloc_apges(gfp_mask,
+> >> order) which asks buddy allocator to give a chunk of memory of given
+> >> "order".
+> >> Allocator returns page and also sets page count to 1 but for page of
+> >> high order. I.e. pages 2,3 etc inside high order allocation will have
+> >> page->_count==0.
+> >> If I try to mmap allocated area to user space vm_insert_page will
+> >> return error as pages 2,3, etc are not refcounted.
+> >>
 > >
-> >> From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
-> >> 
-> >> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
-> >> ---
-> >>  fs/eventpoll.c |   39 ++++++++++++++++++++++++++++++++-------
-> >>  1 files changed, 32 insertions(+), 7 deletions(-)
+> > page = alloc_pages(high_order);
+> > split_page(page, high_order);
 > >
-> > This patchset gives me the willies for the amount of changes and possible 
-> > impact on many subsystems.
+> > That will fix up the ref-counting of each of the individual pages. You are
+> > then responsible for freeing them individually. As you are inserting these
+> > into userspace, I suspect that's ok.
 > 
-> It both is and is not that bad.  It is the cost of adding a lock.
+> It seems it is the only way I have now. It is not so elegant - but should work.
+> Thanks for good advise.
+> 
+> BTW: Just out of curiosity what limits mapping high ordered pages into
+> user space. I tried to find any except the check in vm_insert but
+> failed. Is this checks caused by possible swapping?
+> 
 
-We both know that it is not only the cost of a lock, but also the 
-sprinkling over a pretty vast amount of subsystems, of another layer of 
-code.
+Nothing limits it as such other than it's usually not required. There is
+nothing really that special about high-order pages other than they are
+physically contiguous. The expectation is normally that userspace does
+not care about physical contiguity.
 
+There is expected to be a 1 to 1 mapping of PTE to ref-counted pages so that
+they get freed at the right times so it's not just about swapping.
 
-
-> I thought of doing something more uniform to user space.  But I observed
-> that the existing epoll punts on the case of a file descriptor being closed
-> and locking to go from a file to the other epoll datastructures is pretty
-> horrid I said forget it and used the existing close behaviour.
-
-Well, you cannot rely on the caller to tidy up the epoll fd by issuing an 
-epoll_ctl(DEL), so you do *need* to "punt" on close in order to not leave 
-lingering crap around. You cannot even hold a reference of the file, since 
-otherwise the epoll hooking will have to trigger not only at ->release() 
-time, but at every close, where you'll have to figure out if this is the 
-last real userspace reference or not. Plus all the issues related to 
-holding permanent extra references to userspace files.
-And since a file can be added in many epoll devices, you need to 
-unregister it from all of them (hence the other datastructures lookup). 
-Better this, on the slow path, with locks acquired only in the epoll usage 
-case, than some other thing and on the fast path, for every file.
-
-
-
-- Davide
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
