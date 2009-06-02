@@ -1,48 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 981DB6B009A
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:06:00 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5235wr5005067
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Jun 2009 12:05:58 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B79745DE51
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:05:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1151D45DD79
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:05:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EEE6B1DB803E
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:05:57 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A99FC1DB803A
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:05:57 +0900 (JST)
-Date: Tue, 2 Jun 2009 12:04:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/4] memcg fix swap accounting (2/Jun)
-Message-Id: <20090602120425.0bcff554.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CC85C6B009B
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:06:51 -0400 (EDT)
+Date: Tue, 2 Jun 2009 19:27:15 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602172715.GT1065@one.firstfloor.org>
+References: <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602151729.GC17448@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602151729.GC17448@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is an updated sereis of memcg fix swap accounting
- http://marc.info/?l=linux-mm&m=124348659700540&w=2
+> Hmm, if you're handling buffercache here then possibly yes.
 
-Now in mmotm as
- mm-add-swap-cache-interface-for-swap-reference.patch
- mm-modify-swap_map-and-add-swap_has_cache-flag.patch
- mm-reuse-unused-swap-entry-if-necessary.patch
- memcg-fix-swap-accounting.patch
+Good question, will check.
 
-No logic changes but fixed some condig style troubles pointed out.
+-Andi
 
-Thanks,
--Kame
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
