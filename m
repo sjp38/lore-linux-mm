@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BC3F66B0062
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:53:34 -0400 (EDT)
-Message-ID: <4A268DF8.6000701@redhat.com>
-Date: Wed, 03 Jun 2009 10:51:36 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 597266B0083
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:53:40 -0400 (EDT)
+Date: Tue, 2 Jun 2009 21:53:24 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
+	in the VM v3
+Message-ID: <20090602135324.GB21338@localhost>
+References: <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602132538.GK1065@one.firstfloor.org> <20090602132441.GC6262@wotan.suse.de> <20090602134126.GM1065@one.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: [patch][v2] swap: virtual swap readahead
-References: <20090602223738.GA15475@cmpxchg.org> <20090602233457.GY1065@one.firstfloor.org> <20090603132751.GA1813@cmpxchg.org>
-In-Reply-To: <20090603132751.GA1813@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602134126.GM1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner wrote:
-> On Wed, Jun 03, 2009 at 01:34:57AM +0200, Andi Kleen wrote:
->> On Wed, Jun 03, 2009 at 12:37:39AM +0200, Johannes Weiner wrote:
-
->>> +		pgd = pgd_offset(vma->vm_mm, pos);
->>> +		if (!pgd_present(*pgd))
->>> +			continue;
->>> +		pud = pud_offset(pgd, pos);
->>> +		if (!pud_present(*pud))
->>> +			continue;
->>> +		pmd = pmd_offset(pud, pos);
->>> +		if (!pmd_present(*pmd))
->>> +			continue;
->>> +		pte = pte_offset_map_lock(vma->vm_mm, pmd, pos, &ptl);
->> You could be more efficient here by using the standard mm/* nested loop
->> pattern that avoids relookup of everything in each iteration. I suppose
->> it would mainly make a difference with 32bit highpte where mapping a pte
->> can be somewhat costly. And you would take less locks this way.
+On Tue, Jun 02, 2009 at 09:41:26PM +0800, Andi Kleen wrote:
+> On Tue, Jun 02, 2009 at 03:24:41PM +0200, Nick Piggin wrote:
+> > On Tue, Jun 02, 2009 at 03:25:38PM +0200, Andi Kleen wrote:
+> > > On Tue, Jun 02, 2009 at 02:57:13PM +0200, Nick Piggin wrote:
+> > > > > > not a big deal and just avoids duplicating code. I attached an
+> > > > > > (untested) patch.
+> > > > > 
+> > > > > Thanks. But the function in the patch is not doing the same what
+> > > > > the me_pagecache_clean/dirty are doing. For once there is no error
+> > > > > checking, as in the second try_to_release_page()
+> > > > > 
+> > > > > Then it doesn't do all the IO error and missing mapping handling.
+> > > > 
+> > > > Obviously I don't mean just use that single call for the entire
+> > > > handler. You can set the EIO bit or whatever you like. The
+> > > > "error handling" you have there also seems strange. You could
+> > > > retain it, but the page is assured to be removed from pagecache.
+> > > 
+> > > The reason this code double checks is that someone could have 
+> > > a reference (remember we can come in any time) we cannot kill immediately.
+> > 
+> > Can't kill what? The page is gone from pagecache. It may remain
+> > other kernel references, but I don't see why this code will
+> > consider this as a failure (and not, for example, a raised error
+> > count).
 > 
-> I ran into weird problems here.  The above version is actually faster
-> in the benchmarks than writing a nested level walker or using
-> walk_page_range().  Still digging but it can take some time.  Busy
-> week :(
+> It's a failure because the page was still used and not successfully
+> isolated.
+> 
+> > +        * remove_from_page_cache assumes (mapping && !mapped)
+> > +        */
+> > +       if (page_mapping(p) && !page_mapped(p)) {
+> 
+> Ok you're right. That one is not needed. I will remove it.
 
-I'm not too worried about not walking the page tables,
-because swap is an extreme slow path anyway.
+No! Please read the comment. In fact __remove_from_page_cache() has a
 
--- 
-All rights reversed.
+                BUG_ON(page_mapped(page));
+
+Or, at least correct that BUG_ON() line together.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
