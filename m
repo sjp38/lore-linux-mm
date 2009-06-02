@@ -1,85 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 651846B00D6
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:26:52 -0400 (EDT)
-Date: Wed, 3 Jun 2009 09:28:31 -0700
-From: "Larry H." <research@subreption.com>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
-	ZERO_SIZE_PTR to point at unmapped space)
-Message-ID: <20090603162831.GF6701@oblivion.subreption.com>
-References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 458BE6B00DA
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:27:27 -0400 (EDT)
+Date: Tue, 2 Jun 2009 14:00:42 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602120042.GB1392@wotan.suse.de>
+References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0906031134410.13551@gentwo.org>
+In-Reply-To: <20090601183225.GS1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Stephen Smalley <sds@tycho.nsa.gov>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 11:41 Wed 03 Jun     , Christoph Lameter wrote:
-> On Wed, 3 Jun 2009, Stephen Smalley wrote:
+On Mon, Jun 01, 2009 at 08:32:25PM +0200, Andi Kleen wrote:
+> On Mon, Jun 01, 2009 at 01:50:46PM +0200, Nick Piggin wrote:
+> > > Another major complexity is on calling the isolation routines to
+> > > remove references from
+> > >         - PTE
+> > >         - page cache
+> > >         - swap cache
+> > >         - LRU list
+> > > They more or less made some assumptions on their operating environment
+> > > that we have to take care of.  Unfortunately these complexities are
+> > > also not easily resolvable.
+> > > 
+> > > > (and few comments) of all the files in mm/. If you want to get rid
+> > > 
+> > > I promise I'll add more comments :)
+> > 
+> > OK, but they should still go in their relevant files. Or as best as
+> > possible. Right now it's just silly to have all this here when much
+> > of it could be moved out to filemap.c, swap_state.c, page_alloc.c, etc.
 > 
-> > > If one remaps page 0 then the kernel checks for NULL pointers of various
-> > > flavors are bypassed and this may be exploited in various creative ways
-> > > to transfer data from kernel space to user space.
-> > >
-> > > Fix this by not allowing the remapping of page 0. Return -EINVAL if
-> > > such a mapping is attempted.
+> Can you be more specific what that "all this" is? 
 
-Christopher, crippling the system is truly not the way to fix this.
-There are many legitimate users of private|fixed mappings at 0. In
-addition, if you want to go ahead and break POSIX, at least make sure
-your patch closes the loophole.
+The functions which take action in response to a bad page being 
+detected. They belong with the subsystem that the page belongs
+to. I'm amazed this is causing so much argument or confusion
+because it is how the rest of mm/ code is arranged. OK, Hugh has
+a point about ifdefs, but OTOH we have lots of ifdefs like this.
 
-Given these circumstances, are you proposing this over my patch?
-
-Linus already pointed out the main (functional) problem about it. It
-seems you are also confusing the issue, albeit already realized it can
-be a venue of attack, which is good.
-
-For instance, there are many scenarios in which a fixed mapping can be
-used in a non-zero address to abuse kernel flaws... your patch is
-useless against those.
-
-Please let me remind you that my original intent was to prevent
-kmalloc(0) from leading to potential NULL or offset-from-NULL access
-issues, and not deterring NULL pointer deferences in kernel-land which
-is a whole different thing (see PaX UDEREF for clues on this).
-
-> >
-> > You can already prevent unauthorized processes from mapping low memory
-> > via the existing mmap_min_addr setting, configurable via
-> > SECURITY_DEFAULT_MMAP_MIN_ADDR or /proc/sys/vm/mmap_min_addr.  Then
-> > cap_file_mmap() or selinux_file_mmap() will apply a check when a process
-> > attempts to map memory below that address.
-
-If SELinux isn't present, that's not useful. If mmap_min_addr is
-enabled, that still won't solve what my original, utterly simple patch
-fixes.
-
-The patch provides a no-impact, clean solution to prevent kmalloc(0)
-situations from becoming a security hazard. Nothing else.
-
-If you want to solve NULL/ptr deference abuse from userland, you better
-start thinking about separating kernel virtual address space from
-userland's, with the performance impact that implies. Few architectures
-provide this capability without performance hit, and x86 ain't one of
-them.
-
-> mmap_min_addr depends on CONFIG_SECURITY which establishes various
-> strangely complex "security models".
+ 
+> > > > of the page and don't care what it's count or dirtyness is, then
+> > > > truncate_inode_pages_range is the correct API to use.
+> > > >
+> > > > (or you could extract out some of it so you can call it directly on
+> > > > individual locked pages, if that helps).
+> > >  
+> > > The patch to move over to truncate_complete_page() would like this.
+> > > It's not a big win indeed.
+> > 
+> > No I don't mean to do this, but to move the truncate_inode_pages
+> > code for truncating a single, locked, page into another function
+> > in mm/truncate.c and then call that from here.
 > 
-> The system needs to be secure by default.
+> I took a look at that.  First there's no direct equivalent of
+> me_pagecache_clean/dirty in truncate.c and to be honest I don't
+> see a clean way to refactor any of the existing functions to 
+> do the same.
 
-Correct, so what was wrong with my patch again? That the original two
-line change was written by the PaX team?
+With all that writing you could have just done it. It's really
+not a big deal and just avoids duplicating code. I attached an
+(untested) patch.
 
-Come on chap, It's not like you will lose your bragging rights among
-your peers for admitting that I was right. Just this one time. I won't
-tell anybody. Promise.
 
-	Larry
+> > No, it seems rather insane to do something like this here that no other
+> > code in the mm ever does.
+> 
+> Just because the rest of the VM doesn't do it doesn't mean it might make sense.
+
+It is going to be possible to do it somehow surely, but it is insane
+to try to add such constraints to the VM to close a few small windows
+if you already have other large ones.
+
+---
+ mm/truncate.c |   24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+Index: linux-2.6/mm/truncate.c
+===================================================================
+--- linux-2.6.orig/mm/truncate.c
++++ linux-2.6/mm/truncate.c
+@@ -135,6 +135,16 @@ invalidate_complete_page(struct address_
+ 	return ret;
+ }
+ 
++void truncate_inode_page(struct address_space *mapping, struct page *page)
++{
++	if (page_mapped(page)) {
++		unmap_mapping_range(mapping,
++		  (loff_t)page->index<<PAGE_CACHE_SHIFT,
++		  PAGE_CACHE_SIZE, 0);
++	}
++	truncate_complete_page(mapping, page);
++}
++
+ /**
+  * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
+  * @mapping: mapping to truncate
+@@ -196,12 +206,7 @@ void truncate_inode_pages_range(struct a
+ 				unlock_page(page);
+ 				continue;
+ 			}
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
+-			truncate_complete_page(mapping, page);
++			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+@@ -238,15 +243,10 @@ void truncate_inode_pages_range(struct a
+ 				break;
+ 			lock_page(page);
+ 			wait_on_page_writeback(page);
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
++			truncate_inode_page(mappng, page);
+ 			if (page->index > next)
+ 				next = page->index;
+ 			next++;
+-			truncate_complete_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
