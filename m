@@ -1,44 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E66515F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:09:56 -0400 (EDT)
-Date: Tue, 2 Jun 2009 17:09:52 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602150952.GB17448@wotan.suse.de>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 957CE5F0003
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:10:35 -0400 (EDT)
+Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	<1243893048-17031-18-git-send-email-ebiederm@xmission.com>
+	<alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 02 Jun 2009 14:23:47 -0700
+In-Reply-To: <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> (Davide Libenzi's message of "Tue\, 2 Jun 2009 09\:51\:42 -0700 \(PDT\)")
+Message-ID: <m1eiu2qqho.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602124757.GG1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Davide Libenzi <davidel@xmailserver.org>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 02:47:57PM +0200, Andi Kleen wrote:
-> On Tue, Jun 02, 2009 at 02:00:42PM +0200, Nick Piggin wrote:
+Davide Libenzi <davidel@xmailserver.org> writes:
 
-[snip: reusing truncate.c code]
+> On Mon, 1 Jun 2009, Eric W. Biederman wrote:
+>
+>> From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
+>> 
+>> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+>> ---
+>>  fs/eventpoll.c |   39 ++++++++++++++++++++++++++++++++-------
+>>  1 files changed, 32 insertions(+), 7 deletions(-)
+>
+> This patchset gives me the willies for the amount of changes and possible 
+> impact on many subsystems.
 
-> > With all that writing you could have just done it. It's really
-> 
-> I would have done it if it made sense to me, but so far it hasn't.
-> 
-> The problem with your suggestion is that you do the big picture,
-> but seem to skip over a lot of details. But details matter.
+It both is and is not that bad.  It is the cost of adding a lock.
+For the VFS except for nfsd the I have touched everything that needs to be
+touched.
 
-BTW. just to answer this point. The reason maybe for this
-is because the default response to my concerns seems to
-have been "you're wrong". Not "i don't understand, can you
-detail", and not "i don't agree because ...".
+Other subsystems that open read/write close files should be able to use
+existing vfs helpers so they don't need to know about the new locking
+explicitly.
 
-I may well be wrong (in this case I'm quite sure I'm not),
-but if you say I'm wrong, then I assume that you understand
-what I'm talking about and have a fair idea of the details.
+Actually taking advantage of this infrastructure in a subsystem is
+comparatively easy.  It took me about an hour to get uio using it.
+That part is not deep by any means and is opt in.
 
-Anyway don't worry. I get that a lot. I do really want to
-help get this merged.
+> Without having looked at the details, are you aware that epoll does not 
+> act like poll/select, and fds are not automatically removed (as in, 
+> dequeued from the poll wait queue) in any foreseeable amount of time after 
+> a POLLERR is received?
+
+Yes I am aware of how epoll acts differently.
+
+> As far as the usespace API goes, they have the right to remain there.
+
+I absolutely agree.
+
+Currently I have the code acting like close() with respect to epoll and
+just having the file descriptor vanish at the end of the revoke.  While
+we the revoke is in progress you get an EIO.
+
+The file descriptor is not freed by a revoke operation so you can happily
+hang unto it as long as you want.
+
+I thought of doing something more uniform to user space.  But I observed
+that the existing epoll punts on the case of a file descriptor being closed
+and locking to go from a file to the other epoll datastructures is pretty
+horrid I said forget it and used the existing close behaviour.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
