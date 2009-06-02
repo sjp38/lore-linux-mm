@@ -1,110 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 70C7C6B004F
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:32:39 -0400 (EDT)
-Date: Tue, 2 Jun 2009 21:02:16 +0800
+	by kanga.kvack.org (Postfix) with SMTP id C52766B0055
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:32:43 -0400 (EDT)
+Date: Tue, 2 Jun 2009 21:30:19 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
 	in the VM v3
-Message-ID: <20090602130216.GB20462@localhost>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org>
+Message-ID: <20090602133019.GC20462@localhost>
+References: <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090601120537.GF5018@wotan.suse.de> <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org> <20090602123720.GF1392@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090602124757.GG1065@one.firstfloor.org>
+In-Reply-To: <20090602123720.GF1392@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 08:47:57PM +0800, Andi Kleen wrote:
-> On Tue, Jun 02, 2009 at 02:00:42PM +0200, Nick Piggin wrote:
-> > > On Mon, Jun 01, 2009 at 01:50:46PM +0200, Nick Piggin wrote:
-> > > > > Another major complexity is on calling the isolation routines to
-> > > > > remove references from
-> > > > >         - PTE
-> > > > >         - page cache
-> > > > >         - swap cache
-> > > > >         - LRU list
-> > > > > They more or less made some assumptions on their operating environment
-> > > > > that we have to take care of.  Unfortunately these complexities are
-> > > > > also not easily resolvable.
-> > > > > 
-> > > > > > (and few comments) of all the files in mm/. If you want to get rid
-> > > > > 
-> > > > > I promise I'll add more comments :)
-> > > > 
-> > > > OK, but they should still go in their relevant files. Or as best as
-> > > > possible. Right now it's just silly to have all this here when much
-> > > > of it could be moved out to filemap.c, swap_state.c, page_alloc.c, etc.
+On Tue, Jun 02, 2009 at 08:37:20PM +0800, Nick Piggin wrote:
+> On Tue, Jun 02, 2009 at 02:34:50PM +0200, Andi Kleen wrote:
+> > On Tue, Jun 02, 2009 at 02:10:31PM +0200, Nick Piggin wrote:
+> > > > It's not, there are various differences (like the reference count)
 > > > 
-> > > Can you be more specific what that "all this" is? 
+> > > No. If there are, then it *really* needs better documentation. I
+> > > don't think there are, though.
 > > 
-> > The functions which take action in response to a bad page being 
-> > detected. They belong with the subsystem that the page belongs
-> > to. I'm amazed this is causing so much argument or confusion
-> > because it is how the rest of mm/ code is arranged. OK, Hugh has
-> > a point about ifdefs, but OTOH we have lots of ifdefs like this.
-> 
-> Well we're already calling into that subsystem, just not with
-> a single function call.
-> 
-> > > > > > of the page and don't care what it's count or dirtyness is, then
-> > > > > > truncate_inode_pages_range is the correct API to use.
-> > > > > >
-> > > > > > (or you could extract out some of it so you can call it directly on
-> > > > > > individual locked pages, if that helps).
-> > > > >  
-> > > > > The patch to move over to truncate_complete_page() would like this.
-> > > > > It's not a big win indeed.
-> > > > 
-> > > > No I don't mean to do this, but to move the truncate_inode_pages
-> > > > code for truncating a single, locked, page into another function
-> > > > in mm/truncate.c and then call that from here.
-> > > 
-> > > I took a look at that.  First there's no direct equivalent of
-> > > me_pagecache_clean/dirty in truncate.c and to be honest I don't
-> > > see a clean way to refactor any of the existing functions to 
-> > > do the same.
+> > Better documentation on what? You want a detailed listing in a comment
+> > how it is different from truncate?
 > > 
-> > With all that writing you could have just done it. It's really
+> > To be honest I have some doubts of the usefulness of such a comment
+> > (why stop at truncate and not list the differences to every other
+> > page cache operation? @) but if you're insist (do you?) I can add one.
 > 
-> I would have done it if it made sense to me, but so far it hasn't.
-> 
-> The problem with your suggestion is that you do the big picture,
-> but seem to skip over a lot of details. But details matter.
-> 
-> > not a big deal and just avoids duplicating code. I attached an
-> > (untested) patch.
-> 
-> Thanks. But the function in the patch is not doing the same what
-> the me_pagecache_clean/dirty are doing. For once there is no error
-> checking, as in the second try_to_release_page()
-> 
-> Then it doesn't do all the IO error and missing mapping handling.
-> 
-> The page_mapped() check is useless because the pages are not 
-> mapped here etc.
-> 
-> We could probably call truncate_complete_page(), but then
-> we would also need to duplicate most of the checking outside
-> the function anyways and there wouldn't be any possibility
-> to share the clean/dirty variants. If you insist I can
-> do it, but I think it would be significantly worse code
-> than before and I'm reluctant to do that.
-> 
-> I don't also really see what the big deal is of just
-> calling these few functions directly. After all we're not
-> truncating here and they're all already called from other files.
+> Because I don't see any difference (see my previous patch). I
+> still don't know what it is supposed to be doing differently.
+> So if you reinvent your own that looks close enough to truncate
+> to warrant a comment to say /* this is close to truncate but
+> not quite */, then yes I insist that you say exactly why it is
+> not quite like truncate ;)
 
-Yes I like the current "one code block calling one elemental function
-to isolate from one reference source" scenario:
-         - PTE
-         - page cache
-         - swap cache
-         - LRU list
+The truncate topic goes boring.  EIO is more interesting and imminent, hehe.
 
-Calling into the generic truncate code only messes up the concepts.
+> > > I'm suggesting that EIO is traditionally for when the data still
+> > > dirty in pagecache and was not able to get back to backing
+> > > store. Do you deny that?
+> > 
+> > Yes. That is exactly the case when memory-failure triggers EIO
+> > 
+> > Memory error on a dirty file mapped page.
+> 
+> But it is no longer dirty, and the problem was not that the data
+> was unable to be written back.
+
+Or rather, cannot be written back ;)
+
+> > > And I think the application might try to handle the case of a
+> > > page becoming corrupted differently. Do you deny that?
+> > 
+> > You mean a clean file-mapped page? In this case there is no EIO,
+> > memory-failure just drops the page and it is reloaded.
+> > 
+> > If the page is dirty we trigger EIO which as you said above is the 
+> > right reaction.
+> 
+> No I mean the difference between the case of dirty page unable to
+> be written to backing sotre, and the case of dirty page becoming
+> corrupted.
+
+legacy EIO:   may success on (do something then) retry?
+hwpoison EIO: a permanent unrecoverable error
+
+> > > OK, given the range of errors that APIs are defined to return,
+> > > then maybe EIO is the best option. I don't suppose it is possible
+> > > to expand them to return something else?
+> > 
+> > Expand the syscalls to return other errnos on specific
+> > kinds of IO error?
+> >  
+> > Of course that's possible, but it has the problem that you 
+> > would need to fix all the applications that expect EIO for
+> > IO error. The later I consider infeasible.
+> 
+> They would presumably exit or do some default thing, which I
+> think would be fine. Actually if your code catches them in the
+> act of manipulating a corrupted page (ie. if it is mmapped),
+> then it gets a SIGBUS.
+
+That's OK.  filemap_fault() returns VM_FAULT_SIGBUS for legacy EIO,
+while hwpoison pages will return VM_FAULT_HWPOISON. Both kills the
+application I guess?
+
+read()/write() are the more interesting cases.
+
+With read IO interception, the read() call will succeed.
+
+The write() call have to be failed. But interestingly writes are
+mostly delayed ones, and we have only one AS_EIO bit for the entire
+file, which will be cleared after the EIO reporting. And the poisoned
+page will be isolated (if succeed) and later read()/write() calls
+won't even notice there was a poisoned page!
+
+How are we going to fix this mess? EIO errors seem to be fuzzy and
+temporary by nature at least in the current implementation, and hard
+to be improved to be exact and/or permanent in both implementation and
+interface:
+- can/shall we remember the exact EIO page? maybe not.
+- can EIO reporting be permanent? sounds like a horrible user interface..
+
 
 Thanks,
 Fengguang
