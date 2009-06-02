@@ -1,36 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8466E5F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:33:39 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 5974C82C923
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 13:43:59 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id iBSQh7czdbFI for <linux-mm@kvack.org>;
-	Mon,  1 Jun 2009 13:43:59 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E273282C90A
-	for <linux-mm@kvack.org>; Mon,  1 Jun 2009 13:43:56 -0400 (EDT)
-Date: Mon, 1 Jun 2009 13:29:06 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9E5D45F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:34:31 -0400 (EDT)
+Date: Tue, 2 Jun 2009 11:26:10 +0200
+From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: [PATCH] Warn if we run out of swap space
-In-Reply-To: <4A23FF89.2060603@redhat.com>
-Message-ID: <alpine.DEB.1.10.0906011328410.3921@gentwo.org>
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com>
+Message-ID: <20090602092610.GE15756@elf.ucw.cz>
+References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com> <20090602091544.GC15756@elf.ucw.cz> <4A24EF80.5070606@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A24EF80.5070606@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Avi Kivity <avi@redhat.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org, linux-mm@kvack.org, dave@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Jun 2009, Avi Kivity wrote:
+On Tue 2009-06-02 12:23:12, Avi Kivity wrote:
+> Pavel Machek wrote:
+>> Ouch and please... don't stop useful printk() warnings just because
+>> some 'pie-in-the-sky future binary protocol'. That's what happened in
+>> ACPI land with battery critical, and it is also why I don't get
+>> battery warnings on some of my machines.
+>>   
+>
+> btw, adding a printk() for acpi battery state may have helped you and  
+> other kernel developers, but would have done nothing for ordinary humans  
+> using Linux on their laptops.  We should cater to the general population  
+> first and treat developer needs as nice-to-haves.
 
-> We really should have a machine readable channel for this sort of information,
-> so it can be plumbed to a userspace notification bubble the user can ignore.
-
-Good idea. Create an event for udev?
+We already have the programatic interface, but it was used as a reason
+not to merge printk(). And programatic interface helps nothing with
+init=/bin/bash boot, minimal userland etc.
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
