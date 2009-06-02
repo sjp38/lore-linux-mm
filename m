@@ -1,116 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9163F5F0012
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:17:42 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n533tdrW020369
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 3 Jun 2009 12:55:39 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A6A645DE54
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 31E9845DE4E
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0789F1DB8084
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B29C1DB8082
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:38 +0900 (JST)
-Date: Wed, 3 Jun 2009 12:54:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm 1/2] memcg: add interface to reset limits
-Message-Id: <20090603125406.fd5a2ef2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090603114908.52c3aed5.nishimura@mxp.nes.nec.co.jp>
-References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
-	<20090603114908.52c3aed5.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 082FA5F0003
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:19:07 -0400 (EDT)
+Subject: Re: [PATCH 01/23] mm: Introduce revoke_file_mappings.
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	<1243893048-17031-1-git-send-email-ebiederm@xmission.com>
+	<20090601152553.b2de027a.akpm@linux-foundation.org>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Mon, 01 Jun 2009 17:12:19 -0700
+In-Reply-To: <20090601152553.b2de027a.akpm@linux-foundation.org> (Andrew Morton's message of "Mon\, 1 Jun 2009 15\:25\:53 -0700")
+Message-ID: <m1vdnfze70.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: viro@ZenIV.linux.org.uk, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tj@kernel.org, hugh.dickins@tiscali.co.uk, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, hch@infradead.org, ebiederm@aristanetworks.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009 11:49:08 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-> Setting mem.limit or memsw.limit to 0 has no meaning
-> in actual use(no process can run in such condition).
-> 
-> We don't have interface to reset mem.limit or memsw.limit now,
-> so let's reset the mem.limit or memsw.limit to default(unlimited)
-> when they are being set to 0.
-> 
-Maybe good. But when I proposed this kind of patch, it was rejected.
-(try to add RES_ININITY)
+> On Mon,  1 Jun 2009 14:50:26 -0700
+> "Eric W. Biederman" <ebiederm@xmission.com> wrote:
+>
+>> +static void revoke_vma(struct vm_area_struct *vma)
+>
+> This looks odd.
+>
+>> +{
+>> +	struct file *file = vma->vm_file;
+>> +	struct address_space *mapping = file->f_mapping;
+>> +	unsigned long start_addr, end_addr, size;
+>> +	struct mm_struct *mm;
+>> +
+>> +	start_addr = vma->vm_start;
+>> +	end_addr = vma->vm_end;
+>
+> We take a copy of start_addr/end_addr (and this end_addr value is never used)
+A foolish consistency.
 
-please wait acks from others.
-But from me,
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujits.ucom>
+>> +	/* Switch out the locks so I can maninuplate this under the mm sem.
+>> +	 * Needed so I can call vm_ops->close.
+>> +	 */
+>> +	mm = vma->vm_mm;
+>> +	atomic_inc(&mm->mm_users);
+>> +	spin_unlock(&mapping->i_mmap_lock);
+>> +
+>> +	/* Block page faults and other code modifying the mm. */
+>> +	down_write(&mm->mmap_sem);
+>> +
+>> +	/* Lookup a vma for my file address */
+>> +	vma = find_vma(mm, start_addr);
+>
+> Then we look up a vma.  Is there reason to believe that this will
+> differ from the incoming arg which we just overwrote?  Maybe the code
+> is attempting to handle racing concurrent mmap/munmap activity?  If so,
+> what are the implications of this?
 
+Yes it is.  The file based index is only safe while we hold the i_mmap_lock.
+The manipulation that needs to happen under the mmap_sem.
 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  Documentation/cgroups/memory.txt |    1 +
->  include/linux/res_counter.h      |    2 ++
->  kernel/res_counter.c             |    2 +-
->  mm/memcontrol.c                  |    2 ++
->  4 files changed, 6 insertions(+), 1 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 1a60887..e1c69f3 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -204,6 +204,7 @@ We can alter the memory limit:
->  
->  NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
->  mega or gigabytes.
-> +NOTE: We can write "0" to reset the *.limit_in_bytes(unlimited).
->  
->  # cat /cgroups/0/memory.limit_in_bytes
->  4194304
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index 4c5bcf6..511f42f 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -49,6 +49,8 @@ struct res_counter {
->  	struct res_counter *parent;
->  };
->  
-> +#define RESOURCE_MAX (unsigned long long)LLONG_MAX
-> +
->  /**
->   * Helpers to interact with userspace
->   * res_counter_read_u64() - returns the value of the specified member.
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index bf8e753..0a45778 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -18,7 +18,7 @@
->  void res_counter_init(struct res_counter *counter, struct res_counter *parent)
->  {
->  	spin_lock_init(&counter->lock);
-> -	counter->limit = (unsigned long long)LLONG_MAX;
-> +	counter->limit = RESOURCE_MAX;
->  	counter->parent = parent;
->  }
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a83e039..6629ed2 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2040,6 +2040,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
->  		ret = res_counter_memparse_write_strategy(buffer, &val);
->  		if (ret)
->  			break;
-> +		if (!val)
-> +			val = RESOURCE_MAX;
->  		if (type == _MEM)
->  			ret = mem_cgroup_resize_limit(memcg, val);
->  		else
-> 
+So I drop all of the locks and restart.  And use the time honored
+kernel practice of relooking up the thing I am going to manipulate.
+As long as it is for the same file I don't care.
+
+> I _think_ that what the function is attempting to do is "unmap the vma
+> which covers the address at vma->start_addr".  If so, why not just pass
+> it that virtual address?
+
+Actually it is  unmapping a vma for the file I am revoking.  I hand it
+one and then it does an address space jig.
+
+> Anyway, it's all a bit obscure and I do think that the semantics and
+> behaviour should be carefully explained in a comment, no?
+>
+>> +	if (vma->vm_file != file)
+>> +		goto out;
+>
+> This strengthens the theory that some sort of race-management is
+> happening here.
+
+Totally.  I dropped all of my locks so I am having to restart in
+a different locking context.
+
+>> +	start_addr = vma->vm_start;
+>> +	end_addr   = vma->vm_end;
+>> +	size	   = end_addr - start_addr;
+>> +
+>> +	/* Unlock the pages */
+>> +	if (mm->locked_vm && (vma->vm_flags & VM_LOCKED)) {
+>> +		mm->locked_vm -= vma_pages(vma);
+>> +		vma->vm_flags &= ~VM_LOCKED;
+>> +	}
+>> +
+>> +	/* Unmap the vma */
+>> +	zap_page_range(vma, start_addr, size, NULL);
+>> +
+>> +	/* Unlink the vma from the file */
+>> +	unlink_file_vma(vma);
+>> +
+>> +	/* Close the vma */
+>> +	if (vma->vm_ops && vma->vm_ops->close)
+>> +		vma->vm_ops->close(vma);
+>> +	fput(vma->vm_file);
+>> +	vma->vm_file = NULL;
+>> +	if (vma->vm_flags & VM_EXECUTABLE)
+>> +		removed_exe_file_vma(vma->vm_mm);
+>> +
+>> +	/* Repurpose the vma  */
+>> +	vma->vm_private_data = NULL;
+>> +	vma->vm_ops = &revoked_vm_ops;
+>> +	vma->vm_flags &= ~(VM_NONLINEAR | VM_CAN_NONLINEAR);
+>> +out:
+>> +	up_write(&mm->mmap_sem);
+>> +	spin_lock(&mapping->i_mmap_lock);
+>> +}
+>
+> Also, I'm not a bit fan of the practice of overwriting the value of a
+> formal argument, especially in a function which is this large and
+> complex.  It makes the code harder to follow, because the one variable
+> holds two conceptually different things within the span of the same
+> function.  And it adds risk that someone will will later access a field
+> of *vma and it will be the wrong vma.  Worse, the bug is only exposed
+> under exeedingly rare conditions.
+>
+> So..  Use a new local, please.
+
+We can never legitimately have more than one vma manipulated in this function.
+As for the rest.  I guess I just assumed that the reader of the code would
+have a basic understanding of the locking rules for those data structures.
+
+Certainly the worst thing I suffer from is being close to the code,
+and not realizing which pieces are not obvious to a naive observer.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
