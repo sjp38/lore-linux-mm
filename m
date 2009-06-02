@@ -1,138 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AEF635F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:13 -0400 (EDT)
-From: "Eric W. Biederman" <ebiederm@xmission.com>
-Date: Mon,  1 Jun 2009 14:50:45 -0700
-Message-Id: <1243893048-17031-20-git-send-email-ebiederm@xmission.com>
-In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-Subject: [PATCH 20/23] vfs: Teach aio to use file_hotplug_lock
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6864C5F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:45:29 -0400 (EDT)
+Received: from makko.or.mcafeemobile.com
+	by x35.xmailserver.org with [XMail 1.26 ESMTP Server]
+	id <S2ED6AC> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Tue, 2 Jun 2009 17:58:42 -0400
+Date: Tue, 2 Jun 2009 14:52:41 -0700 (PDT)
+From: Davide Libenzi <davidel@xmailserver.org>
+Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
+In-Reply-To: <m1eiu2qqho.fsf@fess.ebiederm.org>
+Message-ID: <alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
+References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-18-git-send-email-ebiederm@xmission.com> <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> <m1eiu2qqho.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
+On Tue, 2 Jun 2009, Eric W. Biederman wrote:
 
-Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
----
- fs/aio.c |   51 ++++++++++++++++++++++++++++++++++++++-------------
- 1 files changed, 38 insertions(+), 13 deletions(-)
+> Davide Libenzi <davidel@xmailserver.org> writes:
+> 
+> > On Mon, 1 Jun 2009, Eric W. Biederman wrote:
+> >
+> >> From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
+> >> 
+> >> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+> >> ---
+> >>  fs/eventpoll.c |   39 ++++++++++++++++++++++++++++++++-------
+> >>  1 files changed, 32 insertions(+), 7 deletions(-)
+> >
+> > This patchset gives me the willies for the amount of changes and possible 
+> > impact on many subsystems.
+> 
+> It both is and is not that bad.  It is the cost of adding a lock.
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 76da125..eceb215 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -1362,13 +1362,20 @@ static void aio_advance_iovec(struct kiocb *iocb, ssize_t ret)
- static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
- {
- 	struct file *file = iocb->ki_filp;
--	struct address_space *mapping = file->f_mapping;
--	struct inode *inode = mapping->host;
-+	struct address_space *mapping;
-+	struct inode *inode;
- 	ssize_t (*rw_op)(struct kiocb *, const struct iovec *,
- 			 unsigned long, loff_t);
- 	ssize_t ret = 0;
- 	unsigned short opcode;
- 
-+	ret = -EIO;
-+	if (!file_hotplug_read_trylock(file))
-+		goto out;
-+
-+	mapping = file->f_mapping;
-+	inode = mapping->host;
-+
- 	if ((iocb->ki_opcode == IOCB_CMD_PREADV) ||
- 		(iocb->ki_opcode == IOCB_CMD_PREAD)) {
- 		rw_op = file->f_op->aio_read;
-@@ -1379,8 +1386,9 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
- 	}
- 
- 	/* This matches the pread()/pwrite() logic */
-+	ret = -EINVAL;
- 	if (iocb->ki_pos < 0)
--		return -EINVAL;
-+		goto out_unlock;
- 
- 	do {
- 		ret = rw_op(iocb, &iocb->ki_iovec[iocb->ki_cur_seg],
-@@ -1407,26 +1415,37 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
- 	    && iocb->ki_nbytes - iocb->ki_left)
- 		ret = iocb->ki_nbytes - iocb->ki_left;
- 
-+out_unlock:
-+	file_hotplug_read_unlock(file);
-+out:
- 	return ret;
- }
- 
- static ssize_t aio_fdsync(struct kiocb *iocb)
- {
- 	struct file *file = iocb->ki_filp;
--	ssize_t ret = -EINVAL;
-+	ssize_t ret = -EIO;
- 
--	if (file->f_op->aio_fsync)
--		ret = file->f_op->aio_fsync(iocb, 1);
-+	if (file_hotplug_read_trylock(file)) {
-+		ret = -EINVAL;
-+		if (file->f_op->aio_fsync)
-+			ret = file->f_op->aio_fsync(iocb, 1);
-+		file_hotplug_read_unlock(file);
-+	}
- 	return ret;
- }
- 
- static ssize_t aio_fsync(struct kiocb *iocb)
- {
- 	struct file *file = iocb->ki_filp;
--	ssize_t ret = -EINVAL;
-+	ssize_t ret = -EIO;
- 
--	if (file->f_op->aio_fsync)
--		ret = file->f_op->aio_fsync(iocb, 0);
-+	if (file_hotplug_read_trylock(file)) {
-+		ret = -EINVAL;
-+		if (file->f_op->aio_fsync)
-+			ret = file->f_op->aio_fsync(iocb, 0);
-+		file_hotplug_read_unlock(file);
-+	}
- 	return ret;
- }
- 
-@@ -1469,7 +1488,11 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb)
- static ssize_t aio_setup_iocb(struct kiocb *kiocb)
- {
- 	struct file *file = kiocb->ki_filp;
--	ssize_t ret = 0;
-+	ssize_t ret;
-+
-+	ret = -EIO;
-+	if (!file_hotplug_read_trylock(file))
-+		goto out;
- 
- 	switch (kiocb->ki_opcode) {
- 	case IOCB_CMD_PREAD:
-@@ -1551,10 +1574,12 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
- 		ret = -EINVAL;
- 	}
- 
--	if (!kiocb->ki_retry)
--		return ret;
-+	if (kiocb->ki_retry)
-+		ret = 0;
- 
--	return 0;
-+	file_hotplug_read_unlock(file);
-+out:
-+	return ret;
- }
- 
- /*
--- 
-1.6.3.1.54.g99dd.dirty
+We both know that it is not only the cost of a lock, but also the 
+sprinkling over a pretty vast amount of subsystems, of another layer of 
+code.
+
+
+
+> I thought of doing something more uniform to user space.  But I observed
+> that the existing epoll punts on the case of a file descriptor being closed
+> and locking to go from a file to the other epoll datastructures is pretty
+> horrid I said forget it and used the existing close behaviour.
+
+Well, you cannot rely on the caller to tidy up the epoll fd by issuing an 
+epoll_ctl(DEL), so you do *need* to "punt" on close in order to not leave 
+lingering crap around. You cannot even hold a reference of the file, since 
+otherwise the epoll hooking will have to trigger not only at ->release() 
+time, but at every close, where you'll have to figure out if this is the 
+last real userspace reference or not. Plus all the issues related to 
+holding permanent extra references to userspace files.
+And since a file can be added in many epoll devices, you need to 
+unregister it from all of them (hence the other datastructures lookup). 
+Better this, on the slow path, with locks acquired only in the epoll usage 
+case, than some other thing and on the fast path, for every file.
+
+
+
+- Davide
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
