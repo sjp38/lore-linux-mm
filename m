@@ -1,84 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 62ECC5F0020
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:04:05 -0400 (EDT)
-Date: Tue, 2 Jun 2009 14:37:20 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602123720.GF1392@wotan.suse.de>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090601120537.GF5018@wotan.suse.de> <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602123450.GF1065@one.firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1C35F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:04:51 -0400 (EDT)
+From: Mike Waychison <mikew@google.com>
+Subject: [PATCH] Remove __invalidate_mapping_pages variant
+Date: Tue, 02 Jun 2009 15:18:05 -0700
+Message-ID: <20090602221804.16461.15918.stgit@crlf.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 02:34:50PM +0200, Andi Kleen wrote:
-> On Tue, Jun 02, 2009 at 02:10:31PM +0200, Nick Piggin wrote:
-> > > It's not, there are various differences (like the reference count)
-> > 
-> > No. If there are, then it *really* needs better documentation. I
-> > don't think there are, though.
-> 
-> Better documentation on what? You want a detailed listing in a comment
-> how it is different from truncate?
-> 
-> To be honest I have some doubts of the usefulness of such a comment
-> (why stop at truncate and not list the differences to every other
-> page cache operation? @) but if you're insist (do you?) I can add one.
+Remove __invalidate_mapping_pages atomic variant now that its sole caller can
+sleep (fixed in eccb95cee4f0d56faa46ef22fb94dd4a3578d3eb).
 
-Because I don't see any difference (see my previous patch). I
-still don't know what it is supposed to be doing differently.
-So if you reinvent your own that looks close enough to truncate
-to warrant a comment to say /* this is close to truncate but
-not quite */, then yes I insist that you say exactly why it is
-not quite like truncate ;)
+This fixes softlockups that can occur while in the drop_caches path.
 
+Signed-off-by: Mike Waychison <mikew@google.com>
+---
+
+ fs/drop_caches.c   |    2 +-
+ include/linux/fs.h |    3 ---
+ mm/truncate.c      |   39 ++++++++++++++++-----------------------
+ 3 files changed, 17 insertions(+), 27 deletions(-)
+
+diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+index b6a719a..a2edb79 100644
+--- a/fs/drop_caches.c
++++ b/fs/drop_caches.c
+@@ -24,7 +24,7 @@ static void drop_pagecache_sb(struct super_block *sb)
+ 			continue;
+ 		__iget(inode);
+ 		spin_unlock(&inode_lock);
+-		__invalidate_mapping_pages(inode->i_mapping, 0, -1, true);
++		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+ 		iput(toput_inode);
+ 		toput_inode = inode;
+ 		spin_lock(&inode_lock);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 3b534e5..131dc03 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2043,9 +2043,6 @@ extern int __invalidate_device(struct block_device *);
+ extern int invalidate_partition(struct gendisk *, int);
+ #endif
+ extern int invalidate_inodes(struct super_block *);
+-unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+-					pgoff_t start, pgoff_t end,
+-					bool be_atomic);
+ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 					pgoff_t start, pgoff_t end);
  
-> > I'm suggesting that EIO is traditionally for when the data still
-> > dirty in pagecache and was not able to get back to backing
-> > store. Do you deny that?
-> 
-> Yes. That is exactly the case when memory-failure triggers EIO
-> 
-> Memory error on a dirty file mapped page.
-
-But it is no longer dirty, and the problem was not that the data
-was unable to be written back.
-
-
-> > And I think the application might try to handle the case of a
-> > page becoming corrupted differently. Do you deny that?
-> 
-> You mean a clean file-mapped page? In this case there is no EIO,
-> memory-failure just drops the page and it is reloaded.
-> 
-> If the page is dirty we trigger EIO which as you said above is the 
-> right reaction.
-
-No I mean the difference between the case of dirty page unable to
-be written to backing sotre, and the case of dirty page becoming
-corrupted.
-
-
-> > OK, given the range of errors that APIs are defined to return,
-> > then maybe EIO is the best option. I don't suppose it is possible
-> > to expand them to return something else?
-> 
-> Expand the syscalls to return other errnos on specific
-> kinds of IO error?
->  
-> Of course that's possible, but it has the problem that you 
-> would need to fix all the applications that expect EIO for
-> IO error. The later I consider infeasible.
-
-They would presumably exit or do some default thing, which I
-think would be fine. Actually if your code catches them in the
-act of manipulating a corrupted page (ie. if it is mmapped),
-then it gets a SIGBUS.
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 12e1579..ccc3ecf 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -267,8 +267,21 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+ }
+ EXPORT_SYMBOL(truncate_inode_pages);
+ 
+-unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+-				pgoff_t start, pgoff_t end, bool be_atomic)
++/**
++ * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
++ * @mapping: the address_space which holds the pages to invalidate
++ * @start: the offset 'from' which to invalidate
++ * @end: the offset 'to' which to invalidate (inclusive)
++ *
++ * This function only removes the unlocked pages, if you want to
++ * remove all the pages of one inode, you must call truncate_inode_pages.
++ *
++ * invalidate_mapping_pages() will not block on IO activity. It will not
++ * invalidate pages which are dirty, locked, under writeback or mapped into
++ * pagetables.
++ */
++unsigned long invalidate_mapping_pages(struct address_space *mapping,
++				       pgoff_t start, pgoff_t end)
+ {
+ 	struct pagevec pvec;
+ 	pgoff_t next = start;
+@@ -309,30 +322,10 @@ unlock:
+ 				break;
+ 		}
+ 		pagevec_release(&pvec);
+-		if (likely(!be_atomic))
+-			cond_resched();
++		cond_resched();
+ 	}
+ 	return ret;
+ }
+-
+-/**
+- * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
+- * @mapping: the address_space which holds the pages to invalidate
+- * @start: the offset 'from' which to invalidate
+- * @end: the offset 'to' which to invalidate (inclusive)
+- *
+- * This function only removes the unlocked pages, if you want to
+- * remove all the pages of one inode, you must call truncate_inode_pages.
+- *
+- * invalidate_mapping_pages() will not block on IO activity. It will not
+- * invalidate pages which are dirty, locked, under writeback or mapped into
+- * pagetables.
+- */
+-unsigned long invalidate_mapping_pages(struct address_space *mapping,
+-				pgoff_t start, pgoff_t end)
+-{
+-	return __invalidate_mapping_pages(mapping, start, end, false);
+-}
+ EXPORT_SYMBOL(invalidate_mapping_pages);
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
