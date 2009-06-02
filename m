@@ -1,121 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C17866B00AC
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:13:28 -0400 (EDT)
-Date: Tue, 2 Jun 2009 09:06:42 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 03/23] vfs: Generalize the file_list
-Message-ID: <20090602070642.GD31556@wotan.suse.de>
-References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-3-git-send-email-ebiederm@xmission.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F3FC36B00AF
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:13:41 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n523DdgN031352
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Jun 2009 12:13:39 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 34BF245DD72
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:13:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 089CD45DD6D
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:13:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 09A4E1DB8013
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:13:39 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB31E1DB8016
+	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 12:13:35 +0900 (JST)
+Date: Tue, 2 Jun 2009 12:12:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/4] reuse unused swap entry if necessary
+Message-Id: <20090602121202.6740a718.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090602120425.0bcff554.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090602120425.0bcff554.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1243893048-17031-3-git-send-email-ebiederm@xmission.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 01, 2009 at 02:50:28PM -0700, Eric W. Biederman wrote:
-> From: Eric W. Biederman <ebiederm@xmission.com>
-> 
-> In the implementation of revoke it is desirable to find all of the
-> files we want to operation on.  Currently tty's and mark_files_ro
-> use the file_list for this, and this patch generalizes the file
-> list so it can be used more efficiently.
-> 
-> This patch starts by introducing struct file_list making the file
-> list a first class object.  file_list_lock and file_list_unlock
-> are modified to take this object, making it clear which file_list
-> we intended to lock.
-> 
-> file_move is transformed into file_list_add taking a file_list and not
-> allowing the movement of one file to another. __dentry_open
-> is modified to support this by only adding normal files in open,
-> special files have always been ignored when walking the file_list.
-> __dentry_open skipping special files allows __ptmx_open and __tty_open
-> to safely call file_add as they are adding the file to the file_list
-> for the first time.
-> 
-> file_kill has been renamed file_list_del to make it clear what it is
-> doing and to keep from confusing it with a more revoke like operation.
-> 
-> put_filp has been modified to not take file_list_del as we are never
-> on a file_list when put_filp is called.
-> 
-> fs_may_remount_ro and mark_files_ro have been modified to walk the
-> inode list to find all of the inodes and then to walk the file list
-> on those inodes.  It can be a slightly longer walk as we frequently
-> cache inodes that we do not have open but the overall complexity
-> should be about the same,
 
-Well not really. I have a couple of orders of magnitude more cached
-inodes than open files here.
+This is a replacement for
+ mm-reuse-unused-swap-entry-if-necessary.patch in mmotm.
+ function is renamed and comments are added.
 
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> these are slow path functions, and it
-> gives us much greater flexibility overall.
+Now, we can know the swap is just used as SwapCache via swap_map,
+without looking up swap cache.
 
-Define flexibility. Walking the sb's file list and checking for
-equality with the inode in question gives the same functionality,
-just different performance profile.
+Then, we have a chance to reuse swap-cache-only swap entries in
+get_swap_pages().
 
+This patch tries to free swap-cache-only swap entries if swap is
+not enough.
+Note: We hit following path when swap_cluster code cannot find
+a free cluster. Then, vm_swap_full() is not only condition to allow
+the kernel to reclaim unused swap.
 
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -699,6 +699,11 @@ static inline int mapping_writably_mapped(struct address_space *mapping)
->  	return mapping->i_mmap_writable != 0;
->  }
->  
-> +struct file_list {
-> +	spinlock_t		lock;
-> +	struct list_head	list;
-> +};
-> +
->  /*
->   * Use sequence counter to get consistent i_size on 32-bit processors.
->   */
-> @@ -764,6 +769,7 @@ struct inode {
->  	struct list_head	inotify_watches; /* watches on this inode */
->  	struct mutex		inotify_mutex;	/* protects the watches list */
->  #endif
-> +	struct file_list	i_files;
->  
->  	unsigned long		i_state;
->  	unsigned long		dirtied_when;	/* jiffies of first dirtying */
-> @@ -934,9 +940,15 @@ struct file {
->  	unsigned long f_mnt_write_state;
->  #endif
->  };
-> -extern spinlock_t files_lock;
-> -#define file_list_lock() spin_lock(&files_lock);
-> -#define file_list_unlock() spin_unlock(&files_lock);
-> +
-> +static inline void file_list_lock(struct file_list *files)
-> +{
-> +	spin_lock(&files->lock);
-> +}
-> +static inline void file_list_unlock(struct file_list *files)
-> +{
-> +	spin_unlock(&files->lock);
-> +}
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/swapfile.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
 
-I don't really like this. It's just a list head. Get rid of
-all these wrappers and crap I'd say. In fact, starting with my
-patch to unexport files_lock and remove these wrappers would
-be reasonable, wouldn't it?
-
-Increasing the size of the struct inode by 24 bytes hurts.
-Even when you decrapify it and can reuse i_lock or something,
-then it is still 16 bytes on 64-bit.
-
-I haven't looked through all the patches... but this is to
-speed up a slowpath operation, isn't it? Or does revoke
-need to be especially performant?
-
-So this patch is purely a perofrmance improvement? Then I think
-it needs to be justified with numbers and the downsides (bloating
-struct inode in particulra) to be changelogged.
+Index: mmotm-2.6.30-May28/mm/swapfile.c
+===================================================================
+--- mmotm-2.6.30-May28.orig/mm/swapfile.c
++++ mmotm-2.6.30-May28/mm/swapfile.c
+@@ -79,6 +79,32 @@ static inline unsigned short encode_swap
+ 	return ret;
+ }
+ 
++/* returnes 1 if swap entry is freed */
++static int
++__try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
++{
++	int type = si - swap_info;
++	swp_entry_t entry = swp_entry(type, offset);
++	struct page *page;
++	int ret = 0;
++
++	page = find_get_page(&swapper_space, entry.val);
++	if (!page)
++		return 0;
++	/*
++	 * This function is called from scan_swap_map() and it's called
++	 * by vmscan.c at reclaiming pages. So, we hold a lock on a page, here.
++	 * We have to use trylock for avoiding deadlock. This is a special
++	 * case and you should use try_to_free_swap() with explicit lock_page()
++	 * in usual operations.
++	 */
++	if (trylock_page(page)) {
++		ret = try_to_free_swap(page);
++		unlock_page(page);
++	}
++	page_cache_release(page);
++	return ret;
++}
+ 
+ /*
+  * We need this because the bdev->unplug_fn can sleep and we cannot
+@@ -301,6 +327,19 @@ checks:
+ 		goto no_page;
+ 	if (offset > si->highest_bit)
+ 		scan_base = offset = si->lowest_bit;
++
++	/* reuse swap entry of cache-only swap if not busy. */
++	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++		int swap_was_freed;
++		spin_unlock(&swap_lock);
++		swap_was_freed = __try_to_reclaim_swap(si, offset);
++		spin_lock(&swap_lock);
++		/* entry was freed successfully, try to use this again */
++		if (swap_was_freed)
++			goto checks;
++		goto scan; /* check next one */
++	}
++
+ 	if (si->swap_map[offset])
+ 		goto scan;
+ 
+@@ -382,6 +421,10 @@ scan:
+ 			spin_lock(&swap_lock);
+ 			goto checks;
+ 		}
++		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++			spin_lock(&swap_lock);
++			goto checks;
++		}
+ 		if (unlikely(--latency_ration < 0)) {
+ 			cond_resched();
+ 			latency_ration = LATENCY_LIMIT;
+@@ -393,6 +436,10 @@ scan:
+ 			spin_lock(&swap_lock);
+ 			goto checks;
+ 		}
++		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
++			spin_lock(&swap_lock);
++			goto checks;
++		}
+ 		if (unlikely(--latency_ration < 0)) {
+ 			cond_resched();
+ 			latency_ration = LATENCY_LIMIT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
