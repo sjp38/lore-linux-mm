@@ -1,46 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CD826B006A
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:58:42 -0400 (EDT)
-Date: Tue, 2 Jun 2009 16:05:45 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602140545.GP1065@one.firstfloor.org>
-References: <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org> <20090602123720.GF1392@wotan.suse.de> <20090602125538.GH1065@one.firstfloor.org> <20090602130306.GA6262@wotan.suse.de> <20090602132002.GJ1065@one.firstfloor.org> <20090602131937.GB6262@wotan.suse.de> <20090602134610.GO1065@one.firstfloor.org> <20090602134739.GA26982@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602134739.GA26982@wotan.suse.de>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9197B6B0087
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:58:47 -0400 (EDT)
+Subject: Re: [PATCH 04/23] vfs: Introduce infrastructure for revoking a file
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	<1243893048-17031-4-git-send-email-ebiederm@xmission.com>
+	<84144f020906012216n715a04d0ha492abc12175816@mail.gmail.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Mon, 01 Jun 2009 23:51:56 -0700
+In-Reply-To: <84144f020906012216n715a04d0ha492abc12175816@mail.gmail.com> (Pekka Enberg's message of "Tue\, 2 Jun 2009 08\:16\:44 +0300")
+Message-ID: <m1ws7vyvoz.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-> I was kind of thinking about we could SIGKILL them as they try
-> to access it or fsync it. But then the question is how long to
-> keep SIGKILLing? At one end of the scale you could do stupid
-> and simple and have another error flag in the mapping to do
-> the SIGKILL just once for the next read/write/fsync etc. Or
+Pekka Enberg <penberg@cs.helsinki.fi> writes:
 
-It's pretty radical to SIGKILL on a IO error.
+> Hi Eric,
+>
+> On Tue, Jun 2, 2009 at 12:50 AM, Eric W. Biederman
+> <ebiederm@xmission.com> wrote:
+>> +#ifdef CONFIG_FILE_HOTPLUG
+>> +
+>> +static bool file_in_use(struct file *file)
+>> +{
+>> + =C2=A0 =C2=A0 =C2=A0 struct task_struct *leader, *task;
+>> + =C2=A0 =C2=A0 =C2=A0 bool in_use =3D false;
+>> + =C2=A0 =C2=A0 =C2=A0 int i;
+>> +
+>> + =C2=A0 =C2=A0 =C2=A0 rcu_read_lock();
+>> + =C2=A0 =C2=A0 =C2=A0 do_each_thread(leader, task) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 for (i =3D 0; i < MAX=
+_FILE_HOTPLUG_LOCK_DEPTH; i++) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 if (task->file_hotplug_lock[i] =3D=3D file) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 in_use =3D true;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto found;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 }
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 =C2=A0 } while_each_thread(leader, task);
+>> +found:
+>> + =C2=A0 =C2=A0 =C2=A0 rcu_read_unlock();
+>> + =C2=A0 =C2=A0 =C2=A0 return in_use;
+>> +}
+>
+> This seems rather heavy-weight. If we're going to use this
+> infrastructure for forced unmount, I think this will be a problem.
 
-Perhaps we can make fsync give EIO again in this case 
-with a new mapping flag. The question would be when
-to clear that flag again. Probably devil in the details.
+> Can't we two this in two stages: (1) mark a bit that forces
+> file_hotplug_read_trylock to always fail and (2) block until the last
+> remaining in-kernel file_hotplug_read_unlock() has executed?
 
-> at the other end, you keep the page in the pagecache and
-> poisoned, and kill everyone until the page is explicitly truncated
-> by userspace. I don't really know...
+Yes there is room for more optimization in the slow path.
+I haven't noticed being a problem yet so I figured I would start
+with stupid and simple.
 
-We do that for the swapcache to avoid a similar problem, but
-it's more a hack than a good solution.  I think it would be
-worse for the page cache, because if you stop the program
-then there's no reason to keep that around.
+I can easily see two passes.  The first setting the flag an calling
+f_op->dead.  The second some kind of consolidate walk through the task
+list, allowing checking on multiple files at once.
 
--Andi
+I'm not ready to consider anything that will add cost to the fast
+path in the file descriptors though.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
