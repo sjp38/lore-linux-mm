@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 77A495F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:38:42 -0400 (EDT)
-Date: Mon, 1 Jun 2009 22:11:42 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
- in the VM v3
-In-Reply-To: <20090601140553.GA1979@localhost>
-Message-ID: <Pine.LNX.4.64.0906012138170.27344@sister.anvils>
-References: <200905271012.668777061@firstfloor.org>
- <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de>
- <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de>
- <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de>
- <20090601140553.GA1979@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0E45F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:43:04 -0400 (EDT)
+Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <4A23BD20.5030500@kernel.org>
+References: <1243846708-805-1-git-send-email-tj@kernel.org>
+	 <1243846708-805-4-git-send-email-tj@kernel.org>
+	 <20090601.024006.98975069.davem@davemloft.net>
+	 <4A23BD20.5030500@kernel.org>
+Content-Type: text/plain
+Date: Tue, 02 Jun 2009 15:08:56 +1000
+Message-Id: <1243919336.5308.32.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: David Miller <davem@davemloft.net>, JBeulich@novell.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, tglx@linutronix.de, linux-kernel@vger.kernel.org, x86@kernel.org, ink@jurassic.park.msu.ru, rth@twiddle.net, linux@arm.linux.org.uk, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, jesper.nilsson@axis.com, dhowells@redhat.com, ysato@users.sourceforge.jp, tony.luck@intel.com, takata@linux-m32r.org, geert@linux-m68k.org, monstr@monstr.eu, ralf@linux-mips.org, kyle@mcmartin.ca, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, chris@zankel.net, rusty@rustcorp.com.au, jens.axboe@oracle.com, davej@redhat.com, jeremy@xensource.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Jun 2009, Wu Fengguang wrote:
-> On Mon, Jun 01, 2009 at 07:50:46PM +0800, Nick Piggin wrote:
-> > On Thu, May 28, 2009 at 09:54:28PM +0800, Wu Fengguang wrote:
-> > > On Thu, May 28, 2009 at 08:23:57PM +0800, Nick Piggin wrote:
-> > > >
-> > > > Should all be commented and put into mm/swap_state.c (or somewhere that
-> > > > Hugh prefers).
-> > >
-> > > But I doubt Hugh will welcome moving that bits into swap*.c ;)
-> >
-> > Why not? If he has to look at it anyway, he probably rather looks
-> > at fewer files :)
+On Mon, 2009-06-01 at 20:36 +0900, Tejun Heo wrote:
+> > Whether the volatile is actually needed or not, it's bad to have this
+> > kind of potential behavior changing nugget hidden in this seemingly
+> > inocuous change.  Especially if you're the poor soul who ends up
+> > having to debug it :-/
 > 
-> Heh. OK if that's more convenient - not a big issue for me really.
+> You're right.  Aieee... how do I feed volatile to the DEFINE macro.
+> I'll think of something.
 
-Sorry for being so elusive, leaving you all guessing: it's kind of
-you to consider me at all.  As I remarked to Andi in private mail
-earlier, I'm so far behind on my promises (especially to KSM) that
-I don't expect to be looking at HWPOISON for quite a while.
+Or better, work with the cris maintainer to figure out whether it's
+needed (it probably isn't) and have a pre-requisite patch that removes
+it before your series :-)
 
-I don't think I'd mind about the number of files to look at.
+Cheers,
+Ben.
 
-Generally I agree with Nick, wanting the rmap-ish code to be in rmap.c
-and the swap_state-ish code to be in swap_state.c and the swapfile-ish
-code to be in swapfile.c etc.  (Though it's an acquired skill to work
-out which is which of those two - one thing you can be sure of though,
-if it's swap-related code, swap.c is strangely not the place for it.
-Yikes, someone put swap_setup in there.)
-
-But like most of us, I'm not so keen on #ifdefs: am I right to think
-that if you distribute the hwpoison code around in its appropriate
-source files, we'll have a nasty rash of #ifdefs all over?  We can
-sometimes get away with the optimizer removing what's not needed,
-but that only works in the simpler cases.
-
-Maybe we should start out, as you have, with most of the hwpoison
-code located in one file (rather like with migrate.c?); but hope
-to refactor things and distribute it over time.
-
-How seriously does the hwpoison work interfere with the assumptions
-in other sourcefiles?  If it's playing tricks liable to confuse
-someone reading through those other files, then it would be better
-to place the hwpoison code in those files, even though #ifdefed.
-
-There, how's that for a frustratingly equivocal answer?
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
