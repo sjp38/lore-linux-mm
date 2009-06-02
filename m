@@ -1,70 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 96AE45F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:01:40 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n51Nsvu8007709
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Jun 2009 08:54:57 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 68AE745DE57
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 43AC045DD79
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 173C91DB803A
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:57 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B915D1DB8038
-	for <linux-mm@kvack.org>; Tue,  2 Jun 2009 08:54:53 +0900 (JST)
-Date: Tue, 2 Jun 2009 08:53:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Inconsistency (bug) of vm_insert_page with high order
- allocations
-Message-Id: <20090602085319.e0c23910.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <202cde0e0905292242k313148b8nbc1a47e558f97a1c@mail.gmail.com>
-References: <202cde0e0905272207y2926d679s7380a0f26f6c6e71@mail.gmail.com>
-	<20090528143524.e8a2cde7.kamezawa.hiroyu@jp.fujitsu.com>
-	<202cde0e0905280002o5614f279r9db7c8c52ad7df10@mail.gmail.com>
-	<20090528162108.a6adcc36.kamezawa.hiroyu@jp.fujitsu.com>
-	<202cde0e0905292242k313148b8nbc1a47e558f97a1c@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 981AD5F0003
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:17:33 -0400 (EDT)
+Date: Tue, 2 Jun 2009 17:17:29 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602151729.GC17448@wotan.suse.de>
+References: <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602134659.GA21338@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolex@gmail.com>
-Cc: linux-mm@kvack.org, greg@kroah.com, vijaykumar@bravegnu.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 May 2009 17:42:35 +1200
-Alexey Korolev <akorolex@gmail.com> wrote:
-
-> Kame San,
+On Tue, Jun 02, 2009 at 09:46:59PM +0800, Wu Fengguang wrote:
+> On Tue, Jun 02, 2009 at 08:57:13PM +0800, Nick Piggin wrote:
+> > Obviously I don't mean just use that single call for the entire
+> > handler. You can set the EIO bit or whatever you like. The
+> > "error handling" you have there also seems strange. You could
+> > retain it, but the page is assured to be removed from pagecache.
 > 
-> Thank you for your answers. I've decided to use split_pages function.
-> >
-> >  - write a patch for adding alloc_page_exact_nodemask()  // this is not difficult.
-> >  - explain why you need this.
-> >  - discuss.
-> >
-> Writing the patch is not dificult - but it will be hard to explain why
-> it is necessary in kernel...
-> > IMHO, considering other mmap/munmap/zap_pte, etc... page_count() and page_mapocunt()
-> > should be controlled per pte. Then, you'll have to map pages one by one.
-> >
-> This is quite interesting. I tried to understand this code but it is
-> much complicated. I clearly understand why pages have to be mapped one
-> by one. By I don't understand how counters relate to this. (it is just
-> a curiosity question - I won't be upset if no one answer it)
+> You mean this?
 > 
-The kernel/cpu cannot handle changes to multiple ptes/TLBs at once. Then,
-if mapcount/count is not per pte, there will be "partially mapped/unmapped" racy
-state. That's a bad and we'll need a complicated synchronization technique to
-map/unmap multiple ptes/TLBs at once. It seems impossible.(and not worth to try)
+>         if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO))
+>                 return FAILED;
+> 
+> If page->private cannot be removed, that means some fs may start IO on it, so
+> we return FAILED.
 
-Thanks
--Kame
+Hmm, if you're handling buffercache here then possibly yes.
+But if you throw out dirty buffer cache then you're probably
+corrupting your filesystem just as bad (or even worse than
+a couple of bits flipped). Just seems ad-hoc.
+
+I guess it is best-effort in most places though, and this
+doesn't take much effort. But due to being best effort
+means that it is hard for someone who knows exactly what all
+the code does, to know what your intentions or intended
+semantics are in places like this. So short comments would help,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
