@@ -1,115 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C52766B0055
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:32:43 -0400 (EDT)
-Date: Tue, 2 Jun 2009 21:30:19 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in the VM v3
-Message-ID: <20090602133019.GC20462@localhost>
-References: <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090601120537.GF5018@wotan.suse.de> <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org> <20090602123720.GF1392@wotan.suse.de>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D35E06B0055
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:33:13 -0400 (EDT)
+Date: Tue, 2 Jun 2009 15:20:02 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090602132002.GJ1065@one.firstfloor.org>
+References: <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090601120537.GF5018@wotan.suse.de> <20090601185147.GT1065@one.firstfloor.org> <20090602121031.GC1392@wotan.suse.de> <20090602123450.GF1065@one.firstfloor.org> <20090602123720.GF1392@wotan.suse.de> <20090602125538.GH1065@one.firstfloor.org> <20090602130306.GA6262@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090602123720.GF1392@wotan.suse.de>
+In-Reply-To: <20090602130306.GA6262@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, riel@redhat.com, akpm@linux-foundation.org, chris.mason@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 08:37:20PM +0800, Nick Piggin wrote:
-> On Tue, Jun 02, 2009 at 02:34:50PM +0200, Andi Kleen wrote:
-> > On Tue, Jun 02, 2009 at 02:10:31PM +0200, Nick Piggin wrote:
-> > > > It's not, there are various differences (like the reference count)
+On Tue, Jun 02, 2009 at 03:03:06PM +0200, Nick Piggin wrote:
+> > > > > I'm suggesting that EIO is traditionally for when the data still
+> > > > > dirty in pagecache and was not able to get back to backing
+> > > > > store. Do you deny that?
+> > > > 
+> > > > Yes. That is exactly the case when memory-failure triggers EIO
+> > > > 
+> > > > Memory error on a dirty file mapped page.
 > > > 
-> > > No. If there are, then it *really* needs better documentation. I
-> > > don't think there are, though.
+> > > But it is no longer dirty, and the problem was not that the data
+> > > was unable to be written back.
 > > 
-> > Better documentation on what? You want a detailed listing in a comment
-> > how it is different from truncate?
+> > Sorry I don't understand. What do you mean with "no longer dirty"
 > > 
-> > To be honest I have some doubts of the usefulness of such a comment
-> > (why stop at truncate and not list the differences to every other
-> > page cache operation? @) but if you're insist (do you?) I can add one.
+> > Of course it's still dirty, just has to be discarded because it's 
+> > corrupted.
 > 
-> Because I don't see any difference (see my previous patch). I
-> still don't know what it is supposed to be doing differently.
-> So if you reinvent your own that looks close enough to truncate
-> to warrant a comment to say /* this is close to truncate but
-> not quite */, then yes I insist that you say exactly why it is
-> not quite like truncate ;)
+> The pagecache location is no longer dirty. Userspace only cares
+> about pagecache locations and their contents, not the page that
+> was once there and has now been taken out.
 
-The truncate topic goes boring.  EIO is more interesting and imminent, hehe.
+Sorry, but that just sounds wrong to me. User space has no clue
+about the page cache, it just wants to know that the write it just
+did didn't reach the disk. And that's what happened and
+what we report here.
 
-> > > I'm suggesting that EIO is traditionally for when the data still
-> > > dirty in pagecache and was not able to get back to backing
-> > > store. Do you deny that?
+Retries can make sense in some cases, but in these cases the
+user space should do it in other EIO cases too.
+
+> > > > > And I think the application might try to handle the case of a
+> > > > > page becoming corrupted differently. Do you deny that?
+> > > > 
+> > > > You mean a clean file-mapped page? In this case there is no EIO,
+> > > > memory-failure just drops the page and it is reloaded.
+> > > > 
+> > > > If the page is dirty we trigger EIO which as you said above is the 
+> > > > right reaction.
+> > > 
+> > > No I mean the difference between the case of dirty page unable to
+> > > be written to backing sotre, and the case of dirty page becoming
+> > > corrupted.
 > > 
-> > Yes. That is exactly the case when memory-failure triggers EIO
+> > Nick, I have really a hard time following you here.
 > > 
-> > Memory error on a dirty file mapped page.
+> > What exactly do you want? 
+> > 
+> > A new errno? Or something else? If yes what precisely?
 > 
-> But it is no longer dirty, and the problem was not that the data
-> was unable to be written back.
+> Yeah a new errno would be nice. Precisely one to say that the
+> memory was corrupted.
 
-Or rather, cannot be written back ;)
+Ok.  I firmly think a new errno is a bad idea because I don't
+want to explain to a lot of people how to fix their applications.
+Compatibility is important.
 
-> > > And I think the application might try to handle the case of a
-> > > page becoming corrupted differently. Do you deny that?
+> > I currently don't see any sane way to report this to the application
+> > through write().  That is because adding a new errno for something
+> > is incredibly hard and often impossible, and that's certainly
+> > the case here.
 > > 
-> > You mean a clean file-mapped page? In this case there is no EIO,
-> > memory-failure just drops the page and it is reloaded.
+> > The application can detect it if it maps the 
+> > shared page and waits for a SIGBUS, but not through write().
 > > 
-> > If the page is dirty we trigger EIO which as you said above is the 
-> > right reaction.
+> > But I doubt there will be really any apps that do anything differently
+> > here anyways. A clever app could retry a few times if it still
+> > has a copy of the data, but that might even make sense on normal
+> > IO errors (e.g. on a SAN).
 > 
-> No I mean the difference between the case of dirty page unable to
-> be written to backing sotre, and the case of dirty page becoming
-> corrupted.
+> I'm sure some of the ones that really care would.
 
-legacy EIO:   may success on (do something then) retry?
-hwpoison EIO: a permanent unrecoverable error
+Even if they would there would be still old binaries around.
+Compatibility is important.
 
-> > > OK, given the range of errors that APIs are defined to return,
-> > > then maybe EIO is the best option. I don't suppose it is possible
-> > > to expand them to return something else?
-> > 
-> > Expand the syscalls to return other errnos on specific
-> > kinds of IO error?
-> >  
-> > Of course that's possible, but it has the problem that you 
-> > would need to fix all the applications that expect EIO for
-> > IO error. The later I consider infeasible.
 > 
-> They would presumably exit or do some default thing, which I
-> think would be fine. Actually if your code catches them in the
-> act of manipulating a corrupted page (ie. if it is mmapped),
-> then it gets a SIGBUS.
+> 
+> > > They would presumably exit or do some default thing, which I
+> > > think would be fine.
+> > 
+> > No it's not fine if they would handle EIO. e.g. consider
+> > a sophisticated database which likely has sophisticated
+> > IO error mechanisms too (e.g. only abort the current commit)
+> 
+> Umm, if it is a generic "this failed, we can abort" then why
+> would not this be the default case. The issue is if it does
+> something differnet specifically for EIO, and specifically
+> assuming the pagecache is still valid and dirty.
 
-That's OK.  filemap_fault() returns VM_FAULT_SIGBUS for legacy EIO,
-while hwpoison pages will return VM_FAULT_HWPOISON. Both kills the
-application I guess?
+How would it make such an assumption?
 
-read()/write() are the more interesting cases.
+I assume that if an application does something with EIO it 
+can either retry a few times or give up. Both is ok here.
 
-With read IO interception, the read() call will succeed.
+-Andi
 
-The write() call have to be failed. But interestingly writes are
-mostly delayed ones, and we have only one AS_EIO bit for the entire
-file, which will be cleared after the EIO reporting. And the poisoned
-page will be isolated (if succeed) and later read()/write() calls
-won't even notice there was a poisoned page!
-
-How are we going to fix this mess? EIO errors seem to be fuzzy and
-temporary by nature at least in the current implementation, and hard
-to be improved to be exact and/or permanent in both implementation and
-interface:
-- can/shall we remember the exact EIO page? maybe not.
-- can EIO reporting be permanent? sounds like a horrible user interface..
-
-
-Thanks,
-Fengguang
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
