@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E4C3B5F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:21:02 -0400 (EDT)
-Date: Tue, 2 Jun 2009 11:14:14 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 602985F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:22:33 -0400 (EDT)
+Date: Tue, 2 Jun 2009 11:15:44 +0200
 From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: [PATCH] Warn if we run out of swap space
-Message-ID: <20090602091413.GB15756@elf.ucw.cz>
+Message-ID: <20090602091544.GC15756@elf.ucw.cz>
 References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -33,17 +33,19 @@ On Mon 2009-06-01 22:44:20, Avi Kivity wrote:
 >
 > I thought dmesg was an unreliable channel which can overflow.  It's also  
 > prone to attacks by spell checkers.
-
-Well, I believe that any used-enough channecl will eventually
-overflow. So dmesg still looks like the best we can do.
-
+>
 > I prefer reliable binary interfaces to shell explorable text interfaces  
 > as I think any feature worth having is much more useful controlled by an  
 > application rather than a bored sysadmin.
 
-You are free to parse syslog. In fact, I guess some tags could be
-added for messages where userland reaction is expected...
-									Pavel
+Ouch and please... don't stop useful printk() warnings just because
+some 'pie-in-the-sky future binary protocol'. That's what happened in
+ACPI land with battery critical, and it is also why I don't get
+battery warnings on some of my machines.
+
+State-of-the art userspace should not be required for reasonable
+operation...
+								Pavel
 -- 
 (english) http://www.livejournal.com/~pavelmachek
 (cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
