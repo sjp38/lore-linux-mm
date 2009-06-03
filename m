@@ -1,106 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1125F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:46:24 -0400 (EDT)
-Date: Tue, 2 Jun 2009 14:19:40 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602121940.GD1392@wotan.suse.de>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601140553.GA1979@localhost> <20090601144050.GA12099@wotan.suse.de> <20090602111407.GA17234@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602111407.GA17234@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D52345F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:47:44 -0400 (EDT)
+Date: Wed, 3 Jun 2009 09:47:23 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <4A26A689.1090300@redhat.com>
+Message-ID: <alpine.LFD.2.01.0906030944440.4880@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org>
+ <20090603162831.GF6701@oblivion.subreption.com> <4A26A689.1090300@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: "Larry H." <research@subreption.com>, Christoph Lameter <cl@linux-foundation.org>, Stephen Smalley <sds@tycho.nsa.gov>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 07:14:07PM +0800, Wu Fengguang wrote:
-> On Mon, Jun 01, 2009 at 10:40:51PM +0800, Nick Piggin wrote:
-> > But you just said that you try to intercept the IO. So the underlying
-> > data is not necessarily corrupt. And even if it was then what if it
-> > was reinitialized to something else in the meantime (such as filesystem
-> > metadata blocks?) You'd just be introducing worse possibilities for
-> > coruption.
+
+
+On Wed, 3 Jun 2009, Rik van Riel wrote:
 > 
-> The IO interception will be based on PFN instead of file offset, so it
-> won't affect innocent pages such as your example of reinitialized data.
+> Would anybody paranoid run their system without SELinux?
 
-OK, if you could intercept the IO so it never happens at all, yes
-of course that could work.
+You make two very fundamental mistakes.
 
+The first is to assume that this is about "paranoid" people. Security is 
+_not_ about people who care deeply about security. It's about everybody. 
+Look at viruses and DDoS attacks - the "paranoid" people absolutely depend 
+on the _non_paranoid people being secure too!
 
-> poisoned dirty page == corrupt data      => process shall be killed
-> poisoned clean page == recoverable data  => process shall survive
-> 
-> In the case of dirty hwpoison page, if we reload the on disk old data
-> and let application proceed with it, it may lead to *silent* data
-> corruption/inconsistency, because the application will first see v2
-> then v1, which is illogical and hence may mess up its internal data
-> structure.
+The other mistake is to think that SELinux is sane, or should be the 
+default. It's a f*cking complex disaster, and makes performance plummet on 
+some things. I turn it off, and I know lots of other sane people do too. 
+So the !SElinux case really does need to work.
 
-Right, but how do you prevent that? There is no way to reconstruct the
-most updtodate data because it was destroyed.
-
- 
-> > You will need to demonstrate a *big* advantage before doing crazy things
-> > with writeback ;)
-> 
-> OK. We can do two things about poisoned writeback pages:
-> 
-> 1) to stop IO for them, thus avoid corrupted data to hit disk and/or
->    trigger further machine checks
-
-1b) At which point, you invoke the end-io handlers, and the page is
-no longer writeback.
-
-> 2) to isolate them from page cache, thus preventing possible
->    references in the writeback time window
-
-And then this is possible because you aren't violating mm
-assumptions due to 1b. This proceeds just as the existing
-pagecache mce error handler case which exists now.
-
- 
-> > > Now it's obvious that reusing more code than truncate_complete_page()
-> > > is not easy (or natural).
-> > 
-> > Just lock the page and wait for writeback, then do the truncate
-> > work in another function. In your case if you've already unmapped
-> > the page then it won't try to unmap again so no problem.
-> > 
-> > Truncating from pagecache does not change ->index so you can
-> > move the loop logic out.
-> 
-> Right. So effectively the reusable function is exactly
-> truncate_complete_page(). As I said this reuse is not a big gain.
-
-Anyway, we don't have to argue about it. I already send a patch
-because it was so hard to do, so let's move past this ;)
-
-
-> > > Yes it's kind of insane.  I'm interested in reasoning it out though.
-
-Well with the IO interception (I missed this point), then it seems
-maybe no longer so insane. We could see how it looks.
-
-
-> > I guess it is a good idea to start simple.
-> 
-> Agreed.
-> 
-> > Considering that there are so many other types of pages that are
-> > impossible to deal with or have holes, then I very strongly doubt
-> > it will be worth so much complexity for closing the gap from 90%
-> > to 90.1%. But we'll see.
-> 
-> Yes, the plan is to first focus on the more important cases.
-
-Great.
-
-Thanks,
-Nick
+				Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
