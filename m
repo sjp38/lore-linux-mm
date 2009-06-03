@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 85C166B0055
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:03:50 -0400 (EDT)
-Received: from makko.or.mcafeemobile.com
-	by x35.xmailserver.org with [XMail 1.26 ESMTP Server]
-	id <S2EDA25> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
-	Wed, 3 Jun 2009 11:03:32 -0400
-Date: Wed, 3 Jun 2009 07:57:40 -0700 (PDT)
-From: Davide Libenzi <davidel@xmailserver.org>
-Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
-In-Reply-To: <m13aaintb1.fsf@fess.ebiederm.org>
-Message-ID: <alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com>
-References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-18-git-send-email-ebiederm@xmission.com> <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> <m1eiu2qqho.fsf@fess.ebiederm.org> <alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
- <m13aaintb1.fsf@fess.ebiederm.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A69686B0099
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:05:20 -0400 (EDT)
+Date: Wed, 3 Jun 2009 16:47:23 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] ksm: fix losing visibility of part of rmap_item->next list
+Message-ID: <20090603144723.GC30426@random.random>
+References: <20090603144552.GB30426@random.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090603144552.GB30426@random.random>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: akpm@linux-foundation.org
+Cc: hugh@veritas.com, linux-kernel@vger.kernel.org, Izik Eidus <ieidus@redhat.com>, nickpiggin@yahoo.com.au, chrisw@redhat.com, linux-mm@kvack.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Jun 2009, Eric W. Biederman wrote:
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-> I am not clear what problem you have.
-> 
-> Is it the sprinkling the code that takes and removes the lock?  Just
-> the VFS needs to be involved with that.  It is a slightly larger
-> surface area than doing the work inside the file operations as we
-> sometimes call the same method from 3-4 different places but it is
-> definitely a bounded problem.
-> 
-> Is it putting in the handful lines per subsystem to actually use this
-> functionality?  At that level something generic that is maintained
-> outside of the subsystem is better than the mess we have with 4-5
-> different implementations in the subsystems that need it, each having
-> a different assortment of bugs.
+The tree_item->rmap_item is the head of the list and as such it must
+not be overwritten except in the case that the element we removed
+(rmap_item) was the previous head of the list, in which case it would
+also have rmap_item->prev set to null.
 
-Come on, only in the open fast path, there are at least two spin 
-lock/unlock and two atomic ops. Without even starting to count all the 
-extra branches and software added.
-Is this stuff *really* needed, or we can faitly happily live w/out?
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-
-- Davide
-
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 74d921b..6d8dfee 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -397,10 +397,10 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
+ 				free_tree_item(tree_item);
+ 				nnodes_stable_tree--;
+ 			} else if (!rmap_item->prev) {
++				BUG_ON(tree_item->rmap_item != rmap_item);
+ 				tree_item->rmap_item = rmap_item->next;
+-			} else {
+-				tree_item->rmap_item = rmap_item->prev;
+-			}
++			} else
++				BUG_ON(tree_item->rmap_item == rmap_item);
+ 		} else {
+ 			/*
+ 			 * We dont rb_erase(&tree_item->node) here, beacuse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
