@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 957CE5F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:10:35 -0400 (EDT)
-Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-18-git-send-email-ebiederm@xmission.com>
-	<alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Tue, 02 Jun 2009 14:23:47 -0700
-In-Reply-To: <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> (Davide Libenzi's message of "Tue\, 2 Jun 2009 09\:51\:42 -0700 \(PDT\)")
-Message-ID: <m1eiu2qqho.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3325F0003
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:13:19 -0400 (EDT)
+Date: Wed, 3 Jun 2009 17:14:09 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+Message-ID: <20090603171409.5c60422c@lxorguk.ukuu.org.uk>
+In-Reply-To: <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com>
+	<alpine.LFD.2.01.0905301528540.3435@localhost.localdomain>
+	<20090530230022.GO6535@oblivion.subreption.com>
+	<alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
+	<20090531022158.GA9033@oblivion.subreption.com>
+	<alpine.DEB.1.10.0906021130410.23962@gentwo.org>
+	<20090602203405.GC6701@oblivion.subreption.com>
+	<alpine.DEB.1.10.0906031047390.15621@gentwo.org>
+	<alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>
+	<alpine.DEB.1.10.0906031121030.15621@gentwo.org>
+	<alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Davide Libenzi <davidel@xmailserver.org>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-Davide Libenzi <davidel@xmailserver.org> writes:
+> It defaults to 64kB in at least the x86 defconfig files, but to 0 in the 
+> Kconfig defaults. Also, for some reason it has a "depends on SECURITY", 
+> which means that if you just default to the old-style unix security you'll 
+> lose it.
+> 
+> So there are several ways to disable it by mistake. I don't know what 
+> distros do.
 
-> On Mon, 1 Jun 2009, Eric W. Biederman wrote:
->
->> From: Eric W. Biederman <ebiederm@maxwell.aristanetworks.com>
->> 
->> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
->> ---
->>  fs/eventpoll.c |   39 ++++++++++++++++++++++++++++++++-------
->>  1 files changed, 32 insertions(+), 7 deletions(-)
->
-> This patchset gives me the willies for the amount of changes and possible 
-> impact on many subsystems.
-
-It both is and is not that bad.  It is the cost of adding a lock.
-For the VFS except for nfsd the I have touched everything that needs to be
-touched.
-
-Other subsystems that open read/write close files should be able to use
-existing vfs helpers so they don't need to know about the new locking
-explicitly.
-
-Actually taking advantage of this infrastructure in a subsystem is
-comparatively easy.  It took me about an hour to get uio using it.
-That part is not deep by any means and is opt in.
-
-> Without having looked at the details, are you aware that epoll does not 
-> act like poll/select, and fds are not automatically removed (as in, 
-> dequeued from the poll wait queue) in any foreseeable amount of time after 
-> a POLLERR is received?
-
-Yes I am aware of how epoll acts differently.
-
-> As far as the usespace API goes, they have the right to remain there.
-
-I absolutely agree.
-
-Currently I have the code acting like close() with respect to epoll and
-just having the file descriptor vanish at the end of the revoke.  While
-we the revoke is in progress you get an EIO.
-
-The file descriptor is not freed by a revoke operation so you can happily
-hang unto it as long as you want.
-
-I thought of doing something more uniform to user space.  But I observed
-that the existing epoll punts on the case of a file descriptor being closed
-and locking to go from a file to the other epoll datastructures is pretty
-horrid I said forget it and used the existing close behaviour.
-
-Eric
+Fedora at least uses SELinux to manage it. You need some kind of security
+policy engine running as a few apps really need to map low space (mostly
+for vm86)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
