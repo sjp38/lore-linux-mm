@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A696B00F7
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:47:12 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 647EC6B0100
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:47:14 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090603846.816684333@firstfloor.org>
 In-Reply-To: <20090603846.816684333@firstfloor.org>
-Subject: [PATCH] [11/16] HWPOISON: check and isolate corrupted free pages v2
-Message-Id: <20090603184645.68FA21D0286@basil.firstfloor.org>
-Date: Wed,  3 Jun 2009 20:46:45 +0200 (CEST)
+Subject: [PATCH] [9/16] HWPOISON: Handle hardware poisoned pages in try_to_unmap
+Message-Id: <20090603184642.BD4B91D0291@basil.firstfloor.org>
+Date: Wed,  3 Jun 2009 20:46:42 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.orgfengguang.wu@intel.com
+To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+When a page has the poison bit set replace the PTE with a poison entry. 
+This causes the right error handling to be done later when a process runs 
+into it.
 
-If memory corruption hits the free buddy pages, we can safely ignore them.
-No one will access them until page allocation time, then prep_new_page()
-will automatically check and isolate PG_hwpoison page for us (for 0-order
-allocation).
+Also add a new flag to not do that (needed for the memory-failure handler
+later)
 
-This patch expands prep_new_page() to check every component page in a high
-order page allocation, in order to completely stop PG_hwpoison pages from
-being recirculated.
-
-Note that the common case -- only allocating a single page, doesn't
-do any more work than before. Allocating > order 0 does a bit more work,
-but that's relatively uncommon.
-
-This simple implementation may drop some innocent neighbor pages, hopefully
-it is not a big problem because the event should be rare enough.
-
-This patch adds some runtime costs to high order page users.
-
-[AK: Improved description]
-
-v2: Andi Kleen:
-Port to -mm code
-Move check into separate function.
-Don't dump stack in bad_pages for hwpoisoned pages.
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/page_alloc.c |   20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ include/linux/rmap.h |    1 +
+ mm/rmap.c            |    9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
-Index: linux/mm/page_alloc.c
+Index: linux/mm/rmap.c
 ===================================================================
---- linux.orig/mm/page_alloc.c	2009-06-03 19:37:39.000000000 +0200
-+++ linux/mm/page_alloc.c	2009-06-03 20:13:43.000000000 +0200
-@@ -237,6 +237,12 @@
- 	static unsigned long nr_shown;
- 	static unsigned long nr_unshown;
+--- linux.orig/mm/rmap.c	2009-06-03 19:36:23.000000000 +0200
++++ linux/mm/rmap.c	2009-06-03 20:39:49.000000000 +0200
+@@ -943,7 +943,14 @@
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
  
-+	/* Don't complain about poisoned pages */
-+	if (PageHWPoison(page)) {
-+		__ClearPageBuddy(page);
-+		return;
-+	}
-+
- 	/*
- 	 * Allow a burst of 60 reports, then keep quiet for that minute;
- 	 * or allow a steady drip of one report per second.
-@@ -650,7 +656,7 @@
- /*
-  * This page is about to be returned from the page allocator
-  */
--static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-+static inline int check_new_page(struct page *page)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
-@@ -659,6 +665,18 @@
- 		bad_page(page);
- 		return 1;
- 	}
-+	return 0;
-+}
-+
-+static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-+{
-+	int i;
-+
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page *p = page + i;
-+		if (unlikely(check_new_page(p)))
-+			return 1;
-+	}
+-	if (PageAnon(page)) {
++	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
++		if (PageAnon(page))
++			dec_mm_counter(mm, anon_rss);
++		else if (!is_migration_entry(pte_to_swp_entry(*pte)))
++			dec_mm_counter(mm, file_rss);
++		set_pte_at(mm, address, pte,
++				swp_entry_to_pte(make_hwpoison_entry(page)));
++	} else if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page_private(page) };
  
- 	set_page_private(page, 0);
- 	set_page_refcounted(page);
+ 		if (PageSwapCache(page)) {
+Index: linux/include/linux/rmap.h
+===================================================================
+--- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
++++ linux/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
+@@ -93,6 +93,7 @@
+ 
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
++	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+ };
+ #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
