@@ -1,43 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7085F6B00BD
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:21:51 -0400 (EDT)
-Date: Tue, 2 Jun 2009 16:21:43 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602142143.GD26982@wotan.suse.de>
-References: <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602132538.GK1065@one.firstfloor.org> <20090602132441.GC6262@wotan.suse.de> <20090602134126.GM1065@one.firstfloor.org> <20090602135324.GB21338@localhost> <20090602140639.GQ1065@one.firstfloor.org> <20090602141222.GD21338@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602141222.GD21338@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CBC2F6B00BE
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:23:55 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 02A0E82CC49
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:38:43 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id l3X9mfHgl0H4 for <linux-mm@kvack.org>;
+	Wed,  3 Jun 2009 11:38:42 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D091082CC82
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:38:36 -0400 (EDT)
+Date: Wed, 3 Jun 2009 11:23:47 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>
+Message-ID: <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
+References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Larry H." <research@subreption.com>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 10:12:22PM +0800, Wu Fengguang wrote:
-> On Tue, Jun 02, 2009 at 10:06:39PM +0800, Andi Kleen wrote:
-> > > > Ok you're right. That one is not needed. I will remove it.
-> > > 
-> > > No! Please read the comment. In fact __remove_from_page_cache() has a
-> > > 
-> > >                 BUG_ON(page_mapped(page));
-> > > 
-> > > Or, at least correct that BUG_ON() line together.
-> > 
-> > Yes, but we already have them unmapped earlier and the poison check
-> 
-> But you commented "try_to_unmap can fail temporarily due to races."
-> 
-> That's self-contradictory.
+On Wed, 3 Jun 2009, Linus Torvalds wrote:
 
-If you use the bloody code I posted (and suggested from the start),
-then you DON'T HAVE TO WORRY ABOUT THIS, because it is handled by
-the subsystem that knows about it.
+> The point being that we do need to support mmap at zero. Not necessarily
+> universally, but it can't be some fixed "we don't allow that".
 
-How anybody can say it will make your code overcomplicated or "is
-not much improvement" is just totally beyond me.
+Hmmm... Depend on some capability? CAP_SYS_PTRACE may be something
+remotely related?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
