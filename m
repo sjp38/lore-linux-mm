@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B63806B0055
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:51:19 -0400 (EDT)
-Received: by pzk5 with SMTP id 5so272341pzk.12
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2009 12:51:18 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C96586B004F
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:01:08 -0400 (EDT)
+From: pageexec@freemail.hu
+Date: Wed, 03 Jun 2009 22:00:52 +0200
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
-References: <20090530230022.GO6535@oblivion.subreption.com>
-	 <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>
-	 <20090603180037.GB18561@oblivion.subreption.com>
-	 <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
-	 <20090603183939.GC18561@oblivion.subreption.com>
-	 <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
-	 <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
-	 <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
-	 <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
-	 <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
-Date: Wed, 3 Jun 2009 15:51:16 -0400
-Message-ID: <7e0fb38c0906031251h6844ea08y2dbfa09a7f46eb5f@mail.gmail.com>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
-	ZERO_SIZE_PTR to point at unmapped space)
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change ZERO_SIZE_PTR to point at unmapped space)
+Reply-to: pageexec@freemail.hu
+Message-ID: <4A26D674.10117.2E18A862@pageexec.freemail.hu>
+In-reply-to: <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
+References: <20090530230022.GO6535@oblivion.subreption.com>, <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>, <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: "Larry H." <research@subreption.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 3, 2009 at 3:42 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> On Wed, 3 Jun 2009, Eric Paris wrote:
->
->> NAK =A0with SELinux on you now need both the SELinux mmap_zero
->> permission and the CAP_SYS_RAWIO permission. =A0Previously you only
->> needed one or the other, depending on which was the predominant
->> LSM.....
->
-> CAP_SYS_RAWIO is checked so you only need to check for mmap_zero in
-> SELinux.
+On 3 Jun 2009 at 11:50, Linus Torvalds wrote:
 
-You misunderstand.  As it stands today if you use SELinux you need
-only the selinux mmap_zero permission.  If you use capabilities you
-need CAP_SYS_RAWIO.
+> 
+> 
+> On Wed, 3 Jun 2009, Linus Torvalds wrote:
+> > 
+> > That means that you've already by-passed all the main security. It's thus 
+> > by definition less common than attack vectors like buffer overflows that 
+> > give you that capability in the first place.
+> 
+> Btw, you obviously need to then _also_ pair it with some as-yet-unknown 
+> case of kernel bug to get to that NULL pointer (or zero-sized-alloc 
+> pointer) problem. 
 
-With your patch SELinux policy would now have to grant CAP_SYS_RAWIO
-everywhere it grants mmap_zero.  This not not acceptable.  Take notice
-that with SELinux enabled cap_file_mmap is never called.....
+are you saying it's hard to find 'as-yet-unknown' null-deref bugs? what about
+'already-known-but-not-yet-fixed-in-distro-kernel' ones? especially when the
+disclosure process was, let's say, less than 'full'.
 
+> You _also_ seem to be totally ignoring the fact that we already _do_ 
+> protect against NULL pointers by default.
 
->> Even if you want to argue that I have to take CAP_SYS_RAWIO in the
->> SELinux case what about all the other places? =A0do_mremap? =A0do_brk?
->> expand_downwards?
->
-> brk(0) would free up all the code? The others could be added.
+this whole discussion about NULL derefs is quite missing the point by the way.
+the proper bug class is about unintended userland ptr derefs by the kernel,
+of which NULL derefs are a small subset only. and you can't protect against
+it by default or otherwise by banning userland from using its address space ;).
 
-The 'right'est fix is as Alan suggested, duplicate the code
+fixing ZERO_SIZE_PTR is about not making the mess of mixing userland/kernel
+addresses worse, that's all. small piece of the parcel but then it's obviously
+correct too.
 
-from security/capability.c::cap_file_mmap()
-to include/linux/security.h::securitry_file_mmap()
+> So I really don't see why you're making a big deal of this. It's as if you 
+> were talking about us not randomizing the address space - sure, you can 
+> turn it off, but so what? We do it by default.
 
--Eric
+and the amount of it is easily bruteforceable not to mention lack of
+protection against said bruteforce. don't rest on your laurels yet ;).
+
+> So it boils down to:
+> 
+>  - NULL pointers already cannot be in mmap memory
+
+not all NULL deref bugs are literally around address 0, there's often an
+offset involved, sometimes even under the attacker's control (a famous
+userland example is discussed in 
+   http://documents.iss.net/whitepapers/IBM_X-Force_WP_final.pdf
+).
+
+> (unless a distro has 
+>    done something wrong - outside of the kernel)
+
+do you have data about which distros and kernels enable this? and how
+they handle v86 and stuff? suid root equivalent or something better?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
