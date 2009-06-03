@@ -1,108 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A3B235F0001
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:47:20 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-References: <20090603846.816684333@firstfloor.org>
-In-Reply-To: <20090603846.816684333@firstfloor.org>
-Subject: [PATCH] [16/16] HWPOISON: Add simple debugfs interface to inject hwpoison on arbitary PFNs
-Message-Id: <20090603184652.2A5461D0293@basil.firstfloor.org>
-Date: Wed,  3 Jun 2009 20:46:51 +0200 (CEST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 880965F0001
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:51:33 -0400 (EDT)
+Date: Wed, 3 Jun 2009 11:50:16 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+Message-ID: <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
+References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk> <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain> <20090603180037.GB18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
+ <20090603183939.GC18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: "Larry H." <research@subreption.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
 
-Useful for some testing scenarios, although specific testing is often
-done better through MADV_POISON
 
-This can be done with the x86 level MCE injector too, but this interface
-allows it to do independently from low level x86 changes.
+On Wed, 3 Jun 2009, Linus Torvalds wrote:
+> 
+> That means that you've already by-passed all the main security. It's thus 
+> by definition less common than attack vectors like buffer overflows that 
+> give you that capability in the first place.
 
-Open issues: 
+Btw, you obviously need to then _also_ pair it with some as-yet-unknown 
+case of kernel bug to get to that NULL pointer (or zero-sized-alloc 
+pointer) problem. 
 
-Should be disabled for cgroups.
+You _also_ seem to be totally ignoring the fact that we already _do_ 
+protect against NULL pointers by default.
 
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
+So I really don't see why you're making a big deal of this. It's as if you 
+were talking about us not randomizing the address space - sure, you can 
+turn it off, but so what? We do it by default.
 
----
- mm/Kconfig           |    4 ++++
- mm/Makefile          |    1 +
- mm/hwpoison-inject.c |   41 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+)
+So it boils down to:
 
-Index: linux/mm/hwpoison-inject.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux/mm/hwpoison-inject.c	2009-06-03 20:30:47.000000000 +0200
-@@ -0,0 +1,41 @@
-+/* Inject a hwpoison memory failure on a arbitary pfn */
-+#include <linux/module.h>
-+#include <linux/debugfs.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+
-+static struct dentry *hwpoison_dir, *corrupt_pfn;
-+
-+static int hwpoison_inject(void *data, u64 val)
-+{
-+	if (!capable(CAP_SYS_ADMIN))
-+		return -EPERM;
-+	printk(KERN_INFO "Injecting memory failure at pfn %Lx\n", val);
-+	memory_failure(val, 18);
-+	return 0;
-+}
-+
-+DEFINE_SIMPLE_ATTRIBUTE(hwpoison_fops, NULL, hwpoison_inject, "%lli\n");
-+
-+static void pfn_inject_exit(void)
-+{
-+	if (hwpoison_dir)
-+		debugfs_remove_recursive(hwpoison_dir);
-+}
-+
-+static int pfn_inject_init(void)
-+{
-+	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
-+	if (hwpoison_dir == NULL)
-+		return -ENOMEM;
-+	corrupt_pfn = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
-+					  NULL, &hwpoison_fops);
-+	if (corrupt_pfn == NULL) {
-+		pfn_inject_exit();
-+		return -ENOMEM;
-+	}
-+	return 0;
-+}
-+
-+module_init(pfn_inject_init);
-+module_exit(pfn_inject_exit);
-Index: linux/mm/Kconfig
-===================================================================
---- linux.orig/mm/Kconfig	2009-06-03 20:30:47.000000000 +0200
-+++ linux/mm/Kconfig	2009-06-03 20:30:47.000000000 +0200
-@@ -225,6 +225,10 @@
- 	default y
- 	depends on MMU
- 
-+config HWPOISON_INJECT
-+	tristate "Poison pages injector"
-+	depends on MEMORY_FAILURE && DEBUG_KERNEL
-+
- config NOMMU_INITIAL_TRIM_EXCESS
- 	int "Turn on mmap() excess space trimming before booting"
- 	depends on !MMU
-Index: linux/mm/Makefile
-===================================================================
---- linux.orig/mm/Makefile	2009-06-03 20:30:30.000000000 +0200
-+++ linux/mm/Makefile	2009-06-03 20:30:47.000000000 +0200
-@@ -43,5 +43,6 @@
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
- obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
-+obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ - NULL pointers already cannot be in mmap memory (unless a distro has 
+   done something wrong - outside of the kernel)
+
+ - What's your beef? Let it go, man.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
