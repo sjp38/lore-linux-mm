@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF1B66B00D2
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:20:23 -0400 (EDT)
-Date: Wed, 3 Jun 2009 20:21:17 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E0AE16B00D7
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:27:52 -0400 (EDT)
+Date: Wed, 3 Jun 2009 12:27:32 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
  ZERO_SIZE_PTR to point at unmapped space)
-Message-ID: <20090603202117.39b070d5@lxorguk.ukuu.org.uk>
 In-Reply-To: <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
-References: <20090530230022.GO6535@oblivion.subreption.com>
-	<alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>
-	<20090531022158.GA9033@oblivion.subreption.com>
-	<alpine.DEB.1.10.0906021130410.23962@gentwo.org>
-	<20090602203405.GC6701@oblivion.subreption.com>
-	<alpine.DEB.1.10.0906031047390.15621@gentwo.org>
-	<20090603182949.5328d411@lxorguk.ukuu.org.uk>
-	<alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>
-	<20090603180037.GB18561@oblivion.subreption.com>
-	<alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
-	<20090603183939.GC18561@oblivion.subreption.com>
-	<alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
-	<alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
-	<alpine.DEB.1.10.0906031458250.9269@gentwo.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.LFD.2.01.0906031222550.4880@localhost.localdomain>
+References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk> <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain> <20090603180037.GB18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
+ <20090603183939.GC18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain> <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain> <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009 14:59:51 -0400 (EDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
 
+
+On Wed, 3 Jun 2009, Christoph Lameter wrote:
+>
 > We could just move the check for mmap_min_addr out from
 > CONFIG_SECURITY?
-> 
-> 
-> Use mmap_min_addr indepedently of security models
-> 
-> This patch removes the dependency of mmap_min_addr on CONFIG_SECURITY.
-> It also sets a default mmap_min_addr of 4096.
-> 
-> mmapping of addresses below 4096 will only be possible for processes
-> with CAP_SYS_RAWIO.
 
-This appears to break the security models as they can no longer replace
-the CAP_SYS_RAWIO check with something based on the security model.
+No.
 
-> @@ -1043,6 +1046,9 @@ unsigned long do_mmap_pgoff(struct file
->  		}
->  	}
-> 
-> +	if ((addr < mmap_min_addr) && !capable(CAP_SYS_RAWIO))
-> +		return -EACCES;
-> +
+The thing is, the security model wants to modify the rules on what's 
+"secure" and what isn't. And your patch just hard-coded that 
+capable(CAP_SYS_RAWIO) decision - but that's not what something like 
+SElinux actually uses to decide whether it's ok or not.
 
-You can't move this bit here
+So if you do it in generic code, you'd have to make it much more complex. 
+One option would be to change the rule for what "security_file_mmap()" 
+means, and make the return value says "yes, no, override". Where 
+"override" would be "allow it for this process even if it's below the 
+minimum mmap limit.
 
->  	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
+But the better option really is to just copy the cap_file_mmap() rule to 
+the !SECURITY rule, and make !SECURITY really mean the same as "always do 
+default security", the way it's documented.
 
-You need it in the default (no security) version of security_file_mmap()
-in security.h not hard coded into do_mmap_pgoff, and leave the one in
-cap_* alone.
-
-So NAK - not to the idea but to the fact the patch is buggy.
-
-Alan
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
