@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E0AE16B00D7
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:27:52 -0400 (EDT)
-Date: Wed, 3 Jun 2009 12:27:32 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
-Message-ID: <alpine.LFD.2.01.0906031222550.4880@localhost.localdomain>
-References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
- <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk> <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain> <20090603180037.GB18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
- <20090603183939.GC18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain> <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain> <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AE616B00DF
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:41:51 -0400 (EDT)
+From: pageexec@freemail.hu
+Date: Wed, 03 Jun 2009 21:41:35 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change ZERO_SIZE_PTR to point at unmapped space)
+Reply-to: pageexec@freemail.hu
+Message-ID: <4A26D1EF.21895.2E070251@pageexec.freemail.hu>
+In-reply-to: <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+References: <20090530230022.GO6535@oblivion.subreption.com>, <20090603183939.GC18561@oblivion.subreption.com>, <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: "Larry H." <research@subreption.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On 3 Jun 2009 at 11:45, Linus Torvalds wrote:
 
+> 
+> 
+> On Wed, 3 Jun 2009, Larry H. wrote:
+> > > 
+> > > The fact, the NULL pointer attack is neither easy nor common. It's 
+> > > perfectly reasonable to say "we'll allow mmap at virtual address zero".
+> > 
+> > And how could you calibrate if this attack venue isn't easy to take
+> > advantage of? Or not commonly abused? What empirical results led you to this
+> > conclusion?
+> 
+> It's not a primary attack vector. You need to have already broken local 
+> security to get there - you need to be able to execute code.
 
-On Wed, 3 Jun 2009, Christoph Lameter wrote:
->
-> We could just move the check for mmap_min_addr out from
-> CONFIG_SECURITY?
+during last summer's flame war^W^Wdiscussion about how you guys were covering
+up security fixes you brought an example of smart university students breaking
+communal boxes left and right. are you now saying that it was actually a strawman
+argument as you consider that situation already broken? you can't have it both
+ways ;).
 
-No.
+> That means that you've already by-passed all the main security. It's thus 
+> by definition less common than attack vectors like buffer overflows that 
+> give you that capability in the first place.
 
-The thing is, the security model wants to modify the rules on what's 
-"secure" and what isn't. And your patch just hard-coded that 
-capable(CAP_SYS_RAWIO) decision - but that's not what something like 
-SElinux actually uses to decide whether it's ok or not.
-
-So if you do it in generic code, you'd have to make it much more complex. 
-One option would be to change the rule for what "security_file_mmap()" 
-means, and make the return value says "yes, no, override". Where 
-"override" would be "allow it for this process even if it's below the 
-minimum mmap limit.
-
-But the better option really is to just copy the cap_file_mmap() rule to 
-the !SECURITY rule, and make !SECURITY really mean the same as "always do 
-default security", the way it's documented.
-
-			Linus
+that only means that you've ignored multi-user boxes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
