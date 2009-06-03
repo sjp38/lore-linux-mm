@@ -1,138 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 082FA5F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:19:07 -0400 (EDT)
-Subject: Re: [PATCH 01/23] mm: Introduce revoke_file_mappings.
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-1-git-send-email-ebiederm@xmission.com>
-	<20090601152553.b2de027a.akpm@linux-foundation.org>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Mon, 01 Jun 2009 17:12:19 -0700
-In-Reply-To: <20090601152553.b2de027a.akpm@linux-foundation.org> (Andrew Morton's message of "Mon\, 1 Jun 2009 15\:25\:53 -0700")
-Message-ID: <m1vdnfze70.fsf@fess.ebiederm.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2322F5F000E
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:19:36 -0400 (EDT)
+Date: Wed, 3 Jun 2009 09:18:22 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <alpine.DEB.1.10.0906031134410.13551@gentwo.org>
+Message-ID: <alpine.LFD.2.01.0906030912340.4880@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com>  <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain>  <20090530230022.GO6535@oblivion.subreption.com>  <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain>  <20090531022158.GA9033@oblivion.subreption.com>
+  <alpine.DEB.1.10.0906021130410.23962@gentwo.org>  <20090602203405.GC6701@oblivion.subreption.com>  <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: viro@ZenIV.linux.org.uk, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tj@kernel.org, hugh.dickins@tiscali.co.uk, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, hch@infradead.org, ebiederm@aristanetworks.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Stephen Smalley <sds@tycho.nsa.gov>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
 
-> On Mon,  1 Jun 2009 14:50:26 -0700
-> "Eric W. Biederman" <ebiederm@xmission.com> wrote:
->
->> +static void revoke_vma(struct vm_area_struct *vma)
->
-> This looks odd.
->
->> +{
->> +	struct file *file = vma->vm_file;
->> +	struct address_space *mapping = file->f_mapping;
->> +	unsigned long start_addr, end_addr, size;
->> +	struct mm_struct *mm;
->> +
->> +	start_addr = vma->vm_start;
->> +	end_addr = vma->vm_end;
->
-> We take a copy of start_addr/end_addr (and this end_addr value is never used)
-A foolish consistency.
 
->> +	/* Switch out the locks so I can maninuplate this under the mm sem.
->> +	 * Needed so I can call vm_ops->close.
->> +	 */
->> +	mm = vma->vm_mm;
->> +	atomic_inc(&mm->mm_users);
->> +	spin_unlock(&mapping->i_mmap_lock);
->> +
->> +	/* Block page faults and other code modifying the mm. */
->> +	down_write(&mm->mmap_sem);
->> +
->> +	/* Lookup a vma for my file address */
->> +	vma = find_vma(mm, start_addr);
->
-> Then we look up a vma.  Is there reason to believe that this will
-> differ from the incoming arg which we just overwrote?  Maybe the code
-> is attempting to handle racing concurrent mmap/munmap activity?  If so,
-> what are the implications of this?
+On Wed, 3 Jun 2009, Christoph Lameter wrote:
+> 
+> mmap_min_addr depends on CONFIG_SECURITY which establishes various
+> strangely complex "security models".
+> 
+> The system needs to be secure by default.
 
-Yes it is.  The file based index is only safe while we hold the i_mmap_lock.
-The manipulation that needs to happen under the mmap_sem.
+It _is_ secure by default. You have to do some pretty non-default things 
+to get away from it.
 
-So I drop all of the locks and restart.  And use the time honored
-kernel practice of relooking up the thing I am going to manipulate.
-As long as it is for the same file I don't care.
+But I do agree that it might be good to move the thing into the generic 
+path. I just don't think your arguments are very good. It's not about 
+defaults, it's about the fact that this isn't worth being hidden by that 
+security layer.
 
-> I _think_ that what the function is attempting to do is "unmap the vma
-> which covers the address at vma->start_addr".  If so, why not just pass
-> it that virtual address?
-
-Actually it is  unmapping a vma for the file I am revoking.  I hand it
-one and then it does an address space jig.
-
-> Anyway, it's all a bit obscure and I do think that the semantics and
-> behaviour should be carefully explained in a comment, no?
->
->> +	if (vma->vm_file != file)
->> +		goto out;
->
-> This strengthens the theory that some sort of race-management is
-> happening here.
-
-Totally.  I dropped all of my locks so I am having to restart in
-a different locking context.
-
->> +	start_addr = vma->vm_start;
->> +	end_addr   = vma->vm_end;
->> +	size	   = end_addr - start_addr;
->> +
->> +	/* Unlock the pages */
->> +	if (mm->locked_vm && (vma->vm_flags & VM_LOCKED)) {
->> +		mm->locked_vm -= vma_pages(vma);
->> +		vma->vm_flags &= ~VM_LOCKED;
->> +	}
->> +
->> +	/* Unmap the vma */
->> +	zap_page_range(vma, start_addr, size, NULL);
->> +
->> +	/* Unlink the vma from the file */
->> +	unlink_file_vma(vma);
->> +
->> +	/* Close the vma */
->> +	if (vma->vm_ops && vma->vm_ops->close)
->> +		vma->vm_ops->close(vma);
->> +	fput(vma->vm_file);
->> +	vma->vm_file = NULL;
->> +	if (vma->vm_flags & VM_EXECUTABLE)
->> +		removed_exe_file_vma(vma->vm_mm);
->> +
->> +	/* Repurpose the vma  */
->> +	vma->vm_private_data = NULL;
->> +	vma->vm_ops = &revoked_vm_ops;
->> +	vma->vm_flags &= ~(VM_NONLINEAR | VM_CAN_NONLINEAR);
->> +out:
->> +	up_write(&mm->mmap_sem);
->> +	spin_lock(&mapping->i_mmap_lock);
->> +}
->
-> Also, I'm not a bit fan of the practice of overwriting the value of a
-> formal argument, especially in a function which is this large and
-> complex.  It makes the code harder to follow, because the one variable
-> holds two conceptually different things within the span of the same
-> function.  And it adds risk that someone will will later access a field
-> of *vma and it will be the wrong vma.  Worse, the bug is only exposed
-> under exeedingly rare conditions.
->
-> So..  Use a new local, please.
-
-We can never legitimately have more than one vma manipulated in this function.
-As for the rest.  I guess I just assumed that the reader of the code would
-have a basic understanding of the locking rules for those data structures.
-
-Certainly the worst thing I suffer from is being close to the code,
-and not realizing which pieces are not obvious to a naive observer.
-
-Eric
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
