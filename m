@@ -1,87 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6C93F6B00B6
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:14:57 -0400 (EDT)
-Received: by fxm12 with SMTP id 12so10989824fxm.38
-        for <linux-mm@kvack.org>; Tue, 02 Jun 2009 00:08:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <m1ws7vyvoz.fsf@fess.ebiederm.org>
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	 <1243893048-17031-4-git-send-email-ebiederm@xmission.com>
-	 <84144f020906012216n715a04d0ha492abc12175816@mail.gmail.com>
-	 <m1ws7vyvoz.fsf@fess.ebiederm.org>
-Date: Tue, 2 Jun 2009 10:08:14 +0300
-Message-ID: <84144f020906020008w54b1c628hc6e41dcddd208f5f@mail.gmail.com>
-Subject: Re: [PATCH 04/23] vfs: Introduce infrastructure for revoking a file
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0216B00B6
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:17:50 -0400 (EDT)
+Date: Wed, 3 Jun 2009 13:24:56 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
+Message-ID: <20090603112456.GA1065@one.firstfloor.org>
+References: <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602151729.GC17448@wotan.suse.de> <20090602172715.GT1065@one.firstfloor.org> <20090603093546.GA16275@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090603093546.GA16275@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Eric,
+On Wed, Jun 03, 2009 at 11:35:46AM +0200, Nick Piggin wrote:
+> On Tue, Jun 02, 2009 at 07:27:15PM +0200, Andi Kleen wrote:
+> > > Hmm, if you're handling buffercache here then possibly yes.
+> > 
+> > Good question, will check.
+> 
+> BTW. now that I think about it, buffercache is probably not a good
+> idea to truncate (truncate, as-in: remove from pagecache). Because
+> filesystems can assume that with just a reference on the page, then
+> it will not be truncated.
 
-On Tue, Jun 2, 2009 at 9:51 AM, Eric W. Biederman <ebiederm@xmission.com> w=
-rote:
-> Pekka Enberg <penberg@cs.helsinki.fi> writes:
->
->> Hi Eric,
->>
->> On Tue, Jun 2, 2009 at 12:50 AM, Eric W. Biederman
->> <ebiederm@xmission.com> wrote:
->>> +#ifdef CONFIG_FILE_HOTPLUG
->>> +
->>> +static bool file_in_use(struct file *file)
->>> +{
->>> + =A0 =A0 =A0 struct task_struct *leader, *task;
->>> + =A0 =A0 =A0 bool in_use =3D false;
->>> + =A0 =A0 =A0 int i;
->>> +
->>> + =A0 =A0 =A0 rcu_read_lock();
->>> + =A0 =A0 =A0 do_each_thread(leader, task) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D 0; i < MAX_FILE_HOTPLUG_LOCK_D=
-EPTH; i++) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (task->file_hotplug_lo=
-ck[i] =3D=3D file) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 in_use =
-=3D true;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto foun=
-d;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
->>> + =A0 =A0 =A0 } while_each_thread(leader, task);
->>> +found:
->>> + =A0 =A0 =A0 rcu_read_unlock();
->>> + =A0 =A0 =A0 return in_use;
->>> +}
->>
->> This seems rather heavy-weight. If we're going to use this
->> infrastructure for forced unmount, I think this will be a problem.
->
->> Can't we two this in two stages: (1) mark a bit that forces
->> file_hotplug_read_trylock to always fail and (2) block until the last
->> remaining in-kernel file_hotplug_read_unlock() has executed?
->
-> Yes there is room for more optimization in the slow path.
-> I haven't noticed being a problem yet so I figured I would start
-> with stupid and simple.
+Yes I understand. Need to check for this, but I'm not sure
+how we can reliably detect it based on the struct page alone. I guess we have 
+to look at the mapping.
 
-Yup, just wanted to point it out.
+> So I think it would be a good idea to exclude buffercache from
+> here completely until it can be shown to be safe. Actually you
 
-On Tue, Jun 2, 2009 at 9:51 AM, Eric W. Biederman <ebiederm@xmission.com> w=
-rote:
-> I can easily see two passes. =A0The first setting the flag an calling
-> f_op->dead. =A0The second some kind of consolidate walk through the task
-> list, allowing checking on multiple files at once.
->
-> I'm not ready to consider anything that will add cost to the fast
-> path in the file descriptors though.
+Agreed. Just need to figure out how.
 
-Makes sense.
+-Andi
 
-                        Pekka
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
