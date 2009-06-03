@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 654986B00C6
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:27:55 -0400 (EDT)
-Date: Wed, 3 Jun 2009 01:34:57 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch][v2] swap: virtual swap readahead
-Message-ID: <20090602233457.GY1065@one.firstfloor.org>
-References: <20090602223738.GA15475@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DDD206B00C8
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:28:57 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n538MFP2003485
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Jun 2009 17:22:16 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AC9F45DE61
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:15 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 34D7F45DE57
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:15 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D26EFE08015
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:14 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4896BE08008
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:22:14 +0900 (JST)
+Date: Wed, 3 Jun 2009 17:20:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH mmotm 2/2] memcg: allow mem.limit bigger than
+ memsw.limit iff unlimited
+Message-Id: <20090603172039.71e6df7c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
+References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
+	<20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
+	<20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602223738.GA15475@cmpxchg.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 03, 2009 at 12:37:39AM +0200, Johannes Weiner wrote:
-> + *
-> + * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
-> + */
-> +struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
-> +			struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	unsigned long start, pos, end;
-> +	unsigned long pmin, pmax;
-> +	int cluster, window;
-> +
-> +	if (!vma || !vma->vm_mm)	/* XXX: shmem case */
-> +		return swapin_readahead_phys(entry, gfp_mask, vma, addr);
-> +
-> +	cluster = 1 << page_cluster;
-> +	window = cluster << PAGE_SHIFT;
-> +
-> +	/* Physical range to read from */
-> +	pmin = swp_offset(entry) & ~(cluster - 1);
+On Wed, 3 Jun 2009 14:01:02 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Is cluster really properly sign extended on 64bit? Looks a little
-dubious. long from the start would be safer
+> On Wed, 3 Jun 2009 12:52:28 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > On Wed, 3 Jun 2009 11:50:27 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > 
+> > > Now users cannot set mem.limit bigger than memsw.limit.
+> > > This patch allows mem.limit bigger than memsw.limit iff mem.limit==unlimited.
+> > > 
+> > > By this, users can set memsw.limit without setting mem.limit.
+> > > I think it's usefull if users want to limit memsw only.
+> > > They must set mem.limit first and memsw.limit to the same value now for this purpose.
+> > > They can save the first step by this patch.
+> > > 
+> > 
+> > I don't like this. No benefits to users.
+> > The user should know when they set memsw.limit they have to set memory.limit.
+> > This just complicates things.
+> > 
+> Hmm, I think there is a user who cares only limitting logical memory(mem+swap),
+> not physical memory, and wants kswapd to reclaim physical memory when congested. 
+> At least, I'm a such user.
+> 
+> Do you disagree even if I add a file like "memory.allow_limit_memsw_only" ?
+> 
+We can it _now_.
 
-> +
-> +	/* Virtual range to read from */
-> +	start = addr & ~(window - 1);
-
-Same.
-
-> +		pgd = pgd_offset(vma->vm_mm, pos);
-> +		if (!pgd_present(*pgd))
-> +			continue;
-> +		pud = pud_offset(pgd, pos);
-> +		if (!pud_present(*pud))
-> +			continue;
-> +		pmd = pmd_offset(pud, pos);
-> +		if (!pmd_present(*pmd))
-> +			continue;
-> +		pte = pte_offset_map_lock(vma->vm_mm, pmd, pos, &ptl);
-
-You could be more efficient here by using the standard mm/* nested loop
-pattern that avoids relookup of everything in each iteration. I suppose
-it would mainly make a difference with 32bit highpte where mapping a pte
-can be somewhat costly. And you would take less locks this way.
-
-> +		page = read_swap_cache_async(swp, gfp_mask, vma, pos);
-> +		if (!page)
-> +			continue;
-
-That's out of memory, break would be better here because prefetch
-while oom is usually harmful.
-
-> +		page_cache_release(page);
-> +	}
-> +	lru_add_drain();	/* Push any new pages onto the LRU now */
-> +	return read_swap_cache_async(entry, gfp_mask, vma, addr);
-
-Shouldn't that page be already handled in the loop earlier? Why doing that
-again? It would be better to remember it from there.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
