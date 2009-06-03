@@ -1,82 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A66646B0055
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:44:27 -0400 (EDT)
-From: "Eric W. Biederman" <ebiederm@xmission.com>
-Date: Mon,  1 Jun 2009 14:50:42 -0700
-Message-Id: <1243893048-17031-17-git-send-email-ebiederm@xmission.com>
-In-Reply-To: <m1oct739xu.fsf@fess.ebiederm.org>
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-Subject: [PATCH 17/23] proc: Teach /proc/<pid>/fd to use file_hotplug_lock
+	by kanga.kvack.org (Postfix) with ESMTP id D89496B009C
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:45:57 -0400 (EDT)
+Date: Wed, 3 Jun 2009 11:45:38 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <20090603183939.GC18561@oblivion.subreption.com>
+Message-ID: <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk> <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain> <20090603180037.GB18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
+ <20090603183939.GC18561@oblivion.subreption.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.arastra.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: "Larry H." <research@subreption.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-From: Eric W. Biederman <ebiederm@maxwell.arastra.com>
 
-I have taken the opportunity to modify proc_fd_info to have
-a single exit point.
 
-Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
----
- fs/proc/base.c |   29 ++++++++++++++++-------------
- 1 files changed, 16 insertions(+), 13 deletions(-)
+On Wed, 3 Jun 2009, Larry H. wrote:
+> > 
+> > The fact, the NULL pointer attack is neither easy nor common. It's 
+> > perfectly reasonable to say "we'll allow mmap at virtual address zero".
+> 
+> And how could you calibrate if this attack venue isn't easy to take
+> advantage of? Or not commonly abused? What empirical results led you to this
+> conclusion?
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index fb45615..ee4cdc2 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1626,6 +1626,7 @@ static int proc_fd_info(struct inode *inode, struct path *path, char *info)
- 	struct files_struct *files = NULL;
- 	struct file *file;
- 	int fd = proc_fd(inode);
-+	int retval = -ENOENT;
- 
- 	if (task) {
- 		files = get_files_struct(task);
-@@ -1639,24 +1640,26 @@ static int proc_fd_info(struct inode *inode, struct path *path, char *info)
- 		spin_lock(&files->file_lock);
- 		file = fcheck_files(files, fd);
- 		if (file) {
--			if (path) {
--				*path = file->f_path;
--				path_get(&file->f_path);
-+			retval = -EIO;
-+			if (file_hotplug_read_trylock(file)) {
-+				retval = 0;
-+				if (path) {
-+					*path = file->f_path;
-+					path_get(&file->f_path);
-+				}
-+				if (info)
-+					snprintf(info, PROC_FDINFO_MAX,
-+						"pos:\t%lli\n"
-+						"flags:\t0%o\n",
-+						(long long) file->f_pos,
-+						file->f_flags);
-+				file_hotplug_read_unlock(file);
- 			}
--			if (info)
--				snprintf(info, PROC_FDINFO_MAX,
--					 "pos:\t%lli\n"
--					 "flags:\t0%o\n",
--					 (long long) file->f_pos,
--					 file->f_flags);
--			spin_unlock(&files->file_lock);
--			put_files_struct(files);
--			return 0;
- 		}
- 		spin_unlock(&files->file_lock);
- 		put_files_struct(files);
- 	}
--	return -ENOENT;
-+	return retval;
- }
- 
- static int proc_fd_link(struct inode *inode, struct path *path)
--- 
-1.6.3.1.54.g99dd.dirty
+It's not a primary attack vector. You need to have already broken local 
+security to get there - you need to be able to execute code.
+
+That means that you've already by-passed all the main security. It's thus 
+by definition less common than attack vectors like buffer overflows that 
+give you that capability in the first place.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
