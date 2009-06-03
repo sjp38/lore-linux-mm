@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9E5D45F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:34:31 -0400 (EDT)
-Date: Tue, 2 Jun 2009 11:26:10 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH] Warn if we run out of swap space
-Message-ID: <20090602092610.GE15756@elf.ucw.cz>
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com> <20090602091544.GC15756@elf.ucw.cz> <4A24EF80.5070606@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B1CA65F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:36:26 -0400 (EDT)
+Date: Wed, 3 Jun 2009 10:35:10 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <20090603182949.5328d411@lxorguk.ukuu.org.uk>
+Message-ID: <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A24EF80.5070606@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org, linux-mm@kvack.org, dave@linux.vnet.ibm.com
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Christoph Lameter <cl@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Tue 2009-06-02 12:23:12, Avi Kivity wrote:
-> Pavel Machek wrote:
->> Ouch and please... don't stop useful printk() warnings just because
->> some 'pie-in-the-sky future binary protocol'. That's what happened in
->> ACPI land with battery critical, and it is also why I don't get
->> battery warnings on some of my machines.
->>   
->
-> btw, adding a printk() for acpi battery state may have helped you and  
-> other kernel developers, but would have done nothing for ordinary humans  
-> using Linux on their laptops.  We should cater to the general population  
-> first and treat developer needs as nice-to-haves.
 
-We already have the programatic interface, but it was used as a reason
-not to merge printk(). And programatic interface helps nothing with
-init=/bin/bash boot, minimal userland etc.
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+
+On Wed, 3 Jun 2009, Alan Cox wrote:
+>
+> One way you could approach this would be to write a security module for
+> non SELINUX users - one that did one thing alone - decide whether the app
+> being run was permitted to map the low 64K perhaps by checking the
+> security label on the file.
+
+Unnecessary. I really think that 99% of all people are perfectly fine with 
+just the "mmap_min_addr" rule, and no more.
+
+The rest could just use SElinux or set it to zero. It's not like allowing 
+mmap's at NULL is a huge problem. Sure, it allows a certain kind of attack 
+vector, but it's by no means an easy or common one - you need to already 
+have gotten fairly good local access to take advantage of it.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
