@@ -1,59 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D59346B004D
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:53:58 -0400 (EDT)
-Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-18-git-send-email-ebiederm@xmission.com>
-	<alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com>
-	<m1eiu2qqho.fsf@fess.ebiederm.org>
-	<alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
-	<m13aaintb1.fsf@fess.ebiederm.org>
-	<alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Wed, 03 Jun 2009 13:53:48 -0700
-In-Reply-To: <alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com> (Davide Libenzi's message of "Wed\, 3 Jun 2009 07\:57\:40 -0700 \(PDT\)")
-Message-ID: <m1tz2xox7n.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB8F6B008A
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:06:53 -0400 (EDT)
+Date: Wed, 3 Jun 2009 14:06:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Detailed Stack Information Patch Next Generation
+Message-Id: <20090603140640.429528c1.akpm@linux-foundation.org>
+In-Reply-To: <1244061249.5624.62.camel@wall-e>
+References: <1238511505.364.61.camel@matrix>
+	<20090401193135.GA12316@elte.hu>
+	<1244061249.5624.62.camel@wall-e>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Davide Libenzi <davidel@xmailserver.org>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Stefani Seibold <stefani@seibold.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, joern@logfs.org, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-Davide Libenzi <davidel@xmailserver.org> writes:
 
-> On Tue, 2 Jun 2009, Eric W. Biederman wrote:
+> Subject: Detailed Stack Information Patch Next Generation
+
+That's not a very useful patch title.  Something like
+
+	[patch] procfs: provide stack information for threads
+
+would suit.
+
+On Wed, 03 Jun 2009 22:34:09 +0200
+Stefani Seibold <stefani@seibold.net> wrote:
+
+> Hi everybody,
+> 
+> kernel 2.6.30 is near so i think it is time for the next try.
+> 
+> This is the new version of the "detailed stack info" patch which give
+> you a better overview of the userland application stack usage,
+> especially for embedded linux.
+> 
+> Currently you are only able to dump the main process/thread stack usage
+> which is showed in /proc/pid/status by the "VmStk" Value. But you get no
+> information about the consumed stack memory of the the threads.
+> 
+> There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
+> marks the vm mapping where the thread stack pointer reside with "[thread
+> stack xxxxxxxx]". xxxxxxxx is the start address of the stack.
+> 
+> Also there is a new entry "stack usage" in /proc/<pid>/{task/*,}/status
+> which will you give the current stack usage in kb.
+> 
+> I also fixed stack base address in /proc/<pid>/task/*/stat to the base
+> address of the associated thread stack and not the one of the main
+> process. This makes more sense.
+> 
+> Changes since last posting:
+> 
+>  - Redesigned everything what was suggested by Ingo
+>  - the thread watch monitor is gone
+>  - the /proc/stackmon entry is also gone
+>  - slime done
+> 
+> The patch is against 2.6.30-rc7 and tested with on intel and ppc
+> architectures.
+> 
+> I think it is now ready for inclusion in the main kernel. Ingo what do
+> you think?
+> 
+
+Missing Signed-off-by:
+
+> 
+>  fs/exec.c             |    2 +
+>  fs/proc/array.c       |   69 +++++++++++++++++++++++++++++++++++++++++++++++++-
+>  fs/proc/task_mmu.c    |   14 ++++++++++
+>  include/linux/sched.h |    1 
+>  kernel/fork.c         |    3 ++
+>  5 files changed, 88 insertions(+), 1 deletion(-)
+> 
+> -patch begins here--------------------------------------------------------------
+> 
+> diff -u -N -r linux-2.6.30.orig/fs/exec.c linux-2.6.30/fs/exec.c
+> --- linux-2.6.30.orig/fs/exec.c	2009-06-03 17:36:41.000000000 +0200
+> +++ linux-2.6.30/fs/exec.c	2009-06-03 17:30:47.000000000 +0200
+> @@ -1328,6 +1328,8 @@
+>  	if (retval < 0)
+>  		goto out;
+>  
+> +	current->stack_start = current->mm->start_stack;
+> +
+>  	/* execve succeeded */
+>  	current->fs->in_exec = 0;
+>  	current->in_execve = 0;
+> diff -u -N -r linux-2.6.30.orig/fs/proc/array.c linux-2.6.30/fs/proc/array.c
+> --- linux-2.6.30.orig/fs/proc/array.c	2009-06-03 17:36:41.000000000 +0200
+> +++ linux-2.6.30/fs/proc/array.c	2009-06-03 17:32:53.000000000 +0200
+> @@ -82,6 +82,7 @@
+>  #include <linux/pid_namespace.h>
+>  #include <linux/ptrace.h>
+>  #include <linux/tracehook.h>
+> +#include <linux/pfn.h>
+>  
+>  #include <asm/pgtable.h>
+>  #include <asm/processor.h>
+> @@ -321,6 +322,71 @@
+>  			p->nivcsw);
+>  }
+>  
+> +#ifdef CONFIG_STACK_GROWSUP
+> +static inline unsigned long get_stack_pages(struct vm_area_struct *vma,
+> +					struct task_struct *p)
+> +{
+> +	unsigned long	i;
+> +	struct page	*page;
+> +	unsigned long	stack_usage;
+> +	unsigned long	esp;
+
+It's unclear what the units are here.  Are they in bytes?  Pages?  Code
+comments and well-chosen identifiers are the way to fix this.
+
+> +	esp = KSTK_ESP(p);
+
+So `esp' is in bytes.
+
+> +	stack_usage = (PFN_ALIGN(esp)-PFN_ALIGN(p->stack_start));
+
+And `stack_usage' measures bytes
+
+> +	for (i = vma->vm_end; i-PAGE_SIZE > esp; i -= PAGE_SIZE) {
+
+And `i' measures bytes
+
+> +		page = follow_page(vma, i-PAGE_SIZE, 0);
+> +
+> +		if ((!IS_ERR(page) == 0) || (page))
+
+Why not simply
+
+		if (IS_ERR(page) || page)
+
+?
+
+And shouldn't it be !page?
+
+> +			break;
+> +	}
+> +	return ((i - esp + stack_usage) >> (PAGE_SHIFT)) + 1;
+
+And we return a number-of-pages.  Fair enough.
+
+> +}
+> +#else
+> +static inline unsigned long get_stack_pages(struct vm_area_struct *vma,
+> +					struct task_struct *p)
+> +{
+> +	unsigned long	i;
+> +	struct page	*page;
+> +	unsigned long	stack_usage;
+> +	unsigned long	esp;
+> +
+> +	esp = KSTK_ESP(p);
+> +
+> +	stack_usage = (PFN_ALIGN(p->stack_start) - PFN_ALIGN(esp));
+> +
+> +	for (i = vma->vm_start; i+PAGE_SIZE <= esp; i += PAGE_SIZE) {
+> +
+> +		page = follow_page(vma, i, 0);
+> +
+> +		if ((!IS_ERR(page) == 0) || (page))
+> +			break;
+> +	}
+> +	return ((esp - i + stack_usage) >> (PAGE_SHIFT)) + 1;
+> +}
+
+Dittoes.
+
+> +#endif
+> +
+> +static inline void task_show_stack_usage(struct seq_file *m,
+> +						struct task_struct *p)
+> +{
+> +	struct vm_area_struct	*vma;
+> +	struct mm_struct	*mm;
+> +
+> +	mm = get_task_mm(p);
+> +
+> +	if (mm) {
+> +		vma = find_vma(mm, p->stack_start);
+> +
+> +		if (vma)
+> +			seq_printf(m, "Stack usage:\t%lu kB\n",
+> +				get_stack_pages(vma, p) << (PAGE_SHIFT - 10));
+
+So get_stack_pages() did a bytes-to-pages conversion then its sole
+caller does a pages-to-bytes conversion.  Can this be simplified?
+
+> +
+> +		mmput(mm);
+> +	}
+> +}
 >
->> I am not clear what problem you have.
->> 
->> Is it the sprinkling the code that takes and removes the lock?  Just
->> the VFS needs to be involved with that.  It is a slightly larger
->> surface area than doing the work inside the file operations as we
->> sometimes call the same method from 3-4 different places but it is
->> definitely a bounded problem.
->> 
->> Is it putting in the handful lines per subsystem to actually use this
->> functionality?  At that level something generic that is maintained
->> outside of the subsystem is better than the mess we have with 4-5
->> different implementations in the subsystems that need it, each having
->> a different assortment of bugs.
->
-> Come on, only in the open fast path, there are at least two spin 
-> lock/unlock and two atomic ops. Without even starting to count all the 
-> extra branches and software added.
-> Is this stuff *really* needed, or we can faitly happily live w/out?
+>  int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+>  			struct pid *pid, struct task_struct *task)
+>  {
+> @@ -340,6 +406,7 @@
+>  	task_show_regs(m, task);
+>  #endif
+>  	task_context_switch_counts(m, task);
+> +	task_show_stack_usage(m, task);
+>  	return 0;
+>  }
+>  
+> @@ -481,7 +548,7 @@
+>  		rsslim,
+>  		mm ? mm->start_code : 0,
+>  		mm ? mm->end_code : 0,
+> -		(permitted && mm) ? mm->start_stack : 0,
+> +		(permitted) ? task->stack_start : 0,
+>  		esp,
+>  		eip,
+>  		/* The signal information here is obsolete.
+> diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu.c
+> --- linux-2.6.30.orig/fs/proc/task_mmu.c	2009-06-03 17:36:41.000000000 +0200
+> +++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-03 17:30:47.000000000 +0200
+> @@ -242,6 +242,20 @@
+>  				} else if (vma->vm_start <= mm->start_stack &&
+>  					   vma->vm_end >= mm->start_stack) {
+>  					name = "[stack]";
+> +				} else {
+> +					unsigned long stack_start;
+> +
+> +					stack_start =
+> +						((struct proc_maps_private *)
+> +						m->private)->task->stack_start;
 
-????
+Like this:
 
-What code are you talking about?
+					unsiged long stack_start;
+					struct proc_maps_private *pmp;
 
-To the open path a few memory writes and a smp_wmb.  No atomics and no
-spin lock/unlocks.
+					pmp = m->private;
+					stack_start = pmp->task->stack_start;
 
-Are you complaining because I retain the file_list?
+> +					if (vma->vm_start <= stack_start &&
+> +					    vma->vm_end >= stack_start) {
+> +						pad_len_spaces(m, len);
+> +						seq_printf(m,
+> +						 "[thread stack: %08lx]",
+> +						 stack_start);
+> +					}
+>  				}
+>  			} else {
+>  				name = "[vdso]";
+> diff -u -N -r linux-2.6.30.orig/include/linux/sched.h linux-2.6.30/include/linux/sched.h
+> --- linux-2.6.30.orig/include/linux/sched.h	2009-06-03 17:36:41.000000000 +0200
+> +++ linux-2.6.30/include/linux/sched.h	2009-06-03 17:30:47.000000000 +0200
+> @@ -1429,6 +1429,7 @@
+>  	/* state flags for use by tracers */
+>  	unsigned long trace;
+>  #endif
+> +	unsigned long stack_start;
+>  };
+>  
+>  /* Future-safe accessor for struct task_struct's cpus_allowed. */
+> diff -u -N -r linux-2.6.30.orig/kernel/fork.c linux-2.6.30/kernel/fork.c
+> --- linux-2.6.30.orig/kernel/fork.c	2009-06-03 17:36:42.000000000 +0200
+> +++ linux-2.6.30/kernel/fork.c	2009-06-03 17:30:47.000000000 +0200
+> @@ -1092,6 +1092,9 @@
+>  	if (unlikely(current->ptrace))
+>  		ptrace_fork(p, clone_flags);
+>  
+> +	p->stack_start = (stack_start == KSTK_ESP(current)) ?
+> +		current->stack_start : stack_start;
+> +
 
-Eric
+hm.  What's this doing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
