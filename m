@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C0D966B0088
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:36:38 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D46D382CD19
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:51:26 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id j-L-YAYzUsk0 for <linux-mm@kvack.org>;
-	Wed,  3 Jun 2009 16:51:26 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 7961382CD0F
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:51:20 -0400 (EDT)
-Date: Wed, 3 Jun 2009 16:36:19 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <7e0fb38c0906031316n7aeed974xf15f8af5a3b04f63@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0906031635070.9368@gentwo.org>
-References: <20090530230022.GO6535@oblivion.subreption.com>  <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>  <20090603183939.GC18561@oblivion.subreption.com>  <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
- <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>  <alpine.DEB.1.10.0906031458250.9269@gentwo.org>  <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>  <alpine.DEB.1.10.0906031537110.20254@gentwo.org>  <7e0fb38c0906031251h6844ea08y2dbfa09a7f46eb5f@mail.gmail.com>
-  <alpine.DEB.1.10.0906031602250.20254@gentwo.org> <7e0fb38c0906031316n7aeed974xf15f8af5a3b04f63@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D59346B004D
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:53:58 -0400 (EDT)
+Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
+References: <m1oct739xu.fsf@fess.ebiederm.org>
+	<1243893048-17031-18-git-send-email-ebiederm@xmission.com>
+	<alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com>
+	<m1eiu2qqho.fsf@fess.ebiederm.org>
+	<alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
+	<m13aaintb1.fsf@fess.ebiederm.org>
+	<alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Wed, 03 Jun 2009 13:53:48 -0700
+In-Reply-To: <alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com> (Davide Libenzi's message of "Wed\, 3 Jun 2009 07\:57\:40 -0700 \(PDT\)")
+Message-ID: <m1tz2xox7n.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@parisplace.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu, jmorris@namei.org
+To: Davide Libenzi <davidel@xmailserver.org>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009, Eric Paris wrote:
+Davide Libenzi <davidel@xmailserver.org> writes:
 
-> > Thats easy to do but isnt it a bit weird now to configure mmap_min_addr?
+> On Tue, 2 Jun 2009, Eric W. Biederman wrote:
 >
-> ??
-
-The use of mmap_min_addr depends on the security configuration chose. The
-security model may not check at all. But we can still configure the thing.
-
-> > What about round_hint_to_min()?
+>> I am not clear what problem you have.
+>> 
+>> Is it the sprinkling the code that takes and removes the lock?  Just
+>> the VFS needs to be involved with that.  It is a slightly larger
+>> surface area than doing the work inside the file operations as we
+>> sometimes call the same method from 3-4 different places but it is
+>> definitely a bounded problem.
+>> 
+>> Is it putting in the handful lines per subsystem to actually use this
+>> functionality?  At that level something generic that is maintained
+>> outside of the subsystem is better than the mess we have with 4-5
+>> different implementations in the subsystems that need it, each having
+>> a different assortment of bugs.
 >
-> not sure what you mean....
+> Come on, only in the open fast path, there are at least two spin 
+> lock/unlock and two atomic ops. Without even starting to count all the 
+> extra branches and software added.
+> Is this stuff *really* needed, or we can faitly happily live w/out?
 
-We removed the CONFIG_SECURITY around code in there in the patch.
+????
+
+What code are you talking about?
+
+To the open path a few memory writes and a smp_wmb.  No atomics and no
+spin lock/unlocks.
+
+Are you complaining because I retain the file_list?
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
