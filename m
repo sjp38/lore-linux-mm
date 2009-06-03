@@ -1,50 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7BF266B004D
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:24:05 -0400 (EDT)
-Received: by pxi37 with SMTP id 37so118466pxi.12
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2009 09:24:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.01.0906030918490.4880@localhost.localdomain>
-References: <20090530192829.GK6535@oblivion.subreption.com>
-	 <20090531022158.GA9033@oblivion.subreption.com>
-	 <alpine.DEB.1.10.0906021130410.23962@gentwo.org>
-	 <20090602203405.GC6701@oblivion.subreption.com>
-	 <alpine.DEB.1.10.0906031047390.15621@gentwo.org>
-	 <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain>
-	 <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
-	 <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
-	 <20090603171409.5c60422c@lxorguk.ukuu.org.uk>
-	 <alpine.LFD.2.01.0906030918490.4880@localhost.localdomain>
-Date: Wed, 3 Jun 2009 12:24:03 -0400
-Message-ID: <7e0fb38c0906030924q73ffb387h2d20df7f8c2e75ba@mail.gmail.com>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
-	ZERO_SIZE_PTR to point at unmapped space)
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 955836B004D
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:25:25 -0400 (EDT)
+Date: Wed, 3 Jun 2009 14:01:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH mmotm 2/2] memcg: allow mem.limit bigger than
+ memsw.limit iff unlimited
+Message-Id: <20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
+	<20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
+	<20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, "Larry H." <research@subreption.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 3, 2009 at 12:19 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
->
-> On Wed, 3 Jun 2009, Alan Cox wrote:
->>
->> Fedora at least uses SELinux to manage it. You need some kind of security
->> policy engine running as a few apps really need to map low space (mostly
->> for vm86)
->
-> Well, vm86 isn't even an issue on x86-64, so it's arguable that at least a
-> few cases could very easily just make it more static and obvious.
+On Wed, 3 Jun 2009 12:52:28 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 3 Jun 2009 11:50:27 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > Now users cannot set mem.limit bigger than memsw.limit.
+> > This patch allows mem.limit bigger than memsw.limit iff mem.limit==unlimited.
+> > 
+> > By this, users can set memsw.limit without setting mem.limit.
+> > I think it's usefull if users want to limit memsw only.
+> > They must set mem.limit first and memsw.limit to the same value now for this purpose.
+> > They can save the first step by this patch.
+> > 
+> 
+> I don't like this. No benefits to users.
+> The user should know when they set memsw.limit they have to set memory.limit.
+> This just complicates things.
+> 
+Hmm, I think there is a user who cares only limitting logical memory(mem+swap),
+not physical memory, and wants kswapd to reclaim physical memory when congested. 
+At least, I'm a such user.
 
-Wine does/did also use a zero page, can't remember what they used it
-for off hand but they were mad at me when I added this....
+Do you disagree even if I add a file like "memory.allow_limit_memsw_only" ?
 
--Eric
+
+Thanks,
+Daisuke Nishimura.
+
+> If you want to do this, add an interface as
+>   memory.all.limit_in_bytes (or some better name)
+> and allow to set memory.limit and memory.memsw.limit _at once_.
+> 
+> But I'm not sure it's worth to try. Saving user's few steps by the kenerl patch ?
+> 
+> Thanks,
+> -Kame
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
