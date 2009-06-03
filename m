@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5FB6B004F
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:02:30 -0400 (EDT)
-Date: Wed, 3 Jun 2009 11:35:46 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090603093546.GA16275@wotan.suse.de>
-References: <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602151729.GC17448@wotan.suse.de> <20090602172715.GT1065@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602172715.GT1065@one.firstfloor.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C166B0055
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:03:50 -0400 (EDT)
+Received: from makko.or.mcafeemobile.com
+	by x35.xmailserver.org with [XMail 1.26 ESMTP Server]
+	id <S2EDA25> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Wed, 3 Jun 2009 11:03:32 -0400
+Date: Wed, 3 Jun 2009 07:57:40 -0700 (PDT)
+From: Davide Libenzi <davidel@xmailserver.org>
+Subject: Re: [PATCH 18/23] vfs: Teach epoll to use file_hotplug_lock
+In-Reply-To: <m13aaintb1.fsf@fess.ebiederm.org>
+Message-ID: <alpine.DEB.1.10.0906030754550.17143@makko.or.mcafeemobile.com>
+References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-18-git-send-email-ebiederm@xmission.com> <alpine.DEB.1.10.0906020944540.12866@makko.or.mcafeemobile.com> <m1eiu2qqho.fsf@fess.ebiederm.org> <alpine.DEB.1.10.0906021429570.12866@makko.or.mcafeemobile.com>
+ <m13aaintb1.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.aristanetworks.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 07:27:15PM +0200, Andi Kleen wrote:
-> > Hmm, if you're handling buffercache here then possibly yes.
+On Tue, 2 Jun 2009, Eric W. Biederman wrote:
+
+> I am not clear what problem you have.
 > 
-> Good question, will check.
+> Is it the sprinkling the code that takes and removes the lock?  Just
+> the VFS needs to be involved with that.  It is a slightly larger
+> surface area than doing the work inside the file operations as we
+> sometimes call the same method from 3-4 different places but it is
+> definitely a bounded problem.
+> 
+> Is it putting in the handful lines per subsystem to actually use this
+> functionality?  At that level something generic that is maintained
+> outside of the subsystem is better than the mess we have with 4-5
+> different implementations in the subsystems that need it, each having
+> a different assortment of bugs.
 
-BTW. now that I think about it, buffercache is probably not a good
-idea to truncate (truncate, as-in: remove from pagecache). Because
-filesystems can assume that with just a reference on the page, then
-it will not be truncated.
+Come on, only in the open fast path, there are at least two spin 
+lock/unlock and two atomic ops. Without even starting to count all the 
+extra branches and software added.
+Is this stuff *really* needed, or we can faitly happily live w/out?
 
-This code will cause ext2 (as the first one I looked at), to go
-oops.
 
-And this is not predicated on PagePrivate or page_has_buffers,
-because filesystems are free to directly operate on their own
-metadata buffercache pages.
-
-So I think it would be a good idea to exclude buffercache from
-here completely until it can be shown to be safe. Actually you
-*can* use the invalidate_mapping_pages path, which will check
-refcounts etc (or a derivative thereof, similarly to my truncate
-patch).
+- Davide
 
 
 --
