@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6C45C6B004F
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:50:30 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E0E5F82CD06
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:05:18 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id XQmMTCJDjU93 for <linux-mm@kvack.org>;
-	Wed,  3 Jun 2009 16:05:18 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D317C82CD3C
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:05:07 -0400 (EDT)
-Date: Wed, 3 Jun 2009 15:50:17 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
- ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <alpine.LFD.2.01.0906031222550.4880@localhost.localdomain>
-Message-ID: <alpine.DEB.1.10.0906031547090.20254@gentwo.org>
-References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
- <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <20090603182949.5328d411@lxorguk.ukuu.org.uk> <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain> <20090603180037.GB18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
- <20090603183939.GC18561@oblivion.subreption.com> <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain> <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain> <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
- <alpine.LFD.2.01.0906031222550.4880@localhost.localdomain>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B63806B0055
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:51:19 -0400 (EDT)
+Received: by pzk5 with SMTP id 5so272341pzk.12
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2009 12:51:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
+References: <20090530230022.GO6535@oblivion.subreption.com>
+	 <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>
+	 <20090603180037.GB18561@oblivion.subreption.com>
+	 <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
+	 <20090603183939.GC18561@oblivion.subreption.com>
+	 <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
+	 <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
+	 <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
+	 <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
+	 <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
+Date: Wed, 3 Jun 2009 15:51:16 -0400
+Message-ID: <7e0fb38c0906031251h6844ea08y2dbfa09a7f46eb5f@mail.gmail.com>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+	ZERO_SIZE_PTR to point at unmapped space)
+From: Eric Paris <eparis@parisplace.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009, Linus Torvalds wrote:
+On Wed, Jun 3, 2009 at 3:42 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Wed, 3 Jun 2009, Eric Paris wrote:
+>
+>> NAK =A0with SELinux on you now need both the SELinux mmap_zero
+>> permission and the CAP_SYS_RAWIO permission. =A0Previously you only
+>> needed one or the other, depending on which was the predominant
+>> LSM.....
+>
+> CAP_SYS_RAWIO is checked so you only need to check for mmap_zero in
+> SELinux.
 
-> But the better option really is to just copy the cap_file_mmap() rule to
-> the !SECURITY rule, and make !SECURITY really mean the same as "always do
-> default security", the way it's documented.
+You misunderstand.  As it stands today if you use SELinux you need
+only the selinux mmap_zero permission.  If you use capabilities you
+need CAP_SYS_RAWIO.
 
-Na, I really like the ability to just avoid having to deal with this
-"security" stuff (CONFIG_SECURITY). And core security checks sidelined in
-some security model config thingy? I'd prefer to see these checks right
-there in core code while working on them.
+With your patch SELinux policy would now have to grant CAP_SYS_RAWIO
+everywhere it grants mmap_zero.  This not not acceptable.  Take notice
+that with SELinux enabled cap_file_mmap is never called.....
 
+
+>> Even if you want to argue that I have to take CAP_SYS_RAWIO in the
+>> SELinux case what about all the other places? =A0do_mremap? =A0do_brk?
+>> expand_downwards?
+>
+> brk(0) would free up all the code? The others could be added.
+
+The 'right'est fix is as Alan suggested, duplicate the code
+
+from security/capability.c::cap_file_mmap()
+to include/linux/security.h::securitry_file_mmap()
+
+-Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
