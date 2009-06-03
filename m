@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 095836B005C
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:52:14 -0400 (EDT)
-Message-ID: <4A242F94.9010704@redhat.com>
-Date: Mon, 01 Jun 2009 22:44:20 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BC3F66B0062
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:53:34 -0400 (EDT)
+Message-ID: <4A268DF8.6000701@redhat.com>
+Date: Wed, 03 Jun 2009 10:51:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Warn if we run out of swap space
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com>	<4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org>
-In-Reply-To: <20090601123503.2337a79b.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [patch][v2] swap: virtual swap readahead
+References: <20090602223738.GA15475@cmpxchg.org> <20090602233457.GY1065@one.firstfloor.org> <20090603132751.GA1813@cmpxchg.org>
+In-Reply-To: <20090603132751.GA1813@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, pavel@ucw.cz, dave@linux.vnet.ibm.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
->> We really should have a machine readable channel for this sort of 
->> information, so it can be plumbed to a userspace notification bubble the 
->> user can ignore.
->>     
->
-> That could just be printk().  It's a question of a) how to tell
-> userspace which bits to pay attention to and maybe b) adding some
-> more structure to the text.
->
-> Perhaps careful use of faciliy levels would suffice for a), but I
-> expect that some new tagging scheme would be more practical.
->   
+Johannes Weiner wrote:
+> On Wed, Jun 03, 2009 at 01:34:57AM +0200, Andi Kleen wrote:
+>> On Wed, Jun 03, 2009 at 12:37:39AM +0200, Johannes Weiner wrote:
 
-I thought dmesg was an unreliable channel which can overflow.  It's also 
-prone to attacks by spell checkers.
+>>> +		pgd = pgd_offset(vma->vm_mm, pos);
+>>> +		if (!pgd_present(*pgd))
+>>> +			continue;
+>>> +		pud = pud_offset(pgd, pos);
+>>> +		if (!pud_present(*pud))
+>>> +			continue;
+>>> +		pmd = pmd_offset(pud, pos);
+>>> +		if (!pmd_present(*pmd))
+>>> +			continue;
+>>> +		pte = pte_offset_map_lock(vma->vm_mm, pmd, pos, &ptl);
+>> You could be more efficient here by using the standard mm/* nested loop
+>> pattern that avoids relookup of everything in each iteration. I suppose
+>> it would mainly make a difference with 32bit highpte where mapping a pte
+>> can be somewhat costly. And you would take less locks this way.
+> 
+> I ran into weird problems here.  The above version is actually faster
+> in the benchmarks than writing a nested level walker or using
+> walk_page_range().  Still digging but it can take some time.  Busy
+> week :(
 
-I prefer reliable binary interfaces to shell explorable text interfaces 
-as I think any feature worth having is much more useful controlled by an 
-application rather than a bored sysadmin.
+I'm not too worried about not walking the page tables,
+because swap is an extreme slow path anyway.
 
 -- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
