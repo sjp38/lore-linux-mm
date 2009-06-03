@@ -1,35 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 82F536B00C0
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:27:17 -0400 (EDT)
-Message-ID: <4A24EF80.5070606@redhat.com>
-Date: Tue, 02 Jun 2009 12:23:12 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C748B6B00C5
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:27:42 -0400 (EDT)
+Date: Wed, 3 Jun 2009 12:00:59 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] Remove __invalidate_mapping_pages variant
+Message-ID: <20090603100059.GB12570@atrey.karlin.mff.cuni.cz>
+References: <20090602221804.16461.15918.stgit@crlf.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Warn if we run out of swap space
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com> <20090602091544.GC15756@elf.ucw.cz>
-In-Reply-To: <20090602091544.GC15756@elf.ucw.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090602221804.16461.15918.stgit@crlf.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org, linux-mm@kvack.org, dave@linux.vnet.ibm.com
+To: Mike Waychison <mikew@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, david@fromorbit.com, fengguang.wu@intel.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek wrote:
-> Ouch and please... don't stop useful printk() warnings just because
-> some 'pie-in-the-sky future binary protocol'. That's what happened in
-> ACPI land with battery critical, and it is also why I don't get
-> battery warnings on some of my machines.
->   
+> Remove __invalidate_mapping_pages atomic variant now that its sole caller can
+> sleep (fixed in eccb95cee4f0d56faa46ef22fb94dd4a3578d3eb).
+> 
+> This fixes softlockups that can occur while in the drop_caches path.
+> 
+> Signed-off-by: Mike Waychison <mikew@google.com>
+  Looks fine. Acked-by: Jan Kara <jack@suse.cz>
 
-btw, adding a printk() for acpi battery state may have helped you and 
-other kernel developers, but would have done nothing for ordinary humans 
-using Linux on their laptops.  We should cater to the general population 
-first and treat developer needs as nice-to-haves.
-
+									Honza
+> ---
+> 
+>  fs/drop_caches.c   |    2 +-
+>  include/linux/fs.h |    3 ---
+>  mm/truncate.c      |   39 ++++++++++++++++-----------------------
+>  3 files changed, 17 insertions(+), 27 deletions(-)
+> 
+> diff --git a/fs/drop_caches.c b/fs/drop_caches.c
+> index b6a719a..a2edb79 100644
+> --- a/fs/drop_caches.c
+> +++ b/fs/drop_caches.c
+> @@ -24,7 +24,7 @@ static void drop_pagecache_sb(struct super_block *sb)
+>  			continue;
+>  		__iget(inode);
+>  		spin_unlock(&inode_lock);
+> -		__invalidate_mapping_pages(inode->i_mapping, 0, -1, true);
+> +		invalidate_mapping_pages(inode->i_mapping, 0, -1);
+>  		iput(toput_inode);
+>  		toput_inode = inode;
+>  		spin_lock(&inode_lock);
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 3b534e5..131dc03 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -2043,9 +2043,6 @@ extern int __invalidate_device(struct block_device *);
+>  extern int invalidate_partition(struct gendisk *, int);
+>  #endif
+>  extern int invalidate_inodes(struct super_block *);
+> -unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+> -					pgoff_t start, pgoff_t end,
+> -					bool be_atomic);
+>  unsigned long invalidate_mapping_pages(struct address_space *mapping,
+>  					pgoff_t start, pgoff_t end);
+>  
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index 12e1579..ccc3ecf 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -267,8 +267,21 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+>  }
+>  EXPORT_SYMBOL(truncate_inode_pages);
+>  
+> -unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+> -				pgoff_t start, pgoff_t end, bool be_atomic)
+> +/**
+> + * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
+> + * @mapping: the address_space which holds the pages to invalidate
+> + * @start: the offset 'from' which to invalidate
+> + * @end: the offset 'to' which to invalidate (inclusive)
+> + *
+> + * This function only removes the unlocked pages, if you want to
+> + * remove all the pages of one inode, you must call truncate_inode_pages.
+> + *
+> + * invalidate_mapping_pages() will not block on IO activity. It will not
+> + * invalidate pages which are dirty, locked, under writeback or mapped into
+> + * pagetables.
+> + */
+> +unsigned long invalidate_mapping_pages(struct address_space *mapping,
+> +				       pgoff_t start, pgoff_t end)
+>  {
+>  	struct pagevec pvec;
+>  	pgoff_t next = start;
+> @@ -309,30 +322,10 @@ unlock:
+>  				break;
+>  		}
+>  		pagevec_release(&pvec);
+> -		if (likely(!be_atomic))
+> -			cond_resched();
+> +		cond_resched();
+>  	}
+>  	return ret;
+>  }
+> -
+> -/**
+> - * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
+> - * @mapping: the address_space which holds the pages to invalidate
+> - * @start: the offset 'from' which to invalidate
+> - * @end: the offset 'to' which to invalidate (inclusive)
+> - *
+> - * This function only removes the unlocked pages, if you want to
+> - * remove all the pages of one inode, you must call truncate_inode_pages.
+> - *
+> - * invalidate_mapping_pages() will not block on IO activity. It will not
+> - * invalidate pages which are dirty, locked, under writeback or mapped into
+> - * pagetables.
+> - */
+> -unsigned long invalidate_mapping_pages(struct address_space *mapping,
+> -				pgoff_t start, pgoff_t end)
+> -{
+> -	return __invalidate_mapping_pages(mapping, start, end, false);
+> -}
+>  EXPORT_SYMBOL(invalidate_mapping_pages);
+>  
+>  /*
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 -- 
-error compiling committee.c: too many arguments to function
+Jan Kara <jack@suse.cz>
+SuSE CR Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
