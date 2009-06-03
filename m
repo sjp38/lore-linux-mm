@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE616B00DF
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:41:51 -0400 (EDT)
-From: pageexec@freemail.hu
-Date: Wed, 03 Jun 2009 21:41:35 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 70DF86B00E1
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:42:35 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id EB1C182CD28
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:57:19 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id pobt1zyS7U5u for <linux-mm@kvack.org>;
+	Wed,  3 Jun 2009 15:57:19 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B1B6182CD2E
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 15:57:13 -0400 (EDT)
+Date: Wed, 3 Jun 2009 15:42:13 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
+Message-ID: <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
+References: <20090530230022.GO6535@oblivion.subreption.com>  <alpine.DEB.1.10.0906031047390.15621@gentwo.org>  <20090603182949.5328d411@lxorguk.ukuu.org.uk>  <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>  <20090603180037.GB18561@oblivion.subreption.com>
+  <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>  <20090603183939.GC18561@oblivion.subreption.com>  <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>  <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>  <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
+ <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change ZERO_SIZE_PTR to point at unmapped space)
-Reply-to: pageexec@freemail.hu
-Message-ID: <4A26D1EF.21895.2E070251@pageexec.freemail.hu>
-In-reply-to: <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
-References: <20090530230022.GO6535@oblivion.subreption.com>, <20090603183939.GC18561@oblivion.subreption.com>, <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Larry H." <research@subreption.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Eric Paris <eparis@parisplace.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On 3 Jun 2009 at 11:45, Linus Torvalds wrote:
+On Wed, 3 Jun 2009, Eric Paris wrote:
 
-> 
-> 
-> On Wed, 3 Jun 2009, Larry H. wrote:
-> > > 
-> > > The fact, the NULL pointer attack is neither easy nor common. It's 
-> > > perfectly reasonable to say "we'll allow mmap at virtual address zero".
-> > 
-> > And how could you calibrate if this attack venue isn't easy to take
-> > advantage of? Or not commonly abused? What empirical results led you to this
-> > conclusion?
-> 
-> It's not a primary attack vector. You need to have already broken local 
-> security to get there - you need to be able to execute code.
+> NAK  with SELinux on you now need both the SELinux mmap_zero
+> permission and the CAP_SYS_RAWIO permission.  Previously you only
+> needed one or the other, depending on which was the predominant
+> LSM.....
 
-during last summer's flame war^W^Wdiscussion about how you guys were covering
-up security fixes you brought an example of smart university students breaking
-communal boxes left and right. are you now saying that it was actually a strawman
-argument as you consider that situation already broken? you can't have it both
-ways ;).
+CAP_SYS_RAWIO is checked so you only need to check for mmap_zero in
+SELinux.
 
-> That means that you've already by-passed all the main security. It's thus 
-> by definition less common than attack vectors like buffer overflows that 
-> give you that capability in the first place.
+> Even if you want to argue that I have to take CAP_SYS_RAWIO in the
+> SELinux case what about all the other places?  do_mremap?  do_brk?
+> expand_downwards?
 
-that only means that you've ignored multi-user boxes.
+brk(0) would free up all the code? The others could be added.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
