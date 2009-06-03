@@ -1,34 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5336B005C
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 17:21:26 -0400 (EDT)
-Date: Wed, 3 Jun 2009 14:20:57 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE626B004F
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 18:52:44 -0400 (EDT)
+Date: Thu, 4 Jun 2009 08:52:21 +1000 (EST)
+From: James Morris <jmorris@namei.org>
 Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
  ZERO_SIZE_PTR to point at unmapped space)
-In-Reply-To: <alpine.DEB.1.10.0906031602250.20254@gentwo.org>
-Message-ID: <alpine.LFD.2.01.0906031414570.4880@localhost.localdomain>
-References: <20090530230022.GO6535@oblivion.subreption.com>  <alpine.LFD.2.01.0906031032390.4880@localhost.localdomain>  <20090603180037.GB18561@oblivion.subreption.com>  <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>  <20090603183939.GC18561@oblivion.subreption.com>
-  <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>  <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>  <alpine.DEB.1.10.0906031458250.9269@gentwo.org>  <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
- <alpine.DEB.1.10.0906031537110.20254@gentwo.org> <7e0fb38c0906031251h6844ea08y2dbfa09a7f46eb5f@mail.gmail.com> <alpine.DEB.1.10.0906031602250.20254@gentwo.org>
+In-Reply-To: <20090603172123.GG6701@oblivion.subreption.com>
+Message-ID: <alpine.LRH.2.00.0906040837430.30842@tundra.namei.org>
+References: <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org> <20090603162831.GF6701@oblivion.subreption.com> <4A26A689.1090300@redhat.com>
+ <20090603172123.GG6701@oblivion.subreption.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Eric Paris <eparis@parisplace.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
+To: "Larry H." <research@subreption.com>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephen Smalley <sds@tycho.nsa.gov>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 3 Jun 2009, Larry H. wrote:
+
+> whenever it is feasible, IMHO. I think everyone here will agree that
+> SELinux has a track of being disabled by users after installation
+> because they don't want to invest the necessary time on understanding
+> and learning the policy language or management tools.
+
+The Fedora smolt stats show an overwhelming majority of people leave it 
+running.  Many don't know it's there at all and never have problems.  
+It's known to have saved many everyday systems from breaches.
+
+That's not to say that a significant number of people don't disable it, 
+similarly to the way people disable iptables, use weak passwords, drive 
+without seat belts, and cycle without helmets.  We do need to try and keep 
+the default as safe as possible.
 
 
-On Wed, 3 Jun 2009, Christoph Lameter wrote:
-> 
-> Use mmap_min_addr indepedently of security models
-
-Looks ok by me. As mentioned, it would be nice if the coherency with the 
-'capabilities' security module was something inherent to the code, but 
-this looks like a sane minimal patch.
-
-			Linus
+- James
+-- 
+James Morris
+<jmorris@namei.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
