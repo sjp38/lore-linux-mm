@@ -1,39 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 661CA6B005C
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 10:59:37 -0400 (EDT)
-Date: Tue, 2 Jun 2009 16:06:39 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602140639.GQ1065@one.firstfloor.org>
-References: <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602132538.GK1065@one.firstfloor.org> <20090602132441.GC6262@wotan.suse.de> <20090602134126.GM1065@one.firstfloor.org> <20090602135324.GB21338@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 089A26B005D
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:00:48 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n533s439024373
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Jun 2009 12:54:04 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E53545DD7B
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:54:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 45A1E45DD78
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:54:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BED61DB8037
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:54:04 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC79F1DB806A
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:54:00 +0900 (JST)
+Date: Wed, 3 Jun 2009 12:52:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH mmotm 2/2] memcg: allow mem.limit bigger than
+ memsw.limit iff unlimited
+Message-Id: <20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
+References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
+	<20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602135324.GB21338@localhost>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Ok you're right. That one is not needed. I will remove it.
+On Wed, 3 Jun 2009 11:50:27 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+
+> Now users cannot set mem.limit bigger than memsw.limit.
+> This patch allows mem.limit bigger than memsw.limit iff mem.limit==unlimited.
 > 
-> No! Please read the comment. In fact __remove_from_page_cache() has a
+> By this, users can set memsw.limit without setting mem.limit.
+> I think it's usefull if users want to limit memsw only.
+> They must set mem.limit first and memsw.limit to the same value now for this purpose.
+> They can save the first step by this patch.
 > 
->                 BUG_ON(page_mapped(page));
+
+I don't like this. No benefits to users.
+The user should know when they set memsw.limit they have to set memory.limit.
+This just complicates things.
+
+If you want to do this, add an interface as
+  memory.all.limit_in_bytes (or some better name)
+and allow to set memory.limit and memory.memsw.limit _at once_.
+
+But I'm not sure it's worth to try. Saving user's few steps by the kenerl patch ?
+
+Thanks,
+-Kame
+
+
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  mm/memcontrol.c |   10 ++++++----
+>  1 files changed, 6 insertions(+), 4 deletions(-)
 > 
-> Or, at least correct that BUG_ON() line together.
-
-Yes, but we already have them unmapped earlier and the poison check
-in the page fault handler should prevent remapping.
-
-So it really should not happen and if it happened we would deserve
-the BUG.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 6629ed2..2b63cb1 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1742,11 +1742,12 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  		/*
+>  		 * Rather than hide all in some function, I do this in
+>  		 * open coded manner. You see what this really does.
+> -		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+> +		 * We have to guarantee mem->res.limit < mem->memsw.limit,
+> +		 * except for mem->res.limit == RESOURCE_MAX(unlimited) case.
+>  		 */
+>  		mutex_lock(&set_limit_mutex);
+>  		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> -		if (memswlimit < val) {
+> +		if (val != RESOURCE_MAX && memswlimit < val) {
+>  			ret = -EINVAL;
+>  			mutex_unlock(&set_limit_mutex);
+>  			break;
+> @@ -1789,11 +1790,12 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  		/*
+>  		 * Rather than hide all in some function, I do this in
+>  		 * open coded manner. You see what this really does.
+> -		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+> +		 * We have to guarantee mem->res.limit < mem->memsw.limit,
+> +		 * except for mem->res.limit == RESOURCE_MAX(unlimited) case.
+>  		 */
+>  		mutex_lock(&set_limit_mutex);
+>  		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> -		if (memlimit > val) {
+> +		if (memlimit != RESOURCE_MAX && memlimit > val) {
+>  			ret = -EINVAL;
+>  			mutex_unlock(&set_limit_mutex);
+>  			break;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
