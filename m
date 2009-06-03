@@ -1,269 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8E1F46B005A
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:16:04 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id f25so59273rvb.6
-        for <linux-mm@kvack.org>; Wed, 03 Jun 2009 13:16:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0906031602250.20254@gentwo.org>
-References: <20090530230022.GO6535@oblivion.subreption.com>
-	 <alpine.LFD.2.01.0906031109150.4880@localhost.localdomain>
-	 <20090603183939.GC18561@oblivion.subreption.com>
-	 <alpine.LFD.2.01.0906031142390.4880@localhost.localdomain>
-	 <alpine.LFD.2.01.0906031145460.4880@localhost.localdomain>
-	 <alpine.DEB.1.10.0906031458250.9269@gentwo.org>
-	 <7e0fb38c0906031214lf4a2ed2x688da299e8cb1034@mail.gmail.com>
-	 <alpine.DEB.1.10.0906031537110.20254@gentwo.org>
-	 <7e0fb38c0906031251h6844ea08y2dbfa09a7f46eb5f@mail.gmail.com>
-	 <alpine.DEB.1.10.0906031602250.20254@gentwo.org>
-Date: Wed, 3 Jun 2009 16:16:02 -0400
-Message-ID: <7e0fb38c0906031316n7aeed974xf15f8af5a3b04f63@mail.gmail.com>
-Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
-	ZERO_SIZE_PTR to point at unmapped space)
-From: Eric Paris <eparis@parisplace.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 71BC26B005C
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 16:34:48 -0400 (EDT)
+Subject: Detailed Stack Information Patch Next Generation
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090401193135.GA12316@elte.hu>
+References: <1238511505.364.61.camel@matrix>
+	 <20090401193135.GA12316@elte.hu>
+Content-Type: text/plain
+Date: Wed, 03 Jun 2009 22:34:09 +0200
+Message-Id: <1244061249.5624.62.camel@wall-e>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Larry H." <research@subreption.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu, jmorris@namei.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Joerg Engel <joern@logfs.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 3, 2009 at 4:04 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> On Wed, 3 Jun 2009, Eric Paris wrote:
->
->> The 'right'est fix is as Alan suggested, duplicate the code
->>
->> from security/capability.c::cap_file_mmap()
->> to include/linux/security.h::securitry_file_mmap()
->
-> Thats easy to do but isnt it a bit weird now to configure mmap_min_addr?
+Hi everybody,
 
-??
+kernel 2.6.30 is near so i think it is time for the next try.
 
-> A security model may give it a different interpretation?
+This is the new version of the "detailed stack info" patch which give
+you a better overview of the userland application stack usage,
+especially for embedded linux.
 
-Not sure what you mean.  Yes, each security model is allowed to decide
-what permissions are needed to pass a given security check.  SELinux
-decided that CAP_SYS_RAWIO was not needed, but the selinux permission
-mmap_zero was.  Had there been a more specific capability to use
-SELinux might have been happy using a capability...
+Currently you are only able to dump the main process/thread stack usage
+which is showed in /proc/pid/status by the "VmStk" Value. But you get no
+information about the consumed stack memory of the the threads.
 
-> What about round_hint_to_min()?
+There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
+marks the vm mapping where the thread stack pointer reside with "[thread
+stack xxxxxxxx]". xxxxxxxx is the start address of the stack.
 
-not sure what you mean....
+Also there is a new entry "stack usage" in /proc/<pid>/{task/*,}/status
+which will you give the current stack usage in kb.
 
->
-> Use mmap_min_addr indepedently of security models
->
-> This patch removes the dependency of mmap_min_addr on CONFIG_SECURITY.
-> It also sets a default mmap_min_addr of 4096.
->
-> mmapping of addresses below 4096 will only be possible for processes
-> with CAP_SYS_RAWIO.
+I also fixed stack base address in /proc/<pid>/task/*/stat to the base
+address of the associated thread stack and not the one of the main
+process. This makes more sense.
 
-<pedantic nit> "or the appropriate permission for the given LSM </pedantic =
-nit>
+Changes since last posting:
 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+ - Redesigned everything what was suggested by Ingo
+ - the thread watch monitor is gone
+ - the /proc/stackmon entry is also gone
+ - slime done
 
-Clearly lots more cleanup can be done between CONFIG_SECURITY and
-!CONFIG_SECURITY like Linus suggested, but
+The patch is against 2.6.30-rc7 and tested with on intel and ppc
+architectures.
 
-Acked-by: Eric Paris <eparis@redhat.com>
+I think it is now ready for inclusion in the main kernel. Ingo what do
+you think?
 
-> ---
-> =A0include/linux/mm.h =A0 =A0 =A0 | =A0 =A02 --
-> =A0include/linux/security.h | =A0 =A02 ++
-> =A0kernel/sysctl.c =A0 =A0 =A0 =A0 =A0| =A0 =A02 --
-> =A0mm/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 19 +++++++++++++++++++
-> =A0mm/mmap.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A03 +++
-> =A0security/Kconfig =A0 =A0 =A0 =A0 | =A0 20 --------------------
-> =A0security/security.c =A0 =A0 =A0| =A0 =A03 ---
-> =A07 files changed, 24 insertions(+), 27 deletions(-)
->
-> Index: linux-2.6/include/linux/mm.h
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/include/linux/mm.h =A0 2009-06-03 15:00:54.000000000 -=
-0500
-> +++ linux-2.6/include/linux/mm.h =A0 =A0 =A0 =A02009-06-03 15:00:56.00000=
-0000 -0500
-> @@ -580,12 +580,10 @@ static inline void set_page_links(struct
-> =A0*/
-> =A0static inline unsigned long round_hint_to_min(unsigned long hint)
-> =A0{
-> -#ifdef CONFIG_SECURITY
-> =A0 =A0 =A0 =A0hint &=3D PAGE_MASK;
-> =A0 =A0 =A0 =A0if (((void *)hint !=3D NULL) &&
-> =A0 =A0 =A0 =A0 =A0 =A0(hint < mmap_min_addr))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return PAGE_ALIGN(mmap_min_addr);
-> -#endif
-> =A0 =A0 =A0 =A0return hint;
-> =A0}
->
-> Index: linux-2.6/kernel/sysctl.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/kernel/sysctl.c =A0 =A0 =A02009-06-03 15:00:54.0000000=
-00 -0500
-> +++ linux-2.6/kernel/sysctl.c =A0 2009-06-03 15:00:56.000000000 -0500
-> @@ -1225,7 +1225,6 @@ static struct ctl_table vm_table[] =3D {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.strategy =A0 =A0 =A0 =3D &sysctl_jiffies,
-> =A0 =A0 =A0 =A0},
-> =A0#endif
-> -#ifdef CONFIG_SECURITY
-> =A0 =A0 =A0 =A0{
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.ctl_name =A0 =A0 =A0 =3D CTL_UNNUMBERED,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.procname =A0 =A0 =A0 =3D "mmap_min_addr",
-> @@ -1234,7 +1233,6 @@ static struct ctl_table vm_table[] =3D {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.mode =A0 =A0 =A0 =A0 =A0 =3D 0644,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.proc_handler =A0 =3D &proc_doulongvec_min=
-max,
-> =A0 =A0 =A0 =A0},
-> -#endif
-> =A0#ifdef CONFIG_NUMA
-> =A0 =A0 =A0 =A0{
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0.ctl_name =A0 =A0 =A0 =3D CTL_UNNUMBERED,
-> Index: linux-2.6/mm/mmap.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/mmap.c =A0 =A02009-06-03 15:00:54.000000000 -0500
-> +++ linux-2.6/mm/mmap.c 2009-06-03 15:01:18.000000000 -0500
-> @@ -87,6 +87,9 @@ int sysctl_overcommit_ratio =3D 50; =A0 =A0 /* def
-> =A0int sysctl_max_map_count __read_mostly =3D DEFAULT_MAX_MAP_COUNT;
-> =A0struct percpu_counter vm_committed_as;
->
-> +/* amount of vm to protect from userspace access */
-> +unsigned long mmap_min_addr =3D CONFIG_DEFAULT_MMAP_MIN_ADDR;
-> +
-> =A0/*
-> =A0* Check that a process has enough memory to allocate a new virtual
-> =A0* mapping. 0 means there is enough memory for the allocation to
-> Index: linux-2.6/security/security.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/security/security.c =A02009-06-03 15:00:54.000000000 -=
-0500
-> +++ linux-2.6/security/security.c =A0 =A0 =A0 2009-06-03 15:00:56.0000000=
-00 -0500
-> @@ -26,9 +26,6 @@ extern void security_fixup_ops(struct se
->
-> =A0struct security_operations *security_ops; =A0 =A0 =A0/* Initialized to=
- NULL */
->
-> -/* amount of vm to protect from userspace access */
-> -unsigned long mmap_min_addr =3D CONFIG_SECURITY_DEFAULT_MMAP_MIN_ADDR;
-> -
-> =A0static inline int verify(struct security_operations *ops)
-> =A0{
-> =A0 =A0 =A0 =A0/* verify the security_operations structure exists */
-> Index: linux-2.6/mm/Kconfig
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/Kconfig =A0 2009-06-03 15:00:54.000000000 -0500
-> +++ linux-2.6/mm/Kconfig =A0 =A0 =A0 =A02009-06-03 15:00:56.000000000 -05=
-00
-> @@ -226,6 +226,25 @@ config HAVE_MLOCKED_PAGE_BIT
-> =A0config MMU_NOTIFIER
-> =A0 =A0 =A0 =A0bool
->
-> +config DEFAULT_MMAP_MIN_ADDR
-> + =A0 =A0 =A0 =A0int "Low address space to protect from user allocation"
-> + =A0 =A0 =A0 =A0default 4096
-> + =A0 =A0 =A0 =A0help
-> + =A0 =A0 =A0 =A0 This is the portion of low virtual memory which should =
-be protected
-> + =A0 =A0 =A0 =A0 from userspace allocation. =A0Keeping a user from writi=
-ng to low pages
-> + =A0 =A0 =A0 =A0 can help reduce the impact of kernel NULL pointer bugs.
-> +
-> + =A0 =A0 =A0 =A0 For most ia64, ppc64 and x86 users with lots of address=
- space
-> + =A0 =A0 =A0 =A0 a value of 65536 is reasonable and should cause no prob=
-lems.
-> + =A0 =A0 =A0 =A0 On arm and other archs it should not be higher than 327=
-68.
-> + =A0 =A0 =A0 =A0 Programs which use vm86 functionality would either need=
- additional
-> + =A0 =A0 =A0 =A0 permissions from either the LSM or the capabilities mod=
-ule or have
-> + =A0 =A0 =A0 =A0 this protection disabled.
-> +
-> + =A0 =A0 =A0 =A0 This value can be changed after boot using the
-> + =A0 =A0 =A0 =A0 /proc/sys/vm/mmap_min_addr tunable.
-> +
-> +
-> =A0config NOMMU_INITIAL_TRIM_EXCESS
-> =A0 =A0 =A0 =A0int "Turn on mmap() excess space trimming before booting"
-> =A0 =A0 =A0 =A0depends on !MMU
-> Index: linux-2.6/security/Kconfig
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/security/Kconfig =A0 =A0 2009-06-03 15:00:54.000000000=
- -0500
-> +++ linux-2.6/security/Kconfig =A02009-06-03 15:00:56.000000000 -0500
-> @@ -113,26 +113,6 @@ config SECURITY_ROOTPLUG
->
-> =A0 =A0 =A0 =A0 =A0If you are unsure how to answer this question, answer =
-N.
->
-> -config SECURITY_DEFAULT_MMAP_MIN_ADDR
-> - =A0 =A0 =A0 =A0int "Low address space to protect from user allocation"
-> - =A0 =A0 =A0 =A0depends on SECURITY
-> - =A0 =A0 =A0 =A0default 0
-> - =A0 =A0 =A0 =A0help
-> - =A0 =A0 =A0 =A0 This is the portion of low virtual memory which should =
-be protected
-> - =A0 =A0 =A0 =A0 from userspace allocation. =A0Keeping a user from writi=
-ng to low pages
-> - =A0 =A0 =A0 =A0 can help reduce the impact of kernel NULL pointer bugs.
-> -
-> - =A0 =A0 =A0 =A0 For most ia64, ppc64 and x86 users with lots of address=
- space
-> - =A0 =A0 =A0 =A0 a value of 65536 is reasonable and should cause no prob=
-lems.
-> - =A0 =A0 =A0 =A0 On arm and other archs it should not be higher than 327=
-68.
-> - =A0 =A0 =A0 =A0 Programs which use vm86 functionality would either need=
- additional
-> - =A0 =A0 =A0 =A0 permissions from either the LSM or the capabilities mod=
-ule or have
-> - =A0 =A0 =A0 =A0 this protection disabled.
-> -
-> - =A0 =A0 =A0 =A0 This value can be changed after boot using the
-> - =A0 =A0 =A0 =A0 /proc/sys/vm/mmap_min_addr tunable.
-> -
-> -
-> =A0source security/selinux/Kconfig
-> =A0source security/smack/Kconfig
-> =A0source security/tomoyo/Kconfig
-> Index: linux-2.6/include/linux/security.h
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/include/linux/security.h =A0 =A0 2009-06-03 15:01:28.0=
-00000000 -0500
-> +++ linux-2.6/include/linux/security.h =A02009-06-03 15:01:42.000000000 -=
-0500
-> @@ -2197,6 +2197,8 @@ static inline int security_file_mmap(str
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 u=
-nsigned long addr,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 u=
-nsigned long addr_only)
-> =A0{
-> + =A0 =A0 =A0 if ((addr < mmap_min_addr) && !capable(CAP_SYS_RAWIO))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EACCES;
-> =A0 =A0 =A0 =A0return 0;
-> =A0}
->
->
+Greetings,
+Stefani
+
+ fs/exec.c             |    2 +
+ fs/proc/array.c       |   69 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ fs/proc/task_mmu.c    |   14 ++++++++++
+ include/linux/sched.h |    1 
+ kernel/fork.c         |    3 ++
+ 5 files changed, 88 insertions(+), 1 deletion(-)
+
+-patch begins here--------------------------------------------------------------
+
+diff -u -N -r linux-2.6.30.orig/fs/exec.c linux-2.6.30/fs/exec.c
+--- linux-2.6.30.orig/fs/exec.c	2009-06-03 17:36:41.000000000 +0200
++++ linux-2.6.30/fs/exec.c	2009-06-03 17:30:47.000000000 +0200
+@@ -1328,6 +1328,8 @@
+ 	if (retval < 0)
+ 		goto out;
+ 
++	current->stack_start = current->mm->start_stack;
++
+ 	/* execve succeeded */
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
+diff -u -N -r linux-2.6.30.orig/fs/proc/array.c linux-2.6.30/fs/proc/array.c
+--- linux-2.6.30.orig/fs/proc/array.c	2009-06-03 17:36:41.000000000 +0200
++++ linux-2.6.30/fs/proc/array.c	2009-06-03 17:32:53.000000000 +0200
+@@ -82,6 +82,7 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/ptrace.h>
+ #include <linux/tracehook.h>
++#include <linux/pfn.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/processor.h>
+@@ -321,6 +322,71 @@
+ 			p->nivcsw);
+ }
+ 
++#ifdef CONFIG_STACK_GROWSUP
++static inline unsigned long get_stack_pages(struct vm_area_struct *vma,
++					struct task_struct *p)
++{
++	unsigned long	i;
++	struct page	*page;
++	unsigned long	stack_usage;
++	unsigned long	esp;
++
++	esp = KSTK_ESP(p);
++
++	stack_usage = (PFN_ALIGN(esp)-PFN_ALIGN(p->stack_start));
++
++	for (i = vma->vm_end; i-PAGE_SIZE > esp; i -= PAGE_SIZE) {
++
++		page = follow_page(vma, i-PAGE_SIZE, 0);
++
++		if ((!IS_ERR(page) == 0) || (page))
++			break;
++	}
++	return ((i - esp + stack_usage) >> (PAGE_SHIFT)) + 1;
++}
++#else
++static inline unsigned long get_stack_pages(struct vm_area_struct *vma,
++					struct task_struct *p)
++{
++	unsigned long	i;
++	struct page	*page;
++	unsigned long	stack_usage;
++	unsigned long	esp;
++
++	esp = KSTK_ESP(p);
++
++	stack_usage = (PFN_ALIGN(p->stack_start) - PFN_ALIGN(esp));
++
++	for (i = vma->vm_start; i+PAGE_SIZE <= esp; i += PAGE_SIZE) {
++
++		page = follow_page(vma, i, 0);
++
++		if ((!IS_ERR(page) == 0) || (page))
++			break;
++	}
++	return ((esp - i + stack_usage) >> (PAGE_SHIFT)) + 1;
++}
++#endif
++
++static inline void task_show_stack_usage(struct seq_file *m,
++						struct task_struct *p)
++{
++	struct vm_area_struct	*vma;
++	struct mm_struct	*mm;
++
++	mm = get_task_mm(p);
++
++	if (mm) {
++		vma = find_vma(mm, p->stack_start);
++
++		if (vma)
++			seq_printf(m, "Stack usage:\t%lu kB\n",
++				get_stack_pages(vma, p) << (PAGE_SHIFT - 10));
++
++		mmput(mm);
++	}
++}
++
+ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 			struct pid *pid, struct task_struct *task)
+ {
+@@ -340,6 +406,7 @@
+ 	task_show_regs(m, task);
+ #endif
+ 	task_context_switch_counts(m, task);
++	task_show_stack_usage(m, task);
+ 	return 0;
+ }
+ 
+@@ -481,7 +548,7 @@
+ 		rsslim,
+ 		mm ? mm->start_code : 0,
+ 		mm ? mm->end_code : 0,
+-		(permitted && mm) ? mm->start_stack : 0,
++		(permitted) ? task->stack_start : 0,
+ 		esp,
+ 		eip,
+ 		/* The signal information here is obsolete.
+diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu.c
+--- linux-2.6.30.orig/fs/proc/task_mmu.c	2009-06-03 17:36:41.000000000 +0200
++++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-03 17:30:47.000000000 +0200
+@@ -242,6 +242,20 @@
+ 				} else if (vma->vm_start <= mm->start_stack &&
+ 					   vma->vm_end >= mm->start_stack) {
+ 					name = "[stack]";
++				} else {
++					unsigned long stack_start;
++
++					stack_start =
++						((struct proc_maps_private *)
++						m->private)->task->stack_start;
++
++					if (vma->vm_start <= stack_start &&
++					    vma->vm_end >= stack_start) {
++						pad_len_spaces(m, len);
++						seq_printf(m,
++						 "[thread stack: %08lx]",
++						 stack_start);
++					}
+ 				}
+ 			} else {
+ 				name = "[vdso]";
+diff -u -N -r linux-2.6.30.orig/include/linux/sched.h linux-2.6.30/include/linux/sched.h
+--- linux-2.6.30.orig/include/linux/sched.h	2009-06-03 17:36:41.000000000 +0200
++++ linux-2.6.30/include/linux/sched.h	2009-06-03 17:30:47.000000000 +0200
+@@ -1429,6 +1429,7 @@
+ 	/* state flags for use by tracers */
+ 	unsigned long trace;
+ #endif
++	unsigned long stack_start;
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff -u -N -r linux-2.6.30.orig/kernel/fork.c linux-2.6.30/kernel/fork.c
+--- linux-2.6.30.orig/kernel/fork.c	2009-06-03 17:36:42.000000000 +0200
++++ linux-2.6.30/kernel/fork.c	2009-06-03 17:30:47.000000000 +0200
+@@ -1092,6 +1092,9 @@
+ 	if (unlikely(current->ptrace))
+ 		ptrace_fork(p, clone_flags);
+ 
++	p->stack_start = (stack_start == KSTK_ESP(current)) ?
++		current->stack_start : stack_start;
++
+ 	/* Perform scheduler related setup. Assign this task to a CPU. */
+ 	sched_fork(p, clone_flags);
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
