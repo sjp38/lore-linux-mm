@@ -1,38 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DC0D6B0082
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:01:26 -0400 (EDT)
-Date: Tue, 2 Jun 2009 16:08:30 +0200
-From: Andi Kleen <andi@firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5FB6B004F
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:02:30 -0400 (EDT)
+Date: Wed, 3 Jun 2009 11:35:46 +0200
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602140830.GR1065@one.firstfloor.org>
-References: <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost>
+Message-ID: <20090603093546.GA16275@wotan.suse.de>
+References: <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost> <20090602151729.GC17448@wotan.suse.de> <20090602172715.GT1065@one.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090602134659.GA21338@localhost>
+In-Reply-To: <20090602172715.GT1065@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > We could probably call truncate_complete_page(), but then
-> > > we would also need to duplicate most of the checking outside
-> > > the function anyways and there wouldn't be any possibility
-> > > to share the clean/dirty variants. If you insist I can
-> > > do it, but I think it would be significantly worse code
-> > > than before and I'm reluctant to do that.
-> > 
-> > I can write you the patch for that too if you like.
+On Tue, Jun 02, 2009 at 07:27:15PM +0200, Andi Kleen wrote:
+> > Hmm, if you're handling buffercache here then possibly yes.
 > 
-> I have already posted one on truncate_complete_page(). Not the way you want it?
+> Good question, will check.
 
-Sorry I must have missed it (too much mail I guess). Can you repost please?
+BTW. now that I think about it, buffercache is probably not a good
+idea to truncate (truncate, as-in: remove from pagecache). Because
+filesystems can assume that with just a reference on the page, then
+it will not be truncated.
 
--Andi
+This code will cause ext2 (as the first one I looked at), to go
+oops.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+And this is not predicated on PagePrivate or page_has_buffers,
+because filesystems are free to directly operate on their own
+metadata buffercache pages.
+
+So I think it would be a good idea to exclude buffercache from
+here completely until it can be shown to be safe. Actually you
+*can* use the invalidate_mapping_pages path, which will check
+refcounts etc (or a derivative thereof, similarly to my truncate
+patch).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
