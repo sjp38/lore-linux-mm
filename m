@@ -1,46 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 981AD5F0003
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:17:33 -0400 (EDT)
-Date: Tue, 2 Jun 2009 17:17:29 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v3
-Message-ID: <20090602151729.GC17448@wotan.suse.de>
-References: <20090528082616.GG6920@wotan.suse.de> <20090528095934.GA10678@localhost> <20090528122357.GM6920@wotan.suse.de> <20090528135428.GB16528@localhost> <20090601115046.GE5018@wotan.suse.de> <20090601183225.GS1065@one.firstfloor.org> <20090602120042.GB1392@wotan.suse.de> <20090602124757.GG1065@one.firstfloor.org> <20090602125713.GG1392@wotan.suse.de> <20090602134659.GA21338@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9163F5F0012
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:17:42 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n533tdrW020369
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Jun 2009 12:55:39 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A6A645DE54
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 31E9845DE4E
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0789F1DB8084
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B29C1DB8082
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 12:55:38 +0900 (JST)
+Date: Wed, 3 Jun 2009 12:54:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH mmotm 1/2] memcg: add interface to reset limits
+Message-Id: <20090603125406.fd5a2ef2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090603114908.52c3aed5.nishimura@mxp.nes.nec.co.jp>
+References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
+	<20090603114908.52c3aed5.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090602134659.GA21338@localhost>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 02, 2009 at 09:46:59PM +0800, Wu Fengguang wrote:
-> On Tue, Jun 02, 2009 at 08:57:13PM +0800, Nick Piggin wrote:
-> > Obviously I don't mean just use that single call for the entire
-> > handler. You can set the EIO bit or whatever you like. The
-> > "error handling" you have there also seems strange. You could
-> > retain it, but the page is assured to be removed from pagecache.
-> 
-> You mean this?
-> 
->         if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO))
->                 return FAILED;
-> 
-> If page->private cannot be removed, that means some fs may start IO on it, so
-> we return FAILED.
+On Wed, 3 Jun 2009 11:49:08 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Hmm, if you're handling buffercache here then possibly yes.
-But if you throw out dirty buffer cache then you're probably
-corrupting your filesystem just as bad (or even worse than
-a couple of bits flipped). Just seems ad-hoc.
+> Setting mem.limit or memsw.limit to 0 has no meaning
+> in actual use(no process can run in such condition).
+> 
+> We don't have interface to reset mem.limit or memsw.limit now,
+> so let's reset the mem.limit or memsw.limit to default(unlimited)
+> when they are being set to 0.
+> 
+Maybe good. But when I proposed this kind of patch, it was rejected.
+(try to add RES_ININITY)
 
-I guess it is best-effort in most places though, and this
-doesn't take much effort. But due to being best effort
-means that it is hard for someone who knows exactly what all
-the code does, to know what your intentions or intended
-semantics are in places like this. So short comments would help,
+please wait acks from others.
+But from me,
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujits.ucom>
+
+
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  Documentation/cgroups/memory.txt |    1 +
+>  include/linux/res_counter.h      |    2 ++
+>  kernel/res_counter.c             |    2 +-
+>  mm/memcontrol.c                  |    2 ++
+>  4 files changed, 6 insertions(+), 1 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 1a60887..e1c69f3 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -204,6 +204,7 @@ We can alter the memory limit:
+>  
+>  NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
+>  mega or gigabytes.
+> +NOTE: We can write "0" to reset the *.limit_in_bytes(unlimited).
+>  
+>  # cat /cgroups/0/memory.limit_in_bytes
+>  4194304
+> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> index 4c5bcf6..511f42f 100644
+> --- a/include/linux/res_counter.h
+> +++ b/include/linux/res_counter.h
+> @@ -49,6 +49,8 @@ struct res_counter {
+>  	struct res_counter *parent;
+>  };
+>  
+> +#define RESOURCE_MAX (unsigned long long)LLONG_MAX
+> +
+>  /**
+>   * Helpers to interact with userspace
+>   * res_counter_read_u64() - returns the value of the specified member.
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index bf8e753..0a45778 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -18,7 +18,7 @@
+>  void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+>  {
+>  	spin_lock_init(&counter->lock);
+> -	counter->limit = (unsigned long long)LLONG_MAX;
+> +	counter->limit = RESOURCE_MAX;
+>  	counter->parent = parent;
+>  }
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a83e039..6629ed2 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2040,6 +2040,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+>  		ret = res_counter_memparse_write_strategy(buffer, &val);
+>  		if (ret)
+>  			break;
+> +		if (!val)
+> +			val = RESOURCE_MAX;
+>  		if (type == _MEM)
+>  			ret = mem_cgroup_resize_limit(memcg, val);
+>  		else
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
