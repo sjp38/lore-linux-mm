@@ -1,120 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C3D786B009D
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:46:41 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 847CB6B00A0
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:46:42 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Message-Id: <20090603846.816684333@firstfloor.org>
-Subject: [PATCH] [0/16] HWPOISON: Intro
-Date: Wed,  3 Jun 2009 20:46:31 +0200 (CEST)
+References: <20090603846.816684333@firstfloor.org>
+In-Reply-To: <20090603846.816684333@firstfloor.org>
+Subject: [PATCH] [1/16] HWPOISON: Add page flag for poisoned pages
+Message-Id: <20090603184633.2D78F1D0282@basil.firstfloor.org>
+Date: Wed,  3 Jun 2009 20:46:32 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-Latest version of the hwpoison patchkit.
+Hardware poisoned pages need special handling in the VM and shouldn't be 
+touched again. This requires a new page flag. Define it here.
 
-I rebased it on the mmotm of today to make it easier for Andrew to merge.
+The page flags wars seem to be over, so it shouldn't be a problem
+to get a new one.
 
-All comments have been addressed I believe (except I didn't move the
-handlers out to other files)
+v2: Add TestSetHWPoison (suggested by Johannes Weiner)
 
-For details please see the changelogs in the individual patches.
-
-Andrew,
-
-Please consider for merging.
-
-Nick:
-
-I addressed your comments on truncate. Nick can you review that
-part? Is it ok for you now?
-I also added a check for metadata buffer pages. Can you please review
-that too.
-And I integrated your truncate patch. The only thing missing 
-is a Signed-off-by, can you provide that please?
-
-Also I thought a bit about the fsync() error scenario. It's really
-a problem that can already happen even without hwpoison, e.g.
-when a page is dropped at the wrong time. The real fix would
-be to make address space errors more sticky. Fengguang has been
-looking at that, but it's probably not something for .31
-I wrote up a detailed comment in the code describing the issue.
-
-Thanks,
--Andi
+Acked-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
+ include/linux/page-flags.h |   17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-Upcoming Intel CPUs have support for recovering from some memory errors
-(``MCA recovery''). This requires the OS to declare a page "poisoned", 
-kill the processes associated with it and avoid using it in the future. 
-
-This patchkit implements the necessary infrastructure in the VM.
-
-To quote the overview comment:
-
- * High level machine check handler. Handles pages reported by the
- * hardware as being corrupted usually due to a 2bit ECC memory or cache
- * failure.
- *
- * This focusses on pages detected as corrupted in the background.
- * When the current CPU tries to consume corruption the currently
- * running process can just be killed directly instead. This implies
- * that if the error cannot be handled for some reason it's safe to
- * just ignore it because no corruption has been consumed yet. Instead
- * when that happens another machine check will happen.
- *
- * Handles page cache pages in various states. The tricky part
- * here is that we can access any page asynchronous to other VM
- * users, because memory failures could happen anytime and anywhere,
- * possibly violating some of their assumptions. This is why this code
- * has to be extremely careful. Generally it tries to use normal locking
- * rules, as in get the standard locks, even if that means the
- * error handling takes potentially a long time.
- *
- * Some of the operations here are somewhat inefficient and have non
- * linear algorithmic complexity, because the data structures have not
- * been optimized for this case. This is in particular the case
- * for the mapping from a vma to a process. Since this case is expected
- * to be rare we hope we can get away with this.
-
-The code consists of a the high level handler in mm/memory-failure.c, 
-a new page poison bit and various checks in the VM to handle poisoned
-pages.
-
-The main target right now is KVM guests, but it works for all kinds
-of applications.
-
-For the KVM use there was need for a new signal type so that
-KVM can inject the machine check into the guest with the proper
-address. This in theory allows other applications to handle
-memory failures too. The expection is that near all applications
-won't do that, but some very specialized ones might. 
-
-This is not fully complete yet, in particular there are still ways
-to access poison through various ways (crash dump, /proc/kcore etc.)
-that need to be plugged too.
-
-Also undoubtedly the high level handler still has bugs and cases
-it cannot recover from. For example nonlinear mappings deadlock right now
-and a few other cases lose references. Huge pages are not supported
-yet. Any additional testing, reviewing etc. welcome. 
-
-The patch series requires the earlier x86 MCE feature series for the x86
-specific action optional part. The code can be tested without the x86 specific
-part using the injector, this only requires to enable the Kconfig entry
-manually in some Kconfig file (by default it is implicitely enabled
-by the architecture)
-
-v2: Lots of smaller changes in the series based on review feedback.
-Rename Poison to HWPoison after akpm's request.
-A new pfn based injector based on feedback.
-A lot of improvements mostly from Fengguang Wu
-See comments in the individual patches.
-v3: Various updates, see changelogs in individual patches.
-
-
--Andi
+Index: linux/include/linux/page-flags.h
+===================================================================
+--- linux.orig/include/linux/page-flags.h	2009-06-03 19:36:23.000000000 +0200
++++ linux/include/linux/page-flags.h	2009-06-03 19:36:23.000000000 +0200
+@@ -51,6 +51,9 @@
+  * PG_buddy is set to indicate that the page is free and in the buddy system
+  * (see mm/page_alloc.c).
+  *
++ * PG_hwpoison indicates that a page got corrupted in hardware and contains
++ * data with incorrect ECC bits that triggered a machine check. Accessing is
++ * not safe since it may cause another machine check. Don't touch!
+  */
+ 
+ /*
+@@ -102,6 +105,9 @@
+ #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+ 	PG_uncached,		/* Page has been mapped as uncached */
+ #endif
++#ifdef CONFIG_MEMORY_FAILURE
++	PG_hwpoison,		/* hardware poisoned page. Don't touch */
++#endif
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
+@@ -263,6 +269,15 @@
+ PAGEFLAG_FALSE(Uncached)
+ #endif
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++PAGEFLAG(HWPoison, hwpoison)
++TESTSETFLAG(HWPoison, hwpoison)
++#define __PG_HWPOISON (1UL << PG_hwpoison)
++#else
++PAGEFLAG_FALSE(HWPoison)
++#define __PG_HWPOISON 0
++#endif
++
+ static inline int PageUptodate(struct page *page)
+ {
+ 	int ret = test_bit(PG_uptodate, &(page)->flags);
+@@ -387,7 +402,7 @@
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
+ 
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
