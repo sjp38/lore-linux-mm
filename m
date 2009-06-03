@@ -1,64 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 647EC6B0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C65076B0102
 	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 14:47:14 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090603846.816684333@firstfloor.org>
 In-Reply-To: <20090603846.816684333@firstfloor.org>
-Subject: [PATCH] [9/16] HWPOISON: Handle hardware poisoned pages in try_to_unmap
-Message-Id: <20090603184642.BD4B91D0291@basil.firstfloor.org>
-Date: Wed,  3 Jun 2009 20:46:42 +0200 (CEST)
+Subject: [PATCH] [12/16] Refactor truncate to allow direct truncating of page
+Message-Id: <20090603184646.B915B1D0292@basil.firstfloor.org>
+Date: Wed,  3 Jun 2009 20:46:46 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: npiggin@suse.de, akpm@linux-foundation.orgnpiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-When a page has the poison bit set replace the PTE with a poison entry. 
-This causes the right error handling to be done later when a process runs 
-into it.
+From: Nick Piggin <npiggin@suse.de>
 
-Also add a new flag to not do that (needed for the memory-failure handler
-later)
+Extract out truncate_inode_page() out of the truncate path so that
+it can be used by memory-failure.c
+
+[AK: description, headers, fix typos]
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/rmap.h |    1 +
- mm/rmap.c            |    9 ++++++++-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ include/linux/mm.h |    2 ++
+ mm/truncate.c      |   24 ++++++++++++------------
+ 2 files changed, 14 insertions(+), 12 deletions(-)
 
-Index: linux/mm/rmap.c
+Index: linux/mm/truncate.c
 ===================================================================
---- linux.orig/mm/rmap.c	2009-06-03 19:36:23.000000000 +0200
-+++ linux/mm/rmap.c	2009-06-03 20:39:49.000000000 +0200
-@@ -943,7 +943,14 @@
- 	/* Update high watermark before we lower rss */
- 	update_hiwater_rss(mm);
+--- linux.orig/mm/truncate.c	2009-06-03 19:37:38.000000000 +0200
++++ linux/mm/truncate.c	2009-06-03 20:13:43.000000000 +0200
+@@ -135,6 +135,16 @@
+ 	return ret;
+ }
  
--	if (PageAnon(page)) {
-+	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-+		if (PageAnon(page))
-+			dec_mm_counter(mm, anon_rss);
-+		else if (!is_migration_entry(pte_to_swp_entry(*pte)))
-+			dec_mm_counter(mm, file_rss);
-+		set_pte_at(mm, address, pte,
-+				swp_entry_to_pte(make_hwpoison_entry(page)));
-+	} else if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 
- 		if (PageSwapCache(page)) {
-Index: linux/include/linux/rmap.h
++void truncate_inode_page(struct address_space *mapping, struct page *page)
++{
++	if (page_mapped(page)) {
++		unmap_mapping_range(mapping,
++		  (loff_t)page->index<<PAGE_CACHE_SHIFT,
++		  PAGE_CACHE_SIZE, 0);
++	}
++	truncate_complete_page(mapping, page);
++}
++
+ /**
+  * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
+  * @mapping: mapping to truncate
+@@ -196,12 +206,7 @@
+ 				unlock_page(page);
+ 				continue;
+ 			}
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
+-			truncate_complete_page(mapping, page);
++			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+@@ -238,15 +243,10 @@
+ 				break;
+ 			lock_page(page);
+ 			wait_on_page_writeback(page);
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
++			truncate_inode_page(mapping, page);
+ 			if (page->index > next)
+ 				next = page->index;
+ 			next++;
+-			truncate_complete_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+Index: linux/include/linux/mm.h
 ===================================================================
---- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
-+++ linux/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
-@@ -93,6 +93,7 @@
+--- linux.orig/include/linux/mm.h	2009-06-03 19:37:38.000000000 +0200
++++ linux/include/linux/mm.h	2009-06-03 20:39:49.000000000 +0200
+@@ -811,6 +811,8 @@
+ extern int vmtruncate(struct inode * inode, loff_t offset);
+ extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
  
- 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
- 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
-+	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
- };
- #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
- 
++void truncate_inode_page(struct address_space *mapping, struct page *page);
++
+ #ifdef CONFIG_MMU
+ extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, int write_access);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
