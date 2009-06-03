@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D62D76B00CF
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:39:34 -0400 (EDT)
-Subject: Re: [PATCH 04/23] vfs: Introduce infrastructure for revoking a file
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-4-git-send-email-ebiederm@xmission.com>
-	<20090602071411.GE31556@wotan.suse.de>
-	<alpine.LFD.2.01.0906021005190.3351@localhost.localdomain>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Tue, 02 Jun 2009 13:52:46 -0700
-In-Reply-To: <alpine.LFD.2.01.0906021005190.3351@localhost.localdomain> (Linus Torvalds's message of "Tue\, 2 Jun 2009 10\:06\:00 -0700 \(PDT\)")
-Message-ID: <m1y6sas6ht.fsf@fess.ebiederm.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E3B76B00D1
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 11:39:38 -0400 (EDT)
+Date: Wed, 3 Jun 2009 08:38:47 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+ ZERO_SIZE_PTR to point at unmapped space)
+In-Reply-To: <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
+Message-ID: <alpine.LFD.2.01.0906030827580.4880@localhost.localdomain>
+References: <20090530192829.GK6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301528540.3435@localhost.localdomain> <20090530230022.GO6535@oblivion.subreption.com> <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com>
+ <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <alpine.LFD.2.01.0906030800490.4880@localhost.localdomain> <alpine.DEB.1.10.0906031121030.15621@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: "Larry H." <research@subreption.com>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
 
-> On Tue, 2 Jun 2009, Nick Piggin wrote:
->>
->> Why is it called hotplug? Does it have anything to do with hardware?
->> Because every concurrently changed software data structure in the
->> kernel can be "hot"-modified, right?
->> 
->> Wouldn't file_revoke_lock be more appropriate?
->
-> I agree, "hotplug" just sounds crazy. It's "open" and "revoke", not 
-> "plug" and "unplug".
 
-I guess this shows my bias in triggering this code path from pci
-hotunplug.  Instead of with some system call.
+On Wed, 3 Jun 2009, Christoph Lameter wrote:
 
-I'm not married to the name.  I wanted file_lock but that is already
-used, and I did call the method revoke.
+> On Wed, 3 Jun 2009, Linus Torvalds wrote:
+> 
+> > The point being that we do need to support mmap at zero. Not necessarily
+> > universally, but it can't be some fixed "we don't allow that".
+> 
+> Hmmm... Depend on some capability? CAP_SYS_PTRACE may be something
+> remotely related?
 
-The only place where hotplug gives a useful hint is that it makes it
-clear we really are disconnecting the file descriptor from what lies
-below it.  We can't do some weird thing like keep the underlying object.
-Because the underlying object is gone.
+But as mentioned several times, we do have the system-wide setting in
+'mmap_min_addr' (that then can be overridden by CAP_SYS_RAWIO, so in that 
+sense a capability already exists).
 
-Eric
+It defaults to 64kB in at least the x86 defconfig files, but to 0 in the 
+Kconfig defaults. Also, for some reason it has a "depends on SECURITY", 
+which means that if you just default to the old-style unix security you'll 
+lose it.
+
+So there are several ways to disable it by mistake. I don't know what 
+distros do.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
