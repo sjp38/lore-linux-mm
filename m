@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 602985F0019
-	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:22:33 -0400 (EDT)
-Date: Tue, 2 Jun 2009 11:15:44 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH] Warn if we run out of swap space
-Message-ID: <20090602091544.GC15756@elf.ucw.cz>
-References: <alpine.DEB.1.10.0905221454460.7673@qirst.com> <4A23FF89.2060603@redhat.com> <20090601123503.2337a79b.akpm@linux-foundation.org> <4A242F94.9010704@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA8D5F0019
+	for <linux-mm@kvack.org>; Wed,  3 Jun 2009 13:22:58 -0400 (EDT)
+Date: Wed, 3 Jun 2009 10:24:40 -0700
+From: "Larry H." <research@subreption.com>
+Subject: Re: Security fix for remapping of page 0 (was [PATCH] Change
+	ZERO_SIZE_PTR to point at unmapped space)
+Message-ID: <20090603172440.GA18561@oblivion.subreption.com>
+References: <alpine.LFD.2.01.0905301902010.3435@localhost.localdomain> <20090531022158.GA9033@oblivion.subreption.com> <alpine.DEB.1.10.0906021130410.23962@gentwo.org> <20090602203405.GC6701@oblivion.subreption.com> <alpine.DEB.1.10.0906031047390.15621@gentwo.org> <1244041914.12272.64.camel@localhost.localdomain> <alpine.DEB.1.10.0906031134410.13551@gentwo.org> <20090603162831.GF6701@oblivion.subreption.com> <4A26A689.1090300@redhat.com> <alpine.LFD.2.01.0906030944440.4880@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A242F94.9010704@redhat.com>
+In-Reply-To: <alpine.LFD.2.01.0906030944440.4880@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org, linux-mm@kvack.org, dave@linux.vnet.ibm.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Stephen Smalley <sds@tycho.nsa.gov>, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, pageexec@freemail.hu
 List-ID: <linux-mm.kvack.org>
 
-On Mon 2009-06-01 22:44:20, Avi Kivity wrote:
-> Andrew Morton wrote:
->>> We really should have a machine readable channel for this sort of  
->>> information, so it can be plumbed to a userspace notification bubble 
->>> the user can ignore.
->>>     
->>
->> That could just be printk().  It's a question of a) how to tell
->> userspace which bits to pay attention to and maybe b) adding some
->> more structure to the text.
->>
->> Perhaps careful use of faciliy levels would suffice for a), but I
->> expect that some new tagging scheme would be more practical.
->>   
->
-> I thought dmesg was an unreliable channel which can overflow.  It's also  
-> prone to attacks by spell checkers.
->
-> I prefer reliable binary interfaces to shell explorable text interfaces  
-> as I think any feature worth having is much more useful controlled by an  
-> application rather than a bored sysadmin.
+On 09:47 Wed 03 Jun     , Linus Torvalds wrote:
+> 
+> 
+> On Wed, 3 Jun 2009, Rik van Riel wrote:
+> > 
+> > Would anybody paranoid run their system without SELinux?
+> 
+> You make two very fundamental mistakes.
+> 
+> The first is to assume that this is about "paranoid" people. Security is 
+> _not_ about people who care deeply about security. It's about everybody. 
+> Look at viruses and DDoS attacks - the "paranoid" people absolutely depend 
+> on the _non_paranoid people being secure too!
+> 
+> The other mistake is to think that SELinux is sane, or should be the 
+> default. It's a f*cking complex disaster, and makes performance plummet on 
+> some things. I turn it off, and I know lots of other sane people do too. 
+> So the !SElinux case really does need to work.
 
-Ouch and please... don't stop useful printk() warnings just because
-some 'pie-in-the-sky future binary protocol'. That's what happened in
-ACPI land with battery critical, and it is also why I don't get
-battery warnings on some of my machines.
+I'm finally glad we start finding points where we both agree. riel is
+talking from the perspective of someone who deals with RHEL/Fedora... so
+I could see his inclination towards SELinux over any other
+possibilities.
 
-State-of-the art userspace should not be required for reasonable
-operation...
-								Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+But people without SELinux must be definitely taken care of, and kept
+safe whenever possible, if technical circumstances allow this to happen.
+
+	Larry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
