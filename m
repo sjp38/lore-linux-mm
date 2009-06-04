@@ -1,141 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C90C6B004D
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 02:23:21 -0400 (EDT)
-Date: Thu, 4 Jun 2009 14:57:33 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 3/4] reuse unused swap entry if necessary
-Message-Id: <20090604145733.ddfb3c88.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090602121202.6740a718.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090602120425.0bcff554.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090602121202.6740a718.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 99AF96B004D
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 02:31:57 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so274849ywm.26
+        for <linux-mm@kvack.org>; Wed, 03 Jun 2009 23:31:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090528145021.GA5503@localhost>
+References: <200905271012.668777061@firstfloor.org>
+	 <20090527201239.C2C9C1D0294@basil.firstfloor.org>
+	 <20090528082616.GG6920@wotan.suse.de>
+	 <20090528093141.GD1065@one.firstfloor.org>
+	 <20090528120854.GJ6920@wotan.suse.de>
+	 <20090528134520.GH1065@one.firstfloor.org>
+	 <20090528145021.GA5503@localhost>
+Date: Thu, 4 Jun 2009 14:25:24 +0800
+Message-ID: <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in
+	the VM v3
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Jun 2009 12:12:02 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> This is a replacement for
->  mm-reuse-unused-swap-entry-if-necessary.patch in mmotm.
->  function is renamed and comments are added.
-> 
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, we can know the swap is just used as SwapCache via swap_map,
-> without looking up swap cache.
-> 
-> Then, we have a chance to reuse swap-cache-only swap entries in
-> get_swap_pages().
-> 
-> This patch tries to free swap-cache-only swap entries if swap is
-> not enough.
-> Note: We hit following path when swap_cluster code cannot find
-> a free cluster. Then, vm_swap_full() is not only condition to allow
-> the kernel to reclaim unused swap.
-> 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, May 28, 2009 at 10:50 PM, Wu Fengguang <fengguang.wu@intel.com> wro=
+te:
+> On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
+>> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
+>
+> [snip]
+>
+>> >
+>> > BTW. I don't know if you are checking for PG_writeback often enough?
+>> > You can't remove a PG_writeback page from pagecache. The normal
+>> > pattern is lock_page(page); wait_on_page_writeback(page); which I
+>>
+>> So pages can be in writeback without being locked? I still
+>> wasn't able to find such a case (in fact unless I'm misreading
+>> the code badly the writeback bit is only used by NFS and a few
+>> obscure cases)
+>
+> Yes the writeback page is typically not locked. Only read IO requires
+> to be exclusive. Read IO is in fact page *writer*, while writeback IO
+> is page *reader* :-)
 
-I've confirmed that usage increase of swap and swapcache stopped
-at some threshold in my test, in which , before this patch, some programs
-had been oom-killed after a long time because of shortage of swap space.
+Sorry for maybe somewhat a little bit off topic,
+I am trying to get a good understanding of PG_writeback & PG_locked ;)
 
-This has been merged to mm already though:
+So you are saying PG_writeback & PG_locked are acting like a read/write loc=
+k?
+I notice wait_on_page_writeback(page) seems always called with page locked =
+--
+that is the semantics of a writer waiting to get the lock while it's
+acquired by
+some reader:The caller(e.g. truncate_inode_pages_range()  and
+invalidate_inode_pages2_range()) are the writers waiting for
+writeback readers (as you clarified ) to finish their job, right ?
 
-	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+So do you think the idea is sane to group the two bits together
+to form a real read/write lock, which does not care about the _number_
+of readers ?
 
-Thanks,
-Daiuske Nishimura.
 
-> ---
->  mm/swapfile.c |   47 +++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 47 insertions(+)
-> 
-> Index: mmotm-2.6.30-May28/mm/swapfile.c
-> ===================================================================
-> --- mmotm-2.6.30-May28.orig/mm/swapfile.c
-> +++ mmotm-2.6.30-May28/mm/swapfile.c
-> @@ -79,6 +79,32 @@ static inline unsigned short encode_swap
->  	return ret;
->  }
->  
-> +/* returnes 1 if swap entry is freed */
-> +static int
-> +__try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
-> +{
-> +	int type = si - swap_info;
-> +	swp_entry_t entry = swp_entry(type, offset);
-> +	struct page *page;
-> +	int ret = 0;
-> +
-> +	page = find_get_page(&swapper_space, entry.val);
-> +	if (!page)
-> +		return 0;
-> +	/*
-> +	 * This function is called from scan_swap_map() and it's called
-> +	 * by vmscan.c at reclaiming pages. So, we hold a lock on a page, here.
-> +	 * We have to use trylock for avoiding deadlock. This is a special
-> +	 * case and you should use try_to_free_swap() with explicit lock_page()
-> +	 * in usual operations.
-> +	 */
-> +	if (trylock_page(page)) {
-> +		ret = try_to_free_swap(page);
-> +		unlock_page(page);
-> +	}
-> +	page_cache_release(page);
-> +	return ret;
-> +}
->  
->  /*
->   * We need this because the bdev->unplug_fn can sleep and we cannot
-> @@ -301,6 +327,19 @@ checks:
->  		goto no_page;
->  	if (offset > si->highest_bit)
->  		scan_base = offset = si->lowest_bit;
-> +
-> +	/* reuse swap entry of cache-only swap if not busy. */
-> +	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +		int swap_was_freed;
-> +		spin_unlock(&swap_lock);
-> +		swap_was_freed = __try_to_reclaim_swap(si, offset);
-> +		spin_lock(&swap_lock);
-> +		/* entry was freed successfully, try to use this again */
-> +		if (swap_was_freed)
-> +			goto checks;
-> +		goto scan; /* check next one */
-> +	}
-> +
->  	if (si->swap_map[offset])
->  		goto scan;
->  
-> @@ -382,6 +421,10 @@ scan:
->  			spin_lock(&swap_lock);
->  			goto checks;
->  		}
-> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +			spin_lock(&swap_lock);
-> +			goto checks;
-> +		}
->  		if (unlikely(--latency_ration < 0)) {
->  			cond_resched();
->  			latency_ration = LATENCY_LIMIT;
-> @@ -393,6 +436,10 @@ scan:
->  			spin_lock(&swap_lock);
->  			goto checks;
->  		}
-> +		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-> +			spin_lock(&swap_lock);
-> +			goto checks;
-> +		}
->  		if (unlikely(--latency_ration < 0)) {
->  			cond_resched();
->  			latency_ration = LATENCY_LIMIT;
-> 
+>
+> The writeback bit is _widely_ used. =A0test_set_page_writeback() is
+> directly used by NFS/AFS etc. But its main user is in fact
+> set_page_writeback(), which is called in 26 places.
+>
+>> > think would be safest
+>>
+>> Okay. I'll just add it after the page lock.
+>>
+>> > (then you never have to bother with the writeback bit again)
+>>
+>> Until Fengguang does something fancy with it.
+>
+> Yes I'm going to do it without wait_on_page_writeback().
+>
+> The reason truncate_inode_pages_range() has to wait on writeback page
+> is to ensure data integrity. Otherwise if there comes two events:
+> =A0 =A0 =A0 =A0truncate page A at offset X
+> =A0 =A0 =A0 =A0populate page B at offset X
+> If A and B are all writeback pages, then B can hit disk first and then
+> be overwritten by A. Which corrupts the data at offset X from user's POV.
+>
+> But for hwpoison, there are no such worries. If A is poisoned, we do
+> our best to isolate it as well as intercepting its IO. If the interceptio=
+n
+> fails, it will trigger another machine check before hitting the disk.
+>
+> After all, poisoned A means the data at offset X is already corrupted.
+> It doesn't matter if there comes another B page.
+>
+> Thanks,
+> Fengguang
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
