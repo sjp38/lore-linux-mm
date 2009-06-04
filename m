@@ -1,66 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DBCC6B005A
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 07:56:59 -0400 (EDT)
-Subject: Re: [patch] procfs: provide stack information for threads
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <20090604043750.e1031e01.akpm@linux-foundation.org>
-References: <1238511505.364.61.camel@matrix>
-	 <20090401193135.GA12316@elte.hu> <1244114628.31230.3.camel@wall-e>
-	 <20090604043750.e1031e01.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 04 Jun 2009 13:56:29 +0200
-Message-Id: <1244116589.32392.15.camel@wall-e>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6D38C6B005A
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 08:24:21 -0400 (EDT)
+Date: Thu, 4 Jun 2009 07:24:09 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
+Message-ID: <20090604122409.GK29447@sgi.com>
+References: <20090604192236.9761.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090604192236.9761.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>, Thomas Gleixner <tglx@linutronix.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+Acked-by: Robin Holt <holt@sgi.com>
 
-Am Donnerstag, den 04.06.2009, 04:37 -0700 schrieb Andrew Morton:
-> On Thu, 04 Jun 2009 13:23:48 +0200 Stefani Seibold <stefani@seibold.net> wrote:
-> >  - slime done
-> 
-> What's "slime"?
-> 
 
-Sorry, that was a typo, should be "slim down".
+On Thu, Jun 04, 2009 at 07:23:15PM +0900, KOSAKI Motohiro wrote:
+...
+> Actually, zone_reclaim_mode=1 mean "I dislike remote node allocation rather than
+> disk access", it makes performance improvement to HPC workload.
+> but it makes performance degression to desktop, file server and web server.
 
-> > +	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
-> > +
-> > +		page = follow_page(vma, i, 0);
-> > +
-> > +		if (!IS_ERR(page) && page)
-> 
-> Shouldn't this be !page?
-> 
+I still disagree with this statement, but I don't care that much.
+Why not something more to the effect of:
 
-No, this is correct... I walk through the top of vma to the first mapped
-page, this is the high water mark of the stack.
+Setting zone_reclaim_mode=1 causes memory allocations on a nearly
+exhausted node to do direct reclaim within that node before attempting
+off-node allocations.  For work loads where most pages are clean in
+page cache and easily reclaimed, this can result excessive disk activity
+versus a more fair node memory balance.
 
-> > +					unsigned long stack_start;
-> > +
-> > +					stack_start =
-> > +						((struct proc_maps_private *)
-> > +						m->private)->task->stack_start;
-> 
-> I'd suggested a clearer/cleaner way of implementing this.
-> 
+If you disagree, don't respond, just ignore.
 
-Sorry, i can not see a problem here. In your last posting you wrote
-thats okay! And i have no idea how to make this expression
-clearer/cleaner.
+...
+> --- a/include/linux/topology.h
+> +++ b/include/linux/topology.h
+> @@ -54,12 +54,7 @@ int arch_update_cpu_topology(void);
+>  #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
+>  #endif
+>  #ifndef RECLAIM_DISTANCE
+> -/*
+> - * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
+> - * (in whatever arch specific measurement units returned by node_distance())
+> - * then switch on zone reclaim on boot.
+> - */
+> -#define RECLAIM_DISTANCE 20
+> +#define RECLAIM_DISTANCE INT_MAX
 
-> > Signed-off-by: Stefani Seibold <stefani@seibold.net>
-> 
-> This should be positioned at the end of the changelog, ahead of the
-> patch itself.
-> 
+Why remove this comment?  It seems more-or-less a reasonable statement.
 
-Next time i will do this, okay?
-
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
