@@ -1,82 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CD496B0055
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:28:22 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C1D6B005C
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:28:24 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200906041128.112757038@firstfloor.org>
 In-Reply-To: <200906041128.112757038@firstfloor.org>
-Subject: [PATCH] [1/15] HWPOISON: Add page flag for poisoned pages
-Message-Id: <20090604212811.888C91D0290@basil.firstfloor.org>
-Date: Thu,  4 Jun 2009 23:28:11 +0200 (CEST)
+Subject: [PATCH] [3/15] HWPOISON: Add support for poison swap entries v2
+Message-Id: <20090604212814.349801D0290@basil.firstfloor.org>
+Date: Thu,  4 Jun 2009 23:28:13 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-Hardware poisoned pages need special handling in the VM and shouldn't be 
-touched again. This requires a new page flag. Define it here.
+Memory migration uses special swap entry types to trigger special actions on 
+page faults. Extend this mechanism to also support poisoned swap entries, to 
+trigger poison handling on page faults. This allows follow-on patches to 
+prevent processes from faulting in poisoned pages again.
 
-The page flags wars seem to be over, so it shouldn't be a problem
-to get a new one.
+v2: Fix overflow in MAX_SWAPFILES (Fengguang Wu)
+v3: Better overflow fix (Hidehiro Kawai)
 
-v2: Add TestSetHWPoison (suggested by Johannes Weiner)
-
-Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/page-flags.h |   17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ include/linux/swap.h    |   34 ++++++++++++++++++++++++++++------
+ include/linux/swapops.h |   38 ++++++++++++++++++++++++++++++++++++++
+ mm/swapfile.c           |    4 ++--
+ 3 files changed, 68 insertions(+), 8 deletions(-)
 
-Index: linux/include/linux/page-flags.h
+Index: linux/include/linux/swap.h
 ===================================================================
---- linux.orig/include/linux/page-flags.h
-+++ linux/include/linux/page-flags.h
-@@ -51,6 +51,9 @@
-  * PG_buddy is set to indicate that the page is free and in the buddy system
-  * (see mm/page_alloc.c).
-  *
-+ * PG_hwpoison indicates that a page got corrupted in hardware and contains
-+ * data with incorrect ECC bits that triggered a machine check. Accessing is
-+ * not safe since it may cause another machine check. Don't touch!
+--- linux.orig/include/linux/swap.h
++++ linux/include/linux/swap.h
+@@ -34,16 +34,38 @@ static inline int current_is_kswapd(void
+  * the type/offset into the pte as 5/27 as well.
   */
+ #define MAX_SWAPFILES_SHIFT	5
+-#ifndef CONFIG_MIGRATION
+-#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
++
++/*
++ * Use some of the swap files numbers for other purposes. This
++ * is a convenient way to hook into the VM to trigger special
++ * actions on faults.
++ */
++
++/*
++ * NUMA node memory migration support
++ */
++#ifdef CONFIG_MIGRATION
++#define SWP_MIGRATION_NUM 2
++#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM)
++#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
+ #else
+-/* Use last two entries for page migration swap entries */
+-#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
+-#define SWP_MIGRATION_READ	MAX_SWAPFILES
+-#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
++#define SWP_MIGRATION_NUM 0
+ #endif
  
  /*
-@@ -102,6 +105,9 @@ enum pageflags {
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- 	PG_uncached,		/* Page has been mapped as uncached */
- #endif
++ * Handling of hardware poisoned pages with memory corruption.
++ */
 +#ifdef CONFIG_MEMORY_FAILURE
-+	PG_hwpoison,		/* hardware poisoned page. Don't touch */
-+#endif
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
-@@ -263,6 +269,15 @@ PAGEFLAG(Uncached, uncached)
- PAGEFLAG_FALSE(Uncached)
- #endif
- 
-+#ifdef CONFIG_MEMORY_FAILURE
-+PAGEFLAG(HWPoison, hwpoison)
-+TESTSETFLAG(HWPoison, hwpoison)
-+#define __PG_HWPOISON (1UL << PG_hwpoison)
++#define SWP_HWPOISON_NUM 1
++#define SWP_HWPOISON		MAX_SWAPFILES
 +#else
-+PAGEFLAG_FALSE(HWPoison)
-+#define __PG_HWPOISON 0
++#define SWP_HWPOISON_NUM 0
 +#endif
 +
- static inline int PageUptodate(struct page *page)
- {
- 	int ret = test_bit(PG_uptodate, &(page)->flags);
-@@ -387,7 +402,7 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
++#define MAX_SWAPFILES \
++	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
++
++/*
+  * Magic header for a swap area. The first part of the union is
+  * what the swap magic looks like for the old (limited to 128MB)
+  * swap area format, the second part of the union adds - in the
+Index: linux/include/linux/swapops.h
+===================================================================
+--- linux.orig/include/linux/swapops.h
++++ linux/include/linux/swapops.h
+@@ -131,3 +131,41 @@ static inline int is_write_migration_ent
  
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+ #endif
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++/*
++ * Support for hardware poisoned pages
++ */
++static inline swp_entry_t make_hwpoison_entry(struct page *page)
++{
++	BUG_ON(!PageLocked(page));
++	return swp_entry(SWP_HWPOISON, page_to_pfn(page));
++}
++
++static inline int is_hwpoison_entry(swp_entry_t entry)
++{
++	return swp_type(entry) == SWP_HWPOISON;
++}
++#else
++
++static inline swp_entry_t make_hwpoison_entry(struct page *page)
++{
++	return swp_entry(0, 0);
++}
++
++static inline int is_hwpoison_entry(swp_entry_t swp)
++{
++	return 0;
++}
++#endif
++
++#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
++static inline int non_swap_entry(swp_entry_t entry)
++{
++	return swp_type(entry) >= MAX_SWAPFILES;
++}
++#else
++static inline int non_swap_entry(swp_entry_t entry)
++{
++	return 0;
++}
++#endif
+Index: linux/mm/swapfile.c
+===================================================================
+--- linux.orig/mm/swapfile.c
++++ linux/mm/swapfile.c
+@@ -697,7 +697,7 @@ int free_swap_and_cache(swp_entry_t entr
+ 	struct swap_info_struct *p;
+ 	struct page *page = NULL;
+ 
+-	if (is_migration_entry(entry))
++	if (non_swap_entry(entry))
+ 		return 1;
+ 
+ 	p = swap_info_get(entry);
+@@ -2083,7 +2083,7 @@ static int __swap_duplicate(swp_entry_t
+ 	int count;
+ 	bool has_cache;
+ 
+-	if (is_migration_entry(entry))
++	if (non_swap_entry(entry))
+ 		return -EINVAL;
+ 
+ 	type = swp_type(entry);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
