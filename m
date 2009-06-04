@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 23C026B0055
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 07:55:44 -0400 (EDT)
-Date: Thu, 4 Jun 2009 19:55:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [6/16] HWPOISON: Add various poison checks in
-	mm/memory.c
-Message-ID: <20090604115533.GB22118@localhost>
-References: <20090603846.816684333@firstfloor.org> <20090603184639.1933B1D028F@basil.firstfloor.org> <20090604042603.GA15682@localhost> <20090604051915.GN1065@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090604051915.GN1065@one.firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DBCC6B005A
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 07:56:59 -0400 (EDT)
+Subject: Re: [patch] procfs: provide stack information for threads
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090604043750.e1031e01.akpm@linux-foundation.org>
+References: <1238511505.364.61.camel@matrix>
+	 <20090401193135.GA12316@elte.hu> <1244114628.31230.3.camel@wall-e>
+	 <20090604043750.e1031e01.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 04 Jun 2009 13:56:29 +0200
+Message-Id: <1244116589.32392.15.camel@wall-e>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 04, 2009 at 01:19:15PM +0800, Andi Kleen wrote:
-> On Thu, Jun 04, 2009 at 12:26:03PM +0800, Wu Fengguang wrote:
-> > On Thu, Jun 04, 2009 at 02:46:38AM +0800, Andi Kleen wrote:
-> > >
-> > > Bail out early when hardware poisoned pages are found in page fault handling.
-> >
-> > I suspect this patch is also not absolutely necessary: the poisoned
-> > page will normally have been isolated already.
->
-> It's needed to prevent new pages comming in when there is a parallel
-> fault while the memory failure handling is in process.
-> Otherwise the pages could get remapped in that small window.
 
-This patch makes no difference at least for file pages, including tmpfs.
+Am Donnerstag, den 04.06.2009, 04:37 -0700 schrieb Andrew Morton:
+> On Thu, 04 Jun 2009 13:23:48 +0200 Stefani Seibold <stefani@seibold.net> wrote:
+> >  - slime done
+> 
+> What's "slime"?
+> 
 
-In filemap_fault(), it will first do find_lock_page(), which will lock
-the page and then double check if the page->mapping is NULL.  If so,
-it drops that page and re-find/re-create one in the radix tree.
+Sorry, that was a typo, should be "slim down".
 
-That logic automatically avoids the poisoned page that is being
-processed, because the poisoned page is now being locked, and when
-find_lock_page() eventually is able to lock it, its page->mapping
-will be NULL. So the PageHWPoison(vmf.page) test will never be true
-for filemap_fault.
+> > +	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
+> > +
+> > +		page = follow_page(vma, i, 0);
+> > +
+> > +		if (!IS_ERR(page) && page)
+> 
+> Shouldn't this be !page?
+> 
 
-shmem_fault() calls shmem_getpage() to get the page, which will return
-EIO on !uptodate page. It then returns VM_FAULT_SIGBUS on its own.
+No, this is correct... I walk through the top of vma to the first mapped
+page, this is the high water mark of the stack.
 
-> > > --- linux.orig/mm/memory.c	2009-06-03 19:36:23.000000000 +0200
-> > > +++ linux/mm/memory.c	2009-06-03 19:36:23.000000000 +0200
-> > > @@ -2797,6 +2797,9 @@
-> > >  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-> > >  		return ret;
-> > >
-> > > +	if (unlikely(PageHWPoison(vmf.page)))
-> > > +		return VM_FAULT_HWPOISON;
-> > > +
-> >
-> > Direct return with locked page could lockup someone later.
-> > Either drop this patch or fix it with this check?
->
-> Fair point. Fixed.
+> > +					unsigned long stack_start;
+> > +
+> > +					stack_start =
+> > +						((struct proc_maps_private *)
+> > +						m->private)->task->stack_start;
+> 
+> I'd suggested a clearer/cleaner way of implementing this.
+> 
 
-OK, thanks.
+Sorry, i can not see a problem here. In your last posting you wrote
+thats okay! And i have no idea how to make this expression
+clearer/cleaner.
 
-Fengguang
+> > Signed-off-by: Stefani Seibold <stefani@seibold.net>
+> 
+> This should be positioned at the end of the changelog, ahead of the
+> patch itself.
+> 
+
+Next time i will do this, okay?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
