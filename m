@@ -1,70 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8526D6B004D
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 00:35:01 -0400 (EDT)
-Date: Thu, 4 Jun 2009 13:31:38 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH mmotm 2/2] memcg: allow mem.limit bigger than
- memsw.limit iff unlimited
-Message-Id: <20090604133138.d8286db9.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090603174641.445e3012.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
-	<20090603115027.80f9169b.nishimura@mxp.nes.nec.co.jp>
-	<20090603125228.368ecaf7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090603140102.72b04b6f.nishimura@mxp.nes.nec.co.jp>
-	<20090603174641.445e3012.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0A1C06B004F
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 00:35:55 -0400 (EDT)
+Date: Thu, 4 Jun 2009 12:35:41 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [9/16] HWPOISON: Handle hardware poisoned pages in
+	try_to_unmap
+Message-ID: <20090604043541.GC15682@localhost>
+References: <20090603846.816684333@firstfloor.org> <20090603184642.BD4B91D0291@basil.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090603184642.BD4B91D0291@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Jun 2009 17:46:41 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 3 Jun 2009 14:01:02 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, Jun 04, 2009 at 02:46:42AM +0800, Andi Kleen wrote:
 > 
-> > On Wed, 3 Jun 2009 12:52:28 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Wed, 3 Jun 2009 11:50:27 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > 
-> > > > Now users cannot set mem.limit bigger than memsw.limit.
-> > > > This patch allows mem.limit bigger than memsw.limit iff mem.limit==unlimited.
-> > > > 
-> > > > By this, users can set memsw.limit without setting mem.limit.
-> > > > I think it's usefull if users want to limit memsw only.
-> > > > They must set mem.limit first and memsw.limit to the same value now for this purpose.
-> > > > They can save the first step by this patch.
-> > > > 
-> > > 
-> > > I don't like this. No benefits to users.
-> > > The user should know when they set memsw.limit they have to set memory.limit.
-> > > This just complicates things.
-> > > 
-> > Hmm, I think there is a user who cares only limitting logical memory(mem+swap),
-> > not physical memory, and wants kswapd to reclaim physical memory when congested. 
-> > At least, I'm a such user.
-> > 
-> > Do you disagree even if I add a file like "memory.allow_limit_memsw_only" ?
-> > 
+> When a page has the poison bit set replace the PTE with a poison entry. 
+> This causes the right error handling to be done later when a process runs 
+> into it.
 > 
-> How about removing memory.limit < memsw.limit condition completely ?
+> Also add a new flag to not do that (needed for the memory-failure handler
+> later)
 > 
-It might be good idea.
-IMHO, there is no critical reason it must be checked by kernel, but I'm not sure.
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  include/linux/rmap.h |    1 +
+>  mm/rmap.c            |    9 ++++++++-
+>  2 files changed, 9 insertions(+), 1 deletion(-)
+> 
+> Index: linux/mm/rmap.c
+> ===================================================================
+> --- linux.orig/mm/rmap.c	2009-06-03 19:36:23.000000000 +0200
+> +++ linux/mm/rmap.c	2009-06-03 20:39:49.000000000 +0200
+> @@ -943,7 +943,14 @@
+>  	/* Update high watermark before we lower rss */
+>  	update_hiwater_rss(mm);
+>  
+> -	if (PageAnon(page)) {
+> +	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
+> +		if (PageAnon(page))
+> +			dec_mm_counter(mm, anon_rss);
+> +		else if (!is_migration_entry(pte_to_swp_entry(*pte)))
+> +			dec_mm_counter(mm, file_rss);
+> +		set_pte_at(mm, address, pte,
+> +				swp_entry_to_pte(make_hwpoison_entry(page)));
+> +	} else if (PageAnon(page)) {
+>  		swp_entry_t entry = { .val = page_private(page) };
+>  
+>  		if (PageSwapCache(page)) {
+> Index: linux/include/linux/rmap.h
+> ===================================================================
+> --- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
+> +++ linux/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
+> @@ -93,6 +93,7 @@
+>  
+>  	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+>  	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+> +	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
 
-All I wanted to do was "let users who cares only about memsw.limit
-ignore mem.limit completely". That's why, I treated only the "unlimited"(not set
-mem.limit) case as special.
-But, as you say, there is no reason it must be implemented in kernel.
-(We can use a middle-ware or something.)
-
-I'll drop this and consider more.
-
-
-Thanks,
-Daisuke Nishimura.
+Or more precisely comment it as "corrupted data is recoverable"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
