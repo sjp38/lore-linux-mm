@@ -1,128 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 82EFB6B004F
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:24:34 -0400 (EDT)
-Date: Thu, 4 Jun 2009 14:23:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] procfs: provide stack information for threads
-Message-Id: <20090604142358.95af81d5.akpm@linux-foundation.org>
-In-Reply-To: <1244146873.20012.6.camel@wall-e>
-References: <1238511505.364.61.camel@matrix>
-	<20090401193135.GA12316@elte.hu>
-	<1244146873.20012.6.camel@wall-e>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 52CBA6B004D
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:28:17 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Message-Id: <200906041128.112757038@firstfloor.org>
+Subject: [PATCH] [0/15] HWPOISON: Intro
+Date: Thu,  4 Jun 2009 23:28:10 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: Stefani Seibold <stefani@seibold.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 04 Jun 2009 22:21:13 +0200
-Stefani Seibold <stefani@seibold.net> wrote:
 
-> This is the newest version of the formaly named "detailed stack info"
-> patch which give you a better overview of the userland application stack
-> usage, especially for embedded linux.
-> 
-> Currently you are only able to dump the main process/thread stack usage
-> which is showed in /proc/pid/status by the "VmStk" Value. But you get no
-> information about the consumed stack memory of the the threads.
-> 
-> There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
-> marks the vm mapping where the thread stack pointer reside with "[thread
-> stack xxxxxxxx]". xxxxxxxx is the start address of the stack.
-> 
-> Also there is a new entry "stack usage" in /proc/<pid>/{task/*,}/status
-> which will you give the current stack usage in kb.
-> 
-> I also fixed stack base address in /proc/<pid>/task/*/stat to the base
-> address of the associated thread stack and not the one of the main
-> process. This makes more sense.
-> 
-> Changes since last posting:
-> 
->  - Code cleanup suggested by Andrew
-> 
-> The patch is against 2.6.30-rc7 and tested with on intel and ppc
-> architectures.
+Latest version of the hwpoison patchkit, addressing all earlier
+review comments.
 
-OK, we're getting there.
+Should be good to go now.
 
-> +static inline unsigned long get_stack_usage_in_bytes(struct vm_area_struct *vma,
-> +					struct task_struct *p)
-> +{
-> +	unsigned long	i;
-> +	struct page	*page;
-> +	unsigned long	stkpage;
-> +
-> +	stkpage = KSTK_ESP(p) & PAGE_MASK;
-> +
-> +#ifdef CONFIG_STACK_GROWSUP
-> +	for (i = vma->vm_end; i-PAGE_SIZE > stkpage; i -= PAGE_SIZE) {
-> +
-> +		page = follow_page(vma, i-PAGE_SIZE, 0);
-> +
-> +		if (!IS_ERR(page) && page)
-> +			break;
-> +	}
-> +	return i - (p->stack_start & PAGE_MASK);
-> +#else
-> +	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
-> +
-> +		page = follow_page(vma, i, 0);
-> +
-> +		if (!IS_ERR(page) && page)
-> +			break;
-> +	}
-> +	return (p->stack_start & PAGE_MASK) - i + PAGE_SIZE;
-> +#endif
-> +}
-> +
-> +static inline void task_show_stack_usage(struct seq_file *m,
-> +						struct task_struct *p)
-> +{
-> +	struct vm_area_struct	*vma;
-> +	struct mm_struct	*mm;
-> +
-> +	mm = get_task_mm(p);
-> +
-> +	if (mm) {
-> +		vma = find_vma(mm, p->stack_start);
-> +
-> +		if (vma)
-> +			seq_printf(m, "Stack usage:\t%lu kB\n",
-> +				get_stack_usage_in_bytes(vma, p) >> 10);
-> +
-> +		mmput(mm);
-> +	}
-> +}
+Andrew, Please consider for merging.
 
-Both follow_page() and find_vma() require locking: down_read(mmap_sem)
-or down_write(mmap_sem).  down_read() is appropriate here.
+Thanks,
+-Andi
 
-> +				} else {
-> +					unsigned long stack_start;
-> +					struct proc_maps_private *pmp;
-> +
-> +					pmp = m->private;
-> +					stack_start = pmp->task->stack_start;
-> +
-> +					if (vma->vm_start <= stack_start &&
-> +					    vma->vm_end >= stack_start) {
-> +						pad_len_spaces(m, len);
-> +						seq_printf(m,
-> +						 "[thread stack: %08lx]",
-> +						 stack_start);
-> +					}
+---
 
-You're making changes to the user interface but it's not terribly clear
-what they look like.  Please include sample output from the affected
-procfs files so that we can review the proposed changes.
+Upcoming Intel CPUs have support for recovering from some memory errors
+(``MCA recovery''). This requires the OS to declare a page "poisoned", 
+kill the processes associated with it and avoid using it in the future. 
 
-Please update the userspace documentation to reflect the changes. 
-Documentation/filesystems/proc.txt documents VmStk, so probably that is
-the appropriate place.
+This patchkit implements the necessary infrastructure in the VM.
+
+To quote the overview comment:
+
+ * High level machine check handler. Handles pages reported by the
+ * hardware as being corrupted usually due to a 2bit ECC memory or cache
+ * failure.
+ *
+ * This focusses on pages detected as corrupted in the background.
+ * When the current CPU tries to consume corruption the currently
+ * running process can just be killed directly instead. This implies
+ * that if the error cannot be handled for some reason it's safe to
+ * just ignore it because no corruption has been consumed yet. Instead
+ * when that happens another machine check will happen.
+ *
+ * Handles page cache pages in various states. The tricky part
+ * here is that we can access any page asynchronous to other VM
+ * users, because memory failures could happen anytime and anywhere,
+ * possibly violating some of their assumptions. This is why this code
+ * has to be extremely careful. Generally it tries to use normal locking
+ * rules, as in get the standard locks, even if that means the
+ * error handling takes potentially a long time.
+ *
+ * Some of the operations here are somewhat inefficient and have non
+ * linear algorithmic complexity, because the data structures have not
+ * been optimized for this case. This is in particular the case
+ * for the mapping from a vma to a process. Since this case is expected
+ * to be rare we hope we can get away with this.
+
+The code consists of a the high level handler in mm/memory-failure.c, 
+a new page poison bit and various checks in the VM to handle poisoned
+pages.
+
+The main target right now is KVM guests, but it works for all kinds
+of applications.
+
+For the KVM use there was need for a new signal type so that
+KVM can inject the machine check into the guest with the proper
+address. This in theory allows other applications to handle
+memory failures too. The expection is that near all applications
+won't do that, but some very specialized ones might. 
+
+This is not fully complete yet, in particular there are still ways
+to access poison through various ways (crash dump, /proc/kcore etc.)
+that need to be plugged too.
+
+Also undoubtedly the high level handler still has bugs and cases
+it cannot recover from. For example nonlinear mappings deadlock right now
+and a few other cases lose references. Huge pages are not supported
+yet. Any additional testing, reviewing etc. welcome. 
+
+The patch series requires the earlier x86 MCE feature series for the x86
+specific action optional part. The code can be tested without the x86 specific
+part using the injector, this only requires to enable the Kconfig entry
+manually in some Kconfig file (by default it is implicitely enabled
+by the architecture)
+
+v2: Lots of smaller changes in the series based on review feedback.
+Rename Poison to HWPoison after akpm's request.
+A new pfn based injector based on feedback.
+A lot of improvements mostly from Fengguang Wu
+See comments in the individual patches.
+v3: Various updates, see changelogs in individual patches.
+v4: Various updates, see changelogs in individual patches.
+
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
