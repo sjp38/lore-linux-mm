@@ -1,194 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4C66B004D
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 16:21:35 -0400 (EDT)
-Subject: [patch] procfs: provide stack information for threads
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <20090401193135.GA12316@elte.hu>
-References: <1238511505.364.61.camel@matrix>
-	 <20090401193135.GA12316@elte.hu>
-Content-Type: text/plain
-Date: Thu, 04 Jun 2009 22:21:13 +0200
-Message-Id: <1244146873.20012.6.camel@wall-e>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 123226B004D
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:23:11 -0400 (EDT)
+Date: Thu, 4 Jun 2009 22:22:42 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [patch] mm: release swap slots for actively used pages
+In-Reply-To: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+Message-ID: <Pine.LNX.4.64.0906042155370.12649@sister.anvils>
+References: <1243388859-9760-1-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-This is the newest version of the formaly named "detailed stack info"
-patch which give you a better overview of the userland application stack
-usage, especially for embedded linux.
+On Wed, 27 May 2009, Johannes Weiner wrote:
 
-Currently you are only able to dump the main process/thread stack usage
-which is showed in /proc/pid/status by the "VmStk" Value. But you get no
-information about the consumed stack memory of the the threads.
+> For anonymous pages activated by the reclaim scan or faulted from an
+> evicted page table entry we should always try to free up swap space.
+> 
+> Both events indicate that the page is in active use and a possible
+> change in the working set.  Thus removing the slot association from
+> the page increases the chance of the page being placed near its new
+> LRU buddies on the next eviction and helps keeping the amount of stale
+> swap cache entries low.
+> 
+> try_to_free_swap() inherently only succeeds when the last user of the
+> swap slot vanishes so it is safe to use from places where that single
+> mapping just brought the page back to life.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
-marks the vm mapping where the thread stack pointer reside with "[thread
-stack xxxxxxxx]". xxxxxxxx is the start address of the stack.
+You're absolutely right to question these now ancient vm_swap_full()
+tests.  But I'm not convinced that you're right in this patch.  You
+seem to be overlooking non-dirty cases e.g. at process startup data
+is read in from file, perhaps modified, or otherwise constructed in
+a large anonymous buffer, never subsequently changed, but under later
+memory pressure written out to swap.
 
-Also there is a new entry "stack usage" in /proc/<pid>/{task/*,}/status
-which will you give the current stack usage in kb.
+With your patch, we keep freeing that swap, so it has to get written
+to swap again each time there's memory pressure; whereas without your
+patch, it's already there on swap, no subsequent writes needed.
 
-I also fixed stack base address in /proc/<pid>/task/*/stat to the base
-address of the associated thread stack and not the one of the main
-process. This makes more sense.
+Yes, access patterns may change, and it may sometimes be advantageous
+to rewrite even the unchanged pages, to somewhere near their related
+pages; but I don't think we can ever be sure of winning at that game.
 
-Changes since last posting:
+So the do_swap_page() part of your patch looks plain wrong to me:
+if it's a page which isn't going to be modified, it ought to remain
+in swap (unless swap getting full or page now locked); and if it's
+going to be modified, then do_wp_page()'s reuse_swap_page() should
+already be dealing with it appropriately.
 
- - Code cleanup suggested by Andrew
+And the vmscan.c activate test should be checking PageDirty?
 
-The patch is against 2.6.30-rc7 and tested with on intel and ppc
-architectures.
+Hugh
 
-
- fs/exec.c             |    2 +
- fs/proc/array.c       |   52 +++++++++++++++++++++++++++++++++++++++++++++++++-
- fs/proc/task_mmu.c    |   14 +++++++++++++
- include/linux/sched.h |    1 
- kernel/fork.c         |    2 +
- 5 files changed, 70 insertions(+), 1 deletion(-)
-
-Signed-off-by: Stefani Seibold <stefani@seibold.net>
-
-diff -u -N -r linux-2.6.30.orig/fs/exec.c linux-2.6.30/fs/exec.c
---- linux-2.6.30.orig/fs/exec.c	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/fs/exec.c	2009-06-04 09:32:35.000000000 +0200
-@@ -1328,6 +1328,8 @@
- 	if (retval < 0)
- 		goto out;
- 
-+	current->stack_start = current->mm->start_stack;
-+
- 	/* execve succeeded */
- 	current->fs->in_exec = 0;
- 	current->in_execve = 0;
-diff -u -N -r linux-2.6.30.orig/fs/proc/array.c linux-2.6.30/fs/proc/array.c
---- linux-2.6.30.orig/fs/proc/array.c	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/fs/proc/array.c	2009-06-04 10:37:53.000000000 +0200
-@@ -321,6 +321,55 @@
- 			p->nivcsw);
- }
- 
-+static inline unsigned long get_stack_usage_in_bytes(struct vm_area_struct *vma,
-+					struct task_struct *p)
-+{
-+	unsigned long	i;
-+	struct page	*page;
-+	unsigned long	stkpage;
-+
-+	stkpage = KSTK_ESP(p) & PAGE_MASK;
-+
-+#ifdef CONFIG_STACK_GROWSUP
-+	for (i = vma->vm_end; i-PAGE_SIZE > stkpage; i -= PAGE_SIZE) {
-+
-+		page = follow_page(vma, i-PAGE_SIZE, 0);
-+
-+		if (!IS_ERR(page) && page)
-+			break;
-+	}
-+	return i - (p->stack_start & PAGE_MASK);
-+#else
-+	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
-+
-+		page = follow_page(vma, i, 0);
-+
-+		if (!IS_ERR(page) && page)
-+			break;
-+	}
-+	return (p->stack_start & PAGE_MASK) - i + PAGE_SIZE;
-+#endif
-+}
-+
-+static inline void task_show_stack_usage(struct seq_file *m,
-+						struct task_struct *p)
-+{
-+	struct vm_area_struct	*vma;
-+	struct mm_struct	*mm;
-+
-+	mm = get_task_mm(p);
-+
-+	if (mm) {
-+		vma = find_vma(mm, p->stack_start);
-+
-+		if (vma)
-+			seq_printf(m, "Stack usage:\t%lu kB\n",
-+				get_stack_usage_in_bytes(vma, p) >> 10);
-+
-+		mmput(mm);
-+	}
-+}
-+
- int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
- 			struct pid *pid, struct task_struct *task)
- {
-@@ -340,6 +389,7 @@
- 	task_show_regs(m, task);
- #endif
- 	task_context_switch_counts(m, task);
-+	task_show_stack_usage(m, task);
- 	return 0;
- }
- 
-@@ -481,7 +531,7 @@
- 		rsslim,
- 		mm ? mm->start_code : 0,
- 		mm ? mm->end_code : 0,
--		(permitted && mm) ? mm->start_stack : 0,
-+		(permitted) ? task->stack_start : 0,
- 		esp,
- 		eip,
- 		/* The signal information here is obsolete.
-diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu.c
---- linux-2.6.30.orig/fs/proc/task_mmu.c	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-04 22:10:47.000000000 +0200
-@@ -242,6 +242,20 @@
- 				} else if (vma->vm_start <= mm->start_stack &&
- 					   vma->vm_end >= mm->start_stack) {
- 					name = "[stack]";
-+				} else {
-+					unsigned long stack_start;
-+					struct proc_maps_private *pmp;
-+
-+					pmp = m->private;
-+					stack_start = pmp->task->stack_start;
-+
-+					if (vma->vm_start <= stack_start &&
-+					    vma->vm_end >= stack_start) {
-+						pad_len_spaces(m, len);
-+						seq_printf(m,
-+						 "[thread stack: %08lx]",
-+						 stack_start);
-+					}
- 				}
- 			} else {
- 				name = "[vdso]";
-diff -u -N -r linux-2.6.30.orig/include/linux/sched.h linux-2.6.30/include/linux/sched.h
---- linux-2.6.30.orig/include/linux/sched.h	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/include/linux/sched.h	2009-06-04 09:32:35.000000000 +0200
-@@ -1429,6 +1429,7 @@
- 	/* state flags for use by tracers */
- 	unsigned long trace;
- #endif
-+	unsigned long stack_start;
- };
- 
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
-diff -u -N -r linux-2.6.30.orig/kernel/fork.c linux-2.6.30/kernel/fork.c
---- linux-2.6.30.orig/kernel/fork.c	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/kernel/fork.c	2009-06-04 13:15:35.000000000 +0200
-@@ -1092,6 +1092,8 @@
- 	if (unlikely(current->ptrace))
- 		ptrace_fork(p, clone_flags);
- 
-+	p->stack_start = stack_start;
-+
- 	/* Perform scheduler related setup. Assign this task to a CPU. */
- 	sched_fork(p, clone_flags);
- 
-
+> ---
+>  mm/memory.c |    3 +--
+>  mm/vmscan.c |    2 +-
+>  2 files changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8b4e40e..407ebf7 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2671,8 +2671,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	mem_cgroup_commit_charge_swapin(page, ptr);
+>  
+>  	swap_free(entry);
+> -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> -		try_to_free_swap(page);
+> +	try_to_free_swap(page);
+>  	unlock_page(page);
+>  
+>  	if (write_access) {
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 621708f..2f0549d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -788,7 +788,7 @@ cull_mlocked:
+>  
+>  activate_locked:
+>  		/* Not a candidate for swapping, so reclaim swap space. */
+> -		if (PageSwapCache(page) && vm_swap_full())
+> +		if (PageSwapCache(page))
+>  			try_to_free_swap(page);
+>  		VM_BUG_ON(PageActive(page));
+>  		SetPageActive(page);
+> -- 
+> 1.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
