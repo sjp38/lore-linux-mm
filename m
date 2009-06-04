@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F8DF6B004D
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 12:25:37 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n54GPXOh029035
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 5 Jun 2009 01:25:33 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CAD0545DE7A
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 01:25:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 615F445DE70
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 01:25:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CA80D1DB803E
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 01:25:31 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 615601DB803B
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 01:25:31 +0900 (JST)
-Message-ID: <990133947abefb130319d1a7339b718d.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0906041600540.18591@sister.anvils>
-References: <4A26AC73.6040804@gmail.com>
-    <Pine.LNX.4.64.0906041600540.18591@sister.anvils>
-Date: Fri, 5 Jun 2009 01:25:30 +0900 (JST)
-Subject: Re: swapoff throttling and speedup?
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D326B004D
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 13:57:14 -0400 (EDT)
+Date: Thu, 4 Jun 2009 10:57:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] procfs: provide stack information for threads
+Message-Id: <20090604105701.70556a30.akpm@linux-foundation.org>
+In-Reply-To: <1244116589.32392.15.camel@wall-e>
+References: <1238511505.364.61.camel@matrix>
+	<20090401193135.GA12316@elte.hu>
+	<1244114628.31230.3.camel@wall-e>
+	<20090604043750.e1031e01.akpm@linux-foundation.org>
+	<1244116589.32392.15.camel@wall-e>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Joel Krauska <jkrauska@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Stefani Seibold <stefani@seibold.net>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Wed, 3 Jun 2009, Joel Krauska wrote:
->> I'm hoping others have been down this road before.
->>
->> As a rule, we try to avoid swapping when possible, but using:
->> vm.swappiness = 1
->>
->> But it does still happen on occasion and that lead to this mail.
->
-> Thanks for taking the trouble to write: opinions, anyone?
->
+On Thu, 04 Jun 2009 13:56:29 +0200 Stefani Seibold <stefani@seibold.net> wrote:
 
-Is there anyone who wants a system call like this ?
+> 
+> Am Donnerstag, den 04.06.2009, 04:37 -0700 schrieb Andrew Morton:
+> > On Thu, 04 Jun 2009 13:23:48 +0200 Stefani Seibold <stefani@seibold.net> wrote:
+> > >  - slime done
+> > 
+> > What's "slime"?
+> > 
+> 
+> Sorry, that was a typo, should be "slim down".
 
-  int mem_swapin(int pid, start-addr, size)
-  - try to swap in pages from range [addr, addr+size) of pid.
-    we can do this force-pagein against file caches and shmem now.
-    this is for swap.
+heh, OK.  Good typo.
 
-I doubts there are no one who can make use of this in sane way. But I'm
-sometimes surprised to find that there are people make use of swap
-intentionally...
+> > > +	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
+> > > +
+> > > +		page = follow_page(vma, i, 0);
+> > > +
+> > > +		if (!IS_ERR(page) && page)
+> > 
+> > Shouldn't this be !page?
+> > 
+> 
+> No, this is correct... I walk through the top of vma to the first mapped
+> page, this is the high water mark of the stack.
 
-Thanks,
--Kame
+Ah, duh, OK.
 
+> > > +					unsigned long stack_start;
+> > > +
+> > > +					stack_start =
+> > > +						((struct proc_maps_private *)
+> > > +						m->private)->task->stack_start;
+> > 
+> > I'd suggested a clearer/cleaner way of implementing this.
+> > 
+> 
+> Sorry, i can not see a problem here. In your last posting you wrote
+> thats okay! And i have no idea how to make this expression
+> clearer/cleaner.
+
+Add a new intermediate variable:
+					unsigned long stack_start;
+					struct proc_maps_private *pmp;
+
+					pmp = m->private;
+					stack_start = pmp->task->stack_start;
 
 
 --
