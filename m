@@ -1,36 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3E66B004F
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 01:14:34 -0400 (EDT)
-Date: Thu, 4 Jun 2009 07:21:47 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 00A6F6B004F
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 01:20:25 -0400 (EDT)
+Date: Thu, 4 Jun 2009 07:27:38 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [9/16] HWPOISON: Handle hardware poisoned pages in try_to_unmap
-Message-ID: <20090604052147.GP1065@one.firstfloor.org>
-References: <20090603846.816684333@firstfloor.org> <20090603184642.BD4B91D0291@basil.firstfloor.org> <20090604043541.GC15682@localhost>
+Subject: Re: [PATCH] [10/16] HWPOISON: Handle poisoned pages in set_page_dirty()
+Message-ID: <20090604052738.GR1065@one.firstfloor.org>
+References: <20090603846.816684333@firstfloor.org> <20090603184644.190E71D0281@basil.firstfloor.org> <20090604003621.GA12210@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090604043541.GC15682@localhost>
+In-Reply-To: <20090604003621.GA12210@localhost>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Index: linux/include/linux/rmap.h
-> > ===================================================================
-> > --- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
-> > +++ linux/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
-> > @@ -93,6 +93,7 @@
-> >  
-> >  	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
-> >  	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
-> > +	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+On Thu, Jun 04, 2009 at 08:36:21AM +0800, Wu Fengguang wrote:
+> On Thu, Jun 04, 2009 at 02:46:43AM +0800, Andi Kleen wrote:
+> > 
+> > Bail out early in set_page_dirty for poisoned pages. We don't want any
+> > of the dirty accounting done or file system write back started, because
+> > the page will be just thrown away.
+>  
+> I'm afraid this patch is not necessary and could be harmful.
 > 
-> Or more precisely comment it as "corrupted data is recoverable"?
+> It is not necessary because a poisoned page will normally already be
+> isolated from page cache, or likely cannot be isolated because it has
+> dirty buffers.
 
-I think the original comment is clear enough, not changing that for now.
+Hmm I think I had a case when I originally wrote the code where it was needed.
+But I can't clearly remember now what it was.
 
-Thanks,
+But you're right the page cache isolation should normally take care of it.
+
+> It is harmful because it put the page into dirty state without queuing
+> it for IO by moving it to s_io. When more normal pages are dirtied
+> later, __set_page_dirty_nobuffers() won't move the inode into s_io,
+> hence delaying the writeback of good pages for arbitrary long time.
+
+That's a good point.
+
+I dropped the patch for now.
+
 -Andi
 
 -- 
