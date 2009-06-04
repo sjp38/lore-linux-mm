@@ -1,108 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C26356B0055
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 07:00:18 -0400 (EDT)
-Date: Thu, 4 Jun 2009 18:59:59 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
-Message-ID: <20090604105959.GA22118@localhost>
-References: <20090604192236.9761.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090604192236.9761.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 409E56B004D
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 07:24:32 -0400 (EDT)
+Subject: [patch] procfs: provide stack information for threads
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090401193135.GA12316@elte.hu>
+References: <1238511505.364.61.camel@matrix>
+	 <20090401193135.GA12316@elte.hu>
+Content-Type: text/plain
+Date: Thu, 04 Jun 2009 13:23:48 +0200
+Message-Id: <1244114628.31230.3.camel@wall-e>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@ozlabs.org" <linuxppc-dev@ozlabs.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Joerg Engel <joern@logfs.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 04, 2009 at 06:23:15PM +0800, KOSAKI Motohiro wrote:
-> 
-> Current linux policy is, zone_reclaim_mode is enabled by default if the machine
-> has large remote node distance. it's because we could assume that large distance
-> mean large server until recently.
-> 
-> Unfortunately, recent modern x86 CPU (e.g. Core i7, Opeteron) have P2P transport
-> memory controller. IOW it's seen as NUMA from software view.
-> Some Core i7 machine has large remote node distance.
-> 
-> Yanmin reported zone_reclaim_mode=1 cause large apache regression.
-> 
->     One Nehalem machine has 12GB memory,
->     but there is always 2GB free although applications accesses lots of files.
->     Eventually we located the root cause as zone_reclaim_mode=1.
-> 
-> Actually, zone_reclaim_mode=1 mean "I dislike remote node allocation rather than
-> disk access", it makes performance improvement to HPC workload.
-> but it makes performance degression to desktop, file server and web server.
-> 
-> In general, workload depended configration shouldn't put into default settings.
-> 
-> However, current code is long standing about two year. Highest POWER and IA64 HPC machine
-> (only) use this setting.
-> 
-> Thus, x86 and almost rest architecture change default setting, but Only power and ia64
-> remain current configuration for backward-compatibility.
+Hi everybody,
 
-The above lines are too long. Limit to 72 cols in general could be
-better as git-log may add additional leading white spaces.
+This is the latest version of the formaly named "detailed stack info"
+patch which give you a better overview of the userland application stack
+usage, especially for embedded linux.
 
-Thank you for all the efforts!
+Currently you are only able to dump the main process/thread stack usage
+which is showed in /proc/pid/status by the "VmStk" Value. But you get no
+information about the consumed stack memory of the the threads.
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
+marks the vm mapping where the thread stack pointer reside with "[thread
+stack xxxxxxxx]". xxxxxxxx is the start address of the stack.
 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Robin Holt <holt@sgi.com>
-> Cc: "Zhang, Yanmin" <yanmin.zhang@intel.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@ozlabs.org
-> ---
->  arch/powerpc/include/asm/topology.h |    6 ++++++
->  include/linux/topology.h            |    7 +------
->  2 files changed, 7 insertions(+), 6 deletions(-)
-> 
-> Index: b/include/linux/topology.h
-> ===================================================================
-> --- a/include/linux/topology.h
-> +++ b/include/linux/topology.h
-> @@ -54,12 +54,7 @@ int arch_update_cpu_topology(void);
->  #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
->  #endif
->  #ifndef RECLAIM_DISTANCE
-> -/*
-> - * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
-> - * (in whatever arch specific measurement units returned by node_distance())
-> - * then switch on zone reclaim on boot.
-> - */
-> -#define RECLAIM_DISTANCE 20
-> +#define RECLAIM_DISTANCE INT_MAX
->  #endif
->  #ifndef PENALTY_FOR_NODE_WITH_CPUS
->  #define PENALTY_FOR_NODE_WITH_CPUS	(1)
-> Index: b/arch/powerpc/include/asm/topology.h
-> ===================================================================
-> --- a/arch/powerpc/include/asm/topology.h
-> +++ b/arch/powerpc/include/asm/topology.h
-> @@ -10,6 +10,12 @@ struct device_node;
->  
->  #include <asm/mmzone.h>
->  
-> +/*
-> + * Distance above which we begin to use zone reclaim
+Also there is a new entry "stack usage" in /proc/<pid>/{task/*,}/status
+which will you give the current stack usage in kb.
 
-s/begin to/default to/ ?
+I also fixed stack base address in /proc/<pid>/task/*/stat to the base
+address of the associated thread stack and not the one of the main
+process. This makes more sense.
 
-> + */
-> +#define RECLAIM_DISTANCE 20
-> +
-> +
->  static inline int cpu_to_node(int cpu)
->  {
->  	return numa_cpu_lookup_table[cpu];
-> 
+Changes since last posting:
+
+ - Redesigned everything what was suggested by Andrew
+ - slime done
+
+The patch is against 2.6.30-rc7 and tested with on intel and ppc
+architectures.
+
+Greetings,
+Stefani
+
+ fs/exec.c             |    2 +
+ fs/proc/array.c       |   52 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ fs/proc/task_mmu.c    |   14 +++++++++++++
+ include/linux/sched.h |    1 
+ kernel/fork.c         |    2 +
+ 5 files changed, 70 insertions(+), 1 deletion(-)
+
+-patch begins here--------------------------------------------------------------
+
+diff -u -N -r linux-2.6.30.orig/fs/exec.c linux-2.6.30/fs/exec.c
+--- linux-2.6.30.orig/fs/exec.c	2009-06-04 09:29:47.000000000 +0200
++++ linux-2.6.30/fs/exec.c	2009-06-04 09:32:35.000000000 +0200
+@@ -1328,6 +1328,8 @@
+ 	if (retval < 0)
+ 		goto out;
+ 
++	current->stack_start = current->mm->start_stack;
++
+ 	/* execve succeeded */
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
+diff -u -N -r linux-2.6.30.orig/fs/proc/array.c linux-2.6.30/fs/proc/array.c
+--- linux-2.6.30.orig/fs/proc/array.c	2009-06-04 09:29:47.000000000 +0200
++++ linux-2.6.30/fs/proc/array.c	2009-06-04 10:37:53.000000000 +0200
+@@ -321,6 +321,55 @@
+ 			p->nivcsw);
+ }
+ 
++static inline unsigned long get_stack_usage_in_bytes(struct vm_area_struct *vma,
++					struct task_struct *p)
++{
++	unsigned long	i;
++	struct page	*page;
++	unsigned long	stkpage;
++
++	stkpage = KSTK_ESP(p) & PAGE_MASK;
++
++#ifdef CONFIG_STACK_GROWSUP
++	for (i = vma->vm_end; i-PAGE_SIZE > stkpage; i -= PAGE_SIZE) {
++
++		page = follow_page(vma, i-PAGE_SIZE, 0);
++
++		if (!IS_ERR(page) && page)
++			break;
++	}
++	return i - (p->stack_start & PAGE_MASK);
++#else
++	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
++
++		page = follow_page(vma, i, 0);
++
++		if (!IS_ERR(page) && page)
++			break;
++	}
++	return (p->stack_start & PAGE_MASK) - i + PAGE_SIZE;
++#endif
++}
++
++static inline void task_show_stack_usage(struct seq_file *m,
++						struct task_struct *p)
++{
++	struct vm_area_struct	*vma;
++	struct mm_struct	*mm;
++
++	mm = get_task_mm(p);
++
++	if (mm) {
++		vma = find_vma(mm, p->stack_start);
++
++		if (vma)
++			seq_printf(m, "Stack usage:\t%lu kB\n",
++				get_stack_usage_in_bytes(vma, p) >> 10);
++
++		mmput(mm);
++	}
++}
++
+ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 			struct pid *pid, struct task_struct *task)
+ {
+@@ -340,6 +389,7 @@
+ 	task_show_regs(m, task);
+ #endif
+ 	task_context_switch_counts(m, task);
++	task_show_stack_usage(m, task);
+ 	return 0;
+ }
+ 
+@@ -481,7 +531,7 @@
+ 		rsslim,
+ 		mm ? mm->start_code : 0,
+ 		mm ? mm->end_code : 0,
+-		(permitted && mm) ? mm->start_stack : 0,
++		(permitted) ? task->stack_start : 0,
+ 		esp,
+ 		eip,
+ 		/* The signal information here is obsolete.
+diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu.c
+--- linux-2.6.30.orig/fs/proc/task_mmu.c	2009-06-04 09:29:47.000000000 +0200
++++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-04 09:32:35.000000000 +0200
+@@ -242,6 +242,20 @@
+ 				} else if (vma->vm_start <= mm->start_stack &&
+ 					   vma->vm_end >= mm->start_stack) {
+ 					name = "[stack]";
++				} else {
++					unsigned long stack_start;
++
++					stack_start =
++						((struct proc_maps_private *)
++						m->private)->task->stack_start;
++
++					if (vma->vm_start <= stack_start &&
++					    vma->vm_end >= stack_start) {
++						pad_len_spaces(m, len);
++						seq_printf(m,
++						 "[thread stack: %08lx]",
++						 stack_start);
++					}
+ 				}
+ 			} else {
+ 				name = "[vdso]";
+diff -u -N -r linux-2.6.30.orig/include/linux/sched.h linux-2.6.30/include/linux/sched.h
+--- linux-2.6.30.orig/include/linux/sched.h	2009-06-04 09:29:47.000000000 +0200
++++ linux-2.6.30/include/linux/sched.h	2009-06-04 09:32:35.000000000 +0200
+@@ -1429,6 +1429,7 @@
+ 	/* state flags for use by tracers */
+ 	unsigned long trace;
+ #endif
++	unsigned long stack_start;
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff -u -N -r linux-2.6.30.orig/kernel/fork.c linux-2.6.30/kernel/fork.c
+--- linux-2.6.30.orig/kernel/fork.c	2009-06-04 09:29:47.000000000 +0200
++++ linux-2.6.30/kernel/fork.c	2009-06-04 13:15:35.000000000 +0200
+@@ -1092,6 +1092,8 @@
+ 	if (unlikely(current->ptrace))
+ 		ptrace_fork(p, clone_flags);
+ 
++	p->stack_start = stack_start;
++
+ 	/* Perform scheduler related setup. Assign this task to a CPU. */
+ 	sched_fork(p, clone_flags);
+
+Signed-off-by: Stefani Seibold <stefani@seibold.net>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
