@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 39A056B005C
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 05:19:22 -0400 (EDT)
-Date: Thu, 4 Jun 2009 11:26:34 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v5
-Message-ID: <20090604092634.GW1065@one.firstfloor.org>
-References: <20090603846.816684333@firstfloor.org> <20090603184648.2E2131D028F@basil.firstfloor.org> <20090604032441.GC5740@localhost> <20090604051346.GM1065@one.firstfloor.org> <20090604090737.GB18421@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E76E6B0055
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 06:06:44 -0400 (EDT)
+Date: Thu, 4 Jun 2009 12:04:36 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch][v2] swap: virtual swap readahead
+Message-ID: <20090604100436.GA1602@cmpxchg.org>
+References: <20090602223738.GA15475@cmpxchg.org> <20090604104628.99520342.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090604090737.GB18421@localhost>
+In-Reply-To: <20090604104628.99520342.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "npiggin@suse.de" <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 04, 2009 at 05:07:37PM +0800, Wu Fengguang wrote:
-> 
-> > > > +        * need this to decide if we should kill or just drop the page.
-> > > > +        */
-> > > > +       mapping = page_mapping(p);
-> > > > +       if (!PageDirty(p) && !PageAnon(p) && !PageSwapBacked(p) &&
-> > > 
-> > > !PageAnon(p) could be removed: the below non-zero mapping check will
-> > > do the work implicitly.
-> > 
-> > You mean !page_mapped?  Ok.
-> 
-> I mean to do
->                 mapping = page_mapping(p);
->                 if (!PageDirty(p) && !PageSwapBacked(p) && 
->                     mapping && mapping_cap_account_dirty(mapping)) {
-> 
-> Because for anonymous pages, page_mapping == NULL.
+On Thu, Jun 04, 2009 at 10:46:28AM +0900, KAMEZAWA Hiroyuki wrote:
 
-I realized this after pressing send. Anyways the PageAnon is dropped
+> I wonder (I just wonder..) can we add code like following here ?
 > 
-> --- sound-2.6.orig/mm/memory-failure.c
-> +++ sound-2.6/mm/memory-failure.c
-> @@ -660,6 +660,10 @@ static void hwpoison_user_mappings(struc
->  			break;
->  		pr_debug("MCE %#lx: try_to_unmap retry needed %d\n", pfn,  ret);
->  	}
-> +	if (ret != SWAP_SUCCESS)
-> +		printk(KERN_ERR
-> +		       "MCE %#lx: failed to unmap page (mapcount=%d)!\n",
-> +		       pfn, page_mapcount(p));
+>    /* we do _readahead_ here. Then, we don't want to add too much jobs to vm/IO*/
+>    if (swp != entry)
+> 	gfp_mask &= ~__GFP_WAIT
+> > +		page = read_swap_cache_async(swp, gfp_mask, vma, pos);
+> 
+> too slow ?
 
-Ok.
+Good idea, certainly worth evaluating.  But not in this patch, I don't
+want to change _everything_ at once :-)
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+	Thanks, Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
