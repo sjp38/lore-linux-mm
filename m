@@ -1,50 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE796B0085
-	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:28:35 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C528C6B006A
+	for <linux-mm@kvack.org>; Thu,  4 Jun 2009 17:28:42 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200906041128.112757038@firstfloor.org>
 In-Reply-To: <200906041128.112757038@firstfloor.org>
-Subject: [PATCH] [6/15] HWPOISON: Add various poison checks in mm/memory.c v2
-Message-Id: <20090604212817.8E1F11D0290@basil.firstfloor.org>
-Date: Thu,  4 Jun 2009 23:28:17 +0200 (CEST)
+Subject: [PATCH] [9/15] HWPOISON: Handle hardware poisoned pages in try_to_unmap
+Message-Id: <20090604212820.E807A1D028F@basil.firstfloor.org>
+Date: Thu,  4 Jun 2009 23:28:20 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 
-Bail out early when hardware poisoned pages are found in page fault handling.
-Since they are poisoned they should not be mapped freshly into processes,
-because that would cause another (potentially deadly) machine check
+When a page has the poison bit set replace the PTE with a poison entry. 
+This causes the right error handling to be done later when a process runs 
+into it.
 
-This is generally handled in the same way as OOM, just a different
-error code is returned to the architecture code.
-
-v2: Do a page unlock if needed (Fengguang Wu)
+Also add a new flag to not do that (needed for the memory-failure handler
+later)
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/memory.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+ include/linux/rmap.h |    1 +
+ mm/rmap.c            |    9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
-Index: linux/mm/memory.c
+Index: linux/mm/rmap.c
 ===================================================================
---- linux.orig/mm/memory.c
-+++ linux/mm/memory.c
-@@ -2797,6 +2797,12 @@ static int __do_fault(struct mm_struct *
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
- 		return ret;
+--- linux.orig/mm/rmap.c
++++ linux/mm/rmap.c
+@@ -943,7 +943,14 @@ static int try_to_unmap_one(struct page
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
  
-+	if (unlikely(PageHWPoison(vmf.page))) {
-+		if (ret & VM_FAULT_LOCKED)
-+			unlock_page(vmf.page);
-+		return VM_FAULT_HWPOISON;
-+	}
-+
- 	/*
- 	 * For consistency in subsequent calls, make the faulted page always
- 	 * locked.
+-	if (PageAnon(page)) {
++	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
++		if (PageAnon(page))
++			dec_mm_counter(mm, anon_rss);
++		else if (!is_migration_entry(pte_to_swp_entry(*pte)))
++			dec_mm_counter(mm, file_rss);
++		set_pte_at(mm, address, pte,
++				swp_entry_to_pte(make_hwpoison_entry(page)));
++	} else if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page_private(page) };
+ 
+ 		if (PageSwapCache(page)) {
+Index: linux/include/linux/rmap.h
+===================================================================
+--- linux.orig/include/linux/rmap.h
++++ linux/include/linux/rmap.h
+@@ -93,6 +93,7 @@ enum ttu_flags {
+ 
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
++	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+ };
+ #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
