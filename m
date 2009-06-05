@@ -1,88 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B1EF36B004D
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 14:22:04 -0400 (EDT)
-Date: Fri, 5 Jun 2009 19:05:54 +0100 (BST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CEE546B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 14:43:12 -0400 (EDT)
+Date: Fri, 5 Jun 2009 19:26:37 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH][mmtom] remove file arguement of swap_readpage
-In-Reply-To: <1244212423-18629-1-git-send-email-minchan.kim@gmail.com>
-Message-ID: <Pine.LNX.4.64.0906051904060.14826@sister.anvils>
-References: <1244212423-18629-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [RFC] remove page_table_lock in anon_vma_prepare
+In-Reply-To: <1244212553-21629-1-git-send-email-minchan.kim@gmail.com>
+Message-ID: <Pine.LNX.4.64.0906051906000.14826@sister.anvils>
+References: <1244212553-21629-1-git-send-email-minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 5 Jun 2009, Minchan Kim wrote:
 
-> The file argument resulted from address_space's readpage
-> long time ago.
+> As I looked over the page_table_lock, it related to page table not anon_vma
 > 
-> Now we don't use it any more. Let's remove unnecessary
-> argement.
+> I think anon_vma->lock can protect race against threads.
+> Do I miss something ?
 > 
-> This patch cleans up swap_readpage.
-> It doesn't affect behavior of function.
+> If I am right, we can remove unnecessary page_table_lock holding
+> in anon_vma_prepare. We can get performance benefit. 
 > 
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > Cc: Rik van Riel <riel@redhat.com>
+> Cc: Nick Piggin <npiggin@suse.de>
 
-Okay, yes: but don't be surprised if someone sends in a patch
-to put it back, as in the other readpage()s.
+No, NAK to this one.  Look above the context shown in the patch:
 
-Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+		anon_vma = find_mergeable_anon_vma(vma);
+		allocated = NULL;
+		if (!anon_vma) {
+			anon_vma = anon_vma_alloc();
+			if (unlikely(!anon_vma))
+				return -ENOMEM;
+			allocated = anon_vma;
+		}
+		spin_lock(&anon_vma->lock);
+
+So if find_mergeable_anon_vma failed to find a suitable neighbouring
+vma to share with, we'll have got the anon_vma from anon_vma_alloc().
+
+Two threads could perfectly well do that concurrently (mmap_sem is
+held only for reading), each allocating a separate fresh anon_vma,
+then they'd each do spin_lock(&anon_vma->lock), but on _different_
+anon_vmas, so wouldn't exclude each other at all: we need a common
+lock to exclude that race, and abuse page_table_lock for the purpose.
+
+(As I expect you've noticed, we used not to bother with the spin_lock
+on anon_vma->lock when we'd freshly allocated the anon_vma, it looks
+as if it's unnecessary.  But in fact Nick and Linus found there's a
+subtle reason why it is necessary even then - hopefully the git log
+explains it, or I could look up the mails if you want, but at this
+moment the details escape me.
+
+And do we need the page_table_lock even when find_mergeable_anon_vma
+succeeds?  That also looks as if it's unnecessary, but I've the ghost
+of a memory that it's needed even for that case: I seem to remember
+that there can be a benign race where find_mergeable_anon_vma called
+by concurrent threads could actually return different anon_vmas.
+That also is something I don't want to think too deeply into at
+this instant, but beg me if you wish!)
+
+Hugh
 
 > ---
->  include/linux/swap.h |    2 +-
->  mm/page_io.c         |    2 +-
->  mm/swap_state.c      |    2 +-
->  3 files changed, 3 insertions(+), 3 deletions(-)
+>  mm/rmap.c |    3 ---
+>  1 files changed, 0 insertions(+), 3 deletions(-)
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 2dedc2d..c88b366 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -256,7 +256,7 @@ extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
->  
->  #ifdef CONFIG_SWAP
->  /* linux/mm/page_io.c */
-> -extern int swap_readpage(struct file *, struct page *);
-> +extern int swap_readpage(struct page *);
->  extern int swap_writepage(struct page *page, struct writeback_control *wbc);
->  extern void end_swap_bio_read(struct bio *bio, int err);
->  
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 3023c47..c6f3e50 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -120,7 +120,7 @@ out:
->  	return ret;
->  }
->  
-> -int swap_readpage(struct file *file, struct page *page)
-> +int swap_readpage(struct page *page)
->  {
->  	struct bio *bio;
->  	int ret = 0;
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index b62e7f5..42cd38e 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -313,7 +313,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  			 * Initiate read into locked page and return.
->  			 */
->  			lru_cache_add_anon(new_page);
-> -			swap_readpage(NULL, new_page);
-> +			swap_readpage(new_page);
->  			return new_page;
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index b5c6e12..65b4877 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -113,14 +113,11 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 >  		}
->  		ClearPageSwapBacked(new_page);
+>  		spin_lock(&anon_vma->lock);
+>  
+> -		/* page_table_lock to protect against threads */
+> -		spin_lock(&mm->page_table_lock);
+>  		if (likely(!vma->anon_vma)) {
+>  			vma->anon_vma = anon_vma;
+>  			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
+>  			allocated = NULL;
+>  		}
+> -		spin_unlock(&mm->page_table_lock);
+>  
+>  		spin_unlock(&anon_vma->lock);
+>  		if (unlikely(allocated))
 > -- 
 > 1.5.6.5
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
