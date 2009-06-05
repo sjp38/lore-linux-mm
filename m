@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4E9BD6B004D
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 14:20:04 -0400 (EDT)
-Date: Fri, 5 Jun 2009 19:03:52 +0100 (BST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B1EF36B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 14:22:04 -0400 (EDT)
+Date: Fri, 5 Jun 2009 19:05:54 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH][mmtom] remove annotation of gfp_mask in add_to_swap
-In-Reply-To: <1244212237-14128-1-git-send-email-minchan.kim@gmail.com>
-Message-ID: <Pine.LNX.4.64.0906051858160.14826@sister.anvils>
-References: <1244212237-14128-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [PATCH][mmtom] remove file arguement of swap_readpage
+In-Reply-To: <1244212423-18629-1-git-send-email-minchan.kim@gmail.com>
+Message-ID: <Pine.LNX.4.64.0906051904060.14826@sister.anvils>
+References: <1244212423-18629-1-git-send-email-minchan.kim@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 5 Jun 2009, Minchan Kim wrote:
 
-> Hugh removed add_to_swap's gfp_mask argument.
-> (mm: remove gfp_mask from add_to_swap)
-> So we have to remove annotation of gfp_mask  of the function.
-
-"annotation"?  Or "DocBook comment"?  Or "DocBook annotation"?
-
+> The file argument resulted from address_space's readpage
+> long time ago.
 > 
-> This patch cleans up add_to_swap function.
+> Now we don't use it any more. Let's remove unnecessary
+> argement.
+> 
+> This patch cleans up swap_readpage.
 > It doesn't affect behavior of function.
 > 
 > Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 > Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: Rik van Riel <riel@redhat.com>
 
-Thanks, yes, my oversight.
+Okay, yes: but don't be surprised if someone sends in a patch
+to put it back, as in the other readpage()s.
 
 Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
 > ---
->  mm/swap_state.c |    1 -
->  1 files changed, 0 insertions(+), 1 deletions(-)
+>  include/linux/swap.h |    2 +-
+>  mm/page_io.c         |    2 +-
+>  mm/swap_state.c      |    2 +-
+>  3 files changed, 3 insertions(+), 3 deletions(-)
 > 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 2dedc2d..c88b366 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -256,7 +256,7 @@ extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
+>  
+>  #ifdef CONFIG_SWAP
+>  /* linux/mm/page_io.c */
+> -extern int swap_readpage(struct file *, struct page *);
+> +extern int swap_readpage(struct page *);
+>  extern int swap_writepage(struct page *page, struct writeback_control *wbc);
+>  extern void end_swap_bio_read(struct bio *bio, int err);
+>  
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 3023c47..c6f3e50 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -120,7 +120,7 @@ out:
+>  	return ret;
+>  }
+>  
+> -int swap_readpage(struct file *file, struct page *page)
+> +int swap_readpage(struct page *page)
+>  {
+>  	struct bio *bio;
+>  	int ret = 0;
 > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index b9ca029..b62e7f5 100644
+> index b62e7f5..42cd38e 100644
 > --- a/mm/swap_state.c
 > +++ b/mm/swap_state.c
-> @@ -124,7 +124,6 @@ void __delete_from_swap_cache(struct page *page)
->  /**
->   * add_to_swap - allocate swap space for a page
->   * @page: page we want to move to swap
-> - * @gfp_mask: memory allocation flags
->   *
->   * Allocate swap space for the page and add the page to the
->   * swap cache.  Caller needs to hold the page lock. 
+> @@ -313,7 +313,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>  			 * Initiate read into locked page and return.
+>  			 */
+>  			lru_cache_add_anon(new_page);
+> -			swap_readpage(NULL, new_page);
+> +			swap_readpage(new_page);
+>  			return new_page;
+>  		}
+>  		ClearPageSwapBacked(new_page);
 > -- 
 > 1.5.6.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
