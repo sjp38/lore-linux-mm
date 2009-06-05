@@ -1,57 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 63BDA6B004D
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 16:21:16 -0400 (EDT)
-Date: Fri, 5 Jun 2009 13:20:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH mmotm] memcg: add interface to reset limits
-Message-Id: <20090605132031.02f79021.akpm@linux-foundation.org>
-In-Reply-To: <20090605222245.6920061a.d-nishimura@mtf.biglobe.ne.jp>
-References: <20090603114518.301cef4d.nishimura@mxp.nes.nec.co.jp>
-	<20090603114908.52c3aed5.nishimura@mxp.nes.nec.co.jp>
-	<4A26072B.8040207@cn.fujitsu.com>
-	<20090603144347.81ec2ce1.nishimura@mxp.nes.nec.co.jp>
-	<20090605222245.6920061a.d-nishimura@mtf.biglobe.ne.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 469A76B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 19:38:48 -0400 (EDT)
+Received: from relay1.suse.de (relay-ext.suse.de [195.135.221.8])
+	(using TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx2.suse.de (Postfix) with ESMTP id 3CF694844E
+	for <linux-mm@kvack.org>; Sat,  6 Jun 2009 01:38:45 +0200 (CEST)
+Date: Sat, 6 Jun 2009 01:38:44 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: [Review request] Fix page_mkwrite() for blocksize < pagesize
+Message-ID: <20090605233844.GA20220@duck.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: nishimura@mxp.nes.nec.co.jp
-Cc: d-nishimura@mtf.biglobe.ne.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lizf@cn.fujitsu.com, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, menage@google.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Jun 2009 22:22:45 +0900
-Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
+  Hi,
 
-> We don't have interface to reset mem.limit or memsw.limit now.
-> 
-> This patch allows to reset mem.limit or memsw.limit when they are
-> being set to -1.
-> 
-> ...
->
-> @@ -133,6 +133,16 @@ int res_counter_memparse_write_strategy(const char *buf,
->  					unsigned long long *res)
->  {
->  	char *end;
-> +
-> +	/* return RESOURCE_MAX(unlimited) if "-1" is specified */
-> +	if (*buf == '-') {
-> +		*res = simple_strtoull(buf + 1, &end, 10);
-> +		if (*res != 1 || *end != '\0')
-> +			return -EINVAL;
-> +		*res = RESOURCE_MAX;
-> +		return 0;
-> +	}
+  could someone have a look at a patch set I've posted a week or so ago
+to LKML. It starts at:
+http://lkml.org/lkml/2009/5/27/317
+  Mainly, what I'd like to get opinions on is the third patch implementing
+VFS helpers for easier handling of page_mkwrite() when blocksize <
+pagesize. I'd like to get the patchset merged but before that I'd like to
+get an agreement of people here that this is the way we want to go...
+Thanks a lot for review in advance.
 
-The test for (*end != '\0') would be unneeded if strict_strtoull() had
-been used.
-
-
-> +
->  	/* FIXME - make memparse() take const char* args */
->  	*res = memparse((char *)buf, &end);
->  	if (*end != '\0')
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
