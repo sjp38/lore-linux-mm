@@ -1,71 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3571F6B004D
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 15:06:21 -0400 (EDT)
-Subject: Re: [PATCH 04/23] vfs: Introduce infrastructure for revoking a file
-References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-4-git-send-email-ebiederm@xmission.com>
-	<E1MCVKj-0007O3-Rp@pomaz-ex.szeredi.hu>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Fri, 05 Jun 2009 12:06:07 -0700
-In-Reply-To: <E1MCVKj-0007O3-Rp@pomaz-ex.szeredi.hu> (Miklos Szeredi's message of "Fri\, 05 Jun 2009 11\:03\:29 +0200")
-Message-ID: <m18wk6a4bk.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B00866B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 15:13:17 -0400 (EDT)
+Subject: Re: [patch] procfs: provide stack information for threads
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090604142358.95af81d5.akpm@linux-foundation.org>
+References: <1238511505.364.61.camel@matrix>
+	 <20090401193135.GA12316@elte.hu> <1244146873.20012.6.camel@wall-e>
+	 <20090604142358.95af81d5.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 05 Jun 2009 21:12:56 +0200
+Message-Id: <1244229176.31924.13.camel@wall-e>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: viro@ZenIV.linux.org.uk, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, akpm@linux-foundation.org, hch@infradead.org, ebiederm@aristanetworks.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Miklos Szeredi <miklos@szeredi.hu> writes:
 
-> Hi Eric,
->
-> Very interesting work.
->
-> On Mon,  1 Jun 2009, Eric W. Biederman wrote:
->> The file_hotplug_lock has a very unique implementation necessitated by
->> the need to have no performance impact on existing code.  Classic locking
->> primitives and reference counting cause pipeline stalls, except for rcu
->> which provides no ability to preventing reading a data structure while
->> it is being updated.
->
-> Well, the simple solution to that is to add another level of indirection:
->
-> old:
->
->   fdtable -> file
->
-> new:
->
->   fdtable -> persistent_file -> file
->
-> Then it is possible to replace persistent_file->file with a revoked
-> one under RCU.  This has the added advantage that it supports
-> arbitrary file replacements, not just ones which return EIO.
->
-> Another advantage is that dereferencing can normally be done "under
-> the hood" in fget()/fget_light().  Only code which wants to
-> permanently store a file pointer (like the SCM_RIGHTS thing) would
-> need to be aware of the extra complexity.
->
-> Would that work, do you think?
+> > +static inline unsigned long get_stack_usage_in_bytes(struct vm_area_struct *vma,
+> > +					struct task_struct *p)
+> > +{
+> > +	unsigned long	i;
+> > +	struct page	*page;
+> > +	unsigned long	stkpage;
+> > +
+> > +	stkpage = KSTK_ESP(p) & PAGE_MASK;
+> > +
+> > +#ifdef CONFIG_STACK_GROWSUP
+> > +	for (i = vma->vm_end; i-PAGE_SIZE > stkpage; i -= PAGE_SIZE) {
+> > +
+> > +		page = follow_page(vma, i-PAGE_SIZE, 0);
+> > +
+> > +		if (!IS_ERR(page) && page)
+> > +			break;
+> > +	}
+> > +	return i - (p->stack_start & PAGE_MASK);
+> > +#else
+> > +	for (i = vma->vm_start; i+PAGE_SIZE <= stkpage; i += PAGE_SIZE) {
+> > +
+> > +		page = follow_page(vma, i, 0);
+> > +
+> > +		if (!IS_ERR(page) && page)
+> > +			break;
+> > +	}
+> > +	return (p->stack_start & PAGE_MASK) - i + PAGE_SIZE;
+> > +#endif
+> > +}
+> > +
+> > +static inline void task_show_stack_usage(struct seq_file *m,
+> > +						struct task_struct *p)
+> > +{
+> > +	struct vm_area_struct	*vma;
+> > +	struct mm_struct	*mm;
+> > +
+> > +	mm = get_task_mm(p);
+> > +
+> > +	if (mm) {
+> > +		vma = find_vma(mm, p->stack_start);
+> > +
+> > +		if (vma)
+> > +			seq_printf(m, "Stack usage:\t%lu kB\n",
+> > +				get_stack_usage_in_bytes(vma, p) >> 10);
+> > +
+> > +		mmput(mm);
+> > +	}
+> > +}
+> 
+> Both follow_page() and find_vma() require locking: down_read(mmap_sem)
+> or down_write(mmap_sem).  down_read() is appropriate here.
+> 
 
-Well I went down this path for a little while, and it has some good points.
-Unfortunately it appears to be more costly.
+Didn't know that this require a lock, but i will fix this.
 
-fget() and friends are semantically very different my
-file_hotplug_read_trylock and unlock.  In fact there is very little
-overlap.  Which means that transparent to the vfs users doesn't
-actually work.
+> > +				} else {
+> > +					unsigned long stack_start;
+> > +					struct proc_maps_private *pmp;
+> > +
+> > +					pmp = m->private;
+> > +					stack_start = pmp->task->stack_start;
+> > +
+> > +					if (vma->vm_start <= stack_start &&
+> > +					    vma->vm_end >= stack_start) {
+> > +						pad_len_spaces(m, len);
+> > +						seq_printf(m,
+> > +						 "[thread stack: %08lx]",
+> > +						 stack_start);
+> > +					}
+> 
+> You're making changes to the user interface but it's not terribly clear
+> what they look like.  Please include sample output from the affected
+> procfs files so that we can review the proposed changes.
+> 
 
-We actually have more and less predictable places where we store files.
+This change to the user interface was suggest by ingo molnar. I will add
+the sample output in the next version.
 
-If there was actually a compelling case for being more general I would
-certainly agree that splitting the file structure in two would be a
-good deal.  As it is that level of flexibility seems to be overkill.
+> Please update the userspace documentation to reflect the changes. 
+> Documentation/filesystems/proc.txt documents VmStk, so probably that is
+> the appropriate place.
+> 
 
-Eric
+Good idea, but the proc.txt documentation about /proc/<pid>/status (line
+140) and the contents of the /proc/<pid>/stat file (line 192) is
+complete outdated. And there is also no documentation
+about /proc/<pid>/*maps. 
+
+So i want to try to fix the missing documentation in proc.txt in a
+separate patch. Will this okay by you?
+
+Greetings
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
