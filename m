@@ -1,117 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 197A36B004D
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 15:34:05 -0400 (EDT)
-Subject: Re: [PATCH 03/23] vfs: Generalize the file_list
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D3D356B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 15:37:30 -0400 (EDT)
+Subject: Re: [PATCH 07/23] vfs: Teach sendfile,splice,tee,and vmsplice to use file_hotplug_lock
 References: <m1oct739xu.fsf@fess.ebiederm.org>
-	<1243893048-17031-3-git-send-email-ebiederm@xmission.com>
-	<20090602070642.GD31556@wotan.suse.de>
+	<1243893048-17031-7-git-send-email-ebiederm@xmission.com>
+	<1244072363.6383.15.camel@badari-desktop>
 From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Fri, 05 Jun 2009 12:33:59 -0700
-In-Reply-To: <20090602070642.GD31556@wotan.suse.de> (Nick Piggin's message of "Tue\, 2 Jun 2009 09\:06\:42 +0200")
-Message-ID: <m1ab4m5vbs.fsf@fess.ebiederm.org>
+Date: Fri, 05 Jun 2009 12:37:25 -0700
+In-Reply-To: <1244072363.6383.15.camel@badari-desktop> (Badari Pulavarty's message of "Wed\, 03 Jun 2009 16\:39\:23 -0700")
+Message-ID: <m1y6s64glm.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@maxwell.arastra.com>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> writes:
+Badari Pulavarty <pbadari@gmail.com> writes:
 
->> fs_may_remount_ro and mark_files_ro have been modified to walk the
->> inode list to find all of the inodes and then to walk the file list
->> on those inodes.  It can be a slightly longer walk as we frequently
->> cache inodes that we do not have open but the overall complexity
->> should be about the same,
->
-> Well not really. I have a couple of orders of magnitude more cached
-> inodes than open files here.
-
-Good point.
-
->> --- a/include/linux/fs.h
->> +++ b/include/linux/fs.h
->> @@ -699,6 +699,11 @@ static inline int mapping_writably_mapped(struct address_space *mapping)
->>  	return mapping->i_mmap_writable != 0;
+> On Mon, 2009-06-01 at 14:50 -0700, Eric W. Biederman wrote:
+>> From: Eric W. Biederman <ebiederm@maxwell.arastra.com>
+>> 
+>> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+>> ---
+>>  fs/read_write.c |   28 +++++++++----
+>>  fs/splice.c     |  111 +++++++++++++++++++++++++++++++++++++-----------------
+>>  2 files changed, 95 insertions(+), 44 deletions(-)
+>> 
+>> diff --git a/fs/read_write.c b/fs/read_write.c
+>> index 718baea..c473d74 100644
+>> --- a/fs/read_write.c
+>> +++ b/fs/read_write.c
+>> @@ -861,21 +861,24 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
+>>  		goto out;
+>>  	if (!(in_file->f_mode & FMODE_READ))
+>>  		goto fput_in;
+>> +	retval = -EIO;
+>> +	if (!file_hotplug_read_trylock(in_file))
+>> +		goto fput_in;
+>>  	retval = -EINVAL;
+>>  	in_inode = in_file->f_path.dentry->d_inode;
+>>  	if (!in_inode)
+>> -		goto fput_in;
+>> +		goto unlock_in;
+>>  	if (!in_file->f_op || !in_file->f_op->splice_read)
+>> -		goto fput_in;
+>> +		goto unlock_in;
+>>  	retval = -ESPIPE;
+>>  	if (!ppos)
+>>  		ppos = &in_file->f_pos;
+>>  	else
+>>  		if (!(in_file->f_mode & FMODE_PREAD))
+>> -			goto fput_in;
+>> +			goto unlock_in;
+>>  	retval = rw_verify_area(READ, in_file, ppos, count);
+>>  	if (retval < 0)
+>> -		goto fput_in;
+>> +		goto unlock_in;
+>>  	count = retval;
+>>  
+>>  	/*
+>> @@ -884,16 +887,19 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
+>>  	retval = -EBADF;
+>>  	out_file = fget_light(out_fd, &fput_needed_out);
+>>  	if (!out_file)
+>> -		goto fput_in;
+>> +		goto unlock_in;
+>>  	if (!(out_file->f_mode & FMODE_WRITE))
+>>  		goto fput_out;
+>> +	retval = -EIO;
+>> +	if (!file_hotplug_read_trylock(out_file))
+>> +		goto fput_out;
+>>  	retval = -EINVAL;
+>>  	if (!out_file->f_op || !out_file->f_op->sendpage)
+>> -		goto fput_out;
+>> +		goto unlock_out;
+>>  	out_inode = out_file->f_path.dentry->d_inode;
+>>  	retval = rw_verify_area(WRITE, out_file, &out_file->f_pos, count);
+>>  	if (retval < 0)
+>> -		goto fput_out;
+>> +		goto unlock_out;
+>>  	count = retval;
+>>  
+>>  	if (!max)
+>> @@ -902,11 +908,11 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
+>>  	pos = *ppos;
+>>  	retval = -EINVAL;
+>>  	if (unlikely(pos < 0))
+>> -		goto fput_out;
+>> +		goto unlock_out;
+>>  	if (unlikely(pos + count > max)) {
+>>  		retval = -EOVERFLOW;
+>>  		if (pos >= max)
+>> -			goto fput_out;
+>> +			goto unlock_out;
+>>  		count = max - pos;
+>>  	}
+>>  
+>> @@ -933,8 +939,12 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
+>>  	if (*ppos > max)
+>>  		retval = -EOVERFLOW;
+>>  
+>> +unlock_out:
+>> +	file_hotplug_read_unlock(out_file);
+>>  fput_out:
+>>  	fput_light(out_file, fput_needed_out);
+>> +unlock_in:
+>> +	file_hotplug_read_unlock(in_file);
+>>  fput_in:
+>>  	fput_light(in_file, fput_needed_in);
+>>  out:
+>> diff --git a/fs/splice.c b/fs/splice.c
+>> index 666953d..fc6b3a5 100644
+>> --- a/fs/splice.c
+>> +++ b/fs/splice.c
+>> @@ -1464,15 +1464,21 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
+>>  
+>>  	error = -EBADF;
+>>  	file = fget_light(fd, &fput);
+>> -	if (file) {
+>> -		if (file->f_mode & FMODE_WRITE)
+>> -			error = vmsplice_to_pipe(file, iov, nr_segs, flags);
+>> -		else if (file->f_mode & FMODE_READ)
+>> -			error = vmsplice_to_user(file, iov, nr_segs, flags);
+>> +	if (!file)
+>> +		goto out;
+>>  
+>> -		fput_light(file, fput);
+>> -	}
+>> +	if (!file_hotplug_read_trylock(file))
+>> +		goto fput_file;
+>>  
+>> +	if (file->f_mode & FMODE_WRITE)
+>> +		error = vmsplice_to_pipe(file, iov, nr_segs, flags);
+>> +	else if (file->f_mode & FMODE_READ)
+>> +		error = vmsplice_to_user(file, iov, nr_segs, flags);
+>> +
+>> +	file_hotplug_read_unlock(file);
+>> +fput_file:
+>> +	fput_light(file, fput);
+>> +out:
+>>  	return error;
 >>  }
 >>  
->> +struct file_list {
->> +	spinlock_t		lock;
->> +	struct list_head	list;
->> +};
->> +
->>  /*
->>   * Use sequence counter to get consistent i_size on 32-bit processors.
->>   */
->> @@ -764,6 +769,7 @@ struct inode {
->>  	struct list_head	inotify_watches; /* watches on this inode */
->>  	struct mutex		inotify_mutex;	/* protects the watches list */
->>  #endif
->> +	struct file_list	i_files;
+>> @@ -1489,21 +1495,39 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 >>  
->>  	unsigned long		i_state;
->>  	unsigned long		dirtied_when;	/* jiffies of first dirtying */
->> @@ -934,9 +940,15 @@ struct file {
->>  	unsigned long f_mnt_write_state;
->>  #endif
->>  };
->> -extern spinlock_t files_lock;
->> -#define file_list_lock() spin_lock(&files_lock);
->> -#define file_list_unlock() spin_unlock(&files_lock);
+>>  	error = -EBADF;
+>>  	in = fget_light(fd_in, &fput_in);
+>> -	if (in) {
+>> -		if (in->f_mode & FMODE_READ) {
+>> -			out = fget_light(fd_out, &fput_out);
+>> -			if (out) {
+>> -				if (out->f_mode & FMODE_WRITE)
+>> -					error = do_splice(in, off_in,
+>> -							  out, off_out,
+>> -							  len, flags);
+>> -				fput_light(out, fput_out);
+>> -			}
+>> -		}
+>> +	if (!in)
+>> +		goto out;
+>>  
+>> -		fput_light(in, fput_in);
+>> -	}
+>> +	if (!(in->f_mode & FMODE_READ))
+>> +		goto fput_in;
 >> +
->> +static inline void file_list_lock(struct file_list *files)
->> +{
->> +	spin_lock(&files->lock);
->> +}
->> +static inline void file_list_unlock(struct file_list *files)
->> +{
->> +	spin_unlock(&files->lock);
->> +}
+>> +	error = -EIO;
+>> +	if (!file_hotplug_read_trylock(in))
+>> +		goto fput_in;
+>> +
+>> +	error = -EBADF;
+>> +	out = fget_light(fd_out, &fput_out);
+>> +	if (!out)
+>> +		goto unlock_in;
+>> +
+>> +	if (!(out->f_mode & FMODE_WRITE))
+>> +		goto fput_out;
+>> +
+>> +	error = -EIO;
+>> +	if (!file_hotplug_read_trylock(out))
+>> +		goto fput_out;
+>> +
+>> +	error = do_splice(in, off_in, out, off_out, len, flags);
+>>  
+>> +	file_hotplug_read_unlock(out);
+>> +fput_out:
+>> +	fput_light(out, fput_out);
+>> +unlock_in:
+>> +	file_hotplug_read_unlock(in);
+>> +fput_in:
+>> +	fput_light(in, fput_in);
+>> +
+>> +out:
+>>  	return error;
+>>  }
+>>  
+>> @@ -1703,27 +1727,44 @@ static long do_tee(struct file *in, struct file *out, size_t len,
+>>  
+>>  SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
+>>  {
+>> -	struct file *in;
+>> -	int error, fput_in;
+>> +	struct file *in, *out;
+>> +	int error, fput_in, fput_out;
+>>  
+>>  	if (unlikely(!len))
+>>  		return 0;
+>>  
+>>  	error = -EBADF;
+>>  	in = fget_light(fdin, &fput_in);
+>> -	if (in) {
+>> -		if (in->f_mode & FMODE_READ) {
+>> -			int fput_out;
+>> -			struct file *out = fget_light(fdout, &fput_out);
+>> -
+>> -			if (out) {
+>> -				if (out->f_mode & FMODE_WRITE)
+>> -					error = do_tee(in, out, len, flags);
+>> -				fput_light(out, fput_out);
+>> -			}
+>> -		}
+>> - 		fput_light(in, fput_in);
+>> - 	}
+>> +	if (!in)
+>> +		goto out;
+>> +
+>> +	if (!(in->f_mode & FMODE_READ))
+>> +		goto unlock_in;   <<<<<<<
 >
-> I don't really like this. It's just a list head. Get rid of
-> all these wrappers and crap I'd say. In fact, starting with my
-> patch to unexport files_lock and remove these wrappers would
-> be reasonable, wouldn't it?
+> Shouldn't this be
+> 		goto fput_in; 
 
-I don't really mind killing the wrappers.
+Good point.  That is a bug.
 
-I do mind your patch because it makes the list going through
-the tty's something very different.  In my view of the world
-that is the only use case is what I'm working to move up more
-into the vfs layer.  So orphaning it seems wrong.
+> ? btw, its confusing to have labels and variables with same name:
+> fput_in and fput_out. You may want to rename labels ?
 
-> Increasing the size of the struct inode by 24 bytes hurts.
-> Even when you decrapify it and can reuse i_lock or something,
-> then it is still 16 bytes on 64-bit.
+Mayhap.  I didn't start that one, although I am clearly spreading
+it around here.  Do you have a better naming suggestion?
 
-We can get it even smaller if we make it an hlist.  A hlist_head is
-only a single pointer.  This size growth appears to be one of the
-biggest weakness of the code.
+>> +	error = -EIO;
+>> +	if (!file_hotplug_read_trylock(in))
+>> +		goto fput_in;
+>> +
+>> +	error = -EBADF;
+>> +	out = fget_light(fdout, &fput_out);
+>> +	if (!out)
+>> +		goto unlock_in;
+>> +
+>> +	if (!(out->f_mode & FMODE_WRITE))
+>> +		goto fput_out;
+>> +
+>> +	if (!file_hotplug_read_trylock(out))
+>> +		goto fput_out;
+>> +
+>> +	error = do_tee(in, out, len, flags);
+>> +
+>> +	file_hotplug_read_unlock(out);
+>> +fput_out:
+>> +	fput_light(out, fput_out);
+>> +unlock_in:
+>> +	file_hotplug_read_unlock(in);
+>> +fput_in:
+>> +	fput_light(in, fput_in);
+>> +out:
+>>  	return error;
+>>  }
 
-> I haven't looked through all the patches... but this is to
-> speed up a slowpath operation, isn't it? Or does revoke
-> need to be especially performant?
-
-This was more about simplicity rather than performance.  The
-performance gain is using a per inode lock instead of a global lock.
-Which keeps cache lines from bouncing.
-
-> So this patch is purely a perofrmance improvement? Then I think
-> it needs to be justified with numbers and the downsides (bloating
-> struct inode in particulra) to be changelogged.
-
-Certainly the cost.
-
-One of the things I have discovered since I wrote this patch is the
-i_devices list.  Which means we don't necessarily need to have heads
-in places other than struct inode.  A character device driver (aka the
-tty code) can walk it's inode list and from each inode walk the file
-list.  I need to check the locking on that one.
-
-If that simplification works we can move all maintenance of the file
-list into the vfs and not need a separate file list concept.  I will
-take a look.
 
 Eric
 
