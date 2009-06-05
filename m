@@ -1,75 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C237F6B005C
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 05:47:30 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n559glNv002424
-	for <linux-mm@kvack.org>; Fri, 5 Jun 2009 05:42:47 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n559lT9x245112
-	for <linux-mm@kvack.org>; Fri, 5 Jun 2009 05:47:29 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n559lSpG020420
-	for <linux-mm@kvack.org>; Fri, 5 Jun 2009 05:47:28 -0400
-Date: Fri, 5 Jun 2009 17:47:21 +0800
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: Low overhead patches for the memory cgroup controller (v3)
-Message-ID: <20090605094721.GK11755@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <b7dd123f0a15fff62150bc560747d7f0.squirrel@webmail-b.css.fujitsu.com> <20090515181639.GH4451@balbir.in.ibm.com> <20090518191107.8a7cc990.kamezawa.hiroyu@jp.fujitsu.com> <20090531235121.GA6120@balbir.in.ibm.com> <20090602085744.2eebf211.kamezawa.hiroyu@jp.fujitsu.com> <20090605053107.GF11755@balbir.in.ibm.com> <20090605150527.c263037c.nishimura@mxp.nes.nec.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B50F56B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 07:03:20 -0400 (EDT)
+Received: by gxk18 with SMTP id 18so631022gxk.14
+        for <linux-mm@kvack.org>; Fri, 05 Jun 2009 04:03:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090605150527.c263037c.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090603132751.GA1813@cmpxchg.org>
+References: <20090602223738.GA15475@cmpxchg.org>
+	 <20090602233457.GY1065@one.firstfloor.org>
+	 <20090603132751.GA1813@cmpxchg.org>
+Date: Fri, 5 Jun 2009 20:03:17 +0900
+Message-ID: <28c262360906050403o3b24aa92tf47cab8a3cbc2ab9@mail.gmail.com>
+Subject: Re: [patch][v2] swap: virtual swap readahead
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-06-05 15:05:27]:
+Hi, Hannes.
 
-> Hmm.. I can't see any practical changes from v2 except for PCG_ACCT -> PCG_ACCT_LRU.
-> 
-> > @@ -1107,9 +1118,24 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> >  		css_put(&mem->css);
-> >  		return;
-> >  	}
-> > +
-> >  	pc->mem_cgroup = mem;
-> >  	smp_wmb();
-> > -	pc->flags = pcg_default_flags[ctype];
-> > +	switch (ctype) {
-> > +	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-> > +	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-> > +		SetPageCgroupCache(pc);
-> > +		SetPageCgroupUsed(pc);
-> > +		break;
-> > +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> > +		SetPageCgroupUsed(pc);
-> I think we need ClearPageCgroupCache() here.
-> Otherwise, we cannot trust PageCgroupCache() in mem_cgroup_charge_statistics().
-> A page can be reused, but we don't cleare PCG_CACHE on free/alloc of page.
+On Wed, Jun 3, 2009 at 10:27 PM, Johannes Weiner<hannes@cmpxchg.org> wrote:
+> On Wed, Jun 03, 2009 at 01:34:57AM +0200, Andi Kleen wrote:
+>> On Wed, Jun 03, 2009 at 12:37:39AM +0200, Johannes Weiner wrote:
+>> > + *
+>> > + * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
+>> > + */
+>> > +struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struc=
+t vm_area_struct *vma, unsigned long addr)
+>> > +{
+>> > + =C2=A0 unsigned long start, pos, end;
+>> > + =C2=A0 unsigned long pmin, pmax;
+>> > + =C2=A0 int cluster, window;
+>> > +
+>> > + =C2=A0 if (!vma || !vma->vm_mm) =C2=A0 =C2=A0 =C2=A0 =C2=A0/* XXX: s=
+hmem case */
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return swapin_readahead_phys(entr=
+y, gfp_mask, vma, addr);
+>> > +
+>> > + =C2=A0 cluster =3D 1 << page_cluster;
+>> > + =C2=A0 window =3D cluster << PAGE_SHIFT;
+>> > +
+>> > + =C2=A0 /* Physical range to read from */
+>> > + =C2=A0 pmin =3D swp_offset(entry) & ~(cluster - 1);
+>>
+>> Is cluster really properly sign extended on 64bit? Looks a little
+>> dubious. long from the start would be safer
+>
+> Fixed.
+>
+>> > + =C2=A0 /* Virtual range to read from */
+>> > + =C2=A0 start =3D addr & ~(window - 1);
+>>
+>> Same.
+>
+> Fixed.
+>
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pgd =3D pgd_offset(vma->vm_mm, po=
+s);
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!pgd_present(*pgd))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
+nue;
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pud =3D pud_offset(pgd, pos);
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!pud_present(*pud))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
+nue;
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pmd =3D pmd_offset(pud, pos);
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!pmd_present(*pmd))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
+nue;
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pte =3D pte_offset_map_lock(vma->=
+vm_mm, pmd, pos, &ptl);
+>>
+>> You could be more efficient here by using the standard mm/* nested loop
+>> pattern that avoids relookup of everything in each iteration. I suppose
+>> it would mainly make a difference with 32bit highpte where mapping a pte
+>> can be somewhat costly. And you would take less locks this way.
+>
+> I ran into weird problems here. =C2=A0The above version is actually faste=
+r
+> in the benchmarks than writing a nested level walker or using
+> walk_page_range(). =C2=A0Still digging but it can take some time. =C2=A0B=
+usy
+> week :(
+>
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D read_swap_cache_async(sw=
+p, gfp_mask, vma, pos);
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!page)
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 conti=
+nue;
+>>
+>> That's out of memory, break would be better here because prefetch
+>> while oom is usually harmful.
+>
+> It can also happen due to a race with something releasing the swap
+> slot (i.e. swap_duplicate() fails). =C2=A0But the old version did a break
+> too and this patch shouldn't do it differently. =C2=A0Fixed.
 
-Yes, I know, I think it is best to set pc->flags to 0 before setting
-the bits. Thanks!
+I think it would be better to read fault page earlier than readahead pages.
+That's because,
+1) Readahead pages would prevent to read fault page due to out-of-memory.
+2)  If we can't get the fault page, we don't need extra pages(ie,
+readahead pages)
+     It's waste of memory or IO bandwidth. It's what you want.
+3) If we read fault page at first and meet oom, we can also stop readahead.
 
-> 
-> > +		break;
-> > +	default:
-> > +		break;
-> > +	}
-> > +
-> > +	if (mem == root_mem_cgroup)
-> > +		SetPageCgroupRoot(pc);
-> >  
-> I think you should set PCG_ROOT before setting PCG_USED.
-> IIUC, PCG_ROOT bit must be visible already when PCG_USED is set.
-
-Kame pointed to something similar, I am going to remove PCG_ROOT in
-the next version.
-
--- 
-	Balbir
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
