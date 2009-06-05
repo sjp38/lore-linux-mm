@@ -1,43 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF7C6B0055
-	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 00:26:33 -0400 (EDT)
-Message-ID: <4A289E3A.30000@kernel.org>
-Date: Fri, 05 Jun 2009 13:25:30 +0900
-From: Tejun Heo <tj@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
-References: <1243846708-805-1-git-send-email-tj@kernel.org>	 <1243846708-805-4-git-send-email-tj@kernel.org>	 <20090601.024006.98975069.davem@davemloft.net>	 <4A23BD20.5030500@kernel.org> <1243919336.5308.32.camel@pasglop>
-In-Reply-To: <1243919336.5308.32.camel@pasglop>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F0E6B004D
+	for <linux-mm@kvack.org>; Fri,  5 Jun 2009 00:40:43 -0400 (EDT)
+Subject: Re: [PATCH] - support inheritance of mlocks across fork/exec V2
+From: Jon Masters <jonathan@jonmasters.org>
+In-Reply-To: <1228331069.6693.73.camel@lts-notebook>
+References: <1227561707.6937.61.camel@lts-notebook>
+	 <20081125152651.b4c3c18f.akpm@linux-foundation.org>
+	 <1228331069.6693.73.camel@lts-notebook>
+Content-Type: text/plain
+Date: Fri, 05 Jun 2009 00:39:17 -0400
+Message-Id: <1244176757.11597.24.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: David Miller <davem@davemloft.net>, JBeulich@novell.com, andi@firstfloor.org, mingo@elte.hu, hpa@zytor.com, tglx@linutronix.de, linux-kernel@vger.kernel.org, x86@kernel.org, ink@jurassic.park.msu.ru, rth@twiddle.net, linux@arm.linux.org.uk, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, jesper.nilsson@axis.com, dhowells@redhat.com, ysato@users.sourceforge.jp, tony.luck@intel.com, takata@linux-m32r.org, geert@linux-m68k.org, monstr@monstr.eu, ralf@linux-mips.org, kyle@mcmartin.ca, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, chris@zankel.net, rusty@rustcorp.com.au, jens.axboe@oracle.com, davej@redhat.com, jeremy@xensource.com, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> On Mon, 2009-06-01 at 20:36 +0900, Tejun Heo wrote:
->>> Whether the volatile is actually needed or not, it's bad to have this
->>> kind of potential behavior changing nugget hidden in this seemingly
->>> inocuous change.  Especially if you're the poor soul who ends up
->>> having to debug it :-/
->> You're right.  Aieee... how do I feed volatile to the DEFINE macro.
->> I'll think of something.
-> 
-> Or better, work with the cris maintainer to figure out whether it's
-> needed (it probably isn't) and have a pre-requisite patch that removes
-> it before your series :-)
+On Wed, 2008-12-03 at 14:04 -0500, Lee Schermerhorn wrote:
 
-Yeap, that's worth giving a shot.
+> Add support for mlockall(MCL_INHERIT|MCL_RECURSIVE):
 
-Mikael Starvik, can you please enlighten us why volatile is necessary
-there?
+FWIW, I really liked this patch series. And I think there is still value
+in a generic "mlock" wrapper utility that I can use. Sure, the later on
+containers suggestions are all wonderful in theory but I don't see that
+that went anywhere either (and I disagree that we can't trust people to
+use this right without doing silly things) - if I'm really right that
+this got dropped on the floor, can we resurrect it in .31 please?
 
-Thanks.
+Jon.
 
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
