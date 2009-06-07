@@ -1,117 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C63986B004D
-	for <linux-mm@kvack.org>; Sun,  7 Jun 2009 11:26:31 -0400 (EDT)
-Date: Mon, 8 Jun 2009 00:02:25 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in  the VM v3
-Message-ID: <20090607160225.GA24315@localhost>
-References: <200905271012.668777061@firstfloor.org> <20090527201239.C2C9C1D0294@basil.firstfloor.org> <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090528145021.GA5503@localhost> <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5FC2D6B004D
+	for <linux-mm@kvack.org>; Sun,  7 Jun 2009 11:51:37 -0400 (EDT)
+Date: Sun, 7 Jun 2009 17:28:39 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [RFC] remove page_table_lock in anon_vma_prepare
+In-Reply-To: <28c262360906070816h765bf4fag9b426199ac0627d@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0906071651410.17597@sister.anvils>
+References: <1244212553-21629-1-git-send-email-minchan.kim@gmail.com>
+ <Pine.LNX.4.64.0906051906000.14826@sister.anvils>
+ <28c262360906070816h765bf4fag9b426199ac0627d@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1606777726-1244392119=:17597"
 Sender: owner-linux-mm@kvack.org
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 04, 2009 at 02:25:24PM +0800, Nai Xia wrote:
-> On Thu, May 28, 2009 at 10:50 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
-> >> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
-> >
-> > [snip]
-> >
-> >> >
-> >> > BTW. I don't know if you are checking for PG_writeback often enough?
-> >> > You can't remove a PG_writeback page from pagecache. The normal
-> >> > pattern is lock_page(page); wait_on_page_writeback(page); which I
-> >>
-> >> So pages can be in writeback without being locked? I still
-> >> wasn't able to find such a case (in fact unless I'm misreading
-> >> the code badly the writeback bit is only used by NFS and a few
-> >> obscure cases)
-> >
-> > Yes the writeback page is typically not locked. Only read IO requires
-> > to be exclusive. Read IO is in fact page *writer*, while writeback IO
-> > is page *reader* :-)
-> 
-> Sorry for maybe somewhat a little bit off topic,
-> I am trying to get a good understanding of PG_writeback & PG_locked ;)
-> 
-> So you are saying PG_writeback & PG_locked are acting like a read/write lock?
-> I notice wait_on_page_writeback(page) seems always called with page locked --
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-No. Note that pages are not locked in wait_on_page_writeback_range().
+--8323584-1606777726-1244392119=:17597
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-> that is the semantics of a writer waiting to get the lock while it's
-> acquired by
-> some reader:The caller(e.g. truncate_inode_pages_range()  and
-> invalidate_inode_pages2_range()) are the writers waiting for
-> writeback readers (as you clarified ) to finish their job, right ?
+On Mon, 8 Jun 2009, Minchan Kim wrote:
+> On Sat, Jun 6, 2009 at 3:26 AM, Hugh Dickins<hugh.dickins@tiscali.co.uk> =
+wrote:
+> > On Fri, 5 Jun 2009, Minchan Kim wrote:
+>=20
+> > (As I expect you've noticed, we used not to bother with the spin_lock
+> > on anon_vma->lock when we'd freshly allocated the anon_vma, it looks
+> > as if it's unnecessary. =C2=A0But in fact Nick and Linus found there's =
+a
+> > subtle reason why it is necessary even then - hopefully the git log
 
-Sorry if my metaphor confused you. But they are not typical
-reader/writer problems, but more about data integrities.
+Actually, Linus put a lot of his git comment into the comment above
+anon_vma_prepare(); but it doesn't pin down the case Nick identified
+as well as Nick's original mail.
 
-Pages have to be "not under writeback" when truncated. 
-Otherwise data lost is possible:
+> > explains it, or I could look up the mails if you want, but at this
+> > moment the details escape me.
+>=20
+> Hmm. I didn't follow up that at that time.
+>=20
+> After you noticed me, I found that.
+> commit d9d332e0874f46b91d8ac4604b68ee42b8a7a2c6
+> Author: Linus Torvalds <torvalds@linux-foundation.org>
+> Date:   Sun Oct 19 10:32:20 2008 -0700
+>=20
+>     anon_vma_prepare: properly lock even newly allocated entries
+>=20
+> It's subtle race so I can't digest it fully but I can understand that
+> following as.
+>=20
+> If we don't hold lock at fresh anon_vma, it can be removed and
+> reallocated by other threads since other cpu's can find it, free,
+> reallocate before first thread which call anon_vma_prepare adds
+> anon_vma to list after vma->anon_vma =3D anon_vma
+>=20
+> I hope my above explanation is right :)
 
-1) create a file with one page (page A)
-2) truncate page A that is under writeback
-3) write to file, which creates page B
-4) sync file, which sends page B to disk quickly
+Not really: I don't think there was a risk of it getting freed at
+that point, but there was a risk of its list head getting dereferenced
+before we'd initialized it.
 
-Now if page B reaches disk before A, the new data will be overwritten
-by truncated old data, which corrupts the file.
+Here's a link to Nick's 16oct08 linux-mm mail on the subject, then you
+can follow the thread from there.  In brief, IIRC, Nick found a race
+which he proposed to fix with barriers, but in the end we were all
+much happier just taking the anon_vma lock in all cases.
 
-> So do you think the idea is sane to group the two bits together
-> to form a real read/write lock, which does not care about the _number_
-> of readers ?
+http://marc.info/?l=3Dlinux-mm&m=3D122413030612659&w=3D2
 
-We don't care number of readers here. So please forget about it.
+>=20
+> > And do we need the page_table_lock even when find_mergeable_anon_vma
+> > succeeds? =C2=A0That also looks as if it's unnecessary, but I've the gh=
+ost
+> > of a memory that it's needed even for that case: I seem to remember
+> > that there can be a benign race where find_mergeable_anon_vma called
+> > by concurrent threads could actually return different anon_vmas.
+> > That also is something I don't want to think too deeply into at
+> > this instant, but beg me if you wish!)
+>=20
+> Unfortunately I can't found this issue mail or changelog.
+> Hugh. Could you explain this issue more detail in your convenient time ?
 
-Thanks,
-Fengguang
+Sure, I remembered it once I went to bed that night, it's an easy one;
+wasn't ever discussed on list, just something I'd been aware of.
 
-> > The writeback bit is _widely_ used. A test_set_page_writeback() is
-> > directly used by NFS/AFS etc. But its main user is in fact
-> > set_page_writeback(), which is called in 26 places.
-> >
-> >> > think would be safest
-> >>
-> >> Okay. I'll just add it after the page lock.
-> >>
-> >> > (then you never have to bother with the writeback bit again)
-> >>
-> >> Until Fengguang does something fancy with it.
-> >
-> > Yes I'm going to do it without wait_on_page_writeback().
-> >
-> > The reason truncate_inode_pages_range() has to wait on writeback page
-> > is to ensure data integrity. Otherwise if there comes two events:
-> > A  A  A  A truncate page A at offset X
-> > A  A  A  A populate page B at offset X
-> > If A and B are all writeback pages, then B can hit disk first and then
-> > be overwritten by A. Which corrupts the data at offset X from user's POV.
-> >
-> > But for hwpoison, there are no such worries. If A is poisoned, we do
-> > our best to isolate it as well as intercepting its IO. If the interception
-> > fails, it will trigger another machine check before hitting the disk.
-> >
-> > After all, poisoned A means the data at offset X is already corrupted.
-> > It doesn't matter if there comes another B page.
-> >
-> > Thanks,
-> > Fengguang
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at A http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at A http://www.tux.org/lkml/
-> >
+Remember that anon_vma_prepare() gets called at fault time, when we
+have only down_read of mmap_sem, so there may well be concurrent faults.
+
+find_mergeable_anon_vma looks at the vma on either side of our faulting
+vma, to see if the neighbouring vma already has an anon_vma, which we'd
+be wise to use if that vma could plausibly be merged with our vma later
+e.g. mprotect may have temporarily split ours from the next, but another
+mprotect may make them mergeable - it would be a pity to be prevented
+from merging them just because we'd already attached distinct anon_vmas.
+
+But, as I said, there may well be concurrent faults, on ours and on
+neighbouring vmas: so one call to find_mergeable_anon_vma on our vma
+may find that the next vma has no anon_vma yet, but the prev has one,
+so it returns the prev's anon_vma; but a racing fault on the next
+vma immediately gives it an anon_vma, and a racing fault on our vma
+finds that, so its find_mergeable_anon_vma returns the next's anon_vma.
+
+So the two faults on our vma could both be in anon_vma_prepare(),
+doing the spin_lock(&anon_vma->lock) on find_mergeable_anon_vma's
+anon_vma, but those could still be different anon_vmas: but if
+both lock the page_table_lock, we can be sure to catch that case.
+
+When I said the race was benign, I meant that it doesn't matter in
+such a case which one we choose; but we don't want to choose both!
+
+Hugh
+--8323584-1606777726-1244392119=:17597--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
