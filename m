@@ -1,57 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A70566B004D
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B69D6B004F
 	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 07:45:52 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/3] [RFC] Functional fix to zone_reclaim() and bring behaviour more in line with expectations
-Date: Mon,  8 Jun 2009 14:01:27 +0100
-Message-Id: <1244466090-10711-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 3/3] Do not unconditionally treat zones that fail zone_reclaim() as full
+Date: Mon,  8 Jun 2009 14:01:30 +0100
+Message-Id: <1244466090-10711-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1244466090-10711-1-git-send-email-mel@csn.ul.ie>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-A bug was brought to my attention against a distro kernel but it affects
-mainline and I believe problems like this have been reported in various guises
-on the mailing lists although I don't have specific examples at the moment.
+On NUMA machines, the administrator can configure zone_reclaim_mode that
+is a more targetted form of direct reclaim. On machines with large NUMA
+distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+unmapped pages will be reclaimed if the zone watermarks are not being
+met. The problem is that zone_reclaim() failing at all means the zone
+gets marked full.
 
-The problem that was reported that led to this patchset was that malloc()
-stalled for a long time (minutes in some cases) if a large tmpfs mount
-was occupying a large percentage of memory overall. The pages did not get
-cleaned or reclaimed by zone_reclaim() because the zone_reclaim_mode was
-unsuitable, but the lists are uselessly scanned frequencly making the CPU
-spin at near 100%.
+This can cause situations where a zone is usable, but is being skipped
+because it has been considered full. Take a situation where a large tmpfs
+mount is occuping a large percentage of memory overall. The pages do not
+get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
+and the zonelist cache considers them not worth trying in the future.
 
-I do not have the bug resolved yet although I believe patch 1 of this series
-addresses it and am waiting to hear back from the bug reporter. However,
-the fix should work two other patches in this series also should bring
-zone_reclaim() more in line with expectations.
+This patch makes zone_reclaim() return more fine-grained information about
+what occured when zone_reclaim() failued. The zone only gets marked full if
+it really is unreclaimable. If it's a case that the scan did not occur or
+if enough pages were not reclaimed with the limited reclaim_mode, then the
+zone is simply skipped.
 
-Patch 1 reintroduces zone_reclaim_interval to catch the situation where
-	zone_reclaim() cannot tell in advance that the scan is a waste
-	of time.
+There is a side-effect to this patch. Currently, if zone_reclaim()
+successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
+go ahead. With this patch applied, zone watermarks are rechecked after
+zone_reclaim() does some work.
 
-Patch 2 alters the heuristics that zone_reclaim() uses to determine if the
-	scan should go ahead. Currently, it is basically assuming
-	zone_reclaim_mode is 1
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/internal.h   |    4 ++++
+ mm/page_alloc.c |   26 ++++++++++++++++++++++----
+ mm/vmscan.c     |   10 +++++-----
+ 3 files changed, 31 insertions(+), 9 deletions(-)
 
-Patch 3 notes that zone_reclaim() returning a failure automatically means
-	the zone is marked full. This is not always true. It could have failed
-	because the GFP mask or zone_reclaim_mode are unsuitable. The patch
-	makes zone_reclaim() more careful about marking zones temporarily full
-
-Note, this patchset has not been tested heavily.
-
-Comments?
-
- Documentation/sysctl/vm.txt |   13 +++++++++++
- include/linux/mmzone.h      |    9 ++++++++
- include/linux/swap.h        |    1 +
- kernel/sysctl.c             |    9 ++++++++
- mm/internal.h               |    4 +++
- mm/page_alloc.c             |   26 +++++++++++++++++++---
- mm/vmscan.c                 |   48 +++++++++++++++++++++++++++++++++++++-----
- 7 files changed, 100 insertions(+), 10 deletions(-)
+diff --git a/mm/internal.h b/mm/internal.h
+index 987bb03..090c267 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -284,4 +284,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		     unsigned long start, int len, int flags,
+ 		     struct page **pages, struct vm_area_struct **vmas);
+ 
++#define ZONE_RECLAIM_NOSCAN	-2
++#define ZONE_RECLAIM_FULL	-1
++#define ZONE_RECLAIM_SOME	0
++#define ZONE_RECLAIM_SUCCESS	1
+ #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fe753ec..ce2f684 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1420,20 +1420,38 @@ zonelist_scan:
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
++			int ret;
+ 			if (alloc_flags & ALLOC_WMARK_MIN)
+ 				mark = zone->pages_min;
+ 			else if (alloc_flags & ALLOC_WMARK_LOW)
+ 				mark = zone->pages_low;
+ 			else
+ 				mark = zone->pages_high;
+-			if (!zone_watermark_ok(zone, order, mark,
+-				    classzone_idx, alloc_flags)) {
+-				if (!zone_reclaim_mode ||
+-				    !zone_reclaim(zone, gfp_mask, order))
++			if (zone_watermark_ok(zone, order, mark,
++				    classzone_idx, alloc_flags))
++				goto try_this_zone;
++
++			if (zone_reclaim_mode == 0)
++				goto this_zone_full;
++
++			ret = zone_reclaim(zone, gfp_mask, order);
++			switch (ret) {
++				case ZONE_RECLAIM_NOSCAN:
++					/* did not scan */
++					goto try_next_zone;
++				case ZONE_RECLAIM_FULL:
++					/* scanned but unreclaimable */
+ 					goto this_zone_full;
++				default:
++					/* did we reclaim enough */
++					if (!zone_watermark_ok(zone, order,
++							mark, classzone_idx,
++							alloc_flags))
++						goto try_next_zone;
+ 			}
+ 		}
+ 
++try_this_zone:
+ 		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
+ 		if (page)
+ 			break;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ffe2f32..84cdae2 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2409,7 +2409,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	if (pagecache_reclaimable <= zone->min_unmapped_pages
+ 	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
+ 			<= zone->min_slab_pages)
+-		return 0;
++		return ZONE_RECLAIM_NOSCAN;
+ 
+ 	/* Do not attempt a scan if scanning failed recently */
+ 	if (time_before(jiffies,
+@@ -2417,13 +2417,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		return 0;
+ 
+ 	if (zone_is_all_unreclaimable(zone))
+-		return 0;
++		return ZONE_RECLAIM_FULL;
+ 
+ 	/*
+ 	 * Do not scan if the allocation should not be delayed.
+ 	 */
+ 	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
+-			return 0;
++			return ZONE_RECLAIM_NOSCAN;
+ 
+ 	/*
+ 	 * Only run zone reclaim on the local zone or on zones that do not
+@@ -2433,10 +2433,10 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	 */
+ 	node_id = zone_to_nid(zone);
+ 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+-		return 0;
++		return ZONE_RECLAIM_NOSCAN;
+ 
+ 	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+-		return 0;
++		return ZONE_RECLAIM_NOSCAN;
+ 	ret = __zone_reclaim(zone, gfp_mask, order);
+ 	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+ 
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
