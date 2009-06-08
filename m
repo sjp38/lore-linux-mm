@@ -1,261 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 01B946B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:18:14 -0400 (EDT)
-Message-ID: <4A2D47C1.5020302@redhat.com>
-Date: Mon, 08 Jun 2009 20:17:53 +0300
-From: Izik Eidus <ieidus@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E971D6B005A
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:18:30 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 4so2176923qwk.44
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2009 10:18:26 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] RFC - ksm api change into madvise
-References: <1242261048-4487-1-git-send-email-ieidus@redhat.com> <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090608073944.GA12431@localhost>
+References: <alpine.DEB.1.10.0905181045340.20244@qirst.com>
+	 <20090519032759.GA7608@localhost>
+	 <20090519133422.4ECC.A69D9226@jp.fujitsu.com>
+	 <20090519062503.GA9580@localhost> <87pre4nhqf.fsf@basil.nowhere.org>
+	 <20090608073944.GA12431@localhost>
+Date: Tue, 9 Jun 2009 01:18:26 +0800
+Message-ID: <ab418ea90906081018o56f036c4md200a605921337c3@mail.gmail.com>
+Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first class
+	citizen
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Thu, 14 May 2009, Izik Eidus wrote:
+On Mon, Jun 8, 2009 at 3:39 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> On Wed, May 20, 2009 at 07:20:24PM +0800, Andi Kleen wrote:
+>> One scenario that might be useful to test is what happens when some very=
+ large
+>> processes, all mapped and executable exceed memory and fight each other
+>> for the working set. Do you have regressions then compared to without
+>> the patches?
 >
->   
->> This is comment request for ksm api changes.
->> The following patchs move the api to use madvise instead of ioctls.
->>     
+> I managed to carry out some stress tests for memory tight desktops.
+> The outcome is encouraging: clock time and major faults are reduced
+> by 50%, and pswpin numbers are reduced to ~1/3.
 >
-> Thanks a lot for doing this.
+> Here is the test scenario.
+> - nfsroot gnome desktop with 512M physical memory
+> - run some programs, and switch between the existing windows after
+> =A0starting each new program.
+
+I think this is a story of VM_EXEC pages fighting against other kind of pag=
+es,
+but as Andi said, did you test real regression case of VM_EXEC pages fighti=
+ng
+against each other?
+
+"
+One scenario that might be useful to test is what happens when some very la=
+rge
+processes, all mapped and executable exceed memory and fight each other
+for the working set. Do you have regressions then compared to without
+the patches?
+
+-Andi
+"
+
+My experices with Compcache(http://code.google.com/p/compcache/) show that
+it also has similar improvement in similar case on LTSP
+(http://code.google.com/p/compcache/wiki/Performance).
+But it does has a non-trivial performance loss even when doing kernel
+compilation.
+I am not a little surprised when Andrew said it "There must be some cost
+somewhere".
+
+So you have found the spots where your patch doing great,
+make double sure it will not do something bad in all places,
+and that will be perfect. :-)
+
 >
-> I'm afraid more than three weeks have gone past, and the 2.6.31
-> merge window is almost upon us, and you haven't even got a comment
-> out of me: I apologize for that.
+> The progress timing (seconds) is:
 >
-> Although my (lack of) response is indistinguishable from a conspiracy
-> to keep KSM out of the kernel, I beg to assure you that's not the case.
-> I do want KSM to go in - though I never shared Andrew's optimism that it
-> is 2.6.31 material: I've too long a list of notes/doubts on the existing
-> implementation, which I've not had time to expand upon to you; but I
-> don't think there are any killer issues, we should be able to work
-> things out as 2.6.31 goes through its -rcs, and aim for 2.6.32.
+> =A0before =A0 =A0 =A0 after =A0 =A0programs
+> =A0 =A00.02 =A0 =A0 =A0 =A00.02 =A0 =A0N xeyes
+> =A0 =A00.75 =A0 =A0 =A0 =A00.76 =A0 =A0N firefox
+> =A0 =A02.02 =A0 =A0 =A0 =A01.88 =A0 =A0N nautilus
+> =A0 =A03.36 =A0 =A0 =A0 =A03.17 =A0 =A0N nautilus --browser
+> =A0 =A05.26 =A0 =A0 =A0 =A04.89 =A0 =A0N gthumb
+> =A0 =A07.12 =A0 =A0 =A0 =A06.47 =A0 =A0N gedit
+> =A0 =A09.22 =A0 =A0 =A0 =A08.16 =A0 =A0N xpdf /usr/share/doc/shared-mime-=
+info/shared-mime-info-spec.pdf
+> =A0 13.58 =A0 =A0 =A0 12.55 =A0 =A0N xterm
+> =A0 15.87 =A0 =A0 =A0 14.57 =A0 =A0N mlterm
+> =A0 18.63 =A0 =A0 =A0 17.06 =A0 =A0N gnome-terminal
+> =A0 21.16 =A0 =A0 =A0 18.90 =A0 =A0N urxvt
+> =A0 26.24 =A0 =A0 =A0 23.48 =A0 =A0N gnome-system-monitor
+> =A0 28.72 =A0 =A0 =A0 26.52 =A0 =A0N gnome-help
+> =A0 32.15 =A0 =A0 =A0 29.65 =A0 =A0N gnome-dictionary
+> =A0 39.66 =A0 =A0 =A0 36.12 =A0 =A0N /usr/games/sol
+> =A0 43.16 =A0 =A0 =A0 39.27 =A0 =A0N /usr/games/gnometris
+> =A0 48.65 =A0 =A0 =A0 42.56 =A0 =A0N /usr/games/gnect
+> =A0 53.31 =A0 =A0 =A0 47.03 =A0 =A0N /usr/games/gtali
+> =A0 58.60 =A0 =A0 =A0 52.05 =A0 =A0N /usr/games/iagno
+> =A0 65.77 =A0 =A0 =A0 55.42 =A0 =A0N /usr/games/gnotravex
+> =A0 70.76 =A0 =A0 =A0 61.47 =A0 =A0N /usr/games/mahjongg
+> =A0 76.15 =A0 =A0 =A0 67.11 =A0 =A0N /usr/games/gnome-sudoku
+> =A0 86.32 =A0 =A0 =A0 75.15 =A0 =A0N /usr/games/glines
+> =A0 92.21 =A0 =A0 =A0 79.70 =A0 =A0N /usr/games/glchess
+> =A0103.79 =A0 =A0 =A0 88.48 =A0 =A0N /usr/games/gnomine
+> =A0113.84 =A0 =A0 =A0 96.51 =A0 =A0N /usr/games/gnotski
+> =A0124.40 =A0 =A0 =A0102.19 =A0 =A0N /usr/games/gnibbles
+> =A0137.41 =A0 =A0 =A0114.93 =A0 =A0N /usr/games/gnobots2
+> =A0155.53 =A0 =A0 =A0125.02 =A0 =A0N /usr/games/blackjack
+> =A0179.85 =A0 =A0 =A0135.11 =A0 =A0N /usr/games/same-gnome
+> =A0224.49 =A0 =A0 =A0154.50 =A0 =A0N /usr/bin/gnome-window-properties
+> =A0248.44 =A0 =A0 =A0162.09 =A0 =A0N /usr/bin/gnome-default-applications-=
+properties
+> =A0282.62 =A0 =A0 =A0173.29 =A0 =A0N /usr/bin/gnome-at-properties
+> =A0323.72 =A0 =A0 =A0188.21 =A0 =A0N /usr/bin/gnome-typing-monitor
+> =A0363.99 =A0 =A0 =A0199.93 =A0 =A0N /usr/bin/gnome-at-visual
+> =A0394.21 =A0 =A0 =A0206.95 =A0 =A0N /usr/bin/gnome-sound-properties
+> =A0435.14 =A0 =A0 =A0224.49 =A0 =A0N /usr/bin/gnome-at-mobility
+> =A0463.05 =A0 =A0 =A0234.11 =A0 =A0N /usr/bin/gnome-keybinding-properties
+> =A0503.75 =A0 =A0 =A0248.59 =A0 =A0N /usr/bin/gnome-about-me
+> =A0554.00 =A0 =A0 =A0276.27 =A0 =A0N /usr/bin/gnome-display-properties
+> =A0615.48 =A0 =A0 =A0304.39 =A0 =A0N /usr/bin/gnome-network-preferences
+> =A0693.03 =A0 =A0 =A0342.01 =A0 =A0N /usr/bin/gnome-mouse-properties
+> =A0759.90 =A0 =A0 =A0388.58 =A0 =A0N /usr/bin/gnome-appearance-properties
+> =A0937.90 =A0 =A0 =A0508.47 =A0 =A0N /usr/bin/gnome-control-center
+> =A01109.75 =A0 =A0 =A0587.57 =A0 =A0N /usr/bin/gnome-keyboard-properties
+> =A01399.05 =A0 =A0 =A0758.16 =A0 =A0N : oocalc
+> =A01524.64 =A0 =A0 =A0830.03 =A0 =A0N : oodraw
+> =A01684.31 =A0 =A0 =A0900.03 =A0 =A0N : ooimpress
+> =A01874.04 =A0 =A0 =A0993.91 =A0 =A0N : oomath
+> =A02115.12 =A0 =A0 1081.89 =A0 =A0N : ooweb
+> =A02369.02 =A0 =A0 1161.99 =A0 =A0N : oowriter
 >
-> But let's get this change of interface sorted out first.
->   
-
-Agree.
-
-> I remain convinced that it's right to go the madvise() route,
-> though I don't necessarily like the details in your patches.
-> And I've come to the conclusion that the only way I can force
-> myself to contribute constructively, is to start from these
-> patches, and shift things around until it's as I think it
-> should be, then see what you think of the result.
->   
-
-Sound perfect way to go.
-
-> I notice that you chose to integrate fully (though not fully enough)
-> with vmas, adding a VM_MERGEABLE flag.  Fine, that's probably going
-> to be safest in the end, and I'll follow you; but it is further than
-> I was necessarily asking you to go - it might have been okay to use
-> the madvise() interface, but just to declare areas of address space
-> (not necessarily backed by mappings) to ksm.c, as you did via /dev/ksm.
-> But it's fairly likely that if you had stayed with that, it would have
-> proved problematic later, so let's go forward with the full integration
-> with vmas.
+> Note that the oo* commands are actually commented out.
 >
->   
->> Before i will describe the patchs, i want to note that i rewrote this
->> patch seires alot of times, all the other methods that i have tried had some
->> fandumatel issues with them.
->> The current implemantion does have some issues with it, but i belive they are
->> all solveable and better than the other ways to do it.
->> If you feel you have better way how to do it, please tell me :).
->>
->> Ok when we changed ksm to use madvise instead of ioctls we wanted to keep
->> the following rules:
->>
->> Not to increase the host memory usage if ksm is not being used (even when it
->> is compiled), this mean not to add fields into mm_struct / vm_area_struct...
->>
->> Not to effect the system performence with notifiers that will have to block
->> while ksm code is running under some lock - ksm is helper, it should do it
->> work quitely, - this why i dropped patch that i did that add mmu notifiers
->> support inside ksm.c and recived notifications from the MM (for example
->> when vma is destroyed (invalidate_range...)
->>
->> Not to change the MM logic.
->>
->> Trying to touch as less code as we can outisde ksm.c
->>     
+> The vmstat numbers are (some relevant ones are marked with *):
 >
-> These are well-intentioned goals, and thank you for making the effort
-> to follow them; but I'm probably going to depart from them.  I'd
-> rather we put in what's necessary and appropriate, and then cut
-> that down if necessary.
->   
-
-That the way to go, i just didnt want to scare anyone (it was obiouse to 
-me that it is needed, just wanted you to say it is needed)
-
->   
->> Taking into account all this rules, the end result that we have came with is:
->> mmlist is now not used only by swapoff, but by ksm as well, this mean that
->> each time you call to madvise for to set vma as MERGEABLE, madvise will check
->> if the mm_struct is inside the mmlist and will insert it in case it isnt.
->> It is belived that it is better to hurt little bit the performence of swapoff
->> than adding another list into the mm_struct.
->>     
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0before =A0 =A0afte=
+r
+> =A0nr_free_pages =A0 =A0 =A0 =A0 =A0 =A0 =A01293 =A0 =A0 =A03898
+> =A0nr_inactive_anon =A0 =A0 =A0 =A0 =A0 59956 =A0 =A0 53460
+> =A0nr_active_anon =A0 =A0 =A0 =A0 =A0 =A0 26815 =A0 =A0 30026
+> =A0nr_inactive_file =A0 =A0 =A0 =A0 =A0 2657 =A0 =A0 =A03218
+> =A0nr_active_file =A0 =A0 =A0 =A0 =A0 =A0 2019 =A0 =A0 =A02806
+> =A0nr_unevictable =A0 =A0 =A0 =A0 =A0 =A0 4 =A0 =A0 =A0 =A0 4
+> =A0nr_mlock =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 4 =A0 =A0 =A0 =A0 4
+> =A0nr_anon_pages =A0 =A0 =A0 =A0 =A0 =A0 =A026706 =A0 =A0 27859
+> *nr_mapped =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A03542 =A0 =A0 =A04469
+> =A0nr_file_pages =A0 =A0 =A0 =A0 =A0 =A0 =A072232 =A0 =A0 67681
+> =A0nr_dirty =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 1 =A0 =A0 =A0 =A0 0
+> =A0nr_writeback =A0 =A0 =A0 =A0 =A0 =A0 =A0 123 =A0 =A0 =A0 19
+> =A0nr_slab_reclaimable =A0 =A0 =A0 =A03375 =A0 =A0 =A03534
+> =A0nr_slab_unreclaimable =A0 =A0 =A011405 =A0 =A0 10665
+> =A0nr_page_table_pages =A0 =A0 =A0 =A08106 =A0 =A0 =A07864
+> =A0nr_unstable =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0nr_bounce =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> *nr_vmscan_write =A0 =A0 =A0 =A0 =A0 =A0394776 =A0 =A0230839
+> =A0nr_writeback_temp =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0numa_hit =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 6843353 =A0 3318676
+> =A0numa_miss =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0numa_foreign =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0numa_interleave =A0 =A0 =A0 =A0 =A0 =A01719 =A0 =A0 =A01719
+> =A0numa_local =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 6843353 =A0 3318676
+> =A0numa_other =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> *pgpgin =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 5954683 =A0 2057175
+> *pgpgout =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A01578276 =A0 922744
+> *pswpin =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 1486615 =A0 512238
+> *pswpout =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0394568 =A0 =A0230685
+> =A0pgalloc_dma =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0277432 =A0 =A056602
+> =A0pgalloc_dma32 =A0 =A0 =A0 =A0 =A0 =A0 =A06769477 =A0 3310348
+> =A0pgalloc_normal =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0pgalloc_movable =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0pgfree =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 7048396 =A0 3371118
+> =A0pgactivate =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 2036343 =A0 1471492
+> =A0pgdeactivate =A0 =A0 =A0 =A0 =A0 =A0 =A0 2189691 =A0 1612829
+> =A0pgfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A03702176 =A0 3100702
+> *pgmajfault =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 452116 =A0 =A0201343
+> =A0pgrefill_dma =A0 =A0 =A0 =A0 =A0 =A0 =A0 12185 =A0 =A0 7127
+> =A0pgrefill_dma32 =A0 =A0 =A0 =A0 =A0 =A0 334384 =A0 =A0653703
+> =A0pgrefill_normal =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0pgrefill_movable =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0pgsteal_dma =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A074214 =A0 =A0 22179
+> =A0pgsteal_dma32 =A0 =A0 =A0 =A0 =A0 =A0 =A03334164 =A0 1638029
+> =A0pgsteal_normal =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0pgsteal_movable =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0pgscan_kswapd_dma =A0 =A0 =A0 =A0 =A01081421 =A0 1216199
+> =A0pgscan_kswapd_dma32 =A0 =A0 =A0 =A058979118 =A046002810
+> =A0pgscan_kswapd_normal =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0pgscan_kswapd_movable =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0pgscan_direct_dma =A0 =A0 =A0 =A0 =A02015438 =A0 1086109
+> =A0pgscan_direct_dma32 =A0 =A0 =A0 =A055787823 =A036101597
+> =A0pgscan_direct_normal =A0 =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0pgscan_direct_movable =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0pginodesteal =A0 =A0 =A0 =A0 =A0 =A0 =A0 3461 =A0 =A0 =A07281
+> =A0slabs_scanned =A0 =A0 =A0 =A0 =A0 =A0 =A0564864 =A0 =A0527616
+> =A0kswapd_steal =A0 =A0 =A0 =A0 =A0 =A0 =A0 2889797 =A0 1448082
+> =A0kswapd_inodesteal =A0 =A0 =A0 =A0 =A014827 =A0 =A0 14835
+> =A0pageoutrun =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 43459 =A0 =A0 21562
+> =A0allocstall =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 9653 =A0 =A0 =A04032
+> =A0pgrotated =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0384216 =A0 =A0228631
+> =A0htlb_buddy_alloc_success =A0 0 =A0 =A0 =A0 =A0 0
+> =A0htlb_buddy_alloc_fail =A0 =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_culled =A0 =A0 0 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_scanned =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_rescued =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_mlocked =A0 =A04 =A0 =A0 =A0 =A0 4
+> =A0unevictable_pgs_munlocked =A00 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_cleared =A0 =A00 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_stranded =A0 0 =A0 =A0 =A0 =A0 0
+> =A0unevictable_pgs_mlockfreed 0 =A0 =A0 =A0 =A0 0
 >
-> That was a perfectly sensible thing for you to do, given your rules
-> above; but I don't really like the result, and think it'll be clearer
-> to have your own list.  Whether by mm or by vma, I've not yet decided:
-> by mm won't add enough #idef CONFIG_KSM bloat to worry about; by vma,
-> we might be able to reuse some prio_tree fields, I've not checked yet.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >
->   
->> One issue that should be note is: after mm_struct is going into the mmlist, it
->> wont be kicked from it until the procsses is die (even if there are no more
->> VM_MERGEABLE vmas), this doesnt mean memory is wasted, but it does mean ksm
->> will spend little more time in doing cur = cur->next if(...).
->>
->> Another issue is: when procsess is die, ksm will have to find (when scanning)
->> that its mm_users == 1 and then do mmput(), this mean that there might be dealy
->> from the time that someone do kill until the mm is really free -
->> i am open for suggestions on how to improve this...
->>     
->
-> You've resisted putting in the callbacks you need.  I think they were
-> always (i.e. even when using /dev/ksm) necessary, but should become
-> more obvious now we have this tighter integration with mm's vmas.
->
-> You seem to have no callback in fork: doesn't that mean that KSM
-> pages get into mms of which mm/ksm.c has no knowledge?  
-What you mean by this?, should the vma flags be copyed into the child 
-and therefore ksm will scan the vma?
-(only thing i have to check is: maybe the process itself wont go into 
-the mmlist, and therefore ksm wont know about it)
-
-> You had
-> no callback in mremap move: doesn't that mean that KSM pages could
-> be moved into areas which mm/ksm.c never tracked?  Though that's
-> probably no issue now we move over to vmas: they should now travel
-> with their VM flag.  You have no callback in unmap: doesn't that
-> mean that KSM never knows when its pages have gone away?
->   
-
-Yes, Adding all this callbacks would make ksm much more happy, Again, i 
-didnt want to scare anyone...
-
-> (Closing the /dev/ksm fd used to clean up some of this, in the
-> end; but the lifetime of the fd can be so different from that of
-> the mapped area, I've felt very unsafe with that technique - a good
-> technique when you're trying to sneak in special handling for your
-> special driver, but not a good technique once you go to mainline.)
->
-> I haven't worked out the full consequences of these lost pages:
-> perhaps it's no worse than that you could never properly enforce
-> your ksm_thread_max_kernel_pages quota.
->   
-
-You mean the shared pages outside the stable tree comment?
-
->   
->> (when someone do echo 0 > /sys/kernel/mm/ksm/run ksm will throw away all the
->> memory, so condtion when the memory wont ever be free wont happen)
->>
->>
->> Another important thing is: this is request for comment, i still not sure few
->> things that we have made here are totaly safe:
->> (the mmlist sync with drain_mmlist, and the handle_vmas() function in madvise,
->> the logic inside ksm for searching the next virtual address on the vmas,
->> and so on...)
->> The main purpuse of this is to ask if the new interface is what you guys
->> want..., and if you like the impelmantion desgin.
->>     
->
-> It's in the right direction.  But it would be silly for me to start
-> criticizing your details now: I need to try doing the same, that will
-> force me to think deeply enough about it, and I may then be led to
-> the same decisions as you made.
->
->   
->> (I have added option to scan closed support applications as well)
->>     
->
-> That's a nice detail that I'll find very useful for testing,
-> but we might want to hold it back longer than the rest.  I just get
-> naturally more cautious when we consider interfaces for doing things
-> to other processes, and want to spend even longer over it.
->
->   
->> Thanks.
->>
->> Izik Eidus (4):
->>   madvice: add MADV_SHAREABLE and MADV_UNSHAREABLE calls.
->>     
->
-> I didn't understand why you went over to VM_MERGEABLE but stuck
-> with MADV_SHAREABLE: there's a confusing mix of shareables and
-> mergeables, I'll head for mergeables throughout, though keep to "KSM".
->
->   
->>   mmlist: share mmlist with ksm.
->>   ksm: change ksm api to use madvise instead of ioctls.
->>   ksm: add support for scanning procsses that were not modifided to use
->>     ksm
->>     
->
-> While I'm being communicative, let me mention two things,
-> not related to this RFC patchset, but to what's currently in mmotm.
->
-> I've a bugfix patch to scan_get_next_index(), I'll send that to you
->   
-
-Thanks.
-
-
-> in a few moments.
->
-> And a question on your page_wrprotect() addition to mm/rmap.c: though
-> it may contain some important checks (I'm thinking of the get_user_pages
-> protection), isn't it essentially redundant, and should be removed from
-> the patchset?  If we have a private page which is mapped into more than
-> the one address space by which we arrive at it, then, quite independent
-> of KSM, it needs to be write-protected already to prevent mods in one
-> address space leaking into another - doesn't it?  So I see no need for
-> the rmap'ped write-protection there, just make the checks and write
-> protect the pte you have in ksm.c.  Or am I missing something?
->   
-
-Ok, so we have here 2 cases for ksm:
-1:
-    When the page is anonymous and is mapped readonly beteween serveal 
-processes:
-         for this you say we shouldnt walk over the rmap and try to 
-writeprotect what is already writeprtected...
-
-2:
-   When the page is anonymous and is mapped write by just one process:
-       for this you say it is better to handle it directly from inside 
-ksm beacuse we already know
-       the virtual address mapping of this page?
-
-       so about this: you are right about the fact that we might dont 
-have to walk over the rmap of the page for pages with mapcount 1
-       but isnt it cleaner to deal it inside rmap.c?
-       another thing,  get_user_pages() protection is needed even in 
-that case, beacuse get_user_pages_fast is lockless, so odirect
-       can run under our legs after we write protecting the page.
-
-
-      anyway, nothing critical, i dont mind to move 
-page_write_protect_one() into ksm.c, i still think get_user_pages 
-protection is needed.
-
-
-Thanks alot for your time.
-> Hugh
->   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
