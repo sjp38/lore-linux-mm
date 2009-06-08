@@ -1,138 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 43A826B0055
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 11:23:42 -0400 (EDT)
-Date: Mon, 8 Jun 2009 17:35:36 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH mmotm] ksm: stop scan skipping pages
-In-Reply-To: <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0906081733390.7729@sister.anvils>
-References: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
- <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 01B946B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:18:14 -0400 (EDT)
+Message-ID: <4A2D47C1.5020302@redhat.com>
+Date: Mon, 08 Jun 2009 20:17:53 +0300
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/4] RFC - ksm api change into madvise
+References: <1242261048-4487-1-git-send-email-ieidus@redhat.com> <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0906081555360.22943@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KSM can be slow to identify all mergeable pages.  There's an off-by-one
-in how ksm_scan_start() proceeds (see how it does a scan_get_next_index
-at the head of its loop, but also on leaving its loop), which causes it
-to skip over a page occasionally.  Fix that.
+Hugh Dickins wrote:
+> On Thu, 14 May 2009, Izik Eidus wrote:
+>
+>   
+>> This is comment request for ksm api changes.
+>> The following patchs move the api to use madvise instead of ioctls.
+>>     
+>
+> Thanks a lot for doing this.
+>
+> I'm afraid more than three weeks have gone past, and the 2.6.31
+> merge window is almost upon us, and you haven't even got a comment
+> out of me: I apologize for that.
+>
+> Although my (lack of) response is indistinguishable from a conspiracy
+> to keep KSM out of the kernel, I beg to assure you that's not the case.
+> I do want KSM to go in - though I never shared Andrew's optimism that it
+> is 2.6.31 material: I've too long a list of notes/doubts on the existing
+> implementation, which I've not had time to expand upon to you; but I
+> don't think there are any killer issues, we should be able to work
+> things out as 2.6.31 goes through its -rcs, and aim for 2.6.32.
+>
+> But let's get this change of interface sorted out first.
+>   
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
+Agree.
 
- mm/ksm.c |   46 +++++++++++++++++++---------------------------
- 1 file changed, 19 insertions(+), 27 deletions(-)
+> I remain convinced that it's right to go the madvise() route,
+> though I don't necessarily like the details in your patches.
+> And I've come to the conclusion that the only way I can force
+> myself to contribute constructively, is to start from these
+> patches, and shift things around until it's as I think it
+> should be, then see what you think of the result.
+>   
 
---- mmotm/mm/ksm.c	2009-06-08 13:14:36.000000000 +0100
-+++ fixed/mm/ksm.c	2009-06-08 13:18:30.000000000 +0100
-@@ -1331,30 +1331,26 @@ out:
- /* return -EAGAIN - no slots registered, nothing to be done */
- static int scan_get_next_index(struct ksm_scan *ksm_scan)
- {
--	struct ksm_mem_slot *slot;
-+	struct list_head *next;
- 
- 	if (list_empty(&slots))
- 		return -EAGAIN;
- 
--	slot = ksm_scan->slot_index;
--
- 	/* Are there pages left in this slot to scan? */
--	if ((slot->npages - ksm_scan->page_index - 1) > 0) {
--		ksm_scan->page_index++;
-+	ksm_scan->page_index++;
-+	if (ksm_scan->page_index < ksm_scan->slot_index->npages)
- 		return 0;
--	}
- 
--	list_for_each_entry_from(slot, &slots, link) {
--		if (slot == ksm_scan->slot_index)
--			continue;
--		ksm_scan->page_index = 0;
--		ksm_scan->slot_index = slot;
-+	ksm_scan->page_index = 0;
-+	next = ksm_scan->slot_index->link.next;
-+	if (next != &slots) {
-+		ksm_scan->slot_index =
-+			list_entry(next, struct ksm_mem_slot, link);
- 		return 0;
- 	}
- 
- 	/* look like we finished scanning the whole memory, starting again */
- 	root_unstable_tree = RB_ROOT;
--	ksm_scan->page_index = 0;
- 	ksm_scan->slot_index = list_first_entry(&slots,
- 						struct ksm_mem_slot, link);
- 	return 0;
-@@ -1366,21 +1362,22 @@ static int scan_get_next_index(struct ks
-  * pointed to was released so we have to call this function every time after
-  * taking the slots_lock
-  */
--static void scan_update_old_index(struct ksm_scan *ksm_scan)
-+static int scan_update_old_index(struct ksm_scan *ksm_scan)
- {
- 	struct ksm_mem_slot *slot;
- 
- 	if (list_empty(&slots))
--		return;
-+		return -EAGAIN;
- 
- 	list_for_each_entry(slot, &slots, link) {
- 		if (ksm_scan->slot_index == slot)
--			return;
-+			return 0;
- 	}
- 
- 	ksm_scan->slot_index = list_first_entry(&slots,
- 						struct ksm_mem_slot, link);
- 	ksm_scan->page_index = 0;
-+	return 0;
- }
- 
- /**
-@@ -1399,20 +1396,14 @@ static int ksm_scan_start(struct ksm_sca
- 	struct ksm_mem_slot *slot;
- 	struct page *page[1];
- 	int val;
--	int ret = 0;
-+	int ret;
- 
- 	down_read(&slots_lock);
-+	ret = scan_update_old_index(ksm_scan);
- 
--	scan_update_old_index(ksm_scan);
--
--	while (scan_npages > 0) {
--		ret = scan_get_next_index(ksm_scan);
--		if (ret)
--			goto out;
--
--		slot = ksm_scan->slot_index;
--
-+	while (scan_npages && !ret) {
- 		cond_resched();
-+		slot = ksm_scan->slot_index;
- 
- 		/*
- 		 * If the page is swapped out or in swap cache, we don't want to
-@@ -1433,10 +1424,11 @@ static int ksm_scan_start(struct ksm_sca
- 		} else {
- 			up_read(&slot->mm->mmap_sem);
- 		}
-+
-+		ret = scan_get_next_index(ksm_scan);
- 		scan_npages--;
- 	}
--	scan_get_next_index(ksm_scan);
--out:
-+
- 	up_read(&slots_lock);
- 	return ret;
- }
+Sound perfect way to go.
+
+> I notice that you chose to integrate fully (though not fully enough)
+> with vmas, adding a VM_MERGEABLE flag.  Fine, that's probably going
+> to be safest in the end, and I'll follow you; but it is further than
+> I was necessarily asking you to go - it might have been okay to use
+> the madvise() interface, but just to declare areas of address space
+> (not necessarily backed by mappings) to ksm.c, as you did via /dev/ksm.
+> But it's fairly likely that if you had stayed with that, it would have
+> proved problematic later, so let's go forward with the full integration
+> with vmas.
+>
+>   
+>> Before i will describe the patchs, i want to note that i rewrote this
+>> patch seires alot of times, all the other methods that i have tried had some
+>> fandumatel issues with them.
+>> The current implemantion does have some issues with it, but i belive they are
+>> all solveable and better than the other ways to do it.
+>> If you feel you have better way how to do it, please tell me :).
+>>
+>> Ok when we changed ksm to use madvise instead of ioctls we wanted to keep
+>> the following rules:
+>>
+>> Not to increase the host memory usage if ksm is not being used (even when it
+>> is compiled), this mean not to add fields into mm_struct / vm_area_struct...
+>>
+>> Not to effect the system performence with notifiers that will have to block
+>> while ksm code is running under some lock - ksm is helper, it should do it
+>> work quitely, - this why i dropped patch that i did that add mmu notifiers
+>> support inside ksm.c and recived notifications from the MM (for example
+>> when vma is destroyed (invalidate_range...)
+>>
+>> Not to change the MM logic.
+>>
+>> Trying to touch as less code as we can outisde ksm.c
+>>     
+>
+> These are well-intentioned goals, and thank you for making the effort
+> to follow them; but I'm probably going to depart from them.  I'd
+> rather we put in what's necessary and appropriate, and then cut
+> that down if necessary.
+>   
+
+That the way to go, i just didnt want to scare anyone (it was obiouse to 
+me that it is needed, just wanted you to say it is needed)
+
+>   
+>> Taking into account all this rules, the end result that we have came with is:
+>> mmlist is now not used only by swapoff, but by ksm as well, this mean that
+>> each time you call to madvise for to set vma as MERGEABLE, madvise will check
+>> if the mm_struct is inside the mmlist and will insert it in case it isnt.
+>> It is belived that it is better to hurt little bit the performence of swapoff
+>> than adding another list into the mm_struct.
+>>     
+>
+> That was a perfectly sensible thing for you to do, given your rules
+> above; but I don't really like the result, and think it'll be clearer
+> to have your own list.  Whether by mm or by vma, I've not yet decided:
+> by mm won't add enough #idef CONFIG_KSM bloat to worry about; by vma,
+> we might be able to reuse some prio_tree fields, I've not checked yet.
+>
+>   
+>> One issue that should be note is: after mm_struct is going into the mmlist, it
+>> wont be kicked from it until the procsses is die (even if there are no more
+>> VM_MERGEABLE vmas), this doesnt mean memory is wasted, but it does mean ksm
+>> will spend little more time in doing cur = cur->next if(...).
+>>
+>> Another issue is: when procsess is die, ksm will have to find (when scanning)
+>> that its mm_users == 1 and then do mmput(), this mean that there might be dealy
+>> from the time that someone do kill until the mm is really free -
+>> i am open for suggestions on how to improve this...
+>>     
+>
+> You've resisted putting in the callbacks you need.  I think they were
+> always (i.e. even when using /dev/ksm) necessary, but should become
+> more obvious now we have this tighter integration with mm's vmas.
+>
+> You seem to have no callback in fork: doesn't that mean that KSM
+> pages get into mms of which mm/ksm.c has no knowledge?  
+What you mean by this?, should the vma flags be copyed into the child 
+and therefore ksm will scan the vma?
+(only thing i have to check is: maybe the process itself wont go into 
+the mmlist, and therefore ksm wont know about it)
+
+> You had
+> no callback in mremap move: doesn't that mean that KSM pages could
+> be moved into areas which mm/ksm.c never tracked?  Though that's
+> probably no issue now we move over to vmas: they should now travel
+> with their VM flag.  You have no callback in unmap: doesn't that
+> mean that KSM never knows when its pages have gone away?
+>   
+
+Yes, Adding all this callbacks would make ksm much more happy, Again, i 
+didnt want to scare anyone...
+
+> (Closing the /dev/ksm fd used to clean up some of this, in the
+> end; but the lifetime of the fd can be so different from that of
+> the mapped area, I've felt very unsafe with that technique - a good
+> technique when you're trying to sneak in special handling for your
+> special driver, but not a good technique once you go to mainline.)
+>
+> I haven't worked out the full consequences of these lost pages:
+> perhaps it's no worse than that you could never properly enforce
+> your ksm_thread_max_kernel_pages quota.
+>   
+
+You mean the shared pages outside the stable tree comment?
+
+>   
+>> (when someone do echo 0 > /sys/kernel/mm/ksm/run ksm will throw away all the
+>> memory, so condtion when the memory wont ever be free wont happen)
+>>
+>>
+>> Another important thing is: this is request for comment, i still not sure few
+>> things that we have made here are totaly safe:
+>> (the mmlist sync with drain_mmlist, and the handle_vmas() function in madvise,
+>> the logic inside ksm for searching the next virtual address on the vmas,
+>> and so on...)
+>> The main purpuse of this is to ask if the new interface is what you guys
+>> want..., and if you like the impelmantion desgin.
+>>     
+>
+> It's in the right direction.  But it would be silly for me to start
+> criticizing your details now: I need to try doing the same, that will
+> force me to think deeply enough about it, and I may then be led to
+> the same decisions as you made.
+>
+>   
+>> (I have added option to scan closed support applications as well)
+>>     
+>
+> That's a nice detail that I'll find very useful for testing,
+> but we might want to hold it back longer than the rest.  I just get
+> naturally more cautious when we consider interfaces for doing things
+> to other processes, and want to spend even longer over it.
+>
+>   
+>> Thanks.
+>>
+>> Izik Eidus (4):
+>>   madvice: add MADV_SHAREABLE and MADV_UNSHAREABLE calls.
+>>     
+>
+> I didn't understand why you went over to VM_MERGEABLE but stuck
+> with MADV_SHAREABLE: there's a confusing mix of shareables and
+> mergeables, I'll head for mergeables throughout, though keep to "KSM".
+>
+>   
+>>   mmlist: share mmlist with ksm.
+>>   ksm: change ksm api to use madvise instead of ioctls.
+>>   ksm: add support for scanning procsses that were not modifided to use
+>>     ksm
+>>     
+>
+> While I'm being communicative, let me mention two things,
+> not related to this RFC patchset, but to what's currently in mmotm.
+>
+> I've a bugfix patch to scan_get_next_index(), I'll send that to you
+>   
+
+Thanks.
+
+
+> in a few moments.
+>
+> And a question on your page_wrprotect() addition to mm/rmap.c: though
+> it may contain some important checks (I'm thinking of the get_user_pages
+> protection), isn't it essentially redundant, and should be removed from
+> the patchset?  If we have a private page which is mapped into more than
+> the one address space by which we arrive at it, then, quite independent
+> of KSM, it needs to be write-protected already to prevent mods in one
+> address space leaking into another - doesn't it?  So I see no need for
+> the rmap'ped write-protection there, just make the checks and write
+> protect the pte you have in ksm.c.  Or am I missing something?
+>   
+
+Ok, so we have here 2 cases for ksm:
+1:
+    When the page is anonymous and is mapped readonly beteween serveal 
+processes:
+         for this you say we shouldnt walk over the rmap and try to 
+writeprotect what is already writeprtected...
+
+2:
+   When the page is anonymous and is mapped write by just one process:
+       for this you say it is better to handle it directly from inside 
+ksm beacuse we already know
+       the virtual address mapping of this page?
+
+       so about this: you are right about the fact that we might dont 
+have to walk over the rmap of the page for pages with mapcount 1
+       but isnt it cleaner to deal it inside rmap.c?
+       another thing,  get_user_pages() protection is needed even in 
+that case, beacuse get_user_pages_fast is lockless, so odirect
+       can run under our legs after we write protecting the page.
+
+
+      anyway, nothing critical, i dont mind to move 
+page_write_protect_one() into ksm.c, i still think get_user_pages 
+protection is needed.
+
+
+Thanks alot for your time.
+> Hugh
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
