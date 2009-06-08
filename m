@@ -1,81 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 64E1D6B0055
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 07:45:53 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C160A6B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 08:13:18 -0400 (EDT)
+Date: Mon, 8 Jun 2009 14:29:50 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/3] Properly account for the number of page cache pages zone_reclaim() can reclaim
-Date: Mon,  8 Jun 2009 14:01:29 +0100
-Message-Id: <1244466090-10711-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1244466090-10711-1-git-send-email-mel@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH] Add a gfp-translate script to help understand page
+	allocation failure reports
+Message-ID: <20090608132950.GB15070@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On NUMA machines, the administrator can configure zone_relcaim_mode that
-is a more targetted form of direct reclaim. On machines with large NUMA
-distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-unmapped pages will be reclaimed if the zone watermarks are not being met.
+The page allocation failure messages include a line that looks like
 
-There is a heuristic that determines if the scan is worthwhile but the
-problem is that the heuristic is not being properly applied and is basically
-assuming zone_reclaim_mode is 1 if it is enabled.
+page allocation failure. order:1, mode:0x4020
 
-This patch makes zone_reclaim() makes a better attempt at working out how
-many pages it might be able to reclaim given the current reclaim_mode. If it
-cannot clean pages, then NR_FILE_DIRTY number of pages are not candidates. If
-it cannot swap, then NR_FILE_MAPPED are not. This indirectly addresses tmpfs
-as those pages tend to be dirty as they are not cleaned by pdflush or sync.
+The mode is easy to translate but irritating for the lazy and a bit error
+prone. This patch adds a very simple helper script gfp-translate for the mode:
+portion of the page allocation failure messages. An example usage looks like
 
-The ideal would be that the number of tmpfs pages would also be known
-and account for like NR_FILE_MAPPED as swap is required to discard them.
-A means of working this out quickly was not obvious but a comment is added
-noting the problem.
+  mel@machina:~/linux-2.6 $ scripts/gfp-translate 0x4020
+  Source: /home/mel/linux-2.6
+  Parsing: 0x4020
+  #define __GFP_HIGH	(0x20)	/* Should access emergency pools? */
+  #define __GFP_COMP	(0x4000) /* Add compound page metadata */
+
+The script is not a work of art but it has come in handy for me a few times
+so I thought I would share.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   18 ++++++++++++++++--
- 1 files changed, 16 insertions(+), 2 deletions(-)
+--- 
+ scripts/gfp-translate |   81 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ba211c1..ffe2f32 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2380,6 +2380,21 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- {
- 	int node_id;
- 	int ret;
-+	int pagecache_reclaimable;
+diff --git a/scripts/gfp-translate b/scripts/gfp-translate
+new file mode 100755
+index 0000000..724db2d
+--- /dev/null
++++ b/scripts/gfp-translate
+@@ -0,0 +1,81 @@
++#!/bin/bash
++# Translate the bits making up a GFP mask
++# (c) 2009, Mel Gorman <mel@csn.ul.ie>
++# Licensed under the terms of the GNU GPL License version 2
++SOURCE=
++GFPMASK=none
 +
-+	/*
-+	 * Work out how many page cache pages we can reclaim in this mode.
-+	 *
-+	 * NOTE: Ideally, tmpfs pages would be accounted as if they were
-+	 *       NR_FILE_MAPPED as swap is required to discard those
-+	 *       pages even when they are clean. However, there is no
-+	 *       way of quickly identifying the number of tmpfs pages
-+	 */
-+	pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
-+	if (!(zone_reclaim_mode & RECLAIM_WRITE))
-+		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_DIRTY);
-+	if (!(zone_reclaim_mode & RECLAIM_SWAP))
-+		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_MAPPED);
- 
- 	/*
- 	 * Zone reclaim reclaims unmapped file backed pages and
-@@ -2391,8 +2406,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 * if less than a specified percentage of the zone is used by
- 	 * unmapped file backed pages.
- 	 */
--	if (zone_page_state(zone, NR_FILE_PAGES) -
--	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages
-+	if (pagecache_reclaimable <= zone->min_unmapped_pages
- 	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
- 			<= zone->min_slab_pages)
- 		return 0;
--- 
-1.5.6.5
++# Helper function to report failures and exit
++die() {
++	echo ERROR: $@
++	if [ "$TMPFILE" != "" ]; then
++		rm -f $TMPFILE
++	fi
++	exit -1
++}
++
++usage() {
++	echo "usage: gfp-translate [-h] [ --source DIRECTORY ] gfpmask"
++	exit 0
++}
++
++# Parse command-line arguements
++while [ $# -gt 0 ]; do
++	case $1 in
++		--source)
++			SOURCE=$2
++			shift 2
++			;;
++		-h)
++			usage
++			;;
++		--help)
++			usage
++			;;
++		*)
++			GFPMASK=$1
++			shift
++			;;
++	esac
++done
++
++# Guess the kernel source directory if it's not set. Preference is in order of
++# o current directory
++# o /usr/src/linux
++if [ "$SOURCE" = "" ]; then
++	if [ -r "/usr/src/linux/Makefile" ]; then
++		SOURCE=/usr/src/linux
++	fi
++	if [ -r "`pwd`/Makefile" ]; then
++		SOURCE=`pwd`
++	fi
++fi
++
++# Confirm that a source directory exists
++if [ ! -r "$SOURCE/Makefile" ]; then
++	die "Could not locate source directory or it is invalid"
++fi
++
++# Confirm that a GFP mask has been specified
++if [ "$GFPMASK" = "none" ]; then
++	usage
++fi
++
++# Extract GFP flags from the kernel source
++TMPFILE=`mktemp -t gfptranslate-XXXXXX` || exit 1
++grep "^#define __GFP" $SOURCE/include/linux/gfp.h | sed -e 's/(__force gfp_t)//' | sed -e 's/u)/)/' | grep -v GFP_BITS | sed -e 's/)\//) \//' > $TMPFILE
++
++# Parse the flags
++IFS="
++"
++echo Source: $SOURCE
++echo Parsing: $GFPMASK
++for LINE in `cat $TMPFILE`; do
++	MASK=`echo $LINE | awk '{print $3}'`
++	if [ $(($GFPMASK&$MASK)) -ne 0 ]; then
++		echo $LINE
++	fi
++done
++
++rm -f $TMPFILE
++exit 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
