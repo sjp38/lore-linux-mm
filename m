@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6825C6B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:58:59 -0400 (EDT)
-Date: Mon, 8 Jun 2009 19:58:08 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc][patch] swap: virtual swap readahead
-Message-ID: <20090608175808.GD7563@cmpxchg.org>
-References: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org> <20090608075246.GA12644@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090608075246.GA12644@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 997AB6B005A
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 14:02:21 -0400 (EDT)
+Date: Mon, 8 Jun 2009 11:01:51 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 0/23] File descriptor hot-unplug support v2
+In-Reply-To: <20090608175018.GM8633@ZenIV.linux.org.uk>
+Message-ID: <alpine.LFD.2.01.0906081100000.6847@localhost.localdomain>
+References: <m1skkf761y.fsf@fess.ebiederm.org> <m1oct739xu.fsf@fess.ebiederm.org> <20090606080334.GA15204@ZenIV.linux.org.uk> <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu> <20090608162913.GL8633@ZenIV.linux.org.uk> <E1MDhxh-0004nz-Qm@pomaz-ex.szeredi.hu>
+ <20090608175018.GM8633@ZenIV.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, ebiederm@xmission.com, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, akpm@linux-foundation.org, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 08, 2009 at 03:52:46PM +0800, Wu Fengguang wrote:
-> On Wed, May 27, 2009 at 05:05:46PM +0200, Johannes Weiner wrote:
-> > The current swap readahead implementation reads a physically
-> > contiguous group of swap slots around the faulting page to take
-> > advantage of the disk head's position and in the hope that the
-> > surrounding pages will be needed soon as well.
-> > 
-> > This works as long as the physical swap slot order approximates the
-> > LRU order decently, otherwise it wastes memory and IO bandwidth to
-> > read in pages that are unlikely to be needed soon.
-> > 
-> > However, the physical swap slot layout diverges from the LRU order
-> > with increasing swap activity, i.e. high memory pressure situations,
-> > and this is exactly the situation where swapin should not waste any
-> > memory or IO bandwidth as both are the most contended resources at
-> > this point.
-> > 
-> > This patch makes swap-in base its readaround window on the virtual
-> > proximity of pages in the faulting VMA, as an indicator for pages
-> > needed in the near future, while still taking physical locality of
-> > swap slots into account.
-> > 
-> > This has the advantage of reading in big batches when the LRU order
-> > matches the swap slot order while automatically throttling readahead
-> > when the system is thrashing and swap slots are no longer nicely
-> > grouped by LRU order.
-> 
-> Hi Johannes,
-> 
-> You may want to test the patch against a real desktop :)
-> The attached scripts can do that. I also have the setup to
-> test it out conveniently, so if you send me the latest patch..
 
-Thanks a bunch for the offer!  I'm just now incorporating Hugh's
-feedback and hope I will be back soon with the next version.  I will
-let you know, for sure.
 
-	Hannes
+On Mon, 8 Jun 2009, Al Viro wrote:
+> 
+> Welcome to reality...
+> 
+> * bread() is non-interruptible
+> * so's copy_from_user()/copy_to_user()
+> * IO we are stuck upon _might_ be interruptible, but by sending a signal
+> to some other process
+
+We can probably improve on these, though.
+
+Like the copy_to/from_user thing. We might well be able to do that whole 
+"if it's a fatal signal, return early" thing.
+
+So in the _general_ case - no, we probably can't fix things. But we could 
+likely at least improve in some common cases if we cared.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
