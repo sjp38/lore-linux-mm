@@ -1,97 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id F22CA6B004F
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:30:27 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 5so1832719ywm.26
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2009 10:30:51 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 996416B0062
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:42:29 -0400 (EDT)
+Message-ID: <4A2D4D9F.8080103@redhat.com>
+Date: Mon, 08 Jun 2009 20:42:55 +0300
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0906081126260.5754@gentwo.org>
-References: <20090608091044.880249722@intel.com>
-	 <20090608091201.953724007@intel.com>
-	 <alpine.DEB.1.10.0906081126260.5754@gentwo.org>
-Date: Tue, 9 Jun 2009 01:30:51 +0800
-Message-ID: <ab418ea90906081030s3dca33a1l91591918abe37588@mail.gmail.com>
-Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first class
-	citizen
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH mmotm] ksm: stop scan skipping pages
+References: <1242261048-4487-1-git-send-email-ieidus@redhat.com> <Pine.LNX.4.64.0906081555360.22943@sister.anvils> <Pine.LNX.4.64.0906081733390.7729@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0906081733390.7729@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 8, 2009 at 11:34 PM, Christoph
-Lameter<cl@linux-foundation.org> wrote:
-> On Mon, 8 Jun 2009, Wu Fengguang wrote:
+Hugh Dickins wrote:
+> KSM can be slow to identify all mergeable pages.  There's an off-by-one
+> in how ksm_scan_start() proceeds (see how it does a scan_get_next_index
+> at the head of its loop, but also on leaving its loop), which causes it
+> to skip over a page occasionally.  Fix that.
 >
->> 1.2) test scenario
->>
->> - nfsroot gnome desktop with 512M physical memory
->> - run some programs, and switch between the existing windows
->> =A0 after starting each new program.
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> ---
 >
-> Is there a predefined sequence or does this vary between tests? Scripted?
+>  mm/ksm.c |   46 +++++++++++++++++++---------------------------
+>  1 file changed, 19 insertions(+), 27 deletions(-)
 >
-> What percentage of time is saved in the test after due to the
-> modifications?
-> Around 20%?
+> --- mmotm/mm/ksm.c	2009-06-08 13:14:36.000000000 +0100
+> +++ fixed/mm/ksm.c	2009-06-08 13:18:30.000000000 +0100
+> @@ -1331,30 +1331,26 @@ out:
+>  /* return -EAGAIN - no slots registered, nothing to be done */
+>  static int scan_get_next_index(struct ksm_scan *ksm_scan)
+>  {
+> -	struct ksm_mem_slot *slot;
+> +	struct list_head *next;
+>  
+>  	if (list_empty(&slots))
+>  		return -EAGAIN;
+>  
+> -	slot = ksm_scan->slot_index;
+> -
+>  	/* Are there pages left in this slot to scan? */
+> -	if ((slot->npages - ksm_scan->page_index - 1) > 0) {
+> -		ksm_scan->page_index++;
+> +	ksm_scan->page_index++;
+> +	if (ksm_scan->page_index < ksm_scan->slot_index->npages)
+>  		return 0;
+> -	}
+>  
+> -	list_for_each_entry_from(slot, &slots, link) {
+> -		if (slot == ksm_scan->slot_index)
+> -			continue;
+> -		ksm_scan->page_index = 0;
+> -		ksm_scan->slot_index = slot;
+> +	ksm_scan->page_index = 0;
+> +	next = ksm_scan->slot_index->link.next;
+> +	if (next != &slots) {
+> +		ksm_scan->slot_index =
+> +			list_entry(next, struct ksm_mem_slot, link);
+>  		return 0;
+>  	}
+>  
+>  	/* look like we finished scanning the whole memory, starting again */
+>  	root_unstable_tree = RB_ROOT;
+> -	ksm_scan->page_index = 0;
+>  	ksm_scan->slot_index = list_first_entry(&slots,
+>  						struct ksm_mem_slot, link);
+>  	return 0;
+> @@ -1366,21 +1362,22 @@ static int scan_get_next_index(struct ks
+>   * pointed to was released so we have to call this function every time after
+>   * taking the slots_lock
+>   */
+> -static void scan_update_old_index(struct ksm_scan *ksm_scan)
+> +static int scan_update_old_index(struct ksm_scan *ksm_scan)
+>  {
+>  	struct ksm_mem_slot *slot;
+>  
+>  	if (list_empty(&slots))
+> -		return;
+> +		return -EAGAIN;
+>  
+>  	list_for_each_entry(slot, &slots, link) {
+>  		if (ksm_scan->slot_index == slot)
+> -			return;
+> +			return 0;
+>  	}
+>  
+>  	ksm_scan->slot_index = list_first_entry(&slots,
+>  						struct ksm_mem_slot, link);
+>  	ksm_scan->page_index = 0;
+> +	return 0;
+>  }
+>  
+>  /**
+> @@ -1399,20 +1396,14 @@ static int ksm_scan_start(struct ksm_sca
+>  	struct ksm_mem_slot *slot;
+>  	struct page *page[1];
+>  	int val;
+> -	int ret = 0;
+> +	int ret;
+>  
+>  	down_read(&slots_lock);
+> +	ret = scan_update_old_index(ksm_scan);
+>  
+> -	scan_update_old_index(ksm_scan);
+> -
+> -	while (scan_npages > 0) {
+> -		ret = scan_get_next_index(ksm_scan);
+> -		if (ret)
+> -			goto out;
+> -
+> -		slot = ksm_scan->slot_index;
+> -
+> +	while (scan_npages && !ret) {
+>  		cond_resched();
+> +		slot = ksm_scan->slot_index;
+>  
+>  		/*
+>  		 * If the page is swapped out or in swap cache, we don't want to
+> @@ -1433,10 +1424,11 @@ static int ksm_scan_start(struct ksm_sca
+>  		} else {
+>  			up_read(&slot->mm->mmap_sem);
+>  		}
+> +
+> +		ret = scan_get_next_index(ksm_scan);
+>  		scan_npages--;
+>  	}
+> -	scan_get_next_index(ksm_scan);
+> -out:
+> +
+>  	up_read(&slots_lock);
+>  	return ret;
+>  }
+>   
+ACK.
 
-I think measuring the percentage of saved time may not be a good idea.
-The major underlying  factor for time of swithing GUI windows may vary
-application to application, distribution to distribution and machine to
-machine. It's not reproducable.
-I am having a ridiculous timing for swithing from any window to window
-of slickedit, because of its damn slow redrawing method.
-I bet this patch will gain at most 1% on timing for this case. :)
+Thanks for the fix,
+(I saw it while i wrote the RFC patch for the madvise, but beacuse that 
+i thought that the RFC fix this (you can see the removel of the second 
+call to scan_get_next_index()), and we move to madvise, I thought that 
+no patch is needed for this code, guess I was wrong)
 
->
->> (1) begin: =A0 =A0 shortly after the big read IO starts;
->> (2) end: =A0 =A0 =A0 just before the big read IO stops;
->> (3) restore: =A0 the big read IO stops and the zsh working set restored
->> (4) restore X: after IO, switch back and forth between the urxvt and fir=
-efox
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0windows to restore their working set.
->
-> Any action done on the firefox sessions? Or just switch to a firefox
-> session that needs to redraw?
->
->> The above console numbers show that
->>
->> - The startup pgmajfault of 2.6.30-rc4-mm is merely 1/3 that of 2.6.29.
->> =A0 I'd attribute that improvement to the mmap readahead improvements :-=
-)
->
-> So there are other effects,,, You not measuring the effect only this
-> patchset?
->
->> - The pgmajfault increment during the file copy is 633-630=3D3 vs 260-21=
-0=3D50.
->> =A0 That's a huge improvement - which means with the VM_EXEC protection =
-logic,
->> =A0 active mmap pages is pretty safe even under partially cache hot stre=
-aming IO.
->
-> Looks good.
->
->> - The absolute nr_mapped drops considerably to 1/9 during the big IO, an=
-d the
->> =A0 dropped pages are mostly inactive ones. The patch has almost no impa=
-ct in
->> =A0 this aspect, that means it won't unnecessarily increase memory press=
-ure.
->> =A0 (In contrast, your 20% mmap protection ratio will keep them all, and
->> =A0 therefore eliminate the extra 41 major faults to restore working set
->> =A0 of zsh etc.)
->
-> Good.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
