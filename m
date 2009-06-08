@@ -1,76 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 040046B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 10:37:34 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E2C8F82C4DD
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 12:14:09 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id G1SJdw4KYgSR for <linux-mm@kvack.org>;
-	Mon,  8 Jun 2009 12:14:05 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 73FA382C4DB
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 12:14:02 -0400 (EDT)
-Date: Mon, 8 Jun 2009 11:34:06 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first class
- citizen
-In-Reply-To: <20090608091201.953724007@intel.com>
-Message-ID: <alpine.DEB.1.10.0906081126260.5754@gentwo.org>
-References: <20090608091044.880249722@intel.com> <20090608091201.953724007@intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5B06B005A
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 10:43:23 -0400 (EDT)
+Date: Mon, 8 Jun 2009 18:03:24 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] x86, UV: Fix nacros for multiple coherency domains
+Message-ID: <20090608160324.GA4355@elte.hu>
+References: <20090608154405.GA16395@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090608154405.GA16395@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Jack Steiner <steiner@sgi.com>
+Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Jun 2009, Wu Fengguang wrote:
 
-> 1.2) test scenario
->
-> - nfsroot gnome desktop with 512M physical memory
-> - run some programs, and switch between the existing windows
->   after starting each new program.
+* Jack Steiner <steiner@sgi.com> wrote:
 
-Is there a predefined sequence or does this vary between tests? Scripted?
+> Fix bug in the SGI UV macros that support systems with multiple 
+> coherency domains.  The macros used for referencing global MMR 
+> (chipset registers) are failing to correctly "or" the NASID (node 
+> identifier) bits that reside above M+N. These high bits are 
+> supplied automatically by the chipset for memory accesses coming 
+> from the processor socket. However, the bits must be present for 
+> references to the special global MMR space used to map chipset 
+> registers. (See uv_hub.h for more details ...)
+> 
+> The bug results in references to invalid/incorrect nodes.
+> 
+> Signed-off-by: Jack Steiner <steiner@sgi.com>
+> 
+> ---
+>  arch/x86/include/asm/uv/uv_hub.h   |    6 ++++--
+>  arch/x86/kernel/apic/x2apic_uv_x.c |   15 +++++++++------
+>  2 files changed, 13 insertions(+), 8 deletions(-)
 
-What percentage of time is saved in the test after due to the
-modifications?
-Around 20%?
+Applied, thanks Jack. Note - this has missed .30 but i marked it for 
+.30.1 backporting, because it obviously only affects UV code.
 
-> (1) begin:     shortly after the big read IO starts;
-> (2) end:       just before the big read IO stops;
-> (3) restore:   the big read IO stops and the zsh working set restored
-> (4) restore X: after IO, switch back and forth between the urxvt and firefox
->                windows to restore their working set.
-
-Any action done on the firefox sessions? Or just switch to a firefox
-session that needs to redraw?
-
-> The above console numbers show that
->
-> - The startup pgmajfault of 2.6.30-rc4-mm is merely 1/3 that of 2.6.29.
->   I'd attribute that improvement to the mmap readahead improvements :-)
-
-So there are other effects,,, You not measuring the effect only this
-patchset?
-
-> - The pgmajfault increment during the file copy is 633-630=3 vs 260-210=50.
->   That's a huge improvement - which means with the VM_EXEC protection logic,
->   active mmap pages is pretty safe even under partially cache hot streaming IO.
-
-Looks good.
-
-> - The absolute nr_mapped drops considerably to 1/9 during the big IO, and the
->   dropped pages are mostly inactive ones. The patch has almost no impact in
->   this aspect, that means it won't unnecessarily increase memory pressure.
->   (In contrast, your 20% mmap protection ratio will keep them all, and
->   therefore eliminate the extra 41 major faults to restore working set
->   of zsh etc.)
-
-Good.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
