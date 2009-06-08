@@ -1,168 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BA4DA6B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 06:37:25 -0400 (EDT)
-Date: Mon, 8 Jun 2009 12:50:48 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
-Message-ID: <20090608115048.GA15070@csn.ul.ie>
-References: <20090604192236.9761.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7885B6B0055
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 07:00:41 -0400 (EDT)
+Received: by gxk27 with SMTP id 27so1943535gxk.14
+        for <linux-mm@kvack.org>; Mon, 08 Jun 2009 05:14:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090604192236.9761.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090520153851.GA6572@localhost>
+References: <alpine.DEB.1.10.0905181045340.20244@qirst.com>
+	 <20090519032759.GA7608@localhost>
+	 <20090519133422.4ECC.A69D9226@jp.fujitsu.com>
+	 <20090519062503.GA9580@localhost> <87pre4nhqf.fsf@basil.nowhere.org>
+	 <20090520143258.GA5706@localhost>
+	 <20090520144731.GB4753@basil.nowhere.org>
+	 <20090520145607.GA6281@localhost> <20090520153851.GA6572@localhost>
+Date: Mon, 8 Jun 2009 20:14:53 +0800
+Message-ID: <ab418ea90906080514k6f46d3fay6a5fe0b848c8ca50@mail.gmail.com>
+Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first class
+	citizen
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: gnome-list@gnome.org, Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "xorg@lists.freedesktop.org" <xorg@lists.freedesktop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 04, 2009 at 07:23:15PM +0900, KOSAKI Motohiro wrote:
-> 
-> Current linux policy is, zone_reclaim_mode is enabled by default if the machine
-> has large remote node distance. it's because we could assume that large distance
-> mean large server until recently.
-> 
+On Wed, May 20, 2009 at 11:38 PM, Wu Fengguang<fengguang.wu@intel.com> wrot=
+e:
+> Hi list,
+>
+> On Wed, May 20, 2009 at 10:56:07PM +0800, Wu Fengguang wrote:
+>> On Wed, May 20, 2009 at 10:47:31PM +0800, Andi Kleen wrote:
+>> > > > One scenario that might be useful to test is what happens when som=
+e
+>> > > > very large processes, all mapped and executable exceed memory and
+>> > >
+>> > > Good idea. Too bad I may have to install some bloated desktop in ord=
+er
+>> > > to test this out ;) I guess the pgmajfault+pswpin numbers can serve =
+as
+>> > > negative scores in that case?
+>> >
+>> > I would just generate a large C program with a script and compile
+>> > and run that. The program can be very dumb (e.g. only run
+>> > a gigantic loop), it just needs to be large.
+>> >
+>> > Just don't compile it with optimization, that can be quite slow.
+>> >
+>> > And use multiple functions, otherwise gcc might exceed your memory.
+>>
+>>
+>> Hehe, an arbitrary C program may not be persuasive..but I do have some
+>> bloated binaries at hand :-)
+>>
+>> -rwsr-sr-x 1 root wfg =A0 36M 2009-04-22 17:21 Xorg
+>> lrwxrwxrwx 1 wfg =A0wfg =A0 =A0 4 2009-04-22 17:21 X -> Xorg
+>> -rwxr-xr-x 1 wfg =A0wfg =A0 39M 2009-04-22 17:21 Xvfb
+>> -rwxr-xr-x 1 wfg =A0wfg =A0 35M 2009-04-22 17:21 Xnest
+>
+> I would like to create a lot of windows in gnome, and to switch
+> between them. Any ideas on scripting/automating the "switch window"
+> actions?
 
-We don't make assumptions about the server being large, small or otherwise. The
-affinity tables reporting a distance of 20 or more is saying "remote memory
-has twice the latency of local memory". This is true irrespective of workload
-and implies that going off-node has a real penalty regardless of workload.
+You can easily do this in KDE 3.5 with dcop(Desktop Communications Protocol=
+)\
 
-> Unfortunately, recent modern x86 CPU (e.g. Core i7, Opeteron) have P2P transport
-> memory controller. IOW it's seen as NUMA from software view.
-> Some Core i7 machine has large remote node distance.
-> 
+e.g.
 
-If they have large remote node distance, they have large remote node
-distance. Now, if they are *lying* and remote memory is not really that
-expensive, then prehaps we should be thinking of a per-arch-per-chip
-modifier to the distances reported by ACPI.
+$dcop kchmviewer-17502 KCHMMainWindow raise
 
-> Yanmin reported zone_reclaim_mode=1 cause large apache regression.
-> 
->     One Nehalem machine has 12GB memory,
->     but there is always 2GB free although applications accesses lots of files.
->     Eventually we located the root cause as zone_reclaim_mode=1.
-> 
-> Actually, zone_reclaim_mode=1 mean "I dislike remote node allocation rather than
-> disk access", it makes performance improvement to HPC workload.
-> but it makes performance degression to desktop, file server and web server.
-> 
+will raise the window of my kchmviewer.
 
-How are you determining a performance regression to desktop? On a
-desktop, I would expect processes to be spread on the different CPUs for
-each of the nodes. In that case, memory faulted on each CPU should be
-faulted locally.
-
-If there are local processes that access a lot of files, then it might end
-up reclaiming those to keep memory local and this might be undesirable
-but this is explicitly documented;
-
-"It may be beneficial to switch off zone reclaim if the system is used for a
-file server and all of memory should be used for caching files from disk. In
-that case the caching effect is more important than data locality."
-
-Ideally we could detect if the machine was a file-server or not but no
-such luck.
-
-> In general, workload depended configration shouldn't put into default settings.
-> 
-> However, current code is long standing about two year. Highest POWER and IA64 HPC machine
-> (only) use this setting.
-> 
-> Thus, x86 and almost rest architecture change default setting, but Only power and ia64
-> remain current configuration for backward-compatibility.
-> 
-
-What about if it's x86-64-based NUMA but it's not i7 based. There, the
-NUMA distances might really mean something and that zone_reclaim behaviour
-is desirable.
-
-I think if we're going down the road of setting the default, it shouldn't be
-per-architecture defaults as such. Other choices for addressing this might be;
-
-1. Make RECLAIM_DISTANCE a variable on x86. Set it to 20 by default, and 5
-   (or some other sensible figure) on i7
-
-2. There should be a per-arch modifier callback for the affinity
-   distances. If the x86 code detects the CPU is an i7, it can reduce the
-   reported latencies to be more in line with expected reality.
-
-3. Do not use zone_reclaim() for file-backed data if more than 20% of memory
-   overall is free. The difficulty is figuring out if the allocation is for
-   file pages.
-
-4. Change zone_reclaim_mode default to mean "do your best to figure it
-   out". Patch 1 would default large distances to 1 to see what happens.
-   Then apply a heuristic when in figure-it-out mode and using reclaim_mode == 1
-
-	If we have locally reclaimed 2% of the nodes memory in file pages
-	within the last 5 seconds when >= 20% of total physical memory was
-	free, then set the reclaim_mode to 0 on the assumption the node is
-	mostly caching pages and shouldn't be reclaimed to avoid excessive IO
-
-Option 1 would appear to be the most straight-forward but option 2
-should be doable. Option 3 and 4 could turn into a rats nest and I would
-consider those approaches a bit more drastic.
-
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Robin Holt <holt@sgi.com>
-> Cc: "Zhang, Yanmin" <yanmin.zhang@intel.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@ozlabs.org
-> ---
->  arch/powerpc/include/asm/topology.h |    6 ++++++
->  include/linux/topology.h            |    7 +------
->  2 files changed, 7 insertions(+), 6 deletions(-)
-> 
-> Index: b/include/linux/topology.h
-> ===================================================================
-> --- a/include/linux/topology.h
-> +++ b/include/linux/topology.h
-> @@ -54,12 +54,7 @@ int arch_update_cpu_topology(void);
->  #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
->  #endif
->  #ifndef RECLAIM_DISTANCE
-> -/*
-> - * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
-> - * (in whatever arch specific measurement units returned by node_distance())
-> - * then switch on zone reclaim on boot.
-> - */
-> -#define RECLAIM_DISTANCE 20
-> +#define RECLAIM_DISTANCE INT_MAX
->  #endif
->  #ifndef PENALTY_FOR_NODE_WITH_CPUS
->  #define PENALTY_FOR_NODE_WITH_CPUS	(1)
-> Index: b/arch/powerpc/include/asm/topology.h
-> ===================================================================
-> --- a/arch/powerpc/include/asm/topology.h
-> +++ b/arch/powerpc/include/asm/topology.h
-> @@ -10,6 +10,12 @@ struct device_node;
->  
->  #include <asm/mmzone.h>
->  
-> +/*
-> + * Distance above which we begin to use zone reclaim
-> + */
-> +#define RECLAIM_DISTANCE 20
-> +
-> +
-
-Where is the ia-64-specific modifier to RECAIM_DISTANCE?
-
->  static inline int cpu_to_node(int cpu)
->  {
->  	return numa_cpu_lookup_table[cpu];
-> 
-> 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>
+> Thanks,
+> Fengguang
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
