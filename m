@@ -1,85 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3484E6B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 03:01:36 -0400 (EDT)
-Date: Mon, 8 Jun 2009 16:54:57 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH mmotm] vmscan: fix may_swap handling for memcg
-Message-Id: <20090608165457.fa8d17e6.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090608154634.437F.A69D9226@jp.fujitsu.com>
-References: <20090608121848.4370.A69D9226@jp.fujitsu.com>
-	<20090608153916.3ccaeb9a.nishimura@mxp.nes.nec.co.jp>
-	<20090608154634.437F.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E666C6B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 04:32:22 -0400 (EDT)
+In-reply-to: <20090606080334.GA15204@ZenIV.linux.org.uk> (message from Al Viro
+	on Sat, 6 Jun 2009 09:03:34 +0100)
+Subject: Re: [PATCH 0/23] File descriptor hot-unplug support v2
+References: <m1skkf761y.fsf@fess.ebiederm.org> <m1oct739xu.fsf@fess.ebiederm.org> <20090606080334.GA15204@ZenIV.linux.org.uk>
+Message-Id: <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 08 Jun 2009 11:41:19 +0200
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: viro@ZenIV.linux.org.uk
+Cc: ebiederm@xmission.com, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, akpm@linux-foundation.org, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  8 Jun 2009 15:53:50 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > On Mon,  8 Jun 2009 12:20:54 +0900 (JST), KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > > Hi
-> > > 
-> > Hi, thank you for your comment.
-> > 
-> > > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > 
-> > > > Commit 2e2e425989080cc534fc0fca154cae515f971cf5 ("vmscan,memcg: reintroduce
-> > > > sc->may_swap) add may_swap flag and handle it at get_scan_ratio().
-> > > > 
-> > > > But the result of get_scan_ratio() is ignored when priority == 0, and this
-> > > > means, when memcg hits the mem+swap limit, anon pages can be swapped
-> > > > just in vain. Especially when memcg causes oom by mem+swap limit,
-> > > > we can see many and many pages are swapped out.
-> > > > 
-> > > > Instead of not scanning anon lru completely when priority == 0, this patch adds
-> > > > a hook to handle may_swap flag in shrink_page_list() to avoid using useless swaps,
-> > > > and calls try_to_free_swap() if needed because it can reduce
-> > > > both mem.usage and memsw.usage if the page(SwapCache) is unused anymore.
-> > > > 
-> > > > Such unused-but-managed-under-memcg SwapCache can be made in some paths,
-> > > > for example trylock_page() failure in free_swap_cache().
-> > > > 
-> > > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > 
-> > > I think root cause is following branch, right?
-> > yes.
-> > 
-> > > if so, Why can't we handle this issue on shrink_zone()?
-> > > 
-> > Just because priority==0 means oom is about to happen and I don't
-> > want to see oom if possible.
-> > So I thought it would be better to reclaim as much pages(memsw.usage) as possible
-> > in this case.
-> 
-> hmmm..
-> 
-> In general, adding new branch to shrink_page_list() is not good idea.
-> it can cause performance degression.
-> 
-> Plus, it is not big problem at all. it happen only when priority==0.
-> Definitely, priority==0 don't occur normally.
-But it happens under high memory pressure...
+On Sat, 6 Jun 2009, Al Viro wrote:
+> Frankly, I very much suspect that force-umount is another case like that;
+> we'll need a *lot* of interesting cooperation from fs for that to work and
+> to be useful.  I'd be delighted to be proven incorrect on that one, so
+> if you have anything serious in that direction, please share the details.
 
-> and, too many recliaming pages is not only memcg issue. I don't think this
-> patch provide generic solution.
-> 
-Ah, you're right. It's not only memcg issue.
+Umm, not sure why we'd need cooperation from the fs.  Simply wait for
+the operation to exit the filesystem or driver.  If it's a blocking
+operation, send a signal to interrupt it.
 
-> 
-> Why your test environment makes oom so frequently?
-> 
-Not so frequently :)
-But I can see almost all of pages are swapped-out when memcg causes oom
-by memsw.limit(it's a waste of cpu time).
-And even after Kamezawa-san's memcg-fix-behavior-under-memorylimit-equals-to-memswlimit.patch,
-I can sometimes see swap usage when mem.limit==memsw.limit(it's a waste of cpu time too).
-
+Sure, filesystems and drivers have lots of state, but we don't need to
+care about that, just like we don't need to care about it for
+remounting read-only.
 
 Thanks,
-Daisuke Nishimura.
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
