@@ -1,213 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2C8D46B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 05:54:09 -0400 (EDT)
-Received: by gxk27 with SMTP id 27so1868128gxk.14
-        for <linux-mm@kvack.org>; Mon, 08 Jun 2009 04:06:12 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4DA6B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 06:37:25 -0400 (EDT)
+Date: Mon, 8 Jun 2009 12:50:48 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
+Message-ID: <20090608115048.GA15070@csn.ul.ie>
+References: <20090604192236.9761.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090607160225.GA24315@localhost>
-References: <200905271012.668777061@firstfloor.org>
-	 <20090527201239.C2C9C1D0294@basil.firstfloor.org>
-	 <20090528082616.GG6920@wotan.suse.de>
-	 <20090528093141.GD1065@one.firstfloor.org>
-	 <20090528120854.GJ6920@wotan.suse.de>
-	 <20090528134520.GH1065@one.firstfloor.org>
-	 <20090528145021.GA5503@localhost>
-	 <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com>
-	 <20090607160225.GA24315@localhost>
-Date: Mon, 8 Jun 2009 19:06:12 +0800
-Message-ID: <ab418ea90906080406y34981329y27d360624aa22f7c@mail.gmail.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in
-	the VM v3
-From: Nai Xia <nai.xia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090604192236.9761.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 8, 2009 at 12:02 AM, Wu Fengguang<fengguang.wu@intel.com> wrote=
-:
-> On Thu, Jun 04, 2009 at 02:25:24PM +0800, Nai Xia wrote:
->> On Thu, May 28, 2009 at 10:50 PM, Wu Fengguang <fengguang.wu@intel.com> =
-wrote:
->> > On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
->> >> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
->> >
->> > [snip]
->> >
->> >> >
->> >> > BTW. I don't know if you are checking for PG_writeback often enough=
-?
->> >> > You can't remove a PG_writeback page from pagecache. The normal
->> >> > pattern is lock_page(page); wait_on_page_writeback(page); which I
->> >>
->> >> So pages can be in writeback without being locked? I still
->> >> wasn't able to find such a case (in fact unless I'm misreading
->> >> the code badly the writeback bit is only used by NFS and a few
->> >> obscure cases)
->> >
->> > Yes the writeback page is typically not locked. Only read IO requires
->> > to be exclusive. Read IO is in fact page *writer*, while writeback IO
->> > is page *reader* :-)
->>
->> Sorry for maybe somewhat a little bit off topic,
->> I am trying to get a good understanding of PG_writeback & PG_locked ;)
->>
->> So you are saying PG_writeback & PG_locked are acting like a read/write =
-lock?
->> I notice wait_on_page_writeback(page) seems always called with page lock=
-ed --
->
-> No. Note that pages are not locked in wait_on_page_writeback_range().
+On Thu, Jun 04, 2009 at 07:23:15PM +0900, KOSAKI Motohiro wrote:
+> 
+> Current linux policy is, zone_reclaim_mode is enabled by default if the machine
+> has large remote node distance. it's because we could assume that large distance
+> mean large server until recently.
+> 
 
-I see. This function seems mostly called  on the sync path,
-it just waits for data being synchronized to disk.
-No writers from the pages' POV, so no lock.
-I missed this case, but my argument about the role of read/write lock.
-seems still consistent. :)
+We don't make assumptions about the server being large, small or otherwise. The
+affinity tables reporting a distance of 20 or more is saying "remote memory
+has twice the latency of local memory". This is true irrespective of workload
+and implies that going off-node has a real penalty regardless of workload.
 
->
->> that is the semantics of a writer waiting to get the lock while it's
->> acquired by
->> some reader:The caller(e.g. truncate_inode_pages_range() =A0and
->> invalidate_inode_pages2_range()) are the writers waiting for
->> writeback readers (as you clarified ) to finish their job, right ?
->
-> Sorry if my metaphor confused you. But they are not typical
-> reader/writer problems, but more about data integrities.
+> Unfortunately, recent modern x86 CPU (e.g. Core i7, Opeteron) have P2P transport
+> memory controller. IOW it's seen as NUMA from software view.
+> Some Core i7 machine has large remote node distance.
+> 
 
-No, you didn't :)
-Actually, you make me clear about the mixed roles for
-those bits.
+If they have large remote node distance, they have large remote node
+distance. Now, if they are *lying* and remote memory is not really that
+expensive, then prehaps we should be thinking of a per-arch-per-chip
+modifier to the distances reported by ACPI.
 
->
-> Pages have to be "not under writeback" when truncated.
-> Otherwise data lost is possible:
->
-> 1) create a file with one page (page A)
-> 2) truncate page A that is under writeback
-> 3) write to file, which creates page B
-> 4) sync file, which sends page B to disk quickly
->
-> Now if page B reaches disk before A, the new data will be overwritten
-> by truncated old data, which corrupts the file.
+> Yanmin reported zone_reclaim_mode=1 cause large apache regression.
+> 
+>     One Nehalem machine has 12GB memory,
+>     but there is always 2GB free although applications accesses lots of files.
+>     Eventually we located the root cause as zone_reclaim_mode=1.
+> 
+> Actually, zone_reclaim_mode=1 mean "I dislike remote node allocation rather than
+> disk access", it makes performance improvement to HPC workload.
+> but it makes performance degression to desktop, file server and web server.
+> 
 
-I fully understand this scenario which you had already clarified in a
-previous message. :)
+How are you determining a performance regression to desktop? On a
+desktop, I would expect processes to be spread on the different CPUs for
+each of the nodes. In that case, memory faulted on each CPU should be
+faulted locally.
 
-1. someone make index1-> page A
-2. Path P1 is acting as a *reader* to a cache page at index1 by
-    setting PG_writeback on, while at the same time as a *writer* to
-    the corresponding file blocks.
-3. Another path P2 comes in and  truncate page A, he is the writer
-    to the same cache page.
-4. Yet another path P3 comes  as the writer to the cache page
-     making it points to page B: index1--> page B.
-5. Path P4 comes writing back the cache page(and set PG_writeback).
-   He is the reader of the cache page and the writer to the file blocks.
+If there are local processes that access a lot of files, then it might end
+up reclaiming those to keep memory local and this might be undesirable
+but this is explicitly documented;
 
-The corrupts occur because P1 & P4 races when writing file blocks.
-But the _root_ of this racing is because nothing is used to serialize
-them on the side of writing the file blocks and above stream reading was
-inconsistent because of the writers(P2 & P3) to cache page at index1.
+"It may be beneficial to switch off zone reclaim if the system is used for a
+file server and all of memory should be used for caching files from disk. In
+that case the caching effect is more important than data locality."
 
-Note that the "sync file" is somewhat irrelevant, even without "sync file",
-the racing still may exists. I know you must want to show me that this coul=
-d
-make the corruption more easy to occur.
+Ideally we could detect if the machine was a file-server or not but no
+such luck.
 
-So I think the simple logic is:
-1) if you want to truncate/change the mapping from a index to a struct *pag=
-e,
-test writeback bit because the writebacker to the file blocks is the reader
-of this mapping.
-2) if a writebacker want to start a read of this mapping with
-test_set_page_writeback()
-or set_page_writeback(), he'd be sure this page is locked to keep out the
-writers to this mapping of index-->struct *page.
+> In general, workload depended configration shouldn't put into default settings.
+> 
+> However, current code is long standing about two year. Highest POWER and IA64 HPC machine
+> (only) use this setting.
+> 
+> Thus, x86 and almost rest architecture change default setting, but Only power and ia64
+> remain current configuration for backward-compatibility.
+> 
 
-This is really behavior of a read/write lock, right ?
+What about if it's x86-64-based NUMA but it's not i7 based. There, the
+NUMA distances might really mean something and that zone_reclaim behaviour
+is desirable.
 
-wait_on_page_writeback_range() looks different only because "sync"
-operates on "struct page", it's not sensitive to index-->struct *page mappi=
-ng.
-It does care about if pages returned by pagevec_lookup_tag() are
-still maintains the mapping when wait_on_page_writeback(page).
-Here, PG_writeback is only a status flag for "struct page" not a lock bit f=
-or
-index->struct *page mapping.
+I think if we're going down the road of setting the default, it shouldn't be
+per-architecture defaults as such. Other choices for addressing this might be;
 
->
->> So do you think the idea is sane to group the two bits together
->> to form a real read/write lock, which does not care about the _number_
->> of readers ?
->
-> We don't care number of readers here. So please forget about it.
-Yeah, I meant number of readers is not important.
+1. Make RECLAIM_DISTANCE a variable on x86. Set it to 20 by default, and 5
+   (or some other sensible figure) on i7
 
-I still hold that these two bits in some way act like a _sparse_
-read/write lock.
-But I am going to drop the idea of making them a pure lock, since PG_writeb=
-ack
-does has other meaning -- the page is being writing back: for sync
-path, it's only
-a status flag.
-Making a pure read/write lock definitely will lose that or at least distort=
- it.
+2. There should be a per-arch modifier callback for the affinity
+   distances. If the x86 code detects the CPU is an i7, it can reduce the
+   reported latencies to be more in line with expected reality.
 
+3. Do not use zone_reclaim() for file-backed data if more than 20% of memory
+   overall is free. The difficulty is figuring out if the allocation is for
+   file pages.
 
-Hoping I've made my words understandable, correct me if wrong, and
-many thanks for your time and patience. :-)
+4. Change zone_reclaim_mode default to mean "do your best to figure it
+   out". Patch 1 would default large distances to 1 to see what happens.
+   Then apply a heuristic when in figure-it-out mode and using reclaim_mode == 1
 
+	If we have locally reclaimed 2% of the nodes memory in file pages
+	within the last 5 seconds when >= 20% of total physical memory was
+	free, then set the reclaim_mode to 0 on the assumption the node is
+	mostly caching pages and shouldn't be reclaimed to avoid excessive IO
 
-Nai Xia
+Option 1 would appear to be the most straight-forward but option 2
+should be doable. Option 3 and 4 could turn into a rats nest and I would
+consider those approaches a bit more drastic.
 
->
-> Thanks,
-> Fengguang
->
->> > The writeback bit is _widely_ used. =A0test_set_page_writeback() is
->> > directly used by NFS/AFS etc. But its main user is in fact
->> > set_page_writeback(), which is called in 26 places.
->> >
->> >> > think would be safest
->> >>
->> >> Okay. I'll just add it after the page lock.
->> >>
->> >> > (then you never have to bother with the writeback bit again)
->> >>
->> >> Until Fengguang does something fancy with it.
->> >
->> > Yes I'm going to do it without wait_on_page_writeback().
->> >
->> > The reason truncate_inode_pages_range() has to wait on writeback page
->> > is to ensure data integrity. Otherwise if there comes two events:
->> > =A0 =A0 =A0 =A0truncate page A at offset X
->> > =A0 =A0 =A0 =A0populate page B at offset X
->> > If A and B are all writeback pages, then B can hit disk first and then
->> > be overwritten by A. Which corrupts the data at offset X from user's P=
-OV.
->> >
->> > But for hwpoison, there are no such worries. If A is poisoned, we do
->> > our best to isolate it as well as intercepting its IO. If the intercep=
-tion
->> > fails, it will trigger another machine check before hitting the disk.
->> >
->> > After all, poisoned A means the data at offset X is already corrupted.
->> > It doesn't matter if there comes another B page.
->> >
->> > Thanks,
->> > Fengguang
->> > --
->> > To unsubscribe from this list: send the line "unsubscribe linux-kernel=
-" in
->> > the body of a message to majordomo@vger.kernel.org
->> > More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
->> > Please read the FAQ at =A0http://www.tux.org/lkml/
->> >
->
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Robin Holt <holt@sgi.com>
+> Cc: "Zhang, Yanmin" <yanmin.zhang@intel.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: linux-ia64@vger.kernel.org
+> Cc: linuxppc-dev@ozlabs.org
+> ---
+>  arch/powerpc/include/asm/topology.h |    6 ++++++
+>  include/linux/topology.h            |    7 +------
+>  2 files changed, 7 insertions(+), 6 deletions(-)
+> 
+> Index: b/include/linux/topology.h
+> ===================================================================
+> --- a/include/linux/topology.h
+> +++ b/include/linux/topology.h
+> @@ -54,12 +54,7 @@ int arch_update_cpu_topology(void);
+>  #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
+>  #endif
+>  #ifndef RECLAIM_DISTANCE
+> -/*
+> - * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
+> - * (in whatever arch specific measurement units returned by node_distance())
+> - * then switch on zone reclaim on boot.
+> - */
+> -#define RECLAIM_DISTANCE 20
+> +#define RECLAIM_DISTANCE INT_MAX
+>  #endif
+>  #ifndef PENALTY_FOR_NODE_WITH_CPUS
+>  #define PENALTY_FOR_NODE_WITH_CPUS	(1)
+> Index: b/arch/powerpc/include/asm/topology.h
+> ===================================================================
+> --- a/arch/powerpc/include/asm/topology.h
+> +++ b/arch/powerpc/include/asm/topology.h
+> @@ -10,6 +10,12 @@ struct device_node;
+>  
+>  #include <asm/mmzone.h>
+>  
+> +/*
+> + * Distance above which we begin to use zone reclaim
+> + */
+> +#define RECLAIM_DISTANCE 20
+> +
+> +
+
+Where is the ia-64-specific modifier to RECAIM_DISTANCE?
+
+>  static inline int cpu_to_node(int cpu)
+>  {
+>  	return numa_cpu_lookup_table[cpu];
+> 
+> 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
