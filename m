@@ -1,46 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5B06B005A
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 10:43:23 -0400 (EDT)
-Date: Mon, 8 Jun 2009 18:03:24 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] x86, UV: Fix nacros for multiple coherency domains
-Message-ID: <20090608160324.GA4355@elte.hu>
-References: <20090608154405.GA16395@sgi.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB256B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 11:07:12 -0400 (EDT)
+Date: Mon, 8 Jun 2009 17:29:13 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 0/23] File descriptor hot-unplug support v2
+Message-ID: <20090608162913.GL8633@ZenIV.linux.org.uk>
+References: <m1skkf761y.fsf@fess.ebiederm.org> <m1oct739xu.fsf@fess.ebiederm.org> <20090606080334.GA15204@ZenIV.linux.org.uk> <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090608154405.GA16395@sgi.com>
+In-Reply-To: <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
-To: Jack Steiner <steiner@sgi.com>
-Cc: tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: ebiederm@xmission.com, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, akpm@linux-foundation.org, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-
-* Jack Steiner <steiner@sgi.com> wrote:
-
-> Fix bug in the SGI UV macros that support systems with multiple 
-> coherency domains.  The macros used for referencing global MMR 
-> (chipset registers) are failing to correctly "or" the NASID (node 
-> identifier) bits that reside above M+N. These high bits are 
-> supplied automatically by the chipset for memory accesses coming 
-> from the processor socket. However, the bits must be present for 
-> references to the special global MMR space used to map chipset 
-> registers. (See uv_hub.h for more details ...)
+On Mon, Jun 08, 2009 at 11:41:19AM +0200, Miklos Szeredi wrote:
+> On Sat, 6 Jun 2009, Al Viro wrote:
+> > Frankly, I very much suspect that force-umount is another case like that;
+> > we'll need a *lot* of interesting cooperation from fs for that to work and
+> > to be useful.  I'd be delighted to be proven incorrect on that one, so
+> > if you have anything serious in that direction, please share the details.
 > 
-> The bug results in references to invalid/incorrect nodes.
-> 
-> Signed-off-by: Jack Steiner <steiner@sgi.com>
-> 
-> ---
->  arch/x86/include/asm/uv/uv_hub.h   |    6 ++++--
->  arch/x86/kernel/apic/x2apic_uv_x.c |   15 +++++++++------
->  2 files changed, 13 insertions(+), 8 deletions(-)
+> Umm, not sure why we'd need cooperation from the fs.  Simply wait for
+> the operation to exit the filesystem or driver.  If it's a blocking
+> operation, send a signal to interrupt it.
 
-Applied, thanks Jack. Note - this has missed .30 but i marked it for 
-.30.1 backporting, because it obviously only affects UV code.
-
-	Ingo
+And making sure that operations *are* interruptible (and that we can cope
+with $BIGNUM new failure exits correctly) does not qualify as cooperation?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
