@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1E26B0062
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:49:26 -0400 (EDT)
-Date: Mon, 8 Jun 2009 18:50:18 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 0/23] File descriptor hot-unplug support v2
-Message-ID: <20090608175018.GM8633@ZenIV.linux.org.uk>
-References: <m1skkf761y.fsf@fess.ebiederm.org> <m1oct739xu.fsf@fess.ebiederm.org> <20090606080334.GA15204@ZenIV.linux.org.uk> <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu> <20090608162913.GL8633@ZenIV.linux.org.uk> <E1MDhxh-0004nz-Qm@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 6825C6B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 13:58:59 -0400 (EDT)
+Date: Mon, 8 Jun 2009 19:58:08 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [rfc][patch] swap: virtual swap readahead
+Message-ID: <20090608175808.GD7563@cmpxchg.org>
+References: <1243436746-2698-1-git-send-email-hannes@cmpxchg.org> <20090608075246.GA12644@localhost>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E1MDhxh-0004nz-Qm@pomaz-ex.szeredi.hu>
+In-Reply-To: <20090608075246.GA12644@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: ebiederm@xmission.com, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, torvalds@linux-foundation.org, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, npiggin@suse.de, akpm@linux-foundation.org, hch@infradead.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 08, 2009 at 06:44:41PM +0200, Miklos Szeredi wrote:
-
-> I'm still not getting what the problem is.  AFAICS file operations are
-> either
+On Mon, Jun 08, 2009 at 03:52:46PM +0800, Wu Fengguang wrote:
+> On Wed, May 27, 2009 at 05:05:46PM +0200, Johannes Weiner wrote:
+> > The current swap readahead implementation reads a physically
+> > contiguous group of swap slots around the faulting page to take
+> > advantage of the disk head's position and in the hope that the
+> > surrounding pages will be needed soon as well.
+> > 
+> > This works as long as the physical swap slot order approximates the
+> > LRU order decently, otherwise it wastes memory and IO bandwidth to
+> > read in pages that are unlikely to be needed soon.
+> > 
+> > However, the physical swap slot layout diverges from the LRU order
+> > with increasing swap activity, i.e. high memory pressure situations,
+> > and this is exactly the situation where swapin should not waste any
+> > memory or IO bandwidth as both are the most contended resources at
+> > this point.
+> > 
+> > This patch makes swap-in base its readaround window on the virtual
+> > proximity of pages in the faulting VMA, as an indicator for pages
+> > needed in the near future, while still taking physical locality of
+> > swap slots into account.
+> > 
+> > This has the advantage of reading in big batches when the LRU order
+> > matches the swap slot order while automatically throttling readahead
+> > when the system is thrashing and swap slots are no longer nicely
+> > grouped by LRU order.
 > 
->  a) non-interruptible but finish within a short time or
->  b) may block indefinitely but are interruptible (or at least killable).
+> Hi Johannes,
 > 
-> Anything else is already problematic, resulting in processes "stuck in
-> D state".
+> You may want to test the patch against a real desktop :)
+> The attached scripts can do that. I also have the setup to
+> test it out conveniently, so if you send me the latest patch..
 
-Welcome to reality...
+Thanks a bunch for the offer!  I'm just now incorporating Hugh's
+feedback and hope I will be back soon with the next version.  I will
+let you know, for sure.
 
-* bread() is non-interruptible
-* so's copy_from_user()/copy_to_user()
-* IO we are stuck upon _might_ be interruptible, but by sending a signal
-to some other process
-
-... just for starters.  If you sign up for auditing the tree to eliminate
-"something's stuck in D state", you are welcome to it.  Mind you, you'll
-have to audit filesystems for "doesn't check if metadata IO has failed"
-first, but that _really_ needs to be done anyway.  On the ongoing basis.
-
-Drivers, of course, are even more interesting - looking through foo_ioctl()
-instances is a wonderful way to lower pH in stomach, but that's on the
-"we want revoke()" side of it.
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
