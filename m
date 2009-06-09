@@ -1,81 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FEF56B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 06:11:15 -0400 (EDT)
-Date: Tue, 9 Jun 2009 11:44:04 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BBAFA6B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 06:15:11 -0400 (EDT)
+Date: Tue, 9 Jun 2009 11:48:10 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
-	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090609104404.GP18380@csn.ul.ie>
-References: <20090609094231.GM18380@csn.ul.ie> <20090609184422.DD8B.A69D9226@jp.fujitsu.com> <20090609185036.DD8E.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] Properly account for the number of page cache
+	pages zone_reclaim() can reclaim
+Message-ID: <20090609104809.GQ18380@csn.ul.ie>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-3-git-send-email-mel@csn.ul.ie> <20090609022549.GB6740@localhost> <20090609082728.GF18380@csn.ul.ie> <20090609084550.GB7108@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090609185036.DD8E.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090609084550.GB7108@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 06:59:03PM +0900, KOSAKI Motohiro wrote:
-> > > > > Here it is just recording the jiffies value. The real smarts with the counter
-> > > > > use time_before() which I assumed could handle jiffie wrap-arounds. Even
-> > > > > if it doesn't, the consequence is that one scan will occur that could have
-> > > > > been avoided around the time of the jiffie wraparound. The value will then
-> > > > > be reset and it will be fine.
+On Tue, Jun 09, 2009 at 04:45:50PM +0800, Wu Fengguang wrote:
+> On Tue, Jun 09, 2009 at 04:27:29PM +0800, Mel Gorman wrote:
+> > On Tue, Jun 09, 2009 at 10:25:49AM +0800, Wu Fengguang wrote:
+> > > On Mon, Jun 08, 2009 at 09:01:29PM +0800, Mel Gorman wrote:
+> > > > On NUMA machines, the administrator can configure zone_relcaim_mode that
+> > > > is a more targetted form of direct reclaim. On machines with large NUMA
+> > > > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> > > > unmapped pages will be reclaimed if the zone watermarks are not being met.
 > > > > 
-> > > > time_before() assume two argument are enough nearly time.
-> > > > if we use 32bit cpu and HZ=1000, about jiffies wraparound about one month.
+> > > > There is a heuristic that determines if the scan is worthwhile but the
+> > > > problem is that the heuristic is not being properly applied and is basically
+> > > > assuming zone_reclaim_mode is 1 if it is enabled.
 > > > > 
-> > > > Then, 
-> > > > 
-> > > > 1. zone reclaim failure occur
-> > > > 2. system works fine for one month
-> > > > 3. jiffies wrap and time_before() makes mis-calculation.
-> > > > 
+> > > > This patch makes zone_reclaim() makes a better attempt at working out how
+> > > > many pages it might be able to reclaim given the current reclaim_mode. If it
+> > > > cannot clean pages, then NR_FILE_DIRTY number of pages are not candidates. If
+> > > > it cannot swap, then NR_FILE_MAPPED are not. This indirectly addresses tmpfs
+> > > > as those pages tend to be dirty as they are not cleaned by pdflush or sync.
 > > > 
-> > > And the scan occurs uselessly and zone_reclaim_failure gets set again.
-> > > I believe the one useless scan is not significant enough to warrent dealing
-> > > with jiffie wraparound.
+> > > No, tmpfs pages are not accounted in NR_FILE_DIRTY because of the
+> > > BDI_CAP_NO_ACCT_AND_WRITEBACK bits.
+> > > 
 > > 
-> > Thank you for kindful explanation.
-> > I fully agreed.
+> > Ok, that explains why the dirty page count was not as high as I was
+> > expecting. Thanks.
+> > 
+> > > > The ideal would be that the number of tmpfs pages would also be known
+> > > > and account for like NR_FILE_MAPPED as swap is required to discard them.
+> > > > A means of working this out quickly was not obvious but a comment is added
+> > > > noting the problem.
+> > > 
+> > > I'd rather prefer it be accounted separately than to muck up NR_FILE_MAPPED :)
+> > > 
+> > 
+> > Maybe I used a poor choice of words. What I meant was that the ideal would
+> > be we had a separate count for tmpfs pages. As tmpfs pages and mapped pages
+> > both have to be unmapped and potentially, they are "like" each other with
+> > respect to the zone_reclaim_mode and how it behaves. We would end up
+> > with something like
+> > 
+> > 	pagecache_reclaimable -= zone_page_state(zone, NR_FILE_MAPPED);
+> > 	pagecache_reclaimable -= zone_page_state(zone, NR_FILE_TMPFS);
 > 
-> Bah, no, not agreed.
-> simple last failure recording makes following scenario.
+> OK. But tmpfs pages may be mapped, so there will be double counting.
+> We must at least make sure pagecache_reclaimable won't get underflowed.
+
+True. What vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
+does might be better overall.
+
+> (Or make another LRU list for tmpfs pages?)
 > 
+
+Another LRU won't help the accounting and will changes too significantly
+how reclaim works.
+
+> > > > +	int pagecache_reclaimable;
+> > > > +
+> > > > +	/*
+> > > > +	 * Work out how many page cache pages we can reclaim in this mode.
+> > > > +	 *
+> > > > +	 * NOTE: Ideally, tmpfs pages would be accounted as if they were
+> > > > +	 *       NR_FILE_MAPPED as swap is required to discard those
+> > > > +	 *       pages even when they are clean. However, there is no
+> > > > +	 *       way of quickly identifying the number of tmpfs pages
+> > > > +	 */
+> > > 
+> > > So can you remove the note on NR_FILE_MAPPED?
+> > > 
+> > 
+> > Why would I remove the note? I can alter the wording but the intention is
+> > to show we cannot count the number of tmpfs pages quickly and it would be
+> > nice if we could. Maybe this is clearer?
+> > 
+> > Note: Ideally tmpfs pages would be accounted for as NR_FILE_TMPFS or
+> > 	similar and treated similar to NR_FILE_MAPPED as both require
+> > 	unmapping from page tables and potentially swap to reclaim.
+> > 	However, no such counter exists.
 > 
-> 1. zone reclaim failure occur. update zone_reclaim_failure.
->       ^
->       |  time_before() return 1, and zone_reclaim() return immediately.
->       v
-> 2. after 32 second.
->       ^
->       |  time_before() return 0, and zone_reclaim() works normally
->       v
-> 3. after one month
->       ^
->       |  time_before() return 1, and zone_reclaim() return immediately.
->       |  although recent zone_reclaim() never failed.
->       v
-> 4. after more one month
->       
+> That's better. Thanks.
+> 
+> > > > +	pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
+> > > > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+> > > > +		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_DIRTY);
+> > > 
+> > > > +	if (!(zone_reclaim_mode & RECLAIM_SWAP))
+> > > > +		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_MAPPED);
+> > > 
+> > > So the "if" can be removed because NR_FILE_MAPPED is not related to swapping?
+> > > 
+> > 
+> > It's partially related with respect to what zone_reclaim() is doing.
+> > Once something is mapped, we need RECLAIM_SWAP set on the
+> > zone_reclaim_mode to do anything useful with them.
+> 
+> You are referring to mapped anonymous/tmpfs pages? But I mean
+> NR_FILE_MAPPED pages won't goto swap when unmapped.
+> 
 
-Pants.
+Not all of them. But some of them backed by real files will be discarded
+if clean at the next pass
 
-/me slaps self
-
-+       /* Watch for jiffie wraparound */
-+       if (unlikely(jiffies < zone->zone_reclaim_failure))
-+               zone->zone_reclaim_failure = jiffies;
-+
-+       /* Do not attempt a scan if scanning failed recently */
-+       if (time_before(jiffies,
-+                       zone->zone_reclaim_failure + zone_reclaim_interval))
-+               return 0;
-+
-
-?
+> Thanks,
+> Fengguang
+> 
+> > > >  	/*
+> > > >  	 * Zone reclaim reclaims unmapped file backed pages and
+> > > > @@ -2391,8 +2406,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> > > >  	 * if less than a specified percentage of the zone is used by
+> > > >  	 * unmapped file backed pages.
+> > > >  	 */
+> > > > -	if (zone_page_state(zone, NR_FILE_PAGES) -
+> > > > -	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages
+> > > > +	if (pagecache_reclaimable <= zone->min_unmapped_pages
+> > > >  	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
+> > > >  			<= zone->min_slab_pages)
+> > > >  		return 0;
+> > > > -- 
+> > > > 1.5.6.5
+> > > 
+> > 
+> > -- 
+> > Mel Gorman
+> > Part-time Phd Student                          Linux Technology Center
+> > University of Limerick                         IBM Dublin Software Lab
+> 
 
 -- 
 Mel Gorman
