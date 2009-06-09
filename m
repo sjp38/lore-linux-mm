@@ -1,73 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E9C76B005A
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 04:21:21 -0400 (EDT)
-Date: Tue, 9 Jun 2009 09:50:38 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] Do not unconditionally treat zones that fail
-	zone_reclaim() as full
-Message-ID: <20090609085037.GI18380@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-4-git-send-email-mel@csn.ul.ie> <20090609031119.GB7875@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 445186B005C
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 04:25:41 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n598t5Kl011553
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Jun 2009 17:55:07 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6488145DE60
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:55:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D36245DE7A
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:55:05 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E11321DB803E
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:55:04 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E9E161DB8037
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:55:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] Properly account for the number of page cache pages zone_reclaim() can reclaim
+In-Reply-To: <20090609082728.GF18380@csn.ul.ie>
+References: <20090609022549.GB6740@localhost> <20090609082728.GF18380@csn.ul.ie>
+Message-Id: <20090609175211.DD85.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090609031119.GB7875@localhost>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  9 Jun 2009 17:55:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 11:11:19AM +0800, Wu Fengguang wrote:
-> On Mon, Jun 08, 2009 at 09:01:30PM +0800, Mel Gorman wrote:
-> > On NUMA machines, the administrator can configure zone_reclaim_mode that
-> > is a more targetted form of direct reclaim. On machines with large NUMA
-> > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-> > unmapped pages will be reclaimed if the zone watermarks are not being
-> > met. The problem is that zone_reclaim() failing at all means the zone
-> > gets marked full.
+> > > The ideal would be that the number of tmpfs pages would also be known
+> > > and account for like NR_FILE_MAPPED as swap is required to discard them.
+> > > A means of working this out quickly was not obvious but a comment is added
+> > > noting the problem.
 > > 
-> > This can cause situations where a zone is usable, but is being skipped
-> > because it has been considered full. Take a situation where a large tmpfs
-> > mount is occuping a large percentage of memory overall. The pages do not
-> > get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
-> > and the zonelist cache considers them not worth trying in the future.
+> > I'd rather prefer it be accounted separately than to muck up NR_FILE_MAPPED :)
 > > 
-> > This patch makes zone_reclaim() return more fine-grained information about
-> > what occured when zone_reclaim() failued. The zone only gets marked full if
-> > it really is unreclaimable. If it's a case that the scan did not occur or
-> > if enough pages were not reclaimed with the limited reclaim_mode, then the
-> > zone is simply skipped.
-> > 
-> > There is a side-effect to this patch. Currently, if zone_reclaim()
-> > successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
-> > go ahead. With this patch applied, zone watermarks are rechecked after
-> > zone_reclaim() does some work.
-> >
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> Thanks for making the code a lot more readable :)
+> Maybe I used a poor choice of words. What I meant was that the ideal would
+> be we had a separate count for tmpfs pages. As tmpfs pages and mapped pages
+> both have to be unmapped and potentially, they are "like" each other with
+> respect to the zone_reclaim_mode and how it behaves. We would end up
+> with something like
 > 
-> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> 
+> 	pagecache_reclaimable -= zone_page_state(zone, NR_FILE_MAPPED);
+> 	pagecache_reclaimable -= zone_page_state(zone, NR_FILE_TMPFS);
 
-Thanks.
+Please see shmem_writepage(). tmpfs writeout make swapcache, We also
+need to concern swapcache.
 
-> >  	/*
-> >  	 * Do not scan if the allocation should not be delayed.
-> >  	 */
-> >  	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
-> > -			return 0;
-> > +			return ZONE_RECLAIM_NOSCAN;
-> 
-> Why not kill the extra tab?
-> 
+note: swapcache also increase NR_FILE_PAGES, see add_to_swap_cache.
 
-Why not indeed. Tab is now killed.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
