@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E8AEE6B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 08:11:44 -0400 (EDT)
-Date: Tue, 9 Jun 2009 20:47:55 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 1FC606B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 08:15:05 -0400 (EDT)
+Date: Tue, 9 Jun 2009 20:51:39 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in  the VM v3
-Message-ID: <20090609124755.GA6583@localhost>
-References: <20090528145021.GA5503@localhost> <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com> <20090607160225.GA24315@localhost> <ab418ea90906080406y34981329y27d360624aa22f7c@mail.gmail.com> <20090608123133.GA7944@localhost> <ab418ea90906080746m6d1d59d8m395ab76585575db1@mail.gmail.com> <20090609064855.GB5490@localhost> <20090609104825.GJ14820@wotan.suse.de> <20090609121510.GB5589@localhost> <20090609121722.GC9158@wotan.suse.de>
+Subject: Re: [PATCH] [10/16] HWPOISON: Handle poisoned pages in
+	set_page_dirty()
+Message-ID: <20090609125139.GE5589@localhost>
+References: <20090603846.816684333@firstfloor.org> <20090603184644.190E71D0281@basil.firstfloor.org> <20090609095920.GD14820@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090609121722.GC9158@wotan.suse.de>
+In-Reply-To: <20090609095920.GD14820@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: Nai Xia <nai.xia@gmail.com>, Andi Kleen <andi@firstfloor.org>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 08:17:22PM +0800, Nick Piggin wrote:
-> On Tue, Jun 09, 2009 at 08:15:10PM +0800, Wu Fengguang wrote:
-> > On Tue, Jun 09, 2009 at 06:48:25PM +0800, Nick Piggin wrote:
-> > > On Tue, Jun 09, 2009 at 02:48:55PM +0800, Wu Fengguang wrote:
-> > > > On Mon, Jun 08, 2009 at 10:46:53PM +0800, Nai Xia wrote:
-> > > > > I meant PG_writeback stops writers to index---->struct page mapping.
-> > > > 
-> > > > It's protected by the radix tree RCU locks. Period.
-> > > > 
-> > > > If you are referring to the reverse mapping: page->mapping is procted
-> > > > by PG_lock. No one should make assumption that it won't change under
-> > > > page writeback.
-> > > 
-> > > Well... I think probably PG_writeback should be enough. Phrased another
-> > > way: I think it is a very bad idea to truncate PG_writeback pages out of
-> > > pagecache. Does anything actually do that?
+On Tue, Jun 09, 2009 at 05:59:20PM +0800, Nick Piggin wrote:
+> On Wed, Jun 03, 2009 at 08:46:43PM +0200, Andi Kleen wrote:
 > > 
-> > There shall be no one. OK I will follow that convention.. 
-> > 
-> > But as I stated it is only safe do rely on the fact "no one truncates
-> > PG_writeback pages" in end_writeback_io handlers. And I suspect if
-> > there does exist such a handler, it could be trivially converted to
-> > take the page lock.
+> > Bail out early in set_page_dirty for poisoned pages. We don't want any
+> > of the dirty accounting done or file system write back started, because
+> > the page will be just thrown away.
 > 
-> Well, the writeback submitter first sets writeback, then unlocks
-> the page. I don't think he wants a truncate coming in at that point.
+> I don't agree with adding overhead to fastpaths like this. Your
+> MCE handler should have already taken care of this so I can't
+> see what it can gain.
 
-OK. I think we've mostly agreed on the consequences of PG_writeback vs
-truncation. I'll follow the least surprise principle and stop here, hehe.
+Agreed to remove this patch. The poisoned page should already be
+isolated (in normal cases), and won't reach this code path.
 
 Thanks,
 Fengguang
+
+> > 
+> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > 
+> > ---
+> >  mm/page-writeback.c |    4 ++++
+> >  1 file changed, 4 insertions(+)
+> > 
+> > Index: linux/mm/page-writeback.c
+> > ===================================================================
+> > --- linux.orig/mm/page-writeback.c	2009-06-03 19:36:20.000000000 +0200
+> > +++ linux/mm/page-writeback.c	2009-06-03 19:36:23.000000000 +0200
+> > @@ -1304,6 +1304,10 @@
+> >  {
+> >  	struct address_space *mapping = page_mapping(page);
+> >  
+> > +	if (unlikely(PageHWPoison(page))) {
+> > +		SetPageDirty(page);
+> > +		return 0;
+> > +	}
+> >  	if (likely(mapping)) {
+> >  		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
+> >  #ifdef CONFIG_BLOCK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
