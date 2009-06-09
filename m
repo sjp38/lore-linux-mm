@@ -1,134 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B67DC6B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:01:24 -0400 (EDT)
-Date: Tue, 9 Jun 2009 17:31:59 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] [11/15] HWPOISON: Refactor truncate to allow direct
-	truncating of page v3
-Message-ID: <20090609093159.GA8244@localhost>
-References: <200906041128.112757038@firstfloor.org> <20090604212823.16F901D0293@basil.firstfloor.org> <20090609091821.GA16940@wotan.suse.de>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A83326B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:09:59 -0400 (EDT)
+Date: Tue, 9 Jun 2009 10:40:50 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
+	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
+Message-ID: <20090609094050.GL18380@csn.ul.ie>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie> <20090609082539.GA6897@localhost> <20090609083153.GG18380@csn.ul.ie> <20090609090735.GC7108@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090609091821.GA16940@wotan.suse.de>
+In-Reply-To: <20090609090735.GC7108@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 05:18:21PM +0800, Nick Piggin wrote:
-> On Thu, Jun 04, 2009 at 11:28:23PM +0200, Andi Kleen wrote:
+On Tue, Jun 09, 2009 at 05:07:35PM +0800, Wu Fengguang wrote:
+> On Tue, Jun 09, 2009 at 04:31:54PM +0800, Mel Gorman wrote:
+> > On Tue, Jun 09, 2009 at 04:25:39PM +0800, Wu Fengguang wrote:
+> > > On Tue, Jun 09, 2009 at 04:14:25PM +0800, Mel Gorman wrote:
+> > > > On Tue, Jun 09, 2009 at 09:58:22AM +0800, Wu Fengguang wrote:
+> > > > > On Mon, Jun 08, 2009 at 09:01:28PM +0800, Mel Gorman wrote:
+> > > > > > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
+> > > > > > more targetted form of direct reclaim. On machines with large NUMA distances,
+> > > > > > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
+> > > > > > reclaimed if the zone watermarks are not being met. The problem is that
+> > > > > > zone_reclaim() can be in a situation where it scans excessively without
+> > > > > > making progress.
+> > > > > > 
+> > > > > > One such situation is where a large tmpfs mount is occupying a large
+> > > > > > percentage of memory overall. The pages do not get cleaned or reclaimed by
+> > > > > > zone_reclaim(), but the lists are uselessly scanned frequencly making the
+> > > > > > CPU spin at 100%. The scanning occurs because zone_reclaim() cannot tell
+> > > > > > in advance the scan is pointless because the counters do not distinguish
+> > > > > > between pagecache pages backed by disk and by RAM.  The observation in
+> > > > > > the field is that malloc() stalls for a long time (minutes in some cases)
+> > > > > > when this situation occurs.
+> > > > > > 
+> > > > > > Accounting for ram-backed file pages was considered but not implemented on
+> > > > > > the grounds it would be introducing new branches and expensive checks into
+> > > > > > the page cache add/remove patches and increase the number of statistics
+> > > > > > needed in the zone. As zone_reclaim() failing is currently considered a
+> > > > > > corner case, this seemed like overkill. Note, if there are a large number
+> > > > > > of reports about CPU spinning at 100% on NUMA that is fixed by disabling
+> > > > > > zone_reclaim, then this assumption is false and zone_reclaim() scanning
+> > > > > > and failing is not a corner case but a common occurance
+> > > > > > 
+> > > > > > This patch reintroduces zone_reclaim_interval which was removed by commit
+> > > > > > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
+> > > > > > remove /proc/sys/vm/zone_reclaim_interval] because the zone counters were
+> > > > > > considered sufficient to determine in advance if the scan would succeed.
+> > > > > > As unsuccessful scans can still occur, zone_reclaim_interval is still
+> > > > > > required.
+> > > > > 
+> > > > > Can we avoid the user visible parameter zone_reclaim_interval?
+> > > > > 
+> > > > 
+> > > > You could, but then there is no way of disabling it by setting it to 0
+> > > > either. I can't imagine why but the desired behaviour might really be to
+> > > > spin and never go off-node unless there is no other option. They might
+> > > > want to set it to 0 for example when determining what the right value for
+> > > > zone_reclaim_mode is for their workloads.
+> > > > 
+> > > > > That means to introduce some heuristics for it.
+> > > > 
+> > > > I suspect the vast majority of users will ignore it unless they are runing
+> > > > zone_reclaim_mode at the same time and even then will probably just leave
+> > > > it as 30 as a LRU scan every 30 seconds worst case is not going to show up
+> > > > on many profiles.
+> > > > 
+> > > > > Since the whole point
+> > > > > is to avoid 100% CPU usage, we can take down the time used for this
+> > > > > failed zone reclaim (T) and forbid zone reclaim until (NOW + 100*T).
+> > > > > 
+> > > > 
+> > > > i.e. just fix it internally at 100 seconds? How is that better than
+> > > > having an obscure tunable? I think if this heuristic exists at all, it's
+> > > > important that an administrator be able to turn it off if absolutly
+> > > > necessary and so something must be user-visible.
+> > > 
+> > > That 100*T don't mean 100 seconds. It means to keep CPU usage under 1%:
+> > > after busy scanning for time T, let's go relax for 100*T.
+> > > 
 > > 
-> > From: Nick Piggin <npiggin@suse.de>
+> > Do I have a means of calculating what my CPU usage is as a result of
+> > scanning the LRU list?
 > > 
-> > Extract out truncate_inode_page() out of the truncate path so that
-> > it can be used by memory-failure.c
-> > 
-> > [AK: description, headers, fix typos]
-> > v2: Some white space changes from Fengguang Wu 
-> > 
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > If I don't and the machine is busy, would I not avoid scanning even in
+> > situations where it should have been scanned?
 > 
-> Thank you muchly :) Seems the description is still missing? Something
-> like the below?
+> I guess we don't really care about the exact number for the ratio 100.
+> If the box is busy, it automatically scales the effective ratio to 200
+> or more, which I think is reasonable behavior.
 > 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> Something like this.
+> 
+> Thanks,
+> Fengguang
+> 
+> ---
+>  include/linux/mmzone.h |    2 ++
+>  mm/vmscan.c            |   11 +++++++++++
+>  2 files changed, 13 insertions(+)
+> 
+> --- linux.orig/include/linux/mmzone.h
+> +++ linux/include/linux/mmzone.h
+> @@ -334,6 +334,8 @@ struct zone {
+>  	/* Zone statistics */
+>  	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+>  
+> +	unsigned long		zone_reclaim_relax;
+> +
+>  	/*
+>  	 * prev_priority holds the scanning priority for this zone.  It is
+>  	 * defined as the scanning priority at which we achieved our reclaim
+> --- linux.orig/mm/vmscan.c
+> +++ linux/mm/vmscan.c
+> @@ -2453,6 +2453,7 @@ int zone_reclaim(struct zone *zone, gfp_
+>  	int ret;
+>  	long nr_unmapped_file_pages;
+>  	long nr_slab_reclaimable;
+> +	unsigned long t;
+>  
+>  	/*
+>  	 * Zone reclaim reclaims unmapped file backed pages and
+> @@ -2475,6 +2476,11 @@ int zone_reclaim(struct zone *zone, gfp_
+>  	if (zone_is_all_unreclaimable(zone))
+>  		return 0;
+>  
+> +	if (time_in_range(zone->zone_reclaim_relax - 10000 * HZ,
+> +			  jiffies,
+> +			  zone->zone_reclaim_relax))
+> +		return 0;
+> +
 
-Andi is on vocation, so let me do the updates :)
+So. zone_reclaim_relax is some value between now and 100 times the approximate
+time it takes to scan the LRU list. This check ensures that we do not scan
+multiple times within the same interval. Is that right?
 
-Thanks,
-Fengguang
+>  	/*
+>  	 * Do not scan if the allocation should not be delayed.
+>  	 */
+> @@ -2493,7 +2499,12 @@ int zone_reclaim(struct zone *zone, gfp_
+>  
+>  	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+>  		return 0;
+> +	t = jiffies;
+>  	ret = __zone_reclaim(zone, gfp_mask, order);
+> +	if (sc.nr_reclaimed == 0) {
+> +		t = min_t(unsigned long, 10000 * HZ, 100 * (jiffies - t));
+> +		zone->zone_reclaim_relax = jiffies + t;
+> +	}
 
----
-HWPOISON: Refactor truncate to allow direct truncating of page v3
-From: Nick Piggin <npiggin@suse.de>
+This appears to be a way of automatically selecting a value for
+zone_reclaim_interval but is 100 times the length of time it takes to scan the
+LRU list enough to avoid excessive scanning of the LRU lists by zone_reclaim?
 
-Extract out truncate_inode_page() out of the truncate path so that
-it can be used by memory-failure.c
+I don't know and unlike zone_reclaim_interval, we have no way for the
+administrator to intervene in the event we get the calculation wrong.
 
-[AK: description, headers, fix typos]
-v2: Some white space changes from Fengguang Wu 
-v3: add comments
+Conceivably though, zone_reclaim_interval could automatically tune
+itself based on a heuristic like this if the administrator does not give
+a specific value. I think that would be an interesting follow on once
+we've brought back zone_reclaim_interval and get a feeling for how often
+it is actually used.
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- include/linux/mm.h |    2 ++
- mm/truncate.c      |   34 ++++++++++++++++++++++------------
- 2 files changed, 24 insertions(+), 12 deletions(-)
+>  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+>  
+>  	return ret;
+> 
 
---- linux.orig/mm/truncate.c
-+++ linux/mm/truncate.c
-@@ -135,6 +135,26 @@ invalidate_complete_page(struct address_
- 	return ret;
- }
- 
-+/*
-+ * Remove one page from its pagecache mapping. The page must be locked.
-+ * This does not truncate the file on disk, it performs the pagecache
-+ * side of the truncate operation. Dirty data will be discarded, and
-+ * concurrent page references are ignored.
-+ *
-+ * Generic mm/fs code cannot call this on filesystem metadata mappings
-+ * because those can assume that a page reference is enough to pin the
-+ * page to its mapping.
-+ */
-+void truncate_inode_page(struct address_space *mapping, struct page *page)
-+{
-+	if (page_mapped(page)) {
-+		unmap_mapping_range(mapping,
-+				   (loff_t)page->index << PAGE_CACHE_SHIFT,
-+				   PAGE_CACHE_SIZE, 0);
-+	}
-+	truncate_complete_page(mapping, page);
-+}
-+
- /**
-  * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
-  * @mapping: mapping to truncate
-@@ -196,12 +216,7 @@ void truncate_inode_pages_range(struct a
- 				unlock_page(page);
- 				continue;
- 			}
--			if (page_mapped(page)) {
--				unmap_mapping_range(mapping,
--				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
--				  PAGE_CACHE_SIZE, 0);
--			}
--			truncate_complete_page(mapping, page);
-+			truncate_inode_page(mapping, page);
- 			unlock_page(page);
- 		}
- 		pagevec_release(&pvec);
-@@ -238,15 +253,10 @@ void truncate_inode_pages_range(struct a
- 				break;
- 			lock_page(page);
- 			wait_on_page_writeback(page);
--			if (page_mapped(page)) {
--				unmap_mapping_range(mapping,
--				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
--				  PAGE_CACHE_SIZE, 0);
--			}
-+			truncate_inode_page(mapping, page);
- 			if (page->index > next)
- 				next = page->index;
- 			next++;
--			truncate_complete_page(mapping, page);
- 			unlock_page(page);
- 		}
- 		pagevec_release(&pvec);
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -808,6 +808,8 @@ static inline void unmap_shared_mapping_
- extern int vmtruncate(struct inode * inode, loff_t offset);
- extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
- 
-+void truncate_inode_page(struct address_space *mapping, struct page *page);
-+
- #ifdef CONFIG_MMU
- extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, int write_access);
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
