@@ -1,175 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A83326B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:09:59 -0400 (EDT)
-Date: Tue, 9 Jun 2009 10:40:50 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 646986B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:11:37 -0400 (EDT)
+Date: Tue, 9 Jun 2009 10:42:31 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
 	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090609094050.GL18380@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie> <20090609082539.GA6897@localhost> <20090609083153.GG18380@csn.ul.ie> <20090609090735.GC7108@localhost>
+Message-ID: <20090609094231.GM18380@csn.ul.ie>
+References: <20090609143211.DD64.A69D9226@jp.fujitsu.com> <20090609081821.GE18380@csn.ul.ie> <20090609173011.DD7F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090609090735.GC7108@localhost>
+In-Reply-To: <20090609173011.DD7F.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 05:07:35PM +0800, Wu Fengguang wrote:
-> On Tue, Jun 09, 2009 at 04:31:54PM +0800, Mel Gorman wrote:
-> > On Tue, Jun 09, 2009 at 04:25:39PM +0800, Wu Fengguang wrote:
-> > > On Tue, Jun 09, 2009 at 04:14:25PM +0800, Mel Gorman wrote:
-> > > > On Tue, Jun 09, 2009 at 09:58:22AM +0800, Wu Fengguang wrote:
-> > > > > On Mon, Jun 08, 2009 at 09:01:28PM +0800, Mel Gorman wrote:
-> > > > > > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
-> > > > > > more targetted form of direct reclaim. On machines with large NUMA distances,
-> > > > > > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
-> > > > > > reclaimed if the zone watermarks are not being met. The problem is that
-> > > > > > zone_reclaim() can be in a situation where it scans excessively without
-> > > > > > making progress.
-> > > > > > 
-> > > > > > One such situation is where a large tmpfs mount is occupying a large
-> > > > > > percentage of memory overall. The pages do not get cleaned or reclaimed by
-> > > > > > zone_reclaim(), but the lists are uselessly scanned frequencly making the
-> > > > > > CPU spin at 100%. The scanning occurs because zone_reclaim() cannot tell
-> > > > > > in advance the scan is pointless because the counters do not distinguish
-> > > > > > between pagecache pages backed by disk and by RAM.  The observation in
-> > > > > > the field is that malloc() stalls for a long time (minutes in some cases)
-> > > > > > when this situation occurs.
-> > > > > > 
-> > > > > > Accounting for ram-backed file pages was considered but not implemented on
-> > > > > > the grounds it would be introducing new branches and expensive checks into
-> > > > > > the page cache add/remove patches and increase the number of statistics
-> > > > > > needed in the zone. As zone_reclaim() failing is currently considered a
-> > > > > > corner case, this seemed like overkill. Note, if there are a large number
-> > > > > > of reports about CPU spinning at 100% on NUMA that is fixed by disabling
-> > > > > > zone_reclaim, then this assumption is false and zone_reclaim() scanning
-> > > > > > and failing is not a corner case but a common occurance
-> > > > > > 
-> > > > > > This patch reintroduces zone_reclaim_interval which was removed by commit
-> > > > > > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
-> > > > > > remove /proc/sys/vm/zone_reclaim_interval] because the zone counters were
-> > > > > > considered sufficient to determine in advance if the scan would succeed.
-> > > > > > As unsuccessful scans can still occur, zone_reclaim_interval is still
-> > > > > > required.
-> > > > > 
-> > > > > Can we avoid the user visible parameter zone_reclaim_interval?
-> > > > > 
-> > > > 
-> > > > You could, but then there is no way of disabling it by setting it to 0
-> > > > either. I can't imagine why but the desired behaviour might really be to
-> > > > spin and never go off-node unless there is no other option. They might
-> > > > want to set it to 0 for example when determining what the right value for
-> > > > zone_reclaim_mode is for their workloads.
-> > > > 
-> > > > > That means to introduce some heuristics for it.
-> > > > 
-> > > > I suspect the vast majority of users will ignore it unless they are runing
-> > > > zone_reclaim_mode at the same time and even then will probably just leave
-> > > > it as 30 as a LRU scan every 30 seconds worst case is not going to show up
-> > > > on many profiles.
-> > > > 
-> > > > > Since the whole point
-> > > > > is to avoid 100% CPU usage, we can take down the time used for this
-> > > > > failed zone reclaim (T) and forbid zone reclaim until (NOW + 100*T).
-> > > > > 
-> > > > 
-> > > > i.e. just fix it internally at 100 seconds? How is that better than
-> > > > having an obscure tunable? I think if this heuristic exists at all, it's
-> > > > important that an administrator be able to turn it off if absolutly
-> > > > necessary and so something must be user-visible.
+On Tue, Jun 09, 2009 at 05:45:02PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> > > > @@ -1192,6 +1192,15 @@ static struct ctl_table vm_table[] = {
+> > > >  		.extra1		= &zero,
+> > > >  	},
+> > > >  	{
+> > > > +		.ctl_name       = CTL_UNNUMBERED,
+> > > > +		.procname       = "zone_reclaim_interval",
+> > > > +		.data           = &zone_reclaim_interval,
+> > > > +		.maxlen         = sizeof(zone_reclaim_interval),
+> > > > +		.mode           = 0644,
+> > > > +		.proc_handler   = &proc_dointvec_jiffies,
+> > > > +		.strategy       = &sysctl_jiffies,
+> > > > +	},
 > > > 
-> > > That 100*T don't mean 100 seconds. It means to keep CPU usage under 1%:
-> > > after busy scanning for time T, let's go relax for 100*T.
+> > > hmmm, I think nobody can know proper interval settings on his own systems.
+> > > I agree with Wu. It can be hidden.
 > > > 
 > > 
-> > Do I have a means of calculating what my CPU usage is as a result of
-> > scanning the LRU list?
+> > For the few users that case, I expect the majority of those will choose
+> > either 0 or the default value of 30. They might want to alter this while
+> > setting zone_reclaim_mode if they don't understand the different values
+> > it can have for example.
 > > 
-> > If I don't and the machine is busy, would I not avoid scanning even in
-> > situations where it should have been scanned?
+> > My preference would be that this not exist at all but the
+> > scan-avoidance-heuristic has to be perfect to allow that.
 > 
-> I guess we don't really care about the exact number for the ratio 100.
-> If the box is busy, it automatically scales the effective ratio to 200
-> or more, which I think is reasonable behavior.
+> Ah, I didn't concern interval==0. thanks.
+> I can ack this now, but please add documentation about interval==0 meaning?
 > 
-> Something like this.
+
+I will.
+
 > 
-> Thanks,
-> Fengguang
 > 
-> ---
->  include/linux/mmzone.h |    2 ++
->  mm/vmscan.c            |   11 +++++++++++
->  2 files changed, 13 insertions(+)
 > 
-> --- linux.orig/include/linux/mmzone.h
-> +++ linux/include/linux/mmzone.h
-> @@ -334,6 +334,8 @@ struct zone {
->  	/* Zone statistics */
->  	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
->  
-> +	unsigned long		zone_reclaim_relax;
-> +
->  	/*
->  	 * prev_priority holds the scanning priority for this zone.  It is
->  	 * defined as the scanning priority at which we achieved our reclaim
-> --- linux.orig/mm/vmscan.c
-> +++ linux/mm/vmscan.c
-> @@ -2453,6 +2453,7 @@ int zone_reclaim(struct zone *zone, gfp_
->  	int ret;
->  	long nr_unmapped_file_pages;
->  	long nr_slab_reclaimable;
-> +	unsigned long t;
->  
->  	/*
->  	 * Zone reclaim reclaims unmapped file backed pages and
-> @@ -2475,6 +2476,11 @@ int zone_reclaim(struct zone *zone, gfp_
->  	if (zone_is_all_unreclaimable(zone))
->  		return 0;
->  
-> +	if (time_in_range(zone->zone_reclaim_relax - 10000 * HZ,
-> +			  jiffies,
-> +			  zone->zone_reclaim_relax))
-> +		return 0;
-> +
+> > > > @@ -2414,6 +2426,16 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> > > >  	ret = __zone_reclaim(zone, gfp_mask, order);
+> > > >  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+> > > >  
+> > > > +	if (!ret) {
+> > > > +		/*
+> > > > +		 * We were unable to reclaim enough pages to stay on node and
+> > > > +		 * unable to detect in advance that the scan would fail. Allow
+> > > > +		 * off node accesses for zone_reclaim_inteval jiffies before
+> > > > +		 * trying zone_reclaim() again
+> > > > +		 */
+> > > > +		zone->zone_reclaim_failure = jiffies;
+> > > 
+> > > Oops, this simple assignment don't care jiffies round-trip.
+> > > 
+> > 
+> > Here it is just recording the jiffies value. The real smarts with the counter
+> > use time_before() which I assumed could handle jiffie wrap-arounds. Even
+> > if it doesn't, the consequence is that one scan will occur that could have
+> > been avoided around the time of the jiffie wraparound. The value will then
+> > be reset and it will be fine.
+> 
+> time_before() assume two argument are enough nearly time.
+> if we use 32bit cpu and HZ=1000, about jiffies wraparound about one month.
+> 
+> Then, 
+> 
+> 1. zone reclaim failure occur
+> 2. system works fine for one month
+> 3. jiffies wrap and time_before() makes mis-calculation.
+> 
 
-So. zone_reclaim_relax is some value between now and 100 times the approximate
-time it takes to scan the LRU list. This check ensures that we do not scan
-multiple times within the same interval. Is that right?
+And the scan occurs uselessly and zone_reclaim_failure gets set again.
+I believe the one useless scan is not significant enough to warrent dealing
+with jiffie wraparound.
 
->  	/*
->  	 * Do not scan if the allocation should not be delayed.
->  	 */
-> @@ -2493,7 +2499,12 @@ int zone_reclaim(struct zone *zone, gfp_
->  
->  	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
->  		return 0;
-> +	t = jiffies;
->  	ret = __zone_reclaim(zone, gfp_mask, order);
-> +	if (sc.nr_reclaimed == 0) {
-> +		t = min_t(unsigned long, 10000 * HZ, 100 * (jiffies - t));
-> +		zone->zone_reclaim_relax = jiffies + t;
-> +	}
-
-This appears to be a way of automatically selecting a value for
-zone_reclaim_interval but is 100 times the length of time it takes to scan the
-LRU list enough to avoid excessive scanning of the LRU lists by zone_reclaim?
-
-I don't know and unlike zone_reclaim_interval, we have no way for the
-administrator to intervene in the event we get the calculation wrong.
-
-Conceivably though, zone_reclaim_interval could automatically tune
-itself based on a heuristic like this if the administrator does not give
-a specific value. I think that would be an interesting follow on once
-we've brought back zone_reclaim_interval and get a feeling for how often
-it is actually used.
-
->  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
->  
->  	return ret;
+> I think.
+> 
+> 
 > 
 
 -- 
