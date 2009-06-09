@@ -1,71 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 66EB36B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:02:59 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n597TjHI012514
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 9 Jun 2009 16:29:45 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C86D145DD72
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:29:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EB1B45DE4F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:29:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 85CAE1DB8038
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:29:44 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D6E51DB8043
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:29:44 +0900 (JST)
-Date: Tue, 9 Jun 2009 16:28:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH
- mmotm] vmscan: fix may_swap handling for memcg)
-Message-Id: <20090609162813.4bd1c1f2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090609161330.fcd5facb.nishimura@mxp.nes.nec.co.jp>
-References: <20090608121848.4370.A69D9226@jp.fujitsu.com>
-	<20090608153916.3ccaeb9a.nishimura@mxp.nes.nec.co.jp>
-	<20090608154634.437F.A69D9226@jp.fujitsu.com>
-	<20090608165457.fa8d17e6.nishimura@mxp.nes.nec.co.jp>
-	<20090609161330.fcd5facb.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 758836B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:20:44 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n597m46i010775
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 9 Jun 2009 16:48:04 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2590545DE63
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:04 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E7B6245DE51
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE8661DB8046
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6295C1DB8040
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3] Do not unconditionally treat zones that fail zone_reclaim() as full
+In-Reply-To: <1244466090-10711-4-git-send-email-mel@csn.ul.ie>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-4-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090609143806.DD67.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  9 Jun 2009 16:48:02 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jun 2009 16:13:30 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Hi
 
-> > > and, too many recliaming pages is not only memcg issue. I don't think this
-> > > patch provide generic solution.
-> > > 
-> > Ah, you're right. It's not only memcg issue.
-> > 
-> How about this one ?
+> On NUMA machines, the administrator can configure zone_reclaim_mode that
+> is a more targetted form of direct reclaim. On machines with large NUMA
+> distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> unmapped pages will be reclaimed if the zone watermarks are not being
+> met. The problem is that zone_reclaim() failing at all means the zone
+> gets marked full.
 > 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> This can cause situations where a zone is usable, but is being skipped
+> because it has been considered full. Take a situation where a large tmpfs
+> mount is occuping a large percentage of memory overall. The pages do not
+> get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
+> and the zonelist cache considers them not worth trying in the future.
 > 
-> Commit 2e2e425989080cc534fc0fca154cae515f971cf5 ("vmscan,memcg: reintroduce
-> sc->may_swap) add may_swap flag and handle it at get_scan_ratio().
+> This patch makes zone_reclaim() return more fine-grained information about
+> what occured when zone_reclaim() failued. The zone only gets marked full if
+> it really is unreclaimable. If it's a case that the scan did not occur or
+> if enough pages were not reclaimed with the limited reclaim_mode, then the
+> zone is simply skipped.
 > 
-> But the result of get_scan_ratio() is ignored when priority == 0,
-> so anon lru is scanned even if may_swap == 0 or nr_swap_pages == 0.
-> IMHO, this is not an expected behavior.
+> There is a side-effect to this patch. Currently, if zone_reclaim()
+> successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
+> go ahead. With this patch applied, zone watermarks are rechecked after
+> zone_reclaim() does some work.
 > 
-> As for memcg especially, because of this behavior many and many pages are
-> swapped-out just in vain when oom is invoked by mem+swap limit.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/internal.h   |    4 ++++
+>  mm/page_alloc.c |   26 ++++++++++++++++++++++----
+>  mm/vmscan.c     |   10 +++++-----
+>  3 files changed, 31 insertions(+), 9 deletions(-)
 > 
-> This patch is for handling may_swap flag more strictly.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 987bb03..090c267 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -284,4 +284,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		     unsigned long start, int len, int flags,
+>  		     struct page **pages, struct vm_area_struct **vmas);
+>  
+> +#define ZONE_RECLAIM_NOSCAN	-2
+> +#define ZONE_RECLAIM_FULL	-1
+> +#define ZONE_RECLAIM_SOME	0
+> +#define ZONE_RECLAIM_SUCCESS	1
+>  #endif
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index fe753ec..ce2f684 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1420,20 +1420,38 @@ zonelist_scan:
+>  
+>  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+>  			unsigned long mark;
+> +			int ret;
 
-Thanks,
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Please insert one empty line here.
+
+>  			if (alloc_flags & ALLOC_WMARK_MIN)
+>  				mark = zone->pages_min;
+>  			else if (alloc_flags & ALLOC_WMARK_LOW)
+>  				mark = zone->pages_low;
+>  			else
+>  				mark = zone->pages_high;
+> -			if (!zone_watermark_ok(zone, order, mark,
+> -				    classzone_idx, alloc_flags)) {
+> -				if (!zone_reclaim_mode ||
+> -				    !zone_reclaim(zone, gfp_mask, order))
+> +			if (zone_watermark_ok(zone, order, mark,
+> +				    classzone_idx, alloc_flags))
+> +				goto try_this_zone;
+> +
+> +			if (zone_reclaim_mode == 0)
+> +				goto this_zone_full;
+> +
+> +			ret = zone_reclaim(zone, gfp_mask, order);
+> +			switch (ret) {
+> +				case ZONE_RECLAIM_NOSCAN:
+> +					/* did not scan */
+> +					goto try_next_zone;
+> +				case ZONE_RECLAIM_FULL:
+> +					/* scanned but unreclaimable */
+>  					goto this_zone_full;
+> +				default:
+> +					/* did we reclaim enough */
+> +					if (!zone_watermark_ok(zone, order,
+> +							mark, classzone_idx,
+> +							alloc_flags))
+> +						goto try_next_zone;
+
+hmmm
+I haven't catch your mention yet. sorry.
+Could you please explain more?
+
+My confuseness are:
+
+1.
+----
+I think your patch almost revert Paul's 9276b1bc96a132f4068fdee00983c532f43d3a26 essence.
+after your patch applied, zlc_mark_zone_full() is called only when zone_is_all_unreclaimable()==1
+or memory stealed after zone_watermark_ok() rechecking.
+
+but zone_is_all_unreclaimable() is very rare on large NUMA machine. Thus
+your patch makes zlc_zone_worth_trying() check to worthless.
+So, I like simple reverting 9276b1bc rather than introduce more messy if necessary.
+
+but necessary? why?
+
+
+2.
+-----
+Why simple following switch-case is wrong?
+
+	case ZONE_RECLAIM_NOSCAN:
+		goto try_next_zone;
+	case ZONE_RECLAIM_FULL:
+	case ZONE_RECLAIM_SOME:
+		goto this_zone_full;
+	case ZONE_RECLAIM_SUCCESS
+		; /* do nothing */
+
+I mean, 
+ (1) ZONE_RECLAIM_SOME and zone_watermark_ok()==1
+
+are rare.
+Is rechecking really worth?
+In my experience, zone_watermark_ok() is not so fast function.
+
+And,
+
+ (2) ZONE_RECLAIM_SUCCESS and zone_watermark_ok()==0
+
+is also rare.
+What do you afraid bad thing?
+
+I guess, high-order allocation and ZONE_RECLAIM_SUCCESS and 
+zone_watermark_ok()==0 case, right?
+
+if so, Why your system makes high order allocation so freqently?
+
+3.
+------
+your patch do:
+
+1. call zone_reclaim() and return ZONE_RECLAIM_SUCCESS
+2. another thread steal memory
+3. call zone_watermark_ok() and return 0
+
+Then, jump to try_next_zone
+
+but
+
+1. call zone_reclaim() and return ZONE_RECLAIM_SUCCESS
+2. call zone_watermark_ok() and return 1
+3. another thread steal memory
+4. call buffered_rmqueue() and return NULL
+
+Then, it call zlc_mark_zone_full().
+
+it seems a bit inconsistency.
+
+
+
+
+>  			}
+>  		}
+>  
+> +try_this_zone:
+>  		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
+>  		if (page)
+>  			break;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ffe2f32..84cdae2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2409,7 +2409,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	if (pagecache_reclaimable <= zone->min_unmapped_pages
+>  	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
+>  			<= zone->min_slab_pages)
+> -		return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+>  
+>  	/* Do not attempt a scan if scanning failed recently */
+>  	if (time_before(jiffies,
+> @@ -2417,13 +2417,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		return 0;
+>  
+>  	if (zone_is_all_unreclaimable(zone))
+> -		return 0;
+> +		return ZONE_RECLAIM_FULL;
+>  
+>  	/*
+>  	 * Do not scan if the allocation should not be delayed.
+>  	 */
+>  	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
+> -			return 0;
+> +			return ZONE_RECLAIM_NOSCAN;
+>  
+>  	/*
+>  	 * Only run zone reclaim on the local zone or on zones that do not
+> @@ -2433,10 +2433,10 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	 */
+>  	node_id = zone_to_nid(zone);
+>  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+> -		return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+>  
+>  	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+> -		return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+>  	ret = __zone_reclaim(zone, gfp_mask, order);
+>  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+>  
+> -- 
+> 1.5.6.5
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
