@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A1CFF6B005D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:55:43 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n598OCUM029472
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 17:24:12 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D3AF945DD78
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:24:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF39445DD7E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:24:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CF9A1DB803E
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:24:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EFE8A1DB8046
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 17:24:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH  mmotm] vmscan: fix may_swap handling for memcg)
-In-Reply-To: <28c262360906090119r6e881caq9b74028ba43567a7@mail.gmail.com>
-References: <20090609164850.DD73.A69D9226@jp.fujitsu.com> <28c262360906090119r6e881caq9b74028ba43567a7@mail.gmail.com>
-Message-Id: <20090609172035.DD7C.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2BE6D6B007E
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:57:10 -0400 (EDT)
+Date: Tue, 9 Jun 2009 16:25:39 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
+	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
+Message-ID: <20090609082539.GA6897@localhost>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 17:24:10 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090609081424.GD18380@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Jun 9, 2009 at 4:58 PM, KOSAKI
-> Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> Hi, KOSAKI.
-> >>
-> >> As you know, this problem caused by if condition(priority) in shrink_zone.
-> >> Let me have a question.
-> >>
-> >> Why do we have to prevent scan value calculation when the priority is zero ?
-> >> As I know, before split-lru, we didn't do it.
-> >>
-> >> Is there any specific issue in case of the priority is zero ?
-> >
-> > Yes.
-> >
-> > example:
-> >
-> > get_scan_ratio() return anon:80%, file=20%. and the system have
-> > 10000 anon pages and 10000 file pages.
-> >
-> > shrink_zone() picked up 8000 anon pages and 2000 file pages.
-> > it mean 8000 file pages aren't scanned at all.
-> >
-> > Oops, it can makes OOM-killer although system have droppable file cache.
-> >
-> Hmm..Can that problem be happen in real system ?
-> The file ratio is big means that file lru list scanning is so big but
-> rotate is small.
-> It means file lru have few reclaimable page.
+On Tue, Jun 09, 2009 at 04:14:25PM +0800, Mel Gorman wrote:
+> On Tue, Jun 09, 2009 at 09:58:22AM +0800, Wu Fengguang wrote:
+> > On Mon, Jun 08, 2009 at 09:01:28PM +0800, Mel Gorman wrote:
+> > > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
+> > > more targetted form of direct reclaim. On machines with large NUMA distances,
+> > > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
+> > > reclaimed if the zone watermarks are not being met. The problem is that
+> > > zone_reclaim() can be in a situation where it scans excessively without
+> > > making progress.
+> > > 
+> > > One such situation is where a large tmpfs mount is occupying a large
+> > > percentage of memory overall. The pages do not get cleaned or reclaimed by
+> > > zone_reclaim(), but the lists are uselessly scanned frequencly making the
+> > > CPU spin at 100%. The scanning occurs because zone_reclaim() cannot tell
+> > > in advance the scan is pointless because the counters do not distinguish
+> > > between pagecache pages backed by disk and by RAM.  The observation in
+> > > the field is that malloc() stalls for a long time (minutes in some cases)
+> > > when this situation occurs.
+> > > 
+> > > Accounting for ram-backed file pages was considered but not implemented on
+> > > the grounds it would be introducing new branches and expensive checks into
+> > > the page cache add/remove patches and increase the number of statistics
+> > > needed in the zone. As zone_reclaim() failing is currently considered a
+> > > corner case, this seemed like overkill. Note, if there are a large number
+> > > of reports about CPU spinning at 100% on NUMA that is fixed by disabling
+> > > zone_reclaim, then this assumption is false and zone_reclaim() scanning
+> > > and failing is not a corner case but a common occurance
+> > > 
+> > > This patch reintroduces zone_reclaim_interval which was removed by commit
+> > > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
+> > > remove /proc/sys/vm/zone_reclaim_interval] because the zone counters were
+> > > considered sufficient to determine in advance if the scan would succeed.
+> > > As unsuccessful scans can still occur, zone_reclaim_interval is still
+> > > required.
+> > 
+> > Can we avoid the user visible parameter zone_reclaim_interval?
+> > 
 > 
-> Isn't it ? I am confusing.
-> Could you elaborate, please if you don't mind ?
+> You could, but then there is no way of disabling it by setting it to 0
+> either. I can't imagine why but the desired behaviour might really be to
+> spin and never go off-node unless there is no other option. They might
+> want to set it to 0 for example when determining what the right value for
+> zone_reclaim_mode is for their workloads.
+> 
+> > That means to introduce some heuristics for it.
+> 
+> I suspect the vast majority of users will ignore it unless they are runing
+> zone_reclaim_mode at the same time and even then will probably just leave
+> it as 30 as a LRU scan every 30 seconds worst case is not going to show up
+> on many profiles.
+> 
+> > Since the whole point
+> > is to avoid 100% CPU usage, we can take down the time used for this
+> > failed zone reclaim (T) and forbid zone reclaim until (NOW + 100*T).
+> > 
+> 
+> i.e. just fix it internally at 100 seconds? How is that better than
+> having an obscure tunable? I think if this heuristic exists at all, it's
+> important that an administrator be able to turn it off if absolutly
+> necessary and so something must be user-visible.
 
-hm, ok, my example was wrong.
-I intention is, if there are droppable file-back pages (althout only 1 page), 
-OOM-killer shouldn't occuer.
-
-many or few is unrelated.
-
-
-
+That 100*T don't mean 100 seconds. It means to keep CPU usage under 1%:
+after busy scanning for time T, let's go relax for 100*T.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
