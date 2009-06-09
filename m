@@ -1,178 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A9DF36B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 09:37:06 -0400 (EDT)
-Message-Id: <D03E346D-8DDF-4134-84C9-07AB66493A58@thehive.com>
-From: Matthew Von Maszewski <matthew@thehive.com>
-In-Reply-To: <20090609094117.8226c0ca.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0 (Apple Message framework v935.3)
-Subject: Re: huge mem mmap eats all CPU when multiple processes
-Date: Tue, 9 Jun 2009 10:16:30 -0400
-References: <8FDBF172-AAA8-4737-A6C6-50B468CA0CBF@thehive.com> <20090609094117.8226c0ca.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 337476B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 09:58:16 -0400 (EDT)
+Date: Tue, 9 Jun 2009 15:38:27 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
+Message-ID: <20090609143826.GS18380@csn.ul.ie>
+References: <20090604192236.9761.A69D9226@jp.fujitsu.com> <20090608115048.GA15070@csn.ul.ie> <20090609211721.DD9A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090609211721.DD9A.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-My apologies for lack of clarity in the original email.  I am working  
-on a test program to send out later today.   Here are my responses to  
-the questions asked:
+On Tue, Jun 09, 2009 at 10:48:34PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> sorry for late responce. my e-mail reading speed is very slow ;-)
+> 
+> First, Could you please read past thread?
+> I think many topic of this mail are already discussed.
+> 
 
+I think I caught them all but the horrible fact of the matter is that
+whether zone_reclaim_mode should be 1 or 0 on NUMA machines is "it depends".
+There are arguements for both and no clear winner.
 
-On Jun 8, 2009, at 8:41 PM, KAMEZAWA Hiroyuki wrote:
+> 
+> > On Thu, Jun 04, 2009 at 07:23:15PM +0900, KOSAKI Motohiro wrote:
+> > > 
+> > > Current linux policy is, zone_reclaim_mode is enabled by default if the machine
+> > > has large remote node distance. it's because we could assume that large distance
+> > > mean large server until recently.
+> > > 
+> > 
+> > We don't make assumptions about the server being large, small or otherwise. The
+> > affinity tables reporting a distance of 20 or more is saying "remote memory
+> > has twice the latency of local memory". This is true irrespective of workload
+> > and implies that going off-node has a real penalty regardless of workload.
+> 
+> No.
+> Now, we talk about off-node allocation vs unnecessary file cache dropping.
+> IOW, off-node allocation vs disk access.
+> 
 
-> On Mon, 8 Jun 2009 10:27:49 -0400
-> Matthew Von Maszewski <matthew@thehive.com> wrote:
->
->> [note: not on kernel mailing list, please cc author]
->>
->> Symptom:  9 processes mmap same 2 Gig memory section for a shared C
->> heap (lots of random access).  All process begin extreme CPU load in
->> top.
->>
->> - Same code works well when only single process access huge mem.
-> Does this "huge mem" means HugeTLB(2M/4Mbytes) pages ?
+Even if we used GFP flags to identify the file pages, there is no guarantee
+that we are taking the correct action to keep "relevant" pages in memory.
 
-Yes.  My debian x86_64 kernel build uses 2m pages.  Test by one  
-process is really fast.  Test by multiple process against same mmap()  
-file are really slow
+> Then, the worth doesn't only depend on off-node distance, but also depend on
+> workload IO tendency and IO speed.
+> 
+> Fujitsu has 64 core ia64 HPC box, zone-reclaim sometimes made performance
+> degression although its box. 
+> 
 
->
->
->> - Code works well with standard vm based mmap file and 9 processes.
->>
->
-> What is sys/user ratio in top ? Almost all cpus are used by "sys" ?
+I bet if it was 0, that the off-node accesses would somewtimes make
+"performance degression" as well :(
 
+> So, I don't think this problem is small vs large machine issue.
+> nor i7 issue.
+> high-speed P2P CPU integrated memory controller expose old issue.
+> 
+> 
+> > > In general, workload depended configration shouldn't put into default settings.
+> > > 
+> > > However, current code is long standing about two year. Highest POWER and IA64 HPC machine
+> > > (only) use this setting.
+> > > 
+> > > Thus, x86 and almost rest architecture change default setting, but Only power and ia64
+> > > remain current configuration for backward-compatibility.
+> > > 
+> > 
+> > What about if it's x86-64-based NUMA but it's not i7 based. There, the
+> > NUMA distances might really mean something and that zone_reclaim behaviour
+> > is desirable.
+> 
+> hmmm..
+> I don't hope ignore AMD, I think it's common characterastic of P2P and
+> integrated memory controller machine.
+> 
+> Also, I don't hope detect CPU family or similar, because we need update
+> such code evey when Intel makes new cpu.
+> 
+> Can we detect P2P interconnect machine? I'm not sure.
+> 
 
-Tasks:  94 total,   3 running,  91 sleeping,   0 stopped,   0 zombie
-Cpu0  :  5.6%us, 86.4%sy,  0.0%ni,  1.3%id,  5.3%wa,  0.0%hi,   
-1.3%si,  0.0%st
-Cpu1  :  1.0%us, 92.4%sy,  0.0%ni,  0.0%id,  5.6%wa,  0.0%hi,   
-1.0%si,  0.0%st
-Cpu2  :  1.7%us, 90.4%sy,  0.0%ni,  0.0%id,  7.3%wa,  0.0%hi,   
-0.7%si,  0.0%st
-Cpu3  :  0.0%us, 70.4%sy,  0.0%ni, 25.1%id,  4.0%wa,  0.0%hi,   
-0.5%si,  0.0%st
-Mem:   6103960k total,  2650044k used,  3453916k free,     6068k buffers
-Swap:  5871716k total,        0k used,  5871716k free,    84504k cached
+I've no idea. It's not just I7 because some of the AMD chips will have
+integrated memory controllers as well. We were somewhat depending on the
+affinity information providing the necessary information.
 
-   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-  3681 proxy     20   0 2638m 1596 1312 S   43  0.0   0:07.87  
-tentacle.e.prof
-  3687 proxy     20   0 2656m 1592 1312 S   43  0.0   0:07.69  
-tentacle.e.prof
-  3689 proxy     20   0 2662m 1600 1312 S   42  0.0   0:07.82  
-tentacle.e.prof
-  3683 proxy     20   0 2652m 1596 1312 S   41  0.0   0:07.75  
-tentacle.e.prof
-  3684 proxy     20   0 2650m 1596 1312 S   41  0.0   0:07.89  
-tentacle.e.prof
-  3686 proxy     20   0 2644m 1596 1312 S   40  0.0   0:07.80  
-tentacle.e.prof
-  3685 proxy     20   0 2664m 1592 1312 S   40  0.0   0:07.82  
-tentacle.e.prof
-  3682 proxy     20   0 2646m 1616 1328 S   38  0.0   0:07.73  
-tentacle.e.prof
-  3664 proxy     20   0 2620m 1320  988 R   36  0.0   0:01.08 tentacle.e
-  3678 proxy     20   0 72352  35m 1684 R   11  0.6   0:01.79 squid
+> > I think if we're going down the road of setting the default, it shouldn't be
+> > per-architecture defaults as such. Other choices for addressing this might be;
+> > 
+> > 1. Make RECLAIM_DISTANCE a variable on x86. Set it to 20 by default, and 5
+> >    (or some other sensible figure) on i7
+> > 
+> > 2. There should be a per-arch modifier callback for the affinity
+> >    distances. If the x86 code detects the CPU is an i7, it can reduce the
+> >    reported latencies to be more in line with expected reality.
+> > 
+> > 3. Do not use zone_reclaim() for file-backed data if more than 20% of memory
+> >    overall is free. The difficulty is figuring out if the allocation is for
+> >    file pages.
+> > 
+> > 4. Change zone_reclaim_mode default to mean "do your best to figure it
+> >    out". Patch 1 would default large distances to 1 to see what happens.
+> >    Then apply a heuristic when in figure-it-out mode and using reclaim_mode == 1
+> > 
+> > 	If we have locally reclaimed 2% of the nodes memory in file pages
+> > 	within the last 5 seconds when >= 20% of total physical memory was
+> > 	free, then set the reclaim_mode to 0 on the assumption the node is
+> > 	mostly caching pages and shouldn't be reclaimed to avoid excessive IO
+> > 
+> > Option 1 would appear to be the most straight-forward but option 2
+> > should be doable. Option 3 and 4 could turn into a rats nest and I would
+> > consider those approaches a bit more drastic.
+> 
+> hmhm. 
+> I think the key-point of option 1 and 2 are proper hardware detecting way.
+> 
+> option 3 and 4 are more prefere idea to me. I like workload adapted heuristic.
+> but you already pointed out its hard, because page-allocator don't know
+> allocation purpose ;)
+> 
 
-tentacle.e and tentacle.e.prof are copies of the same executable file,  
-started with different command line options.  tentacle.e is started by  
-an init.d script.  tentacle.e.prof processes are started by squid.
+Option 3 may be undoable. Even if the allocations are tagged as "this is
+a file-backed allocation", we have no way of detecting how important
+that is to the overall workload. Option 4 would be the preference. It's
+a heuristic that might let us down, but the administrator can override
+it and fix the reclaim_mode in the event we get it wrong.
 
-I am creating a simplified program to duplicate the scenario.  Will  
-send it along later today.
+> 
+> > > @@ -10,6 +10,12 @@ struct device_node;
+> > >  
+> > >  #include <asm/mmzone.h>
+> > >  
+> > > +/*
+> > > + * Distance above which we begin to use zone reclaim
+> > > + */
+> > > +#define RECLAIM_DISTANCE 20
+> > > +
+> > > +
+> > 
+> > Where is the ia-64-specific modifier to RECAIM_DISTANCE?
+> 
+> 
+> arch/ia64/include/asm/topology.h has
+> 
+> 	/*
+> 	 * Distance above which we begin to use zone reclaim
+> 	 */
+> 	#define RECLAIM_DISTANCE 15
+> 
+> 
+> I don't think distance==15 is machine independent proper definition.
+> but there is long lived definition ;)
+> 
+> 
+> 
+> 
 
->
->
->> Environment:
->>
->> - Intel x86_64:  Dual core Xeon with hyperthreading (4 logical
->> processors)
->> - 6 Gig ram, 2.5G allocated to huge mem
-> by boot option ?
-
-huge mem initialization
-
-1.  sysctl.conf allocates the desired number of 2M pages:
-
-system:/mnt$ tail -n 3 /etc/sysctl.conf
-#huge
-vm.nr_hugepages=1200
-
-
-2. init.d script for tentacle.e mounts the file system and  
-preallocates space
-
-(from init.d file starting tentacle.e)
-
-     umount /mnt/hugefs
-     mount -t hugetlbfs -o uid=proxy,size=2300M none /mnt/hugefs
-
-system:/mnt df -kP
-Filesystem         1024-blocks      Used Available Capacity Mounted on
-/dev/sda1            135601864  32634960  96078636      26% /
-tmpfs                  3051980         0   3051980       0% /lib/init/rw
-udev                     10240        68     10172       1% /dev
-tmpfs                  3051980         0   3051980       0% /dev/shm
-none                   2355200   2117632    237568      90% /mnt/hugefs
-
-
->
->
->> - tried with kernels 2.6.29.4 and 2.6.30-rc8
->> - following mmap() call has base address as NULL on first process,
->> then returned address passed to subsequent processes (not threads,
->> processes)
->>
->>            m_MemSize=((m_MemSize/(2048*1024))+1)*2048*1024;
->>             m_BaseAddr=mmap(m_File->GetFixedBase(), m_MemSize,
->>                             (PROT_READ | PROT_WRITE),
->>                             MAP_SHARED, m_File->GetFileId(),  
->> m_Offset);
->>
->>
->> I am not a kernel hacker so I have not attempted to debug.  Will be
->> able to spend time on a sample program for sharing later today or
->> tomorrow.  Sending this note now in case this is already known.
->>
->
-> IIUC, all page faults to hugetlb are serialized by system's mutex.  
-> Then, touching
-> in parallel doesn't do fast job..
-> Then, I wonder touching all necessary maps by one thread is good, in  
-> general.
->
->
->
->> Don't suppose this is as simple as a Copy-On-Write flag being set  
->> wrong?
->>
-> I don't think, so.
->
->> Please send notes as to things I need to capture to better describe
->> this bug.  Happy to do the work.
->>
-> Add cc to linux-mm.
->
-> Thanks,
-> -Kame
->
->
->> Thanks,
->> Matthew
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux- 
->> kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
->>
->
->
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
