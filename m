@@ -1,89 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8C4A06B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 04:59:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n599TVer007577
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 18:29:33 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EBA2145DE7B
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:29:30 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CA87045DE6F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:29:30 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7A7F1DB8042
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:29:30 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 63D9D1DB803F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:29:30 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] fix wrong lru rotate back at lumpty reclaim
-In-Reply-To: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20090609181745.DD88.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B67DC6B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:01:24 -0400 (EDT)
+Date: Tue, 9 Jun 2009 17:31:59 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] [11/15] HWPOISON: Refactor truncate to allow direct
+	truncating of page v3
+Message-ID: <20090609093159.GA8244@localhost>
+References: <200906041128.112757038@firstfloor.org> <20090604212823.16F901D0293@basil.firstfloor.org> <20090609091821.GA16940@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 18:29:29 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090609091821.GA16940@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, riel@redhat.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jun 09, 2009 at 05:18:21PM +0800, Nick Piggin wrote:
+> On Thu, Jun 04, 2009 at 11:28:23PM +0200, Andi Kleen wrote:
+> > 
+> > From: Nick Piggin <npiggin@suse.de>
+> > 
+> > Extract out truncate_inode_page() out of the truncate path so that
+> > it can be used by memory-failure.c
+> > 
+> > [AK: description, headers, fix typos]
+> > v2: Some white space changes from Fengguang Wu 
+> > 
+> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
 > 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Thank you muchly :) Seems the description is still missing? Something
+> like the below?
 > 
-> In lumpty reclaim, "cursor_page" is found just by pfn. Then, we don't know
-     ^^^^^^
-     lumpy?
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
 
-> from which LRU "cursor" page came from. Then, putback it to "src" list is BUG.
-> Just leave it as it is.
-> (And I think rotate here is overkilling even if "src" is correct.)
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Andi is on vocation, so let me do the updates :)
 
-Yes, thanks great catch!
+Thanks,
+Fengguang
 
-lumpy reclaimed neighbor pages doesn't need to ratate, it because
-neighbor pages doesn't stay in head of lru list.
+---
+HWPOISON: Refactor truncate to allow direct truncating of page v3
+From: Nick Piggin <npiggin@suse.de>
 
+Extract out truncate_inode_page() out of the truncate path so that
+it can be used by memory-failure.c
 
-   Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+[AK: description, headers, fix typos]
+v2: Some white space changes from Fengguang Wu 
+v3: add comments
 
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ include/linux/mm.h |    2 ++
+ mm/truncate.c      |   34 ++++++++++++++++++++++------------
+ 2 files changed, 24 insertions(+), 12 deletions(-)
 
-
-> ---
->  mm/vmscan.c |    5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
-> 
-> Index: mmotm-2.6.30-Jun4/mm/vmscan.c
-> ===================================================================
-> --- mmotm-2.6.30-Jun4.orig/mm/vmscan.c
-> +++ mmotm-2.6.30-Jun4/mm/vmscan.c
-> @@ -940,10 +940,9 @@ static unsigned long isolate_lru_pages(u
->  				nr_taken++;
->  				scan++;
->  				break;
-> -
->  			case -EBUSY:
-> -				/* else it is being freed elsewhere */
-> -				list_move(&cursor_page->lru, src);
-> +				/* Do nothing because we don't know where
-> + 				   cusrsor_page comes from */
->  			default:
->  				break;	/* ! on LRU or wrong list */
->  			}
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
+--- linux.orig/mm/truncate.c
++++ linux/mm/truncate.c
+@@ -135,6 +135,26 @@ invalidate_complete_page(struct address_
+ 	return ret;
+ }
+ 
++/*
++ * Remove one page from its pagecache mapping. The page must be locked.
++ * This does not truncate the file on disk, it performs the pagecache
++ * side of the truncate operation. Dirty data will be discarded, and
++ * concurrent page references are ignored.
++ *
++ * Generic mm/fs code cannot call this on filesystem metadata mappings
++ * because those can assume that a page reference is enough to pin the
++ * page to its mapping.
++ */
++void truncate_inode_page(struct address_space *mapping, struct page *page)
++{
++	if (page_mapped(page)) {
++		unmap_mapping_range(mapping,
++				   (loff_t)page->index << PAGE_CACHE_SHIFT,
++				   PAGE_CACHE_SIZE, 0);
++	}
++	truncate_complete_page(mapping, page);
++}
++
+ /**
+  * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
+  * @mapping: mapping to truncate
+@@ -196,12 +216,7 @@ void truncate_inode_pages_range(struct a
+ 				unlock_page(page);
+ 				continue;
+ 			}
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
+-			truncate_complete_page(mapping, page);
++			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+@@ -238,15 +253,10 @@ void truncate_inode_pages_range(struct a
+ 				break;
+ 			lock_page(page);
+ 			wait_on_page_writeback(page);
+-			if (page_mapped(page)) {
+-				unmap_mapping_range(mapping,
+-				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+-				  PAGE_CACHE_SIZE, 0);
+-			}
++			truncate_inode_page(mapping, page);
+ 			if (page->index > next)
+ 				next = page->index;
+ 			next++;
+-			truncate_complete_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -808,6 +808,8 @@ static inline void unmap_shared_mapping_
+ extern int vmtruncate(struct inode * inode, loff_t offset);
+ extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+ 
++void truncate_inode_page(struct address_space *mapping, struct page *page);
++
+ #ifdef CONFIG_MMU
+ extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, int write_access);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
