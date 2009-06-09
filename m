@@ -1,81 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 400E16B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:27:41 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n599x8va009173
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 18:59:08 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 795CF45DE51
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:59:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D83045DD79
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:59:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 245681DB8038
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:59:08 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A76411DB8041
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:59:04 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-In-Reply-To: <20090609184422.DD8B.A69D9226@jp.fujitsu.com>
-References: <20090609094231.GM18380@csn.ul.ie> <20090609184422.DD8B.A69D9226@jp.fujitsu.com>
-Message-Id: <20090609185036.DD8E.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 18:59:03 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 48AAF6B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:27:53 -0400 (EDT)
+Date: Tue, 9 Jun 2009 11:59:20 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [10/16] HWPOISON: Handle poisoned pages in set_page_dirty()
+Message-ID: <20090609095920.GD14820@wotan.suse.de>
+References: <20090603846.816684333@firstfloor.org> <20090603184644.190E71D0281@basil.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090603184644.190E71D0281@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-> > > > Here it is just recording the jiffies value. The real smarts with the counter
-> > > > use time_before() which I assumed could handle jiffie wrap-arounds. Even
-> > > > if it doesn't, the consequence is that one scan will occur that could have
-> > > > been avoided around the time of the jiffie wraparound. The value will then
-> > > > be reset and it will be fine.
-> > > 
-> > > time_before() assume two argument are enough nearly time.
-> > > if we use 32bit cpu and HZ=1000, about jiffies wraparound about one month.
-> > > 
-> > > Then, 
-> > > 
-> > > 1. zone reclaim failure occur
-> > > 2. system works fine for one month
-> > > 3. jiffies wrap and time_before() makes mis-calculation.
-> > > 
-> > 
-> > And the scan occurs uselessly and zone_reclaim_failure gets set again.
-> > I believe the one useless scan is not significant enough to warrent dealing
-> > with jiffie wraparound.
+On Wed, Jun 03, 2009 at 08:46:43PM +0200, Andi Kleen wrote:
 > 
-> Thank you for kindful explanation.
-> I fully agreed.
+> Bail out early in set_page_dirty for poisoned pages. We don't want any
+> of the dirty accounting done or file system write back started, because
+> the page will be just thrown away.
 
-Bah, no, not agreed.
-simple last failure recording makes following scenario.
+I don't agree with adding overhead to fastpaths like this. Your
+MCE handler should have already taken care of this so I can't
+see what it can gain.
 
-
-1. zone reclaim failure occur. update zone_reclaim_failure.
-      ^
-      |  time_before() return 1, and zone_reclaim() return immediately.
-      v
-2. after 32 second.
-      ^
-      |  time_before() return 0, and zone_reclaim() works normally
-      v
-3. after one month
-      ^
-      |  time_before() return 1, and zone_reclaim() return immediately.
-      |  although recent zone_reclaim() never failed.
-      v
-4. after more one month
-      
-
-
+> 
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  mm/page-writeback.c |    4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> Index: linux/mm/page-writeback.c
+> ===================================================================
+> --- linux.orig/mm/page-writeback.c	2009-06-03 19:36:20.000000000 +0200
+> +++ linux/mm/page-writeback.c	2009-06-03 19:36:23.000000000 +0200
+> @@ -1304,6 +1304,10 @@
+>  {
+>  	struct address_space *mapping = page_mapping(page);
+>  
+> +	if (unlikely(PageHWPoison(page))) {
+> +		SetPageDirty(page);
+> +		return 0;
+> +	}
+>  	if (likely(mapping)) {
+>  		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
+>  #ifdef CONFIG_BLOCK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
