@@ -1,60 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6B73E6B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:30:58 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n597wcOj026848
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 16:58:39 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AA4A45DE50
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:58:38 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 54FBF45DE4F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:58:38 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B01241DB804B
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:58:37 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E96DA1DB8043
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:58:36 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH  mmotm] vmscan: fix may_swap handling for memcg)
-In-Reply-To: <28c262360906090048x792fb3f9i6678298b693f6c5a@mail.gmail.com>
-References: <20090609161925.DD70.A69D9226@jp.fujitsu.com> <28c262360906090048x792fb3f9i6678298b693f6c5a@mail.gmail.com>
-Message-Id: <20090609164850.DD73.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF456B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:37:21 -0400 (EDT)
+Date: Tue, 9 Jun 2009 09:05:10 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Add a gfp-translate script to help understand page
+	allocation failure reports
+Message-ID: <20090609080510.GA18380@csn.ul.ie>
+References: <20090608132950.GB15070@csn.ul.ie> <20090608163827.47b4738b.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 16:58:36 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090608163827.47b4738b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: riel@redhat.com, penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Hi, KOSAKI.
+On Mon, Jun 08, 2009 at 04:38:27PM -0700, Andrew Morton wrote:
+> On Mon, 8 Jun 2009 14:29:50 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> As you know, this problem caused by if condition(priority) in shrink_zone.
-> Let me have a question.
+> > The page allocation failure messages include a line that looks like
+> > 
+> > page allocation failure. order:1, mode:0x4020
+> > 
+> > The mode is easy to translate but irritating for the lazy and a bit error
+> > prone. This patch adds a very simple helper script gfp-translate for the mode:
+> > portion of the page allocation failure messages. An example usage looks like
+> > 
+> >   mel@machina:~/linux-2.6 $ scripts/gfp-translate 0x4020
+> >   Source: /home/mel/linux-2.6
+> >   Parsing: 0x4020
+> >   #define __GFP_HIGH	(0x20)	/* Should access emergency pools? */
+> >   #define __GFP_COMP	(0x4000) /* Add compound page metadata */
+> > 
+> > The script is not a work of art but it has come in handy for me a few times
+> > so I thought I would share.
+> > 
 > 
-> Why do we have to prevent scan value calculation when the priority is zero ?
-> As I know, before split-lru, we didn't do it.
+> hm, OK.  Most of the gfp masks I have to decode are in emails and
+> bugzilla reports.  I guess I'm different. 
+
+You can't be that different. Many of the ones I would be reading are from the
+same places - mails (from lkml) and bugzilla (distros mainly). The minority
+are ones I generated from my own tree and there I usually know what the
+flags were anyway without the help of the script.
+
+> Plus I wouldn't trust a tool
+> run on my machine's kernel tree to correctly interpret a gfp mask from
+> someone else's kernel of different vintage.
 > 
-> Is there any specific issue in case of the priority is zero ?
 
-Yes. 
+There is an assumption that you can accurate recreate the reporters tree. If
+that's wrong, you are in trouble anyway. Luckily, GFP flags are not that
+changeable. If your copy of the kernel tree recognise the flag at all,
+chances are it'll be interpreted correctly for the vast majority of flags. The
+one possibly exception is __GFP_MOVABLE as there is a patch out there that
+changes its definition.
 
-example:
+> But I can see that it would be useful for someone who's debugging a
+> locally built kernel.
+> 
+> > diff --git a/scripts/gfp-translate b/scripts/gfp-translate
+> > new file mode 100755
+> 
+> I don't know how to get patches into Linus's tree with the X bit still
+> set :(  To avoid solving that problem, maybe Pekka can merge this?
+> 
 
-get_scan_ratio() return anon:80%, file=20%. and the system have
-10000 anon pages and 10000 file pages.
+Seems sensible. Pekka?
 
-shrink_zone() picked up 8000 anon pages and 2000 file pages.
-it mean 8000 file pages aren't scanned at all.
+> > +# Guess the kernel source directory if it's not set. Preference is in order of
+> > +# o current directory
+> > +# o /usr/src/linux
+> > +if [ "$SOURCE" = "" ]; then
+> > +	if [ -r "/usr/src/linux/Makefile" ]; then
+> > +		SOURCE=/usr/src/linux
+> > +	fi
+> > +	if [ -r "`pwd`/Makefile" ]; then
+> > +		SOURCE=`pwd`
+> > +	fi
+> > +fi
+> 
+> OK.
+> 
+> > +# Confirm that a source directory exists
+> > +if [ ! -r "$SOURCE/Makefile" ]; then
+> > +	die "Could not locate source directory or it is invalid"
+> > +fi
+> 
+> "kernel source directory".
+> 
 
-Oops, it can makes OOM-killer although system have droppable file cache.
+Sure. Thanks.
 
+> > +# Confirm that a GFP mask has been specified
+> > +if [ "$GFPMASK" = "none" ]; then
+> > +	usage
+> > +fi
+> > +
+> > +# Extract GFP flags from the kernel source
+> > +TMPFILE=`mktemp -t gfptranslate-XXXXXX` || exit 1
+> > +grep "^#define __GFP" $SOURCE/include/linux/gfp.h | sed -e 's/(__force gfp_t)//' | sed -e 's/u)/)/' | grep -v GFP_BITS | sed -e 's/)\//) \//' > $TMPFILE
+> > +
+> > +# Parse the flags
+> > +IFS="
+> > +"
+> > +echo Source: $SOURCE
+> > +echo Parsing: $GFPMASK
+> > +for LINE in `cat $TMPFILE`; do
+> > +	MASK=`echo $LINE | awk '{print $3}'`
+> > +	if [ $(($GFPMASK&$MASK)) -ne 0 ]; then
+> > +		echo $LINE
+> > +	fi
+> > +done
+> > +
+> > +rm -f $TMPFILE
+> > +exit 0
+> 
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
