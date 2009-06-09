@@ -1,208 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 96AF66B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 02:18:49 -0400 (EDT)
-Date: Tue, 9 Jun 2009 14:44:06 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 964C86B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 02:23:41 -0400 (EDT)
+Date: Tue, 9 Jun 2009 14:48:55 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/3] vmscan: make mapped executable pages the first
-	class  citizen
-Message-ID: <20090609064406.GA5490@localhost>
-References: <alpine.DEB.1.10.0905181045340.20244@qirst.com> <20090519032759.GA7608@localhost> <20090519133422.4ECC.A69D9226@jp.fujitsu.com> <20090519062503.GA9580@localhost> <87pre4nhqf.fsf@basil.nowhere.org> <20090608073944.GA12431@localhost> <ab418ea90906081018o56f036c4md200a605921337c3@mail.gmail.com>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
+	in  the VM v3
+Message-ID: <20090609064855.GB5490@localhost>
+References: <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090528145021.GA5503@localhost> <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com> <20090607160225.GA24315@localhost> <ab418ea90906080406y34981329y27d360624aa22f7c@mail.gmail.com> <20090608123133.GA7944@localhost> <ab418ea90906080746m6d1d59d8m395ab76585575db1@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <ab418ea90906081018o56f036c4md200a605921337c3@mail.gmail.com>
+In-Reply-To: <ab418ea90906080746m6d1d59d8m395ab76585575db1@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Nai Xia <nai.xia@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 01:18:26AM +0800, Nai Xia wrote:
-> On Mon, Jun 8, 2009 at 3:39 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > On Wed, May 20, 2009 at 07:20:24PM +0800, Andi Kleen wrote:
-> >> One scenario that might be useful to test is what happens when some very large
-> >> processes, all mapped and executable exceed memory and fight each other
-> >> for the working set. Do you have regressions then compared to without
-> >> the patches?
+On Mon, Jun 08, 2009 at 10:46:53PM +0800, Nai Xia wrote:
+> On Mon, Jun 8, 2009 at 8:31 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> > On Mon, Jun 08, 2009 at 07:06:12PM +0800, Nai Xia wrote:
+> >> On Mon, Jun 8, 2009 at 12:02 AM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> >> > On Thu, Jun 04, 2009 at 02:25:24PM +0800, Nai Xia wrote:
+> >> >> On Thu, May 28, 2009 at 10:50 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> >> >> > On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
+> >> >> >> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
+> >> >> >
+> >> >> > [snip]
+> >> >> >
+> >> >> >> >
+> >> >> >> > BTW. I don't know if you are checking for PG_writeback often enough?
+> >> >> >> > You can't remove a PG_writeback page from pagecache. The normal
+> >> >> >> > pattern is lock_page(page); wait_on_page_writeback(page); which I
+> >> >> >>
+> >> >> >> So pages can be in writeback without being locked? I still
+> >> >> >> wasn't able to find such a case (in fact unless I'm misreading
+> >> >> >> the code badly the writeback bit is only used by NFS and a few
+> >> >> >> obscure cases)
+> >> >> >
+> >> >> > Yes the writeback page is typically not locked. Only read IO requires
+> >> >> > to be exclusive. Read IO is in fact page *writer*, while writeback IO
+> >> >> > is page *reader* :-)
+> >> >>
+> >> >> Sorry for maybe somewhat a little bit off topic,
+> >> >> I am trying to get a good understanding of PG_writeback & PG_locked ;)
+> >> >>
+> >> >> So you are saying PG_writeback & PG_locked are acting like a read/write lock?
+> >> >> I notice wait_on_page_writeback(page) seems always called with page locked --
+> >> >
+> >> > No. Note that pages are not locked in wait_on_page_writeback_range().
+> >>
+> >> I see. This function seems mostly called A on the sync path,
+> >> it just waits for data being synchronized to disk.
+> >> No writers from the pages' POV, so no lock.
+> >> I missed this case, but my argument about the role of read/write lock.
+> >> seems still consistent. :)
 > >
-> > I managed to carry out some stress tests for memory tight desktops.
-> > The outcome is encouraging: clock time and major faults are reduced
-> > by 50%, and pswpin numbers are reduced to ~1/3.
-> >
-> > Here is the test scenario.
-> > - nfsroot gnome desktop with 512M physical memory
-> > - run some programs, and switch between the existing windows after
-> > A starting each new program.
+> > It's more constrained. Normal read/write locks allow concurrent readers,
+> > however fsync() must wait for previous IO to finish before starting
+> > its own IO.
 > 
-> I think this is a story of VM_EXEC pages fighting against other kind of pages,
-> but as Andi said, did you test real regression case of VM_EXEC pages fighting
-> against each other?
+> Oh, yes, this is what I called "mixed roles". One for lock, one for
+> status flag, twisted together in the same path, making the read lock
+> semantics totally broken.
+> 
+> >
+> >> >
+> >> >> that is the semantics of a writer waiting to get the lock while it's
+> >> >> acquired by
+> >> >> some reader:The caller(e.g. truncate_inode_pages_range() A and
+> >> >> invalidate_inode_pages2_range()) are the writers waiting for
+> >> >> writeback readers (as you clarified ) to finish their job, right ?
+> >> >
+> >> > Sorry if my metaphor confused you. But they are not typical
+> >> > reader/writer problems, but more about data integrities.
+> >>
+> >> No, you didn't :)
+> >> Actually, you make me clear about the mixed roles for
+> >> those bits.
+> >>
+> >> >
+> >> > Pages have to be "not under writeback" when truncated.
+> >> > Otherwise data lost is possible:
+> >> >
+> >> > 1) create a file with one page (page A)
+> >> > 2) truncate page A that is under writeback
+> >> > 3) write to file, which creates page B
+> >> > 4) sync file, which sends page B to disk quickly
+> >> >
+> >> > Now if page B reaches disk before A, the new data will be overwritten
+> >> > by truncated old data, which corrupts the file.
+> >>
+> >> I fully understand this scenario which you had already clarified in a
+> >> previous message. :)
+> >>
+> >> 1. someone make index1-> page A
+> >> 2. Path P1 is acting as a *reader* to a cache page at index1 by
+> >> A  A  setting PG_writeback on, while at the same time as a *writer* to
+> >> A  A  the corresponding file blocks.
+> >> 3. Another path P2 comes in and A truncate page A, he is the writer
+> >> A  A  to the same cache page.
+> >> 4. Yet another path P3 comes A as the writer to the cache page
+> >> A  A  A making it points to page B: index1--> page B.
+> >> 5. Path P4 comes writing back the cache page(and set PG_writeback).
+> >> A  A He is the reader of the cache page and the writer to the file blocks.
+> >>
+> >> The corrupts occur because P1 & P4 races when writing file blocks.
+> >> But the _root_ of this racing is because nothing is used to serialize
+> >> them on the side of writing the file blocks and above stream reading was
+> >> inconsistent because of the writers(P2 & P3) to cache page at index1.
+> >>
+> >> Note that the "sync file" is somewhat irrelevant, even without "sync file",
+> >> the racing still may exists. I know you must want to show me that this could
+> >> make the corruption more easy to occur.
+> >>
+> >> So I think the simple logic is:
+> >> 1) if you want to truncate/change the mapping from a index to a struct *page,
+> >> test writeback bit because the writebacker to the file blocks is the reader
+> >> of this mapping.
+> >> 2) if a writebacker want to start a read of this mapping with
+> >> test_set_page_writeback()
+> >> or set_page_writeback(), he'd be sure this page is locked to keep out the
+> >> writers to this mapping of index-->struct *page.
+> >>
+> >> This is really behavior of a read/write lock, right ?
+> >
+> > Please, that's a dangerous idea. A page can be written to at any time
+> > when writeback to disk is under way. Does PG_writeback (your reader
+> > lock) prevents page data writers? A NO.
+> 
+> I meant PG_writeback stops writers to index---->struct page mapping.
 
-No. We'd better buy more memory if it's not enough for VM_EXEC pages :-)
+It's protected by the radix tree RCU locks. Period.
+
+If you are referring to the reverse mapping: page->mapping is procted
+by PG_lock. No one should make assumption that it won't change under
+page writeback.
 
 Thanks,
 Fengguang
 
-> "
-> One scenario that might be useful to test is what happens when some very large
-> processes, all mapped and executable exceed memory and fight each other
-> for the working set. Do you have regressions then compared to without
-> the patches?
+> I think I should make my statements more concise and the "reader/writer"
+> less vague.
 > 
-> -Andi
-> "
+> Here we care about the write/read operation for index---->struct page mapping.
+> Not for read/write operation for the page content.
 > 
-> My experices with Compcache(http://code.google.com/p/compcache/) show that
-> it also has similar improvement in similar case on LTSP
-> (http://code.google.com/p/compcache/wiki/Performance).
-> But it does has a non-trivial performance loss even when doing kernel
-> compilation.
-> I am not a little surprised when Andrew said it "There must be some cost
-> somewhere".
+> Anyone who wants to change this mapping  is a writer, he should take
+> page lock.
+> Anyone who wants to reference this mapping is a reader, writers should
+> wait for him. And when this reader wants to get ref, he should wait for
+> anyone one who is changing this mapping(e.g. page truncater).
 > 
-> So you have found the spots where your patch doing great,
-> make double sure it will not do something bad in all places,
-> and that will be perfect. :-)
+> When a path sets PG_writeback on a page, it need this index-->struct page
+> mapping be 100% valid right? (otherwise may leads to corruption.)
+> So writeback routines are readers of this index-->struct page mapping.
+> (oh, well if we can put the other role of PG_writeback aside)
+> 
+> Ok,Ok, since PG_locked does mean much more than just protecting
+> the per-page mapping which makes the lock abstraction even less clear.
+> so indeed, forget about it.
 > 
 > >
-> > The progress timing (seconds) is:
+> > Thanks,
+> > Fengguang
 > >
-> > A before A  A  A  after A  A programs
-> > A  A 0.02 A  A  A  A 0.02 A  A N xeyes
-> > A  A 0.75 A  A  A  A 0.76 A  A N firefox
-> > A  A 2.02 A  A  A  A 1.88 A  A N nautilus
-> > A  A 3.36 A  A  A  A 3.17 A  A N nautilus --browser
-> > A  A 5.26 A  A  A  A 4.89 A  A N gthumb
-> > A  A 7.12 A  A  A  A 6.47 A  A N gedit
-> > A  A 9.22 A  A  A  A 8.16 A  A N xpdf /usr/share/doc/shared-mime-info/shared-mime-info-spec.pdf
-> > A  13.58 A  A  A  12.55 A  A N xterm
-> > A  15.87 A  A  A  14.57 A  A N mlterm
-> > A  18.63 A  A  A  17.06 A  A N gnome-terminal
-> > A  21.16 A  A  A  18.90 A  A N urxvt
-> > A  26.24 A  A  A  23.48 A  A N gnome-system-monitor
-> > A  28.72 A  A  A  26.52 A  A N gnome-help
-> > A  32.15 A  A  A  29.65 A  A N gnome-dictionary
-> > A  39.66 A  A  A  36.12 A  A N /usr/games/sol
-> > A  43.16 A  A  A  39.27 A  A N /usr/games/gnometris
-> > A  48.65 A  A  A  42.56 A  A N /usr/games/gnect
-> > A  53.31 A  A  A  47.03 A  A N /usr/games/gtali
-> > A  58.60 A  A  A  52.05 A  A N /usr/games/iagno
-> > A  65.77 A  A  A  55.42 A  A N /usr/games/gnotravex
-> > A  70.76 A  A  A  61.47 A  A N /usr/games/mahjongg
-> > A  76.15 A  A  A  67.11 A  A N /usr/games/gnome-sudoku
-> > A  86.32 A  A  A  75.15 A  A N /usr/games/glines
-> > A  92.21 A  A  A  79.70 A  A N /usr/games/glchess
-> > A 103.79 A  A  A  88.48 A  A N /usr/games/gnomine
-> > A 113.84 A  A  A  96.51 A  A N /usr/games/gnotski
-> > A 124.40 A  A  A 102.19 A  A N /usr/games/gnibbles
-> > A 137.41 A  A  A 114.93 A  A N /usr/games/gnobots2
-> > A 155.53 A  A  A 125.02 A  A N /usr/games/blackjack
-> > A 179.85 A  A  A 135.11 A  A N /usr/games/same-gnome
-> > A 224.49 A  A  A 154.50 A  A N /usr/bin/gnome-window-properties
-> > A 248.44 A  A  A 162.09 A  A N /usr/bin/gnome-default-applications-properties
-> > A 282.62 A  A  A 173.29 A  A N /usr/bin/gnome-at-properties
-> > A 323.72 A  A  A 188.21 A  A N /usr/bin/gnome-typing-monitor
-> > A 363.99 A  A  A 199.93 A  A N /usr/bin/gnome-at-visual
-> > A 394.21 A  A  A 206.95 A  A N /usr/bin/gnome-sound-properties
-> > A 435.14 A  A  A 224.49 A  A N /usr/bin/gnome-at-mobility
-> > A 463.05 A  A  A 234.11 A  A N /usr/bin/gnome-keybinding-properties
-> > A 503.75 A  A  A 248.59 A  A N /usr/bin/gnome-about-me
-> > A 554.00 A  A  A 276.27 A  A N /usr/bin/gnome-display-properties
-> > A 615.48 A  A  A 304.39 A  A N /usr/bin/gnome-network-preferences
-> > A 693.03 A  A  A 342.01 A  A N /usr/bin/gnome-mouse-properties
-> > A 759.90 A  A  A 388.58 A  A N /usr/bin/gnome-appearance-properties
-> > A 937.90 A  A  A 508.47 A  A N /usr/bin/gnome-control-center
-> > A 1109.75 A  A  A 587.57 A  A N /usr/bin/gnome-keyboard-properties
-> > A 1399.05 A  A  A 758.16 A  A N : oocalc
-> > A 1524.64 A  A  A 830.03 A  A N : oodraw
-> > A 1684.31 A  A  A 900.03 A  A N : ooimpress
-> > A 1874.04 A  A  A 993.91 A  A N : oomath
-> > A 2115.12 A  A  1081.89 A  A N : ooweb
-> > A 2369.02 A  A  1161.99 A  A N : oowriter
-> >
-> > Note that the oo* commands are actually commented out.
-> >
-> > The vmstat numbers are (some relevant ones are marked with *):
-> >
-> > A  A  A  A  A  A  A  A  A  A  A  A  A  A before A  A after
-> > A nr_free_pages A  A  A  A  A  A  A 1293 A  A  A 3898
-> > A nr_inactive_anon A  A  A  A  A  59956 A  A  53460
-> > A nr_active_anon A  A  A  A  A  A  26815 A  A  30026
-> > A nr_inactive_file A  A  A  A  A  2657 A  A  A 3218
-> > A nr_active_file A  A  A  A  A  A  2019 A  A  A 2806
-> > A nr_unevictable A  A  A  A  A  A  4 A  A  A  A  4
-> > A nr_mlock A  A  A  A  A  A  A  A  A  4 A  A  A  A  4
-> > A nr_anon_pages A  A  A  A  A  A  A 26706 A  A  27859
-> > *nr_mapped A  A  A  A  A  A  A  A  A 3542 A  A  A 4469
-> > A nr_file_pages A  A  A  A  A  A  A 72232 A  A  67681
-> > A nr_dirty A  A  A  A  A  A  A  A  A  1 A  A  A  A  0
-> > A nr_writeback A  A  A  A  A  A  A  123 A  A  A  19
-> > A nr_slab_reclaimable A  A  A  A 3375 A  A  A 3534
-> > A nr_slab_unreclaimable A  A  A 11405 A  A  10665
-> > A nr_page_table_pages A  A  A  A 8106 A  A  A 7864
-> > A nr_unstable A  A  A  A  A  A  A  A 0 A  A  A  A  0
-> > A nr_bounce A  A  A  A  A  A  A  A  A 0 A  A  A  A  0
-> > *nr_vmscan_write A  A  A  A  A  A 394776 A  A 230839
-> > A nr_writeback_temp A  A  A  A  A 0 A  A  A  A  0
-> > A numa_hit A  A  A  A  A  A  A  A  A  6843353 A  3318676
-> > A numa_miss A  A  A  A  A  A  A  A  A 0 A  A  A  A  0
-> > A numa_foreign A  A  A  A  A  A  A  0 A  A  A  A  0
-> > A numa_interleave A  A  A  A  A  A 1719 A  A  A 1719
-> > A numa_local A  A  A  A  A  A  A  A  6843353 A  3318676
-> > A numa_other A  A  A  A  A  A  A  A  0 A  A  A  A  0
-> > *pgpgin A  A  A  A  A  A  A  A  A  A  5954683 A  2057175
-> > *pgpgout A  A  A  A  A  A  A  A  A  A 1578276 A  922744
-> > *pswpin A  A  A  A  A  A  A  A  A  A  1486615 A  512238
-> > *pswpout A  A  A  A  A  A  A  A  A  A 394568 A  A 230685
-> > A pgalloc_dma A  A  A  A  A  A  A  A 277432 A  A 56602
-> > A pgalloc_dma32 A  A  A  A  A  A  A 6769477 A  3310348
-> > A pgalloc_normal A  A  A  A  A  A  0 A  A  A  A  0
-> > A pgalloc_movable A  A  A  A  A  A 0 A  A  A  A  0
-> > A pgfree A  A  A  A  A  A  A  A  A  A  7048396 A  3371118
-> > A pgactivate A  A  A  A  A  A  A  A  2036343 A  1471492
-> > A pgdeactivate A  A  A  A  A  A  A  2189691 A  1612829
-> > A pgfault A  A  A  A  A  A  A  A  A  A 3702176 A  3100702
-> > *pgmajfault A  A  A  A  A  A  A  A  452116 A  A 201343
-> > A pgrefill_dma A  A  A  A  A  A  A  12185 A  A  7127
-> > A pgrefill_dma32 A  A  A  A  A  A  334384 A  A 653703
-> > A pgrefill_normal A  A  A  A  A  A 0 A  A  A  A  0
-> > A pgrefill_movable A  A  A  A  A  0 A  A  A  A  0
-> > A pgsteal_dma A  A  A  A  A  A  A  A 74214 A  A  22179
-> > A pgsteal_dma32 A  A  A  A  A  A  A 3334164 A  1638029
-> > A pgsteal_normal A  A  A  A  A  A  0 A  A  A  A  0
-> > A pgsteal_movable A  A  A  A  A  A 0 A  A  A  A  0
-> > A pgscan_kswapd_dma A  A  A  A  A 1081421 A  1216199
-> > A pgscan_kswapd_dma32 A  A  A  A 58979118 A 46002810
-> > A pgscan_kswapd_normal A  A  A  0 A  A  A  A  0
-> > A pgscan_kswapd_movable A  A  A 0 A  A  A  A  0
-> > A pgscan_direct_dma A  A  A  A  A 2015438 A  1086109
-> > A pgscan_direct_dma32 A  A  A  A 55787823 A 36101597
-> > A pgscan_direct_normal A  A  A  0 A  A  A  A  0
-> > A pgscan_direct_movable A  A  A 0 A  A  A  A  0
-> > A pginodesteal A  A  A  A  A  A  A  3461 A  A  A 7281
-> > A slabs_scanned A  A  A  A  A  A  A 564864 A  A 527616
-> > A kswapd_steal A  A  A  A  A  A  A  2889797 A  1448082
-> > A kswapd_inodesteal A  A  A  A  A 14827 A  A  14835
-> > A pageoutrun A  A  A  A  A  A  A  A  43459 A  A  21562
-> > A allocstall A  A  A  A  A  A  A  A  9653 A  A  A 4032
-> > A pgrotated A  A  A  A  A  A  A  A  A 384216 A  A 228631
-> > A htlb_buddy_alloc_success A  0 A  A  A  A  0
-> > A htlb_buddy_alloc_fail A  A  A 0 A  A  A  A  0
-> > A unevictable_pgs_culled A  A  0 A  A  A  A  0
-> > A unevictable_pgs_scanned A  A 0 A  A  A  A  0
-> > A unevictable_pgs_rescued A  A 0 A  A  A  A  0
-> > A unevictable_pgs_mlocked A  A 4 A  A  A  A  4
-> > A unevictable_pgs_munlocked A 0 A  A  A  A  0
-> > A unevictable_pgs_cleared A  A 0 A  A  A  A  0
-> > A unevictable_pgs_stranded A  0 A  A  A  A  0
-> > A unevictable_pgs_mlockfreed 0 A  A  A  A  0
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org. A For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >> wait_on_page_writeback_range() looks different only because "sync"
+> >> operates on "struct page", it's not sensitive to index-->struct *page mapping.
+> >> It does care about if pages returned by pagevec_lookup_tag() are
+> >> still maintains the mapping when wait_on_page_writeback(page).
+> >> Here, PG_writeback is only a status flag for "struct page" not a lock bit for
+> >> index->struct *page mapping.
+> >>
+> >> >
+> >> >> So do you think the idea is sane to group the two bits together
+> >> >> to form a real read/write lock, which does not care about the _number_
+> >> >> of readers ?
+> >> >
+> >> > We don't care number of readers here. So please forget about it.
+> >> Yeah, I meant number of readers is not important.
+> >>
+> >> I still hold that these two bits in some way act like a _sparse_
+> >> read/write lock.
+> >> But I am going to drop the idea of making them a pure lock, since PG_writeback
+> >> does has other meaning -- the page is being writing back: for sync
+> >> path, it's only
+> >> a status flag.
+> >> Making a pure read/write lock definitely will lose that or at least distort it.
+> >>
+> >>
+> >> Hoping I've made my words understandable, correct me if wrong, and
+> >> many thanks for your time and patience. :-)
+> >>
+> >>
+> >> Nai Xia
+> >>
+> >> >
+> >> > Thanks,
+> >> > Fengguang
+> >> >
+> >> >> > The writeback bit is _widely_ used. A test_set_page_writeback() is
+> >> >> > directly used by NFS/AFS etc. But its main user is in fact
+> >> >> > set_page_writeback(), which is called in 26 places.
+> >> >> >
+> >> >> >> > think would be safest
+> >> >> >>
+> >> >> >> Okay. I'll just add it after the page lock.
+> >> >> >>
+> >> >> >> > (then you never have to bother with the writeback bit again)
+> >> >> >>
+> >> >> >> Until Fengguang does something fancy with it.
+> >> >> >
+> >> >> > Yes I'm going to do it without wait_on_page_writeback().
+> >> >> >
+> >> >> > The reason truncate_inode_pages_range() has to wait on writeback page
+> >> >> > is to ensure data integrity. Otherwise if there comes two events:
+> >> >> > A  A  A  A truncate page A at offset X
+> >> >> > A  A  A  A populate page B at offset X
+> >> >> > If A and B are all writeback pages, then B can hit disk first and then
+> >> >> > be overwritten by A. Which corrupts the data at offset X from user's POV.
+> >> >> >
+> >> >> > But for hwpoison, there are no such worries. If A is poisoned, we do
+> >> >> > our best to isolate it as well as intercepting its IO. If the interception
+> >> >> > fails, it will trigger another machine check before hitting the disk.
+> >> >> >
+> >> >> > After all, poisoned A means the data at offset X is already corrupted.
+> >> >> > It doesn't matter if there comes another B page.
+> >> >> >
+> >> >> > Thanks,
+> >> >> > Fengguang
+> >> >> > --
+> >> >> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> >> >> > the body of a message to majordomo@vger.kernel.org
+> >> >> > More majordomo info at A http://vger.kernel.org/majordomo-info.html
+> >> >> > Please read the FAQ at A http://www.tux.org/lkml/
+> >> >> >
+> >> >
 > >
 
 --
