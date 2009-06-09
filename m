@@ -1,157 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2361C6B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 09:09:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n59DmaPW025123
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 22:48:36 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 184AF45DD7A
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:48:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E508145DD72
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:48:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EBFE4E08001
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:48:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EDF31DB8014
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:48:35 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v4] zone_reclaim is always 0 by default
-In-Reply-To: <20090608115048.GA15070@csn.ul.ie>
-References: <20090604192236.9761.A69D9226@jp.fujitsu.com> <20090608115048.GA15070@csn.ul.ie>
-Message-Id: <20090609211721.DD9A.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 327D26B005A
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 09:10:39 -0400 (EDT)
+Date: Tue, 9 Jun 2009 21:49:03 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [11/16] HWPOISON: check and isolate corrupted free
+	pages v2
+Message-ID: <20090609134903.GC6583@localhost>
+References: <20090603846.816684333@firstfloor.org> <20090603184645.68FA21D0286@basil.firstfloor.org> <20090609100229.GE14820@wotan.suse.de> <20090609130304.GF5589@localhost> <20090609132847.GC15219@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 22:48:34 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090609132847.GC15219@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robin Holt <holt@sgi.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-ia64@vger.kernel.org, linuxppc-dev@ozlabs.org, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-sorry for late responce. my e-mail reading speed is very slow ;-)
-
-First, Could you please read past thread?
-I think many topic of this mail are already discussed.
-
-
-> On Thu, Jun 04, 2009 at 07:23:15PM +0900, KOSAKI Motohiro wrote:
+On Tue, Jun 09, 2009 at 09:28:47PM +0800, Nick Piggin wrote:
+> On Tue, Jun 09, 2009 at 09:03:04PM +0800, Wu Fengguang wrote:
+> > On Tue, Jun 09, 2009 at 06:02:29PM +0800, Nick Piggin wrote:
+> > > On Wed, Jun 03, 2009 at 08:46:45PM +0200, Andi Kleen wrote:
+> > > > 
+> > > > From: Wu Fengguang <fengguang.wu@intel.com>
+> > > > 
+> > > > If memory corruption hits the free buddy pages, we can safely ignore them.
+> > > > No one will access them until page allocation time, then prep_new_page()
+> > > > will automatically check and isolate PG_hwpoison page for us (for 0-order
+> > > > allocation).
+> > > 
+> > > It would be kinda nice if this could be done in the handler
+> > > directly (ie. take the page directly out of the allocator
+> > > or pcp list). Completely avoiding fastpaths would be a
+> > > wonderful goal.
 > > 
-> > Current linux policy is, zone_reclaim_mode is enabled by default if the machine
-> > has large remote node distance. it's because we could assume that large distance
-> > mean large server until recently.
+> > In fact Andi have code to do that. We prefer this one because
+> > - it's simple
+> > - it's good sanity check for possible software BUGs
+> > - it mainly adds overhead to high order pages, which is acceptable
+> 
+> Yeah it's not bad. But we don't have much other non-debug options
+> that check for random memory corruption like this. Given that the
+> struct page is a very tiny proportion of memory, then I'm not
+> totally convinced that all this checking in the page allocator is
+> worthwhile for everyone. It's a much bigger cost if checks and
+> branches have to be there just for hwpoison.
+
+Maybe.
+
+> And I don't think removing a free page from the page allocator is
+> too much more complex than removing a live page from the pagecache ;)
+
+There are usable functions for doing pagecache isolations, but no one
+to isolate one specific page from the buddy system.
+
+Plus, if we did present such a function, you'll then ask for it being
+included in page_alloc.c, injecting a big chunk of dead code into the
+really hot code blocks and possibly polluting the L2 cache. Will it be
+better than just inserting several lines? Hardly. Smaller text itself
+yields faster speed.
+
+Thanks,
+Fengguang
+
+> 
 > > 
-> 
-> We don't make assumptions about the server being large, small or otherwise. The
-> affinity tables reporting a distance of 20 or more is saying "remote memory
-> has twice the latency of local memory". This is true irrespective of workload
-> and implies that going off-node has a real penalty regardless of workload.
-
-No.
-Now, we talk about off-node allocation vs unnecessary file cache dropping.
-IOW, off-node allocation vs disk access.
-
-Then, the worth doesn't only depend on off-node distance, but also depend on
-workload IO tendency and IO speed.
-
-Fujitsu has 64 core ia64 HPC box, zone-reclaim sometimes made performance
-degression although its box. 
-
-So, I don't think this problem is small vs large machine issue.
-nor i7 issue.
-high-speed P2P CPU integrated memory controller expose old issue.
-
-
-> > In general, workload depended configration shouldn't put into default settings.
+> > Thanks,
+> > Fengguang
 > > 
-> > However, current code is long standing about two year. Highest POWER and IA64 HPC machine
-> > (only) use this setting.
+> > > >  
+> > > > +	/* Don't complain about poisoned pages */
+> > > > +	if (PageHWPoison(page)) {
+> > > > +		__ClearPageBuddy(page);
+> > > > +		return;
+> > > > +	}
+> > > > +
 > > 
-> > Thus, x86 and almost rest architecture change default setting, but Only power and ia64
-> > remain current configuration for backward-compatibility.
+> > I do think the above chunk is not absolutely necessary, though.
 > > 
-> 
-> What about if it's x86-64-based NUMA but it's not i7 based. There, the
-> NUMA distances might really mean something and that zone_reclaim behaviour
-> is desirable.
-
-hmmm..
-I don't hope ignore AMD, I think it's common characterastic of P2P and
-integrated memory controller machine.
-
-Also, I don't hope detect CPU family or similar, because we need update
-such code evey when Intel makes new cpu.
-
-Can we detect P2P interconnect machine? I'm not sure.
-
-
-> I think if we're going down the road of setting the default, it shouldn't be
-> per-architecture defaults as such. Other choices for addressing this might be;
-> 
-> 1. Make RECLAIM_DISTANCE a variable on x86. Set it to 20 by default, and 5
->    (or some other sensible figure) on i7
-> 
-> 2. There should be a per-arch modifier callback for the affinity
->    distances. If the x86 code detects the CPU is an i7, it can reduce the
->    reported latencies to be more in line with expected reality.
-> 
-> 3. Do not use zone_reclaim() for file-backed data if more than 20% of memory
->    overall is free. The difficulty is figuring out if the allocation is for
->    file pages.
-> 
-> 4. Change zone_reclaim_mode default to mean "do your best to figure it
->    out". Patch 1 would default large distances to 1 to see what happens.
->    Then apply a heuristic when in figure-it-out mode and using reclaim_mode == 1
-> 
-> 	If we have locally reclaimed 2% of the nodes memory in file pages
-> 	within the last 5 seconds when >= 20% of total physical memory was
-> 	free, then set the reclaim_mode to 0 on the assumption the node is
-> 	mostly caching pages and shouldn't be reclaimed to avoid excessive IO
-> 
-> Option 1 would appear to be the most straight-forward but option 2
-> should be doable. Option 3 and 4 could turn into a rats nest and I would
-> consider those approaches a bit more drastic.
-
-hmhm. 
-I think the key-point of option 1 and 2 are proper hardware detecting way.
-
-option 3 and 4 are more prefere idea to me. I like workload adapted heuristic.
-but you already pointed out its hard, because page-allocator don't know
-allocation purpose ;)
-
-
-> > @@ -10,6 +10,12 @@ struct device_node;
-> >  
-> >  #include <asm/mmzone.h>
-> >  
-> > +/*
-> > + * Distance above which we begin to use zone reclaim
-> > + */
-> > +#define RECLAIM_DISTANCE 20
-> > +
-> > +
-> 
-> Where is the ia-64-specific modifier to RECAIM_DISTANCE?
-
-
-arch/ia64/include/asm/topology.h has
-
-	/*
-	 * Distance above which we begin to use zone reclaim
-	 */
-	#define RECLAIM_DISTANCE 15
-
-
-I don't think distance==15 is machine independent proper definition.
-but there is long lived definition ;)
-
-
-
+> > Thanks,
+> > Fengguang
+> > 
+> > 
+> > > >  	/*
+> > > >  	 * Allow a burst of 60 reports, then keep quiet for that minute;
+> > > >  	 * or allow a steady drip of one report per second.
+> > > > @@ -650,7 +656,7 @@
+> > > >  /*
+> > > >   * This page is about to be returned from the page allocator
+> > > >   */
+> > > > -static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+> > > > +static inline int check_new_page(struct page *page)
+> > > >  {
+> > > >  	if (unlikely(page_mapcount(page) |
+> > > >  		(page->mapping != NULL)  |
+> > > > @@ -659,6 +665,18 @@
+> > > >  		bad_page(page);
+> > > >  		return 1;
+> > > >  	}
+> > > > +	return 0;
+> > > > +}
+> > > > +
+> > > > +static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+> > > > +{
+> > > > +	int i;
+> > > > +
+> > > > +	for (i = 0; i < (1 << order); i++) {
+> > > > +		struct page *p = page + i;
+> > > > +		if (unlikely(check_new_page(p)))
+> > > > +			return 1;
+> > > > +	}
+> > > >  
+> > > >  	set_page_private(page, 0);
+> > > >  	set_page_refcounted(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
