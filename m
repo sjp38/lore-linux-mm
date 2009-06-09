@@ -1,255 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 758836B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:20:44 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n597m46i010775
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 16:48:04 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2590545DE63
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E7B6245DE51
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE8661DB8046
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6295C1DB8040
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 16:48:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] Do not unconditionally treat zones that fail zone_reclaim() as full
-In-Reply-To: <1244466090-10711-4-git-send-email-mel@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-4-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090609143806.DD67.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1BF6B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:20:59 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so2065184ywm.26
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2009 00:48:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 16:48:02 +0900 (JST)
+In-Reply-To: <20090609161925.DD70.A69D9226@jp.fujitsu.com>
+References: <20090608165457.fa8d17e6.nishimura@mxp.nes.nec.co.jp>
+	 <20090609161330.fcd5facb.nishimura@mxp.nes.nec.co.jp>
+	 <20090609161925.DD70.A69D9226@jp.fujitsu.com>
+Date: Tue, 9 Jun 2009 16:48:20 +0900
+Message-ID: <28c262360906090048x792fb3f9i6678298b693f6c5a@mail.gmail.com>
+Subject: Re: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH
+	mmotm] vmscan: fix may_swap handling for memcg)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Hi, KOSAKI.
 
-> On NUMA machines, the administrator can configure zone_reclaim_mode that
-> is a more targetted form of direct reclaim. On machines with large NUMA
-> distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-> unmapped pages will be reclaimed if the zone watermarks are not being
-> met. The problem is that zone_reclaim() failing at all means the zone
-> gets marked full.
-> 
-> This can cause situations where a zone is usable, but is being skipped
-> because it has been considered full. Take a situation where a large tmpfs
-> mount is occuping a large percentage of memory overall. The pages do not
-> get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
-> and the zonelist cache considers them not worth trying in the future.
-> 
-> This patch makes zone_reclaim() return more fine-grained information about
-> what occured when zone_reclaim() failued. The zone only gets marked full if
-> it really is unreclaimable. If it's a case that the scan did not occur or
-> if enough pages were not reclaimed with the limited reclaim_mode, then the
-> zone is simply skipped.
-> 
-> There is a side-effect to this patch. Currently, if zone_reclaim()
-> successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
-> go ahead. With this patch applied, zone watermarks are rechecked after
-> zone_reclaim() does some work.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/internal.h   |    4 ++++
->  mm/page_alloc.c |   26 ++++++++++++++++++++++----
->  mm/vmscan.c     |   10 +++++-----
->  3 files changed, 31 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 987bb03..090c267 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -284,4 +284,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  		     unsigned long start, int len, int flags,
->  		     struct page **pages, struct vm_area_struct **vmas);
->  
-> +#define ZONE_RECLAIM_NOSCAN	-2
-> +#define ZONE_RECLAIM_FULL	-1
-> +#define ZONE_RECLAIM_SOME	0
-> +#define ZONE_RECLAIM_SUCCESS	1
->  #endif
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index fe753ec..ce2f684 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1420,20 +1420,38 @@ zonelist_scan:
->  
->  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
->  			unsigned long mark;
-> +			int ret;
+As you know, this problem caused by if condition(priority) in shrink_zone.
+Let me have a question.
 
-Please insert one empty line here.
+Why do we have to prevent scan value calculation when the priority is zero =
+?
+As I know, before split-lru, we didn't do it.
 
->  			if (alloc_flags & ALLOC_WMARK_MIN)
->  				mark = zone->pages_min;
->  			else if (alloc_flags & ALLOC_WMARK_LOW)
->  				mark = zone->pages_low;
->  			else
->  				mark = zone->pages_high;
-> -			if (!zone_watermark_ok(zone, order, mark,
-> -				    classzone_idx, alloc_flags)) {
-> -				if (!zone_reclaim_mode ||
-> -				    !zone_reclaim(zone, gfp_mask, order))
-> +			if (zone_watermark_ok(zone, order, mark,
-> +				    classzone_idx, alloc_flags))
-> +				goto try_this_zone;
-> +
-> +			if (zone_reclaim_mode == 0)
-> +				goto this_zone_full;
-> +
-> +			ret = zone_reclaim(zone, gfp_mask, order);
-> +			switch (ret) {
-> +				case ZONE_RECLAIM_NOSCAN:
-> +					/* did not scan */
-> +					goto try_next_zone;
-> +				case ZONE_RECLAIM_FULL:
-> +					/* scanned but unreclaimable */
->  					goto this_zone_full;
-> +				default:
-> +					/* did we reclaim enough */
-> +					if (!zone_watermark_ok(zone, order,
-> +							mark, classzone_idx,
-> +							alloc_flags))
-> +						goto try_next_zone;
+Is there any specific issue in case of the priority is zero ?
 
-hmmm
-I haven't catch your mention yet. sorry.
-Could you please explain more?
-
-My confuseness are:
-
-1.
-----
-I think your patch almost revert Paul's 9276b1bc96a132f4068fdee00983c532f43d3a26 essence.
-after your patch applied, zlc_mark_zone_full() is called only when zone_is_all_unreclaimable()==1
-or memory stealed after zone_watermark_ok() rechecking.
-
-but zone_is_all_unreclaimable() is very rare on large NUMA machine. Thus
-your patch makes zlc_zone_worth_trying() check to worthless.
-So, I like simple reverting 9276b1bc rather than introduce more messy if necessary.
-
-but necessary? why?
-
-
-2.
------
-Why simple following switch-case is wrong?
-
-	case ZONE_RECLAIM_NOSCAN:
-		goto try_next_zone;
-	case ZONE_RECLAIM_FULL:
-	case ZONE_RECLAIM_SOME:
-		goto this_zone_full;
-	case ZONE_RECLAIM_SUCCESS
-		; /* do nothing */
-
-I mean, 
- (1) ZONE_RECLAIM_SOME and zone_watermark_ok()==1
-
-are rare.
-Is rechecking really worth?
-In my experience, zone_watermark_ok() is not so fast function.
-
-And,
-
- (2) ZONE_RECLAIM_SUCCESS and zone_watermark_ok()==0
-
-is also rare.
-What do you afraid bad thing?
-
-I guess, high-order allocation and ZONE_RECLAIM_SUCCESS and 
-zone_watermark_ok()==0 case, right?
-
-if so, Why your system makes high order allocation so freqently?
-
-3.
-------
-your patch do:
-
-1. call zone_reclaim() and return ZONE_RECLAIM_SUCCESS
-2. another thread steal memory
-3. call zone_watermark_ok() and return 0
-
-Then, jump to try_next_zone
-
-but
-
-1. call zone_reclaim() and return ZONE_RECLAIM_SUCCESS
-2. call zone_watermark_ok() and return 1
-3. another thread steal memory
-4. call buffered_rmqueue() and return NULL
-
-Then, it call zlc_mark_zone_full().
-
-it seems a bit inconsistency.
+On Tue, Jun 9, 2009 at 4:20 PM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> > > and, too many recliaming pages is not only memcg issue. I don't thin=
+k this
+>> > > patch provide generic solution.
+>> > >
+>> > Ah, you're right. It's not only memcg issue.
+>> >
+>> How about this one ?
+>>
+>> =3D=3D=3D
+>> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>>
+>> Commit 2e2e425989080cc534fc0fca154cae515f971cf5 ("vmscan,memcg: reintrod=
+uce
+>> sc->may_swap) add may_swap flag and handle it at get_scan_ratio().
+>>
+>> But the result of get_scan_ratio() is ignored when priority =3D=3D 0,
+>> so anon lru is scanned even if may_swap =3D=3D 0 or nr_swap_pages =3D=3D=
+ 0.
+>> IMHO, this is not an expected behavior.
+>>
+>> As for memcg especially, because of this behavior many and many pages ar=
+e
+>> swapped-out just in vain when oom is invoked by mem+swap limit.
+>>
+>> This patch is for handling may_swap flag more strictly.
+>>
+>> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>
+> Looks great.
+> your patch doesn't only improve memcg, bug also improve noswap system.
+>
+> Thanks.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@=
+jp.fujitsu.com>
+>
+>
+>
+>> ---
+>> =C2=A0mm/vmscan.c | =C2=A0 18 +++++++++---------
+>> =C2=A01 files changed, 9 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 2ddcfc8..bacb092 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1407,13 +1407,6 @@ static void get_scan_ratio(struct zone *zone, str=
+uct scan_control *sc,
+>> =C2=A0 =C2=A0 =C2=A0 unsigned long ap, fp;
+>> =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat =3D get_recl=
+aim_stat(zone, sc);
+>>
+>> - =C2=A0 =C2=A0 /* If we have no swap space, do not bother scanning anon=
+ pages. */
+>> - =C2=A0 =C2=A0 if (!sc->may_swap || (nr_swap_pages <=3D 0)) {
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[0] =3D 0;
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[1] =3D 100;
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+>> - =C2=A0 =C2=A0 }
+>> -
+>> =C2=A0 =C2=A0 =C2=A0 anon =C2=A0=3D zone_nr_pages(zone, sc, LRU_ACTIVE_A=
+NON) +
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone_nr_pages(zone, sc,=
+ LRU_INACTIVE_ANON);
+>> =C2=A0 =C2=A0 =C2=A0 file =C2=A0=3D zone_nr_pages(zone, sc, LRU_ACTIVE_F=
+ILE) +
+>> @@ -1511,15 +1504,22 @@ static void shrink_zone(int priority, struct zon=
+e *zone,
+>> =C2=A0 =C2=A0 =C2=A0 enum lru_list l;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned long nr_reclaimed =3D sc->nr_reclaimed;
+>> =C2=A0 =C2=A0 =C2=A0 unsigned long swap_cluster_max =3D sc->swap_cluster=
+_max;
+>> + =C2=A0 =C2=A0 int noswap =3D 0;
+>>
+>> - =C2=A0 =C2=A0 get_scan_ratio(zone, sc, percent);
+>> + =C2=A0 =C2=A0 /* If we have no swap space, do not bother scanning anon=
+ pages. */
+>> + =C2=A0 =C2=A0 if (!sc->may_swap || (nr_swap_pages <=3D 0)) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 noswap =3D 1;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[0] =3D 0;
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 percent[1] =3D 100;
+>> + =C2=A0 =C2=A0 } else
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 get_scan_ratio(zone, sc, per=
+cent);
+>>
+>> =C2=A0 =C2=A0 =C2=A0 for_each_evictable_lru(l) {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int file =3D is_file_lr=
+u(l);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long scan;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 scan =3D zone_nr_pages(=
+zone, sc, l);
+>> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (priority) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (priority || noswap) {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 scan >>=3D priority;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 scan =3D (scan * percent[file]) / 100;
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
+>
 
 
 
-
->  			}
->  		}
->  
-> +try_this_zone:
->  		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
->  		if (page)
->  			break;
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ffe2f32..84cdae2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2409,7 +2409,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  	if (pagecache_reclaimable <= zone->min_unmapped_pages
->  	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
->  			<= zone->min_slab_pages)
-> -		return 0;
-> +		return ZONE_RECLAIM_NOSCAN;
->  
->  	/* Do not attempt a scan if scanning failed recently */
->  	if (time_before(jiffies,
-> @@ -2417,13 +2417,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  		return 0;
->  
->  	if (zone_is_all_unreclaimable(zone))
-> -		return 0;
-> +		return ZONE_RECLAIM_FULL;
->  
->  	/*
->  	 * Do not scan if the allocation should not be delayed.
->  	 */
->  	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
-> -			return 0;
-> +			return ZONE_RECLAIM_NOSCAN;
->  
->  	/*
->  	 * Only run zone reclaim on the local zone or on zones that do not
-> @@ -2433,10 +2433,10 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  	 */
->  	node_id = zone_to_nid(zone);
->  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
-> -		return 0;
-> +		return ZONE_RECLAIM_NOSCAN;
->  
->  	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
-> -		return 0;
-> +		return ZONE_RECLAIM_NOSCAN;
->  	ret = __zone_reclaim(zone, gfp_mask, order);
->  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
->  
-> -- 
-> 1.5.6.5
-> 
-
-
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
