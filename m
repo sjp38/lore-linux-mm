@@ -1,147 +1,315 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4BBB36B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 15:37:14 -0400 (EDT)
-Date: Tue, 9 Jun 2009 20:27:29 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 0/4] RFC - ksm api change into madvise
-In-Reply-To: <Pine.LNX.4.64.0906091807300.20120@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0906092013580.31606@sister.anvils>
-References: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
- <Pine.LNX.4.64.0906081555360.22943@sister.anvils> <4A2D47C1.5020302@redhat.com>
- <Pine.LNX.4.64.0906081902520.9518@sister.anvils> <4A2D7036.1010800@redhat.com>
- <20090609074848.5357839a@woof.tlv.redhat.com> <Pine.LNX.4.64.0906091807300.20120@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 92E4B6B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 15:38:25 -0400 (EDT)
+Date: Tue, 9 Jun 2009 21:37:02 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v3] swap: virtual swap readahead
+Message-ID: <20090609193702.GA2017@cmpxchg.org>
+References: <20090609190128.GA1785@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090609190128.GA1785@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jun 2009, Hugh Dickins wrote:
-> On Tue, 9 Jun 2009, Izik Eidus wrote:
-> > How does this look like?
+On Tue, Jun 09, 2009 at 09:01:28PM +0200, Johannes Weiner wrote:
+> [resend with lists cc'd, sorry]
+
+[and fixed Hugh's email.  crap]
+
+> Hi,
 > 
-> One improvment to make now, though: you've elsewhere avoided
-> the pgd,pud,pmd,pte descent in ksm.c (using get_pte instead), and
-> page_check_address() is not static to rmap.c (filemap_xip wanted it),
-> so please continue to use that.  It's not exported, right, but I think
-> Chris was already decisive that we should abandon modular KSM, yes?
-
-I think you can simplify it further, can't you?  Isn't the get_pte()
-preamble in try_to_merge_one_page() just unnecessary overhead now?  See
-untested code below.  Or even move the trylock/unlock of the page into
-write_protect_page if you prefer.  Later on we'll uninline rmap.c's
-vma_address() so you can use it instead of your addr_in_vma() copy.
-
-Hugh
-
-static inline int write_protect_page(struct page *page,
-				     struct vm_area_struct *vma,
-				     pte_t *orig_pte)
-{
-	struct mm_struct *mm = vma->vm_mm;
-	unsigned long addr;
-	pte_t *ptep;
-	spinlock_t *ptl;
-	int swapped;
-	int ret = 1;
-
-	addr = addr_in_vma(vma, page);
-	if (addr == -EFAULT)
-		goto out;
-
-	ptep = page_check_address(page, mm, addr, &ptl, 0);
-	if (!ptep)
-		goto out;
-
-	if (pte_write(*ptep)) {
-		pte_t entry;
-
-		swapped = PageSwapCache(page);
-		flush_cache_page(vma, addr, page_to_pfn(page));
-		/*
-		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
-		 * take any lock, therefore the check that we are going to make
-		 * with the pagecount against the mapcount is racey and
-		 * O_DIRECT can happen right after the check.
-		 * So we clear the pte and flush the tlb before the check
-		 * this assure us that no O_DIRECT can happen after the check
-		 * or in the middle of the check.
-		 */
-		entry = ptep_clear_flush(vma, addr, ptep);
-		/*
-		 * Check that no O_DIRECT or similar I/O is in progress on the
-		 * page
-		 */
-		if ((page_mapcount(page) + 2 + swapped) != page_count(page)) {
-			set_pte_at_notify(mm, addr, ptep, entry);
-			goto out_unlock;
-		}
-		entry = pte_wrprotect(entry);
-		set_pte_at_notify(mm, addr, ptep, entry);
-		*orig_pte = *ptep;
-	}
-	ret = 0;
-
-out_unlock:
-	pte_unmap_unlock(ptep, ptl);
-out:
-	return ret;
-}
-
-/*
- * try_to_merge_one_page - take two pages and merge them into one
- * @mm: mm_struct that hold vma pointing into oldpage
- * @vma: the vma that hold the pte pointing into oldpage
- * @oldpage: the page that we want to replace with newpage
- * @newpage: the page that we want to map instead of oldpage
- * @newprot: the new permission of the pte inside vma
- * note:
- * oldpage should be anon page while newpage should be file mapped page
- *
- * this function return 0 if the pages were merged, 1 otherwise.
- */
-static int try_to_merge_one_page(struct mm_struct *mm,
-				 struct vm_area_struct *vma,
-				 struct page *oldpage,
-				 struct page *newpage,
-				 pgprot_t newprot)
-{
-	int ret = 1;
-	pte_t orig_pte;
-
-	if (!PageAnon(oldpage))
-		goto out;
-
-	get_page(newpage);
-	get_page(oldpage);
-
-	/*
-	 * we need the page lock to read a stable PageSwapCache in
-	 * write_protect_page().
-	 * we use trylock_page() instead of lock_page(), beacuse we dont want to
-	 * wait here, we prefer to continue scanning and merging diffrent pages
-	 * and to come back to this page when it is unlocked.
-	 */
-	if (!trylock_page(oldpage))
-		goto out_putpage;
-
-	if (write_protect_page(oldpage, vma, &orig_pte)) {
-		unlock_page(oldpage);
-		goto out_putpage;
-	}
-	unlock_page(oldpage);
-
-	if (pages_identical(oldpage, newpage))
-		ret = replace_page(vma, oldpage, newpage, orig_pte, newprot);
-
-out_putpage:
-	put_page(oldpage);
-	put_page(newpage);
-out:
-	return ret;
-}
+> here is a new iteration of the virtual swap readahead.  Per Hugh's
+> suggestion, I moved the pte collecting to the callsite and thus out
+> ouf swap code.  Unfortunately, I had to bound page_cluster due to an
+> array of that many swap entries on the stack, but I think it is better
+> to limit the cluster size to a sane maximum than using dynamic
+> allocation for this purpose.
+> 
+> Thanks all for the helpful suggestions.  KAMEZAWA-san and Minchan, I
+> didn't incorporate your ideas in this patch as I think they belong in
+> a different one with their own justifications.  I didn't ignore them.
+> 
+>        Hannes
+> 
+> ---
+> The current swap readahead implementation reads a physically
+> contiguous group of swap slots around the faulting page to take
+> advantage of the disk head's position and in the hope that the
+> surrounding pages will be needed soon as well.
+> 
+> This works as long as the physical swap slot order approximates the
+> LRU order decently, otherwise it wastes memory and IO bandwidth to
+> read in pages that are unlikely to be needed soon.
+> 
+> However, the physical swap slot layout diverges from the LRU order
+> with increasing swap activity, i.e. high memory pressure situations,
+> and this is exactly the situation where swapin should not waste any
+> memory or IO bandwidth as both are the most contended resources at
+> this point.
+> 
+> Another approximation for LRU-relation is the VMA order as groups of
+> VMA-related pages are usually used together.
+> 
+> This patch combines both the physical and the virtual hint to get a
+> good approximation of pages that are sensible to read ahead.
+> 
+> When both diverge, we either read unrelated data, seek heavily for
+> related data, or, what this patch does, just decrease the readahead
+> efforts.
+> 
+> To achieve this, we have essentially two readahead windows of the same
+> size: one spans the virtual, the other one the physical neighborhood
+> of the faulting page.  We only read where both areas overlap.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: Andi Kleen <andi@firstfloor.org>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  include/linux/swap.h |    4 ++-
+>  kernel/sysctl.c      |    7 ++++-
+>  mm/memory.c          |   55 +++++++++++++++++++++++++++++++++++++++++
+>  mm/shmem.c           |    4 +--
+>  mm/swap_state.c      |   67 ++++++++++++++++++++++++++++++++++++++-------------
+>  5 files changed, 116 insertions(+), 21 deletions(-)
+> 
+> version 3:
+>   o move pte selection to callee (per Hugh)
+>   o limit ra ptes to one pmd entry to avoid multiple
+>     locking/mapping of highptes (per Hugh)
+> 
+> version 2:
+>   o fall back to physical ra window for shmem
+>   o add documentation to the new ra algorithm (per Andrew)
+> 
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -327,27 +327,14 @@ struct page *read_swap_cache_async(swp_e
+>  	return found_page;
+>  }
+>  
+> -/**
+> - * swapin_readahead - swap in pages in hope we need them soon
+> - * @entry: swap entry of this memory
+> - * @gfp_mask: memory allocation flags
+> - * @vma: user vma this address belongs to
+> - * @addr: target address for mempolicy
+> - *
+> - * Returns the struct page for entry and addr, after queueing swapin.
+> - *
+> +/*
+>   * Primitive swap readahead code. We simply read an aligned block of
+>   * (1 << page_cluster) entries in the swap area. This method is chosen
+>   * because it doesn't cost us any seek time.  We also make sure to queue
+>   * the 'original' request together with the readahead ones...
+> - *
+> - * This has been extended to use the NUMA policies from the mm triggering
+> - * the readahead.
+> - *
+> - * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
+>   */
+> -struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+> -			struct vm_area_struct *vma, unsigned long addr)
+> +static struct page *swapin_readahead_phys(swp_entry_t entry, gfp_t gfp_mask,
+> +				struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	int nr_pages;
+>  	struct page *page;
+> @@ -373,3 +360,51 @@ struct page *swapin_readahead(swp_entry_
+>  	lru_add_drain();	/* Push any new pages onto the LRU now */
+>  	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+>  }
+> +
+> +/**
+> + * swapin_readahead - swap in pages in hope we need them soon
+> + * @entry: swap entry of this memory
+> + * @gfp_mask: memory allocation flags
+> + * @vma: user vma this address belongs to
+> + * @addr: target address for mempolicy
+> + * @entries: swap slots to consider reading
+> + * @nr_entries: number of @entries
+> + * @cluster: readahead window size in swap slots
+> + *
+> + * Returns the struct page for entry and addr, after queueing swapin.
+> + *
+> + * This has been extended to use the NUMA policies from the mm
+> + * triggering the readahead.
+> + *
+> + * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
+> + */
+> +struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+> +			struct vm_area_struct *vma, unsigned long addr,
+> +			swp_entry_t *entries, int nr_entries,
+> +			unsigned long cluster)
+> +{
+> +	unsigned long pmin, pmax;
+> +	int i;
+> +
+> +	if (!entries)	/* XXX: shmem case */
+> +		return swapin_readahead_phys(entry, gfp_mask, vma, addr);
+> +	pmin = swp_offset(entry) & ~(cluster - 1);
+> +	pmax = pmin + cluster;
+> +	for (i = 0; i < nr_entries; i++) {
+> +		swp_entry_t swp = entries[i];
+> +		struct page *page;
+> +
+> +		if (swp_type(swp) != swp_type(entry))
+> +			continue;
+> +		if (swp_offset(swp) > pmax)
+> +			continue;
+> +		if (swp_offset(swp) < pmin)
+> +			continue;
+> +		page = read_swap_cache_async(swp, gfp_mask, vma, addr);
+> +		if (!page)
+> +			break;
+> +		page_cache_release(page);
+> +	}
+> +	lru_add_drain();	/* Push any new pages onto the LRU now */
+> +	return read_swap_cache_async(entry, gfp_mask, vma, addr);
+> +}
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -292,7 +292,9 @@ extern struct page *lookup_swap_cache(sw
+>  extern struct page *read_swap_cache_async(swp_entry_t, gfp_t,
+>  			struct vm_area_struct *vma, unsigned long addr);
+>  extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+> -			struct vm_area_struct *vma, unsigned long addr);
+> +			struct vm_area_struct *vma, unsigned long addr,
+> +			swp_entry_t *entries, int nr_entries,
+> +			unsigned long cluster);
+>  
+>  /* linux/mm/swapfile.c */
+>  extern long nr_swap_pages;
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2440,6 +2440,54 @@ int vmtruncate_range(struct inode *inode
+>  }
+>  
+>  /*
+> + * The readahead window is the virtual area around the faulting page,
+> + * where the physical proximity of the swap slots is taken into
+> + * account as well in swapin_readahead().
+> + *
+> + * While the swap allocation algorithm tries to keep LRU-related pages
+> + * together on the swap backing, it is not reliable on heavy thrashing
+> + * systems where concurrent reclaimers allocate swap slots and/or most
+> + * anonymous memory pages are already in swap cache.
+> + *
+> + * On the virtual side, subgroups of VMA-related pages are usually
+> + * used together, which gives another hint to LRU relationship.
+> + *
+> + * By taking both aspects into account, we get a good approximation of
+> + * which pages are sensible to read together with the faulting one.
+> + */
+> +static int swap_readahead_ptes(struct mm_struct *mm,
+> +			unsigned long addr, pmd_t *pmd,
+> +			swp_entry_t *entries,
+> +			unsigned long cluster)
+> +{
+> +	unsigned long window, min, max, limit;
+> +	spinlock_t *ptl;
+> +	pte_t *ptep;
+> +	int i, nr;
+> +
+> +	window = cluster << PAGE_SHIFT;
+> +	min = addr & ~(window - 1);
+> +	max = min + cluster;
+> +	/*
+> +	 * To keep the locking/highpte mapping simple, stay
+> +	 * within the PTE range of one PMD entry.
+> +	 */
+> +	limit = addr & PMD_MASK;
+> +	if (limit > min)
+> +		min = limit;
+> +	limit = pmd_addr_end(addr, max);
+> +	if (limit < max)
+> +		max = limit;
+> +	limit = max - min;
+> +	ptep = pte_offset_map_lock(mm, pmd, min, &ptl);
+> +	for (i = nr = 0; i < limit; i++)
+> +		if (is_swap_pte(ptep[i]))
+> +			entries[nr++] = pte_to_swp_entry(ptep[i]);
+> +	pte_unmap_unlock(ptep, ptl);
+> +	return nr;
+> +}
+> +
+> +/*
+>   * We enter with non-exclusive mmap_sem (to exclude vma changes,
+>   * but allow concurrent faults), and pte mapped but not yet locked.
+>   * We return with mmap_sem still held, but pte unmapped and unlocked.
+> @@ -2466,9 +2514,14 @@ static int do_swap_page(struct mm_struct
+>  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+>  	page = lookup_swap_cache(entry);
+>  	if (!page) {
+> +		int nr, cluster = 1 << page_cluster;
+> +		swp_entry_t entries[cluster];
+> +
+>  		grab_swap_token(); /* Contend for token _before_ read-in */
+> +		nr = swap_readahead_ptes(mm, address, pmd, entries, cluster);
+>  		page = swapin_readahead(entry,
+> -					GFP_HIGHUSER_MOVABLE, vma, address);
+> +					GFP_HIGHUSER_MOVABLE, vma, address,
+> +					entries, nr, cluster);
+>  		if (!page) {
+>  			/*
+>  			 * Back out if somebody else faulted in this pte
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1148,7 +1148,7 @@ static struct page *shmem_swapin(swp_ent
+>  	pvma.vm_pgoff = idx;
+>  	pvma.vm_ops = NULL;
+>  	pvma.vm_policy = spol;
+> -	page = swapin_readahead(entry, gfp, &pvma, 0);
+> +	page = swapin_readahead(entry, gfp, &pvma, 0, NULL, 0, 0);
+>  	return page;
+>  }
+>  
+> @@ -1178,7 +1178,7 @@ static inline void shmem_show_mpol(struc
+>  static inline struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
+>  			struct shmem_inode_info *info, unsigned long idx)
+>  {
+> -	return swapin_readahead(entry, gfp, NULL, 0);
+> +	return swapin_readahead(entry, gfp, NULL, 0, NULL, 0, 0);
+>  }
+>  
+>  static inline struct page *shmem_alloc_page(gfp_t gfp,
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -112,6 +112,8 @@ static int min_percpu_pagelist_fract = 8
+>  
+>  static int ngroups_max = NGROUPS_MAX;
+>  
+> +static int page_cluster_max = 5;
+> +
+>  #ifdef CONFIG_MODULES
+>  extern char modprobe_path[];
+>  #endif
+> @@ -966,7 +968,10 @@ static struct ctl_table vm_table[] = {
+>  		.data		= &page_cluster,
+>  		.maxlen		= sizeof(int),
+>  		.mode		= 0644,
+> -		.proc_handler	= &proc_dointvec,
+> +		.proc_handler	= &proc_dointvec_minmax,
+> +		.strategy	= &sysctl_intvec,
+> +		.extra1		= &zero,
+> +		.extra2		= &page_cluster_max,
+>  	},
+>  	{
+>  		.ctl_name	= VM_DIRTY_BACKGROUND,
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
