@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A566B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 04:03:14 -0400 (EDT)
-Date: Tue, 9 Jun 2009 09:31:54 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
-	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090609083153.GG18380@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie> <20090609082539.GA6897@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B68956B0082
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 04:06:19 -0400 (EDT)
+Received: by gxk28 with SMTP id 28so951649gxk.14
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2009 01:35:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090609082539.GA6897@localhost>
+In-Reply-To: <20090609172035.DD7C.A69D9226@jp.fujitsu.com>
+References: <20090609164850.DD73.A69D9226@jp.fujitsu.com>
+	 <28c262360906090119r6e881caq9b74028ba43567a7@mail.gmail.com>
+	 <20090609172035.DD7C.A69D9226@jp.fujitsu.com>
+Date: Tue, 9 Jun 2009 17:35:09 +0900
+Message-ID: <28c262360906090135x3382456by3518434a9939002b@mail.gmail.com>
+Subject: Re: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH
+	mmotm] vmscan: fix may_swap handling for memcg)
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 04:25:39PM +0800, Wu Fengguang wrote:
-> On Tue, Jun 09, 2009 at 04:14:25PM +0800, Mel Gorman wrote:
-> > On Tue, Jun 09, 2009 at 09:58:22AM +0800, Wu Fengguang wrote:
-> > > On Mon, Jun 08, 2009 at 09:01:28PM +0800, Mel Gorman wrote:
-> > > > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
-> > > > more targetted form of direct reclaim. On machines with large NUMA distances,
-> > > > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
-> > > > reclaimed if the zone watermarks are not being met. The problem is that
-> > > > zone_reclaim() can be in a situation where it scans excessively without
-> > > > making progress.
-> > > > 
-> > > > One such situation is where a large tmpfs mount is occupying a large
-> > > > percentage of memory overall. The pages do not get cleaned or reclaimed by
-> > > > zone_reclaim(), but the lists are uselessly scanned frequencly making the
-> > > > CPU spin at 100%. The scanning occurs because zone_reclaim() cannot tell
-> > > > in advance the scan is pointless because the counters do not distinguish
-> > > > between pagecache pages backed by disk and by RAM.  The observation in
-> > > > the field is that malloc() stalls for a long time (minutes in some cases)
-> > > > when this situation occurs.
-> > > > 
-> > > > Accounting for ram-backed file pages was considered but not implemented on
-> > > > the grounds it would be introducing new branches and expensive checks into
-> > > > the page cache add/remove patches and increase the number of statistics
-> > > > needed in the zone. As zone_reclaim() failing is currently considered a
-> > > > corner case, this seemed like overkill. Note, if there are a large number
-> > > > of reports about CPU spinning at 100% on NUMA that is fixed by disabling
-> > > > zone_reclaim, then this assumption is false and zone_reclaim() scanning
-> > > > and failing is not a corner case but a common occurance
-> > > > 
-> > > > This patch reintroduces zone_reclaim_interval which was removed by commit
-> > > > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
-> > > > remove /proc/sys/vm/zone_reclaim_interval] because the zone counters were
-> > > > considered sufficient to determine in advance if the scan would succeed.
-> > > > As unsuccessful scans can still occur, zone_reclaim_interval is still
-> > > > required.
-> > > 
-> > > Can we avoid the user visible parameter zone_reclaim_interval?
-> > > 
-> > 
-> > You could, but then there is no way of disabling it by setting it to 0
-> > either. I can't imagine why but the desired behaviour might really be to
-> > spin and never go off-node unless there is no other option. They might
-> > want to set it to 0 for example when determining what the right value for
-> > zone_reclaim_mode is for their workloads.
-> > 
-> > > That means to introduce some heuristics for it.
-> > 
-> > I suspect the vast majority of users will ignore it unless they are runing
-> > zone_reclaim_mode at the same time and even then will probably just leave
-> > it as 30 as a LRU scan every 30 seconds worst case is not going to show up
-> > on many profiles.
-> > 
-> > > Since the whole point
-> > > is to avoid 100% CPU usage, we can take down the time used for this
-> > > failed zone reclaim (T) and forbid zone reclaim until (NOW + 100*T).
-> > > 
-> > 
-> > i.e. just fix it internally at 100 seconds? How is that better than
-> > having an obscure tunable? I think if this heuristic exists at all, it's
-> > important that an administrator be able to turn it off if absolutly
-> > necessary and so something must be user-visible.
-> 
-> That 100*T don't mean 100 seconds. It means to keep CPU usage under 1%:
-> after busy scanning for time T, let's go relax for 100*T.
-> 
+On Tue, Jun 9, 2009 at 5:24 PM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Tue, Jun 9, 2009 at 4:58 PM, KOSAKI
+>> Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >> Hi, KOSAKI.
+>> >>
+>> >> As you know, this problem caused by if condition(priority) in shrink_zone.
+>> >> Let me have a question.
+>> >>
+>> >> Why do we have to prevent scan value calculation when the priority is zero ?
+>> >> As I know, before split-lru, we didn't do it.
+>> >>
+>> >> Is there any specific issue in case of the priority is zero ?
+>> >
+>> > Yes.
+>> >
+>> > example:
+>> >
+>> > get_scan_ratio() return anon:80%, file=20%. and the system have
+>> > 10000 anon pages and 10000 file pages.
+>> >
+>> > shrink_zone() picked up 8000 anon pages and 2000 file pages.
+>> > it mean 8000 file pages aren't scanned at all.
+>> >
+>> > Oops, it can makes OOM-killer although system have droppable file cache.
+>> >
+>> Hmm..Can that problem be happen in real system ?
+>> The file ratio is big means that file lru list scanning is so big but
+>> rotate is small.
+>> It means file lru have few reclaimable page.
+>>
+>> Isn't it ? I am confusing.
+>> Could you elaborate, please if you don't mind ?
+>
+> hm, ok, my example was wrong.
+> I intention is, if there are droppable file-back pages (althout only 1 page),
+> OOM-killer shouldn't occuer.
+>
+> many or few is unrelated.
+>
 
-Do I have a means of calculating what my CPU usage is as a result of
-scanning the LRU list?
+I am not sure that is effective.
+Have you ever met this problem in real situation ?
 
-If I don't and the machine is busy, would I not avoid scanning even in
-situations where it should have been scanned?
+BTW, I have to dive into code. :)
+Thanks for spending valuable time for commenting
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
