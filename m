@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4D38B6B004D
-	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 22:08:46 -0400 (EDT)
-Date: Tue, 9 Jun 2009 10:25:49 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 87E2D6B004D
+	for <linux-mm@kvack.org>; Mon,  8 Jun 2009 22:20:09 -0400 (EDT)
+Date: Tue, 9 Jun 2009 10:37:31 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 2/3] Properly account for the number of page cache
 	pages zone_reclaim() can reclaim
-Message-ID: <20090609022549.GB6740@localhost>
+Message-ID: <20090609023731.GA7875@localhost>
 References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -32,17 +32,25 @@ On Mon, Jun 08, 2009 at 09:01:29PM +0800, Mel Gorman wrote:
 > cannot clean pages, then NR_FILE_DIRTY number of pages are not candidates. If
 > it cannot swap, then NR_FILE_MAPPED are not. This indirectly addresses tmpfs
 > as those pages tend to be dirty as they are not cleaned by pdflush or sync.
-
-No, tmpfs pages are not accounted in NR_FILE_DIRTY because of the
-BDI_CAP_NO_ACCT_AND_WRITEBACK bits.
-
+> 
 > The ideal would be that the number of tmpfs pages would also be known
 > and account for like NR_FILE_MAPPED as swap is required to discard them.
 > A means of working this out quickly was not obvious but a comment is added
 > noting the problem.
-
-I'd rather prefer it be accounted separately than to muck up NR_FILE_MAPPED :)
-
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/vmscan.c |   18 ++++++++++++++++--
+>  1 files changed, 16 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ba211c1..ffe2f32 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2380,6 +2380,21 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  {
+>  	int node_id;
+>  	int ret;
 > +	int pagecache_reclaimable;
 > +
 > +	/*
@@ -53,9 +61,6 @@ I'd rather prefer it be accounted separately than to muck up NR_FILE_MAPPED :)
 > +	 *       pages even when they are clean. However, there is no
 > +	 *       way of quickly identifying the number of tmpfs pages
 > +	 */
-
-So can you remove the note on NR_FILE_MAPPED?
-
 > +	pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
 > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
 > +		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_DIRTY);
@@ -63,7 +68,17 @@ So can you remove the note on NR_FILE_MAPPED?
 > +	if (!(zone_reclaim_mode & RECLAIM_SWAP))
 > +		pagecache_reclaimable -= zone_page_state(zone, NR_FILE_MAPPED);
 
-So the "if" can be removed because NR_FILE_MAPPED is not related to swapping?
+Your patch seems to conflict with KOSAKI's earlier patch "vmscan: change the
+number of the unmapped files in zone reclaim", where he offers a better way for
+getting rid of the tmpfs pages:
+
++       nr_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +                                                                    
++                       zone_page_state(zone, NR_ACTIVE_FILE);                                                                       
++       nr_mapped = zone_page_state(zone, NR_FILE_MAPPED);                                                                           
++       if (likely(nr_file_pages >= nr_mapped))                                                                                      
++               nr_unmapped_file_pages = nr_file_pages - nr_mapped;                                                                  
+                                                                                                                                     
+        if (nr_unmapped_file_pages > zone->min_unmapped_pages) {                                                                     
 
 Thanks,
 Fengguang
