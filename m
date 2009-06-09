@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 48AAF6B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:27:53 -0400 (EDT)
-Date: Tue, 9 Jun 2009 11:59:20 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [10/16] HWPOISON: Handle poisoned pages in set_page_dirty()
-Message-ID: <20090609095920.GD14820@wotan.suse.de>
-References: <20090603846.816684333@firstfloor.org> <20090603184644.190E71D0281@basil.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090603184644.190E71D0281@basil.firstfloor.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5694C6B0055
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:28:49 -0400 (EDT)
+Received: by gxk28 with SMTP id 28so1026326gxk.14
+        for <linux-mm@kvack.org>; Tue, 09 Jun 2009 03:00:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 9 Jun 2009 19:00:20 +0900
+Message-ID: <28c262360906090300s13f4ee09mcc9622c1e477eaad@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] fix wrong lru rotate back at lumpty reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 03, 2009 at 08:46:43PM +0200, Andi Kleen wrote:
-> 
-> Bail out early in set_page_dirty for poisoned pages. We don't want any
-> of the dirty accounting done or file system write back started, because
-> the page will be just thrown away.
-
-I don't agree with adding overhead to fastpaths like this. Your
-MCE handler should have already taken care of this so I can't
-see what it can gain.
-
-> 
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> 
-> ---
->  mm/page-writeback.c |    4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> Index: linux/mm/page-writeback.c
-> ===================================================================
-> --- linux.orig/mm/page-writeback.c	2009-06-03 19:36:20.000000000 +0200
-> +++ linux/mm/page-writeback.c	2009-06-03 19:36:23.000000000 +0200
-> @@ -1304,6 +1304,10 @@
->  {
->  	struct address_space *mapping = page_mapping(page);
->  
-> +	if (unlikely(PageHWPoison(page))) {
-> +		SetPageDirty(page);
-> +		return 0;
-> +	}
->  	if (likely(mapping)) {
->  		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
->  #ifdef CONFIG_BLOCK
+T24gVHVlLCBKdW4gOSwgMjAwOSBhdCA2OjE1IFBNLCBLQU1FWkFXQQpIaXJveXVraTxrYW1lemF3
+YS5oaXJveXVAanAuZnVqaXRzdS5jb20+IHdyb3RlOgo+Cj4gRnJvbTogS0FNRVpBV0EgSGlyb3l1
+a2kgPGthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbT4KPgo+IEluIGx1bXB0eSByZWNsYWlt
+LCAiY3Vyc29yX3BhZ2UiIGlzIGZvdW5kIGp1c3QgYnkgcGZuLiBUaGVuLCB3ZSBkb24ndCBrbm93
+Cj4gZnJvbSB3aGljaCBMUlUgImN1cnNvciIgcGFnZSBjYW1lIGZyb20uIFRoZW4sIHB1dGJhY2sg
+aXQgdG8gInNyYyIgbGlzdCBpcyBCVUcuCj4gSnVzdCBsZWF2ZSBpdCBhcyBpdCBpcy4KPiAoQW5k
+IEkgdGhpbmsgcm90YXRlIGhlcmUgaXMgb3ZlcmtpbGxpbmcgZXZlbiBpZiAic3JjIiBpcyBjb3Jy
+ZWN0LikKPgo+IFNpZ25lZC1vZmYtYnk6IEtBTUVaQVdBIEhpcm95dWtpIDxrYW1lemF3YS5oaXJv
+eXVAanAuZnVqaXRzdS5jb20+Cj4gLS0tCj4gwqBtbS92bXNjYW4uYyB8IMKgIMKgNSArKy0tLQo+
+IMKgMSBmaWxlIGNoYW5nZWQsIDIgaW5zZXJ0aW9ucygrKSwgMyBkZWxldGlvbnMoLSkKPgo+IElu
+ZGV4OiBtbW90bS0yLjYuMzAtSnVuNC9tbS92bXNjYW4uYwo+ID09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KPiAtLS0gbW1v
+dG0tMi42LjMwLUp1bjQub3JpZy9tbS92bXNjYW4uYwo+ICsrKyBtbW90bS0yLjYuMzAtSnVuNC9t
+bS92bXNjYW4uYwo+IEBAIC05NDAsMTAgKzk0MCw5IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIGlz
+b2xhdGVfbHJ1X3BhZ2VzKHUKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoG5yX3Rha2VuKys7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqBzY2FuKys7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqBicmVhazsKPiAtCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqBjYXNlIC1FQlVTWToKCldlIGNhbiByZW1vdmUgY2FzZSAtRUJVU1kgaXRzZWxmLCB0b28u
+Ckl0IGlzIG1lYW5pbmdsZXNzLgoKPiAtIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIC8qIGVsc2UgaXQgaXMgYmVpbmcgZnJlZWQgZWxzZXdoZXJlICovCj4gLSDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBsaXN0X21vdmUoJmN1
+cnNvcl9wYWdlLT5scnUsIHNyYyk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCAvKiBEbyBub3RoaW5nIGJlY2F1c2Ugd2UgZG9uJ3Qga25vdyB3aGVyZQo+
+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjdXNy
+c29yX3BhZ2UgY29tZXMgZnJvbSAqLwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgZGVmYXVsdDoKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoGJyZWFrOyDCoC8qICEgb24gTFJVIG9yIHdyb25nIGxpc3QgKi8KCkhtbS4uIHdoYXQgbWVh
+bmluZyBvZiB0aGlzIGJyZWFrID8KV2UgYXJlIGluIHN3aXRjaCBjYXNlLgpUaGlzICJicmVhayIg
+Y2FuJ3QgZ28gb3V0IG9mIGxvb3AuCkJ1dCBjb21tZW50IHNhaWQgImFib3J0IHRoaXMgYmxvY2sg
+c2NhbiIuCgpJZiBJIHVuZGVyc3RhbmQgaXQgcHJvcGVybHkgLCBkb24ndCB3ZSBhZGQgZ290byBw
+aHJhc2UgPwoKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoH0KPgo+IC0tCj4g
+VG8gdW5zdWJzY3JpYmUgZnJvbSB0aGlzIGxpc3Q6IHNlbmQgdGhlIGxpbmUgInVuc3Vic2NyaWJl
+IGxpbnV4LWtlcm5lbCIgaW4KPiB0aGUgYm9keSBvZiBhIG1lc3NhZ2UgdG8gbWFqb3Jkb21vQHZn
+ZXIua2VybmVsLm9yZwo+IE1vcmUgbWFqb3Jkb21vIGluZm8gYXQgwqBodHRwOi8vdmdlci5rZXJu
+ZWwub3JnL21ham9yZG9tby1pbmZvLmh0bWwKPiBQbGVhc2UgcmVhZCB0aGUgRkFRIGF0IMKgaHR0
+cDovL3d3dy50dXgub3JnL2xrbWwvCj4KCgoKLS0gCktpbmRzIHJlZ2FyZHMsCk1pbmNoYW4gS2lt
+Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
