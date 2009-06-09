@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A98E6B005C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:40:45 -0400 (EDT)
-Date: Tue, 9 Jun 2009 09:08:43 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B5F1C6B005A
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 03:46:16 -0400 (EDT)
+Date: Tue, 9 Jun 2009 09:14:25 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
 	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090609080842.GC18380@csn.ul.ie>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <4A2D129D.3020309@redhat.com> <20090608135433.GD15070@csn.ul.ie> <4A2D24B0.4080301@redhat.com>
+Message-ID: <20090609081424.GD18380@csn.ul.ie>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4A2D24B0.4080301@redhat.com>
+In-Reply-To: <20090609015822.GA6740@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 08, 2009 at 10:48:16AM -0400, Rik van Riel wrote:
-> Mel Gorman wrote:
->> On Mon, Jun 08, 2009 at 09:31:09AM -0400, Rik van Riel wrote:
->>> Mel Gorman wrote:
->>>
->>>> The scanning occurs because zone_reclaim() cannot tell
->>>> in advance the scan is pointless because the counters do not distinguish
->>>> between pagecache pages backed by disk and by RAM. 
->>> Yes it can.  Since 2.6.27, filesystem backed and swap/ram backed
->>> pages have been living on separate LRU lists. 
->>
->> Yes, they're on separate LRU lists but they are not the only pages on those
->> lists. The tmpfs pages are mixed in together with anonymous pages so we
->> cannot use NR_*_ANON.
->>
->> Look at patch 2 and where I introduced;
->
-> I have to admit I did not read patches 2 and 3 before
-> replying to the (strange looking, at the time) text
-> above patch 1.
->
+On Tue, Jun 09, 2009 at 09:58:22AM +0800, Wu Fengguang wrote:
+> On Mon, Jun 08, 2009 at 09:01:28PM +0800, Mel Gorman wrote:
+> > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
+> > more targetted form of direct reclaim. On machines with large NUMA distances,
+> > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
+> > reclaimed if the zone watermarks are not being met. The problem is that
+> > zone_reclaim() can be in a situation where it scans excessively without
+> > making progress.
+> > 
+> > One such situation is where a large tmpfs mount is occupying a large
+> > percentage of memory overall. The pages do not get cleaned or reclaimed by
+> > zone_reclaim(), but the lists are uselessly scanned frequencly making the
+> > CPU spin at 100%. The scanning occurs because zone_reclaim() cannot tell
+> > in advance the scan is pointless because the counters do not distinguish
+> > between pagecache pages backed by disk and by RAM.  The observation in
+> > the field is that malloc() stalls for a long time (minutes in some cases)
+> > when this situation occurs.
+> > 
+> > Accounting for ram-backed file pages was considered but not implemented on
+> > the grounds it would be introducing new branches and expensive checks into
+> > the page cache add/remove patches and increase the number of statistics
+> > needed in the zone. As zone_reclaim() failing is currently considered a
+> > corner case, this seemed like overkill. Note, if there are a large number
+> > of reports about CPU spinning at 100% on NUMA that is fixed by disabling
+> > zone_reclaim, then this assumption is false and zone_reclaim() scanning
+> > and failing is not a corner case but a common occurance
+> > 
+> > This patch reintroduces zone_reclaim_interval which was removed by commit
+> > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
+> > remove /proc/sys/vm/zone_reclaim_interval] because the zone counters were
+> > considered sufficient to determine in advance if the scan would succeed.
+> > As unsuccessful scans can still occur, zone_reclaim_interval is still
+> > required.
+> 
+> Can we avoid the user visible parameter zone_reclaim_interval?
+> 
 
-Sorry about that. The ordering of the patches was in "patch that fixes
-bug, patch that addresses expectations and patch that fixes imaginery
-bug but that makes sense". If it was a real patchset, patch 2 would have
-come first.
+You could, but then there is no way of disabling it by setting it to 0
+either. I can't imagine why but the desired behaviour might really be to
+spin and never go off-node unless there is no other option. They might
+want to set it to 0 for example when determining what the right value for
+zone_reclaim_mode is for their workloads.
 
-> With that logic from patch 2 in place, patch 1 makes
-> perfect sense.
->
-> Acked-by: Rik van Riel <riel@redhat.com>
->
+> That means to introduce some heuristics for it.
 
-Thanks
+I suspect the vast majority of users will ignore it unless they are runing
+zone_reclaim_mode at the same time and even then will probably just leave
+it as 30 as a LRU scan every 30 seconds worst case is not going to show up
+on many profiles.
+
+> Since the whole point
+> is to avoid 100% CPU usage, we can take down the time used for this
+> failed zone reclaim (T) and forbid zone reclaim until (NOW + 100*T).
+> 
+
+i.e. just fix it internally at 100 seconds? How is that better than
+having an obscure tunable? I think if this heuristic exists at all, it's
+important that an administrator be able to turn it off if absolutly
+necessary and so something must be user-visible.
 
 -- 
 Mel Gorman
