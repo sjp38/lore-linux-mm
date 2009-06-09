@@ -1,185 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E20F36B005C
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 12:17:03 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 4/4] Reintroduce zone_reclaim_interval for when zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Date: Tue,  9 Jun 2009 18:01:44 +0100
-Message-Id: <1244566904-31470-5-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1244566904-31470-1-git-send-email-mel@csn.ul.ie>
-References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 825856B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 12:49:38 -0400 (EDT)
+Date: Tue, 9 Jun 2009 18:24:35 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 0/4] RFC - ksm api change into madvise
+In-Reply-To: <20090609074848.5357839a@woof.tlv.redhat.com>
+Message-ID: <Pine.LNX.4.64.0906091807300.20120@sister.anvils>
+References: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
+ <Pine.LNX.4.64.0906081555360.22943@sister.anvils> <4A2D47C1.5020302@redhat.com>
+ <Pine.LNX.4.64.0906081902520.9518@sister.anvils> <4A2D7036.1010800@redhat.com>
+ <20090609074848.5357839a@woof.tlv.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On NUMA machines, the administrator can configure zone_reclaim_mode that is a
-more targetted form of direct reclaim. On machines with large NUMA distances,
-zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
-reclaimed if the zone watermarks are not being met. The problem is that
-zone_reclaim() may get into a situation where it scans excessively without
-making progress.
+On Tue, 9 Jun 2009, Izik Eidus wrote:
+> How does this look like?
 
-One such situation occured where a large tmpfs mount occupied a
-large percentage of memory overall. The pages did not get reclaimed by
-zone_reclaim(), but the lists are uselessly scanned frequencly making the
-CPU spin at 100%. The observation in the field was that malloc() stalled
-for a long time (minutes in some cases) when this situation occurs. This
-situation should be resolved now and there are counters in place that
-detect when the scan-avoidance heuristics break but the heuristics might
-still not be bullet proof. If they fail again, the kernel should respond
-in some fashion other than scanning uselessly chewing up CPU time.
+It looks about right to me, and how delightful to be rid of that
+horrid odirect_sync argument!
 
-This patch reintroduces zone_reclaim_interval which was removed by commit
-34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
-remove /proc/sys/vm/zone_reclaim_interval. In the event the scan-avoidance
-heuristics fail, the event is counted and zone_reclaim_interval avoids
-excessive scanning.
+For now I'll turn a blind eye to your idiosyncratic return code
+convention (0 for success, 1 for failure: we're already schizoid
+enough with 0 for failure, 1 for success boolean functions versus
+0 for success, -errno for failure functions): you're being consistent
+with yourself, let's run through ksm.c at a later date to sort that out.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie
-Acked-by: Rik van Riel <riel@redhat.com>
----
- Documentation/sysctl/vm.txt |   15 +++++++++++++++
- include/linux/mmzone.h      |    9 +++++++++
- include/linux/swap.h        |    1 +
- kernel/sysctl.c             |    9 +++++++++
- mm/vmscan.c                 |   24 ++++++++++++++++++++++++
- 5 files changed, 58 insertions(+), 0 deletions(-)
+One improvment to make now, though: you've elsewhere avoided
+the pgd,pud,pmd,pte descent in ksm.c (using get_pte instead), and
+page_check_address() is not static to rmap.c (filemap_xip wanted it),
+so please continue to use that.  It's not exported, right, but I think
+Chris was already decisive that we should abandon modular KSM, yes?
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 0ea5adb..22ffc3e 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -52,6 +52,7 @@ Currently, these files are in /proc/sys/vm:
- - swappiness
- - vfs_cache_pressure
- - zone_reclaim_mode
-+- zone_reclaim_interval
- 
- 
- ==============================================================
-@@ -621,4 +622,18 @@ Allowing regular swap effectively restricts allocations to the local
- node unless explicitly overridden by memory policies or cpuset
- configurations.
- 
-+================================================================
-+
-+zone_reclaim_interval:
-+
-+The time allowed for off-node allocations after zone reclaim
-+has failed to reclaim enough pages to allow a local allocation.
-+
-+Time is set in seconds and set by default to 30 seconds.
-+
-+Reduce the interval if undesired off-node allocations occur or
-+set to 0 to always try and reclaim pages for node-local memory.
-+However, too frequent scans will have a negative impact on
-+off-node allocation performance and manifest as high CPU usage.
-+
- ============ End of Document =================================
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 8895985..3a53e1c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -335,6 +335,15 @@ struct zone {
- 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
- 
- 	/*
-+	 * timestamp (in jiffies) of the last zone_reclaim that scanned
-+	 * but failed to free enough pages. This is used to avoid repeated
-+	 * scans when zone_reclaim() is unable to detect in advance that
-+	 * the scanning is useless. This can happen for example if a zone
-+	 * has large numbers of clean unmapped file pages on tmpfs
-+	 */
-+	unsigned long		zone_reclaim_failure;
-+
-+	/*
- 	 * prev_priority holds the scanning priority for this zone.  It is
- 	 * defined as the scanning priority at which we achieved our reclaim
- 	 * target at the previous try_to_free_pages() or balance_pgdat()
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index c88b366..28a01e3 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -225,6 +225,7 @@ extern long vm_total_pages;
- 
- #ifdef CONFIG_NUMA
- extern int zone_reclaim_mode;
-+extern int zone_reclaim_interval;
- extern int sysctl_min_unmapped_ratio;
- extern int sysctl_min_slab_ratio;
- extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 0554886..2afffa5 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1221,6 +1221,15 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- 	{
-+		.ctl_name       = CTL_UNNUMBERED,
-+		.procname       = "zone_reclaim_interval",
-+		.data           = &zone_reclaim_interval,
-+		.maxlen         = sizeof(zone_reclaim_interval),
-+		.mode           = 0644,
-+		.proc_handler   = &proc_dointvec_jiffies,
-+		.strategy       = &sysctl_jiffies,
-+	},
-+	{
- 		.ctl_name	= VM_MIN_UNMAPPED,
- 		.procname	= "min_unmapped_ratio",
- 		.data		= &sysctl_min_unmapped_ratio,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8be4582..5fa4843 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2315,6 +2315,13 @@ int zone_reclaim_mode __read_mostly;
- #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
- 
- /*
-+ * Minimum time between zone_reclaim() scans that failed. Ordinarily, a
-+ * scan will not fail because it will be determined in advance if it can
-+ * succeeed but this does not always work. See mmzone.h
-+ */
-+int zone_reclaim_interval __read_mostly = 30*HZ;
-+
-+/*
-  * Priority for ZONE_RECLAIM. This determines the fraction of pages
-  * of a node considered for each zone_reclaim. 4 scans 1/16th of
-  * a zone.
-@@ -2464,6 +2471,15 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
- 		return ZONE_RECLAIM_FULL;
- 
-+	/* Watch for jiffie wraparound */
-+	if (unlikely(jiffies < zone->zone_reclaim_failure))
-+		zone->zone_reclaim_failure = jiffies;
-+
-+	/* Do not attempt a scan if scanning failed recently */
-+	if (time_before(jiffies,
-+			zone->zone_reclaim_failure + zone_reclaim_interval))
-+		return ZONE_RECLAIM_FULL;
-+
- 	if (zone_is_all_unreclaimable(zone))
- 		return ZONE_RECLAIM_FULL;
- 
-@@ -2491,6 +2507,14 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 
- 	if (!ret) {
- 		count_vm_events(PGSCAN_ZONERECLAIM_FAILED, 1);
-+
-+		/*
-+		 * We were unable to reclaim enough pages to stay on node and
-+		 * unable to detect in advance that the scan would fail. Allow
-+		 * off node accesses for zone_reclaim_inteval jiffies before
-+		 * trying zone_reclaim() again
-+		 */
-+		zone->zone_reclaim_failure = jiffies;
- 	}
- 
- 	return ret;
--- 
-1.5.6.5
+So I think slip in a patch before this one to remove the modular
+option, so as not to generate traffic from people who build all
+modular kernels.  Or if you think the modular option should remain,
+append an EXPORT_SYMBOL to page_check_address().
+
+Thanks,
+Hugh
+
+> 
+> From f41b092bee1437f6f436faa74f5da56403f61009 Mon Sep 17 00:00:00 2001
+> From: Izik Eidus <ieidus@redhat.com>
+> Date: Tue, 9 Jun 2009 07:24:25 +0300
+> Subject: [PATCH] ksm: remove page_wrprotect() from rmap.c
+> 
+> Remove page_wrprotect() from rmap.c and instead embedded the needed code
+> into ksm.c
+> 
+> Hugh pointed out that for the ksm usage case, we dont have to walk over the rmap
+> and to write protected page after page beacuse when Anonymous page is mapped
+> more than once, it have to be write protected already, and in a case that it
+> mapped just once, no need to walk over the rmap, we can instead write protect
+> it from inside ksm.c.
+> 
+> Thanks.
+> 
+> Signed-off-by: Izik Eidus <ieidus@redhat.com>
+> ---
+>  include/linux/rmap.h |   12 ----
+>  mm/ksm.c             |   83 ++++++++++++++++++++++++++----
+>  mm/rmap.c            |  139 --------------------------------------------------
+>  3 files changed, 73 insertions(+), 161 deletions(-)
+> 
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 469376d..350e76d 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -118,10 +118,6 @@ static inline int try_to_munlock(struct page *page)
+>  }
+>  #endif
+>  
+> -#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
+> -int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
+> -#endif
+> -
+>  #else	/* !CONFIG_MMU */
+>  
+>  #define anon_vma_init()		do {} while (0)
+> @@ -136,14 +132,6 @@ static inline int page_mkclean(struct page *page)
+>  	return 0;
+>  }
+>  
+> -#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
+> -static inline int page_wrprotect(struct page *page, int *odirect_sync,
+> -				 int count_offset)
+> -{
+> -	return 0;
+> -}
+> -#endif
+> -
+>  #endif	/* CONFIG_MMU */
+>  
+>  /*
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 74d921b..9fce82b 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -37,6 +37,7 @@
+>  #include <linux/swap.h>
+>  #include <linux/rbtree.h>
+>  #include <linux/anon_inodes.h>
+> +#include <linux/mmu_notifier.h>
+>  #include <linux/ksm.h>
+>  
+>  #include <asm/tlbflush.h>
+> @@ -642,6 +643,75 @@ static inline int pages_identical(struct page *page1, struct page *page2)
+>  	return !memcmp_pages(page1, page2);
+>  }
+>  
+> +static inline int write_protect_page(struct page *page,
+> +				     struct vm_area_struct *vma,
+> +				     unsigned long addr,
+> +				     pte_t orig_pte)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *ptep;
+> +	spinlock_t *ptl;
+> +	int swapped;
+> +	int ret = 1;
+> +
+> +	pgd = pgd_offset(mm, addr);
+> +	if (!pgd_present(*pgd))
+> +		goto out;
+> +
+> +	pud = pud_offset(pgd, addr);
+> +	if (!pud_present(*pud))
+> +		goto out;
+> +
+> +	pmd = pmd_offset(pud, addr);
+> +	if (!pmd_present(*pmd))
+> +		goto out;
+> +
+> +	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	if (!ptep)
+> +		goto out;
+> +
+> +	if (!pte_same(*ptep, orig_pte)) {
+> +		pte_unmap_unlock(ptep, ptl);
+> +		goto out;
+> +	}
+> +
+> +	if (pte_write(*ptep)) {
+> +		pte_t entry;
+> +
+> +		swapped = PageSwapCache(page);
+> +		flush_cache_page(vma, addr, page_to_pfn(page));
+> +		/*
+> +		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
+> +		 * take any lock, therefore the check that we are going to make
+> +		 * with the pagecount against the mapcount is racey and
+> +		 * O_DIRECT can happen right after the check.
+> +		 * So we clear the pte and flush the tlb before the check
+> +		 * this assure us that no O_DIRECT can happen after the check
+> +		 * or in the middle of the check.
+> +		 */
+> +		entry = ptep_clear_flush(vma, addr, ptep);
+> +		/*
+> +		 * Check that no O_DIRECT or similar I/O is in progress on the
+> +		 * page
+> +		 */
+> +		if ((page_mapcount(page) + 2 + swapped) != page_count(page)) {
+> +			set_pte_at_notify(mm, addr, ptep, entry);
+> +			goto out_unlock;
+> +		}
+> +		entry = pte_wrprotect(entry);
+> +		set_pte_at_notify(mm, addr, ptep, entry);
+> +	}
+> +	ret = 0;
+> +
+> +out_unlock:
+> +	pte_unmap_unlock(ptep, ptl);
+> +out:
+> +	return ret;
+> +}
+> +
+>  /*
+>   * try_to_merge_one_page - take two pages and merge them into one
+>   * @mm: mm_struct that hold vma pointing into oldpage
+> @@ -661,7 +731,6 @@ static int try_to_merge_one_page(struct mm_struct *mm,
+>  				 pgprot_t newprot)
+>  {
+>  	int ret = 1;
+> -	int odirect_sync;
+>  	unsigned long page_addr_in_vma;
+>  	pte_t orig_pte, *orig_ptep;
+>  
+> @@ -686,25 +755,19 @@ static int try_to_merge_one_page(struct mm_struct *mm,
+>  		goto out_putpage;
+>  	/*
+>  	 * we need the page lock to read a stable PageSwapCache in
+> -	 * page_wrprotect().
+> +	 * write_protect_page().
+>  	 * we use trylock_page() instead of lock_page(), beacuse we dont want to
+>  	 * wait here, we prefer to continue scanning and merging diffrent pages
+>  	 * and to come back to this page when it is unlocked.
+>  	 */
+>  	if (!trylock_page(oldpage))
+>  		goto out_putpage;
+> -	/*
+> -	 * page_wrprotect check if the page is swapped or in swap cache,
+> -	 * in the future we might want to run here if_present_pte and then
+> -	 * swap_free
+> -	 */
+> -	if (!page_wrprotect(oldpage, &odirect_sync, 2)) {
+> +
+> +	if (write_protect_page(oldpage, vma, page_addr_in_vma, orig_pte)) {
+>  		unlock_page(oldpage);
+>  		goto out_putpage;
+>  	}
+>  	unlock_page(oldpage);
+> -	if (!odirect_sync)
+> -		goto out_putpage;
+>  
+>  	orig_pte = pte_wrprotect(orig_pte);
+>  
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index f53074c..c3ba0b9 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -585,145 +585,6 @@ int page_mkclean(struct page *page)
+>  }
+>  EXPORT_SYMBOL_GPL(page_mkclean);
+>  
+> -#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
+> -
+> -static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
+> -			      int *odirect_sync, int count_offset)
+> -{
+> -	struct mm_struct *mm = vma->vm_mm;
+> -	unsigned long address;
+> -	pte_t *pte;
+> -	spinlock_t *ptl;
+> -	int ret = 0;
+> -
+> -	address = vma_address(page, vma);
+> -	if (address == -EFAULT)
+> -		goto out;
+> -
+> -	pte = page_check_address(page, mm, address, &ptl, 0);
+> -	if (!pte)
+> -		goto out;
+> -
+> -	if (pte_write(*pte)) {
+> -		pte_t entry;
+> -
+> -		flush_cache_page(vma, address, pte_pfn(*pte));
+> -		/*
+> -		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
+> -		 * take any lock, therefore the check that we are going to make
+> -		 * with the pagecount against the mapcount is racey and
+> -		 * O_DIRECT can happen right after the check.
+> -		 * So we clear the pte and flush the tlb before the check
+> -		 * this assure us that no O_DIRECT can happen after the check
+> -		 * or in the middle of the check.
+> -		 */
+> -		entry = ptep_clear_flush(vma, address, pte);
+> -		/*
+> -		 * Check that no O_DIRECT or similar I/O is in progress on the
+> -		 * page
+> -		 */
+> -		if ((page_mapcount(page) + count_offset) != page_count(page)) {
+> -			*odirect_sync = 0;
+> -			set_pte_at_notify(mm, address, pte, entry);
+> -			goto out_unlock;
+> -		}
+> -		entry = pte_wrprotect(entry);
+> -		set_pte_at_notify(mm, address, pte, entry);
+> -	}
+> -	ret = 1;
+> -
+> -out_unlock:
+> -	pte_unmap_unlock(pte, ptl);
+> -out:
+> -	return ret;
+> -}
+> -
+> -static int page_wrprotect_file(struct page *page, int *odirect_sync,
+> -			       int count_offset)
+> -{
+> -	struct address_space *mapping;
+> -	struct prio_tree_iter iter;
+> -	struct vm_area_struct *vma;
+> -	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+> -	int ret = 0;
+> -
+> -	mapping = page_mapping(page);
+> -	if (!mapping)
+> -		return ret;
+> -
+> -	spin_lock(&mapping->i_mmap_lock);
+> -
+> -	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
+> -		ret += page_wrprotect_one(page, vma, odirect_sync,
+> -					  count_offset);
+> -
+> -	spin_unlock(&mapping->i_mmap_lock);
+> -
+> -	return ret;
+> -}
+> -
+> -static int page_wrprotect_anon(struct page *page, int *odirect_sync,
+> -			       int count_offset)
+> -{
+> -	struct vm_area_struct *vma;
+> -	struct anon_vma *anon_vma;
+> -	int ret = 0;
+> -
+> -	anon_vma = page_lock_anon_vma(page);
+> -	if (!anon_vma)
+> -		return ret;
+> -
+> -	/*
+> -	 * If the page is inside the swap cache, its _count number was
+> -	 * increased by one, therefore we have to increase count_offset by one.
+> -	 */
+> -	if (PageSwapCache(page))
+> -		count_offset++;
+> -
+> -	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+> -		ret += page_wrprotect_one(page, vma, odirect_sync,
+> -					  count_offset);
+> -
+> -	page_unlock_anon_vma(anon_vma);
+> -
+> -	return ret;
+> -}
+> -
+> -/**
+> - * page_wrprotect - set all ptes pointing to a page as readonly
+> - * @page:         the page to set as readonly
+> - * @odirect_sync: boolean value that is set to 0 when some of the ptes were not
+> - *                marked as readonly beacuse page_wrprotect_one() was not able
+> - *                to mark this ptes as readonly without opening window to a race
+> - *                with odirect
+> - * @count_offset: number of times page_wrprotect() caller had called get_page()
+> - *                on the page
+> - *
+> - * returns the number of ptes which were marked as readonly.
+> - * (ptes that were readonly before this function was called are counted as well)
+> - */
+> -int page_wrprotect(struct page *page, int *odirect_sync, int count_offset)
+> -{
+> -	int ret = 0;
+> -
+> -	/*
+> -	 * Page lock is needed for anon pages for the PageSwapCache check,
+> -	 * and for page_mapping for filebacked pages
+> -	 */
+> -	BUG_ON(!PageLocked(page));
+> -
+> -	*odirect_sync = 1;
+> -	if (PageAnon(page))
+> -		ret = page_wrprotect_anon(page, odirect_sync, count_offset);
+> -	else
+> -		ret = page_wrprotect_file(page, odirect_sync, count_offset);
+> -
+> -	return ret;
+> -}
+> -EXPORT_SYMBOL(page_wrprotect);
+> -
+> -#endif
+> -
+>  /**
+>   * __page_set_anon_rmap - setup new anonymous rmap
+>   * @page:	the page to add the mapping to
+> -- 
+> 1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
