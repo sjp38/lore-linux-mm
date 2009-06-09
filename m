@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 191F06B004D
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 06:19:45 -0400 (EDT)
-Date: Tue, 9 Jun 2009 12:52:51 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 940C66B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 06:40:44 -0400 (EDT)
+Date: Tue, 9 Jun 2009 13:14:32 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 0/23] File descriptor hot-unplug support v2
-Message-ID: <20090609105251.GK14820@wotan.suse.de>
-References: <m1oct739xu.fsf@fess.ebiederm.org> <20090606080334.GA15204@ZenIV.linux.org.uk> <E1MDbLz-0003wm-Db@pomaz-ex.szeredi.hu> <20090608162913.GL8633@ZenIV.linux.org.uk> <E1MDhxh-0004nz-Qm@pomaz-ex.szeredi.hu> <20090608175018.GM8633@ZenIV.linux.org.uk> <alpine.LFD.2.01.0906081100000.6847@localhost.localdomain> <20090608185041.GN8633@ZenIV.linux.org.uk> <alpine.LFD.2.01.0906081217340.6847@localhost.localdomain> <m1ocsxykk2.fsf@fess.ebiederm.org>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v5
+Message-ID: <20090609111432.GL14820@wotan.suse.de>
+References: <20090603846.816684333@firstfloor.org> <20090603184648.2E2131D028F@basil.firstfloor.org> <20090609095155.GA14820@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <m1ocsxykk2.fsf@fess.ebiederm.org>
+In-Reply-To: <20090609095155.GA14820@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Miklos Szeredi <miklos@szeredi.hu>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, hugh@veritas.com, tj@kernel.org, adobriyan@gmail.com, alan@lxorguk.ukuu.org.uk, gregkh@suse.de, akpm@linux-foundation.org, hch@infradead.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: hugh.dickins@tiscali.co.uk, riel@redhat.com, chris.mason@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 08, 2009 at 11:42:53PM -0700, Eric W. Biederman wrote:
-> Linus Torvalds <torvalds@linux-foundation.org> writes:
+On Tue, Jun 09, 2009 at 11:51:55AM +0200, Nick Piggin wrote:
+> On Wed, Jun 03, 2009 at 08:46:47PM +0200, Andi Kleen wrote:
+> > +static int me_pagecache_clean(struct page *p, unsigned long pfn)
+> > +{
+> > +	struct address_space *mapping;
+> > +
+> > +	if (!isolate_lru_page(p))
+> > +		page_cache_release(p);
+> > +
+> > +	/*
+> > +	 * Now truncate the page in the page cache. This is really
+> > +	 * more like a "temporary hole punch"
+> > +	 * Don't do this for block devices when someone else
+> > +	 * has a reference, because it could be file system metadata
+> > +	 * and that's not safe to truncate.
+> > +	 */
+> > +	mapping = page_mapping(p);
+> > +	if (mapping && S_ISBLK(mapping->host->i_mode) && page_count(p) > 1) {
+> > +		printk(KERN_ERR
+> > +			"MCE %#lx: page looks like a unsupported file system metadata page\n",
+> > +			pfn);
+> > +		return FAILED;
+> > +	}
 > 
-> > On Mon, 8 Jun 2009, Al Viro wrote:
-> >> 
-> >> Sure, even though I'm not at all certain that copy_from_user() is that easy.
-> >> We can make locking current->mm in there interruptible, all right, but that's
-> >> only a part of the answer - even aside of the allocations, we'd need vma
-> >> ->fault() interruptible as well, which leads to interruptible instances of
-> >> ->readpage(), with all the fun _that_ would be.
-> >
-> > We already have all that - the NFS people wanted it.
-> >
-> > More importantly, you don't actually need to interrupt readpage itself - 
-> > you just need to stop _waiting_ on it. So in your fault handler, just stop 
-> > waiting, and instead just return FAULT_RETRY or whatever.
+> page_count check is racy. Hmm, S_ISBLK should handle xfs's private mapping.
+> AFAIK btrfs has a similar private mapping but a quick grep does not show
+> up S_IFBLK anywhere, so I don't know what the situation is there.
 > 
-> That sounds doable.  Has that code been merged yet?
+> Unfortunately though, the linear mapping is not the only metadata mapping
+> a filesystem might have. Many work on directories in seperate mappings
+> (ext2, for example, which is where I first looked and will still oops with
+> your check).
 > 
-> I took a quick look and it didn't see anyone breaking out of page fault with a
-> signal or code to really handle that.
+> Also, others may have other interesting inodes they use for metadata. Do
+> any of them go through the pagecache? I dont know. The ext3 journal,
+> for example? How does that work?
+> 
+> Unfortunately I don't know a good way to detect regular data mappings
+> easily. Ccing linux-fsdevel. Until that is worked out, you'd need to
+> use the safe pagecache invalidate rather than unsafe truncate.
 
-The problem is get_user_pages I think. Now that we have a good number of
-fault flags, we can pass down whether the caller is able to be
-interrupted or not.
+Maybe just testing S_ISREG would be better. Definitely safer than
+ISBLK.
 
-Ben H had some interest in doing this, but I don't know how far he got
-with it.
+Note that for !ISREG files, then you can still attempt the
+non-destructive invalidate (after extracting a suitable function
+similarly to the truncate one). Most likely the fs is not using
+the page right now, so it should give bit more coverage.
+
+I still don't exactly know about, say, ext3 journal. Probably
+it doesn't use pagecache anyway. Do any other filesystems do
+crazy things with S_ISREG files? They probably deserve to oops
+if they do ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
