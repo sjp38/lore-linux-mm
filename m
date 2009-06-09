@@ -1,117 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1139D6B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 06:55:39 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 5so2112157ywm.26
-        for <linux-mm@kvack.org>; Tue, 09 Jun 2009 04:30:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <e8f208a7c6bec1818947c24658dc1561.squirrel@webmail-b.css.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 685046B004D
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 07:12:54 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n59BlkbY007113
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 9 Jun 2009 20:47:47 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8558D45DD75
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:47:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 667A445DD74
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:47:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 56F64E0800A
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:47:46 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 09B2DE08002
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:47:46 +0900 (JST)
+Message-ID: <7ca0521d9b798ef8b56212e5b17ea713.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <28c262360906090430p21125c51g10cfdc377a78d07b@mail.gmail.com>
 References: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
-	 <28c262360906090300s13f4ee09mcc9622c1e477eaad@mail.gmail.com>
-	 <e8f208a7c6bec1818947c24658dc1561.squirrel@webmail-b.css.fujitsu.com>
-Date: Tue, 9 Jun 2009 20:30:00 +0900
-Message-ID: <28c262360906090430p21125c51g10cfdc377a78d07b@mail.gmail.com>
+    <28c262360906090300s13f4ee09mcc9622c1e477eaad@mail.gmail.com>
+    <e8f208a7c6bec1818947c24658dc1561.squirrel@webmail-b.css.fujitsu.com>
+    <28c262360906090430p21125c51g10cfdc377a78d07b@mail.gmail.com>
+Date: Tue, 9 Jun 2009 20:47:45 +0900 (JST)
 Subject: Re: [BUGFIX][PATCH] fix wrong lru rotate back at lumpty reclaim
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, riel@redhat.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-2009/6/9 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+Minchan Kim wrote:
+
+> I mean follow as
+>  908         /*
+>  909          * Attempt to take all pages in the order aligned region
+>  910          * surrounding the tag page.  Only take those pages of
+>  911          * the same active state as that tag page.  We may safely
+>  912          * round the target page pfn down to the requested order
+>  913          * as the mem_map is guarenteed valid out to MAX_ORDER,
+>  914          * where that page is in a different zone we will detect
+>  915          * it from its zone id and abort this block scan.
+>  916          */
+>  917         zone_id = page_zone_id(page);
 >
-> Minchan Kim wrote:
->> On Tue, Jun 9, 2009 at 6:15 PM, KAMEZAWA
->> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+But what this code really do is.
+==
+931                         /* Check that we have not crossed a zone
+boundary. */
+ 932                         if (unlikely(page_zone_id(cursor_page) !=
+zone_id))
+ 933                                 continue;
+==
+continue. I think this should be "break"
+I wonder what "This block scan" means is "scanning this aligned block".
+
+But I think the whoe code is not written as commented.
+
+>
+>>> If I understand it properly , don't we add goto phrase ?
 >>>
->>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>>
->>> In lumpty reclaim, "cursor_page" is found just by pfn. Then, we don't
->>> know
->>> from which LRU "cursor" page came from. Then, putback it to "src" list
->>> is BUG.
->>> Just leave it as it is.
->>> (And I think rotate here is overkilling even if "src" is correct.)
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> ---
->>> mm/vmscan.c | 5 ++---
->>> 1 file changed, 2 insertions(+), 3 deletions(-)
->>>
->>> Index: mmotm-2.6.30-Jun4/mm/vmscan.c
->>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->>> --- mmotm-2.6.30-Jun4.orig/mm/vmscan.c
->>> +++ mmotm-2.6.30-Jun4/mm/vmscan.c
->>> @@ -940,10 +940,9 @@ static unsigned long isolate_lru_pages(u
->>> nr_taken++;
->>> scan++;
->>> break;
->>> -
->>>case -EBUSY:
->>
->> We can remove case -EBUSY itself, too.
->> It is meaningless.
->>
-> Sure, will post v2 and remove EBUSY case.
-> (I'm sorry my webmail system converts a space to a multibyte char...
-> =C2=A0then I cut some.)
+>> No.
 >
->>> - /* else it is being freed
->>> elsewhere */
->>> -
->>> list_move(&cursor_page->lru, src);
->>> + =C2=A0/* Do nothing because we
->>> don't know where
->>> + cusrsor_page comes
->>> from */
->>>default:
->>> break; /* ! on LRU or
->>> wrong list */
->>
->> Hmm.. what meaning of this break ?
->> We are in switch case.
->> This "break" can't go out of loop.
-> yes.
+> If it is so, the break also is meaningless.
 >
->> But comment said "abort this block scan".
->>
-> Where ? the comment says the cursor_page is not on lru (PG_lru is unset)
+yes. I'll remove it. But need to add "exit from for loop" logic again.
 
-I mean follow as
- 908         /*
- 909          * Attempt to take all pages in the order aligned region
- 910          * surrounding the tag page.  Only take those pages of
- 911          * the same active state as that tag page.  We may safely
- 912          * round the target page pfn down to the requested order
- 913          * as the mem_map is guarenteed valid out to MAX_ORDER,
- 914          * where that page is in a different zone we will detect
- 915          * it from its zone id and abort this block scan.
- 916          */
- 917         zone_id =3D page_zone_id(page);
+I'm sorry that the wrong logic of this loop was out of my sight.
+I'll review and rewrite this part all, tomorrow.
 
-
->> If I understand it properly , don't we add goto phrase ?
->>
-> No.
-
-If it is so, the break also is meaningless.
-
-> Just try next page on list.
->
-> Thank you for review, I'll post updated one tomorrow.
-> -Kame
->
->
-
-
-
---=20
-Kinds regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
