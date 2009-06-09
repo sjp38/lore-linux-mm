@@ -1,82 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 832756B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:03:20 -0400 (EDT)
-Date: Tue, 9 Jun 2009 14:13:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] proc.txt: Update kernel filesystem/proc.txt
- documentation
-Message-Id: <20090609141323.aae795a9.akpm@linux-foundation.org>
-In-Reply-To: <1244580807.30614.10.camel@wall-e>
-References: <1238511505.364.61.camel@matrix>
-	<20090401193135.GA12316@elte.hu>
-	<1244543758.13948.5.camel@wall-e>
-	<20090609123641.f4733d8b.akpm@linux-foundation.org>
-	<1244580807.30614.10.camel@wall-e>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 306FE6B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:12:09 -0400 (EDT)
+Date: Wed, 10 Jun 2009 08:58:58 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: fix mem_cgroup_isolate_lru_page to use the same
+ rotate logic at busy path
+Message-Id: <20090610085858.fd3a60ed.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090609182253.009c98a3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090609182253.009c98a3.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Stefani Seibold <stefani@seibold.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 09 Jun 2009 22:53:27 +0200
-Stefani Seibold <stefani@seibold.net> wrote:
-
-> Am Dienstag, den 09.06.2009, 12:36 -0700 schrieb Andrew Morton:
-> > On Tue, 09 Jun 2009 12:35:58 +0200
-> > Stefani Seibold <stefani@seibold.net> wrote:
-> > 
-> > > This is a patch against the file Documentation/filesystem/proc.txt.
-> > > 
-> > > It is an update for the "Process-Specific Subdirectories" to reflect 
-> > > the changes till kernel 2.6.30. It also introduce the my 
-> > > "provide stack information for threads".
-> > 
-> > Sorry, but it would be much preferable to do this as two patches.  The
-> > first fixes up proc.txt and the second adds the
-> > stack-information-for-threads material.
-> > 
+On Tue, 9 Jun 2009 18:22:53 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> That is really frustrating. I did everything that you and ingo molnar
-> had complained.
+> This patch tries to fix memcg's lru rotation sanity...make memcg use
+> the same logic as global LRU does.
 > 
-> What is wrong with the "provide stack information for threads"? It is a
-> very tiny patch which did not harm.
+> Now, at __isolate_lru_page() retruns -EBUSY, the page is rotated to
+> the tail of LRU in global LRU's isolate LRU pages. But in memcg,
+> it's not handled. This makes memcg do the same behavior as global LRU
+> and rotate LRU in the page is busy.
 > 
-> The only reason to fix and update the proc.txt was that you told me that
-> this is the last thing that you miss.
-
-It's more a procedural thing really.  We've learnt that it's best to
-avoid mixing more than a single "concept" into a single patch.  For a
-whole pile of reasons: reviewability, bisectability, revertability,
-testability, etc.
-
-In this case, it's unobvious which parts of the patch were specific to
-the stack-information-for-threads changes and which parts were not. 
-This makes it hard to review your proposed changes.
-
-> > This is because the two changes are quite conceptually distinct, and we
-> > might end up wanting to merge one chage and not the other.
-> > 
+> Note: __isolate_lru_page() is not isolate_lru_page() and it's just used
+> in sc->isolate_pages() logic.
 > 
-> Okay, if the other patch will not included than it makes no sense for me
-> to get in the other.
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Simple question: will you accept the thread stack info patch or not? If
-> yes, i will spent the time to split proc.txt patch.
+Looks good to me.
+
+	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+> ---
+>  mm/memcontrol.c |   13 ++++++++++++-
+>  mm/vmscan.c     |    4 +++-
+>  2 files changed, 15 insertions(+), 2 deletions(-)
 > 
-
-It looks OK to me now.  If it passes testing and nobody has fatal
-objections then yes, I expect it'll be merged in 2.6.31.
-
-The way to organise these changes is
-
-[patch 1/2] fix proc.txt
-[patch 2/2] procfs: provide stack information for threads
-
-The second patch will contain a small update to proc.txt.
+> Index: mmotm-2.6.30-Jun4/mm/vmscan.c
+> ===================================================================
+> --- mmotm-2.6.30-Jun4.orig/mm/vmscan.c
+> +++ mmotm-2.6.30-Jun4/mm/vmscan.c
+> @@ -842,7 +842,6 @@ int __isolate_lru_page(struct page *page
+>  		 */
+>  		ClearPageLRU(page);
+>  		ret = 0;
+> -		mem_cgroup_del_lru(page);
+>  	}
+>  
+>  	return ret;
+> @@ -890,12 +889,14 @@ static unsigned long isolate_lru_pages(u
+>  		switch (__isolate_lru_page(page, mode, file)) {
+>  		case 0:
+>  			list_move(&page->lru, dst);
+> +			mem_cgroup_del_lru(page);
+>  			nr_taken++;
+>  			break;
+>  
+>  		case -EBUSY:
+>  			/* else it is being freed elsewhere */
+>  			list_move(&page->lru, src);
+> +			mem_cgroup_rotate_lru_list(page, page_lru(page));
+>  			continue;
+>  
+>  		default:
+> @@ -937,6 +938,7 @@ static unsigned long isolate_lru_pages(u
+>  			switch (__isolate_lru_page(cursor_page, mode, file)) {
+>  			case 0:
+>  				list_move(&cursor_page->lru, dst);
+> +				mem_cgroup_del_lru(page);
+>  				nr_taken++;
+>  				scan++;
+>  				break;
+> Index: mmotm-2.6.30-Jun4/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.30-Jun4.orig/mm/memcontrol.c
+> +++ mmotm-2.6.30-Jun4/mm/memcontrol.c
+> @@ -649,6 +649,7 @@ unsigned long mem_cgroup_isolate_pages(u
+>  	int zid = zone_idx(z);
+>  	struct mem_cgroup_per_zone *mz;
+>  	int lru = LRU_FILE * !!file + !!active;
+> +	int ret;
+>  
+>  	BUG_ON(!mem_cont);
+>  	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
+> @@ -666,9 +667,19 @@ unsigned long mem_cgroup_isolate_pages(u
+>  			continue;
+>  
+>  		scan++;
+> -		if (__isolate_lru_page(page, mode, file) == 0) {
+> +		ret = __isolate_lru_page(page, mode, file);
+> +		switch (ret) {
+> +		case 0:
+>  			list_move(&page->lru, dst);
+> +			mem_cgroup_del_lru(page);
+>  			nr_taken++;
+> +			break;
+> +		case -EBUSY:
+> +			/* we don't affect global LRU but rotate in our LRU */
+> +			mem_cgroup_rotate_lru_list(page, page_lru(page));
+> +			break;
+> +		default:
+> +			break;
+>  		}
+>  	}
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
