@@ -1,243 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 964C86B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 02:23:41 -0400 (EDT)
-Date: Tue, 9 Jun 2009 14:48:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
-	in  the VM v3
-Message-ID: <20090609064855.GB5490@localhost>
-References: <20090528082616.GG6920@wotan.suse.de> <20090528093141.GD1065@one.firstfloor.org> <20090528120854.GJ6920@wotan.suse.de> <20090528134520.GH1065@one.firstfloor.org> <20090528145021.GA5503@localhost> <ab418ea90906032325m302afbb6w6fa68f6b57f53e49@mail.gmail.com> <20090607160225.GA24315@localhost> <ab418ea90906080406y34981329y27d360624aa22f7c@mail.gmail.com> <20090608123133.GA7944@localhost> <ab418ea90906080746m6d1d59d8m395ab76585575db1@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <ab418ea90906080746m6d1d59d8m395ab76585575db1@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 66A816B005C
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 02:48:17 -0400 (EDT)
+Date: Tue, 9 Jun 2009 16:13:30 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH mmotm] vmscan: handle may_swap more strictly (Re: [PATCH
+ mmotm] vmscan: fix may_swap handling for memcg)
+Message-Id: <20090609161330.fcd5facb.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090608165457.fa8d17e6.nishimura@mxp.nes.nec.co.jp>
+References: <20090608121848.4370.A69D9226@jp.fujitsu.com>
+	<20090608153916.3ccaeb9a.nishimura@mxp.nes.nec.co.jp>
+	<20090608154634.437F.A69D9226@jp.fujitsu.com>
+	<20090608165457.fa8d17e6.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nai Xia <nai.xia@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 08, 2009 at 10:46:53PM +0800, Nai Xia wrote:
-> On Mon, Jun 8, 2009 at 8:31 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > On Mon, Jun 08, 2009 at 07:06:12PM +0800, Nai Xia wrote:
-> >> On Mon, Jun 8, 2009 at 12:02 AM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> >> > On Thu, Jun 04, 2009 at 02:25:24PM +0800, Nai Xia wrote:
-> >> >> On Thu, May 28, 2009 at 10:50 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> >> >> > On Thu, May 28, 2009 at 09:45:20PM +0800, Andi Kleen wrote:
-> >> >> >> On Thu, May 28, 2009 at 02:08:54PM +0200, Nick Piggin wrote:
-> >> >> >
-> >> >> > [snip]
-> >> >> >
-> >> >> >> >
-> >> >> >> > BTW. I don't know if you are checking for PG_writeback often enough?
-> >> >> >> > You can't remove a PG_writeback page from pagecache. The normal
-> >> >> >> > pattern is lock_page(page); wait_on_page_writeback(page); which I
-> >> >> >>
-> >> >> >> So pages can be in writeback without being locked? I still
-> >> >> >> wasn't able to find such a case (in fact unless I'm misreading
-> >> >> >> the code badly the writeback bit is only used by NFS and a few
-> >> >> >> obscure cases)
-> >> >> >
-> >> >> > Yes the writeback page is typically not locked. Only read IO requires
-> >> >> > to be exclusive. Read IO is in fact page *writer*, while writeback IO
-> >> >> > is page *reader* :-)
-> >> >>
-> >> >> Sorry for maybe somewhat a little bit off topic,
-> >> >> I am trying to get a good understanding of PG_writeback & PG_locked ;)
-> >> >>
-> >> >> So you are saying PG_writeback & PG_locked are acting like a read/write lock?
-> >> >> I notice wait_on_page_writeback(page) seems always called with page locked --
-> >> >
-> >> > No. Note that pages are not locked in wait_on_page_writeback_range().
-> >>
-> >> I see. This function seems mostly called A on the sync path,
-> >> it just waits for data being synchronized to disk.
-> >> No writers from the pages' POV, so no lock.
-> >> I missed this case, but my argument about the role of read/write lock.
-> >> seems still consistent. :)
-> >
-> > It's more constrained. Normal read/write locks allow concurrent readers,
-> > however fsync() must wait for previous IO to finish before starting
-> > its own IO.
+> > and, too many recliaming pages is not only memcg issue. I don't think this
+> > patch provide generic solution.
+> > 
+> Ah, you're right. It's not only memcg issue.
 > 
-> Oh, yes, this is what I called "mixed roles". One for lock, one for
-> status flag, twisted together in the same path, making the read lock
-> semantics totally broken.
-> 
-> >
-> >> >
-> >> >> that is the semantics of a writer waiting to get the lock while it's
-> >> >> acquired by
-> >> >> some reader:The caller(e.g. truncate_inode_pages_range() A and
-> >> >> invalidate_inode_pages2_range()) are the writers waiting for
-> >> >> writeback readers (as you clarified ) to finish their job, right ?
-> >> >
-> >> > Sorry if my metaphor confused you. But they are not typical
-> >> > reader/writer problems, but more about data integrities.
-> >>
-> >> No, you didn't :)
-> >> Actually, you make me clear about the mixed roles for
-> >> those bits.
-> >>
-> >> >
-> >> > Pages have to be "not under writeback" when truncated.
-> >> > Otherwise data lost is possible:
-> >> >
-> >> > 1) create a file with one page (page A)
-> >> > 2) truncate page A that is under writeback
-> >> > 3) write to file, which creates page B
-> >> > 4) sync file, which sends page B to disk quickly
-> >> >
-> >> > Now if page B reaches disk before A, the new data will be overwritten
-> >> > by truncated old data, which corrupts the file.
-> >>
-> >> I fully understand this scenario which you had already clarified in a
-> >> previous message. :)
-> >>
-> >> 1. someone make index1-> page A
-> >> 2. Path P1 is acting as a *reader* to a cache page at index1 by
-> >> A  A  setting PG_writeback on, while at the same time as a *writer* to
-> >> A  A  the corresponding file blocks.
-> >> 3. Another path P2 comes in and A truncate page A, he is the writer
-> >> A  A  to the same cache page.
-> >> 4. Yet another path P3 comes A as the writer to the cache page
-> >> A  A  A making it points to page B: index1--> page B.
-> >> 5. Path P4 comes writing back the cache page(and set PG_writeback).
-> >> A  A He is the reader of the cache page and the writer to the file blocks.
-> >>
-> >> The corrupts occur because P1 & P4 races when writing file blocks.
-> >> But the _root_ of this racing is because nothing is used to serialize
-> >> them on the side of writing the file blocks and above stream reading was
-> >> inconsistent because of the writers(P2 & P3) to cache page at index1.
-> >>
-> >> Note that the "sync file" is somewhat irrelevant, even without "sync file",
-> >> the racing still may exists. I know you must want to show me that this could
-> >> make the corruption more easy to occur.
-> >>
-> >> So I think the simple logic is:
-> >> 1) if you want to truncate/change the mapping from a index to a struct *page,
-> >> test writeback bit because the writebacker to the file blocks is the reader
-> >> of this mapping.
-> >> 2) if a writebacker want to start a read of this mapping with
-> >> test_set_page_writeback()
-> >> or set_page_writeback(), he'd be sure this page is locked to keep out the
-> >> writers to this mapping of index-->struct *page.
-> >>
-> >> This is really behavior of a read/write lock, right ?
-> >
-> > Please, that's a dangerous idea. A page can be written to at any time
-> > when writeback to disk is under way. Does PG_writeback (your reader
-> > lock) prevents page data writers? A NO.
-> 
-> I meant PG_writeback stops writers to index---->struct page mapping.
+How about this one ?
 
-It's protected by the radix tree RCU locks. Period.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-If you are referring to the reverse mapping: page->mapping is procted
-by PG_lock. No one should make assumption that it won't change under
-page writeback.
+Commit 2e2e425989080cc534fc0fca154cae515f971cf5 ("vmscan,memcg: reintroduce
+sc->may_swap) add may_swap flag and handle it at get_scan_ratio().
 
-Thanks,
-Fengguang
+But the result of get_scan_ratio() is ignored when priority == 0,
+so anon lru is scanned even if may_swap == 0 or nr_swap_pages == 0.
+IMHO, this is not an expected behavior.
 
-> I think I should make my statements more concise and the "reader/writer"
-> less vague.
-> 
-> Here we care about the write/read operation for index---->struct page mapping.
-> Not for read/write operation for the page content.
-> 
-> Anyone who wants to change this mapping  is a writer, he should take
-> page lock.
-> Anyone who wants to reference this mapping is a reader, writers should
-> wait for him. And when this reader wants to get ref, he should wait for
-> anyone one who is changing this mapping(e.g. page truncater).
-> 
-> When a path sets PG_writeback on a page, it need this index-->struct page
-> mapping be 100% valid right? (otherwise may leads to corruption.)
-> So writeback routines are readers of this index-->struct page mapping.
-> (oh, well if we can put the other role of PG_writeback aside)
-> 
-> Ok,Ok, since PG_locked does mean much more than just protecting
-> the per-page mapping which makes the lock abstraction even less clear.
-> so indeed, forget about it.
-> 
-> >
-> > Thanks,
-> > Fengguang
-> >
-> >> wait_on_page_writeback_range() looks different only because "sync"
-> >> operates on "struct page", it's not sensitive to index-->struct *page mapping.
-> >> It does care about if pages returned by pagevec_lookup_tag() are
-> >> still maintains the mapping when wait_on_page_writeback(page).
-> >> Here, PG_writeback is only a status flag for "struct page" not a lock bit for
-> >> index->struct *page mapping.
-> >>
-> >> >
-> >> >> So do you think the idea is sane to group the two bits together
-> >> >> to form a real read/write lock, which does not care about the _number_
-> >> >> of readers ?
-> >> >
-> >> > We don't care number of readers here. So please forget about it.
-> >> Yeah, I meant number of readers is not important.
-> >>
-> >> I still hold that these two bits in some way act like a _sparse_
-> >> read/write lock.
-> >> But I am going to drop the idea of making them a pure lock, since PG_writeback
-> >> does has other meaning -- the page is being writing back: for sync
-> >> path, it's only
-> >> a status flag.
-> >> Making a pure read/write lock definitely will lose that or at least distort it.
-> >>
-> >>
-> >> Hoping I've made my words understandable, correct me if wrong, and
-> >> many thanks for your time and patience. :-)
-> >>
-> >>
-> >> Nai Xia
-> >>
-> >> >
-> >> > Thanks,
-> >> > Fengguang
-> >> >
-> >> >> > The writeback bit is _widely_ used. A test_set_page_writeback() is
-> >> >> > directly used by NFS/AFS etc. But its main user is in fact
-> >> >> > set_page_writeback(), which is called in 26 places.
-> >> >> >
-> >> >> >> > think would be safest
-> >> >> >>
-> >> >> >> Okay. I'll just add it after the page lock.
-> >> >> >>
-> >> >> >> > (then you never have to bother with the writeback bit again)
-> >> >> >>
-> >> >> >> Until Fengguang does something fancy with it.
-> >> >> >
-> >> >> > Yes I'm going to do it without wait_on_page_writeback().
-> >> >> >
-> >> >> > The reason truncate_inode_pages_range() has to wait on writeback page
-> >> >> > is to ensure data integrity. Otherwise if there comes two events:
-> >> >> > A  A  A  A truncate page A at offset X
-> >> >> > A  A  A  A populate page B at offset X
-> >> >> > If A and B are all writeback pages, then B can hit disk first and then
-> >> >> > be overwritten by A. Which corrupts the data at offset X from user's POV.
-> >> >> >
-> >> >> > But for hwpoison, there are no such worries. If A is poisoned, we do
-> >> >> > our best to isolate it as well as intercepting its IO. If the interception
-> >> >> > fails, it will trigger another machine check before hitting the disk.
-> >> >> >
-> >> >> > After all, poisoned A means the data at offset X is already corrupted.
-> >> >> > It doesn't matter if there comes another B page.
-> >> >> >
-> >> >> > Thanks,
-> >> >> > Fengguang
-> >> >> > --
-> >> >> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> >> >> > the body of a message to majordomo@vger.kernel.org
-> >> >> > More majordomo info at A http://vger.kernel.org/majordomo-info.html
-> >> >> > Please read the FAQ at A http://www.tux.org/lkml/
-> >> >> >
-> >> >
-> >
+As for memcg especially, because of this behavior many and many pages are
+swapped-out just in vain when oom is invoked by mem+swap limit.
+
+This patch is for handling may_swap flag more strictly.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/vmscan.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2ddcfc8..bacb092 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1407,13 +1407,6 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+ 	unsigned long ap, fp;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+-	/* If we have no swap space, do not bother scanning anon pages. */
+-	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+-		percent[0] = 0;
+-		percent[1] = 100;
+-		return;
+-	}
+-
+ 	anon  = zone_nr_pages(zone, sc, LRU_ACTIVE_ANON) +
+ 		zone_nr_pages(zone, sc, LRU_INACTIVE_ANON);
+ 	file  = zone_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
+@@ -1511,15 +1504,22 @@ static void shrink_zone(int priority, struct zone *zone,
+ 	enum lru_list l;
+ 	unsigned long nr_reclaimed = sc->nr_reclaimed;
+ 	unsigned long swap_cluster_max = sc->swap_cluster_max;
++	int noswap = 0;
+ 
+-	get_scan_ratio(zone, sc, percent);
++	/* If we have no swap space, do not bother scanning anon pages. */
++	if (!sc->may_swap || (nr_swap_pages <= 0)) {
++		noswap = 1;
++		percent[0] = 0;
++		percent[1] = 100;
++	} else
++		get_scan_ratio(zone, sc, percent);
+ 
+ 	for_each_evictable_lru(l) {
+ 		int file = is_file_lru(l);
+ 		unsigned long scan;
+ 
+ 		scan = zone_nr_pages(zone, sc, l);
+-		if (priority) {
++		if (priority || noswap) {
+ 			scan >>= priority;
+ 			scan = (scan * percent[file]) / 100;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
