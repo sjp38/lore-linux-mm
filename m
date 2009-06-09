@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D91086B0055
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:14:33 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n599jYhi003076
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 9 Jun 2009 18:45:36 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0220245DE7A
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:45:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CC32045DE70
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:45:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 983F41DB803B
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:45:31 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ECD81DB8042
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 18:45:30 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-In-Reply-To: <20090609094231.GM18380@csn.ul.ie>
-References: <20090609173011.DD7F.A69D9226@jp.fujitsu.com> <20090609094231.GM18380@csn.ul.ie>
-Message-Id: <20090609184422.DD8B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  9 Jun 2009 18:45:29 +0900 (JST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E836B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 05:20:43 -0400 (EDT)
+Date: Tue, 9 Jun 2009 11:51:55 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v5
+Message-ID: <20090609095155.GA14820@wotan.suse.de>
+References: <20090603846.816684333@firstfloor.org> <20090603184648.2E2131D028F@basil.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090603184648.2E2131D028F@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: hugh.dickins@tiscali.co.uk, riel@redhat.com, chris.mason@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > > Here it is just recording the jiffies value. The real smarts with the counter
-> > > use time_before() which I assumed could handle jiffie wrap-arounds. Even
-> > > if it doesn't, the consequence is that one scan will occur that could have
-> > > been avoided around the time of the jiffie wraparound. The value will then
-> > > be reset and it will be fine.
-> > 
-> > time_before() assume two argument are enough nearly time.
-> > if we use 32bit cpu and HZ=1000, about jiffies wraparound about one month.
-> > 
-> > Then, 
-> > 
-> > 1. zone reclaim failure occur
-> > 2. system works fine for one month
-> > 3. jiffies wrap and time_before() makes mis-calculation.
-> > 
-> 
-> And the scan occurs uselessly and zone_reclaim_failure gets set again.
-> I believe the one useless scan is not significant enough to warrent dealing
-> with jiffie wraparound.
+On Wed, Jun 03, 2009 at 08:46:47PM +0200, Andi Kleen wrote:
+> +static int me_pagecache_clean(struct page *p, unsigned long pfn)
+> +{
+> +	struct address_space *mapping;
+> +
+> +	if (!isolate_lru_page(p))
+> +		page_cache_release(p);
+> +
+> +	/*
+> +	 * Now truncate the page in the page cache. This is really
+> +	 * more like a "temporary hole punch"
+> +	 * Don't do this for block devices when someone else
+> +	 * has a reference, because it could be file system metadata
+> +	 * and that's not safe to truncate.
+> +	 */
+> +	mapping = page_mapping(p);
+> +	if (mapping && S_ISBLK(mapping->host->i_mode) && page_count(p) > 1) {
+> +		printk(KERN_ERR
+> +			"MCE %#lx: page looks like a unsupported file system metadata page\n",
+> +			pfn);
+> +		return FAILED;
+> +	}
 
-Thank you for kindful explanation.
-I fully agreed.
+page_count check is racy. Hmm, S_ISBLK should handle xfs's private mapping.
+AFAIK btrfs has a similar private mapping but a quick grep does not show
+up S_IFBLK anywhere, so I don't know what the situation is there.
+
+Unfortunately though, the linear mapping is not the only metadata mapping
+a filesystem might have. Many work on directories in seperate mappings
+(ext2, for example, which is where I first looked and will still oops with
+your check).
+
+Also, others may have other interesting inodes they use for metadata. Do
+any of them go through the pagecache? I dont know. The ext3 journal,
+for example? How does that work?
+
+Unfortunately I don't know a good way to detect regular data mappings
+easily. Ccing linux-fsdevel. Until that is worked out, you'd need to
+use the safe pagecache invalidate rather than unsafe truncate.
 
 
+> +	if (mapping) {
+> +		truncate_inode_page(mapping, p);
+> +		if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO)) {
+> +			pr_debug(KERN_ERR "MCE %#lx: failed to release buffers\n",
+> +				pfn);
+> +			return FAILED;
+> +		}
+> +	}
+> +	return RECOVERED;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
