@@ -1,143 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 103A16B004F
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 05:36:29 -0400 (EDT)
-Date: Wed, 10 Jun 2009 11:30:07 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BEA846B004F
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 05:41:42 -0400 (EDT)
 Subject: Re: [patch v3] swap: virtual swap readahead
-Message-ID: <20090610093007.GA3019@cmpxchg.org>
-References: <20090609190128.GA1785@cmpxchg.org> <20090609193702.GA2017@cmpxchg.org> <20090610050342.GA8867@localhost> <20090610074508.GA1960@cmpxchg.org> <20090610081132.GA27519@localhost> <20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20090610085638.GA32511@localhost>
+References: <20090609190128.GA1785@cmpxchg.org>
+	 <20090609193702.GA2017@cmpxchg.org> <20090610050342.GA8867@localhost>
+	 <20090610074508.GA1960@cmpxchg.org> <20090610081132.GA27519@localhost>
+	 <20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090610085638.GA32511@localhost>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Jun 2009 11:42:56 +0200
+Message-Id: <1244626976.13761.11593.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 10, 2009 at 05:32:49PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 10 Jun 2009 16:11:32 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Wed, 2009-06-10 at 16:56 +0800, Wu Fengguang wrote:
 > 
-> > On Wed, Jun 10, 2009 at 03:45:08PM +0800, Johannes Weiner wrote:
-> > > Hi Fengguang,
-> > > 
-> > > On Wed, Jun 10, 2009 at 01:03:42PM +0800, Wu Fengguang wrote:
-> > > > On Wed, Jun 10, 2009 at 03:37:02AM +0800, Johannes Weiner wrote:
-> > > > > On Tue, Jun 09, 2009 at 09:01:28PM +0200, Johannes Weiner wrote:
-> > > > > > [resend with lists cc'd, sorry]
-> > > > > 
-> > > > > [and fixed Hugh's email.  crap]
-> > > > > 
-> > > > > > Hi,
-> > > > > > 
-> > > > > > here is a new iteration of the virtual swap readahead.  Per Hugh's
-> > > > > > suggestion, I moved the pte collecting to the callsite and thus out
-> > > > > > ouf swap code.  Unfortunately, I had to bound page_cluster due to an
-> > > > > > array of that many swap entries on the stack, but I think it is better
-> > > > > > to limit the cluster size to a sane maximum than using dynamic
-> > > > > > allocation for this purpose.
-> > > > 
-> > > > Hi Johannes,
-> > > > 
-> > > > When stress testing your patch, I found it triggered many OOM kills.
-> > > > Around the time of last OOMs, the memory usage is:
-> > > > 
-> > > >              total       used       free     shared    buffers     cached
-> > > > Mem:           474        468          5          0          0        239
-> > > > -/+ buffers/cache:        229        244
-> > > > Swap:         1023        221        802
-> > > 
-> > > Wow, that really confused me for a second as we shouldn't read more
-> > > pages ahead than without the patch, probably even less under stress.
-> > 
-> > Yup - swap readahead is much more challenging than sequential readahead,
-> > in that it must be accurate enough given some really obscure patterns.
-> > 
-> > > So the problem has to be a runaway reading.  And indeed, severe
-> > > stupidity here:
-> > > 
-> > > +       window = cluster << PAGE_SHIFT;
-> > > +       min = addr & ~(window - 1);
-> > > +       max = min + cluster;
-> > > +       /*
-> > > +        * To keep the locking/highpte mapping simple, stay
-> > > +        * within the PTE range of one PMD entry.
-> > > +        */
-> > > +       limit = addr & PMD_MASK;
-> > > +       if (limit > min)
-> > > +               min = limit;
-> > > +       limit = pmd_addr_end(addr, max);
-> > > +       if (limit < max)
-> > > +               max = limit;
-> > > +       limit = max - min;
-> > > 
-> > > The mistake is at the initial calculation of max.  It should be
-> > > 
-> > > 	max = min + window;
-> > > 
-> > > The resulting problem is that min could get bigger than max when
-> > > cluster is bigger than PMD_SHIFT.  Did you use page_cluster == 5?
-> > 
-> > No I use the default 3.
-> > 
-> > btw, the mistake reflects bad named variables. How about rename
-> >         cluster => pages
-> >         window  => bytes
-> > ?
-
-Proven twice, fixed in v4.
-
-> > > The initial min is aligned to a value below the PMD boundary and max
-> > > based on it with a too small offset, staying below the PMD boundary as
-> > > well.  When min is rounded up, this becomes a bit large:
-> > > 
-> > > 	limit = max - min;
-> > > 
-> > > So if my brain is already functioning, fixing the initial max should
-> > > be enough because either
-> > > 
-> > > 	o window is smaller than PMD_SIZE, than we won't round down
-> > > 	below a PMD boundary in the first place or
-> > > 
-> > > 	o window is bigger than PMD_SIZE, than we can round down below
-> > > 	a PMD boundary but adding window to that is garuanteed to
-> > > 	cross the boundary again
-> > > 
-> > > and thus max is always bigger than min.
-> > > 
-> > > Fengguang, does this make sense?  If so, the patch below should fix
-> > > it.
-> > 
-> > Too bad, a quick test of the below patch freezes the box..
-> > 
+> Yes it worked!  But then I run into page allocation failures:
 > 
-> +	window = cluster << PAGE_SHIFT;
-> +	min = addr & ~(window - 1);
-> +	max = min + cluster;
-> 
-> max = min + window; # this is fixed. then,
-> 
-> +	/*
-> +	 * To keep the locking/highpte mapping simple, stay
-> +	 * within the PTE range of one PMD entry.
-> +	 */
-> +	limit = addr & PMD_MASK;
-> +	if (limit > min)
-> +		min = limit;
-> +	limit = pmd_addr_end(addr, max);
-> +	if (limit < max)
-> +		max = limit;
-> +	limit = max - min;
-> 
-> limit = (max - min) >> PAGE_SHIFT;
+> [  340.639803] Xorg: page allocation failure. order:4, mode:0x40d0
+> [  340.645744] Pid: 3258, comm: Xorg Not tainted 2.6.30-rc8-mm1 #303
+> [  340.651839] Call Trace:
+> [  340.654289]  [<ffffffff810c8204>] __alloc_pages_nodemask+0x344/0x6c0
+> [  340.660645]  [<ffffffff810f7489>] __slab_alloc_page+0xb9/0x3b0
+> [  340.666472]  [<ffffffff810f8608>] __kmalloc+0x198/0x250
+> [  340.671786]  [<ffffffffa014bf9f>] ? i915_gem_execbuffer+0x17f/0x11e0 [i915]
+> [  340.678746]  [<ffffffffa014bf9f>] i915_gem_execbuffer+0x17f/0x11e0 [i915]
 
-Head -> desk.
+Jesse Barnes had a patch to add a vmalloc fallback to those largish kms
+allocs.
 
-Fixed in v4, thank you.
-
-	Hannes
+But order-4 allocs failing isn't really strange, but it might indicate
+this patch fragments stuff sooner, although I've seen these particular
+failues before.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
