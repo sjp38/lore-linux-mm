@@ -1,87 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 708A86B0088
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:07:45 -0400 (EDT)
-Date: Wed, 10 Jun 2009 08:07:54 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [8/16] HWPOISON: Use bitmask/action code for try_to_unmap behaviour
-Message-ID: <20090610060754.GB31155@wotan.suse.de>
-References: <20090603846.816684333@firstfloor.org> <20090603184641.868D31D0282@basil.firstfloor.org> <20090609095725.GC14820@wotan.suse.de> <20090610022736.GC6597@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090610022736.GC6597@localhost>
+	by kanga.kvack.org (Postfix) with SMTP id B273C6B008A
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:11:05 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5A6BMgQ029898
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 10 Jun 2009 15:11:22 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 656F945DE69
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:11:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 32F2745DE62
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:11:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1246D1DB8049
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:11:22 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0A571DB8043
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:11:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] lumpy reclaim: clean up and write lumpy reclaim
+In-Reply-To: <20090610142443.9370aff8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090610142443.9370aff8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090610151027.DDBA.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Jun 2009 15:11:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, apw@canonical.com, riel@redhat.com, minchan.kim@gmail.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 10, 2009 at 10:27:36AM +0800, Wu Fengguang wrote:
-> On Tue, Jun 09, 2009 at 05:57:25PM +0800, Nick Piggin wrote:
-> > On Wed, Jun 03, 2009 at 08:46:41PM +0200, Andi Kleen wrote:
-> > > 
-> > > try_to_unmap currently has multiple modi (migration, munlock, normal unmap)
-> > > which are selected by magic flag variables. The logic is not very straight
-> > > forward, because each of these flag change multiple behaviours (e.g.
-> > > migration turns off aging, not only sets up migration ptes etc.)
-> > > Also the different flags interact in magic ways.
-> > > 
-> > > A later patch in this series adds another mode to try_to_unmap, so 
-> > > this becomes quickly unmanageable.
-> > > 
-> > > Replace the different flags with a action code (migration, munlock, munmap)
-> > > and some additional flags as modifiers (ignore mlock, ignore aging).
-> > > This makes the logic more straight forward and allows easier extension
-> > > to new behaviours. Change all the caller to declare what they want to 
-> > > do.
-> > > 
-> > > This patch is supposed to be a nop in behaviour. If anyone can prove 
-> > > it is not that would be a bug.
-> > > 
-> > > Cc: Lee.Schermerhorn@hp.com
-> > > Cc: npiggin@suse.de
-> > > 
-> > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> > > 
-> > > ---
-> > >  include/linux/rmap.h |   14 +++++++++++++-
-> > >  mm/migrate.c         |    2 +-
-> > >  mm/rmap.c            |   40 ++++++++++++++++++++++------------------
-> > >  mm/vmscan.c          |    2 +-
-> > >  4 files changed, 37 insertions(+), 21 deletions(-)
-> > > 
-> > > Index: linux/include/linux/rmap.h
-> > > ===================================================================
-> > > --- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
-> > > +++ linux/include/linux/rmap.h	2009-06-03 20:39:50.000000000 +0200
-> > > @@ -84,7 +84,19 @@
-> > >   * Called from mm/vmscan.c to handle paging out
-> > >   */
-> > >  int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
-> > > -int try_to_unmap(struct page *, int ignore_refs);
-> > > +
-> > > +enum ttu_flags {
-> > > +	TTU_UNMAP = 0,			/* unmap mode */
-> > > +	TTU_MIGRATION = 1,		/* migration mode */
-> > > +	TTU_MUNLOCK = 2,		/* munlock mode */
-> > > +	TTU_ACTION_MASK = 0xff,
-> > > +
-> > > +	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
-> > > +	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
-> > > +};
-> > > +#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
-> > 
-> > I still think this is nasty and should work like Gfp flags.
+> I think lumpy reclaim should be updated to meet to current split-lru.
+> This patch includes bugfix and cleanup. How do you think ?
 > 
-> I don't see big problems here.
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> We have page_zone() and gfp_zone(), so why not TTU_ACTION()? We could
-> allocate one bit for each action code, but in principle they are exclusive.
+> In lumpty reclaim, "cursor_page" is found just by pfn. Then, we don't know
+> where "cursor" page came from. Then, putback it to "src" list is BUG.
+> And as pointed out, current lumpy reclaim doens't seem to
+> work as originally designed and a bit complicated. This patch adds a
+> function try_lumpy_reclaim() and rewrite the logic.
+> 
+> The major changes from current lumpy reclaim is
+>   - check migratetype before aggressive retry at failure.
+>   - check PG_unevictable at failure.
+>   - scan is done in buddy system order. This is a help for creating
+>     a lump around targeted page. We'll create a continuous pages for buddy
+>     allocator as far as we can _around_ reclaim target page.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/vmscan.c |  120 +++++++++++++++++++++++++++++++++++-------------------------
+>  1 file changed, 71 insertions(+), 49 deletions(-)
+> 
+> Index: mmotm-2.6.30-Jun10/mm/vmscan.c
+> ===================================================================
+> --- mmotm-2.6.30-Jun10.orig/mm/vmscan.c
+> +++ mmotm-2.6.30-Jun10/mm/vmscan.c
+> @@ -850,6 +850,69 @@ int __isolate_lru_page(struct page *page
+>  	return ret;
+>  }
+>  
+> +static int
+> +try_lumpy_reclaim(struct page *page, struct list_head *dst, int request_order)
+> +{
+> +	unsigned long buddy_base, buddy_idx, buddy_start_pfn, buddy_end_pfn;
+> +	unsigned long pfn, page_pfn, page_idx;
+> +	int zone_id, order, type;
+> +	int do_aggressive = 0;
+> +	int nr = 0;
+> +	/*
+> +	 * Lumpy reqraim. Try to take near pages in requested order to
+> +	 * create free continous pages. This algorithm tries to start
+> +	 * from order 0 and scan buddy pages up to request_order.
+> +	 * If you are unsure about buddy position calclation, please see
+> +	 * mm/page_alloc.c
+> +	 */
+> +	zone_id = page_zone_id(page);
+> +	page_pfn = page_to_pfn(page);
+> +	buddy_base = page_pfn & ~((1 << MAX_ORDER) - 1);
+> +
+> +	/* Can we expect succesful reclaim ? */
+> +	type = get_pageblock_migratetype(page);
+> +	if ((type == MIGRATE_MOVABLE) || (type == MIGRATE_RECLAIMABLE))
+> +		do_aggressive = 1;
+> +
+> +	for (order = 0; order < request_order; ++order) {
+> +		/* offset in this buddy region */
+> +		page_idx = page_pfn & ~buddy_base;
+> +		/* offset of buddy can be calculated by xor */
+> +		buddy_idx = page_idx ^ (1 << order);
+> +		buddy_start_pfn = buddy_base + buddy_idx;
+> +		buddy_end_pfn = buddy_start_pfn + (1 << order);
+> +
+> +		/* scan range [buddy_start_pfn...buddy_end_pfn) */
+> +		for (pfn = buddy_start_pfn; pfn < buddy_end_pfn; ++pfn) {
+> +			/* Avoid holes within the zone. */
+> +			if (unlikely(!pfn_valid_within(pfn)))
+> +				break;
+> +			page = pfn_to_page(pfn);
+> +			/*
+> +			 * Check that we have not crossed a zone boundary.
+> +			 * Some arch have zones not aligned to MAX_ORDER.
+> +			 */
+> +			if (unlikely(page_zone_id(page) != zone_id))
+> +				break;
+> +
+> +			/* we are always under ISOLATE_BOTH */
+> +			if (__isolate_lru_page(page, ISOLATE_BOTH, 0) == 0) {
+> +				list_move(&page->lru, dst);
+> +				nr++;
+> +			} else if (do_aggressive && !PageUnevictable(page))
 
-I haven't actually applied the patchset and looked at the resulting
-try_to_unmap function, so I'll hold my tounge until I do that. I'll
-send a patch if I can find something that looks nicer. So don't worry
-about it for the moment.
+Could you explain this branch intention more?
+
+
+
+> +					continue;
+> +			else
+> +				break;
+> +		}
+> +		/* we can't refill this order */
+> +		if (pfn != buddy_end_pfn)
+> +			break;
+> +		if (buddy_start_pfn < page_pfn)
+> +			page_pfn = buddy_start_pfn;
+> +	}
+> +	return nr;
 
 
 --
