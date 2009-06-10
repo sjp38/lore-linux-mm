@@ -1,69 +1,478 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BF75B6B009E
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:42:46 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5A6i5UF017652
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 10 Jun 2009 15:44:05 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BD1645DD72
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:44:05 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C990645DE50
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:44:04 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B5D501DB8043
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:44:04 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 489331DB8044
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:44:04 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-In-Reply-To: <20090609222301.8da002ae.akpm@linux-foundation.org>
-References: <20090608151151.GI15070@csn.ul.ie> <20090609222301.8da002ae.akpm@linux-foundation.org>
-Message-Id: <20090610154016.DDC3.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 10 Jun 2009 15:44:03 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FF666B008A
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:45:15 -0400 (EDT)
+Subject: [patch 1/2] proc.txt: Update kernel filesystem/proc.txt
+ documentation
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090401193135.GA12316@elte.hu>
+References: <1238511505.364.61.camel@matrix>
+	 <20090401193135.GA12316@elte.hu>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 10 Jun 2009 08:46:15 +0200
+Message-Id: <1244616375.1196.44.camel@wall-e>
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+This is a patch against the file Documentation/filesystem/proc.txt.
 
-> On Mon, 8 Jun 2009 16:11:51 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > On Mon, Jun 08, 2009 at 10:55:55AM -0400, Christoph Lameter wrote:
-> > > On Mon, 8 Jun 2009, Mel Gorman wrote:
-> > > 
-> > > > > The tmpfs pages are unreclaimable and therefore should not be on the anon
-> > > > > lru.
-> > > > >
-> > > >
-> > > > tmpfs pages can be swap-backed so can be reclaimable. Regardless of what
-> > > > list they are on, we still need to know how many of them there are if
-> > > > this patch is to be avoided.
-> > > 
-> > > If they are reclaimable then why does it matter? They can be pushed out if
-> > > you configure zone reclaim to be that aggressive.
-> > > 
-> > 
-> > Because they are reclaimable by kswapd or normal direct reclaim but *not*
-> > reclaimable by zone_reclaim() if the zone_reclaim_mode is not configured
-> > appropriately.
-> 
-> Ah.  (zone_reclaim_mode & RECLAIM_SWAP) == 0.  That was important info.
-> 
-> Couldn't the lack of RECLAIM_WRITE cause a similar problem?
+It is an update for the "Process-Specific Subdirectories" to reflect=20
+the changes till kernel 2.6.30.
 
-Old kernel can makes easily. but currenly we have proper dirty page limit.
-Thus all pages can't become dirty and zone-reclaim can found cleaner page.
+ proc.txt |  242 +++++++++++++++++++++++++++++++++++++++++++++++++---------=
+-----
+ 1 file changed, 190 insertions(+), 52 deletions(-)
 
-In the other hand, plenty tmpfs pages can be mede easily.
+Signed-off-by: Stefani Seibold <stefani@seibold.net>
 
+--- linux-2.6.30.orig/Documentation/filesystems/proc.txt	2009-06-04 09:29:4=
+3.000000000 +0200
++++ linux-2.6.30.patch/Documentation/filesystems/proc.txt	2009-06-10 08:18:=
+35.000000000 +0200
+@@ -5,11 +5,12 @@
+                   Bodo Bauer <bb@ricochet.net>
+=20
+ 2.4.x update	  Jorge Nerin <comandante@zaralinux.com>      November 14 200=
+0
+-move /proc/sys	  Shen Feng <shen@cn.fujitsu.com>		    April 1 2009
++move /proc/sys	  Shen Feng <shen@cn.fujitsu.com>		  April 1 2009
+ --------------------------------------------------------------------------=
+----
+ Version 1.3                                              Kernel version 2.=
+2.12
+ 					      Kernel version 2.4.0-test11-pre4
+ --------------------------------------------------------------------------=
+----
++fixes/update part 1.1  Stefani Seibold <stefani@seibold.net>       June 9 =
+2009
+=20
+ Table of Contents
+ -----------------
+@@ -116,7 +117,7 @@
+ subdirectory has the entries listed in Table 1-1.
+=20
+=20
+-Table 1-1: Process specific entries in /proc=20
++Table 1-1: Process specific entries in /proc
+ ..........................................................................=
+....
+  File		Content
+  clear_refs	Clears page referenced bits shown in smaps output
+@@ -134,46 +135,103 @@
+  status		Process status in human readable form
+  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+  stack		Report full stack trace, enable via CONFIG_STACKTRACE
+- smaps		Extension based on maps, the rss size for each mapped file
++ smaps		a extension based on maps, showing the memory consumption of
++		each mapping
+ ..........................................................................=
+....
+=20
+ For example, to get the status information of a process, all you have to d=
+o is
+ read the file /proc/PID/status:
+=20
+-  >cat /proc/self/status=20
+-  Name:   cat=20
+-  State:  R (running)=20
+-  Pid:    5452=20
+-  PPid:   743=20
++  >cat /proc/self/status
++  Name:   cat
++  State:  R (running)
++  Tgid:   5452
++  Pid:    5452
++  PPid:   743
+   TracerPid:      0						(2.4)
+-  Uid:    501     501     501     501=20
+-  Gid:    100     100     100     100=20
+-  Groups: 100 14 16=20
+-  VmSize:     1112 kB=20
+-  VmLck:         0 kB=20
+-  VmRSS:       348 kB=20
+-  VmData:       24 kB=20
+-  VmStk:        12 kB=20
+-  VmExe:         8 kB=20
+-  VmLib:      1044 kB=20
+-  SigPnd: 0000000000000000=20
+-  SigBlk: 0000000000000000=20
+-  SigIgn: 0000000000000000=20
+-  SigCgt: 0000000000000000=20
+-  CapInh: 00000000fffffeff=20
+-  CapPrm: 0000000000000000=20
+-  CapEff: 0000000000000000=20
+-
++  Uid:    501     501     501     501
++  Gid:    100     100     100     100
++  FDSize: 256
++  Groups: 100 14 16
++  VmPeak:     5004 kB
++  VmSize:     5004 kB
++  VmLck:         0 kB
++  VmHWM:       476 kB
++  VmRSS:       476 kB
++  VmData:      156 kB
++  VmStk:        88 kB
++  VmExe:        68 kB
++  VmLib:      1412 kB
++  VmPTE:        20 kb
++  Threads:        1
++  SigQ:   0/28578
++  SigPnd: 0000000000000000
++  ShdPnd: 0000000000000000
++  SigBlk: 0000000000000000
++  SigIgn: 0000000000000000
++  SigCgt: 0000000000000000
++  CapInh: 00000000fffffeff
++  CapPrm: 0000000000000000
++  CapEff: 0000000000000000
++  CapBnd: ffffffffffffffff
++  voluntary_ctxt_switches:        0
++  nonvoluntary_ctxt_switches:     1
+=20
+ This shows you nearly the same information you would get if you viewed it =
+with
+ the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain=
+ its
+-information. The  statm  file  contains  more  detailed  information about=
+ the
+-process memory usage. Its seven fields are explained in Table 1-2.  The st=
+at
+-file contains details information about the process itself.  Its fields ar=
+e
+-explained in Table 1-3.
++information.  But you get a more detailed  view of the  process by reading=
+ the
++file /proc/PID/status. It fields are described in table 1-2.
+=20
++The  statm  file  contains  more  detailed  information about the process
++memory usage. Its seven fields are explained in Table 1-3.  The stat file
++contains details information about the process itself.  Its fields are
++explained in Table 1-4.
++
++Table 1-2: Contents of the statm files (as of 2.6.30-rc7)
++..........................................................................=
+....
++ Field                       Content
++ Name                        filename of the executable
++ State                       state (R is running, S is sleeping, D is slee=
+ping
++                             in an uninterruptible wait, Z is zombie,
++			     T is traced or stopped)
++ Tgid                        thread group ID
++ Pid                         process id
++ PPid                        process id of the parent process
++ TracerPid                   PID of process tracing this process (0 if not=
+)
++ Uid                         Real, effective, saved set, and  file system =
+UIDs
++ Gid                         Real, effective, saved set, and  file system =
+GIDs
++ FDSize                      number of file descriptor slots currently all=
+ocated
++ Groups                      supplementary group list
++ VmPeak                      peak virtual memory size
++ VmSize                      total program size
++ VmLck                       locked memory size
++ VmHWM                       peak resident set size ("high water mark")
++ VmRSS                       size of memory portions
++ VmData                      size of data, stack, and text segments
++ VmStk                       size of data, stack, and text segments
++ VmExe                       size of text segment
++ VmLib                       size of shared library code
++ VmPTE                       size of page table entries
++ Threads                     number of threads
++ SigQ                        number of signals queued/max. number for queu=
+e
++ SigPnd                      bitmap of pending signals for the thread
++ ShdPnd                      bitmap of shared pending signals for the proc=
+ess
++ SigBlk                      bitmap of blocked signals
++ SigIgn                      bitmap of ignored signals
++ SigCgt                      bitmap of catched signals
++ CapInh                      bitmap of inheritable capabilities
++ CapPrm                      bitmap of permitted capabilities
++ CapEff                      bitmap of effective capabilities
++ CapBnd                      bitmap of capabilities bounding set
++ Cpus_allowed                mask of CPUs on which this process may run
++ Cpus_allowed_list           Same as previous, but in "list format"
++ Mems_allowed                mask of memory nodes allowed to this process
++ Mems_allowed_list           Same as previous, but in "list format"
++ voluntary_ctxt_switches     number of voluntary context switches
++ nonvoluntary_ctxt_switches  number of non voluntary context switches
++..........................................................................=
+....
+=20
+-Table 1-2: Contents of the statm files (as of 2.6.8-rc3)
++Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
+ ..........................................................................=
+....
+  Field    Content
+  size     total program size (pages)		(same as VmSize in status)
+@@ -188,7 +246,7 @@
+ ..........................................................................=
+....
+=20
+=20
+-Table 1-3: Contents of the stat files (as of 2.6.22-rc3)
++Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
+ ..........................................................................=
+....
+  Field          Content
+   pid           process id
+@@ -222,10 +280,10 @@
+   start_stack   address of the start of the stack
+   esp           current value of ESP
+   eip           current value of EIP
+-  pending       bitmap of pending signals (obsolete)
+-  blocked       bitmap of blocked signals (obsolete)
+-  sigign        bitmap of ignored signals (obsolete)
+-  sigcatch      bitmap of catched signals (obsolete)
++  pending       bitmap of pending signals
++  blocked       bitmap of blocked signals
++  sigign        bitmap of ignored signals
++  sigcatch      bitmap of catched signals
+   wchan         address where process went to sleep
+   0             (place holder)
+   0             (place holder)
+@@ -234,19 +292,99 @@
+   rt_priority   realtime priority
+   policy        scheduling policy (man sched_setscheduler)
+   blkio_ticks   time spent waiting for block IO
++  gtime         guest time of the task in jiffies
++  cgtime        guest time of the task children in jiffies
+ ..........................................................................=
+....
+=20
++The /proc/PID/map file containing the currently mapped memory regions and
++their access permissions.
++
++The format is:
++
++address           perms offset  dev   inode      pathname
++
++08048000-08049000 r-xp 00000000 03:00 8312       /opt/test
++08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
++0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
++a7cb1000-a7cb2000 ---p 00000000 00:00 0
++a7cb2000-a7eb2000 rw-p 00000000 00:00 0
++a7eb2000-a7eb3000 ---p 00000000 00:00 0
++a7eb3000-a7ed5000 rw-p 00000000 00:00 0
++a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
++a8008000-a800a000 r--p 00133000 03:00 4222       /lib/libc.so.6
++a800a000-a800b000 rw-p 00135000 03:00 4222       /lib/libc.so.6
++a800b000-a800e000 rw-p 00000000 00:00 0
++a800e000-a8022000 r-xp 00000000 03:00 14462      /lib/libpthread.so.0
++a8022000-a8023000 r--p 00013000 03:00 14462      /lib/libpthread.so.0
++a8023000-a8024000 rw-p 00014000 03:00 14462      /lib/libpthread.so.0
++a8024000-a8027000 rw-p 00000000 00:00 0
++a8027000-a8043000 r-xp 00000000 03:00 8317       /lib/ld-linux.so.2
++a8043000-a8044000 r--p 0001b000 03:00 8317       /lib/ld-linux.so.2
++a8044000-a8045000 rw-p 0001c000 03:00 8317       /lib/ld-linux.so.2
++aff35000-aff4a000 rw-p 00000000 00:00 0          [stack]
++ffffe000-fffff000 r-xp 00000000 00:00 0          [vdso]
++
++where "address" is the address space in the process that it occupies, "per=
+ms"
++is a set of permissions:
++
++ r =3D read
++ w =3D write
++ x =3D execute
++ s =3D shared
++ p =3D private (copy on write)
++
++"offset" is the offset into the mapping, "dev" is the device (major:minor)=
+, and
++"inode" is the inode  on that device.  0 indicates that  no inode is assoc=
+iated
++with the memory region, as the case would be with BSS (uninitialized data)=
+.
++The "pathname" shows the name associated file for this mapping.  If the ma=
+pping
++is not associated with a file:
++
++ [heap]                   =3D the heap of the program
++ [stack]                  =3D the stack of the main process
++ [vdso]                   =3D the "virtual dynamic shared object",
++                            the kernel system call handler
++
++ or if empty, the mapping is anonymous.
++
++
++The /proc/PID/smaps is an extension based on maps, showing the memory
++consumption for each of the process's mappings. For each of mappings there
++is a series of lines such as the following:
++
++08048000-080bc000 r-xp 00000000 03:02 13130      /bin/bash
++Size:               1084 kB
++Rss:                 892 kB
++Pss:                 374 kB
++Shared_Clean:        892 kB
++Shared_Dirty:          0 kB
++Private_Clean:         0 kB
++Private_Dirty:         0 kB
++Referenced:          892 kB
++Swap:                  0 kB
++KernelPageSize:        4 kB
++MMUPageSize:           4 kB
++
++The first  of these lines shows  the same information  as is displayed for=
+ the
++mapping in /proc/PID/maps.  The remaining lines show  the size of the mapp=
+ing,
++the amount of the mapping that is currently resident in RAM, the "proporti=
+onal
++set size=E2=80=9D (divide each shared page by the number of processes shar=
+ing it), the
++number of clean and dirty shared pages in the mapping, and the number of c=
+lean
++and dirty private pages in the mapping.  The "Referenced" indicates the am=
+ount
++of memory currently marked as referenced or accessed.
++
++This file is only present if the CONFIG_MMU kernel configuration option is
++enabled.
+=20
+ 1.2 Kernel data
+ ---------------
+=20
+ Similar to  the  process entries, the kernel data files give information a=
+bout
+ the running kernel. The files used to obtain this information are containe=
+d in
+-/proc and  are  listed  in Table 1-4. Not all of these will be present in =
+your
++/proc and  are  listed  in Table 1-5. Not all of these will be present in =
+your
+ system. It  depends  on the kernel configuration and the loaded modules, w=
+hich
+ files are there, and which are missing.
+=20
+-Table 1-4: Kernel info in /proc
++Table 1-5: Kernel info in /proc
+ ..........................................................................=
+....
+  File        Content                                          =20
+  apm         Advanced power management info                   =20
+@@ -614,10 +752,10 @@
+=20
+ More detailed  information  can  be  found  in  the  controller  specific
+ subdirectories. These  are  named  ide0,  ide1  and  so  on.  Each  of  th=
+ese
+-directories contains the files shown in table 1-5.
++directories contains the files shown in table 1-6.
+=20
+=20
+-Table 1-5: IDE controller info in  /proc/ide/ide?
++Table 1-6: IDE controller info in  /proc/ide/ide?
+ ..........................................................................=
+....
+  File    Content                                =20
+  channel IDE channel (0 or 1)                   =20
+@@ -627,11 +765,11 @@
+ ..........................................................................=
+....
+=20
+ Each device  connected  to  a  controller  has  a separate subdirectory in=
+ the
+-controllers directory.  The  files  listed in table 1-6 are contained in t=
+hese
++controllers directory.  The  files  listed in table 1-7 are contained in t=
+hese
+ directories.
+=20
+=20
+-Table 1-6: IDE device information
++Table 1-7: IDE device information
+ ..........................................................................=
+....
+  File             Content                                   =20
+  cache            The cache                                 =20
+@@ -673,12 +811,12 @@
+ 1.4 Networking info in /proc/net
+ --------------------------------
+=20
+-The subdirectory  /proc/net  follows  the  usual  pattern. Table 1-6 shows=
+ the
++The subdirectory  /proc/net  follows  the  usual  pattern. Table 1-8 shows=
+ the
+ additional values  you  get  for  IP  version 6 if you configure the kerne=
+l to
+-support this. Table 1-7 lists the files and their meaning.
++support this. Table 1-9 lists the files and their meaning.
+=20
+=20
+-Table 1-6: IPv6 info in /proc/net=20
++Table 1-8: IPv6 info in /proc/net=20
+ ..........................................................................=
+....
+  File       Content                                              =20
+  udp6       UDP sockets (IPv6)                                   =20
+@@ -693,7 +831,7 @@
+ ..........................................................................=
+....
+=20
+=20
+-Table 1-7: Network info in /proc/net=20
++Table 1-9: Network info in /proc/net=20
+ ..........................................................................=
+....
+  File          Content                                                    =
+    =20
+  arp           Kernel  ARP table                                          =
+    =20
+@@ -817,10 +955,10 @@
+ your system.  It  has  one  subdirectory  for  each port, named after the =
+port
+ number (0,1,2,...).
+=20
+-These directories contain the four files shown in Table 1-8.
++These directories contain the four files shown in Table 1-10.
+=20
+=20
+-Table 1-8: Files in /proc/parport=20
++Table 1-10: Files in /proc/parport=20
+ ..........................................................................=
+....
+  File      Content                                                        =
+    =20
+  autoprobe Any IEEE-1284 device ID information that has been acquired.    =
+    =20
+@@ -838,10 +976,10 @@
+=20
+ Information about  the  available  and actually used tty's can be found in=
+ the
+ directory /proc/tty.You'll  find  entries  for drivers and line discipline=
+s in
+-this directory, as shown in Table 1-9.
++this directory, as shown in Table 1-11.
+=20
+=20
+-Table 1-9: Files in /proc/tty=20
++Table 1-11: Files in /proc/tty=20
+ ..........................................................................=
+....
+  File          Content                                       =20
+  drivers       list of drivers and their usage               =20
+@@ -926,9 +1064,9 @@
+ /proc/fs/ext4.  Each mounted filesystem will have a directory in
+ /proc/fs/ext4 based on its device name (i.e., /proc/fs/ext4/hdc or
+ /proc/fs/ext4/dm-0).   The files in each per-device directory are shown
+-in Table 1-10, below.
++in Table 1-12, below.
+=20
+-Table 1-10: Files in /proc/fs/ext4/<devname>
++Table 1-12: Files in /proc/fs/ext4/<devname>
+ ..........................................................................=
+....
+  File            Content                                       =20
+  mb_groups       details of multiblock allocator buddy cache of free block=
+s
 
 
 --
