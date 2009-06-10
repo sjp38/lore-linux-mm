@@ -1,117 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 306FE6B004F
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 20:12:09 -0400 (EDT)
-Date: Wed, 10 Jun 2009 08:58:58 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: fix mem_cgroup_isolate_lru_page to use the same
- rotate logic at busy path
-Message-Id: <20090610085858.fd3a60ed.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090609182253.009c98a3.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090609181505.4083a213.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090609182253.009c98a3.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D93A76B004F
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 21:19:08 -0400 (EDT)
+Date: Wed, 10 Jun 2009 09:19:39 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/4] Properly account for the number of page cache
+	pages zone_reclaim() can reclaim
+Message-ID: <20090610011939.GA5603@localhost>
+References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie> <1244566904-31470-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1244566904-31470-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jun 2009 18:22:53 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Jun 10, 2009 at 01:01:41AM +0800, Mel Gorman wrote:
+> On NUMA machines, the administrator can configure zone_reclaim_mode that
+> is a more targetted form of direct reclaim. On machines with large NUMA
+> distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> unmapped pages will be reclaimed if the zone watermarks are not being met.
 > 
-> This patch tries to fix memcg's lru rotation sanity...make memcg use
-> the same logic as global LRU does.
+> There is a heuristic that determines if the scan is worthwhile but the
+> problem is that the heuristic is not being properly applied and is basically
+> assuming zone_reclaim_mode is 1 if it is enabled.
 > 
-> Now, at __isolate_lru_page() retruns -EBUSY, the page is rotated to
-> the tail of LRU in global LRU's isolate LRU pages. But in memcg,
-> it's not handled. This makes memcg do the same behavior as global LRU
-> and rotate LRU in the page is busy.
+> Historically, once enabled it was depending on NR_FILE_PAGES which may
+> include swapcache pages that the reclaim_mode cannot deal with.  Patch
+> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
+> Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
+> pages that were not file-backed such as swapcache and made a calculation
+> based on the inactive, active and mapped files. This is far superior
+> when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
+> reasonable starting figure.
 > 
-> Note: __isolate_lru_page() is not isolate_lru_page() and it's just used
-> in sc->isolate_pages() logic.
+> This patch alters how zone_reclaim() works out how many pages it might be
+> able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
+> in the reclaim_mode it will either consider NR_FILE_PAGES as potential
+> candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
+> swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
+> then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
+> not set, then NR_FILE_MAPPED are not.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-Looks good to me.
-
-	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Christoph Lameter <cl@linux-foundation.org>
 > ---
->  mm/memcontrol.c |   13 ++++++++++++-
->  mm/vmscan.c     |    4 +++-
->  2 files changed, 15 insertions(+), 2 deletions(-)
+>  mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
+>  1 files changed, 38 insertions(+), 14 deletions(-)
 > 
-> Index: mmotm-2.6.30-Jun4/mm/vmscan.c
-> ===================================================================
-> --- mmotm-2.6.30-Jun4.orig/mm/vmscan.c
-> +++ mmotm-2.6.30-Jun4/mm/vmscan.c
-> @@ -842,7 +842,6 @@ int __isolate_lru_page(struct page *page
->  		 */
->  		ClearPageLRU(page);
->  		ret = 0;
-> -		mem_cgroup_del_lru(page);
->  	}
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2ddcfc8..2bfc76e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2333,6 +2333,41 @@ int sysctl_min_unmapped_ratio = 1;
+>   */
+>  int sysctl_min_slab_ratio = 5;
 >  
->  	return ret;
-> @@ -890,12 +889,14 @@ static unsigned long isolate_lru_pages(u
->  		switch (__isolate_lru_page(page, mode, file)) {
->  		case 0:
->  			list_move(&page->lru, dst);
-> +			mem_cgroup_del_lru(page);
->  			nr_taken++;
->  			break;
+> +static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
+> +{
+> +	return zone_page_state(zone, NR_INACTIVE_FILE) +
+> +		zone_page_state(zone, NR_ACTIVE_FILE) -
+> +		zone_page_state(zone, NR_FILE_MAPPED);
+
+This may underflow if too many tmpfs pages are mapped.
+
+> +}
+> +
+> +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
+> +static inline long zone_pagecache_reclaimable(struct zone *zone)
+> +{
+> +	long nr_pagecache_reclaimable;
+> +	long delta = 0;
+> +
+> +	/*
+> +	 * If RECLAIM_SWAP is set, then all file pages are considered
+> +	 * potentially reclaimable. Otherwise, we have to worry about
+> +	 * pages like swapcache and zone_unmapped_file_pages() provides
+> +	 * a better estimate
+> +	 */
+> +	if (zone_reclaim_mode & RECLAIM_SWAP)
+> +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
+> +	else
+> +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
+> +
+> +	/* If we can't clean pages, remove dirty pages from consideration */
+> +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+> +		delta += zone_page_state(zone, NR_FILE_DIRTY);
+> +
+> +	/* Beware of double accounting */
+
+The double accounting happens for NR_FILE_MAPPED but not
+NR_FILE_DIRTY(dirty tmpfs pages won't be accounted), so this comment
+is more suitable for zone_unmapped_file_pages(). But the double
+accounting does affects this abstraction. So a more reasonable
+sequence could be to first substract NR_FILE_DIRTY and then
+conditionally substract NR_FILE_MAPPED?
+
+Or better to introduce a new counter NR_TMPFS_MAPPED to fix this mess?
+
+Thanks,
+Fengguang
+
+> +	if (delta < nr_pagecache_reclaimable)
+> +		nr_pagecache_reclaimable -= delta;
+> +
+> +	return nr_pagecache_reclaimable;
+> +}
+> +
+>  /*
+>   * Try to free up some pages from this zone through reclaim.
+>   */
+> @@ -2355,7 +2390,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+>  	unsigned long slab_reclaimable;
+> -	long nr_unmapped_file_pages;
 >  
->  		case -EBUSY:
->  			/* else it is being freed elsewhere */
->  			list_move(&page->lru, src);
-> +			mem_cgroup_rotate_lru_list(page, page_lru(page));
->  			continue;
+>  	disable_swap_token();
+>  	cond_resched();
+> @@ -2368,11 +2402,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	reclaim_state.reclaimed_slab = 0;
+>  	p->reclaim_state = &reclaim_state;
 >  
->  		default:
-> @@ -937,6 +938,7 @@ static unsigned long isolate_lru_pages(u
->  			switch (__isolate_lru_page(cursor_page, mode, file)) {
->  			case 0:
->  				list_move(&cursor_page->lru, dst);
-> +				mem_cgroup_del_lru(page);
->  				nr_taken++;
->  				scan++;
->  				break;
-> Index: mmotm-2.6.30-Jun4/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.30-Jun4.orig/mm/memcontrol.c
-> +++ mmotm-2.6.30-Jun4/mm/memcontrol.c
-> @@ -649,6 +649,7 @@ unsigned long mem_cgroup_isolate_pages(u
->  	int zid = zone_idx(z);
->  	struct mem_cgroup_per_zone *mz;
->  	int lru = LRU_FILE * !!file + !!active;
-> +	int ret;
+> -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> -				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> -				 zone_page_state(zone, NR_FILE_MAPPED);
+> -
+> -	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
+> +	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
+>  		/*
+>  		 * Free memory by calling shrink zone with increasing
+>  		 * priorities until we have enough memory freed.
+> @@ -2419,8 +2449,6 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  {
+>  	int node_id;
+>  	int ret;
+> -	long nr_unmapped_file_pages;
+> -	long nr_slab_reclaimable;
 >  
->  	BUG_ON(!mem_cont);
->  	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
-> @@ -666,9 +667,19 @@ unsigned long mem_cgroup_isolate_pages(u
->  			continue;
+>  	/*
+>  	 * Zone reclaim reclaims unmapped file backed pages and
+> @@ -2432,12 +2460,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	 * if less than a specified percentage of the zone is used by
+>  	 * unmapped file backed pages.
+>  	 */
+> -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> -				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> -				 zone_page_state(zone, NR_FILE_MAPPED);
+> -	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> -	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
+> -	    nr_slab_reclaimable <= zone->min_slab_pages)
+> +	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+> +	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+>  		return 0;
 >  
->  		scan++;
-> -		if (__isolate_lru_page(page, mode, file) == 0) {
-> +		ret = __isolate_lru_page(page, mode, file);
-> +		switch (ret) {
-> +		case 0:
->  			list_move(&page->lru, dst);
-> +			mem_cgroup_del_lru(page);
->  			nr_taken++;
-> +			break;
-> +		case -EBUSY:
-> +			/* we don't affect global LRU but rotate in our LRU */
-> +			mem_cgroup_rotate_lru_list(page, page_lru(page));
-> +			break;
-> +		default:
-> +			break;
->  		}
->  	}
->  
-> 
+>  	if (zone_is_all_unreclaimable(zone))
+> -- 
+> 1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
