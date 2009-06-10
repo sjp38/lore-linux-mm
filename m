@@ -1,55 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7BB0C6B0083
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:14:19 -0400 (EDT)
-Date: Wed, 10 Jun 2009 10:14:40 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 303846B0062
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:26:50 -0400 (EDT)
+Date: Wed, 10 Jun 2009 10:27:36 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
-	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090610021440.GB6597@localhost>
-References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie> <20090609082539.GA6897@localhost> <20090609083153.GG18380@csn.ul.ie> <20090609090735.GC7108@localhost> <20090609094050.GL18380@csn.ul.ie> <20090609133804.GB6583@localhost> <20090609150619.GT18380@csn.ul.ie>
+Subject: Re: [PATCH] [8/16] HWPOISON: Use bitmask/action code for
+	try_to_unmap behaviour
+Message-ID: <20090610022736.GC6597@localhost>
+References: <20090603846.816684333@firstfloor.org> <20090603184641.868D31D0282@basil.firstfloor.org> <20090609095725.GC14820@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090609150619.GT18380@csn.ul.ie>
+In-Reply-To: <20090609095725.GC14820@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 11:06:19PM +0800, Mel Gorman wrote:
-> On Tue, Jun 09, 2009 at 09:38:04PM +0800, Wu Fengguang wrote:
-> > On Tue, Jun 09, 2009 at 05:40:50PM +0800, Mel Gorman wrote:
-> > > 
-> > > Conceivably though, zone_reclaim_interval could automatically tune
-> > > itself based on a heuristic like this if the administrator does not give
-> > > a specific value. I think that would be an interesting follow on once
-> > > we've brought back zone_reclaim_interval and get a feeling for how often
-> > > it is actually used.
+On Tue, Jun 09, 2009 at 05:57:25PM +0800, Nick Piggin wrote:
+> On Wed, Jun 03, 2009 at 08:46:41PM +0200, Andi Kleen wrote:
 > > 
-> > Well I don't think that's good practice. There are heuristic
-> > calculations all over the kernel. Shall we exporting parameters to
-> > user space just because we are not absolutely sure? Or shall we ship
-> > the heuristics and do adjustments based on feedbacks and only export
-> > parameters when we find _known cases_ that cannot be covered by pure
-> > heuristics?
+> > try_to_unmap currently has multiple modi (migration, munlock, normal unmap)
+> > which are selected by magic flag variables. The logic is not very straight
+> > forward, because each of these flag change multiple behaviours (e.g.
+> > migration turns off aging, not only sets up migration ptes etc.)
+> > Also the different flags interact in magic ways.
 > > 
+> > A later patch in this series adds another mode to try_to_unmap, so 
+> > this becomes quickly unmanageable.
+> > 
+> > Replace the different flags with a action code (migration, munlock, munmap)
+> > and some additional flags as modifiers (ignore mlock, ignore aging).
+> > This makes the logic more straight forward and allows easier extension
+> > to new behaviours. Change all the caller to declare what they want to 
+> > do.
+> > 
+> > This patch is supposed to be a nop in behaviour. If anyone can prove 
+> > it is not that would be a bug.
+> > 
+> > Cc: Lee.Schermerhorn@hp.com
+> > Cc: npiggin@suse.de
+> > 
+> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > 
+> > ---
+> >  include/linux/rmap.h |   14 +++++++++++++-
+> >  mm/migrate.c         |    2 +-
+> >  mm/rmap.c            |   40 ++++++++++++++++++++++------------------
+> >  mm/vmscan.c          |    2 +-
+> >  4 files changed, 37 insertions(+), 21 deletions(-)
+> > 
+> > Index: linux/include/linux/rmap.h
+> > ===================================================================
+> > --- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
+> > +++ linux/include/linux/rmap.h	2009-06-03 20:39:50.000000000 +0200
+> > @@ -84,7 +84,19 @@
+> >   * Called from mm/vmscan.c to handle paging out
+> >   */
+> >  int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
+> > -int try_to_unmap(struct page *, int ignore_refs);
+> > +
+> > +enum ttu_flags {
+> > +	TTU_UNMAP = 0,			/* unmap mode */
+> > +	TTU_MIGRATION = 1,		/* migration mode */
+> > +	TTU_MUNLOCK = 2,		/* munlock mode */
+> > +	TTU_ACTION_MASK = 0xff,
+> > +
+> > +	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+> > +	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+> > +};
+> > +#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
 > 
-> Good question - I don't have a satisfactory answer but I intuitively find
-> the zone_reclaim_interval easier to deal with than the heuristic.  That said,
-> I would prefer if neither was required.
+> I still think this is nasty and should work like Gfp flags.
 
-Yes - can we rely on the (improved) accounting to make our "failure feedback"
-patches unnecessary? :)
+I don't see big problems here.
 
-Thanks,
-Fengguang
-
-> In the patchset, I've added a counter for the number of times that the
-> scan-avoidance heuristic fails. If the tmpfs problem has been resolved
-> (patch with bug reporter, am awaiting test), I'll drop zone_reclaim_interval
-> altogether and we'll use the counter to detect if/when this situation
-> occurs again.
+We have page_zone() and gfp_zone(), so why not TTU_ACTION()? We could
+allocate one bit for each action code, but in principle they are exclusive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
