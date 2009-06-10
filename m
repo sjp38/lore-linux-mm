@@ -1,105 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E54CF6B0082
-	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:10:13 -0400 (EDT)
-Date: Wed, 10 Jun 2009 10:10:28 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7BB0C6B0083
+	for <linux-mm@kvack.org>; Tue,  9 Jun 2009 22:14:19 -0400 (EDT)
+Date: Wed, 10 Jun 2009 10:14:40 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] Count the number of times zone_reclaim() scans and
-	fails
-Message-ID: <20090610021028.GA6597@localhost>
-References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie> <1244566904-31470-4-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] Reintroduce zone_reclaim_interval for when
+	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
+Message-ID: <20090610021440.GB6597@localhost>
+References: <1244466090-10711-1-git-send-email-mel@csn.ul.ie> <1244466090-10711-2-git-send-email-mel@csn.ul.ie> <20090609015822.GA6740@localhost> <20090609081424.GD18380@csn.ul.ie> <20090609082539.GA6897@localhost> <20090609083153.GG18380@csn.ul.ie> <20090609090735.GC7108@localhost> <20090609094050.GL18380@csn.ul.ie> <20090609133804.GB6583@localhost> <20090609150619.GT18380@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1244566904-31470-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <20090609150619.GT18380@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 10, 2009 at 01:01:43AM +0800, Mel Gorman wrote:
-> On NUMA machines, the administrator can configure zone_reclaim_mode that
-> is a more targetted form of direct reclaim. On machines with large NUMA
-> distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-> unmapped pages will be reclaimed if the zone watermarks are not being met.
+On Tue, Jun 09, 2009 at 11:06:19PM +0800, Mel Gorman wrote:
+> On Tue, Jun 09, 2009 at 09:38:04PM +0800, Wu Fengguang wrote:
+> > On Tue, Jun 09, 2009 at 05:40:50PM +0800, Mel Gorman wrote:
+> > > 
+> > > Conceivably though, zone_reclaim_interval could automatically tune
+> > > itself based on a heuristic like this if the administrator does not give
+> > > a specific value. I think that would be an interesting follow on once
+> > > we've brought back zone_reclaim_interval and get a feeling for how often
+> > > it is actually used.
+> > 
+> > Well I don't think that's good practice. There are heuristic
+> > calculations all over the kernel. Shall we exporting parameters to
+> > user space just because we are not absolutely sure? Or shall we ship
+> > the heuristics and do adjustments based on feedbacks and only export
+> > parameters when we find _known cases_ that cannot be covered by pure
+> > heuristics?
+> > 
 > 
-> There is a heuristic that determines if the scan is worthwhile but it is
-> possible that the heuristic will fail and the CPU gets tied up scanning
-> uselessly. Detecting the situation requires some guesswork and experimentation
-> so this patch adds a counter "zreclaim_failed" to /proc/vmstat. If during
-> high CPU utilisation this counter is increasing rapidly, then the resolution
-> to the problem may be to set /proc/sys/vm/zone_reclaim_mode to 0.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/vmstat.h |    3 +++
->  mm/vmscan.c            |    4 ++++
->  mm/vmstat.c            |    3 +++
->  3 files changed, 10 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index ff4696c..416f748 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -36,6 +36,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		FOR_ALL_ZONES(PGSTEAL),
->  		FOR_ALL_ZONES(PGSCAN_KSWAPD),
->  		FOR_ALL_ZONES(PGSCAN_DIRECT),
-> +#ifdef CONFIG_NUMA
-> +		PGSCAN_ZONERECLAIM_FAILED,
-> +#endif
+> Good question - I don't have a satisfactory answer but I intuitively find
+> the zone_reclaim_interval easier to deal with than the heuristic.  That said,
+> I would prefer if neither was required.
 
-I'd rather to refine the zone accounting (ie. mapped tmpfs pages)
-so that we know whether a zone scan is going to be fruitless.  Then
-we can get rid of the remedy patches 3 and 4.
-
-We don't have to worry about swap cache pages accounted as file pages.
-Since there are no double accounting in NR_FILE_PAGES for tmpfs pages.
-
-We don't have to worry about MLOCKED pages, because they may defeat
-the estimation temporarily, but after one or several more zone scans,
-MLOCKED pages will go to the unevictable list, hence this cause of
-zone reclaim failure won't be persistent.
-
-Any more known accounting holes?
+Yes - can we rely on the (improved) accounting to make our "failure feedback"
+patches unnecessary? :)
 
 Thanks,
 Fengguang
 
->  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
->  		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
->  #ifdef CONFIG_HUGETLB_PAGE
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e862fc9..8be4582 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2489,6 +2489,10 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  	ret = __zone_reclaim(zone, gfp_mask, order);
->  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
->  
-> +	if (!ret) {
-> +		count_vm_events(PGSCAN_ZONERECLAIM_FAILED, 1);
-> +	}
-> +
->  	return ret;
->  }
->  #endif
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 1e3aa81..02677d1 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -673,6 +673,9 @@ static const char * const vmstat_text[] = {
->  	TEXTS_FOR_ZONES("pgscan_kswapd")
->  	TEXTS_FOR_ZONES("pgscan_direct")
->  
-> +#ifdef CONFIG_NUMA
-> +	"zreclaim_failed",
-> +#endif
->  	"pginodesteal",
->  	"slabs_scanned",
->  	"kswapd_steal",
-> -- 
-> 1.5.6.5
+> In the patchset, I've added a counter for the number of times that the
+> scan-avoidance heuristic fails. If the tmpfs problem has been resolved
+> (patch with bug reporter, am awaiting test), I'll drop zone_reclaim_interval
+> altogether and we'll use the counter to detect if/when this situation
+> occurs again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
