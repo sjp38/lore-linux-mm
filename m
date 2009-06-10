@@ -1,103 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 562816B0085
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:05:07 -0400 (EDT)
-Date: Wed, 10 Jun 2009 08:05:11 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 708A86B0088
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:07:45 -0400 (EDT)
+Date: Wed, 10 Jun 2009 08:07:54 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 03/23] vfs: Generalize the file_list
-Message-ID: <20090610060511.GA31155@wotan.suse.de>
-References: <m1oct739xu.fsf@fess.ebiederm.org> <1243893048-17031-3-git-send-email-ebiederm@xmission.com> <20090602070642.GD31556@wotan.suse.de> <m1ab4m5vbs.fsf@fess.ebiederm.org> <20090609103832.GI14820@wotan.suse.de> <m1hbypmev0.fsf@fess.ebiederm.org>
+Subject: Re: [PATCH] [8/16] HWPOISON: Use bitmask/action code for try_to_unmap behaviour
+Message-ID: <20090610060754.GB31155@wotan.suse.de>
+References: <20090603846.816684333@firstfloor.org> <20090603184641.868D31D0282@basil.firstfloor.org> <20090609095725.GC14820@wotan.suse.de> <20090610022736.GC6597@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <m1hbypmev0.fsf@fess.ebiederm.org>
+In-Reply-To: <20090610022736.GC6597@localhost>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, "Eric W. Biederman" <ebiederm@aristanetworks.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "Lee.Schermerhorn@hp.com" <Lee.Schermerhorn@hp.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 11:38:59AM -0700, Eric W. Biederman wrote:
-> Nick Piggin <npiggin@suse.de> writes:
+On Wed, Jun 10, 2009 at 10:27:36AM +0800, Wu Fengguang wrote:
+> On Tue, Jun 09, 2009 at 05:57:25PM +0800, Nick Piggin wrote:
+> > On Wed, Jun 03, 2009 at 08:46:41PM +0200, Andi Kleen wrote:
+> > > 
+> > > try_to_unmap currently has multiple modi (migration, munlock, normal unmap)
+> > > which are selected by magic flag variables. The logic is not very straight
+> > > forward, because each of these flag change multiple behaviours (e.g.
+> > > migration turns off aging, not only sets up migration ptes etc.)
+> > > Also the different flags interact in magic ways.
+> > > 
+> > > A later patch in this series adds another mode to try_to_unmap, so 
+> > > this becomes quickly unmanageable.
+> > > 
+> > > Replace the different flags with a action code (migration, munlock, munmap)
+> > > and some additional flags as modifiers (ignore mlock, ignore aging).
+> > > This makes the logic more straight forward and allows easier extension
+> > > to new behaviours. Change all the caller to declare what they want to 
+> > > do.
+> > > 
+> > > This patch is supposed to be a nop in behaviour. If anyone can prove 
+> > > it is not that would be a bug.
+> > > 
+> > > Cc: Lee.Schermerhorn@hp.com
+> > > Cc: npiggin@suse.de
+> > > 
+> > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > > 
+> > > ---
+> > >  include/linux/rmap.h |   14 +++++++++++++-
+> > >  mm/migrate.c         |    2 +-
+> > >  mm/rmap.c            |   40 ++++++++++++++++++++++------------------
+> > >  mm/vmscan.c          |    2 +-
+> > >  4 files changed, 37 insertions(+), 21 deletions(-)
+> > > 
+> > > Index: linux/include/linux/rmap.h
+> > > ===================================================================
+> > > --- linux.orig/include/linux/rmap.h	2009-06-03 19:36:23.000000000 +0200
+> > > +++ linux/include/linux/rmap.h	2009-06-03 20:39:50.000000000 +0200
+> > > @@ -84,7 +84,19 @@
+> > >   * Called from mm/vmscan.c to handle paging out
+> > >   */
+> > >  int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
+> > > -int try_to_unmap(struct page *, int ignore_refs);
+> > > +
+> > > +enum ttu_flags {
+> > > +	TTU_UNMAP = 0,			/* unmap mode */
+> > > +	TTU_MIGRATION = 1,		/* migration mode */
+> > > +	TTU_MUNLOCK = 2,		/* munlock mode */
+> > > +	TTU_ACTION_MASK = 0xff,
+> > > +
+> > > +	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+> > > +	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+> > > +};
+> > > +#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+> > 
+> > I still think this is nasty and should work like Gfp flags.
 > 
-> > On Fri, Jun 05, 2009 at 12:33:59PM -0700, Eric W. Biederman wrote:
-> >> Nick Piggin <npiggin@suse.de> writes:
-> >> 
-> >> >> +static inline void file_list_unlock(struct file_list *files)
-> >> >> +{
-> >> >> +	spin_unlock(&files->lock);
-> >> >> +}
-> >> >
-> >> > I don't really like this. It's just a list head. Get rid of
-> >> > all these wrappers and crap I'd say. In fact, starting with my
-> >> > patch to unexport files_lock and remove these wrappers would
-> >> > be reasonable, wouldn't it?
-> >> 
-> >> I don't really mind killing the wrappers.
-> >> 
-> >> I do mind your patch because it makes the list going through
-> >> the tty's something very different.  In my view of the world
-> >> that is the only use case is what I'm working to move up more
-> >> into the vfs layer.  So orphaning it seems wrong.
-> >
-> > My patch doesn't orphan it, it just makes the locking more
-> > explicit and that's all so it should be easier to work with.
-> > I just mean start with my patch and you could change things
-> > as needed.
+> I don't see big problems here.
 > 
-> As I recall you weren't using the files_lock for the tty layer.  I
-> seem to recall you were still walking through the same list head on
-> struct file.
-> 
-> Regardless it sure felt like pushing the tty usage out into
-> some weird special case.  My goal is to make it reasonable for
-> more character drivers to use the list so it isn't an especially
-> comfortable starting place for me.
+> We have page_zone() and gfp_zone(), so why not TTU_ACTION()? We could
+> allocate one bit for each action code, but in principle they are exclusive.
 
-I don't see the problem. It made files_lock for filesystems
-and uses another lock for tty. Tty is a special case (or
-different case) compared with filesystem, and how did it
-make it unreasonable for character drivers to use the list?
+I haven't actually applied the patchset and looked at the resulting
+try_to_unmap function, so I'll hold my tounge until I do that. I'll
+send a patch if I can find something that looks nicer. So don't worry
+about it for the moment.
 
-Mandating the locking and list to be in the inode for
-everyone is just bloating things up.
-
- 
-> >> > Increasing the size of the struct inode by 24 bytes hurts.
-> >> > Even when you decrapify it and can reuse i_lock or something,
-> >> > then it is still 16 bytes on 64-bit.
-> >> 
-> >> We can get it even smaller if we make it an hlist.  A hlist_head is
-> >> only a single pointer.  This size growth appears to be one of the
-> >> biggest weakness of the code.
-> >
-> > 8 bytes would be a lot better than 24.
-> 
-> Definitely.
-> 
-> >> > I haven't looked through all the patches... but this is to
-> >> > speed up a slowpath operation, isn't it? Or does revoke
-> >> > need to be especially performant?
-> >> 
-> >> This was more about simplicity rather than performance.  The
-> >> performance gain is using a per inode lock instead of a global lock.
-> >> Which keeps cache lines from bouncing.
-> >
-> > Yes but we already have such a global lock which has been
-> > OK until now. Granted that some users are running into these
-> > locks, but fine graining them can be considered independently
-> > I think. So using per-sb lists of files and not bloating
-> > struct inode any more could be a less controversial step
-> > for you.
-> 
-> I will take a look.  Certainly doing the work in a couple
-> of patches seems reasonable.  If I can move all of the list
-> maintenance out of the tty layer.  That looks to be the ideal
-> case.
-
-I will wait to see. It will be nice if you have any obvious
-standalone fixes or improvements then to post them first or
-in front of your patchset: I'd like to make some progress
-here too to help my locking patchset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
