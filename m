@@ -1,108 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 324E26B005C
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 13:24:50 -0400 (EDT)
-Date: Wed, 10 Jun 2009 10:25:16 -0700
-From: Jesse Barnes <jesse.barnes@intel.com>
-Subject: Re: [patch v3] swap: virtual swap readahead
-Message-ID: <20090610102516.08f7300f@jbarnes-x200>
-In-Reply-To: <20090610113214.GA5657@localhost>
-References: <20090609190128.GA1785@cmpxchg.org>
-	<20090609193702.GA2017@cmpxchg.org>
-	<20090610050342.GA8867@localhost>
-	<20090610074508.GA1960@cmpxchg.org>
-	<20090610081132.GA27519@localhost>
-	<20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090610085638.GA32511@localhost>
-	<1244626976.13761.11593.camel@twins>
-	<20090610095950.GA514@localhost>
-	<1244628314.13761.11617.camel@twins>
-	<20090610113214.GA5657@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 089BD6B005C
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 13:55:44 -0400 (EDT)
+Date: Wed, 10 Jun 2009 20:57:21 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: [PATCH 1/3] bootmem: use slab if bootmem is no longer available
+Message-ID: <Pine.LNX.4.64.0906102056530.28361@melkki.cs.Helsinki.FI>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cl@linux-foundation.com, mingo@elte.hu, hannes@cmpxchg.org, torvalds@linux-foundation.org, mpm@selenic.com, npiggin@suse.de, yinghai@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Jun 2009 04:32:14 -0700
-"Wu, Fengguang" <fengguang.wu@intel.com> wrote:
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 
-> On Wed, Jun 10, 2009 at 06:05:14PM +0800, Peter Zijlstra wrote:
-> > On Wed, 2009-06-10 at 17:59 +0800, Wu Fengguang wrote:
-> > > On Wed, Jun 10, 2009 at 05:42:56PM +0800, Peter Zijlstra wrote:
-> > > > On Wed, 2009-06-10 at 16:56 +0800, Wu Fengguang wrote:
-> > > > > 
-> > > > > Yes it worked!  But then I run into page allocation failures:
-> > > > > 
-> > > > > [  340.639803] Xorg: page allocation failure. order:4,
-> > > > > mode:0x40d0 [  340.645744] Pid: 3258, comm: Xorg Not tainted
-> > > > > 2.6.30-rc8-mm1 #303 [  340.651839] Call Trace:
-> > > > > [  340.654289]  [<ffffffff810c8204>]
-> > > > > __alloc_pages_nodemask+0x344/0x6c0 [  340.660645]
-> > > > > [<ffffffff810f7489>] __slab_alloc_page+0xb9/0x3b0
-> > > > > [  340.666472]  [<ffffffff810f8608>] __kmalloc+0x198/0x250
-> > > > > [  340.671786]  [<ffffffffa014bf9f>] ?
-> > > > > i915_gem_execbuffer+0x17f/0x11e0 [i915] [  340.678746]
-> > > > > [<ffffffffa014bf9f>] i915_gem_execbuffer+0x17f/0x11e0 [i915]
-> > > > 
-> > > > Jesse Barnes had a patch to add a vmalloc fallback to those
-> > > > largish kms allocs.
-> > > > 
-> > > > But order-4 allocs failing isn't really strange, but it might
-> > > > indicate this patch fragments stuff sooner, although I've seen
-> > > > these particular failues before.
-> > > 
-> > > Thanks for the tip. Where is it? I'd like to try it out :)
-> > 
-> > commit 8e7d2b2c6ecd3c21a54b877eae3d5be48292e6b5
-> > Author: Jesse Barnes <jbarnes@virtuousgeek.org>
-> > Date:   Fri May 8 16:13:25 2009 -0700
-> > 
-> >     drm/i915: allocate large pointer arrays with vmalloc
-> 
-> Thanks! It is already in the -mm tree, but it missed on conversion :)
-> 
-> I'll retry with this patch tomorrow.
-> 
-> Thanks,
-> Fengguang
-> ---
-> 
-> diff --git a/drivers/gpu/drm/i915/i915_gem.c
-> b/drivers/gpu/drm/i915/i915_gem.c index 39f5c65..7132dbe 100644
-> --- a/drivers/gpu/drm/i915/i915_gem.c
-> +++ b/drivers/gpu/drm/i915/i915_gem.c
-> @@ -3230,8 +3230,8 @@ i915_gem_execbuffer(struct drm_device *dev,
-> void *data, }
->  
->  	if (args->num_cliprects != 0) {
-> -		cliprects = drm_calloc(args->num_cliprects,
-> sizeof(*cliprects),
-> -				       DRM_MEM_DRIVER);
-> +		cliprects = drm_calloc_large(args->num_cliprects,
-> +					     sizeof(*cliprects));
->  		if (cliprects == NULL)
->  			goto pre_mutex_err;
->  
-> @@ -3474,8 +3474,7 @@ err:
->  pre_mutex_err:
->  	drm_free_large(object_list);
->  	drm_free_large(exec_list);
-> -	drm_free(cliprects, sizeof(*cliprects) * args->num_cliprects,
-> -		 DRM_MEM_DRIVER);
-> +	drm_free_large(cliprects);
->  
->  	return ret;
->  }
+As a preparation for initializing the slab allocator early, make sure the
+bootmem allocator does not crash and burn if someone calls it after slab is up;
+otherwise we'd need a flag day for switching to early slab.
 
-Kristian posted a fix to my drm_calloc_large function as well; one of
-the size checks in drm_calloc_large (the one which decides whether to
-use kmalloc or vmalloc) was just checking size instead of size * num,
-so you may be hitting that.
+Cc: Christoph Lameter <cl@linux-foundation.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
+ mm/bootmem.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-Jesse
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index daf9271..457269c 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -532,6 +532,9 @@ static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
+ 					unsigned long size, unsigned long align,
+ 					unsigned long goal, unsigned long limit)
+ {
++	if (WARN_ON_ONCE(slab_is_available()))
++		return kzalloc(size, GFP_NOWAIT);
++
+ #ifdef CONFIG_HAVE_ARCH_BOOTMEM
+ 	bootmem_data_t *p_bdata;
+ 
+-- 
+1.6.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
