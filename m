@@ -1,52 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA076B004D
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 15:36:48 -0400 (EDT)
-Message-ID: <4A2FFBDB.7070504@zytor.com>
-Date: Wed, 10 Jun 2009 11:30:51 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
-References: <1243846708-805-1-git-send-email-tj@kernel.org>	<1243846708-805-4-git-send-email-tj@kernel.org> <20090601.024006.98975069.davem@davemloft.net>
-In-Reply-To: <20090601.024006.98975069.davem@davemloft.net>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F41E76B004D
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 18:41:49 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5AMe6V4026985
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 16:40:06 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5AMh31Z243736
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 16:43:03 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5AMh3bq025770
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 16:43:03 -0600
+Subject: Re: [PATCH 1/4] Properly account for the number of page cache
+ pages zone_reclaim() can reclaim
+From: Ram Pai <linuxram@us.ibm.com>
+Reply-To: linuxram@us.ibm.com
+In-Reply-To: <20090610134134.GN25943@csn.ul.ie>
+References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie>
+	 <1244566904-31470-2-git-send-email-mel@csn.ul.ie>
+	 <20090610011939.GA5603@localhost> <20090610103152.GG25943@csn.ul.ie>
+	 <20090610115944.GB5657@localhost>  <20090610134134.GN25943@csn.ul.ie>
+Content-Type: text/plain
+Date: Wed, 10 Jun 2009 15:42:59 -0700
+Message-Id: <1244673779.6243.291.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Miller <davem@davemloft.net>
-Cc: tj@kernel.org, JBeulich@novell.com, andi@firstfloor.org, mingo@elte.hu, tglx@linutronix.de, linux-kernel@vger.kernel.org, x86@kernel.org, ink@jurassic.park.msu.ru, rth@twiddle.net, linux@arm.linux.org.uk, hskinnemoen@atmel.com, cooloney@kernel.org, starvik@axis.com, jesper.nilsson@axis.com, dhowells@redhat.com, ysato@users.sourceforge.jp, tony.luck@intel.com, takata@linux-m32r.org, monstr@monstr.eu, ralf@linux-mips.org, kyle@mcmartin.ca, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, lethal@linux-sh.org, jdike@addtoit.com, chris@zankel.net, rusty@rustcorp.com.au, jens.axboe@oracle.com, davej@redhat.com, jeremy@xensource.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: Tejun Heo <tj@kernel.org>
-> Date: Mon,  1 Jun 2009 17:58:24 +0900
+On Wed, 2009-06-10 at 14:41 +0100, Mel Gorman wrote:
+> On Wed, Jun 10, 2009 at 07:59:44PM +0800, Wu Fengguang wrote:
+> > On Wed, Jun 10, 2009 at 06:31:53PM +0800, Mel Gorman wrote:
+> > > On Wed, Jun 10, 2009 at 09:19:39AM +0800, Wu Fengguang wrote:
+> > > > On Wed, Jun 10, 2009 at 01:01:41AM +0800, Mel Gorman wrote:
+> > > > > On NUMA machines, the administrator can configure zone_reclaim_mode that
+> > > > > is a more targetted form of direct reclaim. On machines with large NUMA
+> > > > > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> > > > > unmapped pages will be reclaimed if the zone watermarks are not being met.
+> > > > > 
+> > > > > There is a heuristic that determines if the scan is worthwhile but the
+> > > > > problem is that the heuristic is not being properly applied and is basically
+> > > > > assuming zone_reclaim_mode is 1 if it is enabled.
+> > > > > 
+> > > > > Historically, once enabled it was depending on NR_FILE_PAGES which may
+> > > > > include swapcache pages that the reclaim_mode cannot deal with.  Patch
+> > > > > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
+> > > > > Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
+> > > > > pages that were not file-backed such as swapcache and made a calculation
+> > > > > based on the inactive, active and mapped files. This is far superior
+> > > > > when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
+> > > > > reasonable starting figure.
+> > > > > 
+> > > > > This patch alters how zone_reclaim() works out how many pages it might be
+> > > > > able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
+> > > > > in the reclaim_mode it will either consider NR_FILE_PAGES as potential
+> > > > > candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
+> > > > > swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
+> > > > > then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
+> > > > > not set, then NR_FILE_MAPPED are not.
+> > > > > 
+> > > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > > > > Acked-by: Christoph Lameter <cl@linux-foundation.org>
+> > > > > ---
+> > > > >  mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
+> > > > >  1 files changed, 38 insertions(+), 14 deletions(-)
+> > > > > 
+> > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > index 2ddcfc8..2bfc76e 100644
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -2333,6 +2333,41 @@ int sysctl_min_unmapped_ratio = 1;
+> > > > >   */
+> > > > >  int sysctl_min_slab_ratio = 5;
+> > > > >  
+> > > > > +static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
+> > > > > +{
+> > > > > +	return zone_page_state(zone, NR_INACTIVE_FILE) +
+> > > > > +		zone_page_state(zone, NR_ACTIVE_FILE) -
+> > > > > +		zone_page_state(zone, NR_FILE_MAPPED);
+> > > > 
+> > > > This may underflow if too many tmpfs pages are mapped.
+> > > > 
+> > > 
+> > > You're right. This is also a bug now in mmotm for patch
+> > > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch which
+> > > is where I took this code out of and didn't think deeply enough about.
+> > > Well spotted.
+> > > 
+> > > Should this be something like?
+> > > 
+> > > static unsigned long zone_unmapped_file_pages(struct zone *zone)
+> > > {
+> > > 	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
+> > > 	unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE)
+> > > 			zone_page_state(zone, NR_ACTIVE_FILE);
+> > > 
+> > > 	return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
+> > > }
+> > > 
+> > > ?
+> > > 
+> > > If that returns 0, it does mean that there are very few pages that the
+> > > current reclaim_mode is going to be able to deal with so even if the
+> > > count is not perfect, it should be good enough for what we need it for.
+> > 
+> > Agreed. We opt to give up direct zone reclaim than to risk busy looping ;)
+> > 
 > 
->> --- a/arch/cris/include/asm/mmu_context.h
->> +++ b/arch/cris/include/asm/mmu_context.h
->> @@ -17,7 +17,7 @@ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
->>   * registers like cr3 on the i386
->>   */
->>  
->> -extern volatile DEFINE_PER_CPU(pgd_t *,current_pgd); /* defined in arch/cris/mm/fault.c */
->> +DECLARE_PER_CPU(pgd_t *,current_pgd); /* defined in arch/cris/mm/fault.c */
->>  
->>  static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
->>  {
+> Yep. Those busy loops doth chew up the CPU time, heat the planet and
+> wear out Ye Olde Bugzilla with the wailing of unhappy users :)
 > 
-> Yes volatile sucks, but might this break something?
+> > > > > +}
+> > > > > +
+> > > > > +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
+> > > > > +static inline long zone_pagecache_reclaimable(struct zone *zone)
+> > > > > +{
+> > > > > +	long nr_pagecache_reclaimable;
+> > > > > +	long delta = 0;
+> > > > > +
+> > > > > +	/*
+> > > > > +	 * If RECLAIM_SWAP is set, then all file pages are considered
+> > > > > +	 * potentially reclaimable. Otherwise, we have to worry about
+> > > > > +	 * pages like swapcache and zone_unmapped_file_pages() provides
+> > > > > +	 * a better estimate
+> > > > > +	 */
+> > > > > +	if (zone_reclaim_mode & RECLAIM_SWAP)
+> > > > > +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
+> > > > > +	else
+> > > > > +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
+> > > > > +
+> > > > > +	/* If we can't clean pages, remove dirty pages from consideration */
+> > > > > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+> > > > > +		delta += zone_page_state(zone, NR_FILE_DIRTY);
+> > > > > +
+> > > > > +	/* Beware of double accounting */
+> > > > 
+> > > > The double accounting happens for NR_FILE_MAPPED but not
+> > > > NR_FILE_DIRTY(dirty tmpfs pages won't be accounted),
+> > > 
+> > > I should have taken that out. In an interim version, delta was altered
+> > > more than once in a way that could have caused underflow.
+> > > 
+> > > > so this comment
+> > > > is more suitable for zone_unmapped_file_pages(). But the double
+> > > > accounting does affects this abstraction. So a more reasonable
+> > > > sequence could be to first substract NR_FILE_DIRTY and then
+> > > > conditionally substract NR_FILE_MAPPED?
+> > > 
+> > > The end result is the same I believe and I prefer having the
+> > > zone_unmapped_file_pages() doing just that and nothing else because it's
+> > > in line with what zone_lru_pages() does.
+> > 
+> > OK.
+> > 
+> > > > Or better to introduce a new counter NR_TMPFS_MAPPED to fix this mess?
+> > > > 
+> > > 
+> > > I considered such a counter and dismissed it but maybe it merits wider discussion.
+> > > 
+> > > My problem with it is that it would affect the pagecache add/remove hot paths
+> > > and a few other sites and increase the amount of accouting we do within a
+> > > zone. It seemed unjustified to help a seldom executed slow path that only
+> > > runs on NUMA.
+> > 
+> > We are not talking about NR_TMPFS_PAGES, but NR_TMPFS_MAPPED :)
+> > 
+> > We only need to account it in page_add_file_rmap() and page_remove_rmap(),
+> > I don't think they are too hot paths. And the relative cost is low enough.
+> > 
+> > It will look like this.
+> > 
 > 
-> Whether the volatile is actually needed or not, it's bad to have this
-> kind of potential behavior changing nugget hidden in this seemingly
-> inocuous change.  Especially if you're the poor soul who ends up
-> having to debug it :-/
+> Ok, you're right, that is much simplier than what I had in mind. I was fixated
+> on accounting for TMPFS pages. I think this patch has definite possibilities
+> and would help us with the tmpfs problem. If the tests come back "failed",
+> I'll be adding taking this logic and seeing can it be made work
 
-Shouldn't the "volatile" go inside the DECLARE_PER_CPU() with the rest
-of the type?  [Disclaimer: I haven't actually looked.]
 
-	-hpa
+And the results look great!  While constantly watching /proc/zoneinfo, I
+observe that unlike earlier there was no unnecessary attempt to scan for
+reclaimable pages, instead pages were allocated from the other node's
+zone normal.
 
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
