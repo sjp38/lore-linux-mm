@@ -1,56 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC396B0055
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 06:05:12 -0400 (EDT)
-Subject: Re: [patch v3] swap: virtual swap readahead
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090610095950.GA514@localhost>
-References: <20090609190128.GA1785@cmpxchg.org>
-	 <20090609193702.GA2017@cmpxchg.org> <20090610050342.GA8867@localhost>
-	 <20090610074508.GA1960@cmpxchg.org> <20090610081132.GA27519@localhost>
-	 <20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090610085638.GA32511@localhost> <1244626976.13761.11593.camel@twins>
-	 <20090610095950.GA514@localhost>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Wed, 10 Jun 2009 12:05:14 +0200
-Message-Id: <1244628314.13761.11617.camel@twins>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A606B004F
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 06:31:00 -0400 (EDT)
+Date: Wed, 10 Jun 2009 11:31:53 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] Properly account for the number of page cache
+	pages zone_reclaim() can reclaim
+Message-ID: <20090610103152.GG25943@csn.ul.ie>
+References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie> <1244566904-31470-2-git-send-email-mel@csn.ul.ie> <20090610011939.GA5603@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090610011939.GA5603@localhost>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Barnes, Jesse" <jesse.barnes@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-06-10 at 17:59 +0800, Wu Fengguang wrote:
-> On Wed, Jun 10, 2009 at 05:42:56PM +0800, Peter Zijlstra wrote:
-> > On Wed, 2009-06-10 at 16:56 +0800, Wu Fengguang wrote:
-> > > 
-> > > Yes it worked!  But then I run into page allocation failures:
-> > > 
-> > > [  340.639803] Xorg: page allocation failure. order:4, mode:0x40d0
-> > > [  340.645744] Pid: 3258, comm: Xorg Not tainted 2.6.30-rc8-mm1 #303
-> > > [  340.651839] Call Trace:
-> > > [  340.654289]  [<ffffffff810c8204>] __alloc_pages_nodemask+0x344/0x6c0
-> > > [  340.660645]  [<ffffffff810f7489>] __slab_alloc_page+0xb9/0x3b0
-> > > [  340.666472]  [<ffffffff810f8608>] __kmalloc+0x198/0x250
-> > > [  340.671786]  [<ffffffffa014bf9f>] ? i915_gem_execbuffer+0x17f/0x11e0 [i915]
-> > > [  340.678746]  [<ffffffffa014bf9f>] i915_gem_execbuffer+0x17f/0x11e0 [i915]
+On Wed, Jun 10, 2009 at 09:19:39AM +0800, Wu Fengguang wrote:
+> On Wed, Jun 10, 2009 at 01:01:41AM +0800, Mel Gorman wrote:
+> > On NUMA machines, the administrator can configure zone_reclaim_mode that
+> > is a more targetted form of direct reclaim. On machines with large NUMA
+> > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> > unmapped pages will be reclaimed if the zone watermarks are not being met.
 > > 
-> > Jesse Barnes had a patch to add a vmalloc fallback to those largish kms
-> > allocs.
+> > There is a heuristic that determines if the scan is worthwhile but the
+> > problem is that the heuristic is not being properly applied and is basically
+> > assuming zone_reclaim_mode is 1 if it is enabled.
 > > 
-> > But order-4 allocs failing isn't really strange, but it might indicate
-> > this patch fragments stuff sooner, although I've seen these particular
-> > failues before.
+> > Historically, once enabled it was depending on NR_FILE_PAGES which may
+> > include swapcache pages that the reclaim_mode cannot deal with.  Patch
+> > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
+> > Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
+> > pages that were not file-backed such as swapcache and made a calculation
+> > based on the inactive, active and mapped files. This is far superior
+> > when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
+> > reasonable starting figure.
+> > 
+> > This patch alters how zone_reclaim() works out how many pages it might be
+> > able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
+> > in the reclaim_mode it will either consider NR_FILE_PAGES as potential
+> > candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
+> > swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
+> > then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
+> > not set, then NR_FILE_MAPPED are not.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Acked-by: Christoph Lameter <cl@linux-foundation.org>
+> > ---
+> >  mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
+> >  1 files changed, 38 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 2ddcfc8..2bfc76e 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2333,6 +2333,41 @@ int sysctl_min_unmapped_ratio = 1;
+> >   */
+> >  int sysctl_min_slab_ratio = 5;
+> >  
+> > +static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
+> > +{
+> > +	return zone_page_state(zone, NR_INACTIVE_FILE) +
+> > +		zone_page_state(zone, NR_ACTIVE_FILE) -
+> > +		zone_page_state(zone, NR_FILE_MAPPED);
 > 
-> Thanks for the tip. Where is it? I'd like to try it out :)
+> This may underflow if too many tmpfs pages are mapped.
+> 
 
-commit 8e7d2b2c6ecd3c21a54b877eae3d5be48292e6b5
-Author: Jesse Barnes <jbarnes@virtuousgeek.org>
-Date:   Fri May 8 16:13:25 2009 -0700
+You're right. This is also a bug now in mmotm for patch
+vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch which
+is where I took this code out of and didn't think deeply enough about.
+Well spotted.
 
-    drm/i915: allocate large pointer arrays with vmalloc
+Should this be something like?
 
+static unsigned long zone_unmapped_file_pages(struct zone *zone)
+{
+	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
+	unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE)
+			zone_page_state(zone, NR_ACTIVE_FILE);
+
+	return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
+}
+
+?
+
+If that returns 0, it does mean that there are very few pages that the
+current reclaim_mode is going to be able to deal with so even if the
+count is not perfect, it should be good enough for what we need it for.
+
+> > +}
+> > +
+> > +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
+> > +static inline long zone_pagecache_reclaimable(struct zone *zone)
+> > +{
+> > +	long nr_pagecache_reclaimable;
+> > +	long delta = 0;
+> > +
+> > +	/*
+> > +	 * If RECLAIM_SWAP is set, then all file pages are considered
+> > +	 * potentially reclaimable. Otherwise, we have to worry about
+> > +	 * pages like swapcache and zone_unmapped_file_pages() provides
+> > +	 * a better estimate
+> > +	 */
+> > +	if (zone_reclaim_mode & RECLAIM_SWAP)
+> > +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
+> > +	else
+> > +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
+> > +
+> > +	/* If we can't clean pages, remove dirty pages from consideration */
+> > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+> > +		delta += zone_page_state(zone, NR_FILE_DIRTY);
+> > +
+> > +	/* Beware of double accounting */
+> 
+> The double accounting happens for NR_FILE_MAPPED but not
+> NR_FILE_DIRTY(dirty tmpfs pages won't be accounted),
+
+I should have taken that out. In an interim version, delta was altered
+more than once in a way that could have caused underflow.
+
+> so this comment
+> is more suitable for zone_unmapped_file_pages(). But the double
+> accounting does affects this abstraction. So a more reasonable
+> sequence could be to first substract NR_FILE_DIRTY and then
+> conditionally substract NR_FILE_MAPPED?
+
+The end result is the same I believe and I prefer having the
+zone_unmapped_file_pages() doing just that and nothing else because it's
+in line with what zone_lru_pages() does.
+
+> 
+> Or better to introduce a new counter NR_TMPFS_MAPPED to fix this mess?
+> 
+
+I considered such a counter and dismissed it but maybe it merits wider discussion.
+
+My problem with it is that it would affect the pagecache add/remove hot paths
+and a few other sites and increase the amount of accouting we do within a
+zone. It seemed unjustified to help a seldom executed slow path that only
+runs on NUMA.
+
+> > +	if (delta < nr_pagecache_reclaimable)
+> > +		nr_pagecache_reclaimable -= delta;
+> > +
+> > +	return nr_pagecache_reclaimable;
+> > +}
+> > +
+> >  /*
+> >   * Try to free up some pages from this zone through reclaim.
+> >   */
+> > @@ -2355,7 +2390,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> >  		.isolate_pages = isolate_pages_global,
+> >  	};
+> >  	unsigned long slab_reclaimable;
+> > -	long nr_unmapped_file_pages;
+> >  
+> >  	disable_swap_token();
+> >  	cond_resched();
+> > @@ -2368,11 +2402,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> >  	reclaim_state.reclaimed_slab = 0;
+> >  	p->reclaim_state = &reclaim_state;
+> >  
+> > -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> > -				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> > -				 zone_page_state(zone, NR_FILE_MAPPED);
+> > -
+> > -	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
+> > +	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
+> >  		/*
+> >  		 * Free memory by calling shrink zone with increasing
+> >  		 * priorities until we have enough memory freed.
+> > @@ -2419,8 +2449,6 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> >  {
+> >  	int node_id;
+> >  	int ret;
+> > -	long nr_unmapped_file_pages;
+> > -	long nr_slab_reclaimable;
+> >  
+> >  	/*
+> >  	 * Zone reclaim reclaims unmapped file backed pages and
+> > @@ -2432,12 +2460,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> >  	 * if less than a specified percentage of the zone is used by
+> >  	 * unmapped file backed pages.
+> >  	 */
+> > -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> > -				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> > -				 zone_page_state(zone, NR_FILE_MAPPED);
+> > -	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> > -	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
+> > -	    nr_slab_reclaimable <= zone->min_slab_pages)
+> > +	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+> > +	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+> >  		return 0;
+> >  
+> >  	if (zone_is_all_unreclaimable(zone))
+> > -- 
+> > 1.5.6.5
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
