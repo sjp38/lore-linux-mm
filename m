@@ -1,193 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7E44C6B0055
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 07:58:27 -0400 (EDT)
-Date: Wed, 10 Jun 2009 19:59:44 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9DCCF6B004F
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 08:16:28 -0400 (EDT)
+Date: Wed, 10 Jun 2009 20:16:45 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/4] Properly account for the number of page cache
-	pages zone_reclaim() can reclaim
-Message-ID: <20090610115944.GB5657@localhost>
-References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie> <1244566904-31470-2-git-send-email-mel@csn.ul.ie> <20090610011939.GA5603@localhost> <20090610103152.GG25943@csn.ul.ie>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler
+	in the VM v5
+Message-ID: <20090610121645.GC5657@localhost>
+References: <20090603846.816684333@firstfloor.org> <20090603184648.2E2131D028F@basil.firstfloor.org> <20090609100922.GF14820@wotan.suse.de> <Pine.LNX.4.64.0906091637430.13213@sister.anvils> <20090610083803.GE6597@localhost> <20090610085939.GE31155@wotan.suse.de> <20090610092010.GA32584@localhost> <20090610110305.GB3876@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090610103152.GG25943@csn.ul.ie>
+In-Reply-To: <20090610110305.GB3876@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "linuxram@us.ibm.com" <linuxram@us.ibm.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 10, 2009 at 06:31:53PM +0800, Mel Gorman wrote:
-> On Wed, Jun 10, 2009 at 09:19:39AM +0800, Wu Fengguang wrote:
-> > On Wed, Jun 10, 2009 at 01:01:41AM +0800, Mel Gorman wrote:
-> > > On NUMA machines, the administrator can configure zone_reclaim_mode that
-> > > is a more targetted form of direct reclaim. On machines with large NUMA
-> > > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-> > > unmapped pages will be reclaimed if the zone watermarks are not being met.
+On Wed, Jun 10, 2009 at 07:03:05PM +0800, Nick Piggin wrote:
+> On Wed, Jun 10, 2009 at 05:20:11PM +0800, Wu Fengguang wrote:
+> > On Wed, Jun 10, 2009 at 04:59:39PM +0800, Nick Piggin wrote:
+> > > On Wed, Jun 10, 2009 at 04:38:03PM +0800, Wu Fengguang wrote:
+> > > > On Wed, Jun 10, 2009 at 12:05:53AM +0800, Hugh Dickins wrote:
+> > > > > I think a much more sensible approach would be to follow the page
+> > > > > migration technique of replacing the page's ptes by a special swap-like
+> > > > > entry, then do the killing from do_swap_page() if a process actually
+> > > > > tries to access the page.
+> > > > 
+> > > > We call that "late kill" and will be enabled when
+> > > > sysctl_memory_failure_early_kill=0. Its default value is 1.
 > > > 
-> > > There is a heuristic that determines if the scan is worthwhile but the
-> > > problem is that the heuristic is not being properly applied and is basically
-> > > assuming zone_reclaim_mode is 1 if it is enabled.
-> > > 
-> > > Historically, once enabled it was depending on NR_FILE_PAGES which may
-> > > include swapcache pages that the reclaim_mode cannot deal with.  Patch
-> > > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
-> > > Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
-> > > pages that were not file-backed such as swapcache and made a calculation
-> > > based on the inactive, active and mapped files. This is far superior
-> > > when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
-> > > reasonable starting figure.
-> > > 
-> > > This patch alters how zone_reclaim() works out how many pages it might be
-> > > able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
-> > > in the reclaim_mode it will either consider NR_FILE_PAGES as potential
-> > > candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
-> > > swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
-> > > then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
-> > > not set, then NR_FILE_MAPPED are not.
-> > > 
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > Acked-by: Christoph Lameter <cl@linux-foundation.org>
-> > > ---
-> > >  mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
-> > >  1 files changed, 38 insertions(+), 14 deletions(-)
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 2ddcfc8..2bfc76e 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -2333,6 +2333,41 @@ int sysctl_min_unmapped_ratio = 1;
-> > >   */
-> > >  int sysctl_min_slab_ratio = 5;
-> > >  
-> > > +static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
-> > > +{
-> > > +	return zone_page_state(zone, NR_INACTIVE_FILE) +
-> > > +		zone_page_state(zone, NR_ACTIVE_FILE) -
-> > > +		zone_page_state(zone, NR_FILE_MAPPED);
+> > > What's the use of this? What are the tradeoffs, in what situations
+> > > should an admin set this sysctl one way or the other?
 > > 
-> > This may underflow if too many tmpfs pages are mapped.
+> > Good questions.
 > > 
-> 
-> You're right. This is also a bug now in mmotm for patch
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch which
-> is where I took this code out of and didn't think deeply enough about.
-> Well spotted.
-> 
-> Should this be something like?
-> 
-> static unsigned long zone_unmapped_file_pages(struct zone *zone)
-> {
-> 	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-> 	unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE)
-> 			zone_page_state(zone, NR_ACTIVE_FILE);
-> 
-> 	return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
-> }
-> 
-> ?
-> 
-> If that returns 0, it does mean that there are very few pages that the
-> current reclaim_mode is going to be able to deal with so even if the
-> count is not perfect, it should be good enough for what we need it for.
-
-Agreed. We opt to give up direct zone reclaim than to risk busy looping ;)
-
-> > > +}
-> > > +
-> > > +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
-> > > +static inline long zone_pagecache_reclaimable(struct zone *zone)
-> > > +{
-> > > +	long nr_pagecache_reclaimable;
-> > > +	long delta = 0;
-> > > +
-> > > +	/*
-> > > +	 * If RECLAIM_SWAP is set, then all file pages are considered
-> > > +	 * potentially reclaimable. Otherwise, we have to worry about
-> > > +	 * pages like swapcache and zone_unmapped_file_pages() provides
-> > > +	 * a better estimate
-> > > +	 */
-> > > +	if (zone_reclaim_mode & RECLAIM_SWAP)
-> > > +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
-> > > +	else
-> > > +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
-> > > +
-> > > +	/* If we can't clean pages, remove dirty pages from consideration */
-> > > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
-> > > +		delta += zone_page_state(zone, NR_FILE_DIRTY);
-> > > +
-> > > +	/* Beware of double accounting */
+> > My understanding is, when an application is generating data A, B, C in
+> > sequence, and A is found to be corrupted by the kernel. Does it make
+> > sense for the application to continue generate B and C? Or, are there
+> > data dependencies between them? With late kill, it becomes more likely
+> > that the disk contain new versions of B/C and old version of A, so
+> > will more likely create data inconsistency.
 > > 
-> > The double accounting happens for NR_FILE_MAPPED but not
-> > NR_FILE_DIRTY(dirty tmpfs pages won't be accounted),
+> > So early kill is more safe.
 > 
-> I should have taken that out. In an interim version, delta was altered
-> more than once in a way that could have caused underflow.
+> Hmm, I think that's pretty speculative, and doesn't seem possible for
+> an admin (or even kernel programmer) to choose the "right" value.
 > 
-> > so this comment
-> > is more suitable for zone_unmapped_file_pages(). But the double
-> > accounting does affects this abstraction. So a more reasonable
-> > sequence could be to first substract NR_FILE_DIRTY and then
-> > conditionally substract NR_FILE_MAPPED?
-> 
-> The end result is the same I believe and I prefer having the
-> zone_unmapped_file_pages() doing just that and nothing else because it's
-> in line with what zone_lru_pages() does.
 
-OK.
+Agreed. It's not easy to choose if I'm myself an admin ;)
 
-> > Or better to introduce a new counter NR_TMPFS_MAPPED to fix this mess?
-> > 
-> 
-> I considered such a counter and dismissed it but maybe it merits wider discussion.
-> 
-> My problem with it is that it would affect the pagecache add/remove hot paths
-> and a few other sites and increase the amount of accouting we do within a
-> zone. It seemed unjustified to help a seldom executed slow path that only
-> runs on NUMA.
+> The application equally may not need to touch the data again, so
+> killing it might cause some inconsistency in whatever it is currently
+> doing.
 
-We are not talking about NR_TMPFS_PAGES, but NR_TMPFS_MAPPED :)
+Yes, early kill can also be evil. What I can do now is to document the
+early kill parameter more carefully.
 
-We only need to account it in page_add_file_rmap() and page_remove_rmap(),
-I don't think they are too hot paths. And the relative cost is low enough.
-
-It will look like this.
-
----
- include/linux/mmzone.h |    1 +
- mm/rmap.c              |    4 ++++
- 2 files changed, 5 insertions(+)
-
---- linux.orig/include/linux/mmzone.h
-+++ linux/include/linux/mmzone.h
-@@ -99,6 +99,7 @@ enum zone_stat_item {
- 	NR_VMSCAN_WRITE,
- 	/* Second 128 byte cacheline */
- 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
-+	NR_TMPFS_MAPPED,
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
---- linux.orig/mm/rmap.c
-+++ linux/mm/rmap.c
-@@ -844,6 +844,8 @@ void page_add_file_rmap(struct page *pag
- {
- 	if (atomic_inc_and_test(&page->_mapcount)) {
- 		__inc_zone_page_state(page, NR_FILE_MAPPED);
-+		if (PageSwapBacked(page))
-+			__inc_zone_page_state(page, NR_TMPFS_MAPPED);
- 		mem_cgroup_update_mapped_file_stat(page, 1);
- 	}
- }
-@@ -894,6 +896,8 @@ void page_remove_rmap(struct page *page)
- 			mem_cgroup_uncharge_page(page);
- 		__dec_zone_page_state(page,
- 			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
-+		if (!PageAnon(page) && PageSwapBacked(page))
-+			__dec_zone_page_state(page, NR_TMPFS_MAPPED);
- 		mem_cgroup_update_mapped_file_stat(page, -1);
- 		/*
- 		 * It would be tidy to reset the PageAnon mapping here,
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
