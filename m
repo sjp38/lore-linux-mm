@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 83AC46B00A0
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 02:45:26 -0400 (EDT)
-Subject: [patch 2/2] procfs: provide stack information for threads V0.7
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 006D26B0089
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 03:20:22 -0400 (EDT)
+Subject: [patch 2/2] procfs: provide stack information for threads V0.8
 From: Stefani Seibold <stefani@seibold.net>
 In-Reply-To: <20090401193135.GA12316@elte.hu>
 References: <1238511505.364.61.camel@matrix>
 	 <20090401193135.GA12316@elte.hu>
 Content-Type: text/plain
-Date: Wed, 10 Jun 2009 08:46:27 +0200
-Message-Id: <1244616387.1196.45.camel@wall-e>
+Date: Wed, 10 Jun 2009 09:20:41 +0200
+Message-Id: <1244618442.17616.5.camel@wall-e>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,7 +27,7 @@ information about the consumed stack memory of the the threads.
 
 There is an enhancement in the /proc/<pid>/{task/*,}/*maps and which
 marks the vm mapping where the thread stack pointer reside with "[thread
-stack xxxxxxxx]". xxxxxxxx is the start address of the stack. This is a
+stack xxxxxxxx]". xxxxxxxx is the maximum size of stack. This is a
 value information, because libpthread doesn't set the start of the stack
 to the top of the mapped area, depending of the pthread usage.
 
@@ -37,7 +37,7 @@ A sample output of /proc/<pid>/task/<tid>/maps looks like:
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/z
 0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
 a7d12000-a7d13000 ---p 00000000 00:00 0 
-a7d13000-a7f13000 rw-p 00000000 00:00 0          [thread stack: a7f124b4]
+a7d13000-a7f13000 rw-p 00000000 00:00 0          [thread stack: 001ff4b4]
 a7f13000-a7f14000 ---p 00000000 00:00 0 
 a7f14000-a7f36000 rw-p 00000000 00:00 0 
 a7f36000-a8069000 r-xp 00000000 03:00 4222       /lib/libc.so.6
@@ -78,7 +78,7 @@ process. This makes more sense.
 
 Changes since last posting:
 
- - update Documentation/filesystem/proc.txt
+ - change maps/smaps output, displays now the max. stack size
 
 The patch is against 2.6.30-rc7 and tested with on intel and ppc
 architectures.
@@ -99,20 +99,58 @@ ChangeLog:
   - slim down 
  04. Jun 2009 V0.5
   - Code cleanup
- 06. Jun 2009 V0.g
+ 06. Jun 2009 V0.6
   - Fix missing mm->mmap_sem locking in function task_show_stack_usage()
   - Code cleanup
+ 10. Jun 2009 V0.7
+  - update Documentation/filesystem/proc.txt
  
- Documentation/filesystems/proc.txt |    6 +++-
- linux-2.6.30/fs/exec.c             |    2 +
- linux-2.6.30/fs/proc/array.c       |   51 ++++++++++++++++++++++++++++++++++++-
- linux-2.6.30/fs/proc/task_mmu.c    |   14 ++++++++++
- linux-2.6.30/include/linux/sched.h |    1 
- linux-2.6.30/kernel/fork.c         |    2 +
- 6 files changed, 74 insertions(+), 2 deletions(-)
+ Documentation/filesystems/proc.txt |    5 ++-
+ fs/exec.c                          |    2 +
+ fs/proc/array.c                    |   51 ++++++++++++++++++++++++++++++++++++-
+ fs/proc/task_mmu.c                 |   19 +++++++++++++
+ include/linux/sched.h              |    1 
+ kernel/fork.c                      |    2 +
+ 6 files changed, 78 insertions(+), 2 deletions(-)
 
 Signed-off-by: Stefani Seibold <stefani@seibold.net>
 
+diff -u -N -r linux-2.6.30.orig/Documentation/filesystems/proc.txt linux-2.6.30/Documentation/filesystems/proc.txt
+--- linux-2.6.30.orig/Documentation/filesystems/proc.txt	2009-06-10 09:09:27.000000000 +0200
++++ linux-2.6.30/Documentation/filesystems/proc.txt	2009-06-10 09:07:46.000000000 +0200
+@@ -176,6 +176,7 @@
+   CapBnd: ffffffffffffffff
+   voluntary_ctxt_switches:        0
+   nonvoluntary_ctxt_switches:     1
++  Stack usage:    12 kB
+ 
+ This shows you nearly the same information you would get if you viewed it with
+ the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
+@@ -229,6 +230,7 @@
+  Mems_allowed_list           Same as previous, but in "list format"
+  voluntary_ctxt_switches     number of voluntary context switches
+  nonvoluntary_ctxt_switches  number of non voluntary context switches
++ Stack usage:                stack usage high water mark (round up to page size)
+ ..............................................................................
+ 
+ Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
+@@ -307,7 +309,7 @@
+ 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
+ 0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
+ a7cb1000-a7cb2000 ---p 00000000 00:00 0
+-a7cb2000-a7eb2000 rw-p 00000000 00:00 0
++a7cb2000-a7eb2000 rw-p 00000000 00:00 0          [thread stack: 001ff4b4]
+ a7eb2000-a7eb3000 ---p 00000000 00:00 0
+ a7eb3000-a7ed5000 rw-p 00000000 00:00 0
+ a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
+@@ -343,6 +345,7 @@
+  [stack]                  = the stack of the main process
+  [vdso]                   = the "virtual dynamic shared object",
+                             the kernel system call handler
++ [thread stack, xxxxxxxx] = the stack of the thread, xxxxxxxx is the stack size
+ 
+  or if empty, the mapping is anonymous.
+ 
 diff -u -N -r linux-2.6.30.orig/fs/exec.c linux-2.6.30/fs/exec.c
 --- linux-2.6.30.orig/fs/exec.c	2009-06-04 09:29:47.000000000 +0200
 +++ linux-2.6.30/fs/exec.c	2009-06-04 09:32:35.000000000 +0200
@@ -202,8 +240,8 @@ diff -u -N -r linux-2.6.30.orig/fs/proc/array.c linux-2.6.30/fs/proc/array.c
  		/* The signal information here is obsolete.
 diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu.c
 --- linux-2.6.30.orig/fs/proc/task_mmu.c	2009-06-04 09:29:47.000000000 +0200
-+++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-04 22:10:47.000000000 +0200
-@@ -242,6 +242,20 @@
++++ linux-2.6.30/fs/proc/task_mmu.c	2009-06-10 09:02:40.000000000 +0200
+@@ -242,6 +242,25 @@
  				} else if (vma->vm_start <= mm->start_stack &&
  					   vma->vm_end >= mm->start_stack) {
  					name = "[stack]";
@@ -219,7 +257,12 @@ diff -u -N -r linux-2.6.30.orig/fs/proc/task_mmu.c linux-2.6.30/fs/proc/task_mmu
 +						pad_len_spaces(m, len);
 +						seq_printf(m,
 +						 "[thread stack: %08lx]",
-+						 stack_start);
++#ifdef CONFIG_STACK_GROWSUP
++						 vma->vm_end - stack_start
++#else
++						 stack_start - vma->vm_start
++#endif
++						);
 +					}
  				}
  			} else {
@@ -246,42 +289,6 @@ diff -u -N -r linux-2.6.30.orig/kernel/fork.c linux-2.6.30/kernel/fork.c
 +
  	/* Perform scheduler related setup. Assign this task to a CPU. */
  	sched_fork(p, clone_flags);
- 
---- linux-2.6.30.patch/Documentation/filesystems/proc.txt	2009-06-10 08:18:35.000000000 +0200
-+++ linux-2.6.30/Documentation/filesystems/proc.txt	2009-06-10 08:19:08.000000000 +0200
-@@ -176,6 +176,7 @@
-   CapBnd: ffffffffffffffff
-   voluntary_ctxt_switches:        0
-   nonvoluntary_ctxt_switches:     1
-+  Stack usage:    12 kB
- 
- This shows you nearly the same information you would get if you viewed it with
- the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
-@@ -229,6 +230,7 @@
-  Mems_allowed_list           Same as previous, but in "list format"
-  voluntary_ctxt_switches     number of voluntary context switches
-  nonvoluntary_ctxt_switches  number of non voluntary context switches
-+ Stack usage:                stack usage high water mark (round up to page size)
- ..............................................................................
- 
- Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
-@@ -307,7 +309,7 @@
- 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
- 0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
- a7cb1000-a7cb2000 ---p 00000000 00:00 0
--a7cb2000-a7eb2000 rw-p 00000000 00:00 0
-+a7cb2000-a7eb2000 rw-p 00000000 00:00 0          [thread stack: a7eb14b4]
- a7eb2000-a7eb3000 ---p 00000000 00:00 0
- a7eb3000-a7ed5000 rw-p 00000000 00:00 0
- a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
-@@ -343,6 +345,8 @@
-  [stack]                  = the stack of the main process
-  [vdso]                   = the "virtual dynamic shared object",
-                             the kernel system call handler
-+ [thread stack, xxxxxxxx] = the stack of the thread, xxxxxxxx is the starting
-+                            address of the stack
- 
-  or if empty, the mapping is anonymous.
  
 
 
