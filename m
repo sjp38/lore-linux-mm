@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3D36B005A
-	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 06:47:29 -0400 (EDT)
-Date: Wed, 10 Jun 2009 11:48:54 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] Reintroduce zone_reclaim_interval for when
-	zone_reclaim() scans and fails to avoid CPU spinning at 100% on NUMA
-Message-ID: <20090610104854.GL25943@csn.ul.ie>
-References: <1244566904-31470-1-git-send-email-mel@csn.ul.ie> <1244566904-31470-5-git-send-email-mel@csn.ul.ie> <20090609225425.b0820ce5.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A04D6B004F
+	for <linux-mm@kvack.org>; Wed, 10 Jun 2009 07:03:09 -0400 (EDT)
+Date: Wed, 10 Jun 2009 13:03:05 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [13/16] HWPOISON: The high level memory error handler in the VM v5
+Message-ID: <20090610110305.GB3876@wotan.suse.de>
+References: <20090603846.816684333@firstfloor.org> <20090603184648.2E2131D028F@basil.firstfloor.org> <20090609100922.GF14820@wotan.suse.de> <Pine.LNX.4.64.0906091637430.13213@sister.anvils> <20090610083803.GE6597@localhost> <20090610085939.GE31155@wotan.suse.de> <20090610092010.GA32584@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090609225425.b0820ce5.akpm@linux-foundation.org>
+In-Reply-To: <20090610092010.GA32584@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, yanmin.zhang@intel.com, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 09, 2009 at 10:54:25PM -0700, Andrew Morton wrote:
-> On Tue,  9 Jun 2009 18:01:44 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > On NUMA machines, the administrator can configure zone_reclaim_mode that is a
-> > more targetted form of direct reclaim. On machines with large NUMA distances,
-> > zone_reclaim_mode defaults to 1 meaning that clean unmapped pages will be
-> > reclaimed if the zone watermarks are not being met. The problem is that
-> > zone_reclaim() may get into a situation where it scans excessively without
-> > making progress.
+On Wed, Jun 10, 2009 at 05:20:11PM +0800, Wu Fengguang wrote:
+> On Wed, Jun 10, 2009 at 04:59:39PM +0800, Nick Piggin wrote:
+> > On Wed, Jun 10, 2009 at 04:38:03PM +0800, Wu Fengguang wrote:
+> > > On Wed, Jun 10, 2009 at 12:05:53AM +0800, Hugh Dickins wrote:
+> > > > I think a much more sensible approach would be to follow the page
+> > > > migration technique of replacing the page's ptes by a special swap-like
+> > > > entry, then do the killing from do_swap_page() if a process actually
+> > > > tries to access the page.
+> > > 
+> > > We call that "late kill" and will be enabled when
+> > > sysctl_memory_failure_early_kill=0. Its default value is 1.
 > > 
-> > One such situation occured where a large tmpfs mount occupied a
-> > large percentage of memory overall. The pages did not get reclaimed by
-> > zone_reclaim(), but the lists are uselessly scanned frequencly making the
-> > CPU spin at 100%. The observation in the field was that malloc() stalled
-> > for a long time (minutes in some cases) when this situation occurs. This
-> > situation should be resolved now and there are counters in place that
-> > detect when the scan-avoidance heuristics break but the heuristics might
-> > still not be bullet proof. If they fail again, the kernel should respond
-> > in some fashion other than scanning uselessly chewing up CPU time.
-> > 
-> > This patch reintroduces zone_reclaim_interval which was removed by commit
-> > 34aa1330f9b3c5783d269851d467326525207422 [zoned vm counters: zone_reclaim:
-> > remove /proc/sys/vm/zone_reclaim_interval. In the event the scan-avoidance
-> > heuristics fail, the event is counted and zone_reclaim_interval avoids
-> > excessive scanning.
+> > What's the use of this? What are the tradeoffs, in what situations
+> > should an admin set this sysctl one way or the other?
 > 
-> More distressed fretting!
+> Good questions.
 > 
-
-Not at all. One day I'll get a significant patch completed without any
-eyebrows raised and the world will end :). 
-
-> Pages can be allocated and freed and reclaimed at rates anywhere
-> between zero per second to one million per second or more.  So what
-> sense does it make to pace MM activity by wall-time??
+> My understanding is, when an application is generating data A, B, C in
+> sequence, and A is found to be corrupted by the kernel. Does it make
+> sense for the application to continue generate B and C? Or, are there
+> data dependencies between them? With late kill, it becomes more likely
+> that the disk contain new versions of B/C and old version of A, so
+> will more likely create data inconsistency.
 > 
+> So early kill is more safe.
 
-None - this is a brute force workaround if the scan heuristic breaks and
-was lifted directly from an old patch by Christoph. It could be much
-better.
+Hmm, I think that's pretty speculative, and doesn't seem possible for
+an admin (or even kernel programmer) to choose the "right" value.
 
-> A better clock for pacing MM activity is page-allocation-attempts, or
-> pages-scanned, etc.
-> 
-
-Agreed. Wu convinced me of that and had some good suggestions. I'm waiting
-to hear back from the testers on the new scan heuristics to see if they
-are working or not. If they are working now, I'll drop this patch. If we
-decide we need it, I'll update with Wu's work. I need to send the tests a
-new version now though because of the underflow problem.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+The application equally may not need to touch the data again, so
+killing it might cause some inconsistency in whatever it is currently
+doing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
