@@ -1,127 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8362E6B0055
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 05:37:50 -0400 (EDT)
-Received: by gxk28 with SMTP id 28so2142076gxk.14
-        for <linux-mm@kvack.org>; Thu, 11 Jun 2009 02:39:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
-References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090611172249.6D3C.A69D9226@jp.fujitsu.com>
-	 <20090611173819.0f76e431.kamezawa.hiroyu@jp.fujitsu.com>
-	 <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
-Date: Thu, 11 Jun 2009 18:39:01 +0900
-Message-ID: <28c262360906110239g1e4d0fabg15dc33111014e96a@mail.gmail.com>
-Subject: Re: [PATCH 2/3] check unevictable flag in lumy reclaim v2
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 292106B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:19:46 -0400 (EDT)
+Date: Thu, 11 Jun 2009 12:17:42 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v3] swap: virtual swap readahead
+Message-ID: <20090611101741.GA1974@cmpxchg.org>
+References: <20090610074508.GA1960@cmpxchg.org> <20090610081132.GA27519@localhost> <20090610173249.50e19966.kamezawa.hiroyu@jp.fujitsu.com> <20090610085638.GA32511@localhost> <1244626976.13761.11593.camel@twins> <20090610095950.GA514@localhost> <1244628314.13761.11617.camel@twins> <20090610113214.GA5657@localhost> <20090610102516.08f7300f@jbarnes-x200> <20090611052228.GA20100@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090611052228.GA20100@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, mel@csn.ul.ie
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "Barnes, Jesse" <jesse.barnes@intel.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 6:37 PM, Minchan Kim<minchan.kim@gmail.com> wrote:
-> On Thu, Jun 11, 2009 at 5:38 PM, KAMEZAWA
-> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> How about this ?
->>
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> Lumpy reclaim check pages from their pfn. Then, it can find unevictable =
-pages
->> in its loop.
->> Abort lumpy reclaim when we find Unevictable page, we never get a lump
->> of pages for requested order.
->>
->> Changelog: v1->v2
->> =C2=A0- rewrote commet.
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> =C2=A0mm/vmscan.c | =C2=A0 =C2=A09 +++++++++
->> =C2=A01 file changed, 9 insertions(+)
->>
->> Index: lumpy-reclaim-trial/mm/vmscan.c
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- lumpy-reclaim-trial.orig/mm/vmscan.c
->> +++ lumpy-reclaim-trial/mm/vmscan.c
->> @@ -936,6 +936,15 @@ static unsigned long isolate_lru_pages(u
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0/* Check that we have not crossed a zone boundary. */
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0if (unlikely(page_zone_id(cursor_page) !=3D zone_id))
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 /*
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* We tries to free all pages in this range to create
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* a free large page. Then, if the range includes a page
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* never be reclaimed, we have no reason to do more.
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* PageUnevictable page is not a page which can be
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0* easily freed. Abort this scan now.
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0*/
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 if (unlikely(PageUnevictable(cursor_page)))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
->
-> __isolate_lru_pages already checked PageUnevictable to return error.
-> I want to remove repeated check although it is trivial.
->
-> By your patch, It seems to remove PageUnevictable check in __isolate_lru_=
-pages.
+On Thu, Jun 11, 2009 at 01:22:28PM +0800, Wu Fengguang wrote:
+> Unfortunately, after fixing it up the swap readahead patch still performs slow
+> (even worse this time):
 
-typo.
+Thanks for doing the tests.  Do you know if the time difference comes
+from IO or CPU time?
 
-It seems we can remove PageUnevictable check in __isolate_lru_pages.
-Sorry for noise.
+Because one reason I could think of is that the original code walks
+the readaround window in two directions, starting from the target each
+time but immediately stops when it encounters a hole where the new
+code just skips holes but doesn't abort readaround and thus might
+indeed read more slots.
 
-> But I know that. If we remove PageUnevictable check in
-> __isolate_lru_pages, it can't go into BUG in non-lumpy case. ( I
-> mentioned following as code)
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0case -EBUSY:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0/* else it is being freed elsewhere */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0list_move(&page->lru, src);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0continue;
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0default:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0BUG();
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
->
->
-> It means we can remove BUG in non-lumpy case and then add BUG into
-> __isolate_lru_pages directly.
->
-> If we can do it, we can remove unnecessary PageUnevictable check in
-> __isolate_lru_page.
->
-> I am not sure this is right in case of memcg.
->
-> --
-> Kinds regards,
-> Minchan Kim
->
+I have an old patch flying around that changed the physical ra code to
+use a bitmap that is able to represent holes.  If the increased time
+is waiting for IO, I would be interested if that patch has the same
+negative impact.
 
+	Hannes
 
-
---=20
-Kinds regards,
-Minchan Kim
+>   before       after
+>     0.02        0.01    N xeyes
+>     0.76        0.89    N firefox
+>     1.88        2.21    N nautilus
+>     3.17        3.41    N nautilus --browser
+>     4.89        5.20    N gthumb
+>     6.47        7.02    N gedit
+>     8.16        8.90    N xpdf /usr/share/doc/shared-mime-info/shared-mime-info-spec.pdf
+>    12.55       13.36    N xterm
+>    14.57       15.57    N mlterm
+>    17.06       18.11    N gnome-terminal
+>    18.90       20.37    N urxvt
+>    23.48       25.26    N gnome-system-monitor
+>    26.52       27.84    N gnome-help
+>    29.65       31.93    N gnome-dictionary
+>    36.12       37.74    N /usr/games/sol
+>    39.27       40.61    N /usr/games/gnometris
+>    42.56       43.75    N /usr/games/gnect
+>    47.03       47.85    N /usr/games/gtali
+>    52.05       52.31    N /usr/games/iagno
+>    55.42       55.61    N /usr/games/gnotravex
+>    61.47       61.38    N /usr/games/mahjongg
+>    67.11       65.07    N /usr/games/gnome-sudoku
+>    75.15       70.36    N /usr/games/glines
+>    79.70       74.96    N /usr/games/glchess
+>    88.48       80.82    N /usr/games/gnomine
+>    96.51       88.30    N /usr/games/gnotski
+>   102.19       94.26    N /usr/games/gnibbles
+>   114.93      102.02    N /usr/games/gnobots2
+>   125.02      115.23    N /usr/games/blackjack
+>   135.11      128.41    N /usr/games/same-gnome
+>   154.50      153.05    N /usr/bin/gnome-window-properties
+>   162.09      169.53    N /usr/bin/gnome-default-applications-properties
+>   173.29      190.32    N /usr/bin/gnome-at-properties
+>   188.21      212.70    N /usr/bin/gnome-typing-monitor
+>   199.93      236.18    N /usr/bin/gnome-at-visual
+>   206.95      261.88    N /usr/bin/gnome-sound-properties
+>   224.49      304.66    N /usr/bin/gnome-at-mobility
+>   234.11      336.73    N /usr/bin/gnome-keybinding-properties
+>   248.59      374.03    N /usr/bin/gnome-about-me
+>   276.27      433.86    N /usr/bin/gnome-display-properties
+>   304.39      488.43    N /usr/bin/gnome-network-preferences
+>   342.01      686.68    N /usr/bin/gnome-mouse-properties
+>   388.58      769.21    N /usr/bin/gnome-appearance-properties
+>   508.47      933.35    N /usr/bin/gnome-control-center
+>   587.57     1193.27    N /usr/bin/gnome-keyboard-properties
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
