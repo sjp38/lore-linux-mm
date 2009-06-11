@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2B2CF6B004D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 01:31:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5B5Wso5015673
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D591B6B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 03:55:24 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5B7v8fp026809
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Jun 2009 14:32:54 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DCD645DE55
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 14:32:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2712845DE51
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 14:32:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EDB3E1DB8040
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 14:32:53 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A1F331DB803F
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 14:32:53 +0900 (JST)
-Date: Thu, 11 Jun 2009 14:31:22 +0900
+	Thu, 11 Jun 2009 16:57:08 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F346A45DD81
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 16:57:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C449145DD7D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 16:57:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 912B21DB8047
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 16:57:07 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 268B41DB8040
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 16:57:07 +0900 (JST)
+Date: Thu, 11 Jun 2009 16:55:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch v3] swap: virtual swap readahead
-Message-Id: <20090611143122.108468f1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090609190128.GA1785@cmpxchg.org>
-References: <20090609190128.GA1785@cmpxchg.org>
+Subject: [PATCH 0/3] misc fix around vmscan/isolate_lru_pages
+Message-Id: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.org.uk>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, minchan.kim@gmail.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jun 2009 21:01:28 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
-> [resend with lists cc'd, sorry]
-> 
-> +static int swap_readahead_ptes(struct mm_struct *mm,
-> +			unsigned long addr, pmd_t *pmd,
-> +			swp_entry_t *entries,
-> +			unsigned long cluster)
-> +{
-> +	unsigned long window, min, max, limit;
-> +	spinlock_t *ptl;
-> +	pte_t *ptep;
-> +	int i, nr;
-> +
-> +	window = cluster << PAGE_SHIFT;
-> +	min = addr & ~(window - 1);
-> +	max = min + cluster;
 
-Johannes, I wonder there is no reason to use "alignment".
-I think we just need to read "nearby" pages. Then, this function's
-scan range should be
+Thank you for all helps. I finally wrote 3 small pathces.
 
-	[addr - window/2, addr + window/2)
-or some.
+All 3 patches are for vmscan.c::isolate_lru_pages().
 
-And here, too
-> +	if (!entries)	/* XXX: shmem case */
-> +		return swapin_readahead_phys(entry, gfp_mask, vma, addr);
-> +	pmin = swp_offset(entry) & ~(cluster - 1);
-> +	pmax = pmin + cluster;
+[1/3] ... remove unnecessary/wrong lru rotation in lumpy reclaim.
+[2/3] ... check PG_unevictable at lumpy reclaim
+[3/3] ... fix memcg's lru rotation logic.
 
-pmin = swp_offset(entry) - cluster/2.
-pmax = swp_offset(entry) + cluster/2.
-
-I'm sorry if I miss a reason for using "alignment".
+All 3 are just for fixes and don't do any other.
+I'll revisit this area while working for memcg.
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
