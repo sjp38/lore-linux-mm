@@ -1,76 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C44C16B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 04:01:54 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5B81rFs029109
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Jun 2009 17:01:54 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C1D3545DE51
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:01:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F15545DD79
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:01:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 868F81DB8038
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:01:53 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A862F1DB8054
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:01:49 +0900 (JST)
-Date: Thu, 11 Jun 2009 17:00:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/3] remove wrong rotation at lumpy reclaim
-Message-Id: <20090611170018.c3758488.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D8A5E6B005C
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 04:01:56 -0400 (EDT)
+Date: Thu, 11 Jun 2009 09:01:37 +0100
+From: Andy Whitcroft <apw@canonical.com>
+Subject: Re: [PATCH 1/2] lumpy reclaim: clean up and write lumpy reclaim
+Message-ID: <20090611080137.GD28011@shadowen.org>
+References: <20090610142443.9370aff8.kamezawa.hiroyu@jp.fujitsu.com> <20090610095140.GB25943@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090610095140.GB25943@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, minchan.kim@gmail.com, mel@csn.ul.ie
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Jun 10, 2009 at 10:51:40AM +0100, Mel Gorman wrote:
+> On Wed, Jun 10, 2009 at 02:24:43PM +0900, KAMEZAWA Hiroyuki wrote:
+> > I think lumpy reclaim should be updated to meet to current split-lru.
+> > This patch includes bugfix and cleanup. How do you think ?
+> > 
+> 
+> I think it needs to be split up into its component parts. This patch is
+> changing too much and it's very difficult to consider each change in
+> isolation.
 
-At lumpy reclaim, a page failed to be taken by __isolate_lru_page() can
-be pushed back to "src" list by list_move(). But the page may not be from
-"src" list. And list_move() itself is unnecessary because the page is
-not on top of LRU. Then, leave it as it is if __isolate_lru_page() fails.
+I can only echo Mels comments here.  It is very hard to review such a
+large patch which mostly is fixing a very small change.  This code is
+pretty fragile and would need significant testing, I don't know if Mel
+is able to run the same tests we used when putting this together in the
+first place.
 
-This patch doesn't change the logic as "we should exit loop or not" and
-just fixes buggy list_move().
+By the looks of the rest of the thread Kame-san is going to break this
+up so I'll wait for that.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |    9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+Thanks!
 
-Index: lumpy-reclaim-trial/mm/vmscan.c
-===================================================================
---- lumpy-reclaim-trial.orig/mm/vmscan.c
-+++ lumpy-reclaim-trial/mm/vmscan.c
-@@ -936,18 +936,11 @@ static unsigned long isolate_lru_pages(u
- 			/* Check that we have not crossed a zone boundary. */
- 			if (unlikely(page_zone_id(cursor_page) != zone_id))
- 				continue;
--			switch (__isolate_lru_page(cursor_page, mode, file)) {
--			case 0:
-+			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
- 				list_move(&cursor_page->lru, dst);
- 				nr_taken++;
- 				scan++;
- 				break;
--
--			case -EBUSY:
--				/* else it is being freed elsewhere */
--				list_move(&cursor_page->lru, src);
--			default:
--				break;	/* ! on LRU or wrong list */
- 			}
- 		}
- 	}
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
