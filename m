@@ -1,182 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 15B8B6B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:48:39 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5BBo9us005328
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 11 Jun 2009 20:50:09 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41C8145DD7A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:50:09 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 05BE545DD74
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:50:09 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D1E521DB801F
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:50:08 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B8D5B1DB8016
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:50:07 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH for mmotm 2/5]
-In-Reply-To: <20090611111341.GE7302@csn.ul.ie>
-References: <20090611192600.6D50.A69D9226@jp.fujitsu.com> <20090611111341.GE7302@csn.ul.ie>
-Message-Id: <20090611204208.6D6B.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0944F6B005A
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:57:40 -0400 (EDT)
+Received: by yxe6 with SMTP id 6so14184yxe.12
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2009 04:59:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 11 Jun 2009 20:50:06 +0900 (JST)
+In-Reply-To: <9d4a7c0691aa5e13247f694f2dfe55ad.squirrel@webmail-b.css.fujitsu.com>
+References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090611172249.6D3C.A69D9226@jp.fujitsu.com>
+	 <20090611173819.0f76e431.kamezawa.hiroyu@jp.fujitsu.com>
+	 <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
+	 <9d4a7c0691aa5e13247f694f2dfe55ad.squirrel@webmail-b.css.fujitsu.com>
+Date: Thu, 11 Jun 2009 20:59:28 +0900
+Message-ID: <28c262360906110459s923d7a6p4e555344e8bbd265@mail.gmail.com>
+Subject: Re: [PATCH 2/3] check unevictable flag in lumy reclaim v2
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, mel@csn.ul.ie, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, Jun 11, 2009 at 07:26:48PM +0900, KOSAKI Motohiro wrote:
-> > Changes since Wu's original patch
-> >   - adding vmstat
-> >   - rename NR_TMPFS_MAPPED to NR_SWAP_BACKED_FILE_MAPPED
-> > 
-> > 
-> > ----------------------
-> > Subject: [PATCH] introduce NR_SWAP_BACKED_FILE_MAPPED zone stat
-> 
-> This got lost in the actual subject line.
-> 
-> > Desirable zone reclaim implementaion want to know the number of
-> > file-backed and unmapped pages.
-> > 
-> 
-> There needs to be more justification for this. We need an example
-> failure case that this addresses. For example, Patch 1 of my series was
-> to address the following problem included with the patchset leader
-> 
-> "The reported problem was that malloc() stalled for a long time (minutes
-> in some cases) if a large tmpfs mount was occupying a large percentage of
-> memory overall. The pages did not get cleaned or reclaimed by zone_reclaim()
-> because the zone_reclaim_mode was unsuitable, but the lists are uselessly
-> scanned frequencly making the CPU spin at near 100%."
-> 
-> We should have a similar case.
-> 
-> What "desirable" zone_reclaim() should be spelled out as well. Minimally
-> something like
-> 
-> "For zone_reclaim() to be efficient, it must be able to detect in advance
-> if the LRU scan will reclaim the necessary pages with the limitations of
-> the current zone_reclaim_mode. Otherwise, the CPU usage is increases as
-> zone_reclaim() uselessly scans the LRU list.
-> 
-> The problem with the heuristic is ....
-> 
-> This patch fixes the heuristic by ...."
-> 
-> etc?
-> 
-> I'm not trying to be awkward. I believe I provided similar reasoning
-> with my own patchset.
+2009/6/11 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> Minchan Kim =E3=81=95=E3=82=93 wrote:
+>> On Thu, Jun 11, 2009 at 5:38 PM, KAMEZAWA
+>> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>> How about this ?
+>>>
+>>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>>
+>>> Lumpy reclaim check pages from their pfn. Then, it can find unevictable
+>>> pages
+>>> in its loop.
+>>> Abort lumpy reclaim when we find Unevictable page, we never get a lump
+>>> of pages for requested order.
+>>>
+>>> Changelog: v1->v2
+>>> ?- rewrote commet.
+>>>
+>>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> ---
+>>> ?mm/vmscan.c | ? ?9 +++++++++
+>>> ?1 file changed, 9 insertions(+)
+>>>
+>>> Index: lumpy-reclaim-trial/mm/vmscan.c
+>>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>>> --- lumpy-reclaim-trial.orig/mm/vmscan.c
+>>> +++ lumpy-reclaim-trial/mm/vmscan.c
+>>> @@ -936,6 +936,15 @@ static unsigned long isolate_lru_pages(u
+>>> ? ? ? ? ? ? ? ? ? ? ? ?/* Check that we have not crossed a zone
+>>> boundary. */
+>>> ? ? ? ? ? ? ? ? ? ? ? ?if (unlikely(page_zone_id(cursor_page) !=3D
+>>> zone_id))
+>>> ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?continue;
+>>> + ? ? ? ? ? ? ? ? ? ? ? /*
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?* We tries to free all pages in this range to
+>>> create
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?* a free large page. Then, if the range
+>>> includes a page
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?* never be reclaimed, we have no reason to do
+>>> more.
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?* PageUnevictable page is not a page which can
+>>> be
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?* easily freed. Abort this scan now.
+>>> + ? ? ? ? ? ? ? ? ? ? ? ?*/
+>>> + ? ? ? ? ? ? ? ? ? ? ? if (unlikely(PageUnevictable(cursor_page)))
+>>> + ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? break;
+>>
+>> __isolate_lru_pages already checked PageUnevictable to return error.
+>> I want to remove repeated check although it is trivial.
+>>
+>> By your patch, It seems to remove PageUnevictable check in
+>> __isolate_lru_pages.
+>>
+> yes.
+>
+>> But I know that. If we remove PageUnevictable check in
+>> __isolate_lru_pages, it can't go into BUG in non-lumpy case. ( I
+>> mentioned following as code)
+>>
+> In non-lumpy case, we'll never see Unevictable, maybe.
 
-You are right. my intention is not actual issue, it only fix
-documentation lie.
+I think so if it doesn't happen RAM failure.
+AFAIK, Unevictable check didn't related with RAM failure.
 
-Documentation/sysctl/vm.txt says
-=============================================================
+>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 case -EBUSY:
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 /* else it is being freed elsewhere */
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 list_move(&page->lru, src);
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 continue;
+>>
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 default:
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 BUG();
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>>
+>>
+>> It means we can remove BUG in non-lumpy case and then add BUG into
+>> __isolate_lru_pages directly.
+>>
+>> If we can do it, we can remove unnecessary PageUnevictable check in
+>> __isolate_lru_page.
+>>
+> Hmm, but Unevicable check had tons of troubles at its implementation
+> and I don't want to do it at once.
 
-min_unmapped_ratio:
+I think it's not a big problem.
+As comment said, the check's goal is to prevent in lumpy case.
+        /*
+         * When this function is being called for lumpy reclaim, we
+         * initially look into all LRU pages, active, inactive and
+         * unevictable; only give shrink_page_list evictable pages.
+         */
+        if (PageUnevictable(page))
+                return ret;
 
-This is available only on NUMA kernels.
+So I think we can remove this check.
 
-A percentage of the total pages in each zone.  Zone reclaim will only
-occur if more than this percentage of pages are file backed and unmapped.
-This is to insure that a minimal amount of local pages is still available for
-file I/O even if the node is overallocated.
+>> I am not sure this is right in case of memcg.
+>>
+> I think we don't see Unevictable in memcg's path if my memcg-lru code
+> works as designed.
+>
+> I'll postpone this patch for a while until my brain works well.
 
-The default is 1 percent.
-==============================================================
+If you have a concern about that, how about this ?
+(This code will be hunk since gmail webserver always mangle. Pz,forgive me)
+Also, we can CC original authors.
 
-but actual code don't account "percentage of file backed and unmapped".
-Administrator can't imazine current implementation form this documentation.
-
-Plus, I don't think this patch is too messy. thus I did decide to make
-this fix.
-
-if anyone provide good documentation fix, my worry will vanish.
-
-
-
-> > Thus, we need to know number of swap-backed mapped pages for
-> > calculate above number.
-> > 
-> > 
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > ---
-> >  include/linux/mmzone.h |    2 ++
-> >  mm/rmap.c              |    7 +++++++
-> >  mm/vmstat.c            |    1 +
-> >  3 files changed, 10 insertions(+)
-> > 
-> > Index: b/include/linux/mmzone.h
-> > ===================================================================
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -88,6 +88,8 @@ enum zone_stat_item {
-> >  	NR_ANON_PAGES,	/* Mapped anonymous pages */
-> >  	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
-> >  			   only modified from process context */
-> > +	NR_SWAP_BACKED_FILE_MAPPED, /* Similar to NR_FILE_MAPPED. but
-> > +				       only account swap-backed pages */
-> >  	NR_FILE_PAGES,
-> >  	NR_FILE_DIRTY,
-> >  	NR_WRITEBACK,
-> > Index: b/mm/rmap.c
-> > ===================================================================
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -829,6 +829,10 @@ void page_add_file_rmap(struct page *pag
-> >  {
-> >  	if (atomic_inc_and_test(&page->_mapcount)) {
-> >  		__inc_zone_page_state(page, NR_FILE_MAPPED);
-> > +		if (PageSwapBacked(page))
-> > +			__inc_zone_page_state(page,
-> > +					      NR_SWAP_BACKED_FILE_MAPPED);
-> > +
-> >  		mem_cgroup_update_mapped_file_stat(page, 1);
-> >  	}
-> >  }
-> > @@ -884,6 +888,9 @@ void page_remove_rmap(struct page *page)
-> >  		__dec_zone_page_state(page, NR_ANON_PAGES);
-> >  	} else {
-> >  		__dec_zone_page_state(page, NR_FILE_MAPPED);
-> > +		if (PageSwapBacked(page))
-> > +			__dec_zone_page_state(page,
-> > +					NR_SWAP_BACKED_FILE_MAPPED);
-> >  	}
-> >  	mem_cgroup_update_mapped_file_stat(page, -1);
-> >  	/*
-> > Index: b/mm/vmstat.c
-> > ===================================================================
-> > --- a/mm/vmstat.c
-> > +++ b/mm/vmstat.c
-> > @@ -633,6 +633,7 @@ static const char * const vmstat_text[] 
-> >  	"nr_mlock",
-> >  	"nr_anon_pages",
-> >  	"nr_mapped",
-> > +	"nr_swap_backed_file_mapped",
-> >  	"nr_file_pages",
-> >  	"nr_dirty",
-> >  	"nr_writeback",
-> > 
-> 
-> Otherwise the patch seems reasonable.
-> 
-> -- 
-> Mel Gorman
-> Part-time Phd Student                          Linux Technology Center
-> University of Limerick                         IBM Dublin Software Lab
+--- a/mm/vmscan.c
+++ b/mm/vmscan.c
+@@ -936,19 +936,20 @@ static unsigned long isolate_lru_pages(unsigned
+long nr_to_scan,
+                        /* Check that we have not crossed a zone boundary. =
+*/
+                        if (unlikely(page_zone_id(cursor_page) !=3D zone_id=
+))
+                                continue;
+-                       switch (__isolate_lru_page(cursor_page, mode, file)=
+) {
+-                       case 0:
++                       if (__isolate_lru_page(cursor_page, mode, file) =3D=
+=3D 0) {
+                                list_move(&cursor_page->lru, dst);
+                                nr_taken++;
+                                scan++;
+-                               break;
+-
+-                       case -EBUSY:
+-                               /* else it is being freed elsewhere */
+-                               list_move(&cursor_page->lru, src);
+-                       default:
+-                               break;  /* ! on LRU or wrong list */
+                        }
++                       else if (PageUnevictable(cursor_page))
++                                       /*
++                                * We tries to free all pages in this
+range to create
++                                * a free large page. Then, if the
+range includes a page
++                                * never be reclaimed, we have no
+reason to do more.
++                                * PageUnevictable page is not a page
+which can be
++                                * easily freed. Abort this scan now.
++                                */
++                               break
+                }
+        }
 
 
+> Thanks,
+> -Kame
+>
+>
+
+
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
