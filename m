@@ -1,126 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 04E3E6B005D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:15:27 -0400 (EDT)
-Date: Thu, 11 Jun 2009 12:15:51 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH for mmotm 5/5] fix
-	vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
-Message-ID: <20090611111550.GF7302@csn.ul.ie>
-References: <20090611192114.6D4A.A69D9226@jp.fujitsu.com> <20090611192757.6D59.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 587C36B005D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:19:16 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5BBJmBM001808
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 11 Jun 2009 20:19:49 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 922C345DD7B
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:19:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3550445DD76
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:19:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2745A1DB8013
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:19:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 48E3A1DB8018
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 20:19:46 +0900 (JST)
+Message-ID: <9d4a7c0691aa5e13247f694f2dfe55ad.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
+References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090611172249.6D3C.A69D9226@jp.fujitsu.com>
+    <20090611173819.0f76e431.kamezawa.hiroyu@jp.fujitsu.com>
+    <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
+Date: Thu, 11 Jun 2009 20:19:45 +0900 (JST)
+Subject: Re: [PATCH 2/3] check unevictable flag in lumy reclaim v2
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090611192757.6D59.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 07:28:30PM +0900, KOSAKI Motohiro wrote:
-> Subject: [PATCH] fix vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch 
-> 
-> 
-> +	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> +				 zone_page_state(zone, NR_ACTIVE_FILE) -
-> +				 zone_page_state(zone, NR_FILE_MAPPED);
-> 
-> is wrong. it can be underflow because tmpfs pages are not counted NR_*_FILE,
-> but they are counted NR_FILE_MAPPED.
-> 
-> fixing here.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/vmscan.c |   32 ++++++++++++++++++++------------
->  1 file changed, 20 insertions(+), 12 deletions(-)
-> 
-> Index: b/mm/vmscan.c
-> ===================================================================
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2333,6 +2333,23 @@ int sysctl_min_unmapped_ratio = 1;
->   */
->  int sysctl_min_slab_ratio = 5;
->  
-> +static unsigned long zone_unmapped_file_pages(struct zone *zone)
-> +{
-> +	long nr_file_pages;
-> +	long nr_file_mapped;
-> +	long nr_unmapped_file_pages;
-> +
-> +	nr_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> +			zone_page_state(zone, NR_ACTIVE_FILE);
-> +	nr_file_mapped = zone_page_state(zone, NR_FILE_MAPPED) -
-> +			 zone_page_state(zone,
-> +					NR_SWAP_BACKED_FILE_MAPPED);
-> +	nr_unmapped_file_pages = nr_file_pages - nr_file_mapped;
-> +
-> +	return nr_unmapped_file_pages > 0 ? nr_unmapped_file_pages : 0;
-> +}
+Minchan Kim さん wrote:
+> On Thu, Jun 11, 2009 at 5:38 PM, KAMEZAWA
+> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> How about this ?
+>>
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> Lumpy reclaim check pages from their pfn. Then, it can find unevictable
+>> pages
+>> in its loop.
+>> Abort lumpy reclaim when we find Unevictable page, we never get a lump
+>> of pages for requested order.
+>>
+>> Changelog: v1->v2
+>> ?- rewrote commet.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> ---
+>> ?mm/vmscan.c | ? ?9 +++++++++
+>> ?1 file changed, 9 insertions(+)
+>>
+>> Index: lumpy-reclaim-trial/mm/vmscan.c
+>> ===================================================================
+>> --- lumpy-reclaim-trial.orig/mm/vmscan.c
+>> +++ lumpy-reclaim-trial/mm/vmscan.c
+>> @@ -936,6 +936,15 @@ static unsigned long isolate_lru_pages(u
+>> ? ? ? ? ? ? ? ? ? ? ? ?/* Check that we have not crossed a zone
+>> boundary. */
+>> ? ? ? ? ? ? ? ? ? ? ? ?if (unlikely(page_zone_id(cursor_page) !=
+>> zone_id))
+>> ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?continue;
+>> + ? ? ? ? ? ? ? ? ? ? ? /*
+>> + ? ? ? ? ? ? ? ? ? ? ? ?* We tries to free all pages in this range to
+>> create
+>> + ? ? ? ? ? ? ? ? ? ? ? ?* a free large page. Then, if the range
+>> includes a page
+>> + ? ? ? ? ? ? ? ? ? ? ? ?* never be reclaimed, we have no reason to do
+>> more.
+>> + ? ? ? ? ? ? ? ? ? ? ? ?* PageUnevictable page is not a page which can
+>> be
+>> + ? ? ? ? ? ? ? ? ? ? ? ?* easily freed. Abort this scan now.
+>> + ? ? ? ? ? ? ? ? ? ? ? ?*/
+>> + ? ? ? ? ? ? ? ? ? ? ? if (unlikely(PageUnevictable(cursor_page)))
+>> + ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? break;
+>
+> __isolate_lru_pages already checked PageUnevictable to return error.
+> I want to remove repeated check although it is trivial.
+>
+> By your patch, It seems to remove PageUnevictable check in
+> __isolate_lru_pages.
+>
+yes.
 
-This is a more accurate calculation for sure. The question is - is it
-necessary?
+> But I know that. If we remove PageUnevictable check in
+> __isolate_lru_pages, it can't go into BUG in non-lumpy case. ( I
+> mentioned following as code)
+>
+In non-lumpy case, we'll never see Unevictable, maybe.
 
-> +
-> +
->  /*
->   * Try to free up some pages from this zone through reclaim.
->   */
-> @@ -2355,7 +2372,6 @@ static int __zone_reclaim(struct zone *z
->  		.isolate_pages = isolate_pages_global,
->  	};
->  	unsigned long slab_reclaimable;
-> -	long nr_unmapped_file_pages;
->  
->  	disable_swap_token();
->  	cond_resched();
-> @@ -2368,11 +2384,7 @@ static int __zone_reclaim(struct zone *z
->  	reclaim_state.reclaimed_slab = 0;
->  	p->reclaim_state = &reclaim_state;
->  
-> -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> -				 zone_page_state(zone, NR_ACTIVE_FILE) -
-> -				 zone_page_state(zone, NR_FILE_MAPPED);
-> -
-> -	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
-> +	if (zone_unmapped_file_pages(zone) > zone->min_unmapped_pages) {
->  		/*
->  		 * Free memory by calling shrink zone with increasing
->  		 * priorities until we have enough memory freed.
-> @@ -2419,8 +2431,7 @@ int zone_reclaim(struct zone *zone, gfp_
->  {
->  	int node_id;
->  	int ret;
-> -	long nr_unmapped_file_pages;
-> -	long nr_slab_reclaimable;
-> +	unsigned long nr_slab_reclaimable;
->  
->  	/*
->  	 * Zone reclaim reclaims unmapped file backed pages and
-> @@ -2432,11 +2443,8 @@ int zone_reclaim(struct zone *zone, gfp_
->  	 * if less than a specified percentage of the zone is used by
->  	 * unmapped file backed pages.
->  	 */
-> -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> -				 zone_page_state(zone, NR_ACTIVE_FILE) -
-> -				 zone_page_state(zone, NR_FILE_MAPPED);
->  	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> -	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
-> +	if (zone_unmapped_file_pages(zone) <= zone->min_unmapped_pages &&
->  	    nr_slab_reclaimable <= zone->min_slab_pages)
->  		return 0;
->  
-> 
-> 
+>                 case -EBUSY:
+>                         /* else it is being freed elsewhere */
+>                         list_move(&page->lru, src);
+>                         continue;
+>
+>                 default:
+>                         BUG();
+>                 }
+>
+>
+> It means we can remove BUG in non-lumpy case and then add BUG into
+> __isolate_lru_pages directly.
+>
+> If we can do it, we can remove unnecessary PageUnevictable check in
+> __isolate_lru_page.
+>
+Hmm, but Unevicable check had tons of troubles at its implementation
+and I don't want to do it at once.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> I am not sure this is right in case of memcg.
+>
+I think we don't see Unevictable in memcg's path if my memcg-lru code
+works as designed.
+
+I'll postpone this patch for a while until my brain works well.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
