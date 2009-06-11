@@ -1,93 +1,34 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 5/5] HWPOISON: use the safer invalidate page for possible metadata pages
-Date: Thu, 11 Jun 2009 22:22:44 +0800
-Message-ID: <20090611144430.947740750@intel.com>
-References: <20090611142239.192891591@intel.com>
+Subject: [PATCH 0/5] [RFC] HWPOISON incremental fixes
+Date: Thu, 11 Jun 2009 22:22:39 +0800
+Message-ID: <20090611142239.192891591@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB6006B004D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:52:08 -0400 (EDT)
-Content-Disposition: inline; filename=hwpoison-skip-metadata.patch
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E5A536B0055
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:52:16 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-Id: linux-mm.kvack.org
 
-As recommended by Nick Piggin.
+Hi all,
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/linux/mm.h  |    1 +
- mm/memory-failure.c |   23 +++++++++++++----------
- mm/truncate.c       |    3 +--
- 3 files changed, 15 insertions(+), 12 deletions(-)
+Here are the hwpoison fixes that aims to address Nick and Hugh's concerns.
+Note that
+- the early kill option is dropped for .31. It's obscure option and complex
+  code and is not must have for .31. Maybe Andi also aims this option for
+  notifying KVM, but right now KVM is not ready to handle that.
+- It seems that even fsync() processes are not easy to catch, so I abandoned
+  the SIGKILL on fsync() idea. Instead, I choose to fail any attempt to
+  populate the poisoned file with new pages, so that the corrupted page offset
+  won't be repopulated with outdated data. This seems to be a safe way to allow
+  the process to continue running while still be able to promise good (but not
+  complete) data consistency.
+- I didn't implement the PANIC-on-corrupted-data option. Instead, I guess
+  sending uevent notification to user space will be a more flexible scheme?
 
---- sound-2.6.orig/mm/memory-failure.c
-+++ sound-2.6/mm/memory-failure.c
-@@ -113,6 +113,10 @@ static int me_pagecache_clean(struct pag
- 	if (!isolate_lru_page(p))
- 		page_cache_release(p);
- 
-+	mapping = page_mapping(p);
-+	if (mapping == NULL)
-+		return RECOVERED;
-+
- 	/*
- 	 * Now truncate the page in the page cache. This is really
- 	 * more like a "temporary hole punch"
-@@ -120,20 +124,19 @@ static int me_pagecache_clean(struct pag
- 	 * has a reference, because it could be file system metadata
- 	 * and that's not safe to truncate.
- 	 */
--	mapping = page_mapping(p);
--	if (mapping && S_ISBLK(mapping->host->i_mode) && page_count(p) > 1) {
-+	if (!S_ISREG(mapping->host->i_mode) &&
-+	    !invalidate_complete_page(mapping, p)) {
- 		printk(KERN_ERR
--		       "MCE %#lx: page looks like a unsupported file system metadata page\n",
-+		       "MCE %#lx: failed to invalidate metadata page\n",
- 		       pfn);
- 		return FAILED;
- 	}
--	if (mapping) {
--		truncate_inode_page(mapping, p);
--		if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO)) {
--			pr_debug(KERN_ERR "MCE %#lx: failed to release buffers\n",
--				 pfn);
--			return FAILED;
--		}
-+
-+	truncate_inode_page(mapping, p);
-+	if (page_has_private(p) && !try_to_release_page(p, GFP_NOIO)) {
-+		pr_debug(KERN_ERR "MCE %#lx: failed to release buffers\n",
-+			 pfn);
-+		return FAILED;
- 	}
- 	return RECOVERED;
- }
---- sound-2.6.orig/include/linux/mm.h
-+++ sound-2.6/include/linux/mm.h
-@@ -817,6 +817,7 @@ extern int vmtruncate(struct inode * ino
- extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
- 
- void truncate_inode_page(struct address_space *mapping, struct page *page);
-+int invalidate_complete_page(struct address_space *mapping, struct page *page);
- 
- #ifdef CONFIG_MMU
- extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
---- sound-2.6.orig/mm/truncate.c
-+++ sound-2.6/mm/truncate.c
-@@ -118,8 +118,7 @@ truncate_complete_page(struct address_sp
-  *
-  * Returns non-zero if the page was successfully invalidated.
-  */
--static int
--invalidate_complete_page(struct address_space *mapping, struct page *page)
-+int invalidate_complete_page(struct address_space *mapping, struct page *page)
- {
- 	int ret;
- 
-
+Thanks,
+Fengguang
 -- 
 
 --
