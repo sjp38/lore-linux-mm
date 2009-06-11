@@ -1,127 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A25836B004D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:02:00 -0400 (EDT)
-Date: Thu, 11 Jun 2009 12:01:54 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 580066B005A
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 07:13:22 -0400 (EDT)
+Date: Thu, 11 Jun 2009 12:13:42 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH for mmotm 1/5] cleanp page_remove_rmap()
-Message-ID: <20090611110154.GD7302@csn.ul.ie>
-References: <20090611192114.6D4A.A69D9226@jp.fujitsu.com> <20090611192514.6D4D.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH for mmotm 2/5]
+Message-ID: <20090611111341.GE7302@csn.ul.ie>
+References: <20090611192114.6D4A.A69D9226@jp.fujitsu.com> <20090611192600.6D50.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090611192514.6D4D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090611192600.6D50.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 07:26:04PM +0900, KOSAKI Motohiro wrote:
-> Subject: [PATCH] cleanp page_remove_rmap()
-> 
-> page_remove_rmap() has multiple PageAnon() test and it has
-> a bit deeply nesting.
-> 
-> cleanup here.
-> 
-> note: this patch doesn't have behavior change.
+On Thu, Jun 11, 2009 at 07:26:48PM +0900, KOSAKI Motohiro wrote:
+> Changes since Wu's original patch
+>   - adding vmstat
+>   - rename NR_TMPFS_MAPPED to NR_SWAP_BACKED_FILE_MAPPED
 > 
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ----------------------
+> Subject: [PATCH] introduce NR_SWAP_BACKED_FILE_MAPPED zone stat
+
+This got lost in the actual subject line.
+
+> Desirable zone reclaim implementaion want to know the number of
+> file-backed and unmapped pages.
+> 
+
+There needs to be more justification for this. We need an example
+failure case that this addresses. For example, Patch 1 of my series was
+to address the following problem included with the patchset leader
+
+"The reported problem was that malloc() stalled for a long time (minutes
+in some cases) if a large tmpfs mount was occupying a large percentage of
+memory overall. The pages did not get cleaned or reclaimed by zone_reclaim()
+because the zone_reclaim_mode was unsuitable, but the lists are uselessly
+scanned frequencly making the CPU spin at near 100%."
+
+We should have a similar case.
+
+What "desirable" zone_reclaim() should be spelled out as well. Minimally
+something like
+
+"For zone_reclaim() to be efficient, it must be able to detect in advance
+if the LRU scan will reclaim the necessary pages with the limitations of
+the current zone_reclaim_mode. Otherwise, the CPU usage is increases as
+zone_reclaim() uselessly scans the LRU list.
+
+The problem with the heuristic is ....
+
+This patch fixes the heuristic by ...."
+
+etc?
+
+I'm not trying to be awkward. I believe I provided similar reasoning
+with my own patchset.
+
+> Thus, we need to know number of swap-backed mapped pages for
+> calculate above number.
+> 
+> 
 > Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Wu Fengguang <fengguang.wu@intel.com> 
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > ---
->  mm/rmap.c |   59 ++++++++++++++++++++++++++++++++---------------------------
->  1 file changed, 32 insertions(+), 27 deletions(-)
+>  include/linux/mmzone.h |    2 ++
+>  mm/rmap.c              |    7 +++++++
+>  mm/vmstat.c            |    1 +
+>  3 files changed, 10 insertions(+)
 > 
+> Index: b/include/linux/mmzone.h
+> ===================================================================
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -88,6 +88,8 @@ enum zone_stat_item {
+>  	NR_ANON_PAGES,	/* Mapped anonymous pages */
+>  	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+>  			   only modified from process context */
+> +	NR_SWAP_BACKED_FILE_MAPPED, /* Similar to NR_FILE_MAPPED. but
+> +				       only account swap-backed pages */
+>  	NR_FILE_PAGES,
+>  	NR_FILE_DIRTY,
+>  	NR_WRITEBACK,
 > Index: b/mm/rmap.c
 > ===================================================================
 > --- a/mm/rmap.c
 > +++ b/mm/rmap.c
-> @@ -862,34 +862,39 @@ void page_dup_rmap(struct page *page, st
->   */
->  void page_remove_rmap(struct page *page)
+> @@ -829,6 +829,10 @@ void page_add_file_rmap(struct page *pag
 >  {
-> -	if (atomic_add_negative(-1, &page->_mapcount)) {
-> -		/*
-> -		 * Now that the last pte has gone, s390 must transfer dirty
-> -		 * flag from storage key to struct page.  We can usually skip
-> -		 * this if the page is anon, so about to be freed; but perhaps
-> -		 * not if it's in swapcache - there might be another pte slot
-> -		 * containing the swap entry, but page not yet written to swap.
-> -		 */
-> -		if ((!PageAnon(page) || PageSwapCache(page)) &&
-> -		    page_test_dirty(page)) {
-> -			page_clear_dirty(page);
-> -			set_page_dirty(page);
-> -		}
-> -		if (PageAnon(page))
-> -			mem_cgroup_uncharge_page(page);
-> -		__dec_zone_page_state(page,
-> -			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
-> -		mem_cgroup_update_mapped_file_stat(page, -1);
-> -		/*
-> -		 * It would be tidy to reset the PageAnon mapping here,
-> -		 * but that might overwrite a racing page_add_anon_rmap
-> -		 * which increments mapcount after us but sets mapping
-> -		 * before us: so leave the reset to free_hot_cold_page,
-> -		 * and remember that it's only reliable while mapped.
-> -		 * Leaving it set also helps swapoff to reinstate ptes
-> -		 * faster for those pages still in swapcache.
-> -		 */
-> +	if (!atomic_add_negative(-1, &page->_mapcount)) {
-> +		/* the page is still mapped another one */
-> +		return;
->  	}
+>  	if (atomic_inc_and_test(&page->_mapcount)) {
+>  		__inc_zone_page_state(page, NR_FILE_MAPPED);
+> +		if (PageSwapBacked(page))
+> +			__inc_zone_page_state(page,
+> +					      NR_SWAP_BACKED_FILE_MAPPED);
 > +
-> +	/*
-> +	 * Now that the last pte has gone, s390 must transfer dirty
-> +	 * flag from storage key to struct page.  We can usually skip
-> +	 * this if the page is anon, so about to be freed; but perhaps
-> +	 * not if it's in swapcache - there might be another pte slot
-> +	 * containing the swap entry, but page not yet written to swap.
-> +	 */
-> +	if ((!PageAnon(page) || PageSwapCache(page)) &&
-> +		page_test_dirty(page)) {
-> +		page_clear_dirty(page);
-> +		set_page_dirty(page);
-> +	}
-
-Pure nitpick. It looks like page_test_dirty() can merge with the line
-above it now. Then the condition won't be at the same indentation as the
-statements.
-
-
-> +	if (PageAnon(page)) {
-> +		mem_cgroup_uncharge_page(page);
-> +		__dec_zone_page_state(page, NR_ANON_PAGES);
-> +	} else {
-> +		__dec_zone_page_state(page, NR_FILE_MAPPED);
-> +	}
-
-Ok, first actual change and it looks functionally equivalent and avoids a
-second PageAnon test. I suspect it fractionally increases text size but as
-PageAnon is an atomic bit opreation, we want to avoid calling that twice too.
-
-> +	mem_cgroup_update_mapped_file_stat(page, -1);
-> +	/*
-> +	 * It would be tidy to reset the PageAnon mapping here,
-> +	 * but that might overwrite a racing page_add_anon_rmap
-> +	 * which increments mapcount after us but sets mapping
-> +	 * before us: so leave the reset to free_hot_cold_page,
-> +	 * and remember that it's only reliable while mapped.
-> +	 * Leaving it set also helps swapoff to reinstate ptes
-> +	 * faster for those pages still in swapcache.
-> +	 */
+>  		mem_cgroup_update_mapped_file_stat(page, 1);
+>  	}
 >  }
->  
+> @@ -884,6 +888,9 @@ void page_remove_rmap(struct page *page)
+>  		__dec_zone_page_state(page, NR_ANON_PAGES);
+>  	} else {
+>  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> +		if (PageSwapBacked(page))
+> +			__dec_zone_page_state(page,
+> +					NR_SWAP_BACKED_FILE_MAPPED);
+>  	}
+>  	mem_cgroup_update_mapped_file_stat(page, -1);
+>  	/*
+> Index: b/mm/vmstat.c
+> ===================================================================
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -633,6 +633,7 @@ static const char * const vmstat_text[] 
+>  	"nr_mlock",
+>  	"nr_anon_pages",
+>  	"nr_mapped",
+> +	"nr_swap_backed_file_mapped",
+>  	"nr_file_pages",
+>  	"nr_dirty",
+>  	"nr_writeback",
+> 
 
-Ok, patch looks good to me. I'm not seeing what it has to do with the
-zone_reclaim() problem though so you might want to send it separate from
-the set for clarity.
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Otherwise the patch seems reasonable.
 
 -- 
 Mel Gorman
