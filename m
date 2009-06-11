@@ -1,53 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 85A606B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 11:06:56 -0400 (EDT)
-Date: Thu, 11 Jun 2009 16:07:04 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] check unevictable flag in lumy reclaim
-Message-ID: <20090611150703.GI7302@csn.ul.ie>
-References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com> <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AF75C6B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 11:43:25 -0400 (EDT)
+Message-ID: <4A312660.7080103@redhat.com>
+Date: Thu, 11 Jun 2009 11:44:32 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature
+ is disabled
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com>
+In-Reply-To: <20090611144430.414445947@intel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, minchan.kim@gmail.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 05:01:52PM +0900, KAMEZAWA Hiroyuki wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Wu Fengguang wrote:
+> So as to eliminate one #ifdef in the c source.
 > 
-> Lumpy reclaim scans pages from their pfn. Then, it can find unevictable pages
-> in its loop. Abort lumpy reclaim when we find Unevictable page, we never get a
-> block of pages for requested order.
+> Proposed by Nick Piggin.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Nick Piggin <npiggin@suse.de>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
-> ---
-> Index: lumpy-reclaim-trial/mm/vmscan.c
-> ===================================================================
-> --- lumpy-reclaim-trial.orig/mm/vmscan.c
-> +++ lumpy-reclaim-trial/mm/vmscan.c
-> @@ -936,6 +936,9 @@ static unsigned long isolate_lru_pages(u
->  			/* Check that we have not crossed a zone boundary. */
->  			if (unlikely(page_zone_id(cursor_page) != zone_id))
->  				continue;
-> +			/* Abort when the page is mlocked */
-> +			if (unlikely(PageUnevictable(cursor_page)))
-> +				break;
->  			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
->  				list_move(&cursor_page->lru, dst);
->  				nr_taken++;
-> 
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
