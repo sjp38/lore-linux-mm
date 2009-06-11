@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D8A5E6B005C
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 04:01:56 -0400 (EDT)
-Date: Thu, 11 Jun 2009 09:01:37 +0100
-From: Andy Whitcroft <apw@canonical.com>
-Subject: Re: [PATCH 1/2] lumpy reclaim: clean up and write lumpy reclaim
-Message-ID: <20090611080137.GD28011@shadowen.org>
-References: <20090610142443.9370aff8.kamezawa.hiroyu@jp.fujitsu.com> <20090610095140.GB25943@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090610095140.GB25943@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BE6C76B005C
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 04:03:40 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5B83hRU015683
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 11 Jun 2009 17:03:43 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 515B545DE55
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:03:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 283BA45DD79
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:03:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F7781DB803A
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:03:43 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BB32D1DB803B
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 17:03:42 +0900 (JST)
+Date: Thu, 11 Jun 2009 17:01:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/3] check unevictable flag in lumy reclaim
+Message-Id: <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com, minchan.kim@gmail.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, minchan.kim@gmail.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 10, 2009 at 10:51:40AM +0100, Mel Gorman wrote:
-> On Wed, Jun 10, 2009 at 02:24:43PM +0900, KAMEZAWA Hiroyuki wrote:
-> > I think lumpy reclaim should be updated to meet to current split-lru.
-> > This patch includes bugfix and cleanup. How do you think ?
-> > 
-> 
-> I think it needs to be split up into its component parts. This patch is
-> changing too much and it's very difficult to consider each change in
-> isolation.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I can only echo Mels comments here.  It is very hard to review such a
-large patch which mostly is fixing a very small change.  This code is
-pretty fragile and would need significant testing, I don't know if Mel
-is able to run the same tests we used when putting this together in the
-first place.
+Lumpy reclaim scans pages from their pfn. Then, it can find unevictable pages
+in its loop. Abort lumpy reclaim when we find Unevictable page, we never get a
+block of pages for requested order.
 
-By the looks of the rest of the thread Kame-san is going to break this
-up so I'll wait for that.
-
-Thanks!
-
--apw
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+Index: lumpy-reclaim-trial/mm/vmscan.c
+===================================================================
+--- lumpy-reclaim-trial.orig/mm/vmscan.c
++++ lumpy-reclaim-trial/mm/vmscan.c
+@@ -936,6 +936,9 @@ static unsigned long isolate_lru_pages(u
+ 			/* Check that we have not crossed a zone boundary. */
+ 			if (unlikely(page_zone_id(cursor_page) != zone_id))
+ 				continue;
++			/* Abort when the page is mlocked */
++			if (unlikely(PageUnevictable(cursor_page)))
++				break;
+ 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+ 				list_move(&cursor_page->lru, dst);
+ 				nr_taken++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
