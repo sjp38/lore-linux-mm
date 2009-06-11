@@ -1,170 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F25746B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 08:17:52 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5BCINbH026131
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 11 Jun 2009 21:18:24 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CB85745DE4F
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:18:23 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A425D45DE4C
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:18:23 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F42C1DB805A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:18:23 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 45CCA1DB8038
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:18:23 +0900 (JST)
-Message-ID: <d3a71da3a374d278e5fb0b1f2cdff71e.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <28c262360906110459s923d7a6p4e555344e8bbd265@mail.gmail.com>
-References: <20090611165535.cf46bf29.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090611170152.7a43b13b.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090611172249.6D3C.A69D9226@jp.fujitsu.com>
-    <20090611173819.0f76e431.kamezawa.hiroyu@jp.fujitsu.com>
-    <28c262360906110237u1f3d1877hae54a51575955549@mail.gmail.com>
-    <9d4a7c0691aa5e13247f694f2dfe55ad.squirrel@webmail-b.css.fujitsu.com>
-    <28c262360906110459s923d7a6p4e555344e8bbd265@mail.gmail.com>
-Date: Thu, 11 Jun 2009 21:18:22 +0900 (JST)
-Subject: Re: [PATCH 2/3] check unevictable flag in lumy reclaim v2
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AD3326B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 09:47:35 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 114A982C3BD
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:04:42 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 8VgX0t4IoWz2 for <linux-mm@kvack.org>;
+	Thu, 11 Jun 2009 10:04:42 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id A769B82C450
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:04:33 -0400 (EDT)
+Date: Thu, 11 Jun 2009 09:48:53 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/3] Do not unconditionally treat zones that fail
+ zone_reclaim() as full
+In-Reply-To: <1244717273-15176-3-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0906110948080.29827@gentwo.org>
+References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie> <1244717273-15176-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, apw@canonical.com, riel@redhat.com, mel@csn.ul.ie, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim wrote:
-> 2009/6/11 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
->> Minchan Kim さん wrote:
->>> On Thu, Jun 11, 2009 at 5:38 PM, KAMEZAWA
->>> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>>> How about this ?
->>>>
->>>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>>>
->>>> Lumpy reclaim check pages from their pfn. Then, it can find
->>>> unevictable
->>>> pages
->>>> in its loop.
->>>> Abort lumpy reclaim when we find Unevictable page, we never get a lump
->>>> of pages for requested order.
->>>>
->>>> Changelog: v1->v2
->>>> ?- rewrote commet.
->>>>
->>>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>>> ---
->>>> ?mm/vmscan.c | ? ?9 +++++++++
->>>> ?1 file changed, 9 insertions(+)
->>>>
->>>> Index: lumpy-reclaim-trial/mm/vmscan.c
->>>> ===================================================================
->>>> --- lumpy-reclaim-trial.orig/mm/vmscan.c
->>>> +++ lumpy-reclaim-trial/mm/vmscan.c
->>>> @@ -936,6 +936,15 @@ static unsigned long isolate_lru_pages(u
->>>> ? ? ? ? ? ? ? ? ? ? ? ?/* Check that we have not crossed a zone
->>>> boundary. */
->>>> ? ? ? ? ? ? ? ? ? ? ? ?if (unlikely(page_zone_id(cursor_page) !=
->>>> zone_id))
->>>> ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?continue;
->>>> + ? ? ? ? ? ? ? ? ? ? ? /*
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?* We tries to free all pages in this range to
->>>> create
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?* a free large page. Then, if the range
->>>> includes a page
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?* never be reclaimed, we have no reason to do
->>>> more.
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?* PageUnevictable page is not a page which
->>>> can
->>>> be
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?* easily freed. Abort this scan now.
->>>> + ? ? ? ? ? ? ? ? ? ? ? ?*/
->>>> + ? ? ? ? ? ? ? ? ? ? ? if (unlikely(PageUnevictable(cursor_page)))
->>>> + ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? break;
->>>
->>> __isolate_lru_pages already checked PageUnevictable to return error.
->>> I want to remove repeated check although it is trivial.
->>>
->>> By your patch, It seems to remove PageUnevictable check in
->>> __isolate_lru_pages.
->>>
->> yes.
->>
->>> But I know that. If we remove PageUnevictable check in
->>> __isolate_lru_pages, it can't go into BUG in non-lumpy case. ( I
->>> mentioned following as code)
->>>
->> In non-lumpy case, we'll never see Unevictable, maybe.
->
-> I think so if it doesn't happen RAM failure.
-> AFAIK, Unevictable check didn't related with RAM failure.
->
->>
->>> ? ? ? ? ? ? ? ? case -EBUSY:
->>> ? ? ? ? ? ? ? ? ? ? ? ? /* else it is being freed elsewhere */
->>> ? ? ? ? ? ? ? ? ? ? ? ? list_move(&page->lru, src);
->>> ? ? ? ? ? ? ? ? ? ? ? ? continue;
->>>
->>> ? ? ? ? ? ? ? ? default:
->>> ? ? ? ? ? ? ? ? ? ? ? ? BUG();
->>> ? ? ? ? ? ? ? ? }
->>>
->>>
->>> It means we can remove BUG in non-lumpy case and then add BUG into
->>> __isolate_lru_pages directly.
->>>
->>> If we can do it, we can remove unnecessary PageUnevictable check in
->>> __isolate_lru_page.
->>>
->> Hmm, but Unevicable check had tons of troubles at its implementation
->> and I don't want to do it at once.
->
-> I think it's not a big problem.
-> As comment said, the check's goal is to prevent in lumpy case.
->         /*
->          * When this function is being called for lumpy reclaim, we
->          * initially look into all LRU pages, active, inactive and
->          * unevictable; only give shrink_page_list evictable pages.
->          */
->         if (PageUnevictable(page))
->                 return ret;
->
-> So I think we can remove this check.
->
-agreed.
+It needs to be mentioned that this fixes a bug introduced in 2.6.19.
+Possibly a portion of this code needs to be backported to stable.
 
->>> I am not sure this is right in case of memcg.
->>>
->> I think we don't see Unevictable in memcg's path if my memcg-lru code
->> works as designed.
->>
->> I'll postpone this patch for a while until my brain works well.
->
-> If you have a concern about that, how about this ?
-> (This code will be hunk since gmail webserver always mangle. Pz,forgive
-> me)
-> Also, we can CC original authors.
->
-I'll schedule this optimization/clean up for unevictable case in queue.
-Thank you for inputs.
+On Thu, 11 Jun 2009, Mel Gorman wrote:
 
-But it's now merge-window, I'd like to push bugfix first.(1/3 and 3/3)
-I'd like to scheule Unevictable case fix after rc1(when mmotm stack seems
-to be pushed out to Linus.)
-And I'll add
-int __isolate_lru_page(...)
-{
-     VM_BUG_ON(PageUnevictable(page));
-}
-as sanity check for mmotm test time.
-
-Thank you for all your help.
--Kame
+> On NUMA machines, the administrator can configure zone_reclaim_mode that
+> is a more targetted form of direct reclaim. On machines with large NUMA
+> distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+> unmapped pages will be reclaimed if the zone watermarks are not being
+> met. The problem is that zone_reclaim() failing at all means the zone
+> gets marked full.
+>
+> This can cause situations where a zone is usable, but is being skipped
+> because it has been considered full. Take a situation where a large tmpfs
+> mount is occuping a large percentage of memory overall. The pages do not
+> get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
+> and the zonelist cache considers them not worth trying in the future.
+>
+> This patch makes zone_reclaim() return more fine-grained information about
+> what occured when zone_reclaim() failued. The zone only gets marked full if
+> it really is unreclaimable. If it's a case that the scan did not occur or
+> if enough pages were not reclaimed with the limited reclaim_mode, then the
+> zone is simply skipped.
+>
+> There is a side-effect to this patch. Currently, if zone_reclaim()
+> successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
+> go ahead. With this patch applied, zone watermarks are rechecked after
+> zone_reclaim() does some work.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/internal.h   |    4 ++++
+>  mm/page_alloc.c |   26 ++++++++++++++++++++++----
+>  mm/vmscan.c     |   11 ++++++-----
+>  3 files changed, 32 insertions(+), 9 deletions(-)
+>
+> diff --git a/mm/internal.h b/mm/internal.h
+> index f02c750..f290c4d 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -259,4 +259,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		     unsigned long start, int len, int flags,
+>  		     struct page **pages, struct vm_area_struct **vmas);
+>
+> +#define ZONE_RECLAIM_NOSCAN	-2
+> +#define ZONE_RECLAIM_FULL	-1
+> +#define ZONE_RECLAIM_SOME	0
+> +#define ZONE_RECLAIM_SUCCESS	1
+>  #endif
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d35e753..667ffbb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1477,15 +1477,33 @@ zonelist_scan:
+>  		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+>  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+>  			unsigned long mark;
+> +			int ret;
+> +
+>  			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+> -			if (!zone_watermark_ok(zone, order, mark,
+> -				    classzone_idx, alloc_flags)) {
+> -				if (!zone_reclaim_mode ||
+> -				    !zone_reclaim(zone, gfp_mask, order))
+> +			if (zone_watermark_ok(zone, order, mark,
+> +				    classzone_idx, alloc_flags))
+> +				goto try_this_zone;
+> +
+> +			if (zone_reclaim_mode == 0)
+> +				goto this_zone_full;
+> +
+> +			ret = zone_reclaim(zone, gfp_mask, order);
+> +			switch (ret) {
+> +			case ZONE_RECLAIM_NOSCAN:
+> +				/* did not scan */
+> +				goto try_next_zone;
+> +			case ZONE_RECLAIM_FULL:
+> +				/* scanned but unreclaimable */
+> +				goto this_zone_full;
+> +			default:
+> +				/* did we reclaim enough */
+> +				if (!zone_watermark_ok(zone, order, mark,
+> +						classzone_idx, alloc_flags))
+>  					goto this_zone_full;
+>  			}
+>  		}
+>
+> +try_this_zone:
+>  		page = buffered_rmqueue(preferred_zone, zone, order,
+>  						gfp_mask, migratetype);
+>  		if (page)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d832ba8..7b8eb3f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2465,16 +2465,16 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	 */
+>  	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
+>  	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
+> -		return 0;
+> +		return ZONE_RECLAIM_FULL;
+>
+>  	if (zone_is_all_unreclaimable(zone))
+> -		return 0;
+> +		return ZONE_RECLAIM_FULL;
+>
+>  	/*
+>  	 * Do not scan if the allocation should not be delayed.
+>  	 */
+>  	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
+> -			return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+>
+>  	/*
+>  	 * Only run zone reclaim on the local zone or on zones that do not
+> @@ -2484,10 +2484,11 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  	 */
+>  	node_id = zone_to_nid(zone);
+>  	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
+> -		return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+>
+>  	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
+> -		return 0;
+> +		return ZONE_RECLAIM_NOSCAN;
+> +
+>  	ret = __zone_reclaim(zone, gfp_mask, order);
+>  	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
