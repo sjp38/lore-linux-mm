@@ -1,63 +1,67 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 2/5] HWPOISON: fix tasklist_lock/anon_vma locking order
-Date: Thu, 11 Jun 2009 22:22:41 +0800
-Message-ID: <20090611144430.540500784@intel.com>
+Subject: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
+Date: Thu, 11 Jun 2009 22:22:40 +0800
+Message-ID: <20090611144430.414445947@intel.com>
 References: <20090611142239.192891591@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1EF3D6B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:52:17 -0400 (EDT)
-Content-Disposition: inline; filename=hwpoison-lock-order.patch
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1E2CE6B005A
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 10:52:53 -0400 (EDT)
+Content-Disposition: inline; filename=hwpoison-remove-ifdef.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-To avoid possible deadlock. Proposed by Nick Piggin:
+So as to eliminate one #ifdef in the c source.
 
-  You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
-  lock. And anon_vma lock nests inside i_mmap_lock.
-
-  This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
-  type (maybe -rt kernels do it), then you could have a task holding
-  anon_vma lock and waiting for tasklist_lock, and another holding tasklist
-  lock and waiting for i_mmap_lock, and another holding i_mmap_lock and
-  waiting for anon_vma lock.
+Proposed by Nick Piggin.
 
 CC: Nick Piggin <npiggin@suse.de>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory-failure.c |    9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ arch/x86/mm/fault.c |    3 +--
+ include/linux/mm.h  |    7 ++++++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)
 
---- sound-2.6.orig/mm/memory-failure.c
-+++ sound-2.6/mm/memory-failure.c
-@@ -215,12 +215,14 @@ static void collect_procs_anon(struct pa
- {
- 	struct vm_area_struct *vma;
- 	struct task_struct *tsk;
--	struct anon_vma *av = page_lock_anon_vma(page);
-+	struct anon_vma *av;
+--- sound-2.6.orig/arch/x86/mm/fault.c
++++ sound-2.6/arch/x86/mm/fault.c
+@@ -819,14 +819,13 @@ do_sigbus(struct pt_regs *regs, unsigned
+ 	tsk->thread.error_code	= error_code;
+ 	tsk->thread.trap_no	= 14;
  
-+	read_lock(&tasklist_lock);
-+
-+	av = page_lock_anon_vma(page);
- 	if (av == NULL) /* Not actually mapped anymore */
--		return;
-+		goto out;
- 
--	read_lock(&tasklist_lock);
- 	for_each_process (tsk) {
- 		if (!tsk->mm)
- 			continue;
-@@ -230,6 +232,7 @@ static void collect_procs_anon(struct pa
- 		}
+-#ifdef CONFIG_MEMORY_FAILURE
+ 	if (fault & VM_FAULT_HWPOISON) {
+ 		printk(KERN_ERR
+ 	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
+ 			tsk->comm, tsk->pid, address);
+ 		code = BUS_MCEERR_AR;
  	}
- 	page_unlock_anon_vma(av);
-+out:
- 	read_unlock(&tasklist_lock);
+-#endif
++
+ 	force_sig_info_fault(SIGBUS, code, address, tsk);
  }
  
+--- sound-2.6.orig/include/linux/mm.h
++++ sound-2.6/include/linux/mm.h
+@@ -702,11 +702,16 @@ static inline int page_mapped(struct pag
+ #define VM_FAULT_SIGBUS	0x0002
+ #define VM_FAULT_MAJOR	0x0004
+ #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
+-#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
+ 
+ #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+ #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
++#else
++#define VM_FAULT_HWPOISON 0
++#endif
++
+ #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
+ 
+ /*
 
 -- 
 
