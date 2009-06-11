@@ -1,147 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AD55C6B0087
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:46:31 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/3] Do not unconditionally treat zones that fail zone_reclaim() as full
-Date: Thu, 11 Jun 2009 11:47:52 +0100
-Message-Id: <1244717273-15176-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
-References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C346B0085
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:47:34 -0400 (EDT)
+Date: Thu, 11 Jun 2009 12:45:51 +0200
+From: Jesper Nilsson <Jesper.Nilsson@axis.com>
+Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
+Message-ID: <20090611104550.GQ20504@axis.com>
+References: <1243846708-805-1-git-send-email-tj@kernel.org> <1243846708-805-4-git-send-email-tj@kernel.org> <20090601.024006.98975069.davem@davemloft.net> <4A23BD20.5030500@kernel.org> <1243919336.5308.32.camel@pasglop> <4A289E3A.30000@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A289E3A.30000@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, "JBeulich@novell.com" <JBeulich@novell.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "rth@twiddle.net" <rth@twiddle.net>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "hskinnemoen@atmel.com" <hskinnemoen@atmel.com>, "cooloney@kernel.org" <cooloney@kernel.org>, Mikael Starvik <mikael.starvik@axis.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "ysato@users.sourceforge.jp" <ysato@users.sourceforge.jp>, "tony.luck@intel.com" <tony.luck@intel.com>, "takata@linux-m32r.org" <takata@linux-m32r.org>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "monstr@monstr.eu" <monstr@monstr.eu>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "kyle@mcmartin.ca" <kyle@mcmartin.ca>, "paulus@samba.org" <paulus@samba.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "lethal@linux-sh.org" <lethal@linux-sh.org>, "jdike@addtoit.com" <jdike@addtoit.com>, "chris@zankel.net" <chris@zankel.net>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>, "davej@redhat.com" <davej@redhat.com>, "jeremy@xensource.com" <jeremy@xensource.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On NUMA machines, the administrator can configure zone_reclaim_mode that
-is a more targetted form of direct reclaim. On machines with large NUMA
-distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-unmapped pages will be reclaimed if the zone watermarks are not being
-met. The problem is that zone_reclaim() failing at all means the zone
-gets marked full.
+On Fri, Jun 05, 2009 at 06:25:30AM +0200, Tejun Heo wrote:
+> Benjamin Herrenschmidt wrote:
+> > On Mon, 2009-06-01 at 20:36 +0900, Tejun Heo wrote:
+> >>> Whether the volatile is actually needed or not, it's bad to have this
+> >>> kind of potential behavior changing nugget hidden in this seemingly
+> >>> inocuous change.  Especially if you're the poor soul who ends up
+> >>> having to debug it :-/
+> >> You're right.  Aieee... how do I feed volatile to the DEFINE macro.
+> >> I'll think of something.
+> > 
+> > Or better, work with the cris maintainer to figure out whether it's
+> > needed (it probably isn't) and have a pre-requisite patch that removes
+> > it before your series :-)
+> 
+> Yeap, that's worth giving a shot.
+> 
+> Mikael Starvik, can you please enlighten us why volatile is necessary
+> there?
 
-This can cause situations where a zone is usable, but is being skipped
-because it has been considered full. Take a situation where a large tmpfs
-mount is occuping a large percentage of memory overall. The pages do not
-get cleaned or reclaimed by zone_reclaim(), but the zone gets marked full
-and the zonelist cache considers them not worth trying in the future.
+I've talked with Mikael, and we both agreed that this was probably
+a legacy from earlier versions, and the volatile is no longer needed.
 
-This patch makes zone_reclaim() return more fine-grained information about
-what occured when zone_reclaim() failued. The zone only gets marked full if
-it really is unreclaimable. If it's a case that the scan did not occur or
-if enough pages were not reclaimed with the limited reclaim_mode, then the
-zone is simply skipped.
+Confirmed by booting and running some video-streaming on an ARTPEC-3
+(CRISv32) board.
 
-There is a side-effect to this patch. Currently, if zone_reclaim()
-successfully reclaimed SWAP_CLUSTER_MAX, an allocation attempt would
-go ahead. With this patch applied, zone watermarks are rechecked after
-zone_reclaim() does some work.
+You can take the following patch as a pre-requisite, or go the way of
+the original patch.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+From: Jesper Nilsson <jesper.nilsson@axis.com>
+Subject: [PATCH] CRIS: Change DEFINE_PER_CPU of current_pgd to be non volatile.
+
+The DEFINE_PER_CPU of current_pgd was on CRIS defined using volatile,
+which is not needed. Remove volatile.
+
+Signed-off-by: Jesper Nilsson <jesper.nilsson@axis.com>
 ---
- mm/internal.h   |    4 ++++
- mm/page_alloc.c |   26 ++++++++++++++++++++++----
- mm/vmscan.c     |   11 ++++++-----
- 3 files changed, 32 insertions(+), 9 deletions(-)
+ arch/cris/include/asm/mmu_context.h |    3 ++-
+ arch/cris/mm/fault.c                |    2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index f02c750..f290c4d 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -259,4 +259,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		     unsigned long start, int len, int flags,
- 		     struct page **pages, struct vm_area_struct **vmas);
+diff --git a/arch/cris/include/asm/mmu_context.h b/arch/cris/include/asm/mmu_context.h
+index 72ba08d..476cd9e 100644
+--- a/arch/cris/include/asm/mmu_context.h
++++ b/arch/cris/include/asm/mmu_context.h
+@@ -17,7 +17,8 @@ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+  * registers like cr3 on the i386
+  */
  
-+#define ZONE_RECLAIM_NOSCAN	-2
-+#define ZONE_RECLAIM_FULL	-1
-+#define ZONE_RECLAIM_SOME	0
-+#define ZONE_RECLAIM_SUCCESS	1
- #endif
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d35e753..667ffbb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1477,15 +1477,33 @@ zonelist_scan:
- 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
- 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
- 			unsigned long mark;
-+			int ret;
-+
- 			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
--			if (!zone_watermark_ok(zone, order, mark,
--				    classzone_idx, alloc_flags)) {
--				if (!zone_reclaim_mode ||
--				    !zone_reclaim(zone, gfp_mask, order))
-+			if (zone_watermark_ok(zone, order, mark,
-+				    classzone_idx, alloc_flags))
-+				goto try_this_zone;
-+
-+			if (zone_reclaim_mode == 0)
-+				goto this_zone_full;
-+
-+			ret = zone_reclaim(zone, gfp_mask, order);
-+			switch (ret) {
-+			case ZONE_RECLAIM_NOSCAN:
-+				/* did not scan */
-+				goto try_next_zone;
-+			case ZONE_RECLAIM_FULL:
-+				/* scanned but unreclaimable */
-+				goto this_zone_full;
-+			default:
-+				/* did we reclaim enough */
-+				if (!zone_watermark_ok(zone, order, mark,
-+						classzone_idx, alloc_flags))
- 					goto this_zone_full;
- 			}
- 		}
+-extern volatile DEFINE_PER_CPU(pgd_t *,current_pgd); /* defined in arch/cris/mm/fault.c */
++/* defined in arch/cris/mm/fault.c */
++extern DEFINE_PER_CPU(pgd_t *, current_pgd);
  
-+try_this_zone:
- 		page = buffered_rmqueue(preferred_zone, zone, order,
- 						gfp_mask, migratetype);
- 		if (page)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d832ba8..7b8eb3f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2465,16 +2465,16 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 */
- 	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
- 	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
--		return 0;
-+		return ZONE_RECLAIM_FULL;
+ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+ {
+diff --git a/arch/cris/mm/fault.c b/arch/cris/mm/fault.c
+index c4c76db..84d22ae 100644
+--- a/arch/cris/mm/fault.c
++++ b/arch/cris/mm/fault.c
+@@ -29,7 +29,7 @@ extern void die_if_kernel(const char *, struct pt_regs *, long);
  
- 	if (zone_is_all_unreclaimable(zone))
--		return 0;
-+		return ZONE_RECLAIM_FULL;
+ /* current active page directory */
  
- 	/*
- 	 * Do not scan if the allocation should not be delayed.
- 	 */
- 	if (!(gfp_mask & __GFP_WAIT) || (current->flags & PF_MEMALLOC))
--			return 0;
-+		return ZONE_RECLAIM_NOSCAN;
+-volatile DEFINE_PER_CPU(pgd_t *,current_pgd);
++DEFINE_PER_CPU(pgd_t *, current_pgd);
+ unsigned long cris_signal_return_page;
  
- 	/*
- 	 * Only run zone reclaim on the local zone or on zones that do not
-@@ -2484,10 +2484,11 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 */
- 	node_id = zone_to_nid(zone);
- 	if (node_state(node_id, N_CPU) && node_id != numa_node_id())
--		return 0;
-+		return ZONE_RECLAIM_NOSCAN;
- 
- 	if (zone_test_and_set_flag(zone, ZONE_RECLAIM_LOCKED))
--		return 0;
-+		return ZONE_RECLAIM_NOSCAN;
-+
- 	ret = __zone_reclaim(zone, gfp_mask, order);
- 	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
- 
+ /*
 -- 
-1.5.6.5
+1.6.1
+
+> Thanks.
+> 
+> -- 
+> tejun
+
+/^JN - Jesper Nilsson
+-- 
+               Jesper Nilsson -- jesper.nilsson@axis.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
