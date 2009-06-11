@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AF75C6B004D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 11:43:25 -0400 (EDT)
-Message-ID: <4A312660.7080103@redhat.com>
-Date: Thu, 11 Jun 2009 11:44:32 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 536226B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 11:57:53 -0400 (EDT)
+Message-ID: <4A3129E3.3010309@redhat.com>
+Date: Thu, 11 Jun 2009 11:59:31 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature
- is disabled
-References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com>
-In-Reply-To: <20090611144430.414445947@intel.com>
+Subject: Re: [PATCH 2/5] HWPOISON: fix tasklist_lock/anon_vma locking order
+References: <20090611142239.192891591@intel.com> <20090611144430.540500784@intel.com>
+In-Reply-To: <20090611144430.540500784@intel.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,9 +17,16 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.or
 List-ID: <linux-mm.kvack.org>
 
 Wu Fengguang wrote:
-> So as to eliminate one #ifdef in the c source.
+> To avoid possible deadlock. Proposed by Nick Piggin:
 > 
-> Proposed by Nick Piggin.
+>   You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
+>   lock. And anon_vma lock nests inside i_mmap_lock.
+> 
+>   This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
+>   type (maybe -rt kernels do it), then you could have a task holding
+>   anon_vma lock and waiting for tasklist_lock, and another holding tasklist
+>   lock and waiting for i_mmap_lock, and another holding i_mmap_lock and
+>   waiting for anon_vma lock.
 > 
 > CC: Nick Piggin <npiggin@suse.de>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
