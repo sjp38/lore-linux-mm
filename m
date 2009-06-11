@@ -1,78 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 179726B0082
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F30A6B007E
 	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:46:30 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring behaviour more in line with expectations V3
-Date: Thu, 11 Jun 2009 11:47:50 +0100
-Message-Id: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 3/3] Count the number of times zone_reclaim() scans and fails
+Date: Thu, 11 Jun 2009 11:47:53 +0100
+Message-Id: <1244717273-15176-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
+References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-The big change with this release is that the patch reintroducing
-zone_reclaim_interval has been dropped as Ram reports the malloc() stalls
-have been resolved. If this bug occurs again, the counter will be there to
-help us identify the situation.
+On NUMA machines, the administrator can configure zone_reclaim_mode that
+is a more targetted form of direct reclaim. On machines with large NUMA
+distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
+unmapped pages will be reclaimed if the zone watermarks are not being met.
 
-Changelog since V2
-  o Add reviews/acks
-  o Take advantage of Kosaki's work on the estimate of tmpfs pages
-  o Watch for underflow with Kosaki's calculation
-  o Drop the zone_reclaim_interval patch again after Ram reported that the
-    scan-avoidance-heuristic works for the malloc() test case
+There is a heuristic that determines if the scan is worthwhile but it is
+possible that the heuristic will fail and the CPU gets tied up scanning
+uselessly. Detecting the situation requires some guesswork and experimentation
+so this patch adds a counter "zreclaim_failed" to /proc/vmstat. If during
+high CPU utilisation this counter is increasing rapidly, then the resolution
+to the problem may be to set /proc/sys/vm/zone_reclaim_mode to 0.
 
-Changelog since V1
-  o Rebase to mmotm
-  o Add various acks
-  o Documentation and patch leader fixes
-  o Use Kosaki's method for calculating the number of unmapped pages
-  o Consider the zone full in more situations than all pages being unreclaimable
-  o Add a counter to detect when scan-avoidance heuristics are failing
-  o Handle jiffie wraps for zone_reclaim_interval
-  o Move zone_reclaim_interval to the end of the set with the view to dropping
-    it. If Kosaki's calculation is accurate, then the problem being dealt with
-    should also be addressed
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/vmstat.h |    3 +++
+ mm/vmscan.c            |    3 +++
+ mm/vmstat.c            |    3 +++
+ 3 files changed, 9 insertions(+), 0 deletions(-)
 
-A bug was brought to my attention against a distro kernel but it affects
-mainline and I believe problems like this have been reported in various guises
-on the mailing lists although I don't have specific examples at the moment.
-
-The reported problem was that malloc() stalled for a long time (minutes
-in some cases) if a large tmpfs mount was occupying a large percentage of
-memory overall. The pages did not get cleaned or reclaimed by zone_reclaim()
-because the zone_reclaim_mode was unsuitable, but the lists are uselessly
-scanned frequencly making the CPU spin at near 100%.
-
-This patchset intends to address that bug and bring the behaviour of
-zone_reclaim() more in line with expectations which were noticed during
-investigation. It is based on top of mmotm and takes advantage of Kosaki's
-work with respect to zone_reclaim().
-
-Patch 1 fixes the heuristics that zone_reclaim() uses to determine if the
-	scan should go ahead. The broken heuristic is what was causing the
-	malloc() stall as it uselessly scanned the LRU constantly. Currently,
-	zone_reclaim is assuming zone_reclaim_mode is 1 and historically it
-	could not deal with tmpfs pages at all. This fixes up the heuristic so
-	that an unnecessary scan is more likely to be correctly avoided.
-
-Patch 2 notes that zone_reclaim() returning a failure automatically means
-	the zone is marked full. This is not always true. It could have
-	failed because the GFP mask or zone_reclaim_mode were unsuitable.
-
-Patch 3 introduces a counter zreclaim_failed that will increment each
-	time the zone_reclaim scan-avoidance heuristics fail. If that
-	counter is rapidly increasing, then zone_reclaim_mode should be
-	set to 0 as a temporarily resolution and a bug reported because
-	the scan-avoidance heuristic is still broken.
-
- include/linux/vmstat.h |    3 ++
- mm/internal.h          |    4 +++
- mm/page_alloc.c        |   26 +++++++++++++++---
- mm/vmscan.c            |   69 ++++++++++++++++++++++++++++++++++-------------
- mm/vmstat.c            |    3 ++
- 5 files changed, 82 insertions(+), 23 deletions(-)
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index ff4696c..416f748 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -36,6 +36,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		FOR_ALL_ZONES(PGSTEAL),
+ 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
+ 		FOR_ALL_ZONES(PGSCAN_DIRECT),
++#ifdef CONFIG_NUMA
++		PGSCAN_ZONERECLAIM_FAILED,
++#endif
+ 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
+ #ifdef CONFIG_HUGETLB_PAGE
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7b8eb3f..42c1013 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2492,6 +2492,9 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	ret = __zone_reclaim(zone, gfp_mask, order);
+ 	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
+ 
++	if (!ret)
++		count_vm_event(PGSCAN_ZONERECLAIM_FAILED);
++
+ 	return ret;
+ }
+ #endif
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1e3aa81..02677d1 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -673,6 +673,9 @@ static const char * const vmstat_text[] = {
+ 	TEXTS_FOR_ZONES("pgscan_kswapd")
+ 	TEXTS_FOR_ZONES("pgscan_direct")
+ 
++#ifdef CONFIG_NUMA
++	"zreclaim_failed",
++#endif
+ 	"pginodesteal",
+ 	"slabs_scanned",
+ 	"kswapd_steal",
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
