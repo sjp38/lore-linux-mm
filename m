@@ -1,153 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 881E96B005D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:46:29 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 179726B0082
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 06:46:30 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/3] Properly account for the number of page cache pages zone_reclaim() can reclaim
-Date: Thu, 11 Jun 2009 11:47:51 +0100
-Message-Id: <1244717273-15176-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
-References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring behaviour more in line with expectations V3
+Date: Thu, 11 Jun 2009 11:47:50 +0100
+Message-Id: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On NUMA machines, the administrator can configure zone_reclaim_mode that
-is a more targetted form of direct reclaim. On machines with large NUMA
-distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-unmapped pages will be reclaimed if the zone watermarks are not being met.
+The big change with this release is that the patch reintroducing
+zone_reclaim_interval has been dropped as Ram reports the malloc() stalls
+have been resolved. If this bug occurs again, the counter will be there to
+help us identify the situation.
 
-There is a heuristic that determines if the scan is worthwhile but the problem
-is that the heuristic is not being properly applied and is basically assuming
-zone_reclaim_mode is 1 if it is enabled. The lack of proper detection can
-manfiest as high CPU usage as the LRU list is scanned uselessly.
+Changelog since V2
+  o Add reviews/acks
+  o Take advantage of Kosaki's work on the estimate of tmpfs pages
+  o Watch for underflow with Kosaki's calculation
+  o Drop the zone_reclaim_interval patch again after Ram reported that the
+    scan-avoidance-heuristic works for the malloc() test case
 
-Historically, once enabled it was depending on NR_FILE_PAGES which may
-include swapcache pages that the reclaim_mode cannot deal with.  Patch
-vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
-Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
-pages that were not file-backed such as swapcache and made a calculation
-based on the inactive, active and mapped files. This is far superior
-when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
-reasonable starting figure.
+Changelog since V1
+  o Rebase to mmotm
+  o Add various acks
+  o Documentation and patch leader fixes
+  o Use Kosaki's method for calculating the number of unmapped pages
+  o Consider the zone full in more situations than all pages being unreclaimable
+  o Add a counter to detect when scan-avoidance heuristics are failing
+  o Handle jiffie wraps for zone_reclaim_interval
+  o Move zone_reclaim_interval to the end of the set with the view to dropping
+    it. If Kosaki's calculation is accurate, then the problem being dealt with
+    should also be addressed
 
-This patch alters how zone_reclaim() works out how many pages it might be
-able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
-in the reclaim_mode it will either consider NR_FILE_PAGES as potential
-candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
-swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
-then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
-not set, then NR_FILE_MAPPED are not.
+A bug was brought to my attention against a distro kernel but it affects
+mainline and I believe problems like this have been reported in various guises
+on the mailing lists although I don't have specific examples at the moment.
 
-[mmotm note: This patch should be merged with or replace
-vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.  Kosaki?]
+The reported problem was that malloc() stalled for a long time (minutes
+in some cases) if a large tmpfs mount was occupying a large percentage of
+memory overall. The pages did not get cleaned or reclaimed by zone_reclaim()
+because the zone_reclaim_mode was unsuitable, but the lists are uselessly
+scanned frequencly making the CPU spin at near 100%.
 
-[kosaki.motohiro@jp.fujitsu.com: Estimate unmapped pages minus tmpfs pages]
-[fengguang.wu@intel.com: Fix underflow problem in Kosaki's estimate]
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Christoph Lameter <cl@linux-foundation.org>
----
- mm/vmscan.c |   55 +++++++++++++++++++++++++++++++++++++++++--------------
- 1 files changed, 41 insertions(+), 14 deletions(-)
+This patchset intends to address that bug and bring the behaviour of
+zone_reclaim() more in line with expectations which were noticed during
+investigation. It is based on top of mmotm and takes advantage of Kosaki's
+work with respect to zone_reclaim().
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2ddcfc8..d832ba8 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2333,6 +2333,44 @@ int sysctl_min_unmapped_ratio = 1;
-  */
- int sysctl_min_slab_ratio = 5;
- 
-+static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
-+{
-+	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-+	unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE) +
-+		zone_page_state(zone, NR_ACTIVE_FILE);
-+
-+	/*
-+	 * It's possible for there to be more file mapped pages than
-+	 * accounted for by the pages on the file LRU lists because
-+	 * tmpfs pages accounted for as ANON can also be FILE_MAPPED
-+	 */
-+	return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
-+}
-+
-+/* Work out how many page cache pages we can reclaim in this reclaim_mode */
-+static long zone_pagecache_reclaimable(struct zone *zone)
-+{
-+	long nr_pagecache_reclaimable;
-+	long delta = 0;
-+
-+	/*
-+	 * If RECLAIM_SWAP is set, then all file pages are considered
-+	 * potentially reclaimable. Otherwise, we have to worry about
-+	 * pages like swapcache and zone_unmapped_file_pages() provides
-+	 * a better estimate
-+	 */
-+	if (zone_reclaim_mode & RECLAIM_SWAP)
-+		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
-+	else
-+		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
-+
-+	/* If we can't clean pages, remove dirty pages from consideration */
-+	if (!(zone_reclaim_mode & RECLAIM_WRITE))
-+		delta += zone_page_state(zone, NR_FILE_DIRTY);
-+
-+	return nr_pagecache_reclaimable;
-+}
-+
- /*
-  * Try to free up some pages from this zone through reclaim.
-  */
-@@ -2355,7 +2393,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		.isolate_pages = isolate_pages_global,
- 	};
- 	unsigned long slab_reclaimable;
--	long nr_unmapped_file_pages;
- 
- 	disable_swap_token();
- 	cond_resched();
-@@ -2368,11 +2405,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
--				 zone_page_state(zone, NR_ACTIVE_FILE) -
--				 zone_page_state(zone, NR_FILE_MAPPED);
--
--	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
-+	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
- 		/*
- 		 * Free memory by calling shrink zone with increasing
- 		 * priorities until we have enough memory freed.
-@@ -2419,8 +2452,6 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- {
- 	int node_id;
- 	int ret;
--	long nr_unmapped_file_pages;
--	long nr_slab_reclaimable;
- 
- 	/*
- 	 * Zone reclaim reclaims unmapped file backed pages and
-@@ -2432,12 +2463,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 * if less than a specified percentage of the zone is used by
- 	 * unmapped file backed pages.
- 	 */
--	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
--				 zone_page_state(zone, NR_ACTIVE_FILE) -
--				 zone_page_state(zone, NR_FILE_MAPPED);
--	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
--	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
--	    nr_slab_reclaimable <= zone->min_slab_pages)
-+	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
-+	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
- 		return 0;
- 
- 	if (zone_is_all_unreclaimable(zone))
--- 
-1.5.6.5
+Patch 1 fixes the heuristics that zone_reclaim() uses to determine if the
+	scan should go ahead. The broken heuristic is what was causing the
+	malloc() stall as it uselessly scanned the LRU constantly. Currently,
+	zone_reclaim is assuming zone_reclaim_mode is 1 and historically it
+	could not deal with tmpfs pages at all. This fixes up the heuristic so
+	that an unnecessary scan is more likely to be correctly avoided.
+
+Patch 2 notes that zone_reclaim() returning a failure automatically means
+	the zone is marked full. This is not always true. It could have
+	failed because the GFP mask or zone_reclaim_mode were unsuitable.
+
+Patch 3 introduces a counter zreclaim_failed that will increment each
+	time the zone_reclaim scan-avoidance heuristics fail. If that
+	counter is rapidly increasing, then zone_reclaim_mode should be
+	set to 0 as a temporarily resolution and a bug reported because
+	the scan-avoidance heuristic is still broken.
+
+ include/linux/vmstat.h |    3 ++
+ mm/internal.h          |    4 +++
+ mm/page_alloc.c        |   26 +++++++++++++++---
+ mm/vmscan.c            |   69 ++++++++++++++++++++++++++++++++++-------------
+ mm/vmstat.c            |    3 ++
+ 5 files changed, 82 insertions(+), 23 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
