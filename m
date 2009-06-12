@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ACCED6B005A
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:04:14 -0400 (EDT)
-Subject: Re: slab: setup allocators earlier in the boot sequence
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1244815370.7172.169.camel@pasglop>
-References: <200906111959.n5BJxFj9021205@hera.kernel.org>
-	 <1244770230.7172.4.camel@pasglop>  <1244779009.7172.52.camel@pasglop>
-	 <1244780756.7172.58.camel@pasglop> <1244783235.7172.61.camel@pasglop>
-	 <Pine.LNX.4.64.0906120913460.26843@melkki.cs.Helsinki.FI>
-	 <1244792079.7172.74.camel@pasglop>
-	 <1244792745.30512.13.camel@penberg-laptop>
-	 <1244796045.7172.82.camel@pasglop>
-	 <1244796211.30512.32.camel@penberg-laptop>
-	 <1244796837.7172.95.camel@pasglop>
-	 <1244797659.30512.37.camel@penberg-laptop>
-	 <alpine.DEB.1.10.0906120944540.15809@gentwo.org>
-	 <1244814852.30512.67.camel@penberg-laptop>
-	 <1244815370.7172.169.camel@pasglop>
-Date: Fri, 12 Jun 2009 17:04:17 +0300
-Message-Id: <1244815457.30512.68.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F41956B005C
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:04:53 -0400 (EDT)
+Date: Fri, 12 Jun 2009 22:04:26 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] HWPOISON: fix tasklist_lock/anon_vma locking order
+Message-ID: <20090612140426.GA8481@localhost>
+References: <20090611142239.192891591@intel.com> <20090611144430.540500784@intel.com> <20090612100308.GD25568@one.firstfloor.org> <20090612132714.GB6751@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090612132714.GB6751@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mingo@elte.hu, akpm@linux-foundation.org, npiggin@suse.de
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Ben,
-
-On Sat, 2009-06-13 at 00:02 +1000, Benjamin Herrenschmidt wrote:
-> On Fri, 2009-06-12 at 16:54 +0300, Pekka Enberg wrote:
-> > Hi Christoph,
+On Fri, Jun 12, 2009 at 09:27:14PM +0800, Wu Fengguang wrote:
+> On Fri, Jun 12, 2009 at 06:03:08PM +0800, Andi Kleen wrote:
+> > On Thu, Jun 11, 2009 at 10:22:41PM +0800, Wu Fengguang wrote:
+> > > To avoid possible deadlock. Proposed by Nick Piggin:
 > > 
-> > On Fri, 2009-06-12 at 09:49 -0400, Christoph Lameter wrote:
-> > > Best thing to do is to recognize the fact that we are still in early boot
-> > > in the allocators. Derived allocators (such as slab and vmalloc) mask bits
-> > > using GFP_RECLAIM_MASK and when doing allocations through the page
-> > > allocator. You could make GFP_RECLAIM_MASK a variable. During boot
-> > > __GFP_WAIT would not be set in GFP_RECLAIM_MASK.
+> > I disagree with the description. There's no possible deadlock right now.
+> > It would be purely out of paranoia.
 > > 
-> > Ben's patch does something like that and I have patches that do that
-> > floating around too.
+> > > 
+> > >   You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
+> > >   lock. And anon_vma lock nests inside i_mmap_lock.
+> > > 
+> > >   This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
 > > 
-> > The problem here is that it's not enough that we make GFP_RECLAIM_MASK a
-> > variable. There are various _debugging checks_ that happen much earlier
-> > than that. We need to mask out those too which adds overhead to
-> > kmalloc() fastpath, for example.
+> > I was a bit dubious on this reasoning. If rwlocks become FIFO a lot of
+> > stuff will likely break.
+> > 
+> > >   type (maybe -rt kernels do it), then you could have a task holding
+> > 
+> > I think they tried but backed off quickly again
+> > 
+> > It's ok with a less scare-mongering description.
 > 
-> Hrm... I though I stuck my masking before the lockdep tests but maybe I
-> missed some...
+> Why not merge it into the original patch and add a simple changelog
+> line there? I tried the last 6.5 patchset and it didn't apply cleanly
+> to the latest -mm tree. And this patch was updated:
 
-Your patch is fine but what Christoph suggested is not (at least the way
-I understood it).
+Andy, please apply this patch too. It fixed a kernel panic: when
+invalid PFN is feed to the debug injection interface, action_result()
+will try to do a pfn_to_page() on it..
 
-			Pekka
+Thanks,
+Fengguang
+
+---
+ mm/memory-failure.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -439,7 +439,9 @@ void memory_failure(unsigned long pfn, i
+ 	struct page *p;
+ 
+ 	if (!pfn_valid(pfn)) {
+-		action_result(pfn, "memory outside kernel control", IGNORED);
++		printk(KERN_ERR
++		       "MCE %#lx: memory outside kernel control: Ignored\n",
++		       pfn);
+ 		return;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
