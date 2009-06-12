@@ -1,35 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 591A96B0055
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:44:02 -0400 (EDT)
-Date: Fri, 12 Jun 2009 12:45:21 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-In-Reply-To: <1244799389.7172.110.camel@pasglop>
-Message-ID: <Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8A1016B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:47:49 -0400 (EDT)
+Received: by fxm12 with SMTP id 12so94446fxm.38
+        for <linux-mm@kvack.org>; Fri, 12 Jun 2009 02:49:18 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090612091002.GA32052@elte.hu>
 References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
- <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
- <20090612091002.GA32052@elte.hu> <1244798515.7172.99.camel@pasglop>
- <84144f020906120224v5ef44637pb849fd247eab84ea@mail.gmail.com>
- <1244799389.7172.110.camel@pasglop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090612091002.GA32052@elte.hu>
+Date: Fri, 12 Jun 2009 12:49:17 +0300
+Message-ID: <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+	suspending
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, benh@kernel.crashing.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jun 2009, Benjamin Herrenschmidt wrote:
-> Take a break, take a step back, and look at the big picture. Do you
-> really want to find all the needles in the haystack or just make sure
-> you wear gloves when handling the hay ? :-)
+On Fri, Jun 12, 2009 at 12:10 PM, Ingo Molnar<mingo@elte.hu> wrote:
+>> @@ -1548,6 +1548,20 @@ new_slab:
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto load_freelist;
+>> =A0 =A0 =A0 }
+>>
+>> + =A0 =A0 /*
+>> + =A0 =A0 =A0* Lets not wait if we're booting up or suspending even if t=
+he user
+>> + =A0 =A0 =A0* asks for it.
+>> + =A0 =A0 =A0*/
+>> + =A0 =A0 if (system_state !=3D SYSTEM_RUNNING)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 gfpflags &=3D ~__GFP_WAIT;
+>
+> Hiding that bug like that is not particularly clean IMO. We should
+> not let system_state hacks spread like that.
+>
+> We emit a debug warning but dont crash, so all should be fine and
+> the culprits can then be fixed, right?
 
-Well, I would like to find the needles but I think we should do it with 
-gloves on.
+OK, lets not use system_state then and go with Ben's approach then.
+Again, neither of the patches are about "hiding buggy callers" but
+changing allocation policy wrt. gfp flags during boot (and later on
+during suspend).
 
-If everyone is happy with this version of Ben's patch, I'm going to just 
-apply it and push it to Linus.
+                                 Pekka
 
-			Pekka
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
