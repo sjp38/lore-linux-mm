@@ -1,52 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F39526B005A
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:07:29 -0400 (EDT)
-Subject: Re: slab: setup allocators earlier in the boot sequence
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1244796837.7172.95.camel@pasglop>
-References: <200906111959.n5BJxFj9021205@hera.kernel.org>
-	 <1244770230.7172.4.camel@pasglop>  <1244779009.7172.52.camel@pasglop>
-	 <1244780756.7172.58.camel@pasglop> <1244783235.7172.61.camel@pasglop>
-	 <Pine.LNX.4.64.0906120913460.26843@melkki.cs.Helsinki.FI>
-	 <1244792079.7172.74.camel@pasglop>
-	 <1244792745.30512.13.camel@penberg-laptop>
-	 <1244796045.7172.82.camel@pasglop>
-	 <1244796211.30512.32.camel@penberg-laptop>
-	 <1244796837.7172.95.camel@pasglop>
-Date: Fri, 12 Jun 2009 12:07:39 +0300
-Message-Id: <1244797659.30512.37.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B136E6B005A
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:09:54 -0400 (EDT)
+Date: Fri, 12 Jun 2009 11:10:02 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+	suspending
+Message-ID: <20090612091002.GA32052@elte.hu>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI> <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mingo@elte.hu, cl@linux-foundation.org, akpm@linux-foundation.org, npiggin@suse.de
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, benh@kernel.crashing.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Ben,
 
-On Fri, 2009-06-12 at 18:53 +1000, Benjamin Herrenschmidt wrote:
-> > Yes, you're obviously right. I overlooked the fact that arch code have
-> > their own special slab_is_available() heuristics (yikes!).
-> > 
-> > But are you happy with the two patches I posted so I can push them to
-> > Linus?
-> 
-> I won't be able to test them until tomorrow. However, I think the first
-> one becomes unnecessary with the second one applied (provided you didn't
-> miss a case), no ?
+* Pekka J Enberg <penberg@cs.helsinki.fi> wrote:
 
-OK, I am dropping the slub/slab patch from the queue for now. Here's
-what I am going to push to Linus:
+> index 3964d3c..6387c19 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1548,6 +1548,20 @@ new_slab:
+>  		goto load_freelist;
+>  	}
+>  
+> +	/*
+> +	 * Lets not wait if we're booting up or suspending even if the user
+> +	 * asks for it.
+> +	 */
+> +	if (system_state != SYSTEM_RUNNING)
+> +		gfpflags &= ~__GFP_WAIT;
 
-http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=shortlog;h=topic/slab/earlyboot
+Hiding that bug like that is not particularly clean IMO. We should 
+not let system_state hacks spread like that.
 
-So I am sending the GFP_NOWAIT conversion for boot code even though you
-didn't seem to like it (but didn't explicitly NAK) as it fixes problems
-on x86.
+We emit a debug warning but dont crash, so all should be fine and 
+the culprits can then be fixed, right?
 
-			Pekka
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
