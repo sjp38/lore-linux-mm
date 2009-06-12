@@ -1,68 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 321C76B005A
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 07:13:44 -0400 (EDT)
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090612101511.GC13607@wotan.suse.de>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090612091002.GA32052@elte.hu>
-	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
-	 <20090612100756.GA25185@elte.hu>
-	 <84144f020906120311x7c7dd628s82e3ca9a840f9890@mail.gmail.com>
-	 <20090612101511.GC13607@wotan.suse.de>
-Content-Type: text/plain
-Date: Fri, 12 Jun 2009 21:13:50 +1000
-Message-Id: <1244805230.7172.130.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A614C6B0055
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 07:22:25 -0400 (EDT)
+Date: Fri, 12 Jun 2009 13:22:58 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when
+	feature is disabled
+Message-ID: <20090612112258.GA14123@elte.hu>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090611144430.414445947@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 
-> I agree with Ingo though that exposing it as a gfp modifier is
-> not so good. I just like the implementation to mask off GFP_WAIT
-> better, and also prefer not to test system state, but have someone
-> just call into slab to tell it not to unconditionally enable
-> interrupts.
+* Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-But interrupts is just one example. GFP_NOIO is another one vs. suspend
-and resume.
+> So as to eliminate one #ifdef in the c source.
+> 
+> Proposed by Nick Piggin.
+> 
+> CC: Nick Piggin <npiggin@suse.de>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  arch/x86/mm/fault.c |    3 +--
+>  include/linux/mm.h  |    7 ++++++-
+>  2 files changed, 7 insertions(+), 3 deletions(-)
+> 
+> --- sound-2.6.orig/arch/x86/mm/fault.c
+> +++ sound-2.6/arch/x86/mm/fault.c
+> @@ -819,14 +819,13 @@ do_sigbus(struct pt_regs *regs, unsigned
+>  	tsk->thread.error_code	= error_code;
+>  	tsk->thread.trap_no	= 14;
+>  
+> -#ifdef CONFIG_MEMORY_FAILURE
+>  	if (fault & VM_FAULT_HWPOISON) {
+>  		printk(KERN_ERR
+>  	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
+>  			tsk->comm, tsk->pid, address);
+>  		code = BUS_MCEERR_AR;
+>  	}
+> -#endif
 
-What we have here is the allocator needs to be clamped down based on the
-system state. I think it will not work to try to butcher every caller,
-especially since they don't always know themselves in what state they
-are called.
+Btw., anything like this should happen in close cooperation with the 
+x86 tree, not as some pure MM feature. I dont see Cc:s and nothing 
+that indicates that realization. What's going on here?
 
-Moving the "fix" into the couple of nexuses where all the code path go
-through really seem like a better, simpler, more maintainable and more
-fool proof solution to me.
+It is not at all clear to me whether propagating hardware failures 
+this widely is desired from a general design POV. Most desktop 
+hardware wont give a damn about this (and if a hardware fault 
+happens you want to get as far from the crappy hardware as possible) 
+so i'm not sure how relevant it is and how well tested it will 
+become in practice.
 
-> Yes, with sufficient warnings in place, I don't think it should be
-> too error prone to clean up remaining code over the course of
-> a few releases.
+I.e. really some wider discussion needs to happen on this.
 
-But that will no fix all the cases. That will not fix __get_vm_area()
-being called from both boot and non-boot (and ioremap, etc..) and every
-similar thing we can have all over the place (I have some in the
-interrupt handling on powerpc, I'm sure we can find much more).
-
-I don't see what the problem is in providing simple allocator semantics
-and have the allocator itself adapt to the system state, especially when
-the code is as small as having a bit mask applied in 2 or 3 places.
-
-Cheers,
-Ben.
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
