@@ -1,82 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F186B005D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 04:13:19 -0400 (EDT)
-Date: Fri, 12 Jun 2009 11:13:40 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: [PATCH 2/2] slab,slub: ignore __GFP_WAIT if we're booting or suspending
-Message-ID: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DB566B0062
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 04:17:01 -0400 (EDT)
+Subject: Re: slab: setup allocators earlier in the boot sequence
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1244792380.7172.77.camel@pasglop>
+References: <200906111959.n5BJxFj9021205@hera.kernel.org>
+	 <1244770230.7172.4.camel@pasglop>  <1244779009.7172.52.camel@pasglop>
+	 <1244780756.7172.58.camel@pasglop> <1244783235.7172.61.camel@pasglop>
+	 <Pine.LNX.4.64.0906120913460.26843@melkki.cs.Helsinki.FI>
+	 <1244792079.7172.74.camel@pasglop>  <1244792380.7172.77.camel@pasglop>
+Date: Fri, 12 Jun 2009 11:17:28 +0300
+Message-Id: <1244794648.30512.21.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, npiggin@suse.de, benh@kernel.crashing.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Hi Ben,
 
-As explained by Benjamin Herrenschmidt:
+On Fri, 2009-06-12 at 17:39 +1000, Benjamin Herrenschmidt wrote:
+> For example, slab_is_available() didn't always exist, and so in the
+> early days on powerpc, we used a mem_init_done global that is set form
+> mem_init() (not perfect but works in practice). And we still have code
+> using that to do the test.
 
-  Oh and btw, your patch alone doesn't fix powerpc, because it's missing
-  a whole bunch of GFP_KERNEL's in the arch code... You would have to
-  grep the entire kernel for things that check slab_is_available() and
-  even then you'll be missing some.
+Looking at powerpc arch code, can we get rid of the *_maybe_bootmem()
+functions now? Or is slab initialization too late still? FWIW, I think
+one simple fix on PPC is to just clear __GFP_NOWAIT in those functions
+(all of them seem to be using GFP_KERNEL which is wrong during boot).
 
-  For example, slab_is_available() didn't always exist, and so in the
-  early days on powerpc, we used a mem_init_done global that is set form
-  mem_init() (not perfect but works in practice). And we still have code
-  using that to do the test.
-
-Therefore, ignore __GFP_WAIT in the slab allocators if we're booting or
-suspending.
-
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
----
- mm/slab.c |    7 +++++++
- mm/slub.c |    7 +++++++
- 2 files changed, 14 insertions(+), 0 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index f46b65d..4b932e0 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2812,6 +2812,13 @@ static int cache_grow(struct kmem_cache *cachep,
- 
- 	offset *= cachep->colour_off;
- 
-+	/*
-+	 * Lets not wait if we're booting up or suspending even if the user
-+	 * asks for it.
-+	 */
-+	if (system_state != SYSTEM_RUNNING)
-+		local_flags &= ~__GFP_WAIT;
-+
- 	if (local_flags & __GFP_WAIT)
- 		local_irq_enable();
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index 3964d3c..053ea3e 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1548,6 +1548,13 @@ new_slab:
- 		goto load_freelist;
- 	}
- 
-+	/*
-+	 * Lets not wait if we're booting up or suspending even if the user
-+	 * asks for it.
-+	 */
-+	if (system_state != SYSTEM_RUNNING)
-+		gfpflags &= ~__GFP_WAIT;
-+
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_enable();
- 
--- 
-1.6.0.4
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
