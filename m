@@ -1,185 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7696B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 01:07:18 -0400 (EDT)
-Subject: Re: slab: setup allocators earlier in the boot sequence
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1244780756.7172.58.camel@pasglop>
-References: <200906111959.n5BJxFj9021205@hera.kernel.org>
-	 <1244770230.7172.4.camel@pasglop>  <1244779009.7172.52.camel@pasglop>
-	 <1244780756.7172.58.camel@pasglop>
-Content-Type: text/plain
-Date: Fri, 12 Jun 2009 15:07:15 +1000
-Message-Id: <1244783235.7172.61.camel@pasglop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 824AD6B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 01:34:58 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5C5a1IO012268
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 12 Jun 2009 14:36:02 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9986C45DD74
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 14:36:01 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77E7845DD75
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 14:36:01 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A19FE08010
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 14:36:01 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 10B9CE0800A
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 14:36:01 +0900 (JST)
+Date: Fri, 12 Jun 2009 14:34:29 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] memcg: fix page_cgroup fatal error in FLATMEM (Was
+ Re: boot panic with memcg enabled
+Message-Id: <20090612143429.76ef2357.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4A31D326.3030206@cn.fujitsu.com>
+References: <Pine.LNX.4.64.0906110820170.2258@melkki.cs.Helsinki.FI>
+	<4A31C258.2050404@cn.fujitsu.com>
+	<20090612115501.df12a457.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090612124408.721ba2ae.kamezawa.hiroyu@jp.fujitsu.com>
+	<4A31D326.3030206@cn.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, mingo@elte.hu, hannes@cmpxchg.org, torvalds@linux-foundation.org, yinghai@kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-06-12 at 14:25 +1000, Benjamin Herrenschmidt wrote:
+On Fri, 12 Jun 2009 12:01:42 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-> I'll cook up a patch that defines a global bitmask of "forbidden" GFP
-> bits and see how things go.
+> alloc_bootmem() is not gone, but slab allocator is setup much earlier now.
+> See this commit:
+> 
+> commit 83b519e8b9572c319c8e0c615ee5dd7272856090
+> Author: Pekka Enberg <penberg@cs.helsinki.fi>
+> Date:   Wed Jun 10 19:40:04 2009 +0300
+> 
+>     slab: setup allocators earlier in the boot sequence
+> 
+> now page_cgroup_init() is called after mem_init().
 
->From ad87215e01b257ccc1af64aa9d5776ace580dea3 Mon Sep 17 00:00:00 2001
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 12 Jun 2009 15:03:47 +1000
-Subject: [PATCH] Sanitize "gfp" flags during boot
+Ok, Li-san, could you test this on !SPARSEMEM config ?
 
-With the recent shuffle of initialization order to move memory related
-inits earlier, various subtle breakage was introduced in archs like
-powerpc due to code somewhat assuming that GFP_KERNEL can be used as
-soon as the allocators are up. This is not true because any __GFP_WAIT
-allocation will cause interrupts to be enabled, which can be fatal if
-it happens too early.
+x86-64 doesn't allow memory models other than SPARSEMEM.
+This works well on SPARSEMEM.
 
-This isn't trivial to fix on every call site. For example, powerpc's
-ioremap implementation needs to be called early. For that, it uses two
-different mechanisms to carve out virtual space. Before memory init,
-by moving down VMALLOC_END, and then, by calling get_vm_area().
-Unfortunately, the later does GFK_KERNEL allocations. But we can't do
-anything else because once vmalloc's been initialized, we can no longer
-safely move VMALLOC_END to carve out space.
+I think FLATMEM should go away in future....but maybe never ;(
 
-There are other examples, wehere can can be called either very early
-or later on when devices are hot-plugged. It would be a major pain for
-such code to have to "know" whether it's in a context where it should
-use GFP_KERNEL or GFP_NOWAIT.
+Thanks,
+-Kame
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Finally, by having the ability to silently removed __GFP_WAIT from
-allocations, we pave the way for suspend-to-RAM to use that feature
-to also remove __GFP_IO from allocations done after suspending devices
-has started. This is important because such allocations may hang if
-devices on the swap-out path have been suspended, but not-yet suspended
-drivers don't know about it, and may deadlock themselves by being hung
-into a kmalloc somewhere while holding a mutex for example.
+Now, SLAB is configured in very early stage and it can be used in
+init routine now.
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+But replacing alloc_bootmem() in FLAT/DISCONTIGMEM's page_cgroup()
+initialization breaks the allocation, now.
+(Works well in SPARSEMEM case...it supports MEMORY_HOTPLUG and
+ Size of page_cgroup is in reasonable size (< 1 << MAX_ORDER.)
+
+This patch revive FLATMEM+memory cgroup by using alloc_bootmem.
+
+In future,
+We stop to support FLATMEM (if no users) or rewrite codes for flatmem
+completely. But this will adds more messy codes and (big) overheads.
+
+Reported-by: Li Zefan <lizf@cn.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/gfp.h |    8 ++++++++
- init/main.c         |    5 +++++
- mm/page_alloc.c     |    5 +++++
- mm/slab.c           |    9 +++++++++
- mm/slub.c           |    3 +++
- 5 files changed, 30 insertions(+), 0 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0bbc15f..b0f7a22 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -99,6 +99,14 @@ struct vm_area_struct;
- /* 4GB DMA on some platforms */
- #define GFP_DMA32	__GFP_DMA32
- 
-+/* Illegal bits */
-+extern gfp_t gfp_smellybits;
-+
-+static inline gfp_t gfp_sanitize(gfp_t gfp_flags)
-+{
-+	return gfp_flags & ~gfp_smellybits;
-+}
-+
- /* Convert GFP flags to their corresponding migrate type */
- static inline int allocflags_to_migratetype(gfp_t gfp_flags)
- {
-diff --git a/init/main.c b/init/main.c
-index 5616661..bb812c1 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -539,6 +539,9 @@ void __init __weak thread_info_cache_init(void)
+Index: linux-2.6.30.org/init/main.c
+===================================================================
+--- linux-2.6.30.org.orig/init/main.c
++++ linux-2.6.30.org/init/main.c
+@@ -539,6 +539,11 @@ void __init __weak thread_info_cache_ini
   */
  static void __init mm_init(void)
  {
-+	/* Degrade everything into GFP_NOWAIT for now */
-+	gfp_smellybits = __GFP_WAIT | __GFP_FS | __GFP_IO;
-+
++	/*
++ 	 * page_cgroup requires countinous pages as memmap
++ 	 * and it's bigger than MAX_ORDER unless SPARSEMEM.
++	 */
++	page_cgroup_init_flatmem();
  	mem_init();
  	kmem_cache_init();
  	vmalloc_init();
-@@ -634,6 +637,8 @@ asmlinkage void __init start_kernel(void)
- 		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
- 				 "enabled early\n");
- 	early_boot_irqs_on();
-+	/* GFP_KERNEL allocations are good to go now */
-+	gfp_smellybits = 0;
- 	local_irq_enable();
+Index: linux-2.6.30.org/mm/page_cgroup.c
+===================================================================
+--- linux-2.6.30.org.orig/mm/page_cgroup.c
++++ linux-2.6.30.org/mm/page_cgroup.c
+@@ -47,8 +47,6 @@ static int __init alloc_node_page_cgroup
+ 	struct page_cgroup *base, *pc;
+ 	unsigned long table_size;
+ 	unsigned long start_pfn, nr_pages, index;
+-	struct page *page;
+-	unsigned int order;
  
- 	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 17d5f53..efde0d5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -77,6 +77,8 @@ int percpu_pagelist_fraction;
- int pageblock_order __read_mostly;
+ 	start_pfn = NODE_DATA(nid)->node_start_pfn;
+ 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
+@@ -57,13 +55,11 @@ static int __init alloc_node_page_cgroup
+ 		return 0;
+ 
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
+-	order = get_order(table_size);
+-	page = alloc_pages_node(nid, GFP_NOWAIT | __GFP_ZERO, order);
+-	if (!page)
+-		page = alloc_pages_node(-1, GFP_NOWAIT | __GFP_ZERO, order);
+-	if (!page)
++
++	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
++			table_size, PAG_SIZE, __pa(MAX_DMA_ADDRESS));
++	if (!base)
+ 		return -ENOMEM;
+-	base = page_address(page);
+ 	for (index = 0; index < nr_pages; index++) {
+ 		pc = base + index;
+ 		__init_page_cgroup(pc, start_pfn + index);
+@@ -73,7 +69,7 @@ static int __init alloc_node_page_cgroup
+ 	return 0;
+ }
+ 
+-void __init page_cgroup_init(void)
++void __init page_cgroup_init_flatmem(void)
+ {
+ 
+ 	int nid, fail;
+@@ -117,16 +113,11 @@ static int __init_refok init_section_pag
+ 	if (!section->page_cgroup) {
+ 		nid = page_to_nid(pfn_to_page(pfn));
+ 		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-		if (slab_is_available()) {
+-			base = kmalloc_node(table_size,
+-					GFP_KERNEL | __GFP_NOWARN, nid);
+-			if (!base)
+-				base = vmalloc_node(table_size, nid);
+-		} else {
+-			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-				table_size,
+-				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+-		}
++		VM_BUG_ON(!slab_is_available());
++		base = kmalloc_node(table_size,
++				GFP_KERNEL | __GFP_NOWARN, nid);
++		if (!base)
++			base = vmalloc_node(table_size, nid);
+ 	} else {
+ 		/*
+  		 * We don't have to allocate page_cgroup again, but
+Index: linux-2.6.30.org/include/linux/page_cgroup.h
+===================================================================
+--- linux-2.6.30.org.orig/include/linux/page_cgroup.h
++++ linux-2.6.30.org/include/linux/page_cgroup.h
+@@ -18,7 +18,19 @@ struct page_cgroup {
+ };
+ 
+ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
+-void __init page_cgroup_init(void);
++
++#ifdef CONFIG_SPARSEMEM
++static inline void __init page_cgroup_init_flatmem(void)
++{
++}
++extern void __init page_cgroup_init(void);
++#else
++void __init page_cgroup_init_flatmem(void)
++static inline void __init page_cgroup_init(void)
++{
++}
++#endif
++
+ struct page_cgroup *lookup_page_cgroup(struct page *page);
+ 
+ enum {
+@@ -87,6 +99,10 @@ static inline void page_cgroup_init(void
+ {
+ }
+ 
++static inline void __init page_cgroup_init_flatmem(void)
++{
++}
++
  #endif
  
-+gfp_t gfp_smellybits;
-+
- static void __free_pages_ok(struct page *page, unsigned int order);
- 
- /*
-@@ -1473,6 +1475,9 @@ __alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
- 	unsigned long did_some_progress;
- 	unsigned long pages_reclaimed = 0;
- 
-+	/* Sanitize flags so we don't enable irqs too early during boot */
-+	gfp_mask = gfp_sanitize(gfp_mask);
-+
- 	lockdep_trace_alloc(gfp_mask);
- 
- 	might_sleep_if(wait);
-diff --git a/mm/slab.c b/mm/slab.c
-index f46b65d..87b166e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2791,6 +2791,9 @@ static int cache_grow(struct kmem_cache *cachep,
- 	gfp_t local_flags;
- 	struct kmem_list3 *l3;
- 
-+	/* Sanitize flags so we don't enable irqs too early during boot */
-+	gfp_mask = gfp_sanitize(gfp_mask);
-+
- 	/*
- 	 * Be lazy and only check for valid flags here,  keeping it out of the
- 	 * critical path in kmem_cache_alloc().
-@@ -3212,6 +3215,9 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
- 	void *obj = NULL;
- 	int nid;
- 
-+	/* Sanitize flags so we don't enable irqs too early during boot */
-+	gfp_mask = gfp_sanitize(gfp_mask);
-+
- 	if (flags & __GFP_THISNODE)
- 		return NULL;
- 
-@@ -3434,6 +3440,9 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
- 	unsigned long save_flags;
- 	void *objp;
- 
-+	/* Sanitize flags so we don't enable irqs too early during boot */
-+	gfp_mask = gfp_sanitize(gfp_mask);
-+
- 	lockdep_trace_alloc(flags);
- 
- 	if (slab_should_failslab(cachep, flags))
-diff --git a/mm/slub.c b/mm/slub.c
-index 3964d3c..5c646f7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1512,6 +1512,9 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
- 	/* We handle __GFP_ZERO in the caller */
- 	gfpflags &= ~__GFP_ZERO;
- 
-+	/* Sanitize flags so we don't enable irqs too early during boot */
-+	gfpflags = gfp_sanitize(gfpflags);
-+
- 	if (!c->page)
- 		goto new_slab;
- 
--- 
-1.6.1.2.14.gf26b5
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+
 
 
 
