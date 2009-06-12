@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9331D6B005A
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 23:58:28 -0400 (EDT)
-Message-ID: <4A31D326.3030206@cn.fujitsu.com>
-Date: Fri, 12 Jun 2009 12:01:42 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 51BD56B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 00:40:04 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so951421ywm.26
+        for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:41:19 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: boot panic with memcg enabled (Was [PATCH 3/4] memcg: don't use
- bootmem allocator in setup code)
-References: <Pine.LNX.4.64.0906110820170.2258@melkki.cs.Helsinki.FI>	<4A31C258.2050404@cn.fujitsu.com>	<20090612115501.df12a457.kamezawa.hiroyu@jp.fujitsu.com> <20090612124408.721ba2ae.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090612124408.721ba2ae.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 12 Jun 2009 16:41:19 +1200
+Message-ID: <202cde0e0906112141n634c1bd6n15ec1ac42faa36d3@mail.gmail.com>
+Subject: Huge pages for device drivers
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, mingo@elte.hu, hannes@cmpxchg.org, torvalds@linux-foundation.org, yinghai@kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Fri, 12 Jun 2009 11:55:01 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
->> On Fri, 12 Jun 2009 10:50:00 +0800
->> Li Zefan <lizf@cn.fujitsu.com> wrote:
->>
->>> (This patch should have CCed memcg maitainers)
->>>
->>> My box failed to boot due to initialization failure of page_cgroup, and
->>> it's caused by this patch:
->>>
->>> +	page = alloc_pages_node(nid, GFP_NOWAIT | __GFP_ZERO, order);
->>>
->> Oh, I don't know this patch ;(
->>
->>> I added a printk, and found that order == 11 == MAX_ORDER.
->>>
->> maybe possible because this allocates countinous pages of 60%? length of
->> memmap. 
->> If __alloc_bootmem_node_nopanic() is not available any more, memcg should be
->> only used under CONFIG_SPARSEMEM. 
->>
->> Is that a request from bootmem maintainer ?
->>
-> In other words,
->  - Is there any replacment function to allocate continuous pages bigger
->    than MAX_ORDER ?
->  - If not, memcg (and io-controller under development) shouldn't support
->    memory model other than SPARSEMEM.
-> 
-> IIUC, page_cgroup_init() is called before mem_init() and we could use
-> alloc_bootmem() here.
-> 
-> Could someone teach me which thread should I read to know
-> "why alloc_bootmem() is gone ?" ?
-> 
+Hi,
 
-alloc_bootmem() is not gone, but slab allocator is setup much earlier now.
-See this commit:
+I'm investigating the possibility to involve huge pages mappings in
+order to increase data analysing performance in case of device
+drivers.
+The model we have is more or less common: We have driver which
+allocates memory and configures DMA. This memory is then shared to
+user mode applications to allow user-mode daemons to analyse and
+process the data.
 
-commit 83b519e8b9572c319c8e0c615ee5dd7272856090
-Author: Pekka Enberg <penberg@cs.helsinki.fi>
-Date:   Wed Jun 10 19:40:04 2009 +0300
+In this case Huge TLB could be quite useful because DMA buffers are
+large ~64MB - 1024MB and desired performance of data analysing in user
+mode is huge ~10Gb/s.
 
-    slab: setup allocators earlier in the boot sequence
+If I properly understood the code the only available approach is :
+Allocate huge page memory in user mode application. Then supply it to
+driver. Then do magic to obtain physical address and try to configure
+DMAs. But this approach leads to big bunch of problems because: 1.
+Virtual address can be remapped to another physical address. 2. It is
+necessary to manage GFP flags manually (GFP_DMA32 must be set).
 
-now page_cgroup_init() is called after mem_init().
+So the question I have:
+1. Is it definitely the only way to provide huge page mappings in this
+case.  May be I miss something.
+2. Is there any plans to provide interfaces for device drivers to map
+huge pages? What are possible issues to have it?
+
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
