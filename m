@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7198C6B005A
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:21:29 -0400 (EDT)
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE9F6B005A
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:23:46 -0400 (EDT)
+Subject: Re: slab: setup allocators earlier in the boot sequence
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090612091002.GA32052@elte.hu>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090612091002.GA32052@elte.hu>
+In-Reply-To: <20090612091304.GE24044@wotan.suse.de>
+References: <1244783235.7172.61.camel@pasglop>
+	 <Pine.LNX.4.64.0906120913460.26843@melkki.cs.Helsinki.FI>
+	 <1244792079.7172.74.camel@pasglop>
+	 <1244792745.30512.13.camel@penberg-laptop>
+	 <20090612075427.GA24044@wotan.suse.de>
+	 <1244793592.30512.17.camel@penberg-laptop>
+	 <20090612080236.GB24044@wotan.suse.de>
+	 <1244793879.30512.19.camel@penberg-laptop>
+	 <1244796291.7172.87.camel@pasglop>
+	 <84144f020906120149k6cbe5177vef1944d9d216e8b2@mail.gmail.com>
+	 <20090612091304.GE24044@wotan.suse.de>
 Content-Type: text/plain
-Date: Fri, 12 Jun 2009 19:21:55 +1000
-Message-Id: <1244798515.7172.99.camel@pasglop>
+Date: Fri, 12 Jun 2009 19:24:20 +1000
+Message-Id: <1244798660.7172.102.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mingo@elte.hu, cl@linux-foundation.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 
-> We emit a debug warning but dont crash, so all should be fine and 
-> the culprits can then be fixed, right?
+> It's OK. I'd make it gfp_notsmellybits, and avoid the ~.
+> And read_mostly.
 
- ... rewind ... :-)
+read_mostly is fine. gfp_notsmellybits isn't a nice name :-) Make it
+gfp_allowedbits then. I did it backward on purpose though as the risk of
+"missing" bits here (as we may add new ones) is higher and it seemed to
+me generally simpler to just explicit spell out the ones to forbid
+(also, on powerpc,  &~ is one instruction :-)
+ 
+> Probably would be better to hide it in mm/ and then just
+> allow it to be modified with a couple of calls. OTOH if
+> it is only modified in a couple of places then maybe that's
+> overkill.
 
-Ok so, no, the culprit cannot be all fixed in a satifactory way.
+It might indeed be nicer to hide it behind an accessor.
 
-The main reason is that I believe it's not "right" to have every caller
-of slab around know whether GFP_KERNEL is good to go or it should get
-into GFP_NOWAIT. This depends on many factors (among others us moving
-things around more), and is not actually a good solution for thing that
-can be called both at boot and later, such as get_vm_area().
+> The whole problem comes about because we don't just restore
+> our previously saved flags here... I guess it probably adds
+> even more overhead to do that and make everything just work :(
 
-I really think we are looking for trouble (and a lot of hidden bugs) by
-trying to "fix" all callers, in addition to making some code like
-vmalloc() more failure prone because it's unconditionally changed from
-GFP_KERNEL to GFP_NOWAIT.
-
-It seems a lot more reasonably to me to have sl*b naturally degrade to
-NOWAIT when it's too early to enable interrupts.
-
-In addition, my proposal of having bits to mask off gfp will also be
-useful in fixing similar issues with suspend/resume vs. GFP_NOIO which
-should really become implicit when devices start becoming suspended.
+Well... that's part of the equation. My solution has the advantage to
+also providing ground to forbid GFP_IO during suspend/resume etc...
 
 Cheers,
 Ben.
 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
