@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 60AC66B009C
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 11:45:12 -0400 (EDT)
-Date: Fri, 12 Jun 2009 08:44:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] Do not unconditionally treat zones that fail
- zone_reclaim() as full
-Message-Id: <20090612084456.b6e4edb6.akpm@linux-foundation.org>
-In-Reply-To: <20090612103617.GC14498@csn.ul.ie>
-References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie>
-	<1244717273-15176-3-git-send-email-mel@csn.ul.ie>
-	<alpine.DEB.1.10.0906110948080.29827@gentwo.org>
-	<20090612103617.GC14498@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 5D9076B009E
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 12:05:20 -0400 (EDT)
+Message-ID: <4A327CB1.6060009@redhat.com>
+Date: Fri, 12 Jun 2009 12:05:05 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when	feature
+ is disabled
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu>
+In-Reply-To: <20090612153501.GA5737@elte.hu>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, stable@kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jun 2009 11:36:17 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
+Ingo Molnar wrote:
 
-> On Thu, Jun 11, 2009 at 09:48:53AM -0400, Christoph Lameter wrote:
-> > It needs to be mentioned that this fixes a bug introduced in 2.6.19.
-> > Possibly a portion of this code needs to be backported to stable.
-> > 
-> 
-> Andrew has sucked up the patch already so I can't patch it. Andrew, there
-> is a further note below on the patch if you'd like to pick it up.
+> So i think hwpoison simply does not affect our ability to get log 
+> messages out - but it sure allows crappier hardware to be used.
+> Am i wrong about that for some reason?
 
-OK.
+You are :)
 
-> On the stable front, I'm think that patches 1 and 2 should being considered
-> -stable candidates. Patch 1 is certainly needed because it fixes up the
-> malloc() stall and should be picked up by distro kernels as well. This patch
-> closes another obvious hole albeit one harder to trigger.
-> 
-> Ideally patch 3 would also be in -stable so distro kernels will suck it up
-> as it will help identify this problem in the field if it occurs again but
-> I'm not sure what the -stable policy is on such things are.
+A 2-bit memory error can be a temporary failure, eg.
+due to a cosmic ray.  If bit errors could be prevented
+in hardware, there would be no reason to have ECC at all.
 
-Well, I tagged the patches for stable but they don't apply at all well
-to even 2.6.30 base.
+The only reason to stop using that page is because we
+do not know for sure whether the error was temporary
+or permanent (or dependent on a particular bit pattern).
+
+Userspace needs to be notified that some data disappeared,
+if it did - for clean pagecache and swap cache pages, the
+kernel can simply take the page away and wait for a page
+fault...
+
+The sysadmin needs to know that something happened too,
+because the hardware *might* have a problem.
+
+However, a 2-bit error does not imply that the hardware
+actually needs to be replaced.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
