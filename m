@@ -1,38 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 148B26B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:53:06 -0400 (EDT)
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090612095206.GA13607@wotan.suse.de>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090612091002.GA32052@elte.hu>
-	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
-	 <20090612095206.GA13607@wotan.suse.de>
-Date: Fri, 12 Jun 2009 12:54:44 +0300
-Message-Id: <1244800484.30512.39.camel@penberg-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 63C2D6B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:53:31 -0400 (EDT)
+Date: Fri, 12 Jun 2009 12:03:08 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 2/5] HWPOISON: fix tasklist_lock/anon_vma locking order
+Message-ID: <20090612100308.GD25568@one.firstfloor.org>
+References: <20090611142239.192891591@intel.com> <20090611144430.540500784@intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090611144430.540500784@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-06-12 at 11:52 +0200, Nick Piggin wrote:
-> Maybe if we just not make it a general "tweak gfpflag" bit (at
-> least not until a bit more discussion), but a specific workaround
-> for the local_irq_enable in early boot problem.
+On Thu, Jun 11, 2009 at 10:22:41PM +0800, Wu Fengguang wrote:
+> To avoid possible deadlock. Proposed by Nick Piggin:
+
+I disagree with the description. There's no possible deadlock right now.
+It would be purely out of paranoia.
+
 > 
-> Seems like it would not be hard to track things down if we add
-> a warning if we have GFP_WAIT and interrupts are not enabled...
+>   You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
+>   lock. And anon_vma lock nests inside i_mmap_lock.
+> 
+>   This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
 
-AFAICT, the point is that Ben thinks that we shouldn't go and try to fix
-up all the callers. But yes, we could certainly do that too.
+I was a bit dubious on this reasoning. If rwlocks become FIFO a lot of
+stuff will likely break.
 
-			Pekka
+>   type (maybe -rt kernels do it), then you could have a task holding
+
+I think they tried but backed off quickly again
+
+It's ok with a less scare-mongering description.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
