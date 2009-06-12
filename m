@@ -1,83 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE5D6B0087
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 11:22:43 -0400 (EDT)
-Date: Fri, 12 Jun 2009 08:22:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-Message-Id: <20090612082252.519061c3.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	<Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	<20090612091002.GA32052@elte.hu>
-	<1244798515.7172.99.camel@pasglop>
-	<84144f020906120224v5ef44637pb849fd247eab84ea@mail.gmail.com>
-	<1244799389.7172.110.camel@pasglop>
-	<Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E84CB6B0089
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 11:28:08 -0400 (EDT)
+Date: Fri, 12 Jun 2009 08:28:42 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature
+ is disabled
+In-Reply-To: <20090612131754.GA32105@elte.hu>
+Message-ID: <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka J Enberg <penberg@cs.helsinki.fi>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jun 2009 12:45:21 +0300 (EEST) Pekka J Enberg <penberg@cs.helsinki.fi> wrote:
 
-> From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Date: Fri, 12 Jun 2009 12:39:58 +0300
-> Subject: [PATCH] Sanitize "gfp" flags during boot
-> 
-> With the recent shuffle of initialization order to move memory related
-> inits earlier, various subtle breakage was introduced in archs like
-> powerpc due to code somewhat assuming that GFP_KERNEL can be used as
-> soon as the allocators are up. This is not true because any __GFP_WAIT
-> allocation will cause interrupts to be enabled, which can be fatal if
-> it happens too early.
-> 
-> This isn't trivial to fix on every call site. For example, powerpc's
-> ioremap implementation needs to be called early. For that, it uses two
-> different mechanisms to carve out virtual space. Before memory init,
-> by moving down VMALLOC_END, and then, by calling get_vm_area().
-> Unfortunately, the later does GFK_KERNEL allocations. But we can't do
-> anything else because once vmalloc's been initialized, we can no longer
-> safely move VMALLOC_END to carve out space.
-> 
-> There are other examples, wehere can can be called either very early
-> or later on when devices are hot-plugged. It would be a major pain for
-> such code to have to "know" whether it's in a context where it should
-> use GFP_KERNEL or GFP_NOWAIT.
-> 
-> Finally, by having the ability to silently removed __GFP_WAIT from
-> allocations, we pave the way for suspend-to-RAM to use that feature
-> to also remove __GFP_IO from allocations done after suspending devices
-> has started. This is important because such allocations may hang if
-> devices on the swap-out path have been suspended, but not-yet suspended
-> drivers don't know about it, and may deadlock themselves by being hung
-> into a kmalloc somewhere while holding a mutex for example.
-> 
-> ...
->
-> +/*
-> + * We set up the page allocator and the slab allocator early on with interrupts
-> + * disabled. Therefore, make sure that we sanitize GFP flags accordingly before
-> + * everything is up and running.
-> + */
-> +gfp_t gfp_allowed_bits = ~(__GFP_WAIT|__GFP_FS | __GFP_IO);
 
-__read_mostly
+On Fri, 12 Jun 2009, Ingo Molnar wrote:
+> 
+> This seems like trying to handle a failure mode that cannot be and 
+> shouldnt be 'handled' really. If there's an 'already corrupted' page 
+> then the box should go down hard and fast, and we should not risk 
+> _even more user data corruption_ by trying to 'continue' in the hope 
+> of having hit some 'harmless' user process that can be killed ...
 
-> +void mm_late_init(void)
-> +{
-> +	/*
-> +	 * Interrupts are enabled now so all GFP allocations are safe.
-> +	 */
-> +	gfp_allowed_bits = __GFP_BITS_MASK;
-> +}
+No, the box should _not_ go down hard-and-fast. That's the last thing we 
+should *ever* do.
 
-Using plain old -1 here would be a more obviously-correct change.
+We need to log it. Often at a user level (ie we want to make sure it 
+actually hits syslog, possibly goes out the network, maybe pops up a 
+window, whatever).
 
+Shutting down the machine is the last thing we ever want to do. 
+
+The whole "let's panic" mentality is a disease.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
