@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E486B005C
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 14:06:29 -0400 (EDT)
-Date: Fri, 12 Jun 2009 19:07:32 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when
- feature is disabled
-Message-ID: <20090612190732.3e5b6955@lxorguk.ukuu.org.uk>
-In-Reply-To: <20090612161431.GB5680@localhost>
-References: <20090611142239.192891591@intel.com>
-	<20090611144430.414445947@intel.com>
-	<20090612112258.GA14123@elte.hu>
-	<20090612125741.GA6140@localhost>
-	<20090612131754.GA32105@elte.hu>
-	<20090612133352.GC6751@localhost>
-	<20090612153620.GB23483@elte.hu>
-	<20090612161431.GB5680@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 74C7C6B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 17:41:37 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090612083005.56336219.akpm@linux-foundation.org>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090612091002.GA32052@elte.hu>
+	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
+	 <20090612100756.GA25185@elte.hu>
+	 <84144f020906120311x7c7dd628s82e3ca9a840f9890@mail.gmail.com>
+	 <1244805060.7172.126.camel@pasglop>
+	 <1244806440.30512.51.camel@penberg-laptop>
+	 <20090612083005.56336219.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Sat, 13 Jun 2009 07:42:36 +1000
+Message-Id: <1244842956.23936.0.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H.
- Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> HWPOISON is a reliability enabling feature - if it enables prevalent
-> of crappy hardwares, let's celebrate changing the world~~
+On Fri, 2009-06-12 at 08:30 -0700, Andrew Morton wrote:
+> On Fri, 12 Jun 2009 14:34:00 +0300 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> 
+> > +static gfp_t slab_gfp_mask __read_mostly = __GFP_BITS_MASK & ~__GFP_WAIT;
+> 
+> It'd be safer and saner to disable __GFP_FS and __GFP_IO as well.
 
-HWPOISON is not in the most part a reliability enabling feature. Nothing
-of the sort.
+Right. That's what my original patch does in fact. I also re-enabled
+them all together but in that case, it might be better to re-enable FS
+and IO later, I'll let experts decide.
+ 
+> Having either of those flags set without __GFP_WAIT is a somewhat
+> self-contradictory thing and there might be code under reclaim which
+> assumes that __GFP_FS|__GFP_IO implies __GFP_WAIT.
+> 
+> <wonders why mempool_alloc() didn't clear __GFP_FS>
 
-The existing behaviour is that your system goes kerblam on such a serious
-error. The replacement behaviour is that bits of your machine go kerblam
-in unpredictable ways.
+Cheers,
+Ben.
 
-In both cases you actually improve your reliability with clustering and
-failover.
-
-There are a few special cases its potentially useful - lots of VMs being
-one where you have some chance of a controlled failure of a bounded
-system. But even in that case I know if I was admin my scripts would read
-
-   if (hwpoison_error)
-        migrate_all_guests()
-        mail admin
-        schedule replacement of the machine
-
-I'm not actually sure teaching hwpoison to handle anything but losing
-entire guest OS systems is useful.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
