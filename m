@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF5BB6B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:57:32 -0400 (EDT)
-Date: Fri, 12 Jun 2009 12:07:16 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 4/5] HWPOISON: report sticky EIO for poisoned file
-Message-ID: <20090612100716.GE25568@one.firstfloor.org>
-References: <20090611142239.192891591@intel.com> <20090611144430.813191526@intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B18106B005C
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:57:56 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090612095206.GA13607@wotan.suse.de>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090612091002.GA32052@elte.hu>
+	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
+	 <20090612095206.GA13607@wotan.suse.de>
+Content-Type: text/plain
+Date: Fri, 12 Jun 2009 19:59:34 +1000
+Message-Id: <1244800774.7172.116.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090611144430.813191526@intel.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 10:22:43PM +0800, Wu Fengguang wrote:
-> This makes the EIO reports on write(), fsync(), or the NFS close()
-> sticky enough. The only way to get rid of it may be
+
+> Maybe if we just not make it a general "tweak gfpflag" bit (at
+> least not until a bit more discussion), but a specific workaround
+> for the local_irq_enable in early boot problem.
 > 
-> 	echo 3 > /proc/sys/vm/drop_caches
-> 
-> Note that the impacted process will only be killed if it mapped the page.
-> XXX
-> via read()/write()/fsync() instead of memory mapped reads/writes, simply
-> because it's very hard to find them.
+> Seems like it would not be hard to track things down if we add
+> a warning if we have GFP_WAIT and interrupts are not enabled...
 
-I don't like the special case bit. Conceptually we shouldn't need
-to handle hwpoison specially here; it's just like a standard error. 
+But tweaking local_irq_enable() will have a lot more performance & bloat
+impact overall on the normal case.
 
-It makes hwpoison look more intrusive than it really is :)
+Cheers,
+Ben.
 
-I think it would be better to simply make
-the standard EIO sticky; that would fix a lot of other issues too (e.g.
-better reporting of metadata errors) But that's something for post .31.
-
-For .31 I think hwpoison can live fine with non sticky errors; it was
-more a problem of the test suite anyways which we worked around.
-
-So better drop this patch for now.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
