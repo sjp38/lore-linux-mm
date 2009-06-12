@@ -1,93 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 584DF6B005A
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 09:48:40 -0400 (EDT)
-Date: Fri, 12 Jun 2009 15:58:03 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
-Message-ID: <20090612135803.GL25568@one.firstfloor.org>
-References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E01CD6B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 09:52:35 -0400 (EDT)
+Subject: Re: slab: setup allocators earlier in the boot sequence
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <alpine.DEB.1.10.0906120944540.15809@gentwo.org>
+References: <200906111959.n5BJxFj9021205@hera.kernel.org>
+	 <1244770230.7172.4.camel@pasglop>  <1244779009.7172.52.camel@pasglop>
+	 <1244780756.7172.58.camel@pasglop> <1244783235.7172.61.camel@pasglop>
+	 <Pine.LNX.4.64.0906120913460.26843@melkki.cs.Helsinki.FI>
+	 <1244792079.7172.74.camel@pasglop>
+	 <1244792745.30512.13.camel@penberg-laptop>
+	 <1244796045.7172.82.camel@pasglop>
+	 <1244796211.30512.32.camel@penberg-laptop>
+	 <1244796837.7172.95.camel@pasglop>
+	 <1244797659.30512.37.camel@penberg-laptop>
+	 <alpine.DEB.1.10.0906120944540.15809@gentwo.org>
+Date: Fri, 12 Jun 2009 16:54:12 +0300
+Message-Id: <1244814852.30512.67.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090612131754.GA32105@elte.hu>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, mingo@elte.hu, akpm@linux-foundation.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-> > In the above chunk, the process is trying to access the already 
-> > corrupted page and thus shall be killed, otherwise it will either 
-> > silently consume corrupted data, or will trigger another (deadly) 
-> > MCE event and bring down the whole machine.
-> 
-> This seems like trying to handle a failure mode that cannot be and 
-> shouldnt be 'handled' really. If there's an 'already corrupted' page 
+Hi Christoph,
 
-I must slightly correct Fengguang, there is no silently consumed
-corrupted data (at least not unless you disable machine checks, don't do
-that). Or rather if the hardware cannot contain the error
-it will definitely cause a panic and never call this.
+On Fri, 2009-06-12 at 09:49 -0400, Christoph Lameter wrote:
+> Best thing to do is to recognize the fact that we are still in early boot
+> in the allocators. Derived allocators (such as slab and vmalloc) mask bits
+> using GFP_RECLAIM_MASK and when doing allocations through the page
+> allocator. You could make GFP_RECLAIM_MASK a variable. During boot
+> __GFP_WAIT would not be set in GFP_RECLAIM_MASK.
 
-Memory does have soft errors and the more memory you have the more
-errors. Normally hardware hides that from you by correcting it, but
-in some cases you can get multi-bit errors which lead to
-uncorrected errors the hardware cannot hide.
+Ben's patch does something like that and I have patches that do that
+floating around too.
 
-This does not necessarily mean that the hardware is
-broken; for example it can be caused by cosmic particles hitting
-a unlucky transistor. So it can really happen in normal
-operation.
+The problem here is that it's not enough that we make GFP_RECLAIM_MASK a
+variable. There are various _debugging checks_ that happen much earlier
+than that. We need to mask out those too which adds overhead to
+kmalloc() fastpath, for example.
 
-The hardware contains these errors (it is marked "poisoned" in caches); 
-if it was ever consumed there would be another machine check. 
-The only problem is just that the other machine check couldn't be survived;
-you would need to reboot.
-
-But the hardware also supports telling the OS when it first detects
-the error, which can be often before the error is consumed.
-
-So hwpoison tries to get rid of the pages first when it can be safely
-done with some help of the VM. This works because a lot of pages are 
-"expendable", e.g. clean pages that can be just reloaded from disk or 
-belonging to a process (so only that process is affected)
-
-Another important use case is with virtualization: for a KVM guest you
-only want to kill the guest that owns the affected memory, but not
-the others. This is one of the features needed for KVM to catch up
-with other hypervisors.
-
-I should add it's generic infrastructure not only intended for x86, but
-for generically for other architectures. e.g. we will get IA64 support
-at some point and probably others too.
-
-> then the box should go down hard and fast, and we should not risk 
-> _even more user data corruption_ by trying to 'continue' in the hope 
-> of having hit some 'harmless' user process that can be killed ...
-
-Typically when there is a severe hardware failure (e.g. DIMM
-completely dying) the box comes down pretty quickly due to multiple machine 
-checks. I agree with you in this case panic is best. This code
-does not really change that.
-
-This infrastructure is more for handling standard error rates
-where you can get an occasional error without panicing the box.
-Panicing doesn't really help in this case.
-
-> 
-> So i find the whole feature rather dubious - what's the point? We 
-> should panic at this point - we just corrupted user data so that 
-> piece of hardware cannot be trusted. Nor can any subsequent kernel 
-
-That's not an accurate description of what happens in real memory.
-Even good memory has a error rate, how large it is depends on the 
-environment. And obviously the error frequency rises with more DIMMs:
-more transistors = more potential errors which also means more potential
-uncorrected errors.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
