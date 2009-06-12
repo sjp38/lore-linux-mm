@@ -1,83 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C0E76B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 06:46:48 -0400 (EDT)
-Date: Fri, 12 Jun 2009 12:56:10 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/5] [RFC] HWPOISON incremental fixes
-Message-ID: <20090612105610.GK25568@one.firstfloor.org>
-References: <20090611142239.192891591@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A04916B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 07:04:23 -0400 (EDT)
+Date: Fri, 12 Jun 2009 12:04:24 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring
+	behaviour more in line with expectations V3
+Message-ID: <20090612110424.GD14498@csn.ul.ie>
+References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie> <20090611163006.e985639f.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090611142239.192891591@intel.com>
+In-Reply-To: <20090611163006.e985639f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, cl@linux-foundation.org, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 10:22:39PM +0800, Wu Fengguang wrote:
-> Hi all,
+On Thu, Jun 11, 2009 at 04:30:06PM -0700, Andrew Morton wrote:
+> On Thu, 11 Jun 2009 11:47:50 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> Here are the hwpoison fixes that aims to address Nick and Hugh's concerns.
-> Note that
-> - the early kill option is dropped for .31. It's obscure option and complex
->   code and is not must have for .31. Maybe Andi also aims this option for
->   notifying KVM, but right now KVM is not ready to handle that.
+> > The big change with this release is that the patch reintroducing
+> > zone_reclaim_interval has been dropped as Ram reports the malloc() stalls
+> > have been resolved. If this bug occurs again, the counter will be there to
+> > help us identify the situation.
+> 
+> What is the exact relationship between this work and the somewhat
+> mangled "[PATCH for mmotm 0/5] introduce swap-backed-file-mapped count
+> and fix
+> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch"
+> series?
+> 
 
-KVM is ready to handle it, patches for that have been submitted and
-are queued.
+The patch series "Fix malloc() stall in zone_reclaim() and bring
+behaviour more in line with expectations V3" replaces
+vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch.
 
-Also without early kill it's not really possible right now to recover
-in the guest. Also for some other scenarios early kill is much easier
-to handle than late kill: for late kill you always have to bail
-out of your current execution context, while early kill that can be 
-done out of line (e.g. by just dropping a corrupted object similar to 
-what the kernel does). That's a much nicer and gentle model than late
-kill.
+Portions of the patch series "Introduce swap-backed-file-mapped count" are
+potentially follow-on work if a failure case can be identified. The series
+brings the kernel behaviour more in line with documentation, but it's easier
+to fix the documentation.
 
-Of course very few programs will try to handle this, but if any does
-it's better to make it easier for them. 
+> That five-patch series had me thinking that it was time to drop 
+> 
+> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
 
-That we send too many signals in a few cases is not fatal right now
-I think. Remember always the alternative is to die completely.
+This patch gets replaced. All the lessons in the new patch are included.
+They could be merged together.
 
-So please don't drop that code right now.
+> vmscan-drop-pf_swapwrite-from-zone_reclaim.patch
 
+This patch is wrong, but only sortof. It should be dropped or replaced with
+another version. Kosaki, could you resubmit this patch except that you check
+if RECLAIM_SWAP is set in zone_reclaim_mode when deciding whether to set
+PF_SWAPWRITE or not please?
 
-> - It seems that even fsync() processes are not easy to catch, so I abandoned
->   the SIGKILL on fsync() idea. Instead, I choose to fail any attempt to
->   populate the poisoned file with new pages, so that the corrupted page offset
->   won't be repopulated with outdated data. This seems to be a safe way to allow
->   the process to continue running while still be able to promise good (but not
->   complete) data consistency.
+Your patch is correct if zone_reclaim_mode 1, but incorrect if it's 7 for
+example.
 
-The fsync() error reporting is already broken anyways, even without hwpoison,
-for metadata errors which also only rely on the address space bit and not the
-page and run into all the same problems.
+> vmscan-zone_reclaim-use-may_swap.patch
+> 
 
-I don't think we need to be better here than normal metadata.
+This is a tricky one. Kosaki, I think this patch is a little dangerous. With
+this applied, pages get unmapped whether RECLAIM_SWAP is set or not. This
+means that zone_reclaim() now has more work to do when it's enabled and it
+incurs a number of minor faults for no reason as a result of trying to avoid
+going off-node. I don't believe that is desirable because it would manifest
+as high minor fault counts on NUMA and would be difficult to pin down why
+that was happening.
 
-Possibly if metadata can be fixed then hwpoison will be fixed too in the
-same pass. But that's something longer term.
+I think the code makes more sense than the documentation and it's the
+documentation that should be fixed. Our current behaviour is to discard
+clean, swap-backed, unmapped pages that require no further IO. This is
+reasonable behaviour for zone_reclaim_mode == 1 so maybe the patch
+should change the documentation to
 
-> - I didn't implement the PANIC-on-corrupted-data option. Instead, I guess
->   sending uevent notification to user space will be a more flexible scheme?
+        1       = Zone reclaim discards clean unmapped disk-backed pages
+        2       = Zone reclaim writes dirty pages out
+        4       = Zone reclaim unmaps and swaps pages
 
-Normally you can get very aggressive panics by setting the x86 mce tolerant 
-modus to 0 (default is 1); i suspect that will be good enough.
+If you really wanted to strict about the meaning of RECLAIM_SWAP, then
+something like the following would be reasonable;
 
-If other architectures add hwpoison support presumably they can add
-a similar tunable.
+	.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+	.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
 
-Doing that in the low level handler is better than in the high level
-VM because there are some corruption cases which are not reported
-to high level (e.g. not affecting memory directly)
+because a system administrator is not going to distinguish between
+unmapping and swap. I would assume at least that RECLAIM_SWAP implies
+unmapping pages for swapping but an updated documentation wouldn't hurt
+with
 
--Andi
+	4       = Zone reclaim unmaps and swaps pages
+
+> (they can be removed cleanly, but I haven't tried compiling the result)
+> 
+> but your series is based on those.
+> 
+
+The patchset only depends on
+vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
+and then only because of merge conflicts. All the lessons in
+vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch are
+incorporated.
+
+> We have 142 MM patches queued, and we need to merge next week.
+> 
+
+I'm sorry my timing for coming out with the zone_reclaim() patches sucks
+and that I failed to spot these patches earlier. Despite the abundance
+of evidence, I'm not trying to be deliberatly awkward :/
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
