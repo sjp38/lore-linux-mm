@@ -1,84 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 51E366B004D
-	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:27:28 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5C1SHE4018403
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 28AD66B004D
+	for <linux-mm@kvack.org>; Thu, 11 Jun 2009 21:29:02 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5C1TsYX011460
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 12 Jun 2009 10:28:17 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 430D345DE70
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:28:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AE7CA45DE60
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:28:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 850861DB8041
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:28:16 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 313321DB803E
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:28:16 +0900 (JST)
-Date: Fri, 12 Jun 2009 10:26:44 +0900
+	Fri, 12 Jun 2009 10:29:54 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 38CC245DE63
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:29:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D73A45DE55
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:29:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E7A551DB8046
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:29:53 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 964251DB803F
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 10:29:53 +0900 (JST)
+Date: Fri, 12 Jun 2009 10:28:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] fix lumpy reclaim lru handiling at
- isolate_lru_pages v2
-Message-Id: <20090612102644.a3e7ad3a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] memcg fix lru rotation in isolate_pages v2
+Message-Id: <20090612102821.5dd33523.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090612102644.a3e7ad3a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090612102644.a3e7ad3a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com, mel@csn.ul.ie
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, minchan.kim@gmail.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Sorry for noisy posts. I hope this should be the last trial.
-Thank you for all helps.
-
--Kame
-==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-At lumpy reclaim, a page failed to be taken by __isolate_lru_page() can
-be pushed back to "src" list by list_move(). But the page may not be from
-"src" list. This pushes the page back to wrong LRU.
-And list_move() itself is unnecessary because the page is
-not on top of LRU. Then, leave it as it is if __isolate_lru_page() fails.
+This patch tries to fix memcg's lru rotation sanity...make memcg use
+the same logic as global LRU does.
+
+Now, at __isolate_lru_page() retruns -EBUSY, the page is rotated to
+the tail of LRU in global LRU's isolate LRU pages. But in memcg,
+it's not handled. This makes memcg do the same behavior as global LRU
+and rotate LRU in the page is busy.
 
 Changelog: v1->v2
- - removed buggy break.
+ - adjusted to new beas patch.
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |   10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
 
+---
 Index: lumpy-reclaim-trial/mm/vmscan.c
 ===================================================================
 --- lumpy-reclaim-trial.orig/mm/vmscan.c
 +++ lumpy-reclaim-trial/mm/vmscan.c
-@@ -936,18 +936,10 @@ static unsigned long isolate_lru_pages(u
- 			/* Check that we have not crossed a zone boundary. */
- 			if (unlikely(page_zone_id(cursor_page) != zone_id))
+@@ -844,7 +844,6 @@ int __isolate_lru_page(struct page *page
+ 		 */
+ 		ClearPageLRU(page);
+ 		ret = 0;
+-		mem_cgroup_del_lru(page);
+ 	}
+ 
+ 	return ret;
+@@ -892,12 +891,14 @@ static unsigned long isolate_lru_pages(u
+ 		switch (__isolate_lru_page(page, mode, file)) {
+ 		case 0:
+ 			list_move(&page->lru, dst);
++			mem_cgroup_del_lru(page);
+ 			nr_taken++;
+ 			break;
+ 
+ 		case -EBUSY:
+ 			/* else it is being freed elsewhere */
+ 			list_move(&page->lru, src);
++			mem_cgroup_rotate_lru_list(page, page_lru(page));
+ 			continue;
+ 
+ 		default:
+@@ -938,6 +939,7 @@ static unsigned long isolate_lru_pages(u
  				continue;
--			switch (__isolate_lru_page(cursor_page, mode, file)) {
--			case 0:
-+			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+ 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
  				list_move(&cursor_page->lru, dst);
++				mem_cgroup_del_lru(page);
  				nr_taken++;
  				scan++;
--				break;
--
--			case -EBUSY:
--				/* else it is being freed elsewhere */
--				list_move(&cursor_page->lru, src);
--			default:
--				break;	/* ! on LRU or wrong list */
  			}
+Index: lumpy-reclaim-trial/mm/memcontrol.c
+===================================================================
+--- lumpy-reclaim-trial.orig/mm/memcontrol.c
++++ lumpy-reclaim-trial/mm/memcontrol.c
+@@ -649,6 +649,7 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	int zid = zone_idx(z);
+ 	struct mem_cgroup_per_zone *mz;
+ 	int lru = LRU_FILE * !!file + !!active;
++	int ret;
+ 
+ 	BUG_ON(!mem_cont);
+ 	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
+@@ -666,9 +667,19 @@ unsigned long mem_cgroup_isolate_pages(u
+ 			continue;
+ 
+ 		scan++;
+-		if (__isolate_lru_page(page, mode, file) == 0) {
++		ret = __isolate_lru_page(page, mode, file);
++		switch (ret) {
++		case 0:
+ 			list_move(&page->lru, dst);
++			mem_cgroup_del_lru(page);
+ 			nr_taken++;
++			break;
++		case -EBUSY:
++			/* we don't affect global LRU but rotate in our LRU */
++			mem_cgroup_rotate_lru_list(page, page_lru(page));
++			break;
++		default:
++			break;
  		}
  	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
