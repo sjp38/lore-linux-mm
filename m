@@ -1,46 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 84C3A6B0085
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 11:20:43 -0400 (EDT)
-Message-ID: <4A327161.7000803@cs.helsinki.fi>
-Date: Fri, 12 Jun 2009 18:16:49 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or suspending
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI> <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI> <20090612091002.GA32052@elte.hu> <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com> <20090612100756.GA25185@elte.hu> <84144f020906120311x7c7dd628s82e3ca9a840f9890@mail.gmail.com> <20090612101511.GC13607@wotan.suse.de> <Pine.LNX.4.64.0906121328030.32274@melkki.cs.Helsinki.FI> <alpine.LFD.2.01.0906120809560.3237@localhost.localdomain>
-In-Reply-To: <alpine.LFD.2.01.0906120809560.3237@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EEE5D6B0087
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 11:22:43 -0400 (EDT)
+Date: Fri, 12 Jun 2009 08:22:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+Message-Id: <20090612082252.519061c3.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	<Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	<20090612091002.GA32052@elte.hu>
+	<1244798515.7172.99.camel@pasglop>
+	<84144f020906120224v5ef44637pb849fd247eab84ea@mail.gmail.com>
+	<1244799389.7172.110.camel@pasglop>
+	<Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, akpm@linux-foundation.org, cl@linux-foundation.org
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On Fri, 12 Jun 2009, Pekka J Enberg wrote:
->> Hmm. This is turning into one epic patch discussion for sure! But here's a 
->> patch to do what you suggested. With the amount of patches I am 
->> generating, I'm bound to hit the right one sooner or later, no?-)
-> 
-> Ok, this one looks pretty good. I like the statics, and I like how it lets 
-> each allocator decide what to do.
-> 
-> Small nit: your mm/slab.c patch does an obviously unnecessary mask in:
-> 
-> 	cache_alloc_debugcheck_before(cachep, flags & slab_gfp_flags);
-> 
-> but that's stupid, because the bits were already masked earlier.
+On Fri, 12 Jun 2009 12:45:21 +0300 (EEST) Pekka J Enberg <penberg@cs.helsinki.fi> wrote:
 
-Yeah, the SLAB parts were completely untested. I have this in my tree 
-now (that I sent a pull request for):
+> From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Date: Fri, 12 Jun 2009 12:39:58 +0300
+> Subject: [PATCH] Sanitize "gfp" flags during boot
+> 
+> With the recent shuffle of initialization order to move memory related
+> inits earlier, various subtle breakage was introduced in archs like
+> powerpc due to code somewhat assuming that GFP_KERNEL can be used as
+> soon as the allocators are up. This is not true because any __GFP_WAIT
+> allocation will cause interrupts to be enabled, which can be fatal if
+> it happens too early.
+> 
+> This isn't trivial to fix on every call site. For example, powerpc's
+> ioremap implementation needs to be called early. For that, it uses two
+> different mechanisms to carve out virtual space. Before memory init,
+> by moving down VMALLOC_END, and then, by calling get_vm_area().
+> Unfortunately, the later does GFK_KERNEL allocations. But we can't do
+> anything else because once vmalloc's been initialized, we can no longer
+> safely move VMALLOC_END to carve out space.
+> 
+> There are other examples, wehere can can be called either very early
+> or later on when devices are hot-plugged. It would be a major pain for
+> such code to have to "know" whether it's in a context where it should
+> use GFP_KERNEL or GFP_NOWAIT.
+> 
+> Finally, by having the ability to silently removed __GFP_WAIT from
+> allocations, we pave the way for suspend-to-RAM to use that feature
+> to also remove __GFP_IO from allocations done after suspending devices
+> has started. This is important because such allocations may hang if
+> devices on the swap-out path have been suspended, but not-yet suspended
+> drivers don't know about it, and may deadlock themselves by being hung
+> into a kmalloc somewhere while holding a mutex for example.
+> 
+> ...
+>
+> +/*
+> + * We set up the page allocator and the slab allocator early on with interrupts
+> + * disabled. Therefore, make sure that we sanitize GFP flags accordingly before
+> + * everything is up and running.
+> + */
+> +gfp_t gfp_allowed_bits = ~(__GFP_WAIT|__GFP_FS | __GFP_IO);
 
-http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=f6b726dae91cc74fb3a00f192932ec4fe0949875
+__read_mostly
 
-Do you want me to drop it? I can also do an incremental patch to do the 
-unmasking as in this patch.
+> +void mm_late_init(void)
+> +{
+> +	/*
+> +	 * Interrupts are enabled now so all GFP allocations are safe.
+> +	 */
+> +	gfp_allowed_bits = __GFP_BITS_MASK;
+> +}
 
-			Pekka
+Using plain old -1 here would be a more obviously-correct change.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
