@@ -1,138 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 433DE6B0055
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 06:17:09 -0400 (EDT)
-Date: Fri, 12 Jun 2009 11:17:35 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 69C936B005A
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 06:21:35 -0400 (EDT)
+Date: Fri, 12 Jun 2009 11:22:11 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] Properly account for the number of page cache
-	pages zone_reclaim() can reclaim
-Message-ID: <20090612101735.GA14498@csn.ul.ie>
-References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie> <1244717273-15176-2-git-send-email-mel@csn.ul.ie> <20090611203349.6D68.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH for mmotm 2/5]
+Message-ID: <20090612102211.GB14498@csn.ul.ie>
+References: <20090611192600.6D50.A69D9226@jp.fujitsu.com> <20090611111341.GE7302@csn.ul.ie> <20090611204208.6D6B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090611203349.6D68.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090611204208.6D6B.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 08:37:04PM +0900, KOSAKI Motohiro wrote:
-> > On NUMA machines, the administrator can configure zone_reclaim_mode that
-> > is a more targetted form of direct reclaim. On machines with large NUMA
-> > distances for example, a zone_reclaim_mode defaults to 1 meaning that clean
-> > unmapped pages will be reclaimed if the zone watermarks are not being met.
+On Thu, Jun 11, 2009 at 08:50:06PM +0900, KOSAKI Motohiro wrote:
+> > On Thu, Jun 11, 2009 at 07:26:48PM +0900, KOSAKI Motohiro wrote:
+> > > Changes since Wu's original patch
+> > >   - adding vmstat
+> > >   - rename NR_TMPFS_MAPPED to NR_SWAP_BACKED_FILE_MAPPED
+> > > 
+> > > 
+> > > ----------------------
+> > > Subject: [PATCH] introduce NR_SWAP_BACKED_FILE_MAPPED zone stat
 > > 
-> > There is a heuristic that determines if the scan is worthwhile but the problem
-> > is that the heuristic is not being properly applied and is basically assuming
-> > zone_reclaim_mode is 1 if it is enabled. The lack of proper detection can
-> > manfiest as high CPU usage as the LRU list is scanned uselessly.
+> > This got lost in the actual subject line.
 > > 
-> > Historically, once enabled it was depending on NR_FILE_PAGES which may
-> > include swapcache pages that the reclaim_mode cannot deal with.  Patch
-> > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch by
-> > Kosaki Motohiro noted that zone_page_state(zone, NR_FILE_PAGES) included
-> > pages that were not file-backed such as swapcache and made a calculation
-> > based on the inactive, active and mapped files. This is far superior
-> > when zone_reclaim==1 but if RECLAIM_SWAP is set, then NR_FILE_PAGES is a
-> > reasonable starting figure.
+> > > Desirable zone reclaim implementaion want to know the number of
+> > > file-backed and unmapped pages.
+> > > 
 > > 
-> > This patch alters how zone_reclaim() works out how many pages it might be
-> > able to reclaim given the current reclaim_mode. If RECLAIM_SWAP is set
-> > in the reclaim_mode it will either consider NR_FILE_PAGES as potential
-> > candidates or else use NR_{IN}ACTIVE}_PAGES-NR_FILE_MAPPED to discount
-> > swapcache and other non-file-backed pages.  If RECLAIM_WRITE is not set,
-> > then NR_FILE_DIRTY number of pages are not candidates. If RECLAIM_SWAP is
-> > not set, then NR_FILE_MAPPED are not.
+> > There needs to be more justification for this. We need an example
+> > failure case that this addresses. For example, Patch 1 of my series was
+> > to address the following problem included with the patchset leader
 > > 
-> > [mmotm note: This patch should be merged with or replace
-> > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.  Kosaki?]
+> > "The reported problem was that malloc() stalled for a long time (minutes
+> > in some cases) if a large tmpfs mount was occupying a large percentage of
+> > memory overall. The pages did not get cleaned or reclaimed by zone_reclaim()
+> > because the zone_reclaim_mode was unsuitable, but the lists are uselessly
+> > scanned frequencly making the CPU spin at near 100%."
 > > 
-> > [kosaki.motohiro@jp.fujitsu.com: Estimate unmapped pages minus tmpfs pages]
-> > [fengguang.wu@intel.com: Fix underflow problem in Kosaki's estimate]
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > Acked-by: Christoph Lameter <cl@linux-foundation.org>
-> > ---
-> >  mm/vmscan.c |   55 +++++++++++++++++++++++++++++++++++++++++--------------
-> >  1 files changed, 41 insertions(+), 14 deletions(-)
+> > We should have a similar case.
 > > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 2ddcfc8..d832ba8 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2333,6 +2333,44 @@ int sysctl_min_unmapped_ratio = 1;
-> >   */
-> >  int sysctl_min_slab_ratio = 5;
-> >  
-> > +static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
-> > +{
-> > +	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-> > +	unsigned long file_lru = zone_page_state(zone, NR_INACTIVE_FILE) +
-> > +		zone_page_state(zone, NR_ACTIVE_FILE);
-> > +
-> > +	/*
-> > +	 * It's possible for there to be more file mapped pages than
-> > +	 * accounted for by the pages on the file LRU lists because
-> > +	 * tmpfs pages accounted for as ANON can also be FILE_MAPPED
-> > +	 */
-> > +	return (file_lru > file_mapped) ? (file_lru - file_mapped) : 0;
-> > +}
-> > +
-> > +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
-> > +static long zone_pagecache_reclaimable(struct zone *zone)
-> > +{
-> > +	long nr_pagecache_reclaimable;
-> > +	long delta = 0;
-> > +
-> > +	/*
-> > +	 * If RECLAIM_SWAP is set, then all file pages are considered
-> > +	 * potentially reclaimable. Otherwise, we have to worry about
-> > +	 * pages like swapcache and zone_unmapped_file_pages() provides
-> > +	 * a better estimate
-> > +	 */
-> > +	if (zone_reclaim_mode & RECLAIM_SWAP)
-> > +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
-> > +	else
-> > +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
-> > +
-> > +	/* If we can't clean pages, remove dirty pages from consideration */
-> > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
-> > +		delta += zone_page_state(zone, NR_FILE_DIRTY);
+> > What "desirable" zone_reclaim() should be spelled out as well. Minimally
+> > something like
+> > 
+> > "For zone_reclaim() to be efficient, it must be able to detect in advance
+> > if the LRU scan will reclaim the necessary pages with the limitations of
+> > the current zone_reclaim_mode. Otherwise, the CPU usage is increases as
+> > zone_reclaim() uselessly scans the LRU list.
+> > 
+> > The problem with the heuristic is ....
+> > 
+> > This patch fixes the heuristic by ...."
+> > 
+> > etc?
+> > 
+> > I'm not trying to be awkward. I believe I provided similar reasoning
+> > with my own patchset.
 > 
-> no use delta?
-> 
-
-delta was used twice in an interim version when it was possible to overflow
-the counter. I left it as is because if another counter is added that must
-be subtracted from nr_pagecache_reclaimable, it'll be tidier to patch in if
-delta was there. I can take it out if you prefer.
-
-> > +
-> > +	return nr_pagecache_reclaimable;
-> > +}
-> > +
-> >  /*
-> >   * Try to free up some pages from this zone through reclaim.
-> >   */
-> > @@ -2355,7 +2393,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  		.isolate_pages = isolate_pages_global,
-> >  	};
-> >  	unsigned long slab_reclaimable;
-> > -	long nr_unmapped_file_pages;
-> >  
-> >  	disable_swap_token();
-> >  	cond_resched();
-> > @@ -2368,11 +2405,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  	reclaim_state.reclaimed_slab = 0;
-> >  	p->reclaim_state = &reclaim_state;
-> >  
-> > -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> > -				 zone_page_state(zone, NR_ACTIVE_FILE) -
-> > -				 zone_page_state(zone, NR_FILE_MAPPED);
-> > -
-> > -	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
-> > +	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
+> You are right. my intention is not actual issue, it only fix
+> documentation lie.
 > 
 > Documentation/sysctl/vm.txt says
 > =============================================================
@@ -147,62 +77,100 @@ delta was there. I can take it out if you prefer.
 > file I/O even if the node is overallocated.
 > 
 > The default is 1 percent.
-> 
 > ==============================================================
 > 
-> but your code condider more addional thing. Can you please change document too?
+> but actual code don't account "percentage of file backed and unmapped".
+> Administrator can't imazine current implementation form this documentation.
 > 
 
-How does this look?
+That's a good point. I've suggested alternative documentation in another
+thread.
 
-==============================================================
-min_unmapped_ratio:
+> Plus, I don't think this patch is too messy. thus I did decide to make
+> this fix.
+> 
+> if anyone provide good documentation fix, my worry will vanish.
+> 
 
-This is available only on NUMA kernels.
+Hopefully your worry has vanished.
 
-This is a percentage of the total pages in each zone. Zone reclaim will only
-occur if more than this percentage are in a state that zone_reclaim_mode
-allows to be reclaimed.
-
-If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
-against all file-backed unmapped pages including swapcache pages and tmpfs
-files. Otherwise, only unmapped pages backed by normal files but not tmpfs
-files and similar are considered.
-
-The default is 1 percent.
-==============================================================
+While I have no objection to the patch as such, I would like to know
+what it's fixing. Believe me, if the scan-heuristic breaks again, this
+patch would be one of the first things I considered as a fix :/
 
 > 
-> >  		/*
-> >  		 * Free memory by calling shrink zone with increasing
-> >  		 * priorities until we have enough memory freed.
-> > @@ -2419,8 +2452,6 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  {
-> >  	int node_id;
-> >  	int ret;
-> > -	long nr_unmapped_file_pages;
-> > -	long nr_slab_reclaimable;
-> >  
-> >  	/*
-> >  	 * Zone reclaim reclaims unmapped file backed pages and
-> > @@ -2432,12 +2463,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  	 * if less than a specified percentage of the zone is used by
-> >  	 * unmapped file backed pages.
-> >  	 */
-> > -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
-> > -				 zone_page_state(zone, NR_ACTIVE_FILE) -
-> > -				 zone_page_state(zone, NR_FILE_MAPPED);
-> > -	nr_slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> > -	if (nr_unmapped_file_pages <= zone->min_unmapped_pages &&
-> > -	    nr_slab_reclaimable <= zone->min_slab_pages)
-> > +	if (zone_pagecache_reclaimable(zone) <= zone->min_unmapped_pages &&
-> > +	    zone_page_state(zone, NR_SLAB_RECLAIMABLE) <= zone->min_slab_pages)
-> >  		return 0;
-> >  
-> >  	if (zone_is_all_unreclaimable(zone))
-> > -- 
-> > 1.5.6.5
+> 
+> > > Thus, we need to know number of swap-backed mapped pages for
+> > > calculate above number.
+> > > 
+> > > 
+> > > Cc: Mel Gorman <mel@csn.ul.ie>
+> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > ---
+> > >  include/linux/mmzone.h |    2 ++
+> > >  mm/rmap.c              |    7 +++++++
+> > >  mm/vmstat.c            |    1 +
+> > >  3 files changed, 10 insertions(+)
+> > > 
+> > > Index: b/include/linux/mmzone.h
+> > > ===================================================================
+> > > --- a/include/linux/mmzone.h
+> > > +++ b/include/linux/mmzone.h
+> > > @@ -88,6 +88,8 @@ enum zone_stat_item {
+> > >  	NR_ANON_PAGES,	/* Mapped anonymous pages */
+> > >  	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+> > >  			   only modified from process context */
+> > > +	NR_SWAP_BACKED_FILE_MAPPED, /* Similar to NR_FILE_MAPPED. but
+> > > +				       only account swap-backed pages */
+> > >  	NR_FILE_PAGES,
+> > >  	NR_FILE_DIRTY,
+> > >  	NR_WRITEBACK,
+> > > Index: b/mm/rmap.c
+> > > ===================================================================
+> > > --- a/mm/rmap.c
+> > > +++ b/mm/rmap.c
+> > > @@ -829,6 +829,10 @@ void page_add_file_rmap(struct page *pag
+> > >  {
+> > >  	if (atomic_inc_and_test(&page->_mapcount)) {
+> > >  		__inc_zone_page_state(page, NR_FILE_MAPPED);
+> > > +		if (PageSwapBacked(page))
+> > > +			__inc_zone_page_state(page,
+> > > +					      NR_SWAP_BACKED_FILE_MAPPED);
+> > > +
+> > >  		mem_cgroup_update_mapped_file_stat(page, 1);
+> > >  	}
+> > >  }
+> > > @@ -884,6 +888,9 @@ void page_remove_rmap(struct page *page)
+> > >  		__dec_zone_page_state(page, NR_ANON_PAGES);
+> > >  	} else {
+> > >  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> > > +		if (PageSwapBacked(page))
+> > > +			__dec_zone_page_state(page,
+> > > +					NR_SWAP_BACKED_FILE_MAPPED);
+> > >  	}
+> > >  	mem_cgroup_update_mapped_file_stat(page, -1);
+> > >  	/*
+> > > Index: b/mm/vmstat.c
+> > > ===================================================================
+> > > --- a/mm/vmstat.c
+> > > +++ b/mm/vmstat.c
+> > > @@ -633,6 +633,7 @@ static const char * const vmstat_text[] 
+> > >  	"nr_mlock",
+> > >  	"nr_anon_pages",
+> > >  	"nr_mapped",
+> > > +	"nr_swap_backed_file_mapped",
+> > >  	"nr_file_pages",
+> > >  	"nr_dirty",
+> > >  	"nr_writeback",
+> > > 
 > > 
+> > Otherwise the patch seems reasonable.
+> > 
+> > -- 
+> > Mel Gorman
+> > Part-time Phd Student                          Linux Technology Center
+> > University of Limerick                         IBM Dublin Software Lab
 > 
 > 
 > 
