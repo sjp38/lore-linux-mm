@@ -1,120 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A04916B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 07:04:23 -0400 (EDT)
-Date: Fri, 12 Jun 2009 12:04:24 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring
-	behaviour more in line with expectations V3
-Message-ID: <20090612110424.GD14498@csn.ul.ie>
-References: <1244717273-15176-1-git-send-email-mel@csn.ul.ie> <20090611163006.e985639f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090611163006.e985639f.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EAAF36B0055
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 07:09:44 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090612100756.GA25185@elte.hu>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090612091002.GA32052@elte.hu>
+	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
+	 <20090612100756.GA25185@elte.hu>
+Content-Type: text/plain
+Date: Fri, 12 Jun 2009 21:09:40 +1000
+Message-Id: <1244804980.7172.124.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, cl@linux-foundation.org, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 11, 2009 at 04:30:06PM -0700, Andrew Morton wrote:
-> On Thu, 11 Jun 2009 11:47:50 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 2009-06-12 at 12:07 +0200, Ingo Molnar wrote:
 > 
-> > The big change with this release is that the patch reintroducing
-> > zone_reclaim_interval has been dropped as Ram reports the malloc() stalls
-> > have been resolved. If this bug occurs again, the counter will be there to
-> > help us identify the situation.
+> IMHO such invisible side-channels modifying the semantics of GFP 
+> flags is a bit dubious.
 > 
-> What is the exact relationship between this work and the somewhat
-> mangled "[PATCH for mmotm 0/5] introduce swap-backed-file-mapped count
-> and fix
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch"
-> series?
-> 
+> We could do GFP_INIT or GFP_BOOT. These can imply other useful 
+> modifiers as well: panic-on-failure for example. (this would clean 
+> up a fair amount of init code that currently checks for an panics on 
+> allocation failure.)
 
-The patch series "Fix malloc() stall in zone_reclaim() and bring
-behaviour more in line with expectations V3" replaces
-vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch.
+I disagree.
 
-Portions of the patch series "Introduce swap-backed-file-mapped count" are
-potentially follow-on work if a failure case can be identified. The series
-brings the kernel behaviour more in line with documentation, but it's easier
-to fix the documentation.
+I believe most code shouldn't have to care whether it's in boot, suspend
+or similar to get the right flags to kmalloc().
 
-> That five-patch series had me thinking that it was time to drop 
-> 
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
+This is especially true for when the allocator is called indirectly by
+something that can itself be called from either boot or non-boot.
 
-This patch gets replaced. All the lessons in the new patch are included.
-They could be merged together.
+I believe the best example here is __get_vm_area() will use GFP_KERNEL.
+I don't think it should be "fixed" to do anything else. The normal case
+of GFP_KERNEL is correct and it shouldn't be changed to do GFP_NOWAIT
+just because it happens that we use it earlier during init time.
 
-> vmscan-drop-pf_swapwrite-from-zone_reclaim.patch
+This is also true of a lot of code used on "hotplug" path that is
+commonly used at init time but can be used later on.
 
-This patch is wrong, but only sortof. It should be dropped or replaced with
-another version. Kosaki, could you resubmit this patch except that you check
-if RECLAIM_SWAP is set in zone_reclaim_mode when deciding whether to set
-PF_SWAPWRITE or not please?
+To some extent, the subtle distinction of whether interrupts are enabled
+or not is something that shouldn't be something those callers have to
+bother with. Yes, it is obvious for some strictly init code, but it's
+far from being always that simple, and it's not unlikely that we'll
+decide to move around in the init sequence the point at which we decide
+to enable interrupts. We shouldn't have to fix half of the init code
+when we do that.
 
-Your patch is correct if zone_reclaim_mode 1, but incorrect if it's 7 for
-example.
+In fact, we could push the logic further (but please read it all before
+reacting :-) The fact that we -do- specific GFP_ATOMIC for atomic
+context is -almost- a side effect of history. To some extent we could
+get rid of it since we can almost always know when we are in such a
+context. In that case, though, I believe we should keep it that way, at
+least because it does discourage people from allocating in those
+contexts which is a good thing.
 
-> vmscan-zone_reclaim-use-may_swap.patch
-> 
+Back to the general idea, I think we shouldn't burden arch, driver,
+subsystem etc... code with the need to understand the system state, in
+our present case, init vs. non init, but the same issue applies with
+suspend/resume vs. GFP_NOIO as I explained in a separate email.
 
-This is a tricky one. Kosaki, I think this patch is a little dangerous. With
-this applied, pages get unmapped whether RECLAIM_SWAP is set or not. This
-means that zone_reclaim() now has more work to do when it's enabled and it
-incurs a number of minor faults for no reason as a result of trying to avoid
-going off-node. I don't believe that is desirable because it would manifest
-as high minor fault counts on NUMA and would be difficult to pin down why
-that was happening.
+This typically a case where I believe the best way to ensure we do the
+right thing is to put the check in the few common code path where
+everybody funnels through, which is the allocator itself.
 
-I think the code makes more sense than the documentation and it's the
-documentation that should be fixed. Our current behaviour is to discard
-clean, swap-backed, unmapped pages that require no further IO. This is
-reasonable behaviour for zone_reclaim_mode == 1 so maybe the patch
-should change the documentation to
+Cheers,
+Ben.
 
-        1       = Zone reclaim discards clean unmapped disk-backed pages
-        2       = Zone reclaim writes dirty pages out
-        4       = Zone reclaim unmaps and swaps pages
-
-If you really wanted to strict about the meaning of RECLAIM_SWAP, then
-something like the following would be reasonable;
-
-	.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-	.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-
-because a system administrator is not going to distinguish between
-unmapping and swap. I would assume at least that RECLAIM_SWAP implies
-unmapping pages for swapping but an updated documentation wouldn't hurt
-with
-
-	4       = Zone reclaim unmaps and swaps pages
-
-> (they can be removed cleanly, but I haven't tried compiling the result)
-> 
-> but your series is based on those.
-> 
-
-The patchset only depends on
-vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
-and then only because of merge conflicts. All the lessons in
-vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch are
-incorporated.
-
-> We have 142 MM patches queued, and we need to merge next week.
-> 
-
-I'm sorry my timing for coming out with the zone_reclaim() patches sucks
-and that I failed to spot these patches earlier. Despite the abundance
-of evidence, I'm not trying to be deliberatly awkward :/
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
