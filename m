@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 106126B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:58:40 -0400 (EDT)
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1244800695.7172.115.camel@pasglop>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090612091002.GA32052@elte.hu> <1244798515.7172.99.camel@pasglop>
-	 <84144f020906120224v5ef44637pb849fd247eab84ea@mail.gmail.com>
-	 <1244799389.7172.110.camel@pasglop>
-	 <Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
-	 <1244800695.7172.115.camel@pasglop>
-Date: Fri, 12 Jun 2009 13:00:29 +0300
-Message-Id: <1244800829.30512.40.camel@penberg-laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D39316B005C
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 06:07:35 -0400 (EDT)
+Date: Fri, 12 Jun 2009 12:07:44 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 2/5] HWPOISON: fix tasklist_lock/anon_vma locking order
+Message-ID: <20090612100744.GB13607@wotan.suse.de>
+References: <20090611142239.192891591@intel.com> <20090611144430.540500784@intel.com> <20090612100308.GD25568@one.firstfloor.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090612100308.GD25568@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jun 2009, Benjamin Herrenschmidt wrote:
-> > > Take a break, take a step back, and look at the big picture. Do you
-> > > really want to find all the needles in the haystack or just make sure
-> > > you wear gloves when handling the hay ? :-)
-
-On Fri, 2009-06-12 at 12:45 +0300, Pekka J Enberg wrote:
-> > Well, I would like to find the needles but I think we should do it with 
-> > gloves on.
+On Fri, Jun 12, 2009 at 12:03:08PM +0200, Andi Kleen wrote:
+> On Thu, Jun 11, 2009 at 10:22:41PM +0800, Wu Fengguang wrote:
+> > To avoid possible deadlock. Proposed by Nick Piggin:
+> 
+> I disagree with the description. There's no possible deadlock right now.
+> It would be purely out of paranoia.
+> 
 > > 
-> > If everyone is happy with this version of Ben's patch, I'm going to just 
-> > apply it and push it to Linus.
+> >   You have tasklist_lock(R) nesting outside i_mmap_lock, and inside anon_vma
+> >   lock. And anon_vma lock nests inside i_mmap_lock.
+> > 
+> >   This seems fragile. If rwlocks ever become FIFO or tasklist_lock changes
+> 
+> I was a bit dubious on this reasoning. If rwlocks become FIFO a lot of
+> stuff will likely break.
+> 
+> >   type (maybe -rt kernels do it), then you could have a task holding
+> 
+> I think they tried but backed off quickly again
+> 
+> It's ok with a less scare-mongering description.
 
-On Fri, 2009-06-12 at 19:58 +1000, Benjamin Herrenschmidt wrote:
-> Thanks :-) Looks right at first glance. I'll test tomorrow.
-
-Nick? I do think this is the best short-term solution. We can get rid of
-it later on if we decide to fix up the callers instead.
-
-			Pekka
+There's simply no good reason to invert ordering of locks like
+this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
