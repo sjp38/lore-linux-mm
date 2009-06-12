@@ -1,40 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B18106B005C
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:57:56 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 106126B004D
+	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 05:58:40 -0400 (EDT)
 Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
  suspending
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090612095206.GA13607@wotan.suse.de>
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1244800695.7172.115.camel@pasglop>
 References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
 	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090612091002.GA32052@elte.hu>
-	 <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com>
-	 <20090612095206.GA13607@wotan.suse.de>
-Content-Type: text/plain
-Date: Fri, 12 Jun 2009 19:59:34 +1000
-Message-Id: <1244800774.7172.116.camel@pasglop>
+	 <20090612091002.GA32052@elte.hu> <1244798515.7172.99.camel@pasglop>
+	 <84144f020906120224v5ef44637pb849fd247eab84ea@mail.gmail.com>
+	 <1244799389.7172.110.camel@pasglop>
+	 <Pine.LNX.4.64.0906121244020.30911@melkki.cs.Helsinki.FI>
+	 <1244800695.7172.115.camel@pasglop>
+Date: Fri, 12 Jun 2009 13:00:29 +0300
+Message-Id: <1244800829.30512.40.camel@penberg-laptop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 12 Jun 2009, Benjamin Herrenschmidt wrote:
+> > > Take a break, take a step back, and look at the big picture. Do you
+> > > really want to find all the needles in the haystack or just make sure
+> > > you wear gloves when handling the hay ? :-)
 
-> Maybe if we just not make it a general "tweak gfpflag" bit (at
-> least not until a bit more discussion), but a specific workaround
-> for the local_irq_enable in early boot problem.
-> 
-> Seems like it would not be hard to track things down if we add
-> a warning if we have GFP_WAIT and interrupts are not enabled...
+On Fri, 2009-06-12 at 12:45 +0300, Pekka J Enberg wrote:
+> > Well, I would like to find the needles but I think we should do it with 
+> > gloves on.
+> > 
+> > If everyone is happy with this version of Ben's patch, I'm going to just 
+> > apply it and push it to Linus.
 
-But tweaking local_irq_enable() will have a lot more performance & bloat
-impact overall on the normal case.
+On Fri, 2009-06-12 at 19:58 +1000, Benjamin Herrenschmidt wrote:
+> Thanks :-) Looks right at first glance. I'll test tomorrow.
 
-Cheers,
-Ben.
+Nick? I do think this is the best short-term solution. We can get rid of
+it later on if we decide to fix up the callers instead.
 
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
