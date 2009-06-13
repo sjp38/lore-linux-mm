@@ -1,34 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 23CF26B004D
-	for <linux-mm@kvack.org>; Fri, 12 Jun 2009 17:48:20 -0400 (EDT)
-Message-ID: <4A32CD79.5040803@redhat.com>
-Date: Sat, 13 Jun 2009 00:49:45 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 89E296B004D
+	for <linux-mm@kvack.org>; Sat, 13 Jun 2009 11:05:30 -0400 (EDT)
+Date: Sat, 13 Jun 2009 16:04:40 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Subject: Re: [PATCH 0/4] RFC - ksm api change into madvise
-References: <1242261048-4487-1-git-send-email-ieidus@redhat.com> <Pine.LNX.4.64.0906081555360.22943@sister.anvils> <4A2D47C1.5020302@redhat.com> <Pine.LNX.4.64.0906081902520.9518@sister.anvils> <4A2D7036.1010800@redhat.com> <20090609074848.5357839a@woof.tlv.redhat.com> <Pine.LNX.4.64.0906091807300.20120@sister.anvils> <Pine.LNX.4.64.0906092013580.31606@sister.anvils> <20090610092855.43be2405@woof.tlv.redhat.com> <Pine.LNX.4.64.0906111700390.18609@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0906111700390.18609@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090608225756.GB8642@random.random>
+Message-ID: <Pine.LNX.4.64.0906131547560.6589@sister.anvils>
+References: <1242261048-4487-1-git-send-email-ieidus@redhat.com>
+ <Pine.LNX.4.64.0906081555360.22943@sister.anvils> <20090608225756.GB8642@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, chrisw@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
->
-> Okay.  We do have a macro to annotate such pacifying initializations,
-> but I've not used it before, and forget what it is or where to look
-> for an example, I don't see it in kernel.h or compiler.h.  Maybe
-> Andrew will chime in and remind us.
->
-> Hugh
->   
-I have looked on compiler.h - this file have something that deal with 
-warnings, but didnt find anything that is good for our case....
+Hi Andrea,
 
-Anyone know where is this thing is found?
+On Tue, 9 Jun 2009, Andrea Arcangeli wrote:
+> 
+> So let us know what you think about the rmap_item/tree_item out of
+> sync, or in sync with mmu notifier. As said Izik already did a
+> preliminary patch with mmu notifier registration. I doubt we want to
+> invest in that direction unless there's 100% agreement that it is
+> definitely the way to go, and the expectation that it will make a
+> substantial difference to the KSM users. Minor optimizations that
+> increase complexity a lot, can be left for later.
+
+Thanks for your detailed mail, of which this is merely the final
+paragraph.  Thought I'd better respond with a little reassurance,
+though I'm not yet ready to write in detail.
+
+I agree 100% that KSM is entitled to be as "lazy" about clearing
+up pages as it is about merging them in the first place: you're
+absolutely right to avoid the unnecessary overhead of keeping
+strictly in synch, and I recognize the lock ordering problems
+that keeping strictly in synch would be likely to entail.
+
+My remarks about "lost" pages came from the belief that operations
+upon the vmas could move pages to where they thereafter escaped
+the attention of KSM's scans for an _indefinite_ period (until
+the process exited or even after): that's what has worried me,
+but I've yet to demonstrate such a problem, and the rework
+naturally changes what happens here.
+
+So, rest assured, I'm not wanting to impose a stricter discipline and
+tighter linkage, unless it's to fix a proven indefinite discrepancy.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
