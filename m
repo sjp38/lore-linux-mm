@@ -1,105 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4BF2A6B004F
-	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 13:42:13 -0400 (EDT)
-Date: Sun, 14 Jun 2009 13:43:30 -0400
-From: Bart Trojanowski <bart@jukie.net>
-Subject: Re: [v2.6.30 nfs+fscache] swapper: possible circular locking
-	dependency detected
-Message-ID: <20090614174329.GA4721@jukie.net>
-References: <20090613182721.GA24072@jukie.net> <20090614141459.GA5543@jukie.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CFDC46B004F
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 14:36:41 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5EIY5S8008763
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 12:34:05 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5EIbowP265146
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 12:37:50 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5EIbnfi008100
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 12:37:50 -0600
+Date: Mon, 15 Jun 2009 00:07:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Low overhead patches for the memory cgroup controller (v4)
+Message-ID: <20090614183740.GD23577@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <b7dd123f0a15fff62150bc560747d7f0.squirrel@webmail-b.css.fujitsu.com> <20090515181639.GH4451@balbir.in.ibm.com> <20090518191107.8a7cc990.kamezawa.hiroyu@jp.fujitsu.com> <20090531235121.GA6120@balbir.in.ibm.com> <20090602085744.2eebf211.kamezawa.hiroyu@jp.fujitsu.com> <20090605053107.GF11755@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20090614141459.GA5543@jukie.net>
+In-Reply-To: <20090605053107.GF11755@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-cachefs@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-It's me again.
+Here is v4 of the patches, please review and comment
 
-I am tyring to decipher the lockdep report...
+Feature: Remove the overhead associated with the root cgroup
 
-* Bart Trojanowski <bart@jukie.net> [090614 10:15]:
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D
-> [ INFO: possible circular locking dependency detected ]
-> 2.6.30-kvm3-dirty #4
-> -------------------------------------------------------
-> swapper/0 is trying to acquire lock:
->  (&cwq->lock){..-...}, at: [<ffffffff80256c37>] __queue_work+0x1d/0x43
->=20
-> but task is already holding lock:
->  (&q->lock){-.-.-.}, at: [<ffffffff80235b6a>] __wake_up+0x27/0x55
->=20
-> which lock already depends on the new lock.
->=20
->=20
-> the existing dependency chain (in reverse order) is:
->=20
-> -> #1 (&q->lock){-.-.-.}:
->        [<ffffffff8026b7f6>] __lock_acquire+0x1350/0x16b4
->        [<ffffffff8026bc21>] lock_acquire+0xc7/0xf3
->        [<ffffffff805a22e1>] _spin_lock_irqsave+0x4f/0x86
->        [<ffffffff80235b6a>] __wake_up+0x27/0x55
->        [<ffffffff8025620b>] insert_work+0x9a/0xa6
->        [<ffffffff80256c49>] __queue_work+0x2f/0x43
->        [<ffffffff80256cec>] queue_work_on+0x4a/0x53
->        [<ffffffff80256e49>] queue_work+0x1f/0x21
-<snip>
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-So, here I can see that we take the cwq->lock first, when __queue_work
-does:
+changelog v4 -> v3
+1. Rebase to mmotm 9th june 2009
+2. Remove PageCgroupRoot, we have account LRU flags to indicate that
+   we do only accounting and no reclaim.
+3. pcg_default_flags has been used again, since PCGF_ROOT is gone,
+   we set PCGF_ACCT_LRU only in mem_cgroup_add_lru_list
+4. More LRU functions are aware of PageCgroupAcctLRU
 
-        spin_lock_irqsave(&cwq->lock, flags);
-        insert_work(cwq, work, &cwq->worklist);
-        spin_unlock_irqrestore(&cwq->lock, flags);
+Changelog v3 -> v2
 
-and later take the q->lock when insert_work calls to __wake_up:
+1. Rebase to mmotm 2nd June 2009
+2. Test with some of the test cases recommended by Daisuke-San
 
-        spin_lock_irqsave(&q->lock, flags);
-        __wake_up_common(q, mode, nr_exclusive, 0, key);
-        spin_unlock_irqrestore(&q->lock, flags);
+Changelog v2 -> v1
+1. Rebase to latest mmotm
 
-But previously the order was reversed:
+This patch changes the memory cgroup and removes the overhead associated
+with accounting all pages in the root cgroup. As a side-effect, we can
+no longer set a memory hard limit in the root cgroup.
 
-> stack backtrace:
-> Pid: 0, comm: swapper Not tainted 2.6.30-kvm3-dirty #4
-> Call Trace:
->  <IRQ>  [<ffffffff80269ffe>] print_circular_bug_tail+0xc1/0xcc
->  [<ffffffff8026b52b>] __lock_acquire+0x1085/0x16b4
->  [<ffffffff802685b4>] ? save_trace+0x3f/0xa6
->  [<ffffffff8026ba78>] ? __lock_acquire+0x15d2/0x16b4
->  [<ffffffff8026bc21>] lock_acquire+0xc7/0xf3
->  [<ffffffff80256c37>] ? __queue_work+0x1d/0x43
->  [<ffffffff805a22e1>] _spin_lock_irqsave+0x4f/0x86
->  [<ffffffff80256c37>] ? __queue_work+0x1d/0x43
->  [<ffffffff80256c37>] __queue_work+0x1d/0x43
->  [<ffffffff80256cec>] queue_work_on+0x4a/0x53
->  [<ffffffff80256e49>] queue_work+0x1f/0x21
->  [<ffffffff80256e66>] schedule_work+0x1b/0x1d
->  [<ffffffffa00e9268>] fscache_enqueue_operation+0xec/0x11e [fscache]
->  [<ffffffffa00fd662>] cachefiles_read_waiter+0xee/0x102 [cachefiles]
->  [<ffffffff80233a55>] __wake_up_common+0x4b/0x7a
->  [<ffffffff80235b80>] __wake_up+0x3d/0x55
->  [<ffffffff8025a2f1>] __wake_up_bit+0x31/0x33
->  [<ffffffff802a52af>] unlock_page+0x27/0x2b
+A new flag to track whether the page has been accounted or not
+has been added as well. Flags are now set atomically for page_cgroup,
 
-Here the __wake_up happens first, which takes the q->lock, and later the
-__queue_work would take the cwq->lock.
+Tests:
 
-I am guessing that it's not safe for fscache to call out to queue_work
-=66rom this cachefiles_read_waiter() context (more specifically
-fscache_enqueue_operation calls schedule_work).  I don't have much
-experience with lockdep...  does that make any sense?
+Results (for v2)
 
--Bart
+Obtained by
 
---=20
-				WebSig: http://www.jukie.net/~bart/sig/
+1. Using tmpfs for mounting filesystem
+2. Changing sync to be /bin/true (so that sync is not the bottleneck)
+3. Used -s #cpus*40 -e #cpus*40
+
+Reaim
+		withoutpatch	patch
+AIM9		9532.48		9807.59
+dbase		19344.60	19285.71
+new_dbase	20101.65	20163.13
+shared		11827.77	11886.65
+compute		17317.38	17420.05
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ include/linux/page_cgroup.h |    5 ++++
+ mm/memcontrol.c             |   59 ++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 54 insertions(+), 10 deletions(-)
+
+
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index 7339c7b..57c4d50 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -26,6 +26,7 @@ enum {
+ 	PCG_LOCK,  /* page cgroup is locked */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
++	PCG_ACCT_LRU, /* page has been accounted for */
+ };
+ 
+ #define TESTPCGFLAG(uname, lname)			\
+@@ -46,6 +47,10 @@ TESTPCGFLAG(Cache, CACHE)
+ TESTPCGFLAG(Used, USED)
+ CLEARPCGFLAG(Used, USED)
+ 
++SETPCGFLAG(AcctLRU, ACCT_LRU)
++CLEARPCGFLAG(AcctLRU, ACCT_LRU)
++TESTPCGFLAG(AcctLRU, ACCT_LRU)
++
+ static inline int page_cgroup_nid(struct page_cgroup *pc)
+ {
+ 	return page_to_nid(pc->page);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6ceb6f2..399d416 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -43,6 +43,7 @@
+ 
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
++struct mem_cgroup *root_mem_cgroup __read_mostly;
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
+@@ -219,6 +220,11 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+ 
++static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
++{
++	return (mem == root_mem_cgroup);
++}
++
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 					 struct page_cgroup *pc,
+ 					 bool charge)
+@@ -378,15 +384,25 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+ 		return;
+ 	pc = lookup_page_cgroup(page);
+ 	/* can happen while we handle swapcache. */
+-	if (list_empty(&pc->lru) || !pc->mem_cgroup)
++	mem = pc->mem_cgroup;
++	if (!mem)
++		return;
++	if (mem_cgroup_is_root(mem)) {
++		if (!PageCgroupAcctLRU(pc))
++			return;
++	} else if (list_empty(&pc->lru))
+ 		return;
++
+ 	/*
+ 	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
+ 	 * removed from global LRU.
+ 	 */
+ 	mz = page_cgroup_zoneinfo(pc);
+-	mem = pc->mem_cgroup;
+ 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
++	if (PageCgroupAcctLRU(pc)) {
++		ClearPageCgroupAcctLRU(pc);
++		return;
++	}
+ 	list_del_init(&pc->lru);
+ 	return;
+ }
+@@ -410,8 +426,8 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
+ 	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+ 	 */
+ 	smp_rmb();
+-	/* unused page is not rotated. */
+-	if (!PageCgroupUsed(pc))
++	/* unused or root page is not rotated. */
++	if (!PageCgroupUsed(pc) || PageCgroupAcctLRU(pc))
+ 		return;
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	list_move(&pc->lru, &mz->lists[lru]);
+@@ -435,6 +451,10 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
++	if (mem_cgroup_is_root(pc->mem_cgroup)) {
++		SetPageCgroupAcctLRU(pc);
++		return;
++	}
+ 	list_add(&pc->lru, &mz->lists[lru]);
+ }
+ 
+@@ -445,12 +465,15 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+  * it again. This function is only used to charge SwapCache. It's done under
+  * lock_page and expected that zone->lru_lock is never held.
+  */
+-static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page,
++							struct page_cgroup *pc)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+-	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 
++	if (!pc->mem_cgroup ||
++		(!PageCgroupAcctLRU(pc) && mem_cgroup_is_root(pc->mem_cgroup)))
++		return;
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+ 	/*
+ 	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+@@ -461,12 +484,15 @@ static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
+ 
+-static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
++static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page,
++							struct page_cgroup *pc)
+ {
+ 	unsigned long flags;
+ 	struct zone *zone = page_zone(page);
+-	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 
++	if (!pc->mem_cgroup ||
++		(!PageCgroupAcctLRU(pc) && mem_cgroup_is_root(pc->mem_cgroup)))
++		return;
+ 	spin_lock_irqsave(&zone->lru_lock, flags);
+ 	/* link when the page is linked to LRU but page_cgroup isn't */
+ 	if (PageLRU(page) && list_empty(&pc->lru))
+@@ -478,8 +504,13 @@ static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
+ void mem_cgroup_move_lists(struct page *page,
+ 			   enum lru_list from, enum lru_list to)
+ {
++	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 	if (mem_cgroup_disabled())
+ 		return;
++	smp_rmb();
++	if (!pc->mem_cgroup ||
++		(!PageCgroupAcctLRU(pc) && mem_cgroup_is_root(pc->mem_cgroup)))
++		return;
+ 	mem_cgroup_del_lru_list(page, from);
+ 	mem_cgroup_add_lru_list(page, to);
+ }
+@@ -1114,6 +1145,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ 		css_put(&mem->css);
+ 		return;
+ 	}
++
+ 	pc->mem_cgroup = mem;
+ 	smp_wmb();
+ 	pc->flags = pcg_default_flags[ctype];
+@@ -1418,9 +1450,10 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+ 	if (!ptr)
+ 		return;
+ 	pc = lookup_page_cgroup(page);
+-	mem_cgroup_lru_del_before_commit_swapcache(page);
++	smp_rmb();
++	mem_cgroup_lru_del_before_commit_swapcache(page, pc);
+ 	__mem_cgroup_commit_charge(ptr, pc, ctype);
+-	mem_cgroup_lru_add_after_commit_swapcache(page);
++	mem_cgroup_lru_add_after_commit_swapcache(page, pc);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
+@@ -2055,6 +2088,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 	name = MEMFILE_ATTR(cft->private);
+ 	switch (name) {
+ 	case RES_LIMIT:
++		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
++			ret = -EINVAL;
++			break;
++		}
+ 		/* This function does all necessary parse...reuse it */
+ 		ret = res_counter_memparse_write_strategy(buffer, &val);
+ 		if (ret)
+@@ -2521,6 +2558,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	if (cont->parent == NULL) {
+ 		enable_swap_cgroup();
+ 		parent = NULL;
++		root_mem_cgroup = mem;
+ 	} else {
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
+@@ -2549,6 +2587,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	return &mem->css;
+ free_out:
+ 	__mem_cgroup_free(mem);
++	root_mem_cgroup = NULL;
+ 	return ERR_PTR(error);
+ }
+ 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
