@@ -1,13 +1,13 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 03/22] HWPOISON: Add support for poison swap entries v2
-Date: Mon, 15 Jun 2009 10:45:23 +0800
-Message-ID: <20090615031252.669979630@intel.com>
+Subject: [PATCH 14/22] HWPOISON: Add simple debugfs interface to inject hwpoison on arbitary PFNs
+Date: Mon, 15 Jun 2009 10:45:34 +0800
+Message-ID: <20090615031254.293225180@intel.com>
 References: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2032F6B004F
+	by kanga.kvack.org (Postfix) with SMTP id 8004F6B005A
 	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:27 -0400 (EDT)
-Content-Disposition: inline; filename=poison-swp-entry
+Content-Disposition: inline; filename=pfn-inject
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
@@ -15,135 +15,89 @@ List-Id: linux-mm.kvack.org
 
 From: Andi Kleen <ak@linux.intel.com>
 
-Memory migration uses special swap entry types to trigger special actions on 
-page faults. Extend this mechanism to also support poisoned swap entries, to 
-trigger poison handling on page faults. This allows follow-on patches to 
-prevent processes from faulting in poisoned pages again.
+Useful for some testing scenarios, although specific testing is often
+done better through MADV_POISON
 
-v2: Fix overflow in MAX_SWAPFILES (Fengguang Wu)
-v3: Better overflow fix (Hidehiro Kawai)
+This can be done with the x86 level MCE injector too, but this interface
+allows it to do independently from low level x86 changes.
 
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+Open issues: 
+Should be disabled for cgroups.
+
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/swap.h    |   34 ++++++++++++++++++++++++++++------
- include/linux/swapops.h |   38 ++++++++++++++++++++++++++++++++++++++
- mm/swapfile.c           |    4 ++--
- 3 files changed, 68 insertions(+), 8 deletions(-)
+ mm/Kconfig           |    4 ++++
+ mm/Makefile          |    1 +
+ mm/hwpoison-inject.c |   41 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+)
 
---- sound-2.6.orig/include/linux/swap.h
-+++ sound-2.6/include/linux/swap.h
-@@ -34,16 +34,38 @@ static inline int current_is_kswapd(void
-  * the type/offset into the pte as 5/27 as well.
-  */
- #define MAX_SWAPFILES_SHIFT	5
--#ifndef CONFIG_MIGRATION
--#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+--- /dev/null
++++ sound-2.6/mm/hwpoison-inject.c
+@@ -0,0 +1,41 @@
++/* Inject a hwpoison memory failure on a arbitary pfn */
++#include <linux/module.h>
++#include <linux/debugfs.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
 +
-+/*
-+ * Use some of the swap files numbers for other purposes. This
-+ * is a convenient way to hook into the VM to trigger special
-+ * actions on faults.
-+ */
++static struct dentry *hwpoison_dir, *corrupt_pfn;
 +
-+/*
-+ * NUMA node memory migration support
-+ */
-+#ifdef CONFIG_MIGRATION
-+#define SWP_MIGRATION_NUM 2
-+#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM)
-+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
- #else
--/* Use last two entries for page migration swap entries */
--#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
--#define SWP_MIGRATION_READ	MAX_SWAPFILES
--#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
-+#define SWP_MIGRATION_NUM 0
- #endif
- 
- /*
-+ * Handling of hardware poisoned pages with memory corruption.
-+ */
-+#ifdef CONFIG_MEMORY_FAILURE
-+#define SWP_HWPOISON_NUM 1
-+#define SWP_HWPOISON		MAX_SWAPFILES
-+#else
-+#define SWP_HWPOISON_NUM 0
-+#endif
-+
-+#define MAX_SWAPFILES \
-+	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
-+
-+/*
-  * Magic header for a swap area. The first part of the union is
-  * what the swap magic looks like for the old (limited to 128MB)
-  * swap area format, the second part of the union adds - in the
---- sound-2.6.orig/include/linux/swapops.h
-+++ sound-2.6/include/linux/swapops.h
-@@ -131,3 +131,41 @@ static inline int is_write_migration_ent
- 
- #endif
- 
-+#ifdef CONFIG_MEMORY_FAILURE
-+/*
-+ * Support for hardware poisoned pages
-+ */
-+static inline swp_entry_t make_hwpoison_entry(struct page *page)
++static int hwpoison_inject(void *data, u64 val)
 +{
-+	BUG_ON(!PageLocked(page));
-+	return swp_entry(SWP_HWPOISON, page_to_pfn(page));
-+}
-+
-+static inline int is_hwpoison_entry(swp_entry_t entry)
-+{
-+	return swp_type(entry) == SWP_HWPOISON;
-+}
-+#else
-+
-+static inline swp_entry_t make_hwpoison_entry(struct page *page)
-+{
-+	return swp_entry(0, 0);
-+}
-+
-+static inline int is_hwpoison_entry(swp_entry_t swp)
-+{
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	printk(KERN_INFO "Injecting memory failure at pfn %Lx\n", val);
++	memory_failure(val, 18);
 +	return 0;
 +}
-+#endif
 +
-+#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
-+static inline int non_swap_entry(swp_entry_t entry)
++DEFINE_SIMPLE_ATTRIBUTE(hwpoison_fops, NULL, hwpoison_inject, "%lli\n");
++
++static void pfn_inject_exit(void)
 +{
-+	return swp_type(entry) >= MAX_SWAPFILES;
++	if (hwpoison_dir)
++		debugfs_remove_recursive(hwpoison_dir);
 +}
-+#else
-+static inline int non_swap_entry(swp_entry_t entry)
++
++static int pfn_inject_init(void)
 +{
++	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
++	if (hwpoison_dir == NULL)
++		return -ENOMEM;
++	corrupt_pfn = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
++					  NULL, &hwpoison_fops);
++	if (corrupt_pfn == NULL) {
++		pfn_inject_exit();
++		return -ENOMEM;
++	}
 +	return 0;
 +}
-+#endif
---- sound-2.6.orig/mm/swapfile.c
-+++ sound-2.6/mm/swapfile.c
-@@ -697,7 +697,7 @@ int free_swap_and_cache(swp_entry_t entr
- 	struct swap_info_struct *p;
- 	struct page *page = NULL;
++
++module_init(pfn_inject_init);
++module_exit(pfn_inject_exit);
+--- sound-2.6.orig/mm/Kconfig
++++ sound-2.6/mm/Kconfig
+@@ -242,6 +242,10 @@ config KSM
+ config MEMORY_FAILURE
+ 	bool
  
--	if (is_migration_entry(entry))
-+	if (non_swap_entry(entry))
- 		return 1;
- 
- 	p = swap_info_get(entry);
-@@ -2083,7 +2083,7 @@ static int __swap_duplicate(swp_entry_t 
- 	int count;
- 	bool has_cache;
- 
--	if (is_migration_entry(entry))
-+	if (non_swap_entry(entry))
- 		return -EINVAL;
- 
- 	type = swp_type(entry);
++config HWPOISON_INJECT
++	tristate "Poison pages injector"
++	depends on MEMORY_FAILURE && DEBUG_KERNEL
++
+ config NOMMU_INITIAL_TRIM_EXCESS
+ 	int "Turn on mmap() excess space trimming before booting"
+ 	depends on !MMU
+--- sound-2.6.orig/mm/Makefile
++++ sound-2.6/mm/Makefile
+@@ -43,5 +43,6 @@ endif
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
+ obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
+ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
++obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
 
 -- 
 
