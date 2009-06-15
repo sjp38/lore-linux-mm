@@ -1,110 +1,114 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 13/22] HWPOISON: Add madvise() based injector for hardware poisoned pages v3
-Date: Mon, 15 Jun 2009 10:45:33 +0800
-Message-ID: <20090615031254.168416512@intel.com>
+Subject: [PATCH 15/22] HWPOISON: early kill cleanups and fixes
+Date: Mon, 15 Jun 2009 10:45:35 +0800
+Message-ID: <20090615031254.434000201@intel.com>
 References: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 486E16B0085
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E97716B004F
 	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:29 -0400 (EDT)
-Content-Disposition: inline; filename=mf-inject-madvise
+Content-Disposition: inline; filename=hwpoison-check-address.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+- check for page_mapped_in_vma() on anon pages
+- test and use page->mapping instead of page_mapping()
+- cleanup some comments
 
-Impact: optional, useful for debugging
+If no objections, this patch will be folded into the big high-level patch.
 
-Add a new madvice sub command to inject poison for some
-pages in a process' address space.  This is useful for
-testing the poison page handling.
-
-Open issues:
-
-- This patch allows root to tie up arbitary amounts of memory.
-Should this be disabled inside containers?
-- There's a small race window between getting the page and injecting.
-The patch drops the ref count because otherwise memory_failure
-complains about dangling references. In theory with a multi threaded
-injector one could inject poison for a process foreign page this way.
-Not a serious issue right now.
-
-v2: Use write flag for get_user_pages to make sure to always get
-a fresh page
-v3: Don't request write mapping (Fengguang Wu)
-
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
-
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/asm-generic/mman-common.h |    1 
- mm/madvise.c                      |   36 ++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+ include/linux/rmap.h |    1 +
+ mm/memory-failure.c  |   20 +++++++++++---------
+ mm/rmap.c            |    2 +-
+ 3 files changed, 13 insertions(+), 10 deletions(-)
 
---- sound-2.6.orig/mm/madvise.c
-+++ sound-2.6/mm/madvise.c
-@@ -207,6 +207,38 @@ static long madvise_remove(struct vm_are
- 	return error;
- }
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -122,8 +122,6 @@ struct to_kill {
  
-+#ifdef CONFIG_MEMORY_FAILURE
-+/*
-+ * Error injection support for memory error handling.
-+ */
-+static int madvise_hwpoison(unsigned long start, unsigned long end)
-+{
-+	/*
-+	 * RED-PEN
-+	 * This allows to tie up arbitary amounts of memory.
-+	 * Might be a good idea to disable it inside containers even for root.
-+	 */
-+	if (!capable(CAP_SYS_ADMIN))
-+		return -EPERM;
-+	for (; start < end; start += PAGE_SIZE) {
-+		struct page *p;
-+		int ret = get_user_pages(current, current->mm, start, 1,
-+						0, 0, &p, NULL);
-+		if (ret != 1)
-+			return ret;
-+		put_page(p);
-+		/*
-+		 * RED-PEN page can be reused in a short window, but otherwise
-+		 * we'll have to fight with the reference count.
-+		 */
-+		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
-+		       page_to_pfn(p), start);
-+		memory_failure(page_to_pfn(p), 0);
-+	}
-+	return 0;
-+}
-+#endif
+ /*
+  * Schedule a process for later kill.
+- * Uses GFP_ATOMIC allocations to avoid potential recursions in the VM.
+- * TBD would GFP_NOIO be enough?
+  */
+ static void add_to_kill(struct task_struct *tsk, struct page *p,
+ 			struct vm_area_struct *vma,
+@@ -227,6 +225,9 @@ static void collect_procs_anon(struct pa
+ 		if (!tsk->mm)
+ 			continue;
+ 		list_for_each_entry (vma, &av->head, anon_vma_node) {
++			if (!page_mapped_in_vma(page, vma))
++				continue;
 +
- static long
- madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 		unsigned long start, unsigned long end, int behavior)
-@@ -307,6 +339,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, 
- 	int write;
- 	size_t len;
+ 			if (vma->vm_mm == tsk->mm)
+ 				add_to_kill(tsk, page, vma, to_kill, tkc);
+ 		}
+@@ -245,7 +246,7 @@ static void collect_procs_file(struct pa
+ 	struct vm_area_struct *vma;
+ 	struct task_struct *tsk;
+ 	struct prio_tree_iter iter;
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping = page->mapping;
  
-+#ifdef CONFIG_MEMORY_FAILURE
-+	if (behavior == MADV_HWPOISON)
-+		return madvise_hwpoison(start, start+len_in);
-+#endif
- 	if (!madvise_behavior_valid(behavior))
- 		return error;
+ 	/*
+ 	 * A note on the locking order between the two locks.
+@@ -275,16 +276,17 @@ static void collect_procs_file(struct pa
  
---- sound-2.6.orig/include/asm-generic/mman-common.h
-+++ sound-2.6/include/asm-generic/mman-common.h
-@@ -34,6 +34,7 @@
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-+#define MADV_HWPOISON	12		/* poison a page for testing */
+ /*
+  * Collect the processes who have the corrupted page mapped to kill.
+- * This is done in two steps for locking reasons.
+- * First preallocate one tokill structure outside the spin locks,
+- * so that we can kill at least one process reasonably reliable.
+  */
+ static void collect_procs(struct page *page, struct list_head *tokill)
+ {
+ 	struct to_kill *tk;
  
- /* compatibility flags */
- #define MAP_FILE	0
+-	tk = kmalloc(sizeof(struct to_kill), GFP_KERNEL);
+-	/* memory allocation failure is implicitly handled */
++	/*
++	 * First preallocate one to_kill structure outside the spin locks,
++	 * so that we can kill at least one process reasonably reliable.
++	 */
++	tk = kmalloc(sizeof(struct to_kill), GFP_NOIO);
++
+ 	if (PageAnon(page))
+ 		collect_procs_anon(page, tokill, &tk);
+ 	else
+@@ -657,7 +659,7 @@ static void hwpoison_user_mappings(struc
+ 	 * Error handling: We ignore errors here because
+ 	 * there's nothing that can be done.
+ 	 */
+-	if (kill)
++	if (kill && p->mapping)
+ 		collect_procs(p, &tokill);
+ 
+ 	/*
+--- sound-2.6.orig/include/linux/rmap.h
++++ sound-2.6/include/linux/rmap.h
+@@ -134,6 +134,7 @@ int page_wrprotect(struct page *page, in
+  */
+ struct anon_vma *page_lock_anon_vma(struct page *page);
+ void page_unlock_anon_vma(struct anon_vma *anon_vma);
++int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
+ 
+ #else	/* !CONFIG_MMU */
+ 
+--- sound-2.6.orig/mm/rmap.c
++++ sound-2.6/mm/rmap.c
+@@ -315,7 +315,7 @@ pte_t *page_check_address(struct page *p
+  * if the page is not mapped into the page tables of this VMA.  Only
+  * valid for normal file or anonymous VMAs.
+  */
+-static int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
++int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+ {
+ 	unsigned long address;
+ 	pte_t *pte;
 
 -- 
 
