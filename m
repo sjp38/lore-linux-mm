@@ -1,38 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AD8E6B005A
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 08:58:20 -0400 (EDT)
-Date: Mon, 15 Jun 2009 14:00:19 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
-Message-ID: <20090615140019.4e405d37@lxorguk.ukuu.org.uk>
-In-Reply-To: <Pine.LNX.4.64.0906151341160.25162@sister.anvils>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 186866B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 09:08:55 -0400 (EDT)
+Received: by yxe28 with SMTP id 28so1055662yxe.12
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2009 06:09:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090615031253.530308256@intel.com>
 References: <20090615024520.786814520@intel.com>
-	<4A35BD7A.9070208@linux.vnet.ibm.com>
-	<20090615042753.GA20788@localhost>
-	<Pine.LNX.4.64.0906151341160.25162@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20090615031253.530308256@intel.com>
+Date: Mon, 15 Jun 2009 22:09:03 +0900
+Message-ID: <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
+Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
+	try_to_unmap
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter
- Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> My opinion is that it's way too late for .31 - your only chance
-> is that Linus sometimes gets bored with playing safe, and decides
-> to break his rules and try something out regardless - but I'd hope
-> the bootmem business already sated his appetite for danger this time.
+On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@intel.com> wrot=
+e:
+> From: Andi Kleen <ak@linux.intel.com>
+>
+> When a page has the poison bit set replace the PTE with a poison entry.
+> This causes the right error handling to be done later when a process runs
+> into it.
+>
+> Also add a new flag to not do that (needed for the memory-failure handler
+> later)
+>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+>
+> ---
+> =C2=A0include/linux/rmap.h | =C2=A0 =C2=A01 +
+> =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A09=
+ ++++++++-
+> =C2=A02 files changed, 9 insertions(+), 1 deletion(-)
+>
+> --- sound-2.6.orig/mm/rmap.c
+> +++ sound-2.6/mm/rmap.c
+> @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct page
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Update high watermark before we lower rss *=
+/
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0update_hiwater_rss(mm);
+>
+> - =C2=A0 =C2=A0 =C2=A0 if (PageAnon(page)) {
+> + =C2=A0 =C2=A0 =C2=A0 if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWP=
+OISON)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageAnon(page))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 dec_mm_counter(mm, anon_rss);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!is_migration=
+_entry(pte_to_swp_entry(*pte)))
 
-I see no consensus on it being worth merging, no testing, no upstream
-integration shakedown, no builds on non-x86 boxes, no work with other
-arch maintainers who have similar abilities and needs.
+Isn't it straightforward to use !is_hwpoison_entry ?
 
-It belongs in next for a release or two while people work on it, while
-things like PPC64 can plumb into it if they wish and while people work
-out if its actually useful given that for most users it reduces the
-reliability of the services they are providing rather than improving it.
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
