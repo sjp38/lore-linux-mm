@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC2A6B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 11:15:49 -0400 (EDT)
-Date: Mon, 15 Jun 2009 17:24:28 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
-Message-ID: <20090615152427.GF31969@one.firstfloor.org>
-References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <Pine.LNX.4.64.0906151341160.25162@sister.anvils> <20090615140019.4e405d37@lxorguk.ukuu.org.uk> <20090615132934.GE31969@one.firstfloor.org> <20090615154832.73c89733@lxorguk.ukuu.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 645686B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 11:25:27 -0400 (EDT)
+Date: Mon, 15 Jun 2009 16:25:43 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring
+	behaviour more in line with expectations V3
+Message-ID: <20090615152543.GF23198@csn.ul.ie>
+References: <20090611163006.e985639f.akpm@linux-foundation.org> <20090612110424.GD14498@csn.ul.ie> <20090615163018.B43A.A69D9226@jp.fujitsu.com> <20090615105651.GD23198@csn.ul.ie> <alpine.DEB.1.10.0906151057270.23995@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090615154832.73c89733@lxorguk.ukuu.org.uk>
+In-Reply-To: <alpine.DEB.1.10.0906151057270.23995@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <andi@firstfloor.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-> Everyone I knew in the business end of deploying Linux turned on panics
-> for I/O errors, reboot on panic and all the rest of those.
-
-oops=panic already implies panic on all machine check exceptions, so they will
-be fine then (assuming this is the best strategy for availability 
-for them, which I personally find quite doubtful, but we can discuss this some 
-other time)
-
-> Really - so if your design is wrong for the way PPC wants to work what
-> are we going to do ? It's not a requirement that PPC64 support is there
-
-Then we change the code. Or if it's too difficult don't support their stuff.
-After all it's not cast in stone. That said I doubt the PPC requirements will 
-be much different than what we have.
-
-> I'd guess that zSeries has some rather different views on how ECC
-> failures propogate through the hypervisors for example, including the
-> fact that a failed page can be unfailed which you don't seem to allow for.
-
-That's correct.
-
-That's because unpoisioning is quite hard -- you need some kind
-of synchronization point for all the error handling and that's
-the poisoned page and if it unposions itself then you need
-some very heavy weight synchronization to avoid handling errors
-multiple time. I looked at it, but it's quite messy.
-
-Also it's of somewhat dubious value.
-
+On Mon, Jun 15, 2009 at 11:01:41AM -0400, Christoph Lameter wrote:
+> On Mon, 15 Jun 2009, Mel Gorman wrote:
 > 
-> (You can unfail pages on x86 as well it appears by scrubbing them via DMA
-> - yes ?)
+> > > May I ask your worry?
+> > >
+> >
+> > Simply that I believe the intention of PF_SWAPWRITE here was to allow
+> > zone_reclaim() to aggressively reclaim memory if the reclaim_mode allowed
+> > it as it was a statement that off-node accesses are really not desired.
+> 
+> Right.
+> 
+> > Ok. I am not fully convinced but I'll not block it either if believe it's
+> > necessary. My current understanding is that this patch only makes a difference
+> > if the server is IO congested in which case the system is struggling anyway
+> > and an off-node access is going to be relatively small penalty overall.
+> > Conceivably, having PF_SWAPWRITE set makes things worse in that situation
+> > and the patch makes some sense.
+> 
+> We could drop support for RECLAIM_SWAP if that simplifies things.
+> 
 
-Not architectually. Also the other problem is not just unpoisoning them,
-but finding out if the page is permenantly bad or just temporarily.
+I don't think that is necessary. While I expect it's very rarely used, I
+imagine a situation where it would be desirable on a system that had large
+amounts of tmpfs pages but where it wasn't critical they remain in-memory.
 
--Andi
+Removing PF_SWAPWRITE would make it less aggressive and if you were
+happy with that, then that would be good enough for me.
+
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
