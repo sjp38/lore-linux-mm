@@ -1,95 +1,187 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 01/22] HWPOISON: Add page flag for poisoned pages
-Date: Mon, 15 Jun 2009 10:45:21 +0800
-Message-ID: <20090615031252.393824979@intel.com>
+Subject: [PATCH 20/22] HWPOISON: collect infos that reflect the impact of the memory corruption
+Date: Mon, 15 Jun 2009 10:45:40 +0800
+Message-ID: <20090615031255.151495090@intel.com>
 References: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1BD156B0062
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5DCD26B0082
 	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:28 -0400 (EDT)
-Content-Disposition: inline; filename=page-flag-poison
+Content-Disposition: inline; filename=hwpoison-safety-bits.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+When a page corrupted, users may care about
+- does it hit some important areas?
+- can its data be recovered?
+- can it be isolated to avoid a deadly future reference?
+so that they can take proper actions like emergency sync/shutdown or
+schedule reboot at some convenient time.
 
-Hardware poisoned pages need special handling in the VM and shouldn't be
-touched again. This requires a new page flag. Define it here.
-
-The page flags wars seem to be over, so it shouldn't be a problem
-to get a new one.
-
-v2: Add TestSetHWPoison (suggested by Johannes Weiner)
-v3: Define TestSetHWPoison on !CONFIG_MEMORY_FAILURE (Fengguang)
-
-Acked-by: Christoph Lameter <cl@linux.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
-
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/page-flags.h |   21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ mm/memory-failure.c |   78 +++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 66 insertions(+), 12 deletions(-)
 
---- sound-2.6.orig/include/linux/page-flags.h
-+++ sound-2.6/include/linux/page-flags.h
-@@ -51,6 +51,9 @@
-  * PG_buddy is set to indicate that the page is free and in the buddy system
-  * (see mm/page_alloc.c).
-  *
-+ * PG_hwpoison indicates that a page got corrupted in hardware and contains
-+ * data with incorrect ECC bits that triggered a machine check. Accessing is
-+ * not safe since it may cause another machine check. Don't touch!
-  */
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -312,11 +312,32 @@ static const char *hwpoison_outcome_name
+ 	[RECOVERED] = "Recovered",
+ };
+ 
++enum hwpoison_page_type {
++	PAGE_IS_KERNEL,
++	PAGE_IS_FS_METADATA,
++	PAGE_IS_FILE_DATA,
++	PAGE_IS_ANON_DATA,
++	PAGE_IS_SWAP_CACHE,
++	PAGE_IS_FREE,
++};
++
++static const char *hwpoison_page_type_name[] = {
++	[ PAGE_IS_KERNEL ]	= "kernel",
++	[ PAGE_IS_FS_METADATA ]	= "fs_metadata",
++	[ PAGE_IS_FILE_DATA ]	= "file_data",
++	[ PAGE_IS_ANON_DATA ]	= "anon_data",
++	[ PAGE_IS_SWAP_CACHE ]	= "swap_cache",
++	[ PAGE_IS_FREE ]	= "free",
++};
++
+ struct hwpoison_control {
+ 	unsigned long pfn;
+ 	struct page *p;		/* corrupted page */
+ 	struct page *page;	/* compound page head */
+ 	int outcome;
++	int page_type;
++	unsigned data_recoverable:1;
++	unsigned page_isolated:1;
+ };
  
  /*
-@@ -102,6 +105,9 @@ enum pageflags {
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- 	PG_uncached,		/* Page has been mapped as uncached */
- #endif
-+#ifdef CONFIG_MEMORY_FAILURE
-+	PG_hwpoison,		/* hardware poisoned page. Don't touch */
-+#endif
- 	__NR_PAGEFLAGS,
+@@ -358,8 +379,14 @@ static int me_pagecache_clean(struct hwp
+ 		page_cache_release(p);
  
- 	/* Filesystems */
-@@ -182,6 +188,9 @@ static inline void ClearPage##uname(stru
- #define __CLEARPAGEFLAG_NOOP(uname)					\
- static inline void __ClearPage##uname(struct page *page) {  }
- 
-+#define TESTSETFLAG_FALSE(uname)					\
-+static inline int TestSetPage##uname(struct page *page) { return 0; }
+ 	mapping = page_mapping(p);
+-	if (mapping == NULL)
++	if (mapping == NULL) {
++		hpc->page_isolated = 1;
+ 		return RECOVERED;
++	}
 +
- #define TESTCLEARFLAG_FALSE(uname)					\
- static inline int TestClearPage##uname(struct page *page) { return 0; }
++	/* clean file backed page is recoverable */
++	if (!PageDirty(p) && !PageSwapBacked(p))
++		hpc->data_recoverable = 1;
  
-@@ -265,6 +274,16 @@ PAGEFLAG(Uncached, uncached)
- PAGEFLAG_FALSE(Uncached)
- #endif
+ 	/*
+ 	 * Now truncate the page in the page cache. This is really
+@@ -368,12 +395,14 @@ static int me_pagecache_clean(struct hwp
+ 	 * has a reference, because it could be file system metadata
+ 	 * and that's not safe to truncate.
+ 	 */
+-	if (!S_ISREG(mapping->host->i_mode) &&
+-	    !invalidate_complete_page(mapping, p)) {
+-		printk(KERN_ERR
+-		       "MCE %#lx: failed to invalidate metadata page\n",
+-			hpc->pfn);
+-		return FAILED;
++	if (!S_ISREG(mapping->host->i_mode)) {
++		hpc->page_type = PAGE_IS_FS_METADATA;
++		if (!invalidate_complete_page(mapping, p)) {
++			printk(KERN_ERR
++			       "MCE %#lx: failed to invalidate metadata page\n",
++			       hpc->pfn);
++			return FAILED;
++		}
+ 	}
  
-+#ifdef CONFIG_MEMORY_FAILURE
-+PAGEFLAG(HWPoison, hwpoison)
-+TESTSETFLAG(HWPoison, hwpoison)
-+#define __PG_HWPOISON (1UL << PG_hwpoison)
-+#else
-+PAGEFLAG_FALSE(HWPoison)
-+TESTSETFLAG_FALSE(HWPoison)
-+#define __PG_HWPOISON 0
-+#endif
+ 	truncate_inode_page(mapping, p);
+@@ -382,6 +411,8 @@ static int me_pagecache_clean(struct hwp
+ 			 hpc->pfn);
+ 		return FAILED;
+ 	}
 +
- static inline int PageUptodate(struct page *page)
- {
- 	int ret = test_bit(PG_uptodate, &(page)->flags);
-@@ -389,7 +408,7 @@ static inline void __ClearPageTail(struc
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 1 << PG_unevictable | __PG_MLOCKED)
-+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
++	hpc->page_isolated = 1;
+ 	return RECOVERED;
+ }
  
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
+@@ -467,6 +498,7 @@ static int me_swapcache_dirty(struct hwp
+ 	if (!isolate_lru_page(p))
+ 		page_cache_release(p);
+ 
++	hpc->page_isolated = 1;
+ 	return DELAYED;
+ }
+ 
+@@ -478,6 +510,8 @@ static int me_swapcache_clean(struct hwp
+ 		page_cache_release(p);
+ 
+ 	delete_from_swap_cache(p);
++	hpc->data_recoverable = 1;
++	hpc->page_isolated = 1;
+ 
+ 	return RECOVERED;
+ }
+@@ -587,6 +621,10 @@ static void page_action(struct page_stat
+ 		       "MCE %#lx: %s page still referenced by %d users\n",
+ 		       hpc->pfn, ps->msg, page_count(hpc->page) - 1);
+ 
++	if (page_count(hpc->page) > 1 ||
++	    page_mapcount(hpc->page) > 0)
++		hpc->page_isolated = 0;
++
+ 	/* Could do more checks here if page looks ok */
+ 	atomic_long_add(1, &mce_bad_pages);
+ 
+@@ -735,6 +773,10 @@ void memory_failure(unsigned long pfn, i
+ 	hpc.p    = p;
+ 	hpc.page = p = compound_head(p);
+ 
++	hpc.page_type = PAGE_IS_KERNEL;
++	hpc.data_recoverable = 0;
++	hpc.page_isolated = 0;
++
+ 	/*
+ 	 * We need/can do nothing about count=0 pages.
+ 	 * 1) it's a free page, and therefore in safe hand:
+@@ -747,9 +789,12 @@ void memory_failure(unsigned long pfn, i
+ 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
+ 	 */
+ 	if (!get_page_unless_zero(p)) {
+-		if (is_free_buddy_page(p))
++		if (is_free_buddy_page(p)) {
++			hpc.page_type = PAGE_IS_FREE;
++			hpc.data_recoverable = 1;
++			hpc.page_isolated = 1;
+ 			action_result(&hpc, "free buddy", DELAYED);
+-		else
++		} else
+ 			action_result(&hpc, "high order kernel", IGNORED);
+ 		return;
+ 	}
+@@ -770,9 +815,18 @@ void memory_failure(unsigned long pfn, i
+ 	/*
+ 	 * Torn down by someone else?
+ 	 */
+-	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
+-		action_result(&hpc, "already truncated LRU", IGNORED);
+-		goto out;
++	if (PageLRU(p)) {
++		if (PageSwapCache(p))
++			hpc.page_type = PAGE_IS_SWAP_CACHE;
++		else if (PageAnon(p))
++			hpc.page_type = PAGE_IS_ANON_DATA;
++		else
++			hpc.page_type = PAGE_IS_FILE_DATA;
++		if (!PageSwapCache(p) && p->mapping == NULL) {
++			action_result(&hpc, "already truncated LRU", IGNORED);
++			hpc.page_type = PAGE_IS_FREE;
++			goto out;
++		}
+ 	}
+ 
+ 	for (ps = error_states;; ps++) {
 
 -- 
 
