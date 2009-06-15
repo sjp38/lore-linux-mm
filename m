@@ -1,198 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 001F26B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 05:41:25 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5F9gfLh006978
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 15 Jun 2009 18:42:42 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D77045DD7B
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DA5545DD78
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 634711DB8037
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:41 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0877A1DB803E
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:38 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring behaviour more in line with expectations V3
-In-Reply-To: <20090612110424.GD14498@csn.ul.ie>
-References: <20090611163006.e985639f.akpm@linux-foundation.org> <20090612110424.GD14498@csn.ul.ie>
-Message-Id: <20090615163018.B43A.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E21AF6B0055
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 05:41:33 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5F9goBk007004
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 15 Jun 2009 18:42:51 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4245445DE50
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DCB1745DD70
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 74721E08001
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:48 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 15C191DB8037
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:45 +0900 (JST)
+Date: Mon, 15 Jun 2009 18:41:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 10/22] HWPOISON: check and isolate corrupted free pages
+ v2
+Message-Id: <20090615184112.ed8e2f03.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090615031253.715406280@intel.com>
+References: <20090615024520.786814520@intel.com>
+	<20090615031253.715406280@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Mon, 15 Jun 2009 18:42:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, cl@linux-foundation.org, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Mon, 15 Jun 2009 10:45:30 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> On Thu, Jun 11, 2009 at 04:30:06PM -0700, Andrew Morton wrote:
-> > On Thu, 11 Jun 2009 11:47:50 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> > > The big change with this release is that the patch reintroducing
-> > > zone_reclaim_interval has been dropped as Ram reports the malloc() stalls
-> > > have been resolved. If this bug occurs again, the counter will be there to
-> > > help us identify the situation.
-> > 
-> > What is the exact relationship between this work and the somewhat
-> > mangled "[PATCH for mmotm 0/5] introduce swap-backed-file-mapped count
-> > and fix
-> > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch"
-> > series?
-> > 
+> From: Wu Fengguang <fengguang.wu@intel.com>
 > 
-> The patch series "Fix malloc() stall in zone_reclaim() and bring
-> behaviour more in line with expectations V3" replaces
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch.
+> If memory corruption hits the free buddy pages, we can safely ignore them.
+> No one will access them until page allocation time, then prep_new_page()
+> will automatically check and isolate PG_hwpoison page for us (for 0-order
+> allocation).
 > 
-> Portions of the patch series "Introduce swap-backed-file-mapped count" are
-> potentially follow-on work if a failure case can be identified. The series
-> brings the kernel behaviour more in line with documentation, but it's easier
-> to fix the documentation.
-
-Agreed.
-
-
-> > That five-patch series had me thinking that it was time to drop 
-> > 
-> > vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
+> This patch expands prep_new_page() to check every component page in a high
+> order page allocation, in order to completely stop PG_hwpoison pages from
+> being recirculated.
 > 
-> This patch gets replaced. All the lessons in the new patch are included.
-> They could be merged together.
-
-Sure.
-
-
-> > vmscan-drop-pf_swapwrite-from-zone_reclaim.patch
+> Note that the common case -- only allocating a single page, doesn't
+> do any more work than before. Allocating > order 0 does a bit more work,
+> but that's relatively uncommon.
 > 
-> This patch is wrong, but only sortof. It should be dropped or replaced with
-> another version. Kosaki, could you resubmit this patch except that you check
-> if RECLAIM_SWAP is set in zone_reclaim_mode when deciding whether to set
-> PF_SWAPWRITE or not please?
-
-OK. I'll test it again with your patch.
-
-> Your patch is correct if zone_reclaim_mode 1, but incorrect if it's 7 for
-> example.
-
-May I ask your worry?
-
-Parhaps, my patch description was wrong. I should wrote patch effective
-to separate small and large server.
-
-First, our dirty page limitation is sane. Thus we don't need to care
-all pages of system are dirty.
-
-Thus, on large server, turning off PF_SWAPWRITE don't cause off-node allocation.
-There are always clean and droppable page in system.
-
-In the other hand, on small server, we need to concern write-back race because
-system memory are relatively small.
-Thus, turning off PF_SWAPWRITE might cause off-node allocation.
-
-  - typically, small servers are latency aware than larger one.
-  - zone reclaim is not the feature of gurantee no off-node allocation.
-  - on small server, off-node allocation penalty is not much rather larger
-    one in many case.
-
-I sitll think this patch is valueable.
-
-
-> > vmscan-zone_reclaim-use-may_swap.patch
-> > 
+> This simple implementation may drop some innocent neighbor pages, hopefully
+> it is not a big problem because the event should be rare enough.
 > 
-> This is a tricky one. Kosaki, I think this patch is a little dangerous. With
-> this applied, pages get unmapped whether RECLAIM_SWAP is set or not. This
-> means that zone_reclaim() now has more work to do when it's enabled and it
-> incurs a number of minor faults for no reason as a result of trying to avoid
-> going off-node. I don't believe that is desirable because it would manifest
-> as high minor fault counts on NUMA and would be difficult to pin down why
-> that was happening.
-
-(cc to hanns)
-
-First, if this patch should be dropped, commit bd2f6199 
-(vmscan: respect higher order in zone_reclaim()) should be too. I think.
-
-the combination of lumply reclaim and !may_unmap is really ineffective.
-it might cause isolate neighbor pages and give up unmapping and pages put
-back tail of lru.
-it mean to shuffle lru list.
-
-I don't think it is desirable.
-
-
-Second, we did learned that "mapped or not mapped" is not appropriate
-reclaim boosting between split-lru discussion.
-So, I think to make consistent is better. if no considerness of may_unmap
-makes serious performance issue, we need to fix try_to_free_pages() path too.
-
-
-Third, if we consider MPI program on NUMA, each process only access
-a part of array data frequently and never touch rest part of array.
-So, AFAIK "rarely, but access" is rarely, no freqent access is not major performance source.
-
-
-I have one question. your "difficultness of pinning down" is major issue?
-
-
+> This patch adds some runtime costs to high order page users.
 > 
-> I think the code makes more sense than the documentation and it's the
-> documentation that should be fixed. Our current behaviour is to discard
-> clean, swap-backed, unmapped pages that require no further IO. This is
-> reasonable behaviour for zone_reclaim_mode == 1 so maybe the patch
-> should change the documentation to
+> [AK: Improved description]
 > 
->         1       = Zone reclaim discards clean unmapped disk-backed pages
->         2       = Zone reclaim writes dirty pages out
->         4       = Zone reclaim unmaps and swaps pages
+> v2: Andi Kleen:
+> Port to -mm code
+> Move check into separate function.
+> Don't dump stack in bad_pages for hwpoisoned pages.
 > 
-> If you really wanted to strict about the meaning of RECLAIM_SWAP, then
-> something like the following would be reasonable;
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
 > 
-> 	.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-> 	.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+> ---
+>  mm/page_alloc.c |   20 +++++++++++++++++++-
+>  1 file changed, 19 insertions(+), 1 deletion(-)
 > 
-> because a system administrator is not going to distinguish between
-> unmapping and swap. I would assume at least that RECLAIM_SWAP implies
-> unmapping pages for swapping but an updated documentation wouldn't hurt
-> with
-> 
-> 	4       = Zone reclaim unmaps and swaps pages
-> 
-> > (they can be removed cleanly, but I haven't tried compiling the result)
-> > 
-> > but your series is based on those.
-> > 
-> 
-> The patchset only depends on
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch
-> and then only because of merge conflicts. All the lessons in
-> vmscan-change-the-number-of-the-unmapped-files-in-zone-reclaim.patch are
-> incorporated.
-> 
-> > We have 142 MM patches queued, and we need to merge next week.
-> > 
-> 
-> I'm sorry my timing for coming out with the zone_reclaim() patches sucks
-> and that I failed to spot these patches earlier. Despite the abundance
-> of evidence, I'm not trying to be deliberatly awkward :/
+> --- sound-2.6.orig/mm/page_alloc.c
+> +++ sound-2.6/mm/page_alloc.c
+> @@ -233,6 +233,12 @@ static void bad_page(struct page *page)
+>  	static unsigned long nr_shown;
+>  	static unsigned long nr_unshown;
+>  
+> +	/* Don't complain about poisoned pages */
+> +	if (PageHWPoison(page)) {
+> +		__ClearPageBuddy(page);
+> +		return;
+> +	}
+
+Hmm ? why __ClearPageBuddy() is necessary ?
+
+Thanks,
+-Kame
+
+
+> +
+>  	/*
+>  	 * Allow a burst of 60 reports, then keep quiet for that minute;
+>  	 * or allow a steady drip of one report per second.
+> @@ -646,7 +652,7 @@ static inline void expand(struct zone *z
+>  /*
+>   * This page is about to be returned from the page allocator
+>   */
+> -static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+> +static inline int check_new_page(struct page *page)
+>  {
+>  	if (unlikely(page_mapcount(page) |
+>  		(page->mapping != NULL)  |
+> @@ -655,6 +661,18 @@ static int prep_new_page(struct page *pa
+>  		bad_page(page);
+>  		return 1;
+>  	}
+> +	return 0;
+> +}
+> +
+> +static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < (1 << order); i++) {
+> +		struct page *p = page + i;
+> +		if (unlikely(check_new_page(p)))
+> +			return 1;
+> +	}
+>  
+>  	set_page_private(page, 0);
+>  	set_page_refcounted(page);
 > 
 > -- 
-> Mel Gorman
-> Part-time Phd Student                          Linux Technology Center
-> University of Limerick                         IBM Dublin Software Lab
-
-
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
