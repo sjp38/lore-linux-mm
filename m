@@ -1,58 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A5C26B0099
-	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:15:42 -0400 (EDT)
-Date: Mon, 15 Jun 2009 12:09:33 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: Low overhead patches for the memory cgroup controller (v4)
-Message-Id: <20090615120933.61941977.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <4A35B936.70301@linux.vnet.ibm.com>
-References: <b7dd123f0a15fff62150bc560747d7f0.squirrel@webmail-b.css.fujitsu.com>
-	<20090515181639.GH4451@balbir.in.ibm.com>
-	<20090518191107.8a7cc990.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090531235121.GA6120@balbir.in.ibm.com>
-	<20090602085744.2eebf211.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090605053107.GF11755@balbir.in.ibm.com>
-	<20090614183740.GD23577@balbir.in.ibm.com>
-	<20090615111817.84123ea1.nishimura@mxp.nes.nec.co.jp>
-	<4A35B936.70301@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDE86B004F
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:18:00 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp08.au.ibm.com (8.13.1/8.13.1) with ESMTP id n5FDGHs5007421
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 23:16:17 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5F3IQlc827486
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:18:26 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5F3IOWq026713
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:18:26 +1000
+Message-ID: <4A35BD7A.9070208@linux.vnet.ibm.com>
+Date: Mon, 15 Jun 2009 08:48:18 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
+References: <20090615024520.786814520@intel.com>
+In-Reply-To: <20090615024520.786814520@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Jun 2009 08:30:06 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> Daisuke Nishimura wrote:
+Wu Fengguang wrote:
+> Hi all,
 > 
-> >  	pc->mem_cgroup = mem;
-> >  	smp_wmb();
-> > -	pc->flags = pcg_default_flags[ctype];
+> Comments are warmly welcome on the newly introduced uevent code :)
 > 
-> pc->flags needs to be reset here, otherwise we have the danger the carrying over
-> older bits. I'll merge your changes and test.
-> 
-hmm, why ?
+> I hope we can reach consensus in this round and then be able to post
+> a final version for .31 inclusion.
 
-I do in my patch:
+Isn't that too aggressive? .31 is already in the merge window.
 
-+	switch (ctype) {
-+	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-+	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-+		SetPageCgroupCache(pc);
-+		SetPageCgroupUsed(pc);
-+		break;
-+	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-+		ClearPageCgroupCache(pc);
-+		SetPageCgroupUsed(pc);
-+		break;
-+	default:
-+		break;
-+	}
-
-So, all the necessary flags are set and all the unnecessary ones are cleared, right ?
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
