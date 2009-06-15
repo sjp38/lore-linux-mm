@@ -1,146 +1,110 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 16/22] mm: move page flag numbers for user space to page-flags.h
-Date: Mon, 15 Jun 2009 10:45:36 +0800
-Message-ID: <20090615031254.581319975@intel.com>
+Subject: [PATCH 13/22] HWPOISON: Add madvise() based injector for hardware poisoned pages v3
+Date: Mon, 15 Jun 2009 10:45:33 +0800
+Message-ID: <20090615031254.168416512@intel.com>
 References: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BEEB66B005D
-	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:28 -0400 (EDT)
-Content-Disposition: inline; filename=kpageflags-export-page_uflags.patch
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 486E16B0085
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:29 -0400 (EDT)
+Content-Disposition: inline; filename=mf-inject-madvise
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-We'll be exporting them in other places than /proc/kpageflags.
-For example, in hwpoison uevents for describing the poisoned page.
+From: Andi Kleen <ak@linux.intel.com>
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Impact: optional, useful for debugging
+
+Add a new madvice sub command to inject poison for some
+pages in a process' address space.  This is useful for
+testing the poison page handling.
+
+Open issues:
+
+- This patch allows root to tie up arbitary amounts of memory.
+Should this be disabled inside containers?
+- There's a small race window between getting the page and injecting.
+The patch drops the ref count because otherwise memory_failure
+complains about dangling references. In theory with a multi threaded
+injector one could inject poison for a process foreign page this way.
+Not a serious issue right now.
+
+v2: Use write flag for get_user_pages to make sure to always get
+a fresh page
+v3: Don't request write mapping (Fengguang Wu)
+
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+
 ---
- fs/proc/page.c             |   40 +--------------------------------
- include/linux/page-flags.h |   42 +++++++++++++++++++++++++++++++++++
- 2 files changed, 44 insertions(+), 38 deletions(-)
+ include/asm-generic/mman-common.h |    1 
+ mm/madvise.c                      |   36 ++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
 
---- sound-2.6.orig/fs/proc/page.c
-+++ sound-2.6/fs/proc/page.c
-@@ -72,48 +72,12 @@ static const struct file_operations proc
- 
- /* These macros are used to decouple internal flags from exported ones */
- 
--#define KPF_LOCKED		0
--#define KPF_ERROR		1
--#define KPF_REFERENCED		2
--#define KPF_UPTODATE		3
--#define KPF_DIRTY		4
--#define KPF_LRU			5
--#define KPF_ACTIVE		6
--#define KPF_SLAB		7
--#define KPF_WRITEBACK		8
--#define KPF_RECLAIM		9
--#define KPF_BUDDY		10
--
--/* 11-20: new additions in 2.6.31 */
--#define KPF_MMAP		11
--#define KPF_ANON		12
--#define KPF_SWAPCACHE		13
--#define KPF_SWAPBACKED		14
--#define KPF_COMPOUND_HEAD	15
--#define KPF_COMPOUND_TAIL	16
--#define KPF_HUGE		17
--#define KPF_UNEVICTABLE		18
--#define KPF_HWPOISON		19
--#define KPF_NOPAGE		20
--
--/* kernel hacking assistances
-- * WARNING: subject to change, never rely on them!
-- */
--#define KPF_RESERVED		32
--#define KPF_MLOCKED		33
--#define KPF_MAPPEDTODISK	34
--#define KPF_PRIVATE		35
--#define KPF_PRIVATE_2		36
--#define KPF_OWNER_PRIVATE	37
--#define KPF_ARCH		38
--#define KPF_UNCACHED		39
--
- static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
- {
- 	return ((kflags >> kbit) & 1) << ubit;
+--- sound-2.6.orig/mm/madvise.c
++++ sound-2.6/mm/madvise.c
+@@ -207,6 +207,38 @@ static long madvise_remove(struct vm_are
+ 	return error;
  }
  
--static u64 get_uflags(struct page *page)
-+u64 page_uflags(struct page *page)
- {
- 	u64 k;
- 	u64 u;
-@@ -214,7 +178,7 @@ static ssize_t kpageflags_read(struct fi
- 		else
- 			ppage = NULL;
- 
--		if (put_user(get_uflags(ppage), out)) {
-+		if (put_user(page_uflags(ppage), out)) {
- 			ret = -EFAULT;
- 			break;
- 		}
---- sound-2.6.orig/include/linux/page-flags.h
-+++ sound-2.6/include/linux/page-flags.h
-@@ -132,6 +132,46 @@ enum pageflags {
- 	PG_slub_debug = PG_error,
- };
- 
++#ifdef CONFIG_MEMORY_FAILURE
 +/*
-+ * stable flag numbers exported to user space
++ * Error injection support for memory error handling.
 + */
++static int madvise_hwpoison(unsigned long start, unsigned long end)
++{
++	/*
++	 * RED-PEN
++	 * This allows to tie up arbitary amounts of memory.
++	 * Might be a good idea to disable it inside containers even for root.
++	 */
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	for (; start < end; start += PAGE_SIZE) {
++		struct page *p;
++		int ret = get_user_pages(current, current->mm, start, 1,
++						0, 0, &p, NULL);
++		if (ret != 1)
++			return ret;
++		put_page(p);
++		/*
++		 * RED-PEN page can be reused in a short window, but otherwise
++		 * we'll have to fight with the reference count.
++		 */
++		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
++		       page_to_pfn(p), start);
++		memory_failure(page_to_pfn(p), 0);
++	}
++	return 0;
++}
++#endif
 +
-+#define KPF_LOCKED		0
-+#define KPF_ERROR		1
-+#define KPF_REFERENCED		2
-+#define KPF_UPTODATE		3
-+#define KPF_DIRTY		4
-+#define KPF_LRU			5
-+#define KPF_ACTIVE		6
-+#define KPF_SLAB		7
-+#define KPF_WRITEBACK		8
-+#define KPF_RECLAIM		9
-+#define KPF_BUDDY		10
-+
-+/* 11-20: new additions in 2.6.31 */
-+#define KPF_MMAP		11
-+#define KPF_ANON		12
-+#define KPF_SWAPCACHE		13
-+#define KPF_SWAPBACKED		14
-+#define KPF_COMPOUND_HEAD	15
-+#define KPF_COMPOUND_TAIL	16
-+#define KPF_HUGE		17
-+#define KPF_UNEVICTABLE		18
-+#define KPF_HWPOISON		19
-+#define KPF_NOPAGE		20
-+
-+/* kernel hacking assistances
-+ * WARNING: subject to change, never rely on them!
-+ */
-+#define KPF_RESERVED		32
-+#define KPF_MLOCKED		33
-+#define KPF_MAPPEDTODISK	34
-+#define KPF_PRIVATE		35
-+#define KPF_PRIVATE_2		36
-+#define KPF_OWNER_PRIVATE	37
-+#define KPF_ARCH		38
-+#define KPF_UNCACHED		39
-+
- #ifndef __GENERATING_BOUNDS_H
+ static long
+ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 		unsigned long start, unsigned long end, int behavior)
+@@ -307,6 +339,10 @@ SYSCALL_DEFINE3(madvise, unsigned long, 
+ 	int write;
+ 	size_t len;
  
- /*
-@@ -284,6 +324,8 @@ TESTSETFLAG_FALSE(HWPoison)
- #define __PG_HWPOISON 0
- #endif
++#ifdef CONFIG_MEMORY_FAILURE
++	if (behavior == MADV_HWPOISON)
++		return madvise_hwpoison(start, start+len_in);
++#endif
+ 	if (!madvise_behavior_valid(behavior))
+ 		return error;
  
-+u64 page_uflags(struct page *page);
-+
- static inline int PageUptodate(struct page *page)
- {
- 	int ret = test_bit(PG_uptodate, &(page)->flags);
+--- sound-2.6.orig/include/asm-generic/mman-common.h
++++ sound-2.6/include/asm-generic/mman-common.h
+@@ -34,6 +34,7 @@
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
++#define MADV_HWPOISON	12		/* poison a page for testing */
+ 
+ /* compatibility flags */
+ #define MAP_FILE	0
 
 -- 
 
