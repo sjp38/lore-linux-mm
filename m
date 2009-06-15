@@ -1,53 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 046966B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 02:51:00 -0400 (EDT)
-Date: Mon, 15 Jun 2009 08:52:32 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
-Message-ID: <20090615065232.GC18390@wotan.suse.de>
-References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090612153501.GA5737@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 60B6E6B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 02:56:21 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id d14so1738130and.26
+        for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:58:08 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090612143005.GA4429@csn.ul.ie>
+References: <202cde0e0906112141n634c1bd6n15ec1ac42faa36d3@mail.gmail.com>
+	 <20090612143005.GA4429@csn.ul.ie>
+Date: Mon, 15 Jun 2009 18:58:08 +1200
+Message-ID: <202cde0e0906142358x6474ad7fxeac0a3e60634021@mail.gmail.com>
+Subject: Re: Huge pages for device drivers
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 12, 2009 at 05:35:01PM +0200, Ingo Molnar wrote:
-> 
-> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > On Fri, 12 Jun 2009, Ingo Molnar wrote:
-> > > 
-> > > This seems like trying to handle a failure mode that cannot be 
-> > > and shouldnt be 'handled' really. If there's an 'already 
-> > > corrupted' page then the box should go down hard and fast, and 
-> > > we should not risk _even more user data corruption_ by trying to 
-> > > 'continue' in the hope of having hit some 'harmless' user 
-> > > process that can be killed ...
-> > 
-> > No, the box should _not_ go down hard-and-fast. That's the last 
-> > thing we should *ever* do.
-> > 
-> > We need to log it. Often at a user level (ie we want to make sure 
-> > it actually hits syslog, possibly goes out the network, maybe pops 
-> > up a window, whatever).
-> > 
-> > Shutting down the machine is the last thing we ever want to do.
-> > 
-> > The whole "let's panic" mentality is a disease.
-> 
-> No doubt about that - and i'm removing BUG_ON()s and panic()s 
-> wherever i can and havent added a single new one myself in the past 
-> 5 years or so, its a disease.
+Hi,
 
-In HA failover systems you often do want to panic ASAP (after logging
-to serial cosole I guess) if anything like this happens so the system
-can be rebooted with minimal chance of data corruption spreading.
- 
+>
+> Ok. So the order is
+>
+> 1. driver alloc_pages()
+> 2. driver DMA
+> 3. userspace mmap
+> 4. userspace fault
+>
+> ?
+Correct.
+The only minor difference in my case memory is remapped in mmap call
+not in fault. (But this is not important)
+
+> There is a subtle distinction depending on what you are really looking for.
+> If all you are interested in is large contiguous pages, then that is relatively
+> handy. I did a hatchet-job below to show how one could allocate pages from
+> hugepage pools that should not break reservations. It's not tested, it's just
+> to illustrate how something like this might be implemented because it's been
+> asked for a number of times. However, I doubt it's what driver people really
+> want, it's just what has been asked for on occasion :)
+
+Good question. I remember just two cases, when it was desired:
+1. Driver/libraries for video card which has no own video memory.
+Implementation was based
+on data handling through DirectFB interface. Video card allocated
+128MB - 192MB of system RAM which was maped to user space. User space
+library performed
+big bunch of operations with RAM assigned for video card.  (Card and
+drivers were for STB solution)
+
+2. 10Gb networking, where data analysing can consume all available
+resources  on most
+powerful servers. Performance is critical here as 5-7% perf gain -
+means xxk$ cheaper servers.
+Both cases are pretty specific IMHO.
+
+> If you must get those mapped into userspace, then it would be tricky to get the
+> pages above mapped into userspace properly, particularly with respect to PTEs
+> and then making sure the fault occurs properly. I'd hate to be maintaining such
+> a driver. It could be worked around to some extent by doing something similar
+> to what happens for shmget() and shmat() and this would be relatively reusable.
+>
+Yes it is a thing I need.
+
+> 1. Create a wrapper around hugetlb_file_setup() similar to what happens in
+> ipc/shm.c#newseg(). That would create a hugetlbfs file on an invisible mount
+> and reserve the hugepages you will need.
+>
+> 2. Create a function that is similar to a nopage fault handler that allocates
+> a hugepage within an offset in your hidden hugetlbfs file and inserts it
+> into the hugetlbfs pagecache giving you back the page frame for use with DMA.
+>
+The main problem is here, because it is necessary to do operations with PTE
+to insert huge pages into given VMA. So it is necessary to provide
+some prototype for drivers
+here. I'm fine to modify code here but completely not sure what
+interfaces must be given for drivers.
+(Not sure that it is good just to export calls like huge_pte_alloc? ).
+
+> Most of the code you need is already there, just not quite in the shape
+> you want it in. I have no plans to implement such a thing but I estimate it
+> wouldn't take someone who really cared more than a few days to implement it.
+>
+> Anyway, here is the alloc_huge_page() prototype for what that's worth to
+> you
+>
+Thank you so much for this prototype it is very helpful. I applied and
+tried it today and stopped
+at the problem of page fault handling.
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
