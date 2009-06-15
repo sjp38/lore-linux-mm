@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A26E26B005C
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:58:12 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0D76B0062
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:58:13 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 03/11] ext2: Allocate space for mmaped file on page fault
-Date: Mon, 15 Jun 2009 19:59:50 +0200
-Message-Id: <1245088797-29533-4-git-send-email-jack@suse.cz>
+Subject: [PATCH 07/11] vfs: Unmap underlying metadata of new data buffers only when buffer is mapped
+Date: Mon, 15 Jun 2009 19:59:54 +0200
+Message-Id: <1245088797-29533-8-git-send-email-jack@suse.cz>
 In-Reply-To: <1245088797-29533-1-git-send-email-jack@suse.cz>
 References: <1245088797-29533-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,80 +13,54 @@ To: LKML <linux-kernel@vger.kernel.org>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-So far we've allocated space at ->writepage() time. This has the disadvantage
-that when we hit ENOSPC or other error, we cannot do much - either throw
-away the data or keep the page indefinitely (and loose the data on reboot).
-So allocate space already when a page is faulted in.
+When we do delayed allocation of some buffer, we want to signal to VFS that
+the buffer is new (set buffer_new) so that it properly zeros out everything.
+But we don't have the buffer mapped yet so we cannot really unmap underlying
+metadata in this state. Make VFS avoid doing unmapping of metadata when the
+buffer is not yet mapped.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext2/file.c  |   26 +++++++++++++++++++++++++-
- fs/ext2/inode.c |    1 +
- 2 files changed, 26 insertions(+), 1 deletions(-)
+ fs/buffer.c |   12 +++++++-----
+ 1 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 2b9e47d..d0a5f13 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -19,6 +19,8 @@
-  */
- 
- #include <linux/time.h>
-+#include <linux/mm.h>
-+#include <linux/buffer_head.h>
- #include "ext2.h"
- #include "xattr.h"
- #include "acl.h"
-@@ -38,6 +40,28 @@ static int ext2_release_file (struct inode * inode, struct file * filp)
- 	return 0;
- }
- 
-+static int ext2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	return block_page_mkwrite(vma, vmf, ext2_get_block);
-+}
-+
-+static struct vm_operations_struct ext2_file_vm_ops = {
-+	.fault		= filemap_fault,
-+	.page_mkwrite	= ext2_page_mkwrite,
-+};
-+
-+static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	struct address_space *mapping = file->f_mapping;
-+
-+	if (!mapping->a_ops->readpage)
-+		return -ENOEXEC;
-+	file_accessed(file);
-+	vma->vm_ops = &ext2_file_vm_ops;
-+	vma->vm_flags |= VM_CAN_NONLINEAR;
-+	return 0;
-+}
-+
- /*
-  * We have mostly NULL's here: the current defaults are ok for
-  * the ext2 filesystem.
-@@ -52,7 +76,7 @@ const struct file_operations ext2_file_operations = {
- #ifdef CONFIG_COMPAT
- 	.compat_ioctl	= ext2_compat_ioctl,
- #endif
--	.mmap		= generic_file_mmap,
-+	.mmap		= ext2_file_mmap,
- 	.open		= generic_file_open,
- 	.release	= ext2_release_file,
- 	.fsync		= simple_fsync,
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 29ed682..3805b6b 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -814,6 +814,7 @@ const struct address_space_operations ext2_aops = {
- 	.sync_page		= block_sync_page,
- 	.write_begin		= ext2_write_begin,
- 	.write_end		= generic_write_end,
-+	.extend_i_size		= block_extend_i_size,
- 	.bmap			= ext2_bmap,
- 	.direct_IO		= ext2_direct_IO,
- 	.writepages		= ext2_writepages,
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 80e2630..7eb1710 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1683,8 +1683,9 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 			if (buffer_new(bh)) {
+ 				/* blockdev mappings never come here */
+ 				clear_buffer_new(bh);
+-				unmap_underlying_metadata(bh->b_bdev,
+-							bh->b_blocknr);
++				if (buffer_mapped(bh))
++					unmap_underlying_metadata(bh->b_bdev,
++						bh->b_blocknr);
+ 			}
+ 		}
+ 		bh = bh->b_this_page;
+@@ -1869,8 +1870,9 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
+ 			if (err)
+ 				break;
+ 			if (buffer_new(bh)) {
+-				unmap_underlying_metadata(bh->b_bdev,
+-							bh->b_blocknr);
++				if (buffer_mapped(bh))
++					unmap_underlying_metadata(bh->b_bdev,
++						bh->b_blocknr);
+ 				if (PageUptodate(page)) {
+ 					clear_buffer_new(bh);
+ 					set_buffer_uptodate(bh);
+@@ -2683,7 +2685,7 @@ int nobh_write_begin(struct file *file, struct address_space *mapping,
+ 			goto failed;
+ 		if (!buffer_mapped(bh))
+ 			is_mapped_to_disk = 0;
+-		if (buffer_new(bh))
++		if (buffer_new(bh) && buffer_mapped(bh))
+ 			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+ 		if (PageUptodate(page)) {
+ 			set_buffer_uptodate(bh);
 -- 
 1.6.0.2
 
