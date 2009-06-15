@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CD2236B005A
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 11:25:59 -0400 (EDT)
-Date: Mon, 15 Jun 2009 23:26:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
-	try_to_unmap
-Message-ID: <20090615152612.GA11700@localhost>
-References: <20090615024520.786814520@intel.com> <20090615031253.530308256@intel.com> <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0662D6B005C
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 11:26:46 -0400 (EDT)
+Date: Mon, 15 Jun 2009 16:28:04 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
+Message-ID: <20090615162804.4cb75b30@lxorguk.ukuu.org.uk>
+In-Reply-To: <20090615152427.GF31969@one.firstfloor.org>
+References: <20090615024520.786814520@intel.com>
+	<4A35BD7A.9070208@linux.vnet.ibm.com>
+	<20090615042753.GA20788@localhost>
+	<Pine.LNX.4.64.0906151341160.25162@sister.anvils>
+	<20090615140019.4e405d37@lxorguk.ukuu.org.uk>
+	<20090615132934.GE31969@one.firstfloor.org>
+	<20090615154832.73c89733@lxorguk.ukuu.org.uk>
+	<20090615152427.GF31969@one.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
-> On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > From: Andi Kleen <ak@linux.intel.com>
-> >
-> > When a page has the poison bit set replace the PTE with a poison entry.
-> > This causes the right error handling to be done later when a process runs
-> > into it.
-> >
-> > Also add a new flag to not do that (needed for the memory-failure handler
-> > later)
-> >
-> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> >
-> > ---
-> > A include/linux/rmap.h | A  A 1 +
-> > A mm/rmap.c A  A  A  A  A  A | A  A 9 ++++++++-
-> > A 2 files changed, 9 insertions(+), 1 deletion(-)
-> >
-> > --- sound-2.6.orig/mm/rmap.c
-> > +++ sound-2.6/mm/rmap.c
-> > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct page
-> > A  A  A  A /* Update high watermark before we lower rss */
-> > A  A  A  A update_hiwater_rss(mm);
-> >
-> > - A  A  A  if (PageAnon(page)) {
-> > + A  A  A  if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-> > + A  A  A  A  A  A  A  if (PageAnon(page))
-> > + A  A  A  A  A  A  A  A  A  A  A  dec_mm_counter(mm, anon_rss);
-> > + A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
+> oops=panic already implies panic on all machine check exceptions, so they will
+> be fine then (assuming this is the best strategy for availability 
+> for them, which I personally find quite doubtful, but we can discuss this some 
+> other time)
+
+You can have the argument with all the people who deploy large systems.
+Providing their boxes can be persuaded to panic they don't care about the
+masses.
+
+> That's because unpoisioning is quite hard -- you need some kind
+> of synchronization point for all the error handling and that's
+> the poisoned page and if it unposions itself then you need
+> some very heavy weight synchronization to avoid handling errors
+> multiple time. I looked at it, but it's quite messy.
 > 
-> Isn't it straightforward to use !is_hwpoison_entry ?
+> Also it's of somewhat dubious value.
 
-Good catch!  It looks like a redundant check: the
-page_check_address() at the beginning of the function guarantees that 
-!is_migration_entry() or !is_migration_entry() tests will all be TRUE.
+On a system running under a hypervisor or with hot swappable memory its
+of rather higher value. In the hypervisor case the guest system can
+acquire a new virtual page to replace the faulty one. In fact the
+hypervisor case is even more complex as the guest may get migrated at
+which point knowledge of "poisoned" memory is not at all connected to
+information on hardware failings.
 
-So let's do this?
+> > 
+> > (You can unfail pages on x86 as well it appears by scrubbing them via DMA
+> > - yes ?)
+> 
+> Not architectually. Also the other problem is not just unpoisoning them,
+> but finding out if the page is permenantly bad or just temporarily.
 
-- A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
-+ A  A  A  A  A  A  A  else
+Small detail you are overlooking: Hot swap mirrorable memory.
 
+Second detail you are overlooking
 
-Thanks,
-Fengguang
+	curse a lot
+	suspend to disk
+	remove dirt from fans, clean/replace RAM
+	resume from disk
+
+The very act of making the ECC error not take out the box creates the
+environment whereby the underlying hardware error (if there was one) can
+be cured.
+
+In all these cases the fact you've got to shoot stuff because a page has
+been lost becomes totally disconnected from the idea that the page is
+somehow not recoverable and "contaminated" forever.
+
+Which to me says your model is wrong.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
