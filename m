@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 08EAD6B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 03:01:06 -0400 (EDT)
-Date: Mon, 15 Jun 2009 09:09:14 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
-Message-ID: <20090615070914.GC31969@one.firstfloor.org>
-References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <20090615064447.GA18390@wotan.suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2EA6B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 03:04:13 -0400 (EDT)
+Date: Mon, 15 Jun 2009 09:04:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when	feature is disabled
+Message-ID: <20090615070414.GD18390@wotan.suse.de>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu> <4A328444.3010301@zytor.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090615064447.GA18390@wotan.suse.de>
+In-Reply-To: <4A328444.3010301@zytor.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 15, 2009 at 08:44:47AM +0200, Nick Piggin wrote:
+On Fri, Jun 12, 2009 at 09:37:24AM -0700, H. Peter Anvin wrote:
+> Ingo Molnar wrote:
 > > 
-> > So IMHO it's OK for .31 as long as we agree on the user interfaces,
-> > ie. /proc/sys/vm/memory_failure_early_kill and the hwpoison uevent.
+> > So i think hwpoison simply does not affect our ability to get log 
+> > messages out - but it sure allows crappier hardware to be used.
+> > Am i wrong about that for some reason?
 > > 
-> > It comes a long way through numerous reviews, and I believe all the
-> > important issues and concerns have been addressed. Nick, Rik, Hugh,
-> > Ingo, ... what are your opinions? Is the uevent good enough to meet
-> > your request to "die hard" or "die gracefully" or whatever on memory
-> > failure events?
 > 
-> Uevent? As in, send a message to userspace? I don't think this
-> would be ideal for a fail-stop/failover situation.
+> Crappy hardware isn't the kind of hardware that is likely to have the
+> hwpoison features, just like crappy hardware generally doesn't even have
+> ECC -- or even basic parity checking (I personally think non-ECC memory
+> should be considered a crime against humanity in this day and age.)
 
-Agreed.
+What I would find interesting with this hwpoison would be the probability 
+difference between detecting an uncorrected error, and undetected errors.
 
-For failover you typically want a application level heartbeat anyways
-to guard against user space software problems and if there's a kill then it
-would catch it. Also again in you want to check against all corruptions you
-have to do it in the low level handler or better watch corrected
-events too to predict failures (but the later is quite hard to do generally). 
-To some extent the first is already implemented on x86, e.g. set
-the tolerance level to 0 will give more aggressive panics.
+ 
+> These kinds of features are used when extremely high reliability is
+> required, think for example a telco core router.  A page error may have
+> happened due to stray radiation or through power supply glitches (which
+> happen even in the best of systems), but if they are a pattern, a box
+> needs to be replaced.  *How quickly* a box can be taken out of service
+> and replaced can vary greatly, and its urgency depend on patterns;
+> furthermore, in the meantime the device has to work the best it can.
 
-> I can't see a good reason to rush to merge it.
+I don't know how much improvements that hwpoison will give. Significant
+amount of RAM cannot be corrected, so especially on like a core router
+or embedded system which does not use a lot of disk/pagecache, then it
+is probably more like 2x improvement rather than an order of magnitude
+improvement.
 
-The low level x86 code for MCA recovery is in, just this high level
-part is missing to kill the correct process. I think it would be good to merge 
-a core now.  The basic code seems to be also as well tested as we can do it 
-right now and exposing it to more users would be good. It's undoubtedly not 
-perfect yet, but that's not a requirement for merge.
 
-There's a lot of fancy stuff that could be done in addition,
-but that's not really needed right now and for a lot of the fancy
-ideas (I have enough on my own :) it's dubious they are actually
-worth it.
+> Consider, for example, a control computer on the Hubble Space Telescope
+> -- the only way to replace it is by space shuttle, and you can safely
+> guarantee that *that* won't happen in a heartbeat.  On the new Herschel
+> Space Observatory, not even the space shuttle can help: if the computers
+> die, *or* if bad data gets fed to its control system, the spacecraft is
+> lost.  As such, it's of paramount importance for the computers to (a)
+> continue to provide service at the level the hardware is capable of
+> doing, (b) as accurately as possible continually assess and report that
+> level of service, and (c) not allow a failure to pass undetected.  A lot
+> of failures are simple one-time events (especially in space, a high-rad
+> environment), others reflect decaying hardware but can be isolated (e.g.
+> a RAM cell which has developed a short circuit, or a CPU core which has
+> a damaged ALU), while others yet reflect a general ill health of the
+> system that cannot be recovered.
 
-> IMO the userspace-visible changes have maybe not been considered
-> too thoroughly, which is what I'd be most worried about. I probably
-> missed seeing documentation of exact semantics and situations
-> where admins should tune things one way or the other.
+I guess most of these examples have to go far beyond this and use
+multiply redundant computation and voting systems and quickly
+reboot members that are kicked out. :)
 
-There's only a single tunable anyways, early kill vs late kill.
-
-For KVM you need early kill, for the others it remains to be seen.
-
-> I hope it is going to be merged with an easy-to-use fault injector,
-> because that is the only way Joe kernel developer is ever going to
-> test it.
-
-See patches 13 and 14. In addition there's another low level x86
-injector too.
-
-There's also a test suite available (mce-test on kernel.org git)
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Not that it is a detrement of hwpoison. If they used Linux I'm
+sure they would like to panic on uncorrected error too (but would
+probably not bother trying to do heuristic recovery).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
