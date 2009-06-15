@@ -1,135 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E21AF6B0055
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 05:41:33 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5F9goBk007004
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 15 Jun 2009 18:42:51 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4245445DE50
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DCB1745DD70
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:48 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 74721E08001
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:48 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 15C191DB8037
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 18:42:45 +0900 (JST)
-Date: Mon, 15 Jun 2009 18:41:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 10/22] HWPOISON: check and isolate corrupted free pages
- v2
-Message-Id: <20090615184112.ed8e2f03.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090615031253.715406280@intel.com>
-References: <20090615024520.786814520@intel.com>
-	<20090615031253.715406280@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9DCD96B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 06:03:01 -0400 (EDT)
+Received: by fxm24 with SMTP id 24so1557464fxm.38
+        for <linux-mm@kvack.org>; Mon, 15 Jun 2009 03:03:03 -0700 (PDT)
+MIME-Version: 1.0
+Date: Mon, 15 Jun 2009 14:03:03 +0400
+Message-ID: <a4423d670906150303o353f598dg4eb7b1f181344d8e@mail.gmail.com>
+Subject: 2.6.31-rc1: memory initialization warnings on sparc
+From: Alexander Beregalov <a.beregalov@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Jun 2009 10:45:30 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+Hi
 
-> From: Wu Fengguang <fengguang.wu@intel.com>
-> 
-> If memory corruption hits the free buddy pages, we can safely ignore them.
-> No one will access them until page allocation time, then prep_new_page()
-> will automatically check and isolate PG_hwpoison page for us (for 0-order
-> allocation).
-> 
-> This patch expands prep_new_page() to check every component page in a high
-> order page allocation, in order to completely stop PG_hwpoison pages from
-> being recirculated.
-> 
-> Note that the common case -- only allocating a single page, doesn't
-> do any more work than before. Allocating > order 0 does a bit more work,
-> but that's relatively uncommon.
-> 
-> This simple implementation may drop some innocent neighbor pages, hopefully
-> it is not a big problem because the event should be rare enough.
-> 
-> This patch adds some runtime costs to high order page users.
-> 
-> [AK: Improved description]
-> 
-> v2: Andi Kleen:
-> Port to -mm code
-> Move check into separate function.
-> Don't dump stack in bad_pages for hwpoisoned pages.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> 
-> ---
->  mm/page_alloc.c |   20 +++++++++++++++++++-
->  1 file changed, 19 insertions(+), 1 deletion(-)
-> 
-> --- sound-2.6.orig/mm/page_alloc.c
-> +++ sound-2.6/mm/page_alloc.c
-> @@ -233,6 +233,12 @@ static void bad_page(struct page *page)
->  	static unsigned long nr_shown;
->  	static unsigned long nr_unshown;
->  
-> +	/* Don't complain about poisoned pages */
-> +	if (PageHWPoison(page)) {
-> +		__ClearPageBuddy(page);
-> +		return;
-> +	}
+Kernel is 2.6.30-03984-g45e3e19
+It is Ultra10 (UP) with 1Gb RAM
 
-Hmm ? why __ClearPageBuddy() is necessary ?
-
-Thanks,
--Kame
-
-
-> +
->  	/*
->  	 * Allow a burst of 60 reports, then keep quiet for that minute;
->  	 * or allow a steady drip of one report per second.
-> @@ -646,7 +652,7 @@ static inline void expand(struct zone *z
->  /*
->   * This page is about to be returned from the page allocator
->   */
-> -static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-> +static inline int check_new_page(struct page *page)
->  {
->  	if (unlikely(page_mapcount(page) |
->  		(page->mapping != NULL)  |
-> @@ -655,6 +661,18 @@ static int prep_new_page(struct page *pa
->  		bad_page(page);
->  		return 1;
->  	}
-> +	return 0;
-> +}
-> +
-> +static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < (1 << order); i++) {
-> +		struct page *p = page + i;
-> +		if (unlikely(check_new_page(p)))
-> +			return 1;
-> +	}
->  
->  	set_page_private(page, 0);
->  	set_page_refcounted(page);
-> 
-> -- 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+PROMLIB: Sun IEEE Boot Prom 'OBP 3.25.3 2000/06/29 14:12'
+PROMLIB: Root node compatible:
+Linux version 2.6.30-03984-g45e3e19 (alexb@sparky) (gcc version 4.3.3
+(Gentoo 4.3.3 p1.0) ) #27 PREEMPT Mon Jun 15 13:42:41 MSD 2009
+console [earlyprom0] enabled
+ARCH: SUN4U
+Ethernet address: 08:00:20:ff:e6:ff
+Kernel: Using 4 locked TLB entries for main kernel image.
+Remapping the kernel... done.
+OF stdout device is: /pci@1f,0/pci@1,1/SUNW,m64B@2
+PROM: Built device tree with 41922 bytes of memory.
+Top of RAM: 0x3ff44000, Total RAM: 0x3ff34000
+Memory hole size: 0MB
+[0000000200000000-fffff80001400000] page_structs=131072 node=0 entry=0/0
+[0000000200000000-fffff80001800000] page_structs=131072 node=0 entry=1/0
+Allocated 1056768 bytes for kernel page tables.
+Zone PFN ranges:
+  Normal   0x00000000 -> 0x0001ffa2
+Movable zone start PFN for each node
+early_node_map[3] active PFN ranges
+    0: 0x00000000 -> 0x0001ff7f
+    0: 0x0001ff80 -> 0x0001ff98
+    0: 0x0001ff9f -> 0x0001ffa2
+On node 0 totalpages: 130970
+  Normal zone: 1024 pages used for memmap
+  Normal zone: 0 pages reserved
+  Normal zone: 129946 pages, LIFO batch:15
+Booting Linux...
+Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 129946
+Kernel command line: root=/dev/sda2
+PID hash table entries: 4096 (order: 12, 32768 bytes)
+Dentry cache hash table entries: 131072 (order: 7, 1048576 bytes)
+Inode-cache hash table entries: 65536 (order: 6, 524288 bytes)
+------------[ cut here ]------------
+WARNING: at kernel/lockdep.c:2282 lockdep_trace_alloc+0xd0/0xf8()
+Modules linked in:
+Call Trace:
+ [0000000000450cf8] warn_slowpath_common+0x50/0x84
+ [0000000000450d48] warn_slowpath_null+0x1c/0x2c
+ [0000000000474148] lockdep_trace_alloc+0xd0/0xf8
+ [000000000049149c] __alloc_pages_internal+0x30/0x434
+ [00000000007dad60] mem_init+0x234/0x304
+ [00000000007d6638] start_kernel+0x16c/0x30c
+ [000000000066b14c] tlb_fixup_done+0x88/0x90
+ [0000000000000000] (null)
+---[ end trace 139ce121c98e96c9 ]---
+Memory: 1023456k available (2536k kernel code, 1328k data, 144k init)
+[fffff80000000000,000000003ff44000]
+SLUB: Genslabs=14, HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+Preemptible RCU implementation.
+NR_IRQS:255
+------------[ cut here ]------------
+WARNING: at mm/bootmem.c:535 alloc_arch_preferred_bootmem+0x34/0x64()
+Modules linked in:
+Call Trace:
+ [0000000000450cf8] warn_slowpath_common+0x50/0x84
+ [0000000000450d48] warn_slowpath_null+0x1c/0x2c
+ [00000000007ddf9c] alloc_arch_preferred_bootmem+0x34/0x64
+ [00000000007de75c] ___alloc_bootmem_nopanic+0x20/0xc0
+ [00000000007de8d8] ___alloc_bootmem+0x10/0x44
+ [00000000007dea8c] __alloc_bootmem+0x10/0x20
+ [00000000007d7388] init_IRQ+0xcc/0x1d4
+ [00000000007d6690] start_kernel+0x1c4/0x30c
+ [000000000066b14c] tlb_fixup_done+0x88/0x90
+ [0000000000000000] (null)
+---[ end trace 139ce121c98e96ca ]---
+clocksource: mult[245d1] shift[16]
+clockevent: mult[70a3d70a] shift[32]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
