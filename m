@@ -1,87 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1496B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 00:22:23 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n5F4MpCt013568
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 09:52:51 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5F4Me7E1401002
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 09:52:41 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n5F4MeKn009534
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 14:22:40 +1000
-Message-ID: <4A35CC8F.3020906@linux.vnet.ibm.com>
-Date: Mon, 15 Jun 2009 09:52:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E073E6B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 00:27:17 -0400 (EDT)
+Date: Mon, 15 Jun 2009 12:27:53 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
+Message-ID: <20090615042753.GA20788@localhost>
+References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Low overhead patches for the memory cgroup controller (v4)
-References: <b7dd123f0a15fff62150bc560747d7f0.squirrel@webmail-b.css.fujitsu.com> <20090515181639.GH4451@balbir.in.ibm.com> <20090518191107.8a7cc990.kamezawa.hiroyu@jp.fujitsu.com> <20090531235121.GA6120@balbir.in.ibm.com> <20090602085744.2eebf211.kamezawa.hiroyu@jp.fujitsu.com> <20090605053107.GF11755@balbir.in.ibm.com> <20090614183740.GD23577@balbir.in.ibm.com> <20090615111817.84123ea1.nishimura@mxp.nes.nec.co.jp> <4A35B936.70301@linux.vnet.ibm.com> <20090615120933.61941977.nishimura@mxp.nes.nec.co.jp> <4A35BE90.7000301@linux.vnet.ibm.com> <20090615124623.7a2138e4.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090615124623.7a2138e4.nishimura@mxp.nes.nec.co.jp>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A35BD7A.9070208@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura wrote:
-> On Mon, 15 Jun 2009 08:52:56 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> Daisuke Nishimura wrote:
->>> On Mon, 15 Jun 2009 08:30:06 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>> Daisuke Nishimura wrote:
->>>>
->>>>>  	pc->mem_cgroup = mem;
->>>>>  	smp_wmb();
->>>>> -	pc->flags = pcg_default_flags[ctype];
->>>> pc->flags needs to be reset here, otherwise we have the danger the carrying over
->>>> older bits. I'll merge your changes and test.
->>>>
->>> hmm, why ?
->>>
->>> I do in my patch:
->>>
->>> +	switch (ctype) {
->>> +	case MEM_CGROUP_CHARGE_TYPE_CACHE:
->>> +	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
->>> +		SetPageCgroupCache(pc);
->>> +		SetPageCgroupUsed(pc);
->>> +		break;
->>> +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
->>> +		ClearPageCgroupCache(pc);
->>> +		SetPageCgroupUsed(pc);
->>> +		break;
->>> +	default:
->>> +		break;
->>> +	}
->>>
->> Yes, I did that in the older code, what I was suggesting was just an additional
->> step to ensure that in the future if we add new flags, we don't end up with a
->> long list of initializations and clearing or if we forget to clear pc->flags and
->> reuse the page_cgroup, it might be a problem. My message was confusing, it
->> should have been resetting the pc->flags will provide protection for any future
->> addition of flags.
->>
-> O.K. I see your point.
+On Mon, Jun 15, 2009 at 11:18:18AM +0800, Balbir Singh wrote:
+> Wu Fengguang wrote:
+> > Hi all,
+> > 
+> > Comments are warmly welcome on the newly introduced uevent code :)
+> > 
+> > I hope we can reach consensus in this round and then be able to post
+> > a final version for .31 inclusion.
 > 
-> But we shouldn't touch PCG_ACCT_LRU flag here. IIUC, that's why we abandon
-> pcg_default_flags[]. Please take care of it.
-> 
+> Isn't that too aggressive? .31 is already in the merge window.
 
-I am keeping the pc->flags removed as in the earlier patch, but something to
-keep in mind as we review further changes to the flags field.
+Yes, a bit aggressive. This is a new feature that involves complex logics.
+However it is basically a no-op when there are no memory errors,
+and when memory corruption does occur, it's better to (possibly) panic
+in this code than to panic unconditionally in the absence of this
+feature (as said by Rik).
 
->> I am testing your patch which is the modified version of v3 with your changes
->> and have your signed-off-by in it as well as I post v5. Is that OK?
->>
-> Sure :)
-> 
+So IMHO it's OK for .31 as long as we agree on the user interfaces,
+ie. /proc/sys/vm/memory_failure_early_kill and the hwpoison uevent.
 
-Just sending it out, now, Thanks!
+It comes a long way through numerous reviews, and I believe all the
+important issues and concerns have been addressed. Nick, Rik, Hugh,
+Ingo, ... what are your opinions? Is the uevent good enough to meet
+your request to "die hard" or "die gracefully" or whatever on memory
+failure events?
 
--- 
-	Balbir
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
