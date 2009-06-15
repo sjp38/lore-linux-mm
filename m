@@ -1,35 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 677456B005A
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 09:28:28 -0400 (EDT)
-Message-ID: <4A364C74.3040006@zytor.com>
-Date: Mon, 15 Jun 2009 06:28:20 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
-References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <Pine.LNX.4.64.0906151341160.25162@sister.anvils> <20090615140019.4e405d37@lxorguk.ukuu.org.uk> <20090615132934.GE31969@one.firstfloor.org>
-In-Reply-To: <20090615132934.GE31969@one.firstfloor.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id B706A6B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 10:03:53 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20090615123658.GC4721@jukie.net>
+References: <20090615123658.GC4721@jukie.net> <20090613182721.GA24072@jukie.net> <25357.1245068384@redhat.com>
+Subject: Re: [v2.6.30 nfs+fscache] kswapd1: blocked for more than 120 seconds
+Date: Mon, 15 Jun 2009 15:03:47 +0100
+Message-ID: <25124.1245074627@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Bart Trojanowski <bart@jukie.net>
+Cc: dhowells@redhat.com, linux-kernel@vger.kernel.org, linux-cachefs@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> 
-> That said the real tests of this can be only done with test suites
-> really, these errors tend to not happen quickly. 
-> 
+Bart Trojanowski <bart@jukie.net> wrote:
 
-What's far more important, quite frankly, is harmlessness regression
-testing.
+> Sure, I'll create a new lvm volume with ext3 on it and give it a try.
+> Can I just shutdown cachefilesd, relocate the cahce, and restart the
+> daemon without remounting the nfs volumes?
 
-	-hpa
+Yes...  But it won't begin caching any files that are already in the inode
+cache in memory until they're discarded from the icache and are iget'd
+again...  Which is something else I need to look at.
 
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
