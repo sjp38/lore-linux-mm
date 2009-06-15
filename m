@@ -1,93 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9DCD96B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 06:03:01 -0400 (EDT)
-Received: by fxm24 with SMTP id 24so1557464fxm.38
-        for <linux-mm@kvack.org>; Mon, 15 Jun 2009 03:03:03 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB336B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 06:05:41 -0400 (EDT)
+Date: Mon, 15 Jun 2009 11:05:45 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] Properly account for the number of page cache
+	pages zone_reclaim() can reclaim
+Message-ID: <20090615100545.GB23198@csn.ul.ie>
+References: <20090611203349.6D68.A69D9226@jp.fujitsu.com> <20090612101735.GA14498@csn.ul.ie> <20090615134406.B422.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Date: Mon, 15 Jun 2009 14:03:03 +0400
-Message-ID: <a4423d670906150303o353f598dg4eb7b1f181344d8e@mail.gmail.com>
-Subject: 2.6.31-rc1: memory initialization warnings on sparc
-From: Alexander Beregalov <a.beregalov@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090615134406.B422.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, sparclinux <sparclinux@vger.kernel.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Mon, Jun 15, 2009 at 01:51:16PM +0900, KOSAKI Motohiro wrote:
+> > > > +/* Work out how many page cache pages we can reclaim in this reclaim_mode */
+> > > > +static long zone_pagecache_reclaimable(struct zone *zone)
+> > > > +{
+> > > > +	long nr_pagecache_reclaimable;
+> > > > +	long delta = 0;
+> > > > +
+> > > > +	/*
+> > > > +	 * If RECLAIM_SWAP is set, then all file pages are considered
+> > > > +	 * potentially reclaimable. Otherwise, we have to worry about
+> > > > +	 * pages like swapcache and zone_unmapped_file_pages() provides
+> > > > +	 * a better estimate
+> > > > +	 */
+> > > > +	if (zone_reclaim_mode & RECLAIM_SWAP)
+> > > > +		nr_pagecache_reclaimable = zone_page_state(zone, NR_FILE_PAGES);
+> > > > +	else
+> > > > +		nr_pagecache_reclaimable = zone_unmapped_file_pages(zone);
+> > > > +
+> > > > +	/* If we can't clean pages, remove dirty pages from consideration */
+> > > > +	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+> > > > +		delta += zone_page_state(zone, NR_FILE_DIRTY);
+> > > 
+> > > no use delta?
+> > > 
+> > 
+> > delta was used twice in an interim version when it was possible to overflow
+> > the counter. I left it as is because if another counter is added that must
+> > be subtracted from nr_pagecache_reclaimable, it'll be tidier to patch in if
+> > delta was there. I can take it out if you prefer.
+> 
+> Honestly, I'm confusing now.
+> 
+> your last version have following usage of "delta"
+> 
+> 	/* Beware of double accounting */
+> 	if (delta < nr_pagecache_reclaimable)
+> 		nr_pagecache_reclaimable -= delta;
+> 
+> but current your patch don't have it.
+> IOW, nobody use delta variable. I'm not sure about you forget to
+> accurate to nr_pagecache_reclaimable or forget to remove 
+> "delta += zone_page_state(zone, NR_FILE_DIRTY);" line.
+> 
+> Or, Am I missing anything?
+> Now, I don't oppose this change. I only hope to clarify your intention.
+> 
 
-Kernel is 2.6.30-03984-g45e3e19
-It is Ultra10 (UP) with 1Gb RAM
+You're not missing anything. I accidentally removed where delta was
+being used. Sorry.
 
-PROMLIB: Sun IEEE Boot Prom 'OBP 3.25.3 2000/06/29 14:12'
-PROMLIB: Root node compatible:
-Linux version 2.6.30-03984-g45e3e19 (alexb@sparky) (gcc version 4.3.3
-(Gentoo 4.3.3 p1.0) ) #27 PREEMPT Mon Jun 15 13:42:41 MSD 2009
-console [earlyprom0] enabled
-ARCH: SUN4U
-Ethernet address: 08:00:20:ff:e6:ff
-Kernel: Using 4 locked TLB entries for main kernel image.
-Remapping the kernel... done.
-OF stdout device is: /pci@1f,0/pci@1,1/SUNW,m64B@2
-PROM: Built device tree with 41922 bytes of memory.
-Top of RAM: 0x3ff44000, Total RAM: 0x3ff34000
-Memory hole size: 0MB
-[0000000200000000-fffff80001400000] page_structs=131072 node=0 entry=0/0
-[0000000200000000-fffff80001800000] page_structs=131072 node=0 entry=1/0
-Allocated 1056768 bytes for kernel page tables.
-Zone PFN ranges:
-  Normal   0x00000000 -> 0x0001ffa2
-Movable zone start PFN for each node
-early_node_map[3] active PFN ranges
-    0: 0x00000000 -> 0x0001ff7f
-    0: 0x0001ff80 -> 0x0001ff98
-    0: 0x0001ff9f -> 0x0001ffa2
-On node 0 totalpages: 130970
-  Normal zone: 1024 pages used for memmap
-  Normal zone: 0 pages reserved
-  Normal zone: 129946 pages, LIFO batch:15
-Booting Linux...
-Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 129946
-Kernel command line: root=/dev/sda2
-PID hash table entries: 4096 (order: 12, 32768 bytes)
-Dentry cache hash table entries: 131072 (order: 7, 1048576 bytes)
-Inode-cache hash table entries: 65536 (order: 6, 524288 bytes)
-------------[ cut here ]------------
-WARNING: at kernel/lockdep.c:2282 lockdep_trace_alloc+0xd0/0xf8()
-Modules linked in:
-Call Trace:
- [0000000000450cf8] warn_slowpath_common+0x50/0x84
- [0000000000450d48] warn_slowpath_null+0x1c/0x2c
- [0000000000474148] lockdep_trace_alloc+0xd0/0xf8
- [000000000049149c] __alloc_pages_internal+0x30/0x434
- [00000000007dad60] mem_init+0x234/0x304
- [00000000007d6638] start_kernel+0x16c/0x30c
- [000000000066b14c] tlb_fixup_done+0x88/0x90
- [0000000000000000] (null)
----[ end trace 139ce121c98e96c9 ]---
-Memory: 1023456k available (2536k kernel code, 1328k data, 144k init)
-[fffff80000000000,000000003ff44000]
-SLUB: Genslabs=14, HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
-Preemptible RCU implementation.
-NR_IRQS:255
-------------[ cut here ]------------
-WARNING: at mm/bootmem.c:535 alloc_arch_preferred_bootmem+0x34/0x64()
-Modules linked in:
-Call Trace:
- [0000000000450cf8] warn_slowpath_common+0x50/0x84
- [0000000000450d48] warn_slowpath_null+0x1c/0x2c
- [00000000007ddf9c] alloc_arch_preferred_bootmem+0x34/0x64
- [00000000007de75c] ___alloc_bootmem_nopanic+0x20/0xc0
- [00000000007de8d8] ___alloc_bootmem+0x10/0x44
- [00000000007dea8c] __alloc_bootmem+0x10/0x20
- [00000000007d7388] init_IRQ+0xcc/0x1d4
- [00000000007d6690] start_kernel+0x1c4/0x30c
- [000000000066b14c] tlb_fixup_done+0x88/0x90
- [0000000000000000] (null)
----[ end trace 139ce121c98e96ca ]---
-clocksource: mult[245d1] shift[16]
-clockevent: mult[70a3d70a] shift[32]
+> 
+> 
+> > > > -	nr_unmapped_file_pages = zone_page_state(zone, NR_INACTIVE_FILE) +
+> > > > -				 zone_page_state(zone, NR_ACTIVE_FILE) -
+> > > > -				 zone_page_state(zone, NR_FILE_MAPPED);
+> > > > -
+> > > > -	if (nr_unmapped_file_pages > zone->min_unmapped_pages) {
+> > > > +	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
+> > > 
+> > > Documentation/sysctl/vm.txt says
+> > > =============================================================
+> > > 
+> > > min_unmapped_ratio:
+> > > 
+> > > This is available only on NUMA kernels.
+> > > 
+> > > A percentage of the total pages in each zone.  Zone reclaim will only
+> > > occur if more than this percentage of pages are file backed and unmapped.
+> > > This is to insure that a minimal amount of local pages is still available for
+> > > file I/O even if the node is overallocated.
+> > > 
+> > > The default is 1 percent.
+> > > 
+> > > ==============================================================
+> > > 
+> > > but your code condider more addional thing. Can you please change document too?
+> > > 
+> > 
+> > How does this look?
+> > 
+> > ==============================================================
+> > min_unmapped_ratio:
+> > 
+> > This is available only on NUMA kernels.
+> > 
+> > This is a percentage of the total pages in each zone. Zone reclaim will only
+> > occur if more than this percentage are in a state that zone_reclaim_mode
+> > allows to be reclaimed.
+> > 
+> > If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
+> > against all file-backed unmapped pages including swapcache pages and tmpfs
+> > files. Otherwise, only unmapped pages backed by normal files but not tmpfs
+> > files and similar are considered.
+> > 
+> > The default is 1 percent.
+> > ==============================================================
+> 
+> Great! thanks.
+> 
+
+I'll prepare two patches after reviewing mmotm. The first will use delta
+properly and the second will fix the documentation. Thanks
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
