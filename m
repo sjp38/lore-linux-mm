@@ -1,188 +1,130 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 20/22] HWPOISON: collect infos that reflect the impact of the memory corruption
-Date: Mon, 15 Jun 2009 10:45:40 +0800
-Message-ID: <20090615031255.151495090@intel.com>
-References: <20090615024520.786814520@intel.com>
+Subject: [PATCH 00/22] HWPOISON: Intro (v5)
+Date: Mon, 15 Jun 2009 10:45:20 +0800
+Message-ID: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5DCD26B0082
+	by kanga.kvack.org (Postfix) with SMTP id 65D366B0083
 	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:28 -0400 (EDT)
-Content-Disposition: inline; filename=hwpoison-safety-bits.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-When a page corrupted, users may care about
-- does it hit some important areas?
-- can its data be recovered?
-- can it be isolated to avoid a deadly future reference?
-so that they can take proper actions like emergency sync/shutdown or
-schedule reboot at some convenient time.
+Hi all,
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Comments are warmly welcome on the newly introduced uevent code :)
+
+I hope we can reach consensus in this round and then be able to post
+a final version for .31 inclusion.
+
+changes since v4:
+- new feature: uevent report (and collect various states for that)
+- early kill cleanups
+- remove unnecessary code in __do_fault()
+- fix compile error when feature not enabled
+- fix kernel oops when invalid pfn is feed to corrupt-pfn
+- make tasklist_lock/anon_vma locking order straight
+- use the safer invalidate page for possible metadata pages
+
+Patches from previous versions plus some discussed fixes:
+ [PATCH 01/22] HWPOISON: Add page flag for poisoned pages
+ [PATCH 02/22] HWPOISON: Export some rmap vma locking to outside world
+ [PATCH 03/22] HWPOISON: Add support for poison swap entries v2
+ [PATCH 04/22] HWPOISON: Add new SIGBUS error codes for hardware poison signals
+ [PATCH 05/22] HWPOISON: Add basic support for poisoned pages in fault handler v3
+ [PATCH 06/22] HWPOISON: x86: Add VM_FAULT_HWPOISON handling to x86 page fault handler v2
+ [PATCH 07/22] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
+ [PATCH 08/22] HWPOISON: Use bitmask/action code for try_to_unmap behaviour
+ [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in try_to_unmap
+ [PATCH 10/22] HWPOISON: check and isolate corrupted free pages v2
+ [PATCH 11/22] HWPOISON: Refactor truncate to allow direct truncating of page v3
+ [PATCH 12/22] HWPOISON: The high level memory error handler in the VM v7
+ [PATCH 13/22] HWPOISON: Add madvise() based injector for hardware poisoned pages v3
+ [PATCH 14/22] HWPOISON: Add simple debugfs interface to inject hwpoison on arbitary PFNs
+
+New additions that need reviews:
+ [PATCH 15/22] HWPOISON: early kill cleanups and fixes
+ [PATCH 16/22] mm: move page flag numbers for user space to page-flags.h
+ [PATCH 17/22] HWPOISON: introduce struct hwpoison_control
+ [PATCH 18/22] HWPOISON: use compound head page
+ [PATCH 19/22] HWPOISON: detect free buddy pages explicitly
+ [PATCH 20/22] HWPOISON: collect infos that reflect the impact of the memory corruption
+ [PATCH 21/22] HWPOISON: send uevent to report memory corruption
+ [PATCH 22/22] HWPOISON: FOR TESTING: Enable memory failure code unconditionally
+
 ---
- mm/memory-failure.c |   78 +++++++++++++++++++++++++++++++++++-------
- 1 file changed, 66 insertions(+), 12 deletions(-)
+Upcoming Intel CPUs have support for recovering from some memory errors
+(``MCA recovery''). This requires the OS to declare a page "poisoned",
+kill the processes associated with it and avoid using it in the future.
 
---- sound-2.6.orig/mm/memory-failure.c
-+++ sound-2.6/mm/memory-failure.c
-@@ -312,11 +312,32 @@ static const char *hwpoison_outcome_name
- 	[RECOVERED] = "Recovered",
- };
- 
-+enum hwpoison_page_type {
-+	PAGE_IS_KERNEL,
-+	PAGE_IS_FS_METADATA,
-+	PAGE_IS_FILE_DATA,
-+	PAGE_IS_ANON_DATA,
-+	PAGE_IS_SWAP_CACHE,
-+	PAGE_IS_FREE,
-+};
-+
-+static const char *hwpoison_page_type_name[] = {
-+	[ PAGE_IS_KERNEL ]	= "kernel",
-+	[ PAGE_IS_FS_METADATA ]	= "fs_metadata",
-+	[ PAGE_IS_FILE_DATA ]	= "file_data",
-+	[ PAGE_IS_ANON_DATA ]	= "anon_data",
-+	[ PAGE_IS_SWAP_CACHE ]	= "swap_cache",
-+	[ PAGE_IS_FREE ]	= "free",
-+};
-+
- struct hwpoison_control {
- 	unsigned long pfn;
- 	struct page *p;		/* corrupted page */
- 	struct page *page;	/* compound page head */
- 	int outcome;
-+	int page_type;
-+	unsigned data_recoverable:1;
-+	unsigned page_isolated:1;
- };
- 
- /*
-@@ -358,8 +379,14 @@ static int me_pagecache_clean(struct hwp
- 		page_cache_release(p);
- 
- 	mapping = page_mapping(p);
--	if (mapping == NULL)
-+	if (mapping == NULL) {
-+		hpc->page_isolated = 1;
- 		return RECOVERED;
-+	}
-+
-+	/* clean file backed page is recoverable */
-+	if (!PageDirty(p) && !PageSwapBacked(p))
-+		hpc->data_recoverable = 1;
- 
- 	/*
- 	 * Now truncate the page in the page cache. This is really
-@@ -368,12 +395,14 @@ static int me_pagecache_clean(struct hwp
- 	 * has a reference, because it could be file system metadata
- 	 * and that's not safe to truncate.
- 	 */
--	if (!S_ISREG(mapping->host->i_mode) &&
--	    !invalidate_complete_page(mapping, p)) {
--		printk(KERN_ERR
--		       "MCE %#lx: failed to invalidate metadata page\n",
--			hpc->pfn);
--		return FAILED;
-+	if (!S_ISREG(mapping->host->i_mode)) {
-+		hpc->page_type = PAGE_IS_FS_METADATA;
-+		if (!invalidate_complete_page(mapping, p)) {
-+			printk(KERN_ERR
-+			       "MCE %#lx: failed to invalidate metadata page\n",
-+			       hpc->pfn);
-+			return FAILED;
-+		}
- 	}
- 
- 	truncate_inode_page(mapping, p);
-@@ -382,6 +411,8 @@ static int me_pagecache_clean(struct hwp
- 			 hpc->pfn);
- 		return FAILED;
- 	}
-+
-+	hpc->page_isolated = 1;
- 	return RECOVERED;
- }
- 
-@@ -467,6 +498,7 @@ static int me_swapcache_dirty(struct hwp
- 	if (!isolate_lru_page(p))
- 		page_cache_release(p);
- 
-+	hpc->page_isolated = 1;
- 	return DELAYED;
- }
- 
-@@ -478,6 +510,8 @@ static int me_swapcache_clean(struct hwp
- 		page_cache_release(p);
- 
- 	delete_from_swap_cache(p);
-+	hpc->data_recoverable = 1;
-+	hpc->page_isolated = 1;
- 
- 	return RECOVERED;
- }
-@@ -587,6 +621,10 @@ static void page_action(struct page_stat
- 		       "MCE %#lx: %s page still referenced by %d users\n",
- 		       hpc->pfn, ps->msg, page_count(hpc->page) - 1);
- 
-+	if (page_count(hpc->page) > 1 ||
-+	    page_mapcount(hpc->page) > 0)
-+		hpc->page_isolated = 0;
-+
- 	/* Could do more checks here if page looks ok */
- 	atomic_long_add(1, &mce_bad_pages);
- 
-@@ -735,6 +773,10 @@ void memory_failure(unsigned long pfn, i
- 	hpc.p    = p;
- 	hpc.page = p = compound_head(p);
- 
-+	hpc.page_type = PAGE_IS_KERNEL;
-+	hpc.data_recoverable = 0;
-+	hpc.page_isolated = 0;
-+
- 	/*
- 	 * We need/can do nothing about count=0 pages.
- 	 * 1) it's a free page, and therefore in safe hand:
-@@ -747,9 +789,12 @@ void memory_failure(unsigned long pfn, i
- 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
- 	 */
- 	if (!get_page_unless_zero(p)) {
--		if (is_free_buddy_page(p))
-+		if (is_free_buddy_page(p)) {
-+			hpc.page_type = PAGE_IS_FREE;
-+			hpc.data_recoverable = 1;
-+			hpc.page_isolated = 1;
- 			action_result(&hpc, "free buddy", DELAYED);
--		else
-+		} else
- 			action_result(&hpc, "high order kernel", IGNORED);
- 		return;
- 	}
-@@ -770,9 +815,18 @@ void memory_failure(unsigned long pfn, i
- 	/*
- 	 * Torn down by someone else?
- 	 */
--	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
--		action_result(&hpc, "already truncated LRU", IGNORED);
--		goto out;
-+	if (PageLRU(p)) {
-+		if (PageSwapCache(p))
-+			hpc.page_type = PAGE_IS_SWAP_CACHE;
-+		else if (PageAnon(p))
-+			hpc.page_type = PAGE_IS_ANON_DATA;
-+		else
-+			hpc.page_type = PAGE_IS_FILE_DATA;
-+		if (!PageSwapCache(p) && p->mapping == NULL) {
-+			action_result(&hpc, "already truncated LRU", IGNORED);
-+			hpc.page_type = PAGE_IS_FREE;
-+			goto out;
-+		}
- 	}
- 
- 	for (ps = error_states;; ps++) {
+This patchkit implements the necessary infrastructure in the VM.
 
+To quote the overview comment:
+
+ * High level machine check handler. Handles pages reported by the
+ * hardware as being corrupted usually due to a 2bit ECC memory or cache
+ * failure.
+ *
+ * This focusses on pages detected as corrupted in the background.
+ * When the current CPU tries to consume corruption the currently
+ * running process can just be killed directly instead. This implies
+ * that if the error cannot be handled for some reason it's safe to
+ * just ignore it because no corruption has been consumed yet. Instead
+ * when that happens another machine check will happen.
+ *
+ * Handles page cache pages in various states. The tricky part
+ * here is that we can access any page asynchronous to other VM
+ * users, because memory failures could happen anytime and anywhere,
+ * possibly violating some of their assumptions. This is why this code
+ * has to be extremely careful. Generally it tries to use normal locking
+ * rules, as in get the standard locks, even if that means the
+ * error handling takes potentially a long time.
+ *
+ * Some of the operations here are somewhat inefficient and have non
+ * linear algorithmic complexity, because the data structures have not
+ * been optimized for this case. This is in particular the case
+ * for the mapping from a vma to a process. Since this case is expected
+ * to be rare we hope we can get away with this.
+
+The code consists of a the high level handler in mm/memory-failure.c,
+a new page poison bit and various checks in the VM to handle poisoned
+pages.
+
+The main target right now is KVM guests, but it works for all kinds
+of applications.
+
+For the KVM use there was need for a new signal type so that
+KVM can inject the machine check into the guest with the proper
+address. This in theory allows other applications to handle
+memory failures too. The expection is that near all applications
+won't do that, but some very specialized ones might.
+
+This is not fully complete yet, in particular there are still ways
+to access poison through various ways (crash dump, /proc/kcore etc.)
+that need to be plugged too.
+Also undoubtedly the high level handler still has bugs and cases
+it cannot recover from. For example nonlinear mappings deadlock right now
+and a few other cases lose references. Huge pages are not supported
+yet. Any additional testing, reviewing etc. welcome.
+
+The patch series requires the earlier x86 MCE feature series for the x86
+specific action optional part. The code can be tested without the x86 specific
+part using the injector, this only requires to enable the Kconfig entry
+manually in some Kconfig file (by default it is implicitely enabled
+by the architecture)
+
+v2: Lots of smaller changes in the series based on review feedback.
+Rename Poison to HWPoison after akpm's request.
+A new pfn based injector based on feedback.
+A lot of improvements mostly from Fengguang Wu
+See comments in the individual patches.
+v3: Various updates, see changelogs in individual patches.
+v4: Various updates, see changelogs in individual patches.
+v5: add uevent notification and some cleanups/fixes.
+
+Thanks,
+Fengguang
 -- 
 
 --
