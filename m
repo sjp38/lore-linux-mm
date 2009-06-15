@@ -1,95 +1,95 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 10/22] HWPOISON: check and isolate corrupted free pages v2
-Date: Mon, 15 Jun 2009 10:45:30 +0800
-Message-ID: <20090615031253.715406280@intel.com>
+Subject: [PATCH 05/22] HWPOISON: Add basic support for poisoned pages in fault handler v3
+Date: Mon, 15 Jun 2009 10:45:25 +0800
+Message-ID: <20090615031253.003740564@intel.com>
 References: <20090615024520.786814520@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0CCAD6B0088
-	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:34 -0400 (EDT)
-Content-Disposition: inline; filename=free-pages-poison
+	by kanga.kvack.org (Postfix) with SMTP id 683B16B007E
+	for <linux-mm@kvack.org>; Sun, 14 Jun 2009 23:14:35 -0400 (EDT)
+Content-Disposition: inline; filename=vm-fault-poison
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+From: Andi Kleen <ak@linux.intel.com>
 
-If memory corruption hits the free buddy pages, we can safely ignore them.
-No one will access them until page allocation time, then prep_new_page()
-will automatically check and isolate PG_hwpoison page for us (for 0-order
-allocation).
+- Add a new VM_FAULT_HWPOISON error code to handle_mm_fault. Right now
+architectures have to explicitely enable poison page support, so
+this is forward compatible to all architectures. They only need
+to add it when they enable poison page support.
+- Add poison page handling in swap in fault code
 
-This patch expands prep_new_page() to check every component page in a high
-order page allocation, in order to completely stop PG_hwpoison pages from
-being recirculated.
+v2: Add missing delayacct_clear_flag (Hidehiro Kawai)
+v3: Really use delayacct_clear_flag (Hidehiro Kawai)
 
-Note that the common case -- only allocating a single page, doesn't
-do any more work than before. Allocating > order 0 does a bit more work,
-but that's relatively uncommon.
-
-This simple implementation may drop some innocent neighbor pages, hopefully
-it is not a big problem because the event should be rare enough.
-
-This patch adds some runtime costs to high order page users.
-
-[AK: Improved description]
-
-v2: Andi Kleen:
-Port to -mm code
-Move check into separate function.
-Don't dump stack in bad_pages for hwpoisoned pages.
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/page_alloc.c |   20 +++++++++++++++++++-
- 1 file changed, 19 insertions(+), 1 deletion(-)
+ include/linux/mm.h |    3 ++-
+ mm/memory.c        |   18 +++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)
 
---- sound-2.6.orig/mm/page_alloc.c
-+++ sound-2.6/mm/page_alloc.c
-@@ -233,6 +233,12 @@ static void bad_page(struct page *page)
- 	static unsigned long nr_shown;
- 	static unsigned long nr_unshown;
+--- sound-2.6.orig/mm/memory.c
++++ sound-2.6/mm/memory.c
+@@ -1315,7 +1315,8 @@ int __get_user_pages(struct task_struct 
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+ 						return i ? i : -ENOMEM;
+-					else if (ret & VM_FAULT_SIGBUS)
++					if (ret &
++					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+ 						return i ? i : -EFAULT;
+ 					BUG();
+ 				}
+@@ -2595,8 +2596,15 @@ static int do_swap_page(struct mm_struct
+ 		goto out;
  
-+	/* Don't complain about poisoned pages */
-+	if (PageHWPoison(page)) {
-+		__ClearPageBuddy(page);
-+		return;
-+	}
-+
- 	/*
- 	 * Allow a burst of 60 reports, then keep quiet for that minute;
- 	 * or allow a steady drip of one report per second.
-@@ -646,7 +652,7 @@ static inline void expand(struct zone *z
- /*
-  * This page is about to be returned from the page allocator
-  */
--static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-+static inline int check_new_page(struct page *page)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
-@@ -655,6 +661,18 @@ static int prep_new_page(struct page *pa
- 		bad_page(page);
- 		return 1;
+ 	entry = pte_to_swp_entry(orig_pte);
+-	if (is_migration_entry(entry)) {
+-		migration_entry_wait(mm, pmd, address);
++	if (unlikely(non_swap_entry(entry))) {
++		if (is_migration_entry(entry)) {
++			migration_entry_wait(mm, pmd, address);
++		} else if (is_hwpoison_entry(entry)) {
++			ret = VM_FAULT_HWPOISON;
++		} else {
++			print_bad_pte(vma, address, pte, NULL);
++			ret = VM_FAULT_OOM;
++		}
+ 		goto out;
  	}
-+	return 0;
-+}
-+
-+static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-+{
-+	int i;
-+
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page *p = page + i;
-+		if (unlikely(check_new_page(p)))
-+			return 1;
-+	}
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+@@ -2620,6 +2628,10 @@ static int do_swap_page(struct mm_struct
+ 		/* Had to read the page from swap area: Major fault */
+ 		ret = VM_FAULT_MAJOR;
+ 		count_vm_event(PGMAJFAULT);
++	} else if (PageHWPoison(page)) {
++		ret = VM_FAULT_HWPOISON;
++		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
++		goto out;
+ 	}
  
- 	set_page_private(page, 0);
- 	set_page_refcounted(page);
+ 	lock_page(page);
+--- sound-2.6.orig/include/linux/mm.h
++++ sound-2.6/include/linux/mm.h
+@@ -700,11 +700,12 @@ static inline int page_mapped(struct pag
+ #define VM_FAULT_SIGBUS	0x0002
+ #define VM_FAULT_MAJOR	0x0004
+ #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
++#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
+ 
+ #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+ #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+ 
+-#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
++#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
+ 
+ /*
+  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
 
 -- 
 
