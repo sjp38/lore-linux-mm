@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ED4986B007E
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:58:17 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 332436B0082
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 13:58:20 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/11] vfs: Implement generic per-cpu counters for delayed allocation
-Date: Mon, 15 Jun 2009 19:59:53 +0200
-Message-Id: <1245088797-29533-7-git-send-email-jack@suse.cz>
+Subject: [PATCH 08/11] fs: Don't clear dirty bits in block_write_full_page()
+Date: Mon, 15 Jun 2009 19:59:55 +0200
+Message-Id: <1245088797-29533-9-git-send-email-jack@suse.cz>
 In-Reply-To: <1245088797-29533-1-git-send-email-jack@suse.cz>
 References: <1245088797-29533-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,247 +13,114 @@ To: LKML <linux-kernel@vger.kernel.org>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-Implement free blocks and reserved blocks counters for delayed
-allocation. These counters are reliable in the sence that when
-they return success, the subsequent conversion from reserved to
-allocated blocks always succeeds (see comments in the code for
-details). This is useful for ext? based filesystems to implement
-delayed allocation in particular for allocation in page_mkwrite.
+If getblock() fails in block_write_full_page(), we don't want to clear
+dirty bits on buffers. Actually, we even want to redirty the page. This
+way we just won't silently discard users data (written e.g. through mmap)
+in case of ENOSPC, EDQUOT, EIO or other write error (which may be just
+transient e.g. because we have to commit a transaction to free up some space).
+The downside of this approach is that if the error is persistent we have this
+page pinned in memory forever and if there are lots of such pages, we can bring
+the machine OOM.
+
+We also don't want to clear dirty bits from buffers above i_size because that
+is a generally a bussiness of invalidatepage where filesystem might want to do
+some additional work. If we clear dirty bits already in block_write_full_page,
+memory reclaim can reap the page before invalidatepage is called on the page
+and thus confusing the filesystem.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/Kconfig                       |    4 ++
- fs/Makefile                      |    1 +
- fs/delalloc_counter.c            |  109 ++++++++++++++++++++++++++++++++++++++
- fs/ext3/Kconfig                  |    1 +
- include/linux/delalloc_counter.h |   63 ++++++++++++++++++++++
- 5 files changed, 178 insertions(+), 0 deletions(-)
- create mode 100644 fs/delalloc_counter.c
- create mode 100644 include/linux/delalloc_counter.h
+ fs/buffer.c |   40 +++++++++++++++++-----------------------
+ 1 files changed, 17 insertions(+), 23 deletions(-)
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 525da2e..82882b9 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -19,6 +19,10 @@ config FS_XIP
- source "fs/jbd/Kconfig"
- source "fs/jbd2/Kconfig"
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 7eb1710..21a8cb9 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1662,19 +1662,14 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 	 * handle any aliases from the underlying blockdev's mapping.
+ 	 */
+ 	do {
+-		if (block > last_block) {
+-			/*
+-			 * mapped buffers outside i_size will occur, because
+-			 * this page can be outside i_size when there is a
+-			 * truncate in progress.
+-			 */
+-			/*
+-			 * The buffer was zeroed by block_write_full_page()
+-			 */
+-			clear_buffer_dirty(bh);
+-			set_buffer_uptodate(bh);
+-		} else if ((!buffer_mapped(bh) || buffer_delay(bh)) &&
+-			   buffer_dirty(bh)) {
++		/*
++		 * Mapped buffers outside i_size will occur, because
++		 * this page can be outside i_size when there is a
++		 * truncate in progress.
++		 */
++		if (block <= last_block &&
++		    (!buffer_mapped(bh) || buffer_delay(bh)) &&
++		    buffer_dirty(bh)) {
+ 			WARN_ON(bh->b_size != blocksize);
+ 			err = get_block(inode, block, bh, 1);
+ 			if (err)
+@@ -1692,9 +1687,10 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 		block++;
+ 	} while (bh != head);
  
-+config DELALLOC_COUNTER
-+	bool
-+	default y if EXT3_FS=y
-+
- config FS_MBCACHE
- # Meta block cache for Extended Attributes (ext2/ext3/ext4)
- 	tristate
-diff --git a/fs/Makefile b/fs/Makefile
-index af6d047..b5614fc 100644
---- a/fs/Makefile
-+++ b/fs/Makefile
-@@ -19,6 +19,7 @@ else
- obj-y +=	no-block.o
- endif
++	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+ 	do {
+-		if (!buffer_mapped(bh))
+-			continue;
++		if (!buffer_mapped(bh) || block > last_block)
++			goto next;
+ 		/*
+ 		 * If it's a fully non-blocking write attempt and we cannot
+ 		 * lock the buffer then redirty the page.  Note that this can
+@@ -1706,13 +1702,15 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
+ 			lock_buffer(bh);
+ 		} else if (!trylock_buffer(bh)) {
+ 			redirty_page_for_writepage(wbc, page);
+-			continue;
++			goto next;
+ 		}
+ 		if (test_clear_buffer_dirty(bh)) {
+ 			mark_buffer_async_write_endio(bh, handler);
+ 		} else {
+ 			unlock_buffer(bh);
+ 		}
++next:
++		block++;
+ 	} while ((bh = bh->b_this_page) != head);
  
-+obj-$(CONFIG_DELALLOC_COUNTER)	+= delalloc_counter.o
- obj-$(CONFIG_BLK_DEV_INTEGRITY) += bio-integrity.o
- obj-y				+= notify/
- obj-$(CONFIG_EPOLL)		+= eventpoll.o
-diff --git a/fs/delalloc_counter.c b/fs/delalloc_counter.c
-new file mode 100644
-index 0000000..0f575d5
---- /dev/null
-+++ b/fs/delalloc_counter.c
-@@ -0,0 +1,109 @@
-+/*
-+ *  Per-cpu counters for delayed allocation
-+ */
-+#include <linux/percpu_counter.h>
-+#include <linux/delalloc_counter.h>
-+#include <linux/module.h>
-+#include <linux/log2.h>
-+
-+static long dac_error(struct delalloc_counter *c)
-+{
-+#ifdef CONFIG_SMP
-+	return c->batch * nr_cpu_ids;
-+#else
-+	return 0;
-+#endif
-+}
-+
-+/*
-+ * Reserve blocks for delayed allocation
-+ *
-+ * This code is subtle because we want to avoid synchronization of processes
-+ * doing allocation in the common case when there's plenty of space in the
-+ * filesystem.
-+ *
-+ * The code maintains the following property: Among all the calls to
-+ * dac_reserve() that return 0 there exists a simple sequential ordering of
-+ * these calls such that the check (free - reserved >= limit) in each call
-+ * succeeds. This guarantees that we never reserve blocks we don't have.
-+ *
-+ * The proof of the above invariant: The function can return 0 either when the
-+ * first if succeeds or when both ifs fail. To the first type of callers we
-+ * assign the time of read of c->reserved in the first if, to the second type
-+ * of callers we assign the time of read of c->reserved in the second if. We
-+ * order callers by their assigned time and claim that this is the ordering
-+ * required by the invariant. Suppose that a check (free - reserved >= limit)
-+ * fails for caller C in the proposed ordering. We distinguish two cases:
-+ * 1) function called by C returned zero because the first if succeeded - in
-+ *  this case reads of counters in the first if must have seen effects of
-+ *  __percpu_counter_add of all the callers before C (even their condition
-+ *  evaluation happened before our). The errors accumulated in cpu-local
-+ *  variables are clearly < dac_error(c) and thus the condition should fail.
-+ *  Contradiction.
-+ * 2) function called by C returned zero because the second if failed - again
-+ *  the read of the counters must have seen effects of __percpu_counter_add of
-+ *  all the callers before C and thus the condition should have succeeded.
-+ *  Contradiction.
-+ */
-+int dac_reserve(struct delalloc_counter *c, s32 amount, s64 limit)
-+{
-+	s64 free, reserved;
-+	int ret = 0;
-+
-+	__percpu_counter_add(&c->reserved, amount, c->batch);
-+	/*
-+	 * This barrier makes sure that when effects of the following read of
-+	 * c->reserved are observable by another CPU also effects of the
-+	 * previous store to c->reserved are seen.
-+	 */
-+	smp_mb();
-+	if (percpu_counter_read(&c->free) - percpu_counter_read(&c->reserved)
-+	    - 2 * dac_error(c) >= limit)
-+		return ret;
-+	/*
-+	 * Near the limit - sum the counter to avoid returning ENOSPC too
-+	 * early. Note that we can still "unnecessarily" return ENOSPC when
-+	 * there are several racing writers. Spinlock in this section would
-+	 * solve it but let's ignore it for now.
-+	 */
-+	free = percpu_counter_sum_positive(&c->free);
-+	reserved = percpu_counter_sum_positive(&c->reserved);
-+	if (free - reserved < limit) {
-+		__percpu_counter_add(&c->reserved, -amount, c->batch);
-+		ret = -ENOSPC;
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(dac_reserve);
-+
-+/* Account reserved blocks as allocated */
-+void dac_alloc_reserved(struct delalloc_counter *c, s32 amount)
-+{
-+	__percpu_counter_add(&c->free, -amount, c->batch);
-+	/*
-+	 * Make sure update of free counter is seen before update of
-+	 * reserved counter.
-+	 */
-+	smp_wmb();
-+	__percpu_counter_add(&c->reserved, -amount, c->batch);
-+}
-+EXPORT_SYMBOL(dac_alloc_reserved);
-+
-+int dac_init(struct delalloc_counter *c, s64 amount)
-+{
-+	int err;
-+
-+	c->batch = 8*(1+ilog2(nr_cpu_ids));
-+	err = percpu_counter_init(&c->free, amount);
-+	if (!err)
-+		err = percpu_counter_init(&c->reserved, 0);
-+	return err;
-+}
-+EXPORT_SYMBOL(dac_init);
-+
-+void dac_destroy(struct delalloc_counter *c)
-+{
-+	percpu_counter_destroy(&c->free);
-+	percpu_counter_destroy(&c->reserved);
-+}
-+EXPORT_SYMBOL(dac_destroy);
-diff --git a/fs/ext3/Kconfig b/fs/ext3/Kconfig
-index fb3c1a2..f4e122f 100644
---- a/fs/ext3/Kconfig
-+++ b/fs/ext3/Kconfig
-@@ -1,6 +1,7 @@
- config EXT3_FS
- 	tristate "Ext3 journalling file system support"
- 	select JBD
-+	select DELALLOC_COUNTER
- 	help
- 	  This is the journalling version of the Second extended file system
- 	  (often called ext3), the de facto standard Linux file system
-diff --git a/include/linux/delalloc_counter.h b/include/linux/delalloc_counter.h
-new file mode 100644
-index 0000000..9d00b6c
---- /dev/null
-+++ b/include/linux/delalloc_counter.h
-@@ -0,0 +1,63 @@
-+#ifndef _LINUX_DELALLOC_COUNTER_H
-+#define _LINUX_DELALLOC_COUNTER_H
-+
-+#include <linux/percpu_counter.h>
-+
-+struct delalloc_counter {
-+	struct percpu_counter free;
-+	struct percpu_counter reserved;
-+	int batch;
-+};
-+
-+int dac_reserve(struct delalloc_counter *c, s32 amount, s64 limit);
-+void dac_alloc_reserved(struct delalloc_counter *c, s32 amount);
-+
-+static inline int dac_alloc(struct delalloc_counter *c, s32 amount, s64 limit)
-+{
-+	int ret = dac_reserve(c, amount, limit);
-+	if (!ret)
-+		dac_alloc_reserved(c, amount);
-+	return ret;
-+}
-+
-+static inline void dac_free(struct delalloc_counter *c, s32 amount)
-+{
-+        __percpu_counter_add(&c->free, amount, c->batch);
-+}
-+
-+static inline void dac_cancel_reserved(struct delalloc_counter *c, s32 amount)
-+{
-+        __percpu_counter_add(&c->reserved, -amount, c->batch);
-+}
-+
-+int dac_init(struct delalloc_counter *c, s64 amount);
-+void dac_destroy(struct delalloc_counter *c);
-+
-+static inline s64 dac_get_avail(struct delalloc_counter *c)
-+{
-+	s64 ret = percpu_counter_read(&c->free) -
-+	       percpu_counter_read(&c->reserved);
-+	if (ret < 0)
-+		return 0;
-+	return ret;
-+}
-+
-+static inline s64 dac_get_avail_sum(struct delalloc_counter *c)
-+{
-+	s64 ret = percpu_counter_sum(&c->free) -
-+	       percpu_counter_sum(&c->reserved);
-+	if (ret < 0)
-+		return 0;
-+	return ret;
-+}
-+
-+static inline s64 dac_get_reserved(struct delalloc_counter *c)
-+{
-+	return percpu_counter_read_positive(&c->reserved);
-+}
-+
-+static inline s64 dac_get_reserved_sum(struct delalloc_counter *c)
-+{
-+	return percpu_counter_sum_positive(&c->reserved);
-+}
-+#endif
+ 	/*
+@@ -1753,9 +1751,11 @@ recover:
+ 	/*
+ 	 * ENOSPC, or some other error.  We may already have added some
+ 	 * blocks to the file, so we need to write these out to avoid
+-	 * exposing stale data.
++	 * exposing stale data. We redirty the page so that we don't
++	 * loose data we are unable to write.
+ 	 * The page is currently locked and not marked for writeback
+ 	 */
++	redirty_page_for_writepage(wbc, page);
+ 	bh = head;
+ 	/* Recovery: lock and submit the mapped buffers */
+ 	do {
+@@ -1763,12 +1763,6 @@ recover:
+ 		    !buffer_delay(bh)) {
+ 			lock_buffer(bh);
+ 			mark_buffer_async_write_endio(bh, handler);
+-		} else {
+-			/*
+-			 * The buffer may have been set dirty during
+-			 * attachment to a dirty page.
+-			 */
+-			clear_buffer_dirty(bh);
+ 		}
+ 	} while ((bh = bh->b_this_page) != head);
+ 	SetPageError(page);
 -- 
 1.6.0.2
 
