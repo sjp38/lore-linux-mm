@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E1C6B004F
-	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 02:43:33 -0400 (EDT)
-Date: Mon, 15 Jun 2009 08:44:47 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 046966B004F
+	for <linux-mm@kvack.org>; Mon, 15 Jun 2009 02:51:00 -0400 (EDT)
+Date: Mon, 15 Jun 2009 08:52:32 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
-Message-ID: <20090615064447.GA18390@wotan.suse.de>
-References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
+Message-ID: <20090615065232.GC18390@wotan.suse.de>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090615042753.GA20788@localhost>
+In-Reply-To: <20090612153501.GA5737@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 15, 2009 at 12:27:53PM +0800, Wu Fengguang wrote:
-> On Mon, Jun 15, 2009 at 11:18:18AM +0800, Balbir Singh wrote:
-> > Wu Fengguang wrote:
-> > > Hi all,
+On Fri, Jun 12, 2009 at 05:35:01PM +0200, Ingo Molnar wrote:
+> 
+> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> 
+> > On Fri, 12 Jun 2009, Ingo Molnar wrote:
 > > > 
-> > > Comments are warmly welcome on the newly introduced uevent code :)
-> > > 
-> > > I hope we can reach consensus in this round and then be able to post
-> > > a final version for .31 inclusion.
+> > > This seems like trying to handle a failure mode that cannot be 
+> > > and shouldnt be 'handled' really. If there's an 'already 
+> > > corrupted' page then the box should go down hard and fast, and 
+> > > we should not risk _even more user data corruption_ by trying to 
+> > > 'continue' in the hope of having hit some 'harmless' user 
+> > > process that can be killed ...
 > > 
-> > Isn't that too aggressive? .31 is already in the merge window.
+> > No, the box should _not_ go down hard-and-fast. That's the last 
+> > thing we should *ever* do.
+> > 
+> > We need to log it. Often at a user level (ie we want to make sure 
+> > it actually hits syslog, possibly goes out the network, maybe pops 
+> > up a window, whatever).
+> > 
+> > Shutting down the machine is the last thing we ever want to do.
+> > 
+> > The whole "let's panic" mentality is a disease.
 > 
-> Yes, a bit aggressive. This is a new feature that involves complex logics.
-> However it is basically a no-op when there are no memory errors,
-> and when memory corruption does occur, it's better to (possibly) panic
-> in this code than to panic unconditionally in the absence of this
-> feature (as said by Rik).
-> 
-> So IMHO it's OK for .31 as long as we agree on the user interfaces,
-> ie. /proc/sys/vm/memory_failure_early_kill and the hwpoison uevent.
-> 
-> It comes a long way through numerous reviews, and I believe all the
-> important issues and concerns have been addressed. Nick, Rik, Hugh,
-> Ingo, ... what are your opinions? Is the uevent good enough to meet
-> your request to "die hard" or "die gracefully" or whatever on memory
-> failure events?
+> No doubt about that - and i'm removing BUG_ON()s and panic()s 
+> wherever i can and havent added a single new one myself in the past 
+> 5 years or so, its a disease.
 
-Uevent? As in, send a message to userspace? I don't think this
-would be ideal for a fail-stop/failover situation.
-
-I can't see a good reason to rush to merge it.
-
-IMO the userspace-visible changes have maybe not been considered
-too thoroughly, which is what I'd be most worried about. I probably
-missed seeing documentation of exact semantics and situations
-where admins should tune things one way or the other.
-
-Did we verify with filesystem maintainers (eg. btrfs) that the
-!ISREG test will be enough to prevent oopses?
-
-I hope it is going to be merged with an easy-to-use fault injector,
-because that is the only way Joe kernel developer is ever going to
-test it.
-
+In HA failover systems you often do want to panic ASAP (after logging
+to serial cosole I guess) if anything like this happens so the system
+can be rebooted with minimal chance of data corruption spreading.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
