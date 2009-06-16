@@ -1,94 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C2FBA6B005A
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 09:51:25 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8749D6B005C
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 09:51:35 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Tue, 16 Jun 2009 09:53:01 -0400
-Message-Id: <20090616135301.25248.91276.sendpatchset@lts-notebook>
+Date: Tue, 16 Jun 2009 09:53:08 -0400
+Message-Id: <20090616135308.25248.57593.sendpatchset@lts-notebook>
 In-Reply-To: <20090616135228.25248.22018.sendpatchset@lts-notebook>
 References: <20090616135228.25248.22018.sendpatchset@lts-notebook>
-Subject: [PATCH 3/5] Use per hstate nodes_allowed to constrain huge page allocation
+Subject: [PATCH 4/5] Add sysctl for default hstate nodes_allowed.
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 3/5] Use per hstate nodes_allowed to constrain huge page allocation
+[PATCH 4/5] add sysctl for default hstate nodes_allowed.
 
 Against:  17may09 mmotm
 
-Select only nodes from the per hstate nodes_allowed mask when
-promoting surplus pages to persistent or when allocating fresh
-huge pages to the pool.
+This patch adds a sysctl -- /proc/sys/vm/hugepages_nodes_allowed --
+to set/query the default hstate's nodes_allowed.  I don't know
+that this patch is required, given that we have the per hstate
+controls in /sys/kernel/mm/hugepages/*. However, we've added sysctls
+for other recent hugepages controls, like nr_overcommit_hugepages,
+so I've followed that convention.
 
-Note that alloc_buddy_huge_page() still uses task policy to allocate
-surplus huge pages.  This could be changed.
+Factor the formatting of the nodes_allowed mask out of nodes_allowed_show()
+for use by both that function and the hugetlb_nodes_allowed_handler().
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp>
 
- mm/hugetlb.c |   23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+ include/linux/hugetlb.h |    1 +
+ kernel/sysctl.c         |    8 ++++++++
+ mm/hugetlb.c            |   43 ++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 47 insertions(+), 5 deletions(-)
 
+Index: linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h
+===================================================================
+--- linux-2.6.30-rc8-mmotm-090603-1633.orig/include/linux/hugetlb.h	2009-06-04 12:59:32.000000000 -0400
++++ linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h	2009-06-04 12:59:35.000000000 -0400
+@@ -22,6 +22,7 @@ void reset_vma_resv_huge_pages(struct vm
+ int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+ int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+ int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
++int hugetlb_nodes_allowed_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+ int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int, int);
+ void unmap_hugepage_range(struct vm_area_struct *,
+Index: linux-2.6.30-rc8-mmotm-090603-1633/kernel/sysctl.c
+===================================================================
+--- linux-2.6.30-rc8-mmotm-090603-1633.orig/kernel/sysctl.c	2009-06-04 12:59:26.000000000 -0400
++++ linux-2.6.30-rc8-mmotm-090603-1633/kernel/sysctl.c	2009-06-04 12:59:35.000000000 -0400
+@@ -1108,6 +1108,14 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= (void *)&hugetlb_zero,
+ 		.extra2		= (void *)&hugetlb_infinity,
+ 	},
++	{
++		.ctl_name	= CTL_UNNUMBERED,
++		.procname	= "hugepages_nodes_allowed",
++		.data		= NULL,
++		.maxlen		= sizeof(unsigned long),
++		.mode		= 0644,
++		.proc_handler	= &hugetlb_nodes_allowed_handler,
++	},
+ #endif
+ 	{
+ 		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
 Index: linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c
 ===================================================================
---- linux-2.6.30-rc8-mmotm-090603-1633.orig/mm/hugetlb.c	2009-06-04 12:59:32.000000000 -0400
-+++ linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c	2009-06-04 12:59:33.000000000 -0400
-@@ -637,9 +637,9 @@ static struct page *alloc_fresh_huge_pag
- static int hstate_next_node(struct hstate *h)
- {
- 	int next_nid;
--	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
-+	next_nid = next_node(h->hugetlb_next_nid, *h->nodes_allowed);
- 	if (next_nid == MAX_NUMNODES)
--		next_nid = first_node(node_online_map);
-+		next_nid = first_node(*h->nodes_allowed);
- 	h->hugetlb_next_nid = next_nid;
- 	return next_nid;
+--- linux-2.6.30-rc8-mmotm-090603-1633.orig/mm/hugetlb.c	2009-06-04 12:59:33.000000000 -0400
++++ linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c	2009-06-04 12:59:35.000000000 -0400
+@@ -1354,19 +1354,27 @@ static ssize_t nr_overcommit_hugepages_s
  }
-@@ -652,6 +652,11 @@ static int alloc_fresh_huge_page(struct 
- 	int ret = 0;
+ HSTATE_ATTR(nr_overcommit_hugepages);
  
- 	start_nid = h->hugetlb_next_nid;
-+	/*
-+	 * we may have allocated with a different nodes_allowed previously
-+	 */
-+	if (!node_isset(start_nid, *h->nodes_allowed))
-+		start_nid = hstate_next_node(h);
- 
- 	do {
- 		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
-@@ -1169,20 +1174,28 @@ static inline void try_to_free_low(struc
- 
- /*
-  * Increment or decrement surplus_huge_pages.  Keep node-specific counters
-- * balanced by operating on them in a round-robin fashion.
-+ * balanced by operating on them in a round-robin fashion.  Use nodes_allowed
-+ * mask when decreasing suplus pages as we're "promoting" them to persistent.
-+ * Use node_online_map for increment surplus pages as we're demoting previously
-+ * persistent huge pages.
-+ * Called holding the hugetlb_lock.
-  * Returns 1 if an adjustment was made.
-  */
- static int adjust_pool_surplus(struct hstate *h, int delta)
+-static ssize_t nodes_allowed_show(struct kobject *kobj,
+-					struct kobj_attribute *attr, char *buf)
++static int format_hstate_nodes_allowed(struct hstate *h, char *buf,
++					size_t buflen)
  {
-+	nodemask_t *nodemask = &node_online_map;
- 	static int prev_nid;
- 	int nid = prev_nid;
- 	int ret = 0;
+-	struct hstate *h = kobj_to_hstate(kobj);
+ 	int len = 3;
  
- 	VM_BUG_ON(delta != -1 && delta != 1);
-+	if (delta < 0)
-+		nodemask = h->nodes_allowed;
+ 	if (h->nodes_allowed == &node_online_map)
+ 		strcpy(buf, "all");
+ 	else
+-		len = nodelist_scnprintf(buf, PAGE_SIZE,
++		len = nodelist_scnprintf(buf, buflen,
+ 					*h->nodes_allowed);
++	return len;
 +
- 	do {
--		nid = next_node(nid, node_online_map);
-+		nid = next_node(nid, *nodemask);
- 		if (nid == MAX_NUMNODES)
--			nid = first_node(node_online_map);
-+			nid = first_node(*nodemask);
++}
++
++static ssize_t nodes_allowed_show(struct kobject *kobj,
++					struct kobj_attribute *attr, char *buf)
++{
++	struct hstate *h = kobj_to_hstate(kobj);
++	int len =  format_hstate_nodes_allowed(h, buf, PAGE_SIZE);
  
- 		/* To shrink on this node, there must be a surplus page */
- 		if (delta < 0 && !h->surplus_huge_pages_node[nid])
+-	if (len)
++	if (len && (len +1) < PAGE_SIZE)
+ 		buf[len++] = '\n';
+ 
+ 	return len;
+@@ -1684,6 +1692,31 @@ int hugetlb_overcommit_handler(struct ct
+ 	return 0;
+ }
+ 
++#define NODES_ALLOWED_MAX 64
++int hugetlb_nodes_allowed_handler(struct ctl_table *table, int write,
++			struct file *file, void __user *buffer,
++			size_t *length, loff_t *ppos)
++{
++	struct hstate *h = &default_hstate;
++	int ret = 0;
++
++	if (write) {
++		(void)set_hstate_nodes_allowed(h, buffer, 1);
++	} else {
++		char buf[NODES_ALLOWED_MAX];
++		struct ctl_table tbl = {
++			.data = buf,
++			.maxlen = NODES_ALLOWED_MAX,
++		};
++		int len =  format_hstate_nodes_allowed(h, buf, sizeof(buf));
++
++		if (len)
++			ret = proc_dostring(&tbl, write, file, buffer,
++						 length, ppos);
++	}
++	return ret;
++}
++
+ #endif /* CONFIG_SYSCTL */
+ 
+ void hugetlb_report_meminfo(struct seq_file *m)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
