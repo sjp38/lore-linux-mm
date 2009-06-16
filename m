@@ -1,136 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 843126B0055
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 05:19:02 -0400 (EDT)
-Date: Tue, 16 Jun 2009 10:19:32 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: QUESTION: can netdev_alloc_skb() errors be reduced by tuning?
-Message-ID: <20090616091932.GB14241@csn.ul.ie>
-References: <1243422749-6256-1-git-send-email-mel@csn.ul.ie> <20090527131437.5870e342.akpm@linux-foundation.org> <20090527231949.GB30002@elte.hu> <6.2.5.6.2.20090615201713.05b5d408@binnacle.cx>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A4A3D6B0055
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 05:39:52 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5G9f5Qx000955
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Jun 2009 18:41:05 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 753F345DE53
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BCD145DE59
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EEBB1DB8073
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:04 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 928B41DB8062
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:01 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] vmscan: Fix use of delta in zone_pagecache_reclaimable()
+In-Reply-To: <1245064482-19245-2-git-send-email-mel@csn.ul.ie>
+References: <1245064482-19245-1-git-send-email-mel@csn.ul.ie> <1245064482-19245-2-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090616184030.99A9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <6.2.5.6.2.20090615201713.05b5d408@binnacle.cx>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Jun 2009 18:41:00 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: starlight@binnacle.cx
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, Lee.Schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, ebmunson@us.ibm.com, agl@us.ibm.com, apw@canonical.com, wli@movementarian.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 15, 2009 at 08:19:33PM -0400, starlight@binnacle.cx wrote:
-> Hello,
+> zone_pagecache_reclaimable() works out how many pages are in a state
+> that zone_reclaim() can reclaim based on the current zone_reclaim_mode.
+> As part of this, it calculates a delta to the number of unmapped pages.
+> The code was meant to check delta would not cause underflows and then apply
+> it but it got accidentally removed.
 > 
-> I submitted testcase for a hugepages bug that has been 
-> successfully resolved.  Have an apparently obscure question 
-> related to MM, and so I am asking anyone who might have some idea 
-> on this.  Nothing much turned up via Google and digging into
-> the KMEM code looks daunting.
+> This patch properly uses delta. It's excessively paranoid at the moment
+> because it's impossible to underflow but the current form will make future
+> patches to zone_pagecache_reclaimable() fixing any other scan-heuristic
+> breakage easier to read and acts as self-documentation reminding authors
+> of future patches to consider underflow.
 > 
-> Running Intel 82598/ixgbe 10 gig Ethernet under heavy stress. 
-> Generally is working well after tuning IRQ affinities, but a 
-> fair number of buffer allocation failures are occurring in the 
-> 'ixgbe' device driver and are reported via 'ethtool' statistics. 
->  This may be causing data loss.
+> This is a fix to patch
+> vmscan-properly-account-for-the-number-of-page-cache-pages-zone_reclaim-can-reclaim.patch
+> and they should be merged together.
 > 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/vmscan.c |    6 +++++-
+>  1 files changed, 5 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 026f452..bd8e3ed 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2398,7 +2398,11 @@ static long zone_pagecache_reclaimable(struct zone *zone)
+>  	if (!(zone_reclaim_mode & RECLAIM_WRITE))
+>  		delta += zone_page_state(zone, NR_FILE_DIRTY);
+>  
+> -	return nr_pagecache_reclaimable;
+> +	/* Watch for any possible underflows due to delta */
+> +	if (unlikely(delta > nr_pagecache_reclaimable))
+> +		delta = nr_pagecache_reclaimable;
+> +
+> +	return nr_pagecache_reclaimable - delta;
+>  }
 
-Can you give an example of an allocation failure? Specifically, I want to
-see what sort of allocation it was and what order.
+looks good. thanks.
 
-For reliable protocols, an allocation failure should recover and the
-data get through but obviously there is a drop in network performance
-when this happens.
 
-> The kernel primitive returning the error is netdev_alloc_skb().
-> 
-> Are any tuneable parameters available that can reduce or 
-> eliminate these allocation failures?  Have about eleven 
-> gigabytes of free memory, though most of that is consumed 
-> by non-dirty file cache data.  Total system memory is 16GB with 
-> 4GB allocated to hugepages.  Zero swap usage and activity though
-> swap is enabled.  Most application memory is hugepage or is
-> 'mlock()'ed.
-> 
-
-If the allocations are high-order and atomic, increasing min_free_kbytes
-can help, particularly in situations where there is a burst of network
-traffic. I won't know if they are atomic until I see an error message
-though.
-
-> Thank you.
-> 
-> 
-> 
-> 
-> 
-> System rebooted before test run.
-> 
-> Dual Xeon E5430, 16GB FB-DIMM RAM.
-> 
-> 
-> $ cat /proc/meminfo
-> MemTotal:     16443828 kB
-> MemFree:        281176 kB
-> Buffers:         53896 kB
-> Cached:       11331924 kB
-> SwapCached:          0 kB
-> Active:         200740 kB
-> Inactive:     11284312 kB
-> HighTotal:           0 kB
-> HighFree:            0 kB
-> LowTotal:     16443828 kB
-> LowFree:        281176 kB
-> SwapTotal:     2031608 kB
-> SwapFree:      2031400 kB
-> Dirty:               4 kB
-> Writeback:           0 kB
-> AnonPages:      104464 kB
-> Mapped:          14644 kB
-> Slab:           440452 kB
-> PageTables:       4032 kB
-> NFS_Unstable:        0 kB
-> Bounce:              0 kB
-> CommitLimit:   8156368 kB
-> Committed_AS:   122452 kB
-> VmallocTotal: 34359738367 kB
-> VmallocUsed:    266872 kB
-> VmallocChunk: 34359471043 kB
-> HugePages_Total:  2048
-> HugePages_Free:    735
-> HugePages_Rsvd:      0
-> Hugepagesize:     2048 kB
-> 
-> 
-> # ethtool -S eth2 | egrep -v ': 0$'
-> NIC statistics:
->      rx_packets: 724246449
->      tx_packets: 229847
->      rx_bytes: 152691992335
->      tx_bytes: 10573426
->      multicast: 725997241
->      broadcast: 6
->      rx_csum_offload_good: 723051776
->      alloc_rx_buff_failed: 7119
->      tx_queue_0_packets: 229847
->      tx_queue_0_bytes: 10573426
->      rx_queue_0_packets: 340698332
->      rx_queue_0_bytes: 70844299683
->      rx_queue_1_packets: 385298923
->      rx_queue_1_bytes: 82276167594
-> 
-> 
-> ixgbe driver fragment
-> =====================
->     struct sk_buff *skb = netdev_alloc_skb(adapter->netdev, bufsz);
-> 
->     if (!skb) {
->         adapter->alloc_rx_buff_failed++;
->         goto no_buffers;
->     }
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
