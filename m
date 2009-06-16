@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1E32E6B0055
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 05:40:05 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5G9fIhA029372
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 16 Jun 2009 18:41:18 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E73745DE52
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:18 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3A0145DE56
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:17 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C05CE1DB8040
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A4461DB8044
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 18:41:17 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm: Fix documentation of min_unmapped_ratio
-In-Reply-To: <1245064482-19245-3-git-send-email-mel@csn.ul.ie>
-References: <1245064482-19245-1-git-send-email-mel@csn.ul.ie> <1245064482-19245-3-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090616184100.99AC.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B11D66B004F
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 06:27:36 -0400 (EDT)
+Date: Tue, 16 Jun 2009 12:28:23 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/10] Fix page_mkwrite() for blocksize < pagesize
+	(version 3)
+Message-ID: <20090616102823.GA12577@duck.suse.cz>
+References: <1245088797-29533-1-git-send-email-jack@suse.cz> <20090615181753.GA26615@skywalker>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 16 Jun 2009 18:41:16 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090615181753.GA26615@skywalker>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, linuxram@us.ibm.com, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-> -A percentage of the total pages in each zone.  Zone reclaim will only
-> -occur if more than this percentage of pages are file backed and unmapped.
-> -This is to insure that a minimal amount of local pages is still available for
-> -file I/O even if the node is overallocated.
-> +This is a percentage of the total pages in each zone. Zone reclaim will
-> +only occur if more than this percentage of pages are in a state that
-> +zone_reclaim_mode allows to be reclaimed.
-> +
-> +If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
-> +against all file-backed unmapped pages including swapcache pages and tmpfs
-> +files. Otherwise, only unmapped pages backed by normal files but not tmpfs
-> +files and similar are considered.
->  
->  The default is 1 percent.
+  Hi,
 
-looks good.
+On Mon 15-06-09 23:47:53, Aneesh Kumar K.V wrote:
+> On Mon, Jun 15, 2009 at 07:59:47PM +0200, Jan Kara wrote:
+> > 
+> > patches below are an attempt to solve problems filesystems have with
+> > page_mkwrite() when blocksize < pagesize (see the changelog of the second patch
+> > for details).
+> > 
+> > Could someone please review them so that they can get merged - especially the
+> > generic VFS/MM part? It fixes observed problems (WARN_ON triggers) for ext4 and
+> > makes ext2/ext3 behave more nicely (mmapped write getting page fault instead
+> > of silently discarding data).
+> 
+> Will you be able to send it as two series.
+> 
+> a) One that fix the blocksize < page size bug
+> b) making ext2/3 mmaped write give better allocation pattern.
+> 
+> Doing that will make sure (a) can go in this merge window. There are
+> other ext4 fixes waiting for (a) to be merged in.
+  Of course, there is no problem in merging just patches 2, 4 which are
+needed for ext4, and leave the rest for the next merge window. Actually,
+I'd rather leave at least ext3 patch for the next merge window because that
+has the highest chance of breaking something...
 
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
