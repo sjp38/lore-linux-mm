@@ -1,46 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D6DB6B0055
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 15:53:29 -0400 (EDT)
-Subject: Re: [RFC] set the thread name
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
-References: <1245177592.14543.1.camel@wall-e>
-	 <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 16 Jun 2009 21:54:51 +0200
-Message-Id: <1245182091.16466.9.camel@wall-e>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 967DE6B0055
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 16:26:41 -0400 (EDT)
+Date: Tue, 16 Jun 2009 15:27:26 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
+Message-ID: <20090616202726.GB31443@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu> <20090615065232.GC18390@wotan.suse.de>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090615065232.GC18390@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Bert Wesarg <bert.wesarg@googlemail.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rja@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Am Dienstag, den 16.06.2009, 21:14 +0200 schrieb Bert Wesarg:
-> Hi,
+On Mon, Jun 15, 2009 at 08:52:32AM +0200, Nick Piggin wrote:
+> On Fri, Jun 12, 2009 at 05:35:01PM +0200, Ingo Molnar wrote:
+> > * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> > > On Fri, 12 Jun 2009, Ingo Molnar wrote:
+> > > > 
+> > > > This seems like trying to handle a failure mode that cannot be 
+> > > > and shouldnt be 'handled' really. If there's an 'already 
+> > > > corrupted' page then the box should go down hard and fast, and 
+> > > > we should not risk _even more user data corruption_ by trying to 
+> > > > 'continue' in the hope of having hit some 'harmless' user 
+> > > > process that can be killed ...
+> > > 
+> > > No, the box should _not_ go down hard-and-fast. That's the last 
+> > > thing we should *ever* do.
+> > > 
+> > > We need to log it. Often at a user level (ie we want to make sure 
+> > > it actually hits syslog, possibly goes out the network, maybe pops 
+> > > up a window, whatever).
+> > > 
+> > > Shutting down the machine is the last thing we ever want to do.
+> > > 
+> > > The whole "let's panic" mentality is a disease.
+> > 
+> > No doubt about that - and i'm removing BUG_ON()s and panic()s 
+> > wherever i can and havent added a single new one myself in the past 
+> > 5 years or so, its a disease.
 > 
-> On Tue, Jun 16, 2009 at 20:39, Stefani Seibold<stefani@seibold.net> wrote:
-> > Currently it is not easy to identify a thread in linux, because there is
-> > no thread name like in some other OS.
-> >
-> > If there were are thread name then we could extend a kernel segv message
-> > and the /proc/<pid>/task/<tid>/... entries by a TName value like this:
-> prctl(PR_SET_NAME, ...) works perfectly here.
-> 
+> In HA failover systems you often do want to panic ASAP (after logging
+> to serial cosole I guess) if anything like this happens so the system
+> can be rebooted with minimal chance of data corruption spreading.
 
-I checked it now a little bit more. It is true it works, but if i do a
-segv access inside a thread a get the kernel message like:
+The whole point of hardware data poisoning is to avoid having to 
+panic the system due to the potential of undetected data corruption,
+because the corrupt data is always marked bad.  This has worked
+well on ia64 where applications that encounter bad data are killed
+and the memory poisoned and not reallocated, avoiding a system panic.
 
-task 09[17395]: segfault at 0 ip 08048612 sp b363c370 error 6 in
-a.out[8048000+1000]
+This has been used at customer sites for a few years.  The type
+customers that really check their data.  It is nice to see
+the hardware poison feature moving to the x86 "mainstream".
 
-So the current implementation is not exactly what i expect. I would
-prefer my solution to replace every access thread_struct->comm to
-task_struct->group_leader->comm to have the right behavior.
 
-The new system call is obsolete, it is still there.
 
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
