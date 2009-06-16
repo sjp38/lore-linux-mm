@@ -1,37 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4E76B0055
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 15:39:32 -0400 (EDT)
-Subject: Re: [RFC] set the thread name
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
-References: <1245177592.14543.1.camel@wall-e>
-	 <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 16 Jun 2009 21:40:27 +0200
-Message-Id: <1245181227.16466.3.camel@wall-e>
+	by kanga.kvack.org (Postfix) with SMTP id C6F756B005D
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 15:43:24 -0400 (EDT)
+Date: Tue, 16 Jun 2009 14:44:30 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: Re: [PATCH 00/22] HWPOISON: Intro (v5)
+Message-ID: <20090616194430.GA9545@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <Pine.LNX.4.64.0906151341160.25162@sister.anvils> <20090615140019.4e405d37@lxorguk.ukuu.org.uk> <20090615132934.GE31969@one.firstfloor.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090615132934.GE31969@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Bert Wesarg <bert.wesarg@googlemail.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rja@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Am Dienstag, den 16.06.2009, 21:14 +0200 schrieb Bert Wesarg:
-> Hi,
+On Mon, Jun 15, 2009 at 03:29:34PM +0200, Andi Kleen wrote:
 > 
-> On Tue, Jun 16, 2009 at 20:39, Stefani Seibold<stefani@seibold.net> wrote:
-> > Currently it is not easy to identify a thread in linux, because there is
-> > no thread name like in some other OS.
-> >
-> > If there were are thread name then we could extend a kernel segv message
-> > and the /proc/<pid>/task/<tid>/... entries by a TName value like this:
-> prctl(PR_SET_NAME, ...) works perfectly here.
-> 
-Ooops... I did not noticed that this is already implemented. Thats works
-perfectly ;-)
+> I think you're wrong about killing processes decreasing
+> reliability. Traditionally we always tried to keep things running if possible
+> instead of panicing.
+
+Customers love the ia64 feature of killing a user process instead of
+panicing the system when a user process hits a memory uncorrectable
+error.  Avoiding a system panic is a very good thing.
 
 
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
