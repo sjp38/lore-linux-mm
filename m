@@ -1,52 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B11D66B004F
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 06:27:36 -0400 (EDT)
-Date: Tue, 16 Jun 2009 12:28:23 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/10] Fix page_mkwrite() for blocksize < pagesize
-	(version 3)
-Message-ID: <20090616102823.GA12577@duck.suse.cz>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <20090615181753.GA26615@skywalker>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D80756B004F
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 07:29:47 -0400 (EDT)
+Date: Tue, 16 Jun 2009 12:29:45 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 10/22] HWPOISON: check and isolate corrupted free pages
+ v2
+In-Reply-To: <20090616003440.GA7329@localhost>
+Message-ID: <Pine.LNX.4.64.0906161220070.31597@sister.anvils>
+References: <20090615024520.786814520@intel.com> <20090615031253.715406280@intel.com>
+ <20090615184112.ed8e2f03.kamezawa.hiroyu@jp.fujitsu.com> <20090615101620.GA7216@localhost>
+ <20090616085222.1545cc05.kamezawa.hiroyu@jp.fujitsu.com> <20090616003440.GA7329@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090615181753.GA26615@skywalker>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-  Hi,
+On Tue, 16 Jun 2009, Wu Fengguang wrote:
+> 
+> Right.  Then the original __ClearPageBuddy() call in bad_page() is
+> questionable, I guess this line was there just for the sake of safety
+> (ie. the buddy allocator itself goes wrong):
+> 
+> sound-2.6/mm/page_alloc.c
+> 
+>         @@ -269,7 +269,6 @@ static void bad_page(struct page *page)
+>                 dump_stack();
+>          out:
+>                 /* Leave bad fields for debug, except PageBuddy could make trouble */
+> ===>            __ClearPageBuddy(page);
+>                 add_taint(TAINT_BAD_PAGE);
+>          }
 
-On Mon 15-06-09 23:47:53, Aneesh Kumar K.V wrote:
-> On Mon, Jun 15, 2009 at 07:59:47PM +0200, Jan Kara wrote:
-> > 
-> > patches below are an attempt to solve problems filesystems have with
-> > page_mkwrite() when blocksize < pagesize (see the changelog of the second patch
-> > for details).
-> > 
-> > Could someone please review them so that they can get merged - especially the
-> > generic VFS/MM part? It fixes observed problems (WARN_ON triggers) for ext4 and
-> > makes ext2/ext3 behave more nicely (mmapped write getting page fault instead
-> > of silently discarding data).
-> 
-> Will you be able to send it as two series.
-> 
-> a) One that fix the blocksize < page size bug
-> b) making ext2/3 mmaped write give better allocation pattern.
-> 
-> Doing that will make sure (a) can go in this merge window. There are
-> other ext4 fixes waiting for (a) to be merged in.
-  Of course, there is no problem in merging just patches 2, 4 which are
-needed for ext4, and leave the rest for the next merge window. Actually,
-I'd rather leave at least ext3 patch for the next merge window because that
-has the highest chance of breaking something...
+I didn't put that in for the case of the buddy allocator going wrong
+(not sure if there could be such a case - I don't mean that the buddy
+allocator is provably perfect! but how would it get here if it were
+wrong?).  No, I put that in for the case when the flag bits in struct
+page have themselves got corrupted somehow, and hence we arrive at
+bad_page(): most of the bits are best left as they are, to provide
+maximum debug info; but leaving PageBuddy set there might conceivably
+allow this corrupted struct page to get paired up with its buddy later,
+and so freed for reuse, when we're trying to make sure it's never reused.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
