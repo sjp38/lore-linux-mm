@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E12FD6B004F
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 07:40:09 -0400 (EDT)
-Date: Tue, 16 Jun 2009 19:40:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 10/22] HWPOISON: check and isolate corrupted free pages
-	v2
-Message-ID: <20090616114024.GA6185@localhost>
-References: <20090615024520.786814520@intel.com> <20090615031253.715406280@intel.com> <20090615184112.ed8e2f03.kamezawa.hiroyu@jp.fujitsu.com> <20090615101620.GA7216@localhost> <20090616085222.1545cc05.kamezawa.hiroyu@jp.fujitsu.com> <20090616003440.GA7329@localhost> <Pine.LNX.4.64.0906161220070.31597@sister.anvils>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2E7B56B004F
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 08:08:37 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5GC8muh030056
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 16 Jun 2009 21:08:49 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 90CB245DE62
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:08:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6496445DE55
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:08:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ABD6E08007
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:08:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C94A01DB803F
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:08:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring behaviour more in line with expectations V3
+In-Reply-To: <20090615152543.GF23198@csn.ul.ie>
+References: <alpine.DEB.1.10.0906151057270.23995@gentwo.org> <20090615152543.GF23198@csn.ul.ie>
+Message-Id: <20090616202210.99B2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0906161220070.31597@sister.anvils>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 16 Jun 2009 21:08:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 16, 2009 at 07:29:45PM +0800, Hugh Dickins wrote:
-> On Tue, 16 Jun 2009, Wu Fengguang wrote:
+> On Mon, Jun 15, 2009 at 11:01:41AM -0400, Christoph Lameter wrote:
+> > On Mon, 15 Jun 2009, Mel Gorman wrote:
 > > 
-> > Right.  Then the original __ClearPageBuddy() call in bad_page() is
-> > questionable, I guess this line was there just for the sake of safety
-> > (ie. the buddy allocator itself goes wrong):
+> > > > May I ask your worry?
+> > > >
+> > >
+> > > Simply that I believe the intention of PF_SWAPWRITE here was to allow
+> > > zone_reclaim() to aggressively reclaim memory if the reclaim_mode allowed
+> > > it as it was a statement that off-node accesses are really not desired.
 > > 
-> > sound-2.6/mm/page_alloc.c
+> > Right.
 > > 
-> >         @@ -269,7 +269,6 @@ static void bad_page(struct page *page)
-> >                 dump_stack();
-> >          out:
-> >                 /* Leave bad fields for debug, except PageBuddy could make trouble */
-> > ===>            __ClearPageBuddy(page);
-> >                 add_taint(TAINT_BAD_PAGE);
-> >          }
+> > > Ok. I am not fully convinced but I'll not block it either if believe it's
+> > > necessary. My current understanding is that this patch only makes a difference
+> > > if the server is IO congested in which case the system is struggling anyway
+> > > and an off-node access is going to be relatively small penalty overall.
+> > > Conceivably, having PF_SWAPWRITE set makes things worse in that situation
+> > > and the patch makes some sense.
+> > 
+> > We could drop support for RECLAIM_SWAP if that simplifies things.
+> > 
 > 
-> I didn't put that in for the case of the buddy allocator going wrong
-> (not sure if there could be such a case - I don't mean that the buddy
-> allocator is provably perfect! but how would it get here if it were
-> wrong?).  No, I put that in for the case when the flag bits in struct
-> page have themselves got corrupted somehow, and hence we arrive at
-> bad_page(): most of the bits are best left as they are, to provide
-> maximum debug info; but leaving PageBuddy set there might conceivably
-> allow this corrupted struct page to get paired up with its buddy later,
-> and so freed for reuse, when we're trying to make sure it's never reused.
+> I don't think that is necessary. While I expect it's very rarely used, I
+> imagine a situation where it would be desirable on a system that had large
+> amounts of tmpfs pages but where it wasn't critical they remain in-memory.
+> 
+> Removing PF_SWAPWRITE would make it less aggressive and if you were
+> happy with that, then that would be good enough for me.
 
-Hugh, thank you for the detailed explanations!  You are always informative :)
+I surprised this a bit. I've imazined Christoph never agree to remove it.
+Currently, trouble hitting user of mine don't use this feature. Thus, if it can be
+removed, I don't need to worry abusing this again and I'm happy.
 
-Thanks,
-Fengguang
+Mel, Have you seen actual user of this?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
