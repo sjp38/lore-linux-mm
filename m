@@ -1,54 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BAB76B004F
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 16:21:08 -0400 (EDT)
-Date: Wed, 17 Jun 2009 13:21:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH for -mm] getrusage: fill ru_maxrss value
-Message-Id: <20090617132118.ef839ad7.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0904060811300.22841@blonde.anvils>
-References: <20090405084902.GA4411@psychotron.englab.brq.redhat.com>
-	<Pine.LNX.4.64.0904051736210.23536@blonde.anvils>
-	<20090406091825.44F0.A69D9226@jp.fujitsu.com>
-	<Pine.LNX.4.64.0904060811300.22841@blonde.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 71B516B004F
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 16:34:00 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DDF2C82C4F3
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 16:51:19 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id nlCRFbTR5YK8 for <linux-mm@kvack.org>;
+	Wed, 17 Jun 2009 16:51:19 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 15E5E82C4F6
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 16:51:09 -0400 (EDT)
+Message-Id: <20090617203444.731295080@gentwo.org>
+References: <20090617203337.399182817@gentwo.org>
+Date: Wed, 17 Jun 2009 16:33:47 -0400
+From: cl@linux-foundation.org
+Subject: [this_cpu_xx V2 10/19] this_cpu: X86 optimized this_cpu operations
+Content-Disposition: inline; filename=this_cpu_x86_ops
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, jpirko@redhat.com, linux-kernel@vger.kernel.org, oleg@redhat.com, linux-mm@kvack.org, mingo@elte.hu
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Apr 2009 08:22:07 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
+Basically the existing percpu ops can be used. However, we do not pass a
+reference to a percpu variable in. Instead an address of a percpu variable
+is provided.
 
-> On Mon, 6 Apr 2009, KOSAKI Motohiro wrote:
-> > 
-> > > I'm worrying particularly about the fork/exec issue you highlight.
-> > > You're exemplary in providing your test programs, but there's a big
-> > > omission: you don't mention that the first test, "./getrusage -lc",
-> > > gives a very different result on Linux than you say it does on BSD -
-> > > you say the BSD fork line is "fork: self 0 children 0", whereas
-> > > I find my Linux fork line is "fork: self 102636 children 0".
-> > 
-> > FreeBSD update rusage at tick updating point. (I think all bsd do that)
-> > Then, bsd displaing 0 is bsd's problem :)
-> 
-> Ah, thank you.
-> 
-> > 
-> > Do I must change test program?
-> 
-> Apparently somebody needs to, please; though it appears to be already
-> well supplied with usleep(1)s - maybe they needed to be usleep(2)s?
-> 
-> And then change results shown in the changelog, and check conclusions
-> drawn from them (if BSD is behaving as we do, it should still show
-> maxrss not inherited over fork, but less obviously - the number goes
-> down slightly, because the history is lost, but nowhere near to zero).
-> 
+Both preempt, the non preempt and the irqsafe operations generate the same code.
 
-afaik none of this happened, so I have the patch on hold.
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+---
+ arch/x86/include/asm/percpu.h |   22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+Index: linux-2.6/arch/x86/include/asm/percpu.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/percpu.h	2009-06-04 13:38:01.000000000 -0500
++++ linux-2.6/arch/x86/include/asm/percpu.h	2009-06-04 14:21:22.000000000 -0500
+@@ -140,6 +140,28 @@ do {							\
+ #define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
+ #define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
+ 
++#define __this_cpu_read(pcp)		percpu_from_op("mov", pcp)
++#define __this_cpu_write(pcp, val)	percpu_to_op("mov", (pcp), val)
++#define __this_cpu_add(pcp, val)	percpu_to_op("add", (pcp), val)
++#define __this_cpu_sub(pcp, val)	percpu_to_op("sub", (pcp), val)
++#define __this_cpu_and(pcp, val)	percpu_to_op("and", (pcp), val)
++#define __this_cpu_or(pcp, val)		percpu_to_op("or", (pcp), val)
++#define __this_cpu_xor(pcp, val)	percpu_to_op("xor", (pcp), val)
++
++#define this_cpu_read(pcp)		percpu_from_op("mov", (pcp))
++#define this_cpu_write(pcp, val)	percpu_to_op("mov", (pcp), val)
++#define this_cpu_add(pcp, val)		percpu_to_op("add", (pcp), val)
++#define this_cpu_sub(pcp, val)		percpu_to_op("sub", (pcp), val)
++#define this_cpu_and(pcp, val)		percpu_to_op("and", (pcp), val)
++#define this_cpu_or(pcp, val)		percpu_to_op("or", (pcp), val)
++#define this_cpu_xor(pcp, val)		percpu_to_op("xor", (pcp), val)
++
++#define irqsafe_cpu_add(pcp, val)	percpu_to_op("add", (pcp), val)
++#define irqsafe_cpu_sub(pcp, val)	percpu_to_op("sub", (pcp), val)
++#define irqsafe_cpu_and(pcp, val)	percpu_to_op("and", (pcp), val)
++#define irqsafe_cpu_or(pcp, val)	percpu_to_op("or", (pcp), val)
++#define irqsafe_cpu_xor(pcp, val)	percpu_to_op("xor", (pcp), val)
++
+ /* This is not atomic against other CPUs -- CPU preemption needs to be off */
+ #define x86_test_and_clear_bit_percpu(bit, var)				\
+ ({									\
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
