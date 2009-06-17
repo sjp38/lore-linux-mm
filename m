@@ -1,136 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7B9536B0055
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 20:20:57 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5H0LW0H005451
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 17 Jun 2009 09:21:32 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CB9945DE50
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:21:32 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DBE6F45DE4F
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:21:31 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4618F1DB8038
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:21:31 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E90271DB8040
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:21:27 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: + page_alloc-oops-when-setting-percpu_pagelist_fraction.patch added to -mm tree
-In-Reply-To: <200906161901.n5GJ1osY026940@imap1.linux-foundation.org>
-References: <200906161901.n5GJ1osY026940@imap1.linux-foundation.org>
-Message-Id: <20090617091040.99BB.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 17 Jun 2009 09:21:27 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E33AB6B005C
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 20:27:53 -0400 (EDT)
+Received: by pzk34 with SMTP id 34so2874958pzk.12
+        for <linux-mm@kvack.org>; Tue, 16 Jun 2009 17:28:45 -0700 (PDT)
+Date: Wed, 17 Jun 2009 09:28:26 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
+ try_to_unmap
+Message-Id: <20090617092826.56730a10.minchan.kim@barrios-desktop>
+In-Reply-To: <20090616134944.GB7524@localhost>
+References: <20090615024520.786814520@intel.com>
+	<20090615031253.530308256@intel.com>
+	<28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
+	<20090615152612.GA11700@localhost>
+	<20090616090308.bac3b1f7.minchan.kim@barrios-desktop>
+	<20090616134944.GB7524@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: sivanich@sgi.com
-Cc: kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-(switch to lkml)
+On Tue, 16 Jun 2009 21:49:44 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Sorry for late review.
-
+> On Tue, Jun 16, 2009 at 08:03:08AM +0800, Minchan Kim wrote:
+> > On Mon, 15 Jun 2009 23:26:12 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > 
+> > > On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
+> > > > On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> > > > > From: Andi Kleen <ak@linux.intel.com>
+> > > > >
+> > > > > When a page has the poison bit set replace the PTE with a poison entry.
+> > > > > This causes the right error handling to be done later when a process runs
+> > > > > into it.
+> > > > >
+> > > > > Also add a new flag to not do that (needed for the memory-failure handler
+> > > > > later)
+> > > > >
+> > > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > > > >
+> > > > > ---
+> > > > > A include/linux/rmap.h | A  A 1 +
+> > > > > A mm/rmap.c A  A  A  A  A  A | A  A 9 ++++++++-
+> > > > > A 2 files changed, 9 insertions(+), 1 deletion(-)
+> > > > >
+> > > > > --- sound-2.6.orig/mm/rmap.c
+> > > > > +++ sound-2.6/mm/rmap.c
+> > > > > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct page
+> > > > > A  A  A  A /* Update high watermark before we lower rss */
+> > > > > A  A  A  A update_hiwater_rss(mm);
+> > > > >
+> > > > > - A  A  A  if (PageAnon(page)) {
+> > > > > + A  A  A  if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
+> > > > > + A  A  A  A  A  A  A  if (PageAnon(page))
+> > > > > + A  A  A  A  A  A  A  A  A  A  A  dec_mm_counter(mm, anon_rss);
+> > > > > + A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
+> > > > 
+> > > > Isn't it straightforward to use !is_hwpoison_entry ?
+> > > 
+> > > Good catch!  It looks like a redundant check: the
+> > > page_check_address() at the beginning of the function guarantees that 
+> > > !is_migration_entry() or !is_migration_entry() tests will all be TRUE.
+> > > So let's do this?
+> > It seems you expand my sight :)
+> > 
+> > I don't know migration well.
+> > How page_check_address guarantee it's not migration entry ? 
 > 
-> The patch titled
->      page_alloc: Oops when setting percpu_pagelist_fraction
-> has been added to the -mm tree.  Its filename is
->      page_alloc-oops-when-setting-percpu_pagelist_fraction.patch
+> page_check_address() calls pte_present() which returns the
+> (_PAGE_PRESENT | _PAGE_PROTNONE) bits. While x86-64 defines
 > 
-> Before you just go and hit "reply", please:
->    a) Consider who else should be cc'ed
->    b) Prefer to cc a suitable mailing list as well
->    c) Ideally: find the original patch on the mailing list and do a
->       reply-to-all to that, adding suitable additional cc's
+> #define __swp_entry(type, offset)       ((swp_entry_t) { \
+>                                          ((type) << (_PAGE_BIT_PRESENT + 1)) \
+>                                          | ((offset) << SWP_OFFSET_SHIFT) })
 > 
-> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> where SWP_OFFSET_SHIFT is defined to the bigger one of
+> max(_PAGE_BIT_PROTNONE + 1, _PAGE_BIT_FILE + 1) = max(8+1, 6+1) = 9.
 > 
-> See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
-> out what to do about this
+> So __swp_entry(type, offset) := (type << 1) | (offset << 9)
 > 
-> The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
-> 
-> ------------------------------------------------------
-> Subject: page_alloc: Oops when setting percpu_pagelist_fraction
-> From: Dimitri Sivanich <sivanich@sgi.com>
-> 
-> After downing/upping a cpu, an attempt to set
-> /proc/sys/vm/percpu_pagelist_fraction results in an oops in
-> percpu_pagelist_fraction_sysctl_handler().
-> 
-> To reproduce this:
->   localhost:/sys/devices/system/cpu/cpu6 # echo 0 >online
->   localhost:/sys/devices/system/cpu/cpu6 # echo 1 >online
->   localhost:/sys/devices/system/cpu/cpu6 # cd /proc/sys/vm
->   localhost:/proc/sys/vm # echo 100000 >percpu_pagelist_fraction
-> 
->   BUG: unable to handle kernel NULL pointer dereference at 0000000000000004
->   IP: [<ffffffff80286946>] percpu_pagelist_fraction_sysctl_handler+0x4a/0x96
-> 
-> This is because the zone->pageset[cpu] value has not been set when the cpu
-> has been brought back up for unpopulated zones (the "Movable" zone in the
-> case I'm running into).  Prior to downing/upping the cpu it had been set
-> to &boot_pageset[cpu].
-> 
-> There are two possible fixes that come to mind.  One is to check for an
-> unpopulated zone or NULL zone pageset for that cpu in
-> percpu_pagelist_fraction_sysctl_handler(), and simply not set a pagelist
-> highmark for that zone/cpu combination.
-> 
-> The other, and the one I'm proposing here, is to set the zone's pageset
-> back to the boot_pageset when the cpu is brought back up if the zone is
-> unpopulated.
-> 
-> Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
-> Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: <stable@kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/page_alloc.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff -puN mm/page_alloc.c~page_alloc-oops-when-setting-percpu_pagelist_fraction mm/page_alloc.c
-> --- a/mm/page_alloc.c~page_alloc-oops-when-setting-percpu_pagelist_fraction
-> +++ a/mm/page_alloc.c
-> @@ -2806,7 +2806,11 @@ static int __cpuinit process_zones(int c
+> We know that the swap type is 5 bits. So the bit 0 _PAGE_PRESENT and bit 8
+> _PAGE_PROTNONE will all be zero for swap entries.
 >  
->  	node_set_state(node, N_CPU);	/* this node has a cpu */
->  
-> -	for_each_populated_zone(zone) {
-> +	for_each_zone(zone) {
-> +		if (!populated_zone(zone)) {
-> +			zone_pcp(zone, cpu) = &boot_pageset[cpu];
-> +			continue;
-> +		}
->  		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
->  					 GFP_KERNEL, node);
->  		if (!zone_pcp(zone, cpu))
 
-I don't think this code works.
-pcp is only protected local_irq_save(), not spin lock. it assume
-each cpu have different own pcp. but this patch break this assumption.
-Now, we can share boot_pageset by multiple cpus.
+Thanks for kind explanation :)
 
-
-
-
-> _
 > 
-> Patches currently in -mm which might be from sivanich@sgi.com are
+> > In addtion, If the page is poison while we are going to
+> > migration((PAGE_MIGRATION && migration) == TRUE), we should decrease
+> > file_rss ?
 > 
-> page_alloc-oops-when-setting-percpu_pagelist_fraction.patch
-> 
+> It will die on trying to migrate the poisoned page so we don't care
+> the accounting. But normally the poisoned page shall already be
 
 
+Okay. then, how about this ?
+We should not increase file_rss on trying to migrate the poisoned page
+
+- A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
++ A  A  A  A  A  A  A  else if (!(PAGE_MIGRATION && migration))
+
+> isolated so we don't care that die either.
+> Thanks,
+> Fengguang
+> 
+> > > 
+> > > - A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
+> > > + A  A  A  A  A  A  A  else
+> > > 
+> > > 
+> > > Thanks,
+> > > Fengguang
+> > 
+> > 
+> > -- 
+> > Kinds Regards
+> > Minchan Kim
+
+
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
