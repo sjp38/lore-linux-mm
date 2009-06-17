@@ -1,52 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 640536B0055
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 19:57:07 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 48DD86B005C
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 20:28:13 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 7E84E82C4B8
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 20:15:12 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 7E7D982C2FC
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 20:45:22 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id dZDBlTG-XKkv for <linux-mm@kvack.org>;
-	Wed, 17 Jun 2009 20:15:07 -0400 (EDT)
+	with ESMTP id K3h84Ng7PguP for <linux-mm@kvack.org>;
+	Wed, 17 Jun 2009 20:45:17 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 52D2E82C527
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 20:15:02 -0400 (EDT)
-Message-Id: <20090617203444.541329806@gentwo.org>
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 51E2582C316
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 20:45:17 -0400 (EDT)
+Message-Id: <20090617203443.566183743@gentwo.org>
 References: <20090617203337.399182817@gentwo.org>
-Date: Wed, 17 Jun 2009 16:33:46 -0400
+Date: Wed, 17 Jun 2009 16:33:41 -0400
 From: cl@linux-foundation.org
-Subject: [this_cpu_xx V2 09/19] Use this_cpu_ptr in crypto subsystem
-Content-Disposition: inline; filename=this_cpu_ptr_crypto
+Subject: [this_cpu_xx V2 04/19] Use this_cpu operations for NFS statistics
+Content-Disposition: inline; filename=this_cpu_nfs
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
+Cc: linux-mm@kvack.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-Just a slight optimization that removes one array lookup.
-The processor number is needed for other things as well so the
-get/put_cpu cannot be removed.
+Simplify NFS statistics and allow the use of optimized
+arch instructions.
 
-Cc: Huang Ying <ying.huang@intel.com>
+CC: Trond Myklebust <trond.myklebust@fys.uio.no>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- crypto/cryptd.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/nfs/iostat.h |   30 +++++++++---------------------
+ 1 file changed, 9 insertions(+), 21 deletions(-)
 
-Index: linux-2.6/crypto/cryptd.c
+Index: linux-2.6/fs/nfs/iostat.h
 ===================================================================
---- linux-2.6.orig/crypto/cryptd.c	2009-05-27 11:55:20.000000000 -0500
-+++ linux-2.6/crypto/cryptd.c	2009-05-27 11:56:55.000000000 -0500
-@@ -93,7 +93,7 @@ static int cryptd_enqueue_request(struct
- 	struct cryptd_cpu_queue *cpu_queue;
+--- linux-2.6.orig/fs/nfs/iostat.h	2009-06-17 09:10:00.000000000 -0500
++++ linux-2.6/fs/nfs/iostat.h	2009-06-17 09:21:02.000000000 -0500
+@@ -25,13 +25,7 @@ struct nfs_iostats {
+ static inline void nfs_inc_server_stats(const struct nfs_server *server,
+ 					enum nfs_stat_eventcounters stat)
+ {
+-	struct nfs_iostats *iostats;
+-	int cpu;
+-
+-	cpu = get_cpu();
+-	iostats = per_cpu_ptr(server->io_stats, cpu);
+-	iostats->events[stat]++;
+-	put_cpu();
++	this_cpu_inc(server->io_stats->events[stat]);
+ }
  
- 	cpu = get_cpu();
--	cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
-+	cpu_queue = this_cpu_ptr(queue->cpu_queue);
- 	err = crypto_enqueue_request(&cpu_queue->queue, request);
- 	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
- 	put_cpu();
+ static inline void nfs_inc_stats(const struct inode *inode,
+@@ -44,13 +38,13 @@ static inline void nfs_add_server_stats(
+ 					enum nfs_stat_bytecounters stat,
+ 					unsigned long addend)
+ {
+-	struct nfs_iostats *iostats;
+-	int cpu;
+-
+-	cpu = get_cpu();
+-	iostats = per_cpu_ptr(server->io_stats, cpu);
+-	iostats->bytes[stat] += addend;
+-	put_cpu();
++	/*
++	 * bytes is larger than word size on 32 bit platforms.
++	 * Thus we cannot use this_cpu_add() here.
++	 */
++	preempt_disable();
++	*this_cpu_ptr(&server->io_stats->bytes[stat]) +=  addend;
++	preempt_enable_no_resched();
+ }
+ 
+ static inline void nfs_add_stats(const struct inode *inode,
+@@ -65,13 +59,7 @@ static inline void nfs_add_fscache_stats
+ 					 enum nfs_stat_fscachecounters stat,
+ 					 unsigned long addend)
+ {
+-	struct nfs_iostats *iostats;
+-	int cpu;
+-
+-	cpu = get_cpu();
+-	iostats = per_cpu_ptr(NFS_SERVER(inode)->io_stats, cpu);
+-	iostats->fscache[stat] += addend;
+-	put_cpu();
++	this_cpu_add(NFS_SERVER(inode)->io_stats->fscache[stat], addend);
+ }
+ #endif
+ 
 
 -- 
 
