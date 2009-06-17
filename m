@@ -1,70 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E99BF6B004F
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 05:23:38 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5H9DesG012817
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 05:13:40 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5H9OKVA252220
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 05:24:20 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5H9OK1Y022960
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 05:24:20 -0400
-Date: Wed, 17 Jun 2009 14:54:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][BUGFIX] memcg: rmdir doesn't return
-Message-ID: <20090617092414.GI7646@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090616140050.4172f988.kamezawa.hiroyu@jp.fujitsu.com> <20090616153810.fd710c5b.nishimura@mxp.nes.nec.co.jp> <20090616154820.c9065809.kamezawa.hiroyu@jp.fujitsu.com> <20090616174436.5a4b6577.kamezawa.hiroyu@jp.fujitsu.com> <20090617045643.GE7646@balbir.in.ibm.com> <20090617141109.8d9a47ea.kamezawa.hiroyu@jp.fujitsu.com> <20090617054955.GF7646@balbir.in.ibm.com> <20090617152748.6b6c643e.kamezawa.hiroyu@jp.fujitsu.com> <20090617073521.GG7646@balbir.in.ibm.com> <20090617180555.98f88d09.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1E5426B005A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 05:54:03 -0400 (EDT)
+Date: Wed, 17 Jun 2009 17:55:32 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] HWPOISON: only early kill processes who installed
+	SIGBUS handler
+Message-ID: <20090617095532.GA25001@localhost>
+References: <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <20090615064447.GA18390@wotan.suse.de> <20090615070914.GC31969@one.firstfloor.org> <20090615071907.GA8665@wotan.suse.de> <20090615121001.GA10944@localhost> <20090615122528.GA13256@wotan.suse.de> <20090615142225.GA11167@localhost> <20090617063702.GA20922@localhost> <20090617080404.GB31192@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090617180555.98f88d09.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090617080404.GB31192@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Li Zefan <lizf@cn.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-17 18:05:55]:
-
-> On Wed, 17 Jun 2009 13:05:21 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-17 15:27:48]:
-> 
-> > > And even if release_agent() is called, it will do rmdir and see -EBUSY.
+On Wed, Jun 17, 2009 at 04:04:04PM +0800, Nick Piggin wrote:
+> On Wed, Jun 17, 2009 at 02:37:02PM +0800, Wu Fengguang wrote:
+> > On Mon, Jun 15, 2009 at 10:22:25PM +0800, Wu Fengguang wrote:
+> > > On Mon, Jun 15, 2009 at 08:25:28PM +0800, Nick Piggin wrote:
+> > > > On Mon, Jun 15, 2009 at 08:10:01PM +0800, Wu Fengguang wrote:
+> > > > > On Mon, Jun 15, 2009 at 03:19:07PM +0800, Nick Piggin wrote:
+> > > > > > > For KVM you need early kill, for the others it remains to be seen.
+> > > > > > 
+> > > > > > Right. It's almost like you need to do a per-process thing, and
+> > > > > > those that can handle things (such as the new SIGBUS or the new
+> > > > > > EIO) could get those, and others could be killed.
+> > > > > 
+> > > > > To send early SIGBUS kills to processes who has called
+> > > > > sigaction(SIGBUS, ...)?  KVM will sure do that. For other apps we
+> > > > > don't mind they can understand that signal at all.
+> > > > 
+> > > > For apps that hook into SIGBUS for some other means and
+> > > 
+> > > Yes I was referring to the sigaction(SIGBUS) apps, others will
+> > > be late killed anyway.
+> > > 
+> > > > do not understand the new type of SIGBUS signal? What about
+> > > > those?
+> > > 
+> > > We introduced two new SIGBUS codes:
+> > >         BUS_MCEERR_AO=5         for early kill
+> > >         BUS_MCEERR_AR=4         for late  kill
+> > > I'd assume a legacy application will handle them in the same way (both
+> > > are unexpected code to the application).
+> > > 
+> > > We don't care whether the application can be killed by BUS_MCEERR_AO
+> > > or BUS_MCEERR_AR depending on its SIGBUS handler implementation.
+> > > But (in the rare case) if the handler
+> > > - refused to die on BUS_MCEERR_AR, it may create a busy loop and
+> > >   flooding of SIGBUS signals, which is a bug of the application.
+> > >   BUS_MCEERR_AO is one time and won't lead to busy loops.
+> > > - does something that hurts itself (ie. data safety) on BUS_MCEERR_AO,
+> > >   it may well hurt the same way on BUS_MCEERR_AR. The latter one is
+> > >   unavoidable, so the application must be fixed anyway.
 > > 
-> > Because of hierarchy? But we need to cleanup hierarchy before rmdir()
-> > no?
+> > This patch materializes the automatically early kill idea.
+> > It aims to remove the vm.memory_failure_ealy_kill sysctl parameter.
 > > 
+> > This is mainly a policy change, please comment.
 > 
-> Assume following (I think my patch in git explains this.)
+> Well then you can still early-kill random apps that did not
+> want it, and you may still cause problems if its sigbus
+> handler does something nontrivial.
 > 
-> /cgroup/A/01
-> 	 /02
-> 	 /03
-> 	 /04
-> A and 01,02,03,04 is under hierarchy.
-> 
-> Now, 04 has no task and it can be removed by rmdir.
-> Case 1) 01,02,03 hits memory limit heavily and hirerchical memory recalim
-> walks. In this case, 04's css refcnt is got/put very often.
-> Case 2) read statistics of cgroup/A very frequently, this means
-> css_put/get is called very often agatinst 04.
-> 
-> Case 3)....
-> 
-> 04's refcnt is put/get when other group under hierarchy is busy and
-> rmdir against 04 returns -EBUSY in some amount of possiblitly.
->
+> Can you use a prctl or something so it can expclitly
+> register interest in this?
 
-Yes, agreed! We did design hierarchy that way. Thanks for the detailed
-explanation!
- 
+No I don't think prctl would be much better.
 
--- 
-	Balbir
+- if an application want early/late kill, it can do so with a proper
+  written SIGBUS handler: the prctl call is redundant.
+- if an admin want to control early/late kill for an unmodified app,
+  prctl is as unhelpful as this patch(*).
+- prctl does can help legacy apps whose SIGBUS handler has trouble
+  with the new SIGBUS codes, however such application should be rare
+  and the application should be fixed(why shall it do something wrong
+  on newly introduced code at all? Shall we stop introducing new codes
+  just because some random buggy app cannot handle new codes?)
+
+So I still prefer this patch, until we come up with some solution that
+allows both app and admin to change the setting.
+
+(*) Or if prctl options can be inherited across exec(), we may write a
+wrapper tool to set early kill preference for some legacy app:
+
+    # this_app_can_be_early_killed  some_legacy_app --legacy-options
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
