@@ -1,35 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 332196B007E
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:28:04 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B7F776B006A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:33:34 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2389F82C3FD
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:05 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4C34382C4C0
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:50:52 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id f23mQIvln65K for <linux-mm@kvack.org>;
-	Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
+	with ESMTP id xtlzEWID4adE for <linux-mm@kvack.org>;
+	Wed, 17 Jun 2009 13:50:52 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 7AF3282C407
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
-Date: Wed, 17 Jun 2009 13:00:44 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 20D4782C4CC
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:50:46 -0400 (EDT)
+Date: Wed, 17 Jun 2009 13:34:26 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 5/9] percpu: clean up percpu variable definitions
-In-Reply-To: <1245210060-24344-6-git-send-email-tj@kernel.org>
-Message-ID: <alpine.DEB.1.10.0906171300190.1695@gentwo.org>
-References: <1245210060-24344-1-git-send-email-tj@kernel.org> <1245210060-24344-6-git-send-email-tj@kernel.org>
+Subject: Re: + page_alloc-oops-when-setting-percpu_pagelist_fraction.patch
+ added to -mm tree
+In-Reply-To: <20090617140053.GB32637@sgi.com>
+Message-ID: <alpine.DEB.1.10.0906171331210.1695@gentwo.org>
+References: <200906161901.n5GJ1osY026940@imap1.linux-foundation.org> <20090617091040.99BB.A69D9226@jp.fujitsu.com> <20090617140053.GB32637@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@elte.hu, kyle@mcmartin.ca, Jesper.Nilsson@axis.com, benh@kernel.crashing.org, paulmck@linux.vnet.ibm.com, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Jens Axboe <jens.axboe@oracle.com>, Dave Jones <davej@redhat.com>, Jeremy Fitzhardinge <jeremy@xensource.com>, linux-mm <linux-mm@kvack.org>, "David S. Miller" <davem@davemloft.net>
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, mel@csn.ul.ie, nickpiggin@yahoo.com.au, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 17 Jun 2009, Dimitri Sivanich wrote:
 
-The wrapping fixes could have been put in the earlier patch.
+> > pcp is only protected local_irq_save(), not spin lock. it assume
+> > each cpu have different own pcp. but this patch break this assumption.
+> > Now, we can share boot_pageset by multiple cpus.
+> >
+>
+> I'm not quite understanding what you mean.
+>
+> Prior to the cpu going down, each unpopulated zone pointed to the boot_pageset (per_cpu_pageset) for it's cpu (it's array element), so things had been set up this way already.  I could be missing something, but am not sure why restoring this would be a risk?
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+The boot_pageset is supposed to be per cpu and this patch preserves it.
 
+However, all zones for a cpu have just a single boot pageset. Maybe that
+was what threw off Kosaki?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
