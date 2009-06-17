@@ -1,33 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4DBA86B006A
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:27:58 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 332196B007E
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:28:04 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C9C3182C4C0
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:04 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2389F82C3FD
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:05 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id qegoGKXjBwnC for <linux-mm@kvack.org>;
+	with ESMTP id f23mQIvln65K for <linux-mm@kvack.org>;
 	Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2D62982C3FD
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 7AF3282C407
 	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
-Date: Wed, 17 Jun 2009 12:57:37 -0400 (EDT)
+Date: Wed, 17 Jun 2009 13:00:44 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 4/9] percpu: cleanup percpu array definitions
-In-Reply-To: <1245210060-24344-5-git-send-email-tj@kernel.org>
-Message-ID: <alpine.DEB.1.10.0906171257130.1695@gentwo.org>
-References: <1245210060-24344-1-git-send-email-tj@kernel.org> <1245210060-24344-5-git-send-email-tj@kernel.org>
+Subject: Re: [PATCH 5/9] percpu: clean up percpu variable definitions
+In-Reply-To: <1245210060-24344-6-git-send-email-tj@kernel.org>
+Message-ID: <alpine.DEB.1.10.0906171300190.1695@gentwo.org>
+References: <1245210060-24344-1-git-send-email-tj@kernel.org> <1245210060-24344-6-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Tejun Heo <tj@kernel.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@elte.hu, kyle@mcmartin.ca, Jesper.Nilsson@axis.com, benh@kernel.crashing.org, paulmck@linux.vnet.ibm.com, Tony Luck <tony.luck@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Jeremy Fitzhardinge <jeremy@xensource.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@elte.hu, kyle@mcmartin.ca, Jesper.Nilsson@axis.com, benh@kernel.crashing.org, paulmck@linux.vnet.ibm.com, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Jens Axboe <jens.axboe@oracle.com>, Dave Jones <davej@redhat.com>, Jeremy Fitzhardinge <jeremy@xensource.com>, linux-mm <linux-mm@kvack.org>, "David S. Miller" <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
 
+The wrapping fixes could have been put in the earlier patch.
 
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
