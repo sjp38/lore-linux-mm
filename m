@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A75396B005C
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:59:00 -0400 (EDT)
-Received: by pxi40 with SMTP id 40so27806pxi.12
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2009 19:00:52 -0700 (PDT)
-Date: Wed, 17 Jun 2009 11:00:34 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch 2/2] mm: remove task assumptions from swap token
-Message-Id: <20090617110034.db01479b.minchan.kim@barrios-desktop>
-In-Reply-To: <1245189037-22961-2-git-send-email-hannes@cmpxchg.org>
-References: <Pine.LNX.4.64.0906162152250.12770@sister.anvils>
-	<1245189037-22961-2-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D5E66B0062
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 22:29:02 -0400 (EDT)
+Message-ID: <4A3854BF.4000300@kernel.org>
+Date: Wed, 17 Jun 2009 11:28:15 +0900
+From: Tejun Heo <tj@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/7] percpu: clean up percpu variable definitions
+References: <1243846708-805-1-git-send-email-tj@kernel.org> <1243846708-805-4-git-send-email-tj@kernel.org> <20090601.024006.98975069.davem@davemloft.net> <4A23BD20.5030500@kernel.org> <1243919336.5308.32.camel@pasglop> <4A289E3A.30000@kernel.org> <20090611104550.GQ20504@axis.com>
+In-Reply-To: <20090611104550.GQ20504@axis.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jesper Nilsson <Jesper.Nilsson@axis.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Miller <davem@davemloft.net>, "JBeulich@novell.com" <JBeulich@novell.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "mingo@elte.hu" <mingo@elte.hu>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "rth@twiddle.net" <rth@twiddle.net>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "hskinnemoen@atmel.com" <hskinnemoen@atmel.com>, "cooloney@kernel.org" <cooloney@kernel.org>, Mikael Starvik <mikael.starvik@axis.com>, "dhowells@redhat.com" <dhowells@redhat.com>, "ysato@users.sourceforge.jp" <ysato@users.sourceforge.jp>, "tony.luck@intel.com" <tony.luck@intel.com>, "takata@linux-m32r.org" <takata@linux-m32r.org>, "geert@linux-m68k.org" <geert@linux-m68k.org>, "monstr@monstr.eu" <monstr@monstr.eu>, "ralf@linux-mips.org" <ralf@linux-mips.org>, "kyle@mcmartin.ca" <kyle@mcmartin.ca>, "paulus@samba.org" <paulus@samba.org>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "lethal@linux-sh.org" <lethal@linux-sh.org>, "jdike@addtoit.com" <jdike@addtoit.com>, "chris@zankel.net" <chris@zankel.net>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>, "davej@redhat.com" <davej@redhat.com>, "jeremy@xensource.com" <jeremy@xensource.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Hannes. 
+Hello,
 
-How about adding Hugh's comment ?
-
-I think that is more straightforward and easy.
-And it explained even real example like KSM. 
-
-So I suggest following as.. 
-
-==
-grab_swap_token() should not make any assumptions about the running
-process as the swap token is an attribute of the address space and the
-faulting mm is not necessarily current->mm.
-
-If a kthread happens to use get_user_pages() on an mm (as KSM does),
-there's a chance that it will end up trying to read in a swap page,
-then oops in grab_swap_token() because the kthread has no mm: GUP
-passes down the right mm, so grab_swap_token() ought to be using it.
-==
-
-Anyway, It looks good to me. 
-It might be just nitpick :)
-If you feel it, ignore me. 
-Anyway I am OK. 
-
-On Tue, 16 Jun 2009 23:50:37 +0200
-Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Jesper Nilsson wrote:
+> I've talked with Mikael, and we both agreed that this was probably
+> a legacy from earlier versions, and the volatile is no longer needed.
 > 
-> grab_swap_token() should not make any assumptions about the running
-> process as the swap token is an attribute of the address space and the
-> faulting mm is not necessarily current->mm.
+> Confirmed by booting and running some video-streaming on an ARTPEC-3
+> (CRISv32) board.
 > 
-> This fixes get_user_pages() from kernel threads which would blow up
-> when encountering a swapped out page and grab_swap_token()
-> dereferencing the unset for kernel threads current->mm.
+> You can take the following patch as a pre-requisite, or go the way of
+> the original patch.
 > 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> From: Jesper Nilsson <jesper.nilsson@axis.com>
+> Subject: [PATCH] CRIS: Change DEFINE_PER_CPU of current_pgd to be non volatile.
+> 
+> The DEFINE_PER_CPU of current_pgd was on CRIS defined using volatile,
+> which is not needed. Remove volatile.
+> 
+> Signed-off-by: Jesper Nilsson <jesper.nilsson@axis.com>
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Super.  Included in the series.
+
+Thanks a lot.
 
 -- 
-Kinds Regards
-Minchan Kim
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
