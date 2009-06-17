@@ -1,279 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1B56B004F
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 03:34:22 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5H7OjCT019821
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 03:24:45 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5H7ZPoU218700
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 03:35:25 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5H7ZPI8029970
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 03:35:25 -0400
-Date: Wed, 17 Jun 2009 13:05:21 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][BUGFIX] memcg: rmdir doesn't return
-Message-ID: <20090617073521.GG7646@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090615171715.53743dce.kamezawa.hiroyu@jp.fujitsu.com> <20090616114735.c7a91b8b.nishimura@mxp.nes.nec.co.jp> <20090616140050.4172f988.kamezawa.hiroyu@jp.fujitsu.com> <20090616153810.fd710c5b.nishimura@mxp.nes.nec.co.jp> <20090616154820.c9065809.kamezawa.hiroyu@jp.fujitsu.com> <20090616174436.5a4b6577.kamezawa.hiroyu@jp.fujitsu.com> <20090617045643.GE7646@balbir.in.ibm.com> <20090617141109.8d9a47ea.kamezawa.hiroyu@jp.fujitsu.com> <20090617054955.GF7646@balbir.in.ibm.com> <20090617152748.6b6c643e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1833B6B005A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 03:50:00 -0400 (EDT)
+Date: Wed, 17 Jun 2009 09:51:31 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 1/5] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
+Message-ID: <20090617075131.GC26664@wotan.suse.de>
+References: <20090611142239.192891591@intel.com> <20090611144430.414445947@intel.com> <20090612112258.GA14123@elte.hu> <20090612125741.GA6140@localhost> <20090612131754.GA32105@elte.hu> <alpine.LFD.2.01.0906120827020.3237@localhost.localdomain> <20090612153501.GA5737@elte.hu> <20090615065232.GC18390@wotan.suse.de> <20090616202726.GB31443@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090617152748.6b6c643e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090616202726.GB31443@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Li Zefan <lizf@cn.fujitsu.com>
+To: Russ Anderson <rja@sgi.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-17 15:27:48]:
-
-> On Wed, 17 Jun 2009 11:19:55 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-17 14:11:09]:
-> > 
-> > > On Wed, 17 Jun 2009 10:26:43 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-16 17:44:36]:
+On Tue, Jun 16, 2009 at 03:27:26PM -0500, Russ Anderson wrote:
+> On Mon, Jun 15, 2009 at 08:52:32AM +0200, Nick Piggin wrote:
+> > On Fri, Jun 12, 2009 at 05:35:01PM +0200, Ingo Molnar wrote:
+> > > * Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> > > > On Fri, 12 Jun 2009, Ingo Molnar wrote:
+> > > > > 
+> > > > > This seems like trying to handle a failure mode that cannot be 
+> > > > > and shouldnt be 'handled' really. If there's an 'already 
+> > > > > corrupted' page then the box should go down hard and fast, and 
+> > > > > we should not risk _even more user data corruption_ by trying to 
+> > > > > 'continue' in the hope of having hit some 'harmless' user 
+> > > > > process that can be killed ...
 > > > > 
-> > > > > On Tue, 16 Jun 2009 15:48:20 +0900
-> > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > 
-> > > > > > > It has been working well so far, but I will continue to test for more long time.
-> > > > > > > 
-> > > > > > Thank you. I'd like to find out more clean fix, keeping this as an option.
-> > > > > > 
-> > > > > This is cleaned up version. works well in following test.
-> > > > > 
-> > > > > ==
-> > > > > 1. mount -t tmpfs /dev/null /mnt/tmpfs
-> > > > > 2. mount -t cgroup /dev/null /mnt/cgroups -o memory
-> > > > > 3. mkdir /mnt/cgroups/A/
-> > > > > 4. echo $$ > /mnt/cgroups/A/tasks
-> > > > > 5. echo 4M > /mnt/cgroups/A/memory.limit_in_bytes
-> > > > > 5. dd if=/dev/zero of=/mnt/tmpfs/testfile bs=1024 count=30000
-> > > > >  => 26M of swap.
-> > > > > 6. echo $$ > /mnt/cgroups/tasks
-> > > > >  => group "A" is empty now.
-> > > > > 7-a. while true; do cat /mnt/tmpfs/testfile > /dev/null;done
-> > > > > 
-> > > > > In ohter shell.
-> > > > > 7-b. rmdir /mnt/cgroups/A
-> > > > > ==
-> > > > > Of course, you have more compliated ones..
-> > > > > 
-> > > > > the patch seems a bit long but most of patch is comment..
-> > > > > 
-> > > > > ==
-> > > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > 
-> > > > > In general, cgroup is for tasks and cgroup subsys(css)'s refcnt is maintained
-> > > > > per objects related to tasks. But memcg counts refcnt per pages because
-> > > > > the pointer to css is recorded per page. And more, hierarchy-management support
-> > > > > requires safe css refcnt management while a rmdir() is ongoing.
-> > > > > 
-> > > > > css_tryget()/css_put() is for such purpose and works well.
-> > > > > 
-> > > > > But, frequent css_put()/get() tends to prevent rmdir() and users can see
-> > > > > EBUSY very often. To fix that, waitqueue-for-rmdir was introduced and
-> > > > > rmdir() can work in synchronous way with cgroup subsytems. But this logic
-> > > > > expects "refcnt obtained by css_tryget() is temporal and will go down to
-> > > > > 0 soon, then rmdir() will wake up soon."
-> > > > > 
-> > > > > But memcg's swapin code breaks the assumption. (But necessary...)
-> > > > > This patch try to reuse another anotation of CGRP_WAIT_ON_RMDIR flag to
-> > > > > check whether cgroup is under rmdir if memcg got a *not termporal* refcnt 
-> > > > > by css_tryget().
-> > > > > 
-> > > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > ---
-> > > > >  include/linux/cgroup.h |    7 +++++++
-> > > > >  kernel/cgroup.c        |   46 +++++++++++++++++++++++++++-------------------
-> > > > >  mm/memcontrol.c        |   11 +++++++++--
-> > > > >  3 files changed, 43 insertions(+), 21 deletions(-)
-> > > > > 
-> > > > > Index: linux-2.6.30.org/include/linux/cgroup.h
-> > > > > ===================================================================
-> > > > > --- linux-2.6.30.org.orig/include/linux/cgroup.h
-> > > > > +++ linux-2.6.30.org/include/linux/cgroup.h
-> > > > > @@ -365,6 +365,13 @@ int cgroup_task_count(const struct cgrou
-> > > > >  /* Return true if cgrp is a descendant of the task's cgroup */
-> > > > >  int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
-> > > > > 
-> > > > > +void __cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp);
-> > > > > +static inline void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > > > +{
-> > > > > +	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-> > > > > +		__cgroup_wakeup_rmdir_waiters(cgrp);
-> > > > > +}
-> > > > > +
-> > > > >  /*
-> > > > >   * Control Group subsystem type.
-> > > > >   * See Documentation/cgroups/cgroups.txt for details
-> > > > > Index: linux-2.6.30.org/kernel/cgroup.c
-> > > > > ===================================================================
-> > > > > --- linux-2.6.30.org.orig/kernel/cgroup.c
-> > > > > +++ linux-2.6.30.org/kernel/cgroup.c
-> > > > > @@ -737,10 +737,9 @@ static void cgroup_d_remove_dir(struct d
-> > > > >   */
-> > > > >  DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
-> > > > > 
-> > > > > -static void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > > > +void __cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > > >  {
-> > > > > -	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-> > > > > -		wake_up_all(&cgroup_rmdir_waitq);
-> > > > > +	wake_up_all(&cgroup_rmdir_waitq);
-> > > > >  }
-> > > > > 
-> > > > >  static int rebind_subsystems(struct cgroupfs_root *root,
-> > > > > @@ -2667,13 +2666,27 @@ static int cgroup_rmdir(struct inode *un
-> > > > > 
-> > > > >  	/* the vfs holds both inode->i_mutex already */
-> > > > >  again:
-> > > > > +	/*
-> > > > > +	 * css_put/get is provided for subsys to grab refcnt to css. In typical
-> > > > > +	 * case, subsystem has no reference after pre_destroy(). But, under
-> > > > > +	 * hierarchy management, some *temporal* refcnt can be hold.
-> > > > > +	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
-> > > > > +	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
-> > > > > +	 * is called when css_put() is called and refcnt goes down to 0.
-> > > > > +	 *
-> > > > > +	 * Subsys can check CGRP_WAIT_ON_RMDIR bit by itself to know
-> > > > > +	 * it's under ongoing rmdir() or not. Because css_tryget() returns false
-> > > > > +	 * only after css->refcnt returns 0, checking this bit is useful when
-> > > > > +	 * css' refcnt seems to be not temporal.
-> > > > > +	 */
-> > > > > +	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > > +	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-> > > > > +
-> > > > >  	mutex_lock(&cgroup_mutex);
-> > > > > -	if (atomic_read(&cgrp->count) != 0) {
-> > > > > -		mutex_unlock(&cgroup_mutex);
-> > > > > -		return -EBUSY;
-> > > > > -	}
-> > > > > -	if (!list_empty(&cgrp->children)) {
-> > > > > +	if (atomic_read(&cgrp->count) != 0 || !list_empty(&cgrp->children)) {
-> > > > >  		mutex_unlock(&cgroup_mutex);
-> > > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > >  		return -EBUSY;
-> > > > >  	}
-> > > > >  	mutex_unlock(&cgroup_mutex);
-> > > > > @@ -2683,25 +2696,20 @@ again:
-> > > > >  	 * that rmdir() request comes.
-> > > > >  	 */
-> > > > >  	ret = cgroup_call_pre_destroy(cgrp);
-> > > > > -	if (ret)
-> > > > > +	if (ret) {
-> > > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > >  		return ret;
-> > > > > +	}
-> > > > > 
-> > > > >  	mutex_lock(&cgroup_mutex);
-> > > > >  	parent = cgrp->parent;
-> > > > >  	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-> > > > >  		mutex_unlock(&cgroup_mutex);
-> > > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > >  		return -EBUSY;
-> > > > >  	}
-> > > > > -	/*
-> > > > > -	 * css_put/get is provided for subsys to grab refcnt to css. In typical
-> > > > > -	 * case, subsystem has no reference after pre_destroy(). But, under
-> > > > > -	 * hierarchy management, some *temporal* refcnt can be hold.
-> > > > > -	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
-> > > > > -	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
-> > > > > -	 * is called when css_put() is called and refcnt goes down to 0.
-> > > > > -	 */
-> > > > > -	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > > -	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-> > > > > 
-> > > > >  	if (!cgroup_clear_css_refs(cgrp)) {
-> > > > >  		mutex_unlock(&cgroup_mutex);
-> > > > > Index: linux-2.6.30.org/mm/memcontrol.c
-> > > > > ===================================================================
-> > > > > --- linux-2.6.30.org.orig/mm/memcontrol.c
-> > > > > +++ linux-2.6.30.org/mm/memcontrol.c
-> > > > > @@ -1338,6 +1338,7 @@ __mem_cgroup_commit_charge_swapin(struct
-> > > > >  		return;
-> > > > >  	if (!ptr)
-> > > > >  		return;
-> > > > > +	css_get(&ptr->css);
-> > > > >  	pc = lookup_page_cgroup(page);
-> > > > >  	mem_cgroup_lru_del_before_commit_swapcache(page);
-> > > > >  	__mem_cgroup_commit_charge(ptr, pc, ctype);
-> > > > > @@ -1367,8 +1368,14 @@ __mem_cgroup_commit_charge_swapin(struct
-> > > > >  		}
-> > > > >  		rcu_read_unlock();
-> > > > >  	}
-> > > > > -	/* add this page(page_cgroup) to the LRU we want. */
-> > > > > -
-> > > > > +	/*
-> > > > > +	 * Because we charged against a cgroup which is obtained by record
-> > > > > +	 * in swap_cgroup, not by task, there is a possibility that someone is
-> > > > > +	 * waiting for rmdir. This happens when a swap entry is shared
-> > > > > +	 * among cgroups. After wakeup, pre_destroy() will be called again.
-> > > > > +	 */
-> > > > > +	cgroup_wakeup_rmdir_waiters(&ptr->css.cgroup);
-> > > > > +	css_put(&ptr->css);
-> > > > >  }
-> > > > > 
-> > > > >  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-> > > > > 
-> > > > >
+> > > > No, the box should _not_ go down hard-and-fast. That's the last 
+> > > > thing we should *ever* do.
 > > > > 
-> > > > I am a little confused by the infrastructure. I think it is OK to
-> > > > return -EBUSY and then use notify_on_release to figure out when to
-> > > > free the cgroup. Are we moving away from the design?
-> > > >  
+> > > > We need to log it. Often at a user level (ie we want to make sure 
+> > > > it actually hits syslog, possibly goes out the network, maybe pops 
+> > > > up a window, whatever).
+> > > > 
+> > > > Shutting down the machine is the last thing we ever want to do.
+> > > > 
+> > > > The whole "let's panic" mentality is a disease.
 > > > 
-> > > When you use cgroup with _hierarchy_ in real world, rmdir returns -EBUSY very
-> > > very often. (Because hierarchy dramatically increase chance to css_get() to empty
-> > > cgroup.)
-> > > 
+> > > No doubt about that - and i'm removing BUG_ON()s and panic()s 
+> > > wherever i can and havent added a single new one myself in the past 
+> > > 5 years or so, its a disease.
 > > 
-> > I completely understand that part, but I thought we had solved this
-> > problem through notify_on_release and release_agent. I am not against
-> > it, but I want to know why release_agent will not solve this problem
-> > (is it too loose for control?)
-> > 
+> > In HA failover systems you often do want to panic ASAP (after logging
+> > to serial cosole I guess) if anything like this happens so the system
+> > can be rebooted with minimal chance of data corruption spreading.
 > 
-> release_agent is not useful with memcg by following reason.
+> The whole point of hardware data poisoning is to avoid having to 
+> panic the system due to the potential of undetected data corruption,
+> because the corrupt data is always marked bad.  This has worked
+> well on ia64 where applications that encounter bad data are killed
+> and the memory poisoned and not reallocated, avoiding a system panic.
 > 
-> 1. release_agent() is called when css->count get to be 0.
-> 2. until force_empty() is called, css->count > 0.
-> 3. to call force_empty, rmdir or memory.force_empty should be kicked.
-> 4. Then, release_agent doesn't work for automatic rmdir.
-> 
-> You have to change release_agent definition/implimentation to rmdir memcg's
-> directory automatically.
-> 
-> And even if release_agent() is called, it will do rmdir and see -EBUSY.
+> This has been used at customer sites for a few years.  The type
+> customers that really check their data.  It is nice to see
+> the hardware poison feature moving to the x86 "mainstream".
 
-Because of hierarchy? But we need to cleanup hierarchy before rmdir()
-no?
+So long as you can get an MCE and panic if the corrupt data
+actually gets consumed anywhere, then yes a "corrupt data
+detected but not consumed" exception would not require a
+panic.
 
-> I don't think multiple calls of release_agent against a cgroup is a sane
-> activity. 
-> 
-> But under current implementation, release_agent can be called multiple times.
-> (This is other topic, maybe.)
->
-
-I was hoping to use release agent in the following manner
-
-1. write  a script to do a force_empty() followed by rmdir()
-
-I am not against using the waitq, just seeing the top level design
-implications and end user semantics as a result of the patch.
- 
-
--- 
-	Balbir
+I don't know enough about the arch details to know what kinds
+of exceptions happen when.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
