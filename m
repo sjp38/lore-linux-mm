@@ -1,444 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CAC0D6B0093
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:13:11 -0400 (EDT)
-Message-ID: <4A38F885.8040009@redhat.com>
-Date: Wed, 17 Jun 2009 10:07:01 -0400
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
-MIME-Version: 1.0
-Subject: Re: [Patch] mm tracepoints update - use case.
-References: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com> <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com> <20090423092933.F6E9.A69D9226@jp.fujitsu.com> <4A36925D.4090000@redhat.com>
-In-Reply-To: <4A36925D.4090000@redhat.com>
-Content-Type: multipart/mixed;
- boundary="------------080605010607070906000405"
+	by kanga.kvack.org (Postfix) with ESMTP id E3FCA6B0055
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:15:31 -0400 (EDT)
+Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090617130216.GF28529@csn.ul.ie>
+References: <20090616135228.25248.22018.sendpatchset@lts-notebook>
+	 <20090617130216.GF28529@csn.ul.ie>
+Content-Type: text/plain
+Date: Wed, 17 Jun 2009 13:15:54 -0400
+Message-Id: <1245258954.6235.58.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, =?UTF-8?B?RnLpppjpp7tpYyBXZWlzYmVja2Vy?= <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rostedt@goodmis.org, lwoodman@redhat.com, Linda Wang <lwang@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------080605010607070906000405
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+On Wed, 2009-06-17 at 14:02 +0100, Mel Gorman wrote:
+> On Tue, Jun 16, 2009 at 09:52:28AM -0400, Lee Schermerhorn wrote:
+> > Because of assymmetries in some NUMA platforms, and "interesting"
+> > topologies emerging in the "scale up x86" world, we have need for
+> > better control over the placement of "fresh huge pages".  A while
+> > back Nish Aravamundan floated a series of patches to add per node
+> > controls for allocating pages to the hugepage pool and removing
+> > them.  Nish apparently moved on to other tasks before those patches
+> > were accepted.  I have kept a copy of Nish's patches and have
+> > intended to rebase and test them and resubmit.
+> > 
+> > In an [off-list] exchange with Mel Gorman, who admits to knowledge
+> > in the huge pages area, I asked his opinion of per node controls
+> > for huge pages and he suggested another approach:  using the mempolicy
+> > of the task that changes nr_hugepages to constrain the fresh huge
+> > page allocations.  I considered this approach but it seemed to me
+> > to be a misuse of mempolicy for populating the huge pages free
+> > pool. 
+> 
+> Why would it be a misuse? Fundamentally, the huge page pools are being
+> filled by the current process when nr_hugepages is being used. Or are
+> you concerned about the specification of hugepages on the kernel command
+> line?
 
-Rik van Riel wrote:
->
-> Sorry I am replying to a really old email, but exactly
-> what information do you believe would be more useful to
-> extract from vmscan.c with tracepoints?
->
-> What are the kinds of problems that customer systems
-> (which cannot be rebooted into experimental kernels)
-> run into, that can be tracked down with tracepoints?
->
-> I can think of a few:
-> - excessive CPU use in page reclaim code
-> - excessive reclaim latency in page reclaim code
-> - unbalanced memory allocation between zones/nodes
-> - strange balance problems between reclaiming of page
->   cache and swapping out process pages
->
-> I suspect we would need fairly fine grained tracepoints
-> to track down these kinds of problems, with filtering
-> and/or interpretation in userspace, but I am always
-> interested in easier ways of tracking down these kinds
-> of problems :)
->
-> What kinds of tracepoints do you believe we would need?
->
-> Or, using Larry's patch as a starting point, what do you
-> believe should be changed?
->
+Well, "misuse" might be too strong [and I already softened it from
+"abuse" :)]--more like "not a good fit, IMO".   I agree that it could be
+made to work, but it just didn't "feel" right.  I suppose that we could
+use alloc_pages_current() with the necessary gfp flags to specify the
+"thisnode"/"exact_node" semantics [no fallback], making sure we didn't
+OOM kill the task if a node couldn't satisfy the huge page
+allocation, ...  I think it would require major restructuring of
+set_max_huge_pages(), ...  Maybe that would be the right thing to do and
+maybe we'll end up there, but I was looking for a simpler approach.  
 
-Rik, I know these mm tracepoint patches produce a low of output in the 
-trace buffer.
-In a nutshell what I have done is to add them in critical locations in 
-places that allocate
-memory, map that memory in user space, unmap it from user space, and 
-free it.  In addition,
-I have added tracepoints to important places in the memory allocation 
-and reclaim paths so
-we can see failures, stalls, high latencies as well as normal behavior.  
-Finally I added them
-to the pdflush operations so we can determine amounts of memory written 
-back to disk there
-versus the swapout paths.  Perhaps if this is too many tracepoints all 
-at once we could focus
-mainly on those specific to the page reclaim code path since that is 
-where most contention
-occurs?
+And, yes, the kernel command line was a consideration.  Because of that,
+I considered specifying a boot time "nodes_allowed" mask and
+constructing a "nodes_allowed" mask at run time from the current task's
+policy.  But, it seemed more straightforward to my twisted way of
+thinking to make the nodes_allowed mask a bona fide hstate attribute.
 
-Anonymous memory tracepoints:
-1.) mm_anon_fault - initial anonymous pagefault.
-2.) mm_anon_unmap - anonymous unmap triggered by page reclaim.
-3.) mm_anon_userfree - anonymous memory unmap by user.
-4.) mm_anon_cow - anonymous COW fault
-5.) mm_anon_pgin - anonymous pagein from swap.
+> 
+> > Interleave policy doesn't have same "this node" semantics
+> > that we want
+> 
+> By "this node" semantics, do you mean allocating from one specific node?
 
-Filemap memory tracepoints:
-1.) mm_filemap_fault - initial filemap fault.
-2.) mm_filemap_cow - filemap COW fault.
-3.) mm_filemap_userunmap - filemap unmap by user.
-4.) mm_filemap_unmap - filemap unmap triggered by page reclaim.
+Yes.
 
-Page allocation failure tracepoints:
-1.) mm_page_allocation - page allocation that fails and causes page reclaim.
+> In that case, why would specifying a nodemask of just one node not be
+> sufficient?
 
-Page kswapd and direct reclaim tracepoints:
-1.) mm_kswapd_ran - kswapd ran and tells us how many pages it reclaimed.
-2.) mm_directreclaim_reclaimall - direct reclaim because free lists were 
-below min.
-3.) mm_directreclaim_reclaimzone - direct reclaim of a specific numa node.
-
-Inner workings of the page reclaim tracepoints:
-1.) mm_pagereclaim_shrinkzone - shrink zone, tells us how many pages 
-were scanned.
-2.) mm_pagereclaim_shrinkinactive - shrink inactive list, tells us how 
-many pages were deactivated.
-3.) mm_pagereclaim_shrinkactive - shrink inactive list, tells us how 
-many pages were processed
-4.) mm_pagereclaim_pgout - pageout, tells us which pages were paged out.
-5.) mm_pagereclaim_free - tells us how many pages were freed in each 
-page reclaim invocation.
-
-Pagecache flushing tracepoints:
-1.) mm_balance_dirty - tells us how many pages were written when dirty 
-was above dirty_ratio.
-2.) mm_pdflush_bgwriteout - tells us how many pages written when dirty 
-was above dirty_background_ratio.
-3.) mm_pdflush_kupdate - tells us how many pages kupdate wrote.
+Maybe along with GFP_THISNODE.  In general, we want to interleave the
+persistent huge pages over multiple nodes, but we don't want the
+allocations to succeed by falling back to another node.  Then we end up
+with unbalanced allocations.  This is how fresh huge page allocation
+worked before it was changed to use "THISNODE".
 
 
+> 
+> > and bind policy would require constructing a custom
+> > node mask for node as well as addressing OOM, which we don't want
+> > during fresh huge page allocation. 
+> 
+> Would the required mask not already be setup when the process set the
+> policy? OOM is not a major concern, it doesn't trigger for failed
+> hugepage allocations.
 
---------------080605010607070906000405
-Content-Type: text/plain;
- name="mmtracepoints-617.diff"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="mmtracepoints-617.diff"
+Perhaps not with the current implementation.  However, a certain,
+currently shipping, enterprise distro added a "quick and dirty"  [well,
+"dirty", anyway :)] implementation of "thisnode" behavior to elimiate
+the unwanted fallback behavior and resulting huge pages imbalance by
+constructing an ad hoc "MPOL_BIND" policy for allocating huge pages.  We
+found that this DOES result in oom kill of the task increasing
+nr_hugepages if it encountered a node w/ no available huge pages.
 
-ZGlmZiAtLWdpdCBhL2luY2x1ZGUvdHJhY2UvZXZlbnRzL21tLmggYi9pbmNsdWRlL3RyYWNl
-L2V2ZW50cy9tbS5oCm5ldyBmaWxlIG1vZGUgMTAwNjQ0CmluZGV4IDAwMDAwMDAuLjFkODg4
-YTQKLS0tIC9kZXYvbnVsbAorKysgYi9pbmNsdWRlL3RyYWNlL2V2ZW50cy9tbS5oCkBAIC0w
-LDAgKzEsNDM2IEBACisjaWYgIWRlZmluZWQoX1RSQUNFX01NX0gpIHx8IGRlZmluZWQoVFJB
-Q0VfSEVBREVSX01VTFRJX1JFQUQpCisjZGVmaW5lIF9UUkFDRV9NTV9ICisKKyNpbmNsdWRl
-IDxsaW51eC9tbS5oPgorI2luY2x1ZGUgPGxpbnV4L3RyYWNlcG9pbnQuaD4KKworI3VuZGVm
-IFRSQUNFX1NZU1RFTQorI2RlZmluZSBUUkFDRV9TWVNURU0gbW0KKworVFJBQ0VfRVZFTlQo
-bW1fYW5vbl9mYXVsdCwKKworCVRQX1BST1RPKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB1bnNp
-Z25lZCBsb25nIGFkZHJlc3MpLAorCisJVFBfQVJHUyhtbSwgYWRkcmVzcyksCisKKwlUUF9T
-VFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHN0cnVjdCBtbV9zdHJ1Y3QgKiwgbW0pCisJCV9f
-ZmllbGQodW5zaWduZWQgbG9uZywgYWRkcmVzcykKKwkpLAorCisJVFBfZmFzdF9hc3NpZ24o
-CisJCV9fZW50cnktPm1tID0gbW07CisJCV9fZW50cnktPmFkZHJlc3MgPSBhZGRyZXNzOwor
-CSksCisKKwlUUF9wcmludGsoIm1tPSVseCBhZGRyZXNzPSVseCIsCisJCSh1bnNpZ25lZCBs
-b25nKV9fZW50cnktPm1tLCBfX2VudHJ5LT5hZGRyZXNzKQorKTsKKworVFJBQ0VfRVZFTlQo
-bW1fYW5vbl9wZ2luLAorCisJVFBfUFJPVE8oc3RydWN0IG1tX3N0cnVjdCAqbW0sIHVuc2ln
-bmVkIGxvbmcgYWRkcmVzcyksCisKKwlUUF9BUkdTKG1tLCBhZGRyZXNzKSwKKworCVRQX1NU
-UlVDVF9fZW50cnkoCisJCV9fZmllbGQoc3RydWN0IG1tX3N0cnVjdCAqLCBtbSkKKwkJX19m
-aWVsZCh1bnNpZ25lZCBsb25nLCBhZGRyZXNzKQorCSksCisKKwlUUF9mYXN0X2Fzc2lnbigK
-KwkJX19lbnRyeS0+bW0gPSBtbTsKKwkJX19lbnRyeS0+YWRkcmVzcyA9IGFkZHJlc3M7CisJ
-KSwKKworCVRQX3ByaW50aygibW09JWx4IGFkZHJlc3M9JWx4IiwKKwkJKHVuc2lnbmVkIGxv
-bmcpX19lbnRyeS0+bW0sIF9fZW50cnktPmFkZHJlc3MpCisJKTsKKworVFJBQ0VfRVZFTlQo
-bW1fYW5vbl9jb3csCisKKwlUUF9QUk9UTyhzdHJ1Y3QgbW1fc3RydWN0ICptbSwKKwkJCXVu
-c2lnbmVkIGxvbmcgYWRkcmVzcyksCisKKwlUUF9BUkdTKG1tLCBhZGRyZXNzKSwKKworCVRQ
-X1NUUlVDVF9fZW50cnkoCisJCV9fZmllbGQoc3RydWN0IG1tX3N0cnVjdCAqLCBtbSkKKwkJ
-X19maWVsZCh1bnNpZ25lZCBsb25nLCBhZGRyZXNzKQorCSksCisKKwlUUF9mYXN0X2Fzc2ln
-bigKKwkJX19lbnRyeS0+bW0gPSBtbTsKKwkJX19lbnRyeS0+YWRkcmVzcyA9IGFkZHJlc3M7
-CisJKSwKKworCVRQX3ByaW50aygibW09JWx4IGFkZHJlc3M9JWx4IiwKKwkJKHVuc2lnbmVk
-IGxvbmcpX19lbnRyeS0+bW0sIF9fZW50cnktPmFkZHJlc3MpCisJKTsKKworVFJBQ0VfRVZF
-TlQobW1fYW5vbl91c2VyZnJlZSwKKworCVRQX1BST1RPKHN0cnVjdCBtbV9zdHJ1Y3QgKm1t
-LAorCQkJdW5zaWduZWQgbG9uZyBhZGRyZXNzKSwKKworCVRQX0FSR1MobW0sIGFkZHJlc3Mp
-LAorCisJVFBfU1RSVUNUX19lbnRyeSgKKwkJX19maWVsZChzdHJ1Y3QgbW1fc3RydWN0ICos
-IG1tKQorCQlfX2ZpZWxkKHVuc2lnbmVkIGxvbmcsIGFkZHJlc3MpCisJKSwKKworCVRQX2Zh
-c3RfYXNzaWduKAorCQlfX2VudHJ5LT5tbSA9IG1tOworCQlfX2VudHJ5LT5hZGRyZXNzID0g
-YWRkcmVzczsKKwkpLAorCisJVFBfcHJpbnRrKCJtbT0lbHggYWRkcmVzcz0lbHgiLAorCQko
-dW5zaWduZWQgbG9uZylfX2VudHJ5LT5tbSwgX19lbnRyeS0+YWRkcmVzcykKKwkpOworCitU
-UkFDRV9FVkVOVChtbV9hbm9uX3VubWFwLAorCisJVFBfUFJPVE8oc3RydWN0IG1tX3N0cnVj
-dCAqbW0sIHVuc2lnbmVkIGxvbmcgYWRkcmVzcyksCisKKwlUUF9BUkdTKG1tLCBhZGRyZXNz
-KSwKKworCVRQX1NUUlVDVF9fZW50cnkoCisJCV9fZmllbGQoc3RydWN0IG1tX3N0cnVjdCAq
-LCBtbSkKKwkJX19maWVsZCh1bnNpZ25lZCBsb25nLCBhZGRyZXNzKQorCSksCisKKwlUUF9m
-YXN0X2Fzc2lnbigKKwkJX19lbnRyeS0+bW0gPSBtbTsKKwkJX19lbnRyeS0+YWRkcmVzcyA9
-IGFkZHJlc3M7CisJKSwKKworCVRQX3ByaW50aygibW09JWx4IGFkZHJlc3M9JWx4IiwKKwkJ
-KHVuc2lnbmVkIGxvbmcpX19lbnRyeS0+bW0sIF9fZW50cnktPmFkZHJlc3MpCisJKTsKKwor
-VFJBQ0VfRVZFTlQobW1fZmlsZW1hcF9mYXVsdCwKKworCVRQX1BST1RPKHN0cnVjdCBtbV9z
-dHJ1Y3QgKm1tLCB1bnNpZ25lZCBsb25nIGFkZHJlc3MsIGludCBmbGFnKSwKKwlUUF9BUkdT
-KG1tLCBhZGRyZXNzLCBmbGFnKSwKKworCVRQX1NUUlVDVF9fZW50cnkoCisJCV9fZmllbGQo
-c3RydWN0IG1tX3N0cnVjdCAqLCBtbSkKKwkJX19maWVsZCh1bnNpZ25lZCBsb25nLCBhZGRy
-ZXNzKQorCQlfX2ZpZWxkKGludCwgZmxhZykKKwkpLAorCisJVFBfZmFzdF9hc3NpZ24oCisJ
-CV9fZW50cnktPm1tID0gbW07CisJCV9fZW50cnktPmFkZHJlc3MgPSBhZGRyZXNzOworCQlf
-X2VudHJ5LT5mbGFnID0gZmxhZzsKKwkpLAorCisJVFBfcHJpbnRrKCIlczogbW09JWx4IGFk
-ZHJlc3M9JWx4IiwKKwkJX19lbnRyeS0+ZmxhZyA/ICJwYWdlaW4iIDogInByaW1hcnkgZmF1
-bHQiLAorCQkodW5zaWduZWQgbG9uZylfX2VudHJ5LT5tbSwgX19lbnRyeS0+YWRkcmVzcykK
-KwkpOworCitUUkFDRV9FVkVOVChtbV9maWxlbWFwX2NvdywKKworCVRQX1BST1RPKHN0cnVj
-dCBtbV9zdHJ1Y3QgKm1tLCB1bnNpZ25lZCBsb25nIGFkZHJlc3MpLAorCisJVFBfQVJHUyht
-bSwgYWRkcmVzcyksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHN0cnVjdCBt
-bV9zdHJ1Y3QgKiwgbW0pCisJCV9fZmllbGQodW5zaWduZWQgbG9uZywgYWRkcmVzcykKKwkp
-LAorCisJVFBfZmFzdF9hc3NpZ24oCisJCV9fZW50cnktPm1tID0gbW07CisJCV9fZW50cnkt
-PmFkZHJlc3MgPSBhZGRyZXNzOworCSksCisKKwlUUF9wcmludGsoIm1tPSVseCBhZGRyZXNz
-PSVseCIsCisJCSh1bnNpZ25lZCBsb25nKV9fZW50cnktPm1tLCBfX2VudHJ5LT5hZGRyZXNz
-KQorCSk7CisKK1RSQUNFX0VWRU5UKG1tX2ZpbGVtYXBfdW5tYXAsCisKKwlUUF9QUk9UTyhz
-dHJ1Y3QgbW1fc3RydWN0ICptbSwgdW5zaWduZWQgbG9uZyBhZGRyZXNzKSwKKworCVRQX0FS
-R1MobW0sIGFkZHJlc3MpLAorCisJVFBfU1RSVUNUX19lbnRyeSgKKwkJX19maWVsZChzdHJ1
-Y3QgbW1fc3RydWN0ICosIG1tKQorCQlfX2ZpZWxkKHVuc2lnbmVkIGxvbmcsIGFkZHJlc3Mp
-CisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAorCQlfX2VudHJ5LT5tbSA9IG1tOworCQlfX2Vu
-dHJ5LT5hZGRyZXNzID0gYWRkcmVzczsKKwkpLAorCisJVFBfcHJpbnRrKCJtbT0lbHggYWRk
-cmVzcz0lbHgiLAorCQkodW5zaWduZWQgbG9uZylfX2VudHJ5LT5tbSwgX19lbnRyeS0+YWRk
-cmVzcykKKwkpOworCitUUkFDRV9FVkVOVChtbV9maWxlbWFwX3VzZXJ1bm1hcCwKKworCVRQ
-X1BST1RPKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB1bnNpZ25lZCBsb25nIGFkZHJlc3MpLAor
-CisJVFBfQVJHUyhtbSwgYWRkcmVzcyksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2Zp
-ZWxkKHN0cnVjdCBtbV9zdHJ1Y3QgKiwgbW0pCisJCV9fZmllbGQodW5zaWduZWQgbG9uZywg
-YWRkcmVzcykKKwkpLAorCisJVFBfZmFzdF9hc3NpZ24oCisJCV9fZW50cnktPm1tID0gbW07
-CisJCV9fZW50cnktPmFkZHJlc3MgPSBhZGRyZXNzOworCSksCisKKwlUUF9wcmludGsoIm1t
-PSVseCBhZGRyZXNzPSVseCIsCisJCSh1bnNpZ25lZCBsb25nKV9fZW50cnktPm1tLCBfX2Vu
-dHJ5LT5hZGRyZXNzKQorCSk7CisKK1RSQUNFX0VWRU5UKG1tX3BhZ2VyZWNsYWltX3Bnb3V0
-LAorCisJVFBfUFJPVE8oc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsIHVuc2lnbmVk
-IGxvbmcgb2Zmc2V0LCBpbnQgYW5vbiksCisKKwlUUF9BUkdTKG1hcHBpbmcsIG9mZnNldCwg
-YW5vbiksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHN0cnVjdCBhZGRyZXNz
-X3NwYWNlICosIG1hcHBpbmcpCisJCV9fZmllbGQodW5zaWduZWQgbG9uZywgb2Zmc2V0KQor
-CQlfX2ZpZWxkKGludCwgYW5vbikKKwkpLAorCisJVFBfZmFzdF9hc3NpZ24oCisJCV9fZW50
-cnktPm1hcHBpbmcgPSBtYXBwaW5nOworCQlfX2VudHJ5LT5vZmZzZXQgPSBvZmZzZXQ7CisJ
-CV9fZW50cnktPmFub24gPSBhbm9uOworCSksCisKKwlUUF9wcmludGsoIm1hcHBpbmc9JWx4
-LCBvZmZzZXQ9JWx4ICVzIiwKKwkJKHVuc2lnbmVkIGxvbmcpX19lbnRyeS0+bWFwcGluZywg
-X19lbnRyeS0+b2Zmc2V0LCAKKwkJCV9fZW50cnktPmFub24gPyAiYW5vbnltb3VzIiA6ICJw
-YWdlY2FjaGUiKQorCSk7CisKK1RSQUNFX0VWRU5UKG1tX3BhZ2VyZWNsYWltX2ZyZWUsCisK
-KwlUUF9QUk9UTyh1bnNpZ25lZCBsb25nIG5yX3JlY2xhaW1lZCksCisKKwlUUF9BUkdTKG5y
-X3JlY2xhaW1lZCksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHVuc2lnbmVk
-IGxvbmcsIG5yX3JlY2xhaW1lZCkKKwkpLAorCisJVFBfZmFzdF9hc3NpZ24oCisJCV9fZW50
-cnktPm5yX3JlY2xhaW1lZCA9IG5yX3JlY2xhaW1lZDsKKwkpLAorCisJVFBfcHJpbnRrKCJm
-cmVlZD0lbGQiLCBfX2VudHJ5LT5ucl9yZWNsYWltZWQpCisJKTsKKworVFJBQ0VfRVZFTlQo
-bW1fcGRmbHVzaF9iZ3dyaXRlb3V0LAorCisJVFBfUFJPVE8odW5zaWduZWQgbG9uZyB3cml0
-dGVuKSwKKworCVRQX0FSR1Mod3JpdHRlbiksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlf
-X2ZpZWxkKHVuc2lnbmVkIGxvbmcsIHdyaXR0ZW4pCisJKSwKKworCVRQX2Zhc3RfYXNzaWdu
-KAorCQlfX2VudHJ5LT53cml0dGVuID0gd3JpdHRlbjsKKwkpLAorCisJVFBfcHJpbnRrKCJ3
-cml0dGVuPSVsZCIsIF9fZW50cnktPndyaXR0ZW4pCisJKTsKKworVFJBQ0VfRVZFTlQobW1f
-cGRmbHVzaF9rdXBkYXRlLAorCisJVFBfUFJPVE8odW5zaWduZWQgbG9uZyB3cml0ZXMpLAor
-CisJVFBfQVJHUyh3cml0ZXMpLAorCisJVFBfU1RSVUNUX19lbnRyeSgKKwkJX19maWVsZCh1
-bnNpZ25lZCBsb25nLCB3cml0ZXMpCisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAorCQlfX2Vu
-dHJ5LT53cml0ZXMgPSB3cml0ZXM7CisJKSwKKworCVRQX3ByaW50aygid3JpdGVzPSVsZCIs
-IF9fZW50cnktPndyaXRlcykKKwkpOworCitUUkFDRV9FVkVOVChtbV9iYWxhbmNlX2RpcnR5
-LAorCisJVFBfUFJPVE8odW5zaWduZWQgbG9uZyB3cml0dGVuKSwKKworCVRQX0FSR1Mod3Jp
-dHRlbiksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHVuc2lnbmVkIGxvbmcs
-IHdyaXR0ZW4pCisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAorCQlfX2VudHJ5LT53cml0dGVu
-ID0gd3JpdHRlbjsKKwkpLAorCisJVFBfcHJpbnRrKCJ3cml0dGVuPSVsZCIsIF9fZW50cnkt
-PndyaXR0ZW4pCisJKTsKKworVFJBQ0VfRVZFTlQobW1fcGFnZV9hbGxvY2F0aW9uLAorCisJ
-VFBfUFJPVE8odW5zaWduZWQgbG9uZyBmcmVlKSwKKworCVRQX0FSR1MoZnJlZSksCisKKwlU
-UF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHVuc2lnbmVkIGxvbmcsIGZyZWUpCisJKSwK
-KworCVRQX2Zhc3RfYXNzaWduKAorCQlfX2VudHJ5LT5mcmVlID0gZnJlZTsKKwkpLAorCisJ
-VFBfcHJpbnRrKCJ6b25lX2ZyZWU9JWxkIiwgX19lbnRyeS0+ZnJlZSkKKwkpOworCitUUkFD
-RV9FVkVOVChtbV9rc3dhcGRfcmFuLAorCisJVFBfUFJPVE8oc3RydWN0IHBnbGlzdF9kYXRh
-ICpwZ2RhdCwgdW5zaWduZWQgbG9uZyByZWNsYWltZWQpLAorCisJVFBfQVJHUyhwZ2RhdCwg
-cmVjbGFpbWVkKSwKKworCVRQX1NUUlVDVF9fZW50cnkoCisJCV9fZmllbGQoc3RydWN0IHBn
-bGlzdF9kYXRhICosIHBnZGF0KQorCQlfX2ZpZWxkKGludCwgbm9kZV9pZCkKKwkJX19maWVs
-ZCh1bnNpZ25lZCBsb25nLCByZWNsYWltZWQpCisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAor
-CQlfX2VudHJ5LT5wZ2RhdCA9IHBnZGF0OworCQlfX2VudHJ5LT5ub2RlX2lkID0gcGdkYXQt
-Pm5vZGVfaWQ7CisJCV9fZW50cnktPnJlY2xhaW1lZCA9IHJlY2xhaW1lZDsKKwkpLAorCisJ
-VFBfcHJpbnRrKCJub2RlPSVkIHJlY2xhaW1lZD0lbGQiLCBfX2VudHJ5LT5ub2RlX2lkLCBf
-X2VudHJ5LT5yZWNsYWltZWQpCisJKTsKKworVFJBQ0VfRVZFTlQobW1fZGlyZWN0cmVjbGFp
-bV9yZWNsYWltYWxsLAorCisJVFBfUFJPVE8oaW50IG5vZGUsIHVuc2lnbmVkIGxvbmcgcmVj
-bGFpbWVkLCB1bnNpZ25lZCBsb25nIHByaW9yaXR5KSwKKworCVRQX0FSR1Mobm9kZSwgcmVj
-bGFpbWVkLCBwcmlvcml0eSksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKGlu
-dCwgbm9kZSkKKwkJX19maWVsZCh1bnNpZ25lZCBsb25nLCByZWNsYWltZWQpCisJCV9fZmll
-bGQodW5zaWduZWQgbG9uZywgcHJpb3JpdHkpCisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAor
-CQlfX2VudHJ5LT5ub2RlID0gbm9kZTsKKwkJX19lbnRyeS0+cmVjbGFpbWVkID0gcmVjbGFp
-bWVkOworCQlfX2VudHJ5LT5wcmlvcml0eSA9IHByaW9yaXR5OworCSksCisKKwlUUF9wcmlu
-dGsoIm5vZGU9JWQgcmVjbGFpbWVkPSVsZCBwcmlvcml0eT0lbGQiLCBfX2VudHJ5LT5ub2Rl
-LCBfX2VudHJ5LT5yZWNsYWltZWQsIAorCQkJCQlfX2VudHJ5LT5wcmlvcml0eSkKKwkpOwor
-CitUUkFDRV9FVkVOVChtbV9kaXJlY3RyZWNsYWltX3JlY2xhaW16b25lLAorCisJVFBfUFJP
-VE8oaW50IG5vZGUsIHVuc2lnbmVkIGxvbmcgcmVjbGFpbWVkLCB1bnNpZ25lZCBsb25nIHBy
-aW9yaXR5KSwKKworCVRQX0FSR1Mobm9kZSwgcmVjbGFpbWVkLCBwcmlvcml0eSksCisKKwlU
-UF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKGludCwgbm9kZSkKKwkJX19maWVsZCh1bnNp
-Z25lZCBsb25nLCByZWNsYWltZWQpCisJCV9fZmllbGQodW5zaWduZWQgbG9uZywgcHJpb3Jp
-dHkpCisJKSwKKworCVRQX2Zhc3RfYXNzaWduKAorCQlfX2VudHJ5LT5ub2RlID0gbm9kZTsK
-KwkJX19lbnRyeS0+cmVjbGFpbWVkID0gcmVjbGFpbWVkOworCQlfX2VudHJ5LT5wcmlvcml0
-eSA9IHByaW9yaXR5OworCSksCisKKwlUUF9wcmludGsoIm5vZGUgPSAlZCByZWNsYWltZWQ9
-JWxkLCBwcmlvcml0eT0lbGQiLAorCQkJX19lbnRyeS0+bm9kZSwgX19lbnRyeS0+cmVjbGFp
-bWVkLCBfX2VudHJ5LT5wcmlvcml0eSkKKwkpOworVFJBQ0VfRVZFTlQobW1fcGFnZXJlY2xh
-aW1fc2hyaW5rem9uZSwKKworCVRQX1BST1RPKHVuc2lnbmVkIGxvbmcgcmVjbGFpbWVkLCB1
-bnNpZ25lZCBsb25nIHByaW9yaXR5KSwKKworCVRQX0FSR1MocmVjbGFpbWVkLCBwcmlvcml0
-eSksCisKKwlUUF9TVFJVQ1RfX2VudHJ5KAorCQlfX2ZpZWxkKHVuc2lnbmVkIGxvbmcsIHJl
-Y2xhaW1lZCkKKwkJX19maWVsZCh1bnNpZ25lZCBsb25nLCBwcmlvcml0eSkKKwkpLAorCisJ
-VFBfZmFzdF9hc3NpZ24oCisJCV9fZW50cnktPnJlY2xhaW1lZCA9IHJlY2xhaW1lZDsKKwkJ
-X19lbnRyeS0+cHJpb3JpdHkgPSBwcmlvcml0eTsKKwkpLAorCisJVFBfcHJpbnRrKCJyZWNs
-YWltZWQ9JWxkIHByaW9yaXR5PSVsZCIsCisJCQlfX2VudHJ5LT5yZWNsYWltZWQsIF9fZW50
-cnktPnByaW9yaXR5KQorCSk7CisKK1RSQUNFX0VWRU5UKG1tX3BhZ2VyZWNsYWltX3Nocmlu
-a2FjdGl2ZSwKKworCVRQX1BST1RPKHVuc2lnbmVkIGxvbmcgc2Nhbm5lZCwgaW50IGZpbGUs
-IGludCBwcmlvcml0eSksCisKKwlUUF9BUkdTKHNjYW5uZWQsIGZpbGUsIHByaW9yaXR5KSwK
-KworCVRQX1NUUlVDVF9fZW50cnkoCisJCV9fZmllbGQodW5zaWduZWQgbG9uZywgc2Nhbm5l
-ZCkKKwkJX19maWVsZChpbnQsIGZpbGUpCisJCV9fZmllbGQoaW50LCBwcmlvcml0eSkKKwkp
-LAorCisJVFBfZmFzdF9hc3NpZ24oCisJCV9fZW50cnktPnNjYW5uZWQgPSBzY2FubmVkOwor
-CQlfX2VudHJ5LT5maWxlID0gZmlsZTsKKwkJX19lbnRyeS0+cHJpb3JpdHkgPSBwcmlvcml0
-eTsKKwkpLAorCisJVFBfcHJpbnRrKCJzY2FubmVkPSVsZCwgJXMsIHByaW9yaXR5PSVkIiwK
-KwkJX19lbnRyeS0+c2Nhbm5lZCwgX19lbnRyeS0+ZmlsZSA/ICJwYWdlY2FjaGUiIDogImFu
-b255bW91cyIsCisJCV9fZW50cnktPnByaW9yaXR5KQorCSk7CisKK1RSQUNFX0VWRU5UKG1t
-X3BhZ2VyZWNsYWltX3Nocmlua2luYWN0aXZlLAorCisJVFBfUFJPVE8odW5zaWduZWQgbG9u
-ZyBzY2FubmVkLCB1bnNpZ25lZCBsb25nIHJlY2xhaW1lZCwKKwkJCWludCBwcmlvcml0eSks
-CisKKwlUUF9BUkdTKHNjYW5uZWQsIHJlY2xhaW1lZCwgcHJpb3JpdHkpLAorCisJVFBfU1RS
-VUNUX19lbnRyeSgKKwkJX19maWVsZCh1bnNpZ25lZCBsb25nLCBzY2FubmVkKQorCQlfX2Zp
-ZWxkKHVuc2lnbmVkIGxvbmcsIHJlY2xhaW1lZCkKKwkJX19maWVsZChpbnQsIHByaW9yaXR5
-KQorCSksCisKKwlUUF9mYXN0X2Fzc2lnbigKKwkJX19lbnRyeS0+c2Nhbm5lZCA9IHNjYW5u
-ZWQ7CisJCV9fZW50cnktPnJlY2xhaW1lZCA9IHJlY2xhaW1lZDsKKwkJX19lbnRyeS0+cHJp
-b3JpdHkgPSBwcmlvcml0eTsKKwkpLAorCisJVFBfcHJpbnRrKCJzY2FubmVkPSVsZCwgcmVj
-bGFpbWVkPSVsZCwgcHJpb3JpdHk9JWQiLAorCQlfX2VudHJ5LT5zY2FubmVkLCBfX2VudHJ5
-LT5yZWNsYWltZWQsIAorCQlfX2VudHJ5LT5wcmlvcml0eSkKKwkpOworCisjZW5kaWYgLyog
-X1RSQUNFX01NX0ggKi8KKworLyogVGhpcyBwYXJ0IG11c3QgYmUgb3V0c2lkZSBwcm90ZWN0
-aW9uICovCisjaW5jbHVkZSA8dHJhY2UvZGVmaW5lX3RyYWNlLmg+CmRpZmYgLS1naXQgYS9t
-bS9maWxlbWFwLmMgYi9tbS9maWxlbWFwLmMKaW5kZXggMWI2MGYzMC4uYWY0YTk2NCAxMDA2
-NDQKLS0tIGEvbW0vZmlsZW1hcC5jCisrKyBiL21tL2ZpbGVtYXAuYwpAQCAtMzQsNiArMzQs
-NyBAQAogI2luY2x1ZGUgPGxpbnV4L2hhcmRpcnEuaD4gLyogZm9yIEJVR19PTighaW5fYXRv
-bWljKCkpIG9ubHkgKi8KICNpbmNsdWRlIDxsaW51eC9tZW1jb250cm9sLmg+CiAjaW5jbHVk
-ZSA8bGludXgvbW1faW5saW5lLmg+IC8qIGZvciBwYWdlX2lzX2ZpbGVfY2FjaGUoKSAqLwor
-I2luY2x1ZGUgPHRyYWNlL2V2ZW50cy9tbS5oPgogI2luY2x1ZGUgImludGVybmFsLmgiCiAK
-IC8qCkBAIC0xNTY4LDYgKzE1NjksOCBAQCByZXRyeV9maW5kOgogCSAqLwogCXJhLT5wcmV2
-X3BvcyA9IChsb2ZmX3QpcGFnZS0+aW5kZXggPDwgUEFHRV9DQUNIRV9TSElGVDsKIAl2bWYt
-PnBhZ2UgPSBwYWdlOworCXRyYWNlX21tX2ZpbGVtYXBfZmF1bHQodm1hLT52bV9tbSwgKHVu
-c2lnbmVkIGxvbmcpdm1mLT52aXJ0dWFsX2FkZHJlc3MsCisJCQl2bWYtPmZsYWdzJkZBVUxU
-X0ZMQUdfTk9OTElORUFSKTsKIAlyZXR1cm4gcmV0IHwgVk1fRkFVTFRfTE9DS0VEOwogCiBu
-b19jYWNoZWRfcGFnZToKZGlmZiAtLWdpdCBhL21tL21lbW9yeS5jIGIvbW0vbWVtb3J5LmMK
-aW5kZXggNDEyNmRkMS4uYTRhNTgwYyAxMDA2NDQKLS0tIGEvbW0vbWVtb3J5LmMKKysrIGIv
-bW0vbWVtb3J5LmMKQEAgLTYxLDYgKzYxLDcgQEAKICNpbmNsdWRlIDxhc20vdGxiLmg+CiAj
-aW5jbHVkZSA8YXNtL3RsYmZsdXNoLmg+CiAjaW5jbHVkZSA8YXNtL3BndGFibGUuaD4KKyNp
-bmNsdWRlIDx0cmFjZS9ldmVudHMvbW0uaD4KIAogI2luY2x1ZGUgImludGVybmFsLmgiCiAK
-QEAgLTgxMiwxNSArODEzLDE3IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIHphcF9wdGVfcmFu
-Z2Uoc3RydWN0IG1tdV9nYXRoZXIgKnRsYiwKIAkJCQkJCWFkZHIpICE9IHBhZ2UtPmluZGV4
-KQogCQkJCXNldF9wdGVfYXQobW0sIGFkZHIsIHB0ZSwKIAkJCQkJICAgcGdvZmZfdG9fcHRl
-KHBhZ2UtPmluZGV4KSk7Ci0JCQlpZiAoUGFnZUFub24ocGFnZSkpCisJCQlpZiAoUGFnZUFu
-b24ocGFnZSkpIHsKIAkJCQlhbm9uX3Jzcy0tOwotCQkJZWxzZSB7CisJCQkJdHJhY2VfbW1f
-YW5vbl91c2VyZnJlZShtbSwgYWRkcik7CisJCQl9IGVsc2UgewogCQkJCWlmIChwdGVfZGly
-dHkocHRlbnQpKQogCQkJCQlzZXRfcGFnZV9kaXJ0eShwYWdlKTsKIAkJCQlpZiAocHRlX3lv
-dW5nKHB0ZW50KSAmJgogCQkJCSAgICBsaWtlbHkoIVZNX1NlcXVlbnRpYWxSZWFkSGludCh2
-bWEpKSkKIAkJCQkJbWFya19wYWdlX2FjY2Vzc2VkKHBhZ2UpOwogCQkJCWZpbGVfcnNzLS07
-CisJCQkJdHJhY2VfbW1fZmlsZW1hcF91c2VydW5tYXAobW0sIGFkZHIpOwogCQkJfQogCQkJ
-cGFnZV9yZW1vdmVfcm1hcChwYWdlKTsKIAkJCWlmICh1bmxpa2VseShwYWdlX21hcGNvdW50
-KHBhZ2UpIDwgMCkpCkBAIC0xODk2LDcgKzE4OTksNyBAQCBzdGF0aWMgaW50IGRvX3dwX3Bh
-Z2Uoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLAog
-CQl1bnNpZ25lZCBsb25nIGFkZHJlc3MsIHB0ZV90ICpwYWdlX3RhYmxlLCBwbWRfdCAqcG1k
-LAogCQlzcGlubG9ja190ICpwdGwsIHB0ZV90IG9yaWdfcHRlKQogewotCXN0cnVjdCBwYWdl
-ICpvbGRfcGFnZSwgKm5ld19wYWdlOworCXN0cnVjdCBwYWdlICpvbGRfcGFnZSwgKm5ld19w
-YWdlID0gTlVMTDsKIAlwdGVfdCBlbnRyeTsKIAlpbnQgcmV1c2UgPSAwLCByZXQgPSAwOwog
-CWludCBwYWdlX21rd3JpdGUgPSAwOwpAQCAtMjA1MCw5ICsyMDUzLDEyIEBAIGdvdHRlbjoK
-IAkJCWlmICghUGFnZUFub24ob2xkX3BhZ2UpKSB7CiAJCQkJZGVjX21tX2NvdW50ZXIobW0s
-IGZpbGVfcnNzKTsKIAkJCQlpbmNfbW1fY291bnRlcihtbSwgYW5vbl9yc3MpOworCQkJCXRy
-YWNlX21tX2ZpbGVtYXBfY293KG1tLCBhZGRyZXNzKTsKIAkJCX0KLQkJfSBlbHNlCisJCX0g
-ZWxzZSB7CiAJCQlpbmNfbW1fY291bnRlcihtbSwgYW5vbl9yc3MpOworCQkJdHJhY2VfbW1f
-YW5vbl9jb3cobW0sIGFkZHJlc3MpOworCQl9CiAJCWZsdXNoX2NhY2hlX3BhZ2Uodm1hLCBh
-ZGRyZXNzLCBwdGVfcGZuKG9yaWdfcHRlKSk7CiAJCWVudHJ5ID0gbWtfcHRlKG5ld19wYWdl
-LCB2bWEtPnZtX3BhZ2VfcHJvdCk7CiAJCWVudHJ5ID0gbWF5YmVfbWt3cml0ZShwdGVfbWtk
-aXJ0eShlbnRyeSksIHZtYSk7CkBAIC0yNDQ5LDcgKzI0NTUsNyBAQCBzdGF0aWMgaW50IGRv
-X3N3YXBfcGFnZShzdHJ1Y3QgbW1fc3RydWN0ICptbSwgc3RydWN0IHZtX2FyZWFfc3RydWN0
-ICp2bWEsCiAJCWludCB3cml0ZV9hY2Nlc3MsIHB0ZV90IG9yaWdfcHRlKQogewogCXNwaW5s
-b2NrX3QgKnB0bDsKLQlzdHJ1Y3QgcGFnZSAqcGFnZTsKKwlzdHJ1Y3QgcGFnZSAqcGFnZSA9
-IE5VTEw7CiAJc3dwX2VudHJ5X3QgZW50cnk7CiAJcHRlX3QgcHRlOwogCXN0cnVjdCBtZW1f
-Y2dyb3VwICpwdHIgPSBOVUxMOwpAQCAtMjU0OSw2ICsyNTU1LDcgQEAgc3RhdGljIGludCBk
-b19zd2FwX3BhZ2Uoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCB2bV9hcmVhX3N0cnVj
-dCAqdm1hLAogdW5sb2NrOgogCXB0ZV91bm1hcF91bmxvY2socGFnZV90YWJsZSwgcHRsKTsK
-IG91dDoKKwl0cmFjZV9tbV9hbm9uX3BnaW4obW0sIGFkZHJlc3MpOwogCXJldHVybiByZXQ7
-CiBvdXRfbm9tYXA6CiAJbWVtX2Nncm91cF9jYW5jZWxfY2hhcmdlX3N3YXBpbihwdHIpOwpA
-QCAtMjU4Miw2ICsyNTg5LDcgQEAgc3RhdGljIGludCBkb19hbm9ueW1vdXNfcGFnZShzdHJ1
-Y3QgbW1fc3RydWN0ICptbSwgc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEsCiAJCWdvdG8g
-b29tOwogCV9fU2V0UGFnZVVwdG9kYXRlKHBhZ2UpOwogCisJdHJhY2VfbW1fYW5vbl9mYXVs
-dChtbSwgYWRkcmVzcyk7CiAJaWYgKG1lbV9jZ3JvdXBfbmV3cGFnZV9jaGFyZ2UocGFnZSwg
-bW0sIEdGUF9LRVJORUwpKQogCQlnb3RvIG9vbV9mcmVlX3BhZ2U7CiAKZGlmZiAtLWdpdCBh
-L21tL3BhZ2Utd3JpdGViYWNrLmMgYi9tbS9wYWdlLXdyaXRlYmFjay5jCmluZGV4IGJiNTUz
-YzMuLmVmOTJhOTcgMTAwNjQ0Ci0tLSBhL21tL3BhZ2Utd3JpdGViYWNrLmMKKysrIGIvbW0v
-cGFnZS13cml0ZWJhY2suYwpAQCAtMzQsNiArMzQsNyBAQAogI2luY2x1ZGUgPGxpbnV4L3N5
-c2NhbGxzLmg+CiAjaW5jbHVkZSA8bGludXgvYnVmZmVyX2hlYWQuaD4KICNpbmNsdWRlIDxs
-aW51eC9wYWdldmVjLmg+CisjaW5jbHVkZSA8dHJhY2UvZXZlbnRzL21tLmg+CiAKIC8qCiAg
-KiBUaGUgbWF4aW11bSBudW1iZXIgb2YgcGFnZXMgdG8gd3JpdGVvdXQgaW4gYSBzaW5nbGUg
-YmRmbHVzaC9rdXBkYXRlCkBAIC01NzQsNiArNTc1LDcgQEAgc3RhdGljIHZvaWQgYmFsYW5j
-ZV9kaXJ0eV9wYWdlcyhzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZykKIAkJY29uZ2Vz
-dGlvbl93YWl0KFdSSVRFLCBIWi8xMCk7CiAJfQogCisJdHJhY2VfbW1fYmFsYW5jZV9kaXJ0
-eShwYWdlc193cml0dGVuKTsKIAlpZiAoYmRpX25yX3JlY2xhaW1hYmxlICsgYmRpX25yX3dy
-aXRlYmFjayA8IGJkaV90aHJlc2ggJiYKIAkJCWJkaS0+ZGlydHlfZXhjZWVkZWQpCiAJCWJk
-aS0+ZGlydHlfZXhjZWVkZWQgPSAwOwpAQCAtNzE2LDYgKzcxOCw3IEBAIHN0YXRpYyB2b2lk
-IGJhY2tncm91bmRfd3JpdGVvdXQodW5zaWduZWQgbG9uZyBfbWluX3BhZ2VzKQogCQkJCWJy
-ZWFrOwogCQl9CiAJfQorCXRyYWNlX21tX3BkZmx1c2hfYmd3cml0ZW91dChfbWluX3BhZ2Vz
-KTsKIH0KIAogLyoKQEAgLTc3Niw2ICs3NzksNyBAQCBzdGF0aWMgdm9pZCB3Yl9rdXBkYXRl
-KHVuc2lnbmVkIGxvbmcgYXJnKQogCW5yX3RvX3dyaXRlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUo
-TlJfRklMRV9ESVJUWSkgKwogCQkJZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfVU5TVEFCTEVfTkZT
-KSArCiAJCQkoaW5vZGVzX3N0YXQubnJfaW5vZGVzIC0gaW5vZGVzX3N0YXQubnJfdW51c2Vk
-KTsKKwl0cmFjZV9tbV9wZGZsdXNoX2t1cGRhdGUobnJfdG9fd3JpdGUpOwogCXdoaWxlIChu
-cl90b193cml0ZSA+IDApIHsKIAkJd2JjLm1vcmVfaW8gPSAwOwogCQl3YmMuZW5jb3VudGVy
-ZWRfY29uZ2VzdGlvbiA9IDA7CmRpZmYgLS1naXQgYS9tbS9wYWdlX2FsbG9jLmMgYi9tbS9w
-YWdlX2FsbG9jLmMKaW5kZXggMDcyNzg5Ni4uY2E5MzU1ZSAxMDA2NDQKLS0tIGEvbW0vcGFn
-ZV9hbGxvYy5jCisrKyBiL21tL3BhZ2VfYWxsb2MuYwpAQCAtNDgsNiArNDgsNyBAQAogI2lu
-Y2x1ZGUgPGxpbnV4L3BhZ2VfY2dyb3VwLmg+CiAjaW5jbHVkZSA8bGludXgvZGVidWdvYmpl
-Y3RzLmg+CiAjaW5jbHVkZSA8bGludXgva21lbWxlYWsuaD4KKyNpbmNsdWRlIDx0cmFjZS9l
-dmVudHMvbW0uaD4KIAogI2luY2x1ZGUgPGFzbS90bGJmbHVzaC5oPgogI2luY2x1ZGUgPGFz
-bS9kaXY2NC5oPgpAQCAtMTQ0MCw2ICsxNDQxLDcgQEAgem9uZWxpc3Rfc2NhbjoKIAkJCQlt
-YXJrID0gem9uZS0+cGFnZXNfaGlnaDsKIAkJCWlmICghem9uZV93YXRlcm1hcmtfb2soem9u
-ZSwgb3JkZXIsIG1hcmssCiAJCQkJICAgIGNsYXNzem9uZV9pZHgsIGFsbG9jX2ZsYWdzKSkg
-eworCQkJCXRyYWNlX21tX3BhZ2VfYWxsb2NhdGlvbih6b25lX3BhZ2Vfc3RhdGUoem9uZSwg
-TlJfRlJFRV9QQUdFUykpOwogCQkJCWlmICghem9uZV9yZWNsYWltX21vZGUgfHwKIAkJCQkg
-ICAgIXpvbmVfcmVjbGFpbSh6b25lLCBnZnBfbWFzaywgb3JkZXIpKQogCQkJCQlnb3RvIHRo
-aXNfem9uZV9mdWxsOwpkaWZmIC0tZ2l0IGEvbW0vcm1hcC5jIGIvbW0vcm1hcC5jCmluZGV4
-IDIzMTIyYWYuLmYyMTU2Y2EgMTAwNjQ0Ci0tLSBhL21tL3JtYXAuYworKysgYi9tbS9ybWFw
-LmMKQEAgLTUwLDYgKzUwLDcgQEAKICNpbmNsdWRlIDxsaW51eC9tZW1jb250cm9sLmg+CiAj
-aW5jbHVkZSA8bGludXgvbW11X25vdGlmaWVyLmg+CiAjaW5jbHVkZSA8bGludXgvbWlncmF0
-ZS5oPgorI2luY2x1ZGUgPHRyYWNlL2V2ZW50cy9tbS5oPgogCiAjaW5jbHVkZSA8YXNtL3Rs
-YmZsdXNoLmg+CiAKQEAgLTEwMjUsNiArMTAyNiw3IEBAIHN0YXRpYyBpbnQgdHJ5X3RvX3Vu
-bWFwX2Fub24oc3RydWN0IHBhZ2UgKnBhZ2UsIGludCB1bmxvY2ssIGludCBtaWdyYXRpb24p
-CiAJCQlpZiAobWxvY2tlZCkKIAkJCQlicmVhazsJLyogc3RvcCBpZiBhY3R1YWxseSBtbG9j
-a2VkIHBhZ2UgKi8KIAkJfQorCQl0cmFjZV9tbV9hbm9uX3VubWFwKHZtYS0+dm1fbW0sIHZt
-YS0+dm1fc3RhcnQrcGFnZS0+aW5kZXgpOwogCX0KIAogCXBhZ2VfdW5sb2NrX2Fub25fdm1h
-KGFub25fdm1hKTsKQEAgLTExNTIsNiArMTE1NCw3IEBAIHN0YXRpYyBpbnQgdHJ5X3RvX3Vu
-bWFwX2ZpbGUoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCB1bmxvY2ssIGludCBtaWdyYXRpb24p
-CiAJCQkJCWdvdG8gb3V0OwogCQkJfQogCQkJdm1hLT52bV9wcml2YXRlX2RhdGEgPSAodm9p
-ZCAqKSBtYXhfbmxfY3Vyc29yOworCQkJdHJhY2VfbW1fZmlsZW1hcF91bm1hcCh2bWEtPnZt
-X21tLCB2bWEtPnZtX3N0YXJ0K3BhZ2UtPmluZGV4KTsKIAkJfQogCQljb25kX3Jlc2NoZWRf
-bG9jaygmbWFwcGluZy0+aV9tbWFwX2xvY2spOwogCQltYXhfbmxfY3Vyc29yICs9IENMVVNU
-RVJfU0laRTsKZGlmZiAtLWdpdCBhL21tL3Ztc2Nhbi5jIGIvbW0vdm1zY2FuLmMKaW5kZXgg
-OTVjMDhhOC4uYmVkNzEyNSAxMDA2NDQKLS0tIGEvbW0vdm1zY2FuLmMKKysrIGIvbW0vdm1z
-Y2FuLmMKQEAgLTQwLDYgKzQwLDggQEAKICNpbmNsdWRlIDxsaW51eC9tZW1jb250cm9sLmg+
-CiAjaW5jbHVkZSA8bGludXgvZGVsYXlhY2N0Lmg+CiAjaW5jbHVkZSA8bGludXgvc3lzY3Rs
-Lmg+CisjZGVmaW5lIENSRUFURV9UUkFDRV9QT0lOVFMKKyNpbmNsdWRlIDx0cmFjZS9ldmVu
-dHMvbW0uaD4KIAogI2luY2x1ZGUgPGFzbS90bGJmbHVzaC5oPgogI2luY2x1ZGUgPGFzbS9k
-aXY2NC5oPgpAQCAtNDE3LDYgKzQxOSw4IEBAIHN0YXRpYyBwYWdlb3V0X3QgcGFnZW91dChz
-dHJ1Y3QgcGFnZSAqcGFnZSwgc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsCiAJCQlD
-bGVhclBhZ2VSZWNsYWltKHBhZ2UpOwogCQl9CiAJCWluY196b25lX3BhZ2Vfc3RhdGUocGFn
-ZSwgTlJfVk1TQ0FOX1dSSVRFKTsKKwkJdHJhY2VfbW1fcGFnZXJlY2xhaW1fcGdvdXQobWFw
-cGluZywgcGFnZS0+aW5kZXg8PFBBR0VfU0hJRlQsCisJCQkJCQlQYWdlQW5vbihwYWdlKSk7
-CiAJCXJldHVybiBQQUdFX1NVQ0NFU1M7CiAJfQogCkBAIC03OTYsNiArODAwLDcgQEAga2Vl
-cDoKIAlpZiAocGFnZXZlY19jb3VudCgmZnJlZWRfcHZlYykpCiAJCV9fcGFnZXZlY19mcmVl
-KCZmcmVlZF9wdmVjKTsKIAljb3VudF92bV9ldmVudHMoUEdBQ1RJVkFURSwgcGdhY3RpdmF0
-ZSk7CisJdHJhY2VfbW1fcGFnZXJlY2xhaW1fZnJlZShucl9yZWNsYWltZWQpOwogCXJldHVy
-biBucl9yZWNsYWltZWQ7CiB9CiAKQEAgLTExODIsNiArMTE4Nyw4IEBAIHN0YXRpYyB1bnNp
-Z25lZCBsb25nIHNocmlua19pbmFjdGl2ZV9saXN0KHVuc2lnbmVkIGxvbmcgbWF4X3NjYW4s
-CiBkb25lOgogCWxvY2FsX2lycV9lbmFibGUoKTsKIAlwYWdldmVjX3JlbGVhc2UoJnB2ZWMp
-OworCXRyYWNlX21tX3BhZ2VyZWNsYWltX3Nocmlua2luYWN0aXZlKG5yX3NjYW5uZWQsIG5y
-X3JlY2xhaW1lZCwKKwkJCQlwcmlvcml0eSk7CiAJcmV0dXJuIG5yX3JlY2xhaW1lZDsKIH0K
-IApAQCAtMTMxNiw2ICsxMzIzLDcgQEAgc3RhdGljIHZvaWQgc2hyaW5rX2FjdGl2ZV9saXN0
-KHVuc2lnbmVkIGxvbmcgbnJfcGFnZXMsIHN0cnVjdCB6b25lICp6b25lLAogCWlmIChidWZm
-ZXJfaGVhZHNfb3Zlcl9saW1pdCkKIAkJcGFnZXZlY19zdHJpcCgmcHZlYyk7CiAJcGFnZXZl
-Y19yZWxlYXNlKCZwdmVjKTsKKwl0cmFjZV9tbV9wYWdlcmVjbGFpbV9zaHJpbmthY3RpdmUo
-cGdzY2FubmVkLCBmaWxlLCBwcmlvcml0eSk7CiB9CiAKIHN0YXRpYyBpbnQgaW5hY3RpdmVf
-YW5vbl9pc19sb3dfZ2xvYmFsKHN0cnVjdCB6b25lICp6b25lKQpAQCAtMTUxNiw2ICsxNTI0
-LDcgQEAgc3RhdGljIHZvaWQgc2hyaW5rX3pvbmUoaW50IHByaW9yaXR5LCBzdHJ1Y3Qgem9u
-ZSAqem9uZSwKIAl9CiAKIAlzYy0+bnJfcmVjbGFpbWVkID0gbnJfcmVjbGFpbWVkOworCXRy
-YWNlX21tX3BhZ2VyZWNsYWltX3Nocmlua3pvbmUobnJfcmVjbGFpbWVkLCBwcmlvcml0eSk7
-CiAKIAkvKgogCSAqIEV2ZW4gaWYgd2UgZGlkIG5vdCB0cnkgdG8gZXZpY3QgYW5vbiBwYWdl
-cyBhdCBhbGwsIHdlIHdhbnQgdG8KQEAgLTE2NzgsNiArMTY4Nyw4IEBAIG91dDoKIAlpZiAo
-cHJpb3JpdHkgPCAwKQogCQlwcmlvcml0eSA9IDA7CiAKKwl0cmFjZV9tbV9kaXJlY3RyZWNs
-YWltX3JlY2xhaW1hbGwoem9uZWxpc3RbMF0uX3pvbmVyZWZzLT56b25lLT5ub2RlLAorCQkJ
-CQkJc2MtPm5yX3JlY2xhaW1lZCwgcHJpb3JpdHkpOwogCWlmIChzY2FubmluZ19nbG9iYWxf
-bHJ1KHNjKSkgewogCQlmb3JfZWFjaF96b25lX3pvbmVsaXN0KHpvbmUsIHosIHpvbmVsaXN0
-LCBoaWdoX3pvbmVpZHgpIHsKIApAQCAtMTk0Nyw2ICsxOTU4LDcgQEAgb3V0OgogCQlnb3Rv
-IGxvb3BfYWdhaW47CiAJfQogCisJdHJhY2VfbW1fa3N3YXBkX3JhbihwZ2RhdCwgc2MubnJf
-cmVjbGFpbWVkKTsKIAlyZXR1cm4gc2MubnJfcmVjbGFpbWVkOwogfQogCkBAIC0yMjk5LDcg
-KzIzMTEsNyBAQCBzdGF0aWMgaW50IF9fem9uZV9yZWNsYWltKHN0cnVjdCB6b25lICp6b25l
-LCBnZnBfdCBnZnBfbWFzaywgdW5zaWduZWQgaW50IG9yZGVyKQogCWNvbnN0IHVuc2lnbmVk
-IGxvbmcgbnJfcGFnZXMgPSAxIDw8IG9yZGVyOwogCXN0cnVjdCB0YXNrX3N0cnVjdCAqcCA9
-IGN1cnJlbnQ7CiAJc3RydWN0IHJlY2xhaW1fc3RhdGUgcmVjbGFpbV9zdGF0ZTsKLQlpbnQg
-cHJpb3JpdHk7CisJaW50IHByaW9yaXR5ID0gWk9ORV9SRUNMQUlNX1BSSU9SSVRZOwogCXN0
-cnVjdCBzY2FuX2NvbnRyb2wgc2MgPSB7CiAJCS5tYXlfd3JpdGVwYWdlID0gISEoem9uZV9y
-ZWNsYWltX21vZGUgJiBSRUNMQUlNX1dSSVRFKSwKIAkJLm1heV91bm1hcCA9ICEhKHpvbmVf
-cmVjbGFpbV9tb2RlICYgUkVDTEFJTV9TV0FQKSwKQEAgLTIzNjYsNiArMjM3OCw4IEBAIHN0
-YXRpYyBpbnQgX196b25lX3JlY2xhaW0oc3RydWN0IHpvbmUgKnpvbmUsIGdmcF90IGdmcF9t
-YXNrLCB1bnNpZ25lZCBpbnQgb3JkZXIpCiAKIAlwLT5yZWNsYWltX3N0YXRlID0gTlVMTDsK
-IAljdXJyZW50LT5mbGFncyAmPSB+KFBGX01FTUFMTE9DIHwgUEZfU1dBUFdSSVRFKTsKKwl0
-cmFjZV9tbV9kaXJlY3RyZWNsYWltX3JlY2xhaW16b25lKHpvbmUtPm5vZGUsCisJCQkJc2Mu
-bnJfcmVjbGFpbWVkLCBwcmlvcml0eSk7CiAJcmV0dXJuIHNjLm5yX3JlY2xhaW1lZCA+PSBu
-cl9wYWdlczsKIH0KIAo=
---------------080605010607070906000405--
+If one used "echo" [usually a shell builtin] to increase nr_hugepages,
+it killed off your shell.  sysctl was somewhat better--only killed
+sysctl.  The good news was that oom kill just sets a thread info flag,
+so the nr_hugepages handler continued to allocate pages around the nodes
+and further oom kills were effective no-ops.  When the allocations was
+done, the victim task would die.  End users might not consider this
+acceptable behavior.
+
+I wasn't sure we'd avoid this situation if we dropped back to using task
+mempolicy via, e.g., alloc_pages_current().  So, I thought I'd run this
+proposal [nodes_allowed] by you.
+
+> 
+> > One could derive a node mask
+> > of allowed nodes for huge pages from the mempolicy of the task
+> > that is modifying nr_hugepages and use that for fresh huge pages
+> > with GFP_THISNODE.  However, if we're not going to use mempolicy
+> > directly--e.g., via alloc_page_current() or alloc_page_vma() [with
+> > yet another on-stack pseudo-vma :(]--I thought it cleaner to
+> > define a "nodes allowed" nodemask for populating the [persistent]
+> > huge pages free pool.
+> > 
+> 
+> How about adding alloc_page_mempolicy() that takes the explicit mempolicy
+> you need?
+
+Interesting you should mention this.  Somewhat off topic:  I have a
+"cleanup" and reorg of shared policy and vma policy that separates
+policy lookup from allocation, and adds an "alloc_page_pol()" function.
+This is part of my series to generalize shared policy and extend it to
+shared, mmap()ed regular files.  That aspect of the series [shared
+policy on shared mmaped files] got a lot of push back without any
+consideration of the technical details of the patches themselves.
+Besides having need/requests for this capability, the resulting cleanup,
+removal of all on-stack pseudo-vmas, ..., the series actually seems to
+perform [slightly] better on the testing I've done.
+
+I keep this series up to date and hope to repost again sometime with
+benchmark results. 
+
+
+> 
+> > This patch series introduces a [per hugepage size] "sysctl",
+> > hugepages_nodes_allowed, that specifies a nodemask to constrain
+> > the allocation of persistent, fresh huge pages.   The nodemask
+> > may be specified by a sysctl, a sysfs huge pages attribute and
+> > on the kernel boot command line.  
+> > 
+> > The series includes a patch to free hugepages from the pool in a
+> > "round robin" fashion, interleaved across all on-line nodes to
+> > balance the hugepage pool across nodes.  Nish had a patch to do
+> > this, too.
+> > 
+> > Together, these changes don't provide the fine grain of control
+> > that per node attributes would. 
+> 
+> I'm failing to understand at the moment why mem policies set by numactl
+> would not do the job for allocation at least. Freeing is a different problem.
+
+They could be made to work.  I actually started coding up a patch to
+extract a "nodes allowed" mask from the policy for use with
+alloc_fresh_huge_page[_node]() so that I could maintain the overall
+structure and use alloc_page_exact_node() with nodes in the allowed
+mask.  And, as you say, with some investigation, we may find that we can
+use alloc_pages_current() with appropriate flags to achieve the exact
+node semantics on each node in the policy.
+
+> 
+> > Specifically, there is no easy
+> > way to reduce the persistent huge page count for a specific node.
+> > I think the degree of control provided by these patches is the
+> > minimal necessary and sufficient for managing the persistent the
+> > huge page pool.  However, with a bit more reorganization,  we
+> > could implement per node controls if others would find that
+> > useful.
+> > 
+> > For more info, see the patch descriptions and the updated kernel
+> > hugepages documentation.
+> > 
+> 
+
+More in response to your comments on the individual patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
