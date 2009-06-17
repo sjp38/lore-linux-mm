@@ -1,132 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E33AB6B005C
-	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 20:27:53 -0400 (EDT)
-Received: by pzk34 with SMTP id 34so2874958pzk.12
-        for <linux-mm@kvack.org>; Tue, 16 Jun 2009 17:28:45 -0700 (PDT)
-Date: Wed, 17 Jun 2009 09:28:26 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
- try_to_unmap
-Message-Id: <20090617092826.56730a10.minchan.kim@barrios-desktop>
-In-Reply-To: <20090616134944.GB7524@localhost>
-References: <20090615024520.786814520@intel.com>
-	<20090615031253.530308256@intel.com>
-	<28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
-	<20090615152612.GA11700@localhost>
-	<20090616090308.bac3b1f7.minchan.kim@barrios-desktop>
-	<20090616134944.GB7524@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2D9D56B0062
+	for <linux-mm@kvack.org>; Tue, 16 Jun 2009 21:13:17 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5H1Ddjq031037
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 17 Jun 2009 10:13:39 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 068CD45DE53
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:13:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 97BF745DE4F
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:13:38 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E0BE1DB8047
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:13:38 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2126F1DB8044
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:13:38 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC] set the thread name
+In-Reply-To: <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
+References: <1245177592.14543.1.camel@wall-e> <36ca99e90906161214u6624014q3f3dc4e234bdf772@mail.gmail.com>
+Message-Id: <20090617100803.99C1.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 17 Jun 2009 10:13:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Bert Wesarg <bert.wesarg@googlemail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Stefani Seibold <stefani@seibold.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Jun 2009 21:49:44 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+(cc to linux-api)
 
-> On Tue, Jun 16, 2009 at 08:03:08AM +0800, Minchan Kim wrote:
-> > On Mon, 15 Jun 2009 23:26:12 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
-> > > > On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > > > > From: Andi Kleen <ak@linux.intel.com>
-> > > > >
-> > > > > When a page has the poison bit set replace the PTE with a poison entry.
-> > > > > This causes the right error handling to be done later when a process runs
-> > > > > into it.
-> > > > >
-> > > > > Also add a new flag to not do that (needed for the memory-failure handler
-> > > > > later)
-> > > > >
-> > > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> > > > >
-> > > > > ---
-> > > > > A include/linux/rmap.h | A  A 1 +
-> > > > > A mm/rmap.c A  A  A  A  A  A | A  A 9 ++++++++-
-> > > > > A 2 files changed, 9 insertions(+), 1 deletion(-)
-> > > > >
-> > > > > --- sound-2.6.orig/mm/rmap.c
-> > > > > +++ sound-2.6/mm/rmap.c
-> > > > > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct page
-> > > > > A  A  A  A /* Update high watermark before we lower rss */
-> > > > > A  A  A  A update_hiwater_rss(mm);
-> > > > >
-> > > > > - A  A  A  if (PageAnon(page)) {
-> > > > > + A  A  A  if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-> > > > > + A  A  A  A  A  A  A  if (PageAnon(page))
-> > > > > + A  A  A  A  A  A  A  A  A  A  A  dec_mm_counter(mm, anon_rss);
-> > > > > + A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
-> > > > 
-> > > > Isn't it straightforward to use !is_hwpoison_entry ?
-> > > 
-> > > Good catch!  It looks like a redundant check: the
-> > > page_check_address() at the beginning of the function guarantees that 
-> > > !is_migration_entry() or !is_migration_entry() tests will all be TRUE.
-> > > So let's do this?
-> > It seems you expand my sight :)
-> > 
-> > I don't know migration well.
-> > How page_check_address guarantee it's not migration entry ? 
+> Hi,
 > 
-> page_check_address() calls pte_present() which returns the
-> (_PAGE_PRESENT | _PAGE_PROTNONE) bits. While x86-64 defines
-> 
-> #define __swp_entry(type, offset)       ((swp_entry_t) { \
->                                          ((type) << (_PAGE_BIT_PRESENT + 1)) \
->                                          | ((offset) << SWP_OFFSET_SHIFT) })
-> 
-> where SWP_OFFSET_SHIFT is defined to the bigger one of
-> max(_PAGE_BIT_PROTNONE + 1, _PAGE_BIT_FILE + 1) = max(8+1, 6+1) = 9.
-> 
-> So __swp_entry(type, offset) := (type << 1) | (offset << 9)
-> 
-> We know that the swap type is 5 bits. So the bit 0 _PAGE_PRESENT and bit 8
-> _PAGE_PROTNONE will all be zero for swap entries.
->  
+> On Tue, Jun 16, 2009 at 20:39, Stefani Seibold<stefani@seibold.net> wrote:
+> > Currently it is not easy to identify a thread in linux, because there is
+> > no thread name like in some other OS.
+> >
+> > If there were are thread name then we could extend a kernel segv message
+> > and the /proc/<pid>/task/<tid>/... entries by a TName value like this:
+> prctl(PR_SET_NAME, ...) works perfectly here.
 
-Thanks for kind explanation :)
+Oops, but man page describe another thing.
+
+       PR_SET_NAME
+              (Since Linux 2.6.9) Set the process name for the calling process
+              to arg2.                    ^^^^^^^^^^^^
+
+Should we change man page? or change implementation?
+
+I bet many developer assume the implementation is right.
+
 
 > 
-> > In addtion, If the page is poison while we are going to
-> > migration((PAGE_MIGRATION && migration) == TRUE), we should decrease
-> > file_rss ?
+> Bert
 > 
-> It will die on trying to migrate the poisoned page so we don't care
-> the accounting. But normally the poisoned page shall already be
-
-
-Okay. then, how about this ?
-We should not increase file_rss on trying to migrate the poisoned page
-
-- A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
-+ A  A  A  A  A  A  A  else if (!(PAGE_MIGRATION && migration))
-
-> isolated so we don't care that die either.
-> Thanks,
-> Fengguang
+> /* -*- c -*- */
 > 
-> > > 
-> > > - A  A  A  A  A  A  A  else if (!is_migration_entry(pte_to_swp_entry(*pte)))
-> > > + A  A  A  A  A  A  A  else
-> > > 
-> > > 
-> > > Thanks,
-> > > Fengguang
-> > 
-> > 
-> > -- 
-> > Kinds Regards
-> > Minchan Kim
+> #define _GNU_SOURCE
+> #include <unistd.h>
+> #include <stdlib.h>
+> #include <stdio.h>
+> #include <string.h>
+> #include <stdint.h>
+> #include <stdbool.h>
+> #include <math.h>
+> #include <pthread.h>
+> #include <sys/prctl.h>
+> 
+> void *
+> thread(void *arg)
+> {
+>     unsigned long i = (unsigned long)arg;
+>     char comm[16];
+>     snprintf(comm, sizeof comm, "task %02lu", i);
+>     prctl(PR_SET_NAME, comm, 0l, 0l, 0l);
+> 
+>     sleep(10);
+> 
+>     return NULL;
+> }
+> 
+> int
+> main(int ac, char *av[])
+> {
+>     pthread_t thr;
+>     unsigned long i, n = 10;
+>     char comm[16];
+> 
+>     printf("%u\n", getpid());
+>     sleep(5);
+>     snprintf(comm, sizeof comm, "master");
+>     prctl(PR_SET_NAME, comm, 0l, 0l, 0l);
+>     sleep(5);
+> 
+>     for (i = 0; i < n; i++)
+>         pthread_create(&thr, NULL, thread, (void *)i);
+> 
+>     pthread_join(thr, NULL);
+> 
+>     return 0;
+> }
+> 
+> >
+> > Greetings,
+> > Stefani
+> >
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at ?http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at ?http://www.tux.org/lkml/
+> >
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 
--- 
-Kinds Regards
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
