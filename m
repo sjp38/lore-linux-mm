@@ -1,167 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6E2566B006A
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:26:48 -0400 (EDT)
-Received: by gxk28 with SMTP id 28so558555gxk.14
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2009 06:27:36 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F2D6B0082
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:34:40 -0400 (EDT)
+Date: Wed, 17 Jun 2009 14:35:41 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/5] Add nodes_allowed members to hugepages hstate
+	struct
+Message-ID: <20090617133541.GH28529@csn.ul.ie>
+References: <20090616135228.25248.22018.sendpatchset@lts-notebook> <20090616135253.25248.96346.sendpatchset@lts-notebook>
 MIME-Version: 1.0
-In-Reply-To: <20090617072319.GA5841@localhost>
-References: <20090615024520.786814520@intel.com>
-	 <20090615031253.530308256@intel.com>
-	 <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
-	 <20090615152612.GA11700@localhost>
-	 <20090616090308.bac3b1f7.minchan.kim@barrios-desktop>
-	 <20090616134944.GB7524@localhost>
-	 <20090617092826.56730a10.minchan.kim@barrios-desktop>
-	 <20090617072319.GA5841@localhost>
-Date: Wed, 17 Jun 2009 22:27:36 +0900
-Message-ID: <28c262360906170627p2e57f907y2f8bbdc9fd5804f2@mail.gmail.com>
-Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
-	try_to_unmap
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090616135253.25248.96346.sendpatchset@lts-notebook>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 17, 2009 at 4:23 PM, Wu Fengguang<fengguang.wu@intel.com> wrote=
-:
-> On Wed, Jun 17, 2009 at 08:28:26AM +0800, Minchan Kim wrote:
->> On Tue, 16 Jun 2009 21:49:44 +0800
->> Wu Fengguang <fengguang.wu@intel.com> wrote:
->>
->> > On Tue, Jun 16, 2009 at 08:03:08AM +0800, Minchan Kim wrote:
->> > > On Mon, 15 Jun 2009 23:26:12 +0800
->> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
->> > >
->> > > > On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
->> > > > > On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@inte=
-l.com> wrote:
->> > > > > > From: Andi Kleen <ak@linux.intel.com>
->> > > > > >
->> > > > > > When a page has the poison bit set replace the PTE with a pois=
-on entry.
->> > > > > > This causes the right error handling to be done later when a p=
-rocess runs
->> > > > > > into it.
->> > > > > >
->> > > > > > Also add a new flag to not do that (needed for the memory-fail=
-ure handler
->> > > > > > later)
->> > > > > >
->> > > > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
->> > > > > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
->> > > > > >
->> > > > > > ---
->> > > > > > =C2=A0include/linux/rmap.h | =C2=A0 =C2=A01 +
->> > > > > > =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=
-=A0 =C2=A09 ++++++++-
->> > > > > > =C2=A02 files changed, 9 insertions(+), 1 deletion(-)
->> > > > > >
->> > > > > > --- sound-2.6.orig/mm/rmap.c
->> > > > > > +++ sound-2.6/mm/rmap.c
->> > > > > > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct page
->> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Update high watermark before we =
-lower rss */
->> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0update_hiwater_rss(mm);
->> > > > > >
->> > > > > > - =C2=A0 =C2=A0 =C2=A0 if (PageAnon(page)) {
->> > > > > > + =C2=A0 =C2=A0 =C2=A0 if (PageHWPoison(page) && !(flags & TTU=
-_IGNORE_HWPOISON)) {
->> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (PageAno=
-n(page))
->> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 dec_mm_counter(mm, anon_rss);
->> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!i=
-s_migration_entry(pte_to_swp_entry(*pte)))
->> > > > >
->> > > > > Isn't it straightforward to use !is_hwpoison_entry ?
->> > > >
->> > > > Good catch! =C2=A0It looks like a redundant check: the
->> > > > page_check_address() at the beginning of the function guarantees t=
-hat
->> > > > !is_migration_entry() or !is_migration_entry() tests will all be T=
-RUE.
->> > > > So let's do this?
->> > > It seems you expand my sight :)
->> > >
->> > > I don't know migration well.
->> > > How page_check_address guarantee it's not migration entry ?
->> >
->> > page_check_address() calls pte_present() which returns the
->> > (_PAGE_PRESENT | _PAGE_PROTNONE) bits. While x86-64 defines
->> >
->> > #define __swp_entry(type, offset) =C2=A0 =C2=A0 =C2=A0 ((swp_entry_t) =
-{ \
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0((type) << (_PAGE_BIT_PRESENT + 1)) \
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0| ((offset) << SWP_OFFSET_SHIFT) })
->> >
->> > where SWP_OFFSET_SHIFT is defined to the bigger one of
->> > max(_PAGE_BIT_PROTNONE + 1, _PAGE_BIT_FILE + 1) =3D max(8+1, 6+1) =3D =
-9.
->> >
->> > So __swp_entry(type, offset) :=3D (type << 1) | (offset << 9)
->> >
->> > We know that the swap type is 5 bits. So the bit 0 _PAGE_PRESENT and b=
-it 8
->> > _PAGE_PROTNONE will all be zero for swap entries.
->> >
->>
->> Thanks for kind explanation :)
->
-> You are welcome~
->
->> >
->> > > In addtion, If the page is poison while we are going to
->> > > migration((PAGE_MIGRATION && migration) =3D=3D TRUE), we should decr=
-ease
->> > > file_rss ?
->> >
->> > It will die on trying to migrate the poisoned page so we don't care
->> > the accounting. But normally the poisoned page shall already be
->>
->>
->> Okay. then, how about this ?
->> We should not increase file_rss on trying to migrate the poisoned page
->>
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!is_migratio=
-n_entry(pte_to_swp_entry(*pte)))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!(PAGE_MIGRA=
-TION && migration))
->
-> This is good if we are going to stop the hwpoison page from being
-> consumed by move_to_new_page(), but I highly doubt we'll ever add
-> PageHWPoison() checks into the migration code.
->
-> Because this race window is small enough:
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0TestSetPageHWPoison(p);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock_page(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 try_to_unmap(page, TTU_MIGRAT=
-ION|...);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0lock_page_nosync(p);
->
-> such small race windows can be found all over the kernel, it's just
-> insane to try to fix any of them.
+On Tue, Jun 16, 2009 at 09:52:53AM -0400, Lee Schermerhorn wrote:
+> [PATCH 2/5] add nodes_allowed members to hugepages hstate struct
+> 
+> Against:  17may09 mmotm
+> 
+> This patch adds a nodes_allowed nodemask_t pointer and a
+> __nodes_allowed nodemask_t to the hstate struct for constraining
+> fresh hugepage allocations.  It then adds sysfs attributes and
+> boot command line options to set and [for sysfs attributes] query
+> the allowed nodes mask.
+> 
+> A separate patch will hook up this nodes_allowed mask/pointer to
+> fresh huge page allocation and promoting of surplus pages to
+> persistent.  Another patch will add a 'sysctl' hugepages_nodes_allowed
+> to /proc/sys/vm.
+> 
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> 
+>  include/linux/hugetlb.h |    2 +
+>  mm/hugetlb.c            |   86 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 88 insertions(+)
+> 
+> Index: linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h
+> ===================================================================
+> --- linux-2.6.30-rc8-mmotm-090603-1633.orig/include/linux/hugetlb.h	2009-06-04 12:59:31.000000000 -0400
+> +++ linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h	2009-06-04 12:59:32.000000000 -0400
+> @@ -193,6 +193,8 @@ struct hstate {
+>  	unsigned long resv_huge_pages;
+>  	unsigned long surplus_huge_pages;
+>  	unsigned long nr_overcommit_huge_pages;
+> +	nodemask_t *nodes_allowed;
+> +	nodemask_t __nodes_allowed;
 
-Sorry for too late response.
+Can you add a comment as to why a nodemask pointer and a nodemask itself
+with very similar field names are both needed?
 
-I see your point.
-My opinion is that at least we must be notified when such situation happen.
-So I think it would be better to add some warning to fix up it when it
-happen even thought  it is small race window.
+>  	struct list_head hugepage_freelists[MAX_NUMNODES];
+>  	unsigned int nr_huge_pages_node[MAX_NUMNODES];
+>  	unsigned int free_huge_pages_node[MAX_NUMNODES];
+> Index: linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.30-rc8-mmotm-090603-1633.orig/mm/hugetlb.c	2009-06-04 12:59:31.000000000 -0400
+> +++ linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c	2009-06-04 12:59:32.000000000 -0400
+> @@ -40,6 +40,9 @@ __initdata LIST_HEAD(huge_boot_pages);
+>  static struct hstate * __initdata parsed_hstate;
+>  static unsigned long __initdata default_hstate_max_huge_pages;
+>  static unsigned long __initdata default_hstate_size;
+> +static struct hstate __initdata default_boot_hstate = {
+> +	.nodes_allowed = &node_online_map,
+> +};
+>  
+>  #define for_each_hstate(h) \
+>  	for ((h) = hstates; (h) < &hstates[max_hstate]; (h)++)
+> @@ -1102,6 +1105,9 @@ static void __init hugetlb_init_hstates(
+>  	struct hstate *h;
+>  
+>  	for_each_hstate(h) {
+> +		if (!h->nodes_allowed)
+> +			h->nodes_allowed = &node_online_map;
+> +
 
---=20
-Kinds regards,
-Minchan Kim
+The reasoning for two nodes_allowed would appear to be to allow nodes_allowed
+to be some predefined mash or a hstate-private mask. As the mask has to exist
+anyway, can you not just copy it in rather than having a pointer and a mask?
+
+It would make the check below as to whether all nodes allowed or not a bit
+more expensive but it's not a big deal.
+
+>  		/* oversize hugepages were init'ed in early boot */
+>  		if (h->order < MAX_ORDER)
+>  			hugetlb_hstate_alloc_pages(h);
+> @@ -1335,6 +1341,62 @@ static ssize_t nr_overcommit_hugepages_s
+>  }
+>  HSTATE_ATTR(nr_overcommit_hugepages);
+>  
+> +static ssize_t nodes_allowed_show(struct kobject *kobj,
+> +					struct kobj_attribute *attr, char *buf)
+> +{
+> +	struct hstate *h = kobj_to_hstate(kobj);
+> +	int len = 3;
+> +
+> +	if (h->nodes_allowed == &node_online_map)
+> +		strcpy(buf, "all");
+> +	else
+> +		len = nodelist_scnprintf(buf, PAGE_SIZE,
+> +					*h->nodes_allowed);
+> +
+> +	if (len)
+> +		buf[len++] = '\n';
+> +
+
+buf doesn't get NULL terminated.
+
+> +	return len;
+> +}
+
+Can print_nodes_state() be extended a little to print "all" and then shared
+with here?
+
+> +
+> +static int set_hstate_nodes_allowed(struct hstate *h, const char *buf,
+> +					bool lock)
+> +{
+> +	nodemask_t nodes_allowed;
+> +	int ret = 1;
+> +	bool all = !strncasecmp(buf, "all", 3);
+> +
+> +	if (!all)
+> +		ret = !nodelist_parse(buf, nodes_allowed);
+> +	if (ret) {
+> +		if (lock)
+> +			spin_lock(&hugetlb_lock);
+> +
+
+ick.
+
+Convention for something like this is to have set_hstate_nodes_allowed
+that takes a spinlock and __set_hstate_nodes_allowed that is the
+lock-free version and call as appropriate. Can the same be done here?
+
+For that matter, does taking spinlocks from __setup() break that you
+avoid taking it in that case?
+
+> +		if (all) {
+> +			h->nodes_allowed = &node_online_map;
+> +		} else {
+> +			h->__nodes_allowed = nodes_allowed;
+> +			h->nodes_allowed = &h->__nodes_allowed;
+> +		}
+> +
+> +		if (lock)
+> +			spin_unlock(&hugetlb_lock);
+> +	}
+> +	return ret;
+> +}
+> +
+> +static ssize_t nodes_allowed_store(struct kobject *kobj,
+> +		struct kobj_attribute *attr, const char *buf, size_t count)
+> +{
+> +	struct hstate *h = kobj_to_hstate(kobj);
+> +
+> +	if (set_hstate_nodes_allowed(h, buf, 1))
+> +		return count;
+> +	else
+> +		return 0;
+> +}
+> +HSTATE_ATTR(nodes_allowed);
+> +
+>  static ssize_t free_hugepages_show(struct kobject *kobj,
+>  					struct kobj_attribute *attr, char *buf)
+>  {
+> @@ -1362,6 +1424,7 @@ HSTATE_ATTR_RO(surplus_hugepages);
+>  static struct attribute *hstate_attrs[] = {
+>  	&nr_hugepages_attr.attr,
+>  	&nr_overcommit_hugepages_attr.attr,
+> +	&nodes_allowed_attr.attr,
+>  	&free_hugepages_attr.attr,
+>  	&resv_hugepages_attr.attr,
+>  	&surplus_hugepages_attr.attr,
+> @@ -1436,6 +1499,13 @@ static int __init hugetlb_init(void)
+>  	if (default_hstate_max_huge_pages)
+>  		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+>  
+> +	if (default_boot_hstate.nodes_allowed != &node_online_map) {
+> +		default_hstate.__nodes_allowed =
+> +					default_boot_hstate.__nodes_allowed;
+> +		default_hstate.nodes_allowed =
+> +					&default_hstate.__nodes_allowed;
+> +	}
+> +
+>  	hugetlb_init_hstates();
+>  
+>  	gather_bootmem_prealloc();
+> @@ -1471,6 +1541,7 @@ void __init hugetlb_add_hstate(unsigned 
+>  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+>  					huge_page_size(h)/1024);
+>  
+> +	h->nodes_allowed = &node_online_map;
+>  	parsed_hstate = h;
+>  }
+>  
+> @@ -1518,6 +1589,21 @@ static int __init hugetlb_default_setup(
+>  }
+>  __setup("default_hugepagesz=", hugetlb_default_setup);
+>  
+> +static int __init hugetlb_nodes_allowed_setup(char *s)
+> +{
+> +	struct hstate *h = &default_boot_hstate;
+> +
+> +	/*
+> +	 * max_hstate means we've parsed a hugepagesz= parameter, so
+> +	 * use the [most recently] parsed_hstate.  Else use default.
+> +	 */
+> +	if (max_hstate)
+> +		h = parsed_hstate;
+> +
+> +	return set_hstate_nodes_allowed(h, s, 0);
+> +}
+> +__setup("hugepages_nodes_allowed=", hugetlb_nodes_allowed_setup);
+> +
+>  static unsigned int cpuset_mems_nr(unsigned int *array)
+>  {
+>  	int node;
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
