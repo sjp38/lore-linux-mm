@@ -1,50 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 065246B005A
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 21:24:57 -0400 (EDT)
-Date: Thu, 18 Jun 2009 09:25:32 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class
-	citizen
-Message-ID: <20090618012532.GB19732@localhost>
-References: <20090516090005.916779788@intel.com> <1242485776.32543.834.camel@laptop> <20090617141135.0d622bfe@jbarnes-g45>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090617141135.0d622bfe@jbarnes-g45>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 847806B004D
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 21:36:06 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 5783582C572
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 21:53:25 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id DdlcIwso9HPx for <linux-mm@kvack.org>;
+	Wed, 17 Jun 2009 21:53:25 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 93DB182C509
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 21:45:13 -0400 (EDT)
+Message-Id: <20090617203444.921262487@gentwo.org>
+References: <20090617203337.399182817@gentwo.org>
+Date: Wed, 17 Jun 2009 16:33:48 -0400
+From: cl@linux-foundation.org
+Subject: [this_cpu_xx V2 11/19] Use this_cpu ops for VM statistics.
+Content-Disposition: inline; filename=this_cpu_vmstats
 Sender: owner-linux-mm@kvack.org
-To: Jesse Barnes <jbarnes@virtuousgeek.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 18, 2009 at 05:11:35AM +0800, Jesse Barnes wrote:
-> On Sat, 16 May 2009 16:56:16 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > On Sat, 2009-05-16 at 17:00 +0800, Wu Fengguang wrote:
-> > > Andrew,
-> > > 
-> > > This patchset makes mapped executable pages the first class citizen.
-> > > This version has incorparated many valuable comments from people in
-> > > the CC list, and runs OK on my desktop. Let's test it in your -mm?
-> > 
-> > Seems like a good set to me. Thanks for following this through Wu!
-> 
-> Now that this set has hit the mainline I just wanted to chime in and
-> say this makes a big difference.  Under my current load (a parallel
-> kernel build and virtualbox session the old kernel would have been
-> totally unusable.  With Linus's current bits, things are much better
-> (still a little sluggish with a big dd going on in the virtualbox, but
-> actually usable).
-> 
-> Thanks!
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-Jesse, thank you for the feedback :)  And I'd like to credit Rik for
-his patch on protecting active file LRU pages from being flushed by
-streaming IO!
+---
+ include/linux/vmstat.h |   10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
-Thanks,
-Fengguang
+Index: linux-2.6/include/linux/vmstat.h
+===================================================================
+--- linux-2.6.orig/include/linux/vmstat.h	2009-06-11 10:50:59.000000000 -0500
++++ linux-2.6/include/linux/vmstat.h	2009-06-11 11:10:48.000000000 -0500
+@@ -75,24 +75,22 @@ DECLARE_PER_CPU(struct vm_event_state, v
+ 
+ static inline void __count_vm_event(enum vm_event_item item)
+ {
+-	__get_cpu_var(vm_event_states).event[item]++;
++	__this_cpu_inc(per_cpu_var(vm_event_states).event[item]);
+ }
+ 
+ static inline void count_vm_event(enum vm_event_item item)
+ {
+-	get_cpu_var(vm_event_states).event[item]++;
+-	put_cpu();
++	this_cpu_inc(per_cpu_var(vm_event_states).event[item]);
+ }
+ 
+ static inline void __count_vm_events(enum vm_event_item item, long delta)
+ {
+-	__get_cpu_var(vm_event_states).event[item] += delta;
++	__this_cpu_add(per_cpu_var(vm_event_states).event[item], delta);
+ }
+ 
+ static inline void count_vm_events(enum vm_event_item item, long delta)
+ {
+-	get_cpu_var(vm_event_states).event[item] += delta;
+-	put_cpu();
++	this_cpu_add(per_cpu_var(vm_event_states).event[item], delta);
+ }
+ 
+ extern void all_vm_events(unsigned long *);
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
