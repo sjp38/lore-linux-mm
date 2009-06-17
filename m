@@ -1,157 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C536B0062
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:39:58 -0400 (EDT)
-Date: Wed, 17 Jun 2009 14:41:07 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] Add sysctl for default hstate nodes_allowed.
-Message-ID: <20090617134107.GJ28529@csn.ul.ie>
-References: <20090616135228.25248.22018.sendpatchset@lts-notebook> <20090616135308.25248.57593.sendpatchset@lts-notebook>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CB7206B0087
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:42:11 -0400 (EDT)
+Received: by yxe37 with SMTP id 37so460138yxe.11
+        for <linux-mm@kvack.org>; Wed, 17 Jun 2009 06:43:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090616135308.25248.57593.sendpatchset@lts-notebook>
+In-Reply-To: <20090617133708.GA7839@localhost>
+References: <20090615024520.786814520@intel.com>
+	 <20090615031253.530308256@intel.com>
+	 <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
+	 <20090615152612.GA11700@localhost>
+	 <20090616090308.bac3b1f7.minchan.kim@barrios-desktop>
+	 <20090616134944.GB7524@localhost>
+	 <20090617092826.56730a10.minchan.kim@barrios-desktop>
+	 <20090617072319.GA5841@localhost>
+	 <28c262360906170627p2e57f907y2f8bbdc9fd5804f2@mail.gmail.com>
+	 <20090617133708.GA7839@localhost>
+Date: Wed, 17 Jun 2009 22:43:29 +0900
+Message-ID: <28c262360906170643o3783b0a4k8fbc1001baa8e2e1@mail.gmail.com>
+Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
+	try_to_unmap
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 16, 2009 at 09:53:08AM -0400, Lee Schermerhorn wrote:
-> [PATCH 4/5] add sysctl for default hstate nodes_allowed.
-> 
-> Against:  17may09 mmotm
-> 
-> This patch adds a sysctl -- /proc/sys/vm/hugepages_nodes_allowed --
-> to set/query the default hstate's nodes_allowed.  I don't know
-> that this patch is required, given that we have the per hstate
-> controls in /sys/kernel/mm/hugepages/*. However, we've added sysctls
-> for other recent hugepages controls, like nr_overcommit_hugepages,
-> so I've followed that convention.
-> 
+On Wed, Jun 17, 2009 at 10:37 PM, Wu Fengguang<fengguang.wu@intel.com> wrot=
+e:
+> On Wed, Jun 17, 2009 at 09:27:36PM +0800, Minchan Kim wrote:
+>> On Wed, Jun 17, 2009 at 4:23 PM, Wu Fengguang<fengguang.wu@intel.com> wr=
+ote:
+>> > On Wed, Jun 17, 2009 at 08:28:26AM +0800, Minchan Kim wrote:
+>> >> On Tue, 16 Jun 2009 21:49:44 +0800
+>> >> Wu Fengguang <fengguang.wu@intel.com> wrote:
+>> >>
+>> >> > On Tue, Jun 16, 2009 at 08:03:08AM +0800, Minchan Kim wrote:
+>> >> > > On Mon, 15 Jun 2009 23:26:12 +0800
+>> >> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
+>> >> > >
+>> >> > > > On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
+>> >> > > > > On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@i=
+ntel.com> wrote:
+>> >> > > > > > From: Andi Kleen <ak@linux.intel.com>
+>> >> > > > > >
+>> >> > > > > > When a page has the poison bit set replace the PTE with a p=
+oison entry.
+>> >> > > > > > This causes the right error handling to be done later when =
+a process runs
+>> >> > > > > > into it.
+>> >> > > > > >
+>> >> > > > > > Also add a new flag to not do that (needed for the memory-f=
+ailure handler
+>> >> > > > > > later)
+>> >> > > > > >
+>> >> > > > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+>> >> > > > > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+>> >> > > > > >
+>> >> > > > > > ---
+>> >> > > > > > =C2=A0include/linux/rmap.h | =C2=A0 =C2=A01 +
+>> >> > > > > > =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =
+=C2=A0 =C2=A09 ++++++++-
+>> >> > > > > > =C2=A02 files changed, 9 insertions(+), 1 deletion(-)
+>> >> > > > > >
+>> >> > > > > > --- sound-2.6.orig/mm/rmap.c
+>> >> > > > > > +++ sound-2.6/mm/rmap.c
+>> >> > > > > > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct pag=
+e
+>> >> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Update high watermark before =
+we lower rss */
+>> >> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0update_hiwater_rss(mm);
+>> >> > > > > >
+>> >> > > > > > - =C2=A0 =C2=A0 =C2=A0 if (PageAnon(page)) {
+>> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 if (PageHWPoison(page) && !(flags & =
+TTU_IGNORE_HWPOISON)) {
+>> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (Page=
+Anon(page))
+>> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 dec_mm_counter(mm, anon_rss);
+>> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if =
+(!is_migration_entry(pte_to_swp_entry(*pte)))
+>> >> > > > >
+>> >> > > > > Isn't it straightforward to use !is_hwpoison_entry ?
+>> >> > > >
+>> >> > > > Good catch! =C2=A0It looks like a redundant check: the
+>> >> > > > page_check_address() at the beginning of the function guarantee=
+s that
+>> >> > > > !is_migration_entry() or !is_migration_entry() tests will all b=
+e TRUE.
+>> >> > > > So let's do this?
+>> >> > > It seems you expand my sight :)
+>> >> > >
+>> >> > > I don't know migration well.
+>> >> > > How page_check_address guarantee it's not migration entry ?
+>> >> >
+>> >> > page_check_address() calls pte_present() which returns the
+>> >> > (_PAGE_PRESENT | _PAGE_PROTNONE) bits. While x86-64 defines
+>> >> >
+>> >> > #define __swp_entry(type, offset) =C2=A0 =C2=A0 =C2=A0 ((swp_entry_=
+t) { \
+>> >> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0((type) << (_PAGE_BIT_PRESENT + 1)) \
+>> >> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0| ((offset) << SWP_OFFSET_SHIFT) })
+>> >> >
+>> >> > where SWP_OFFSET_SHIFT is defined to the bigger one of
+>> >> > max(_PAGE_BIT_PROTNONE + 1, _PAGE_BIT_FILE + 1) =3D max(8+1, 6+1) =
+=3D 9.
+>> >> >
+>> >> > So __swp_entry(type, offset) :=3D (type << 1) | (offset << 9)
+>> >> >
+>> >> > We know that the swap type is 5 bits. So the bit 0 _PAGE_PRESENT an=
+d bit 8
+>> >> > _PAGE_PROTNONE will all be zero for swap entries.
+>> >> >
+>> >>
+>> >> Thanks for kind explanation :)
+>> >
+>> > You are welcome~
+>> >
+>> >> >
+>> >> > > In addtion, If the page is poison while we are going to
+>> >> > > migration((PAGE_MIGRATION && migration) =3D=3D TRUE), we should d=
+ecrease
+>> >> > > file_rss ?
+>> >> >
+>> >> > It will die on trying to migrate the poisoned page so we don't care
+>> >> > the accounting. But normally the poisoned page shall already be
+>> >>
+>> >>
+>> >> Okay. then, how about this ?
+>> >> We should not increase file_rss on trying to migrate the poisoned pag=
+e
+>> >>
+>> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!is_migra=
+tion_entry(pte_to_swp_entry(*pte)))
+>> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!(PAGE_MI=
+GRATION && migration))
+>> >
+>> > This is good if we are going to stop the hwpoison page from being
+>> > consumed by move_to_new_page(), but I highly doubt we'll ever add
+>> > PageHWPoison() checks into the migration code.
+>> >
+>> > Because this race window is small enough:
+>> >
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0TestSetPageHWPoison(p);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock_page(page);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 try_to_unmap(page, TTU_MIG=
+RATION|...);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0lock_page_nosync(p);
+>> >
+>> > such small race windows can be found all over the kernel, it's just
+>> > insane to try to fix any of them.
+>>
+>> Sorry for too late response.
+>>
+>> I see your point.
+>> My opinion is that at least we must be notified when such situation happ=
+en.
+>> So I think it would be better to add some warning to fix up it when it
+>> happen even thought =C2=A0it is small race window.
+>
+> Notification is also pointless here: we'll die hard on
+> accessing/consuming the poisoned page anyway :(
 
-Yeah, it's somewhat expected that what is in /proc/sys/vm is information
-on the default hugepage size.
+My intention wasn't to recover it.
 
-> Factor the formatting of the nodes_allowed mask out of nodes_allowed_show()
-> for use by both that function and the hugetlb_nodes_allowed_handler().
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp>
-> 
->  include/linux/hugetlb.h |    1 +
->  kernel/sysctl.c         |    8 ++++++++
->  mm/hugetlb.c            |   43 ++++++++++++++++++++++++++++++++++++++-----
->  3 files changed, 47 insertions(+), 5 deletions(-)
-> 
-> Index: linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h
-> ===================================================================
-> --- linux-2.6.30-rc8-mmotm-090603-1633.orig/include/linux/hugetlb.h	2009-06-04 12:59:32.000000000 -0400
-> +++ linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h	2009-06-04 12:59:35.000000000 -0400
-> @@ -22,6 +22,7 @@ void reset_vma_resv_huge_pages(struct vm
->  int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
->  int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
->  int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
-> +int hugetlb_nodes_allowed_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
->  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
->  int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int, int);
->  void unmap_hugepage_range(struct vm_area_struct *,
-> Index: linux-2.6.30-rc8-mmotm-090603-1633/kernel/sysctl.c
-> ===================================================================
-> --- linux-2.6.30-rc8-mmotm-090603-1633.orig/kernel/sysctl.c	2009-06-04 12:59:26.000000000 -0400
-> +++ linux-2.6.30-rc8-mmotm-090603-1633/kernel/sysctl.c	2009-06-04 12:59:35.000000000 -0400
-> @@ -1108,6 +1108,14 @@ static struct ctl_table vm_table[] = {
->  		.extra1		= (void *)&hugetlb_zero,
->  		.extra2		= (void *)&hugetlb_infinity,
->  	},
-> +	{
-> +		.ctl_name	= CTL_UNNUMBERED,
-> +		.procname	= "hugepages_nodes_allowed",
-> +		.data		= NULL,
-> +		.maxlen		= sizeof(unsigned long),
-> +		.mode		= 0644,
-> +		.proc_handler	= &hugetlb_nodes_allowed_handler,
-> +	},
->  #endif
->  	{
->  		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
-> Index: linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c
-> ===================================================================
-> --- linux-2.6.30-rc8-mmotm-090603-1633.orig/mm/hugetlb.c	2009-06-04 12:59:33.000000000 -0400
-> +++ linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c	2009-06-04 12:59:35.000000000 -0400
-> @@ -1354,19 +1354,27 @@ static ssize_t nr_overcommit_hugepages_s
->  }
->  HSTATE_ATTR(nr_overcommit_hugepages);
->  
-> -static ssize_t nodes_allowed_show(struct kobject *kobj,
-> -					struct kobj_attribute *attr, char *buf)
-> +static int format_hstate_nodes_allowed(struct hstate *h, char *buf,
-> +					size_t buflen)
->  {
-> -	struct hstate *h = kobj_to_hstate(kobj);
->  	int len = 3;
->  
->  	if (h->nodes_allowed == &node_online_map)
->  		strcpy(buf, "all");
->  	else
-> -		len = nodelist_scnprintf(buf, PAGE_SIZE,
-> +		len = nodelist_scnprintf(buf, buflen,
->  					*h->nodes_allowed);
-> +	return len;
-> +
-> +}
+It just add something like WARN_ON.
+You said it is small window enough. but I think it can happen more
+hight probability in migration-workload.(At a moment, I don't know
+what kinds of app)
+For such case, If we can hear reporting of warning, at that time we
+can consider migration handling for HWPoison.
 
-This looks like unnecessary churn and could have been done in the earlier
-patch introducing nodes_allowed_show()
+> Thanks,
+> Fengguang
+>
+>
 
-> +
-> +static ssize_t nodes_allowed_show(struct kobject *kobj,
-> +					struct kobj_attribute *attr, char *buf)
-> +{
-> +	struct hstate *h = kobj_to_hstate(kobj);
-> +	int len =  format_hstate_nodes_allowed(h, buf, PAGE_SIZE);
->  
-> -	if (len)
-> +	if (len && (len +1) < PAGE_SIZE)
->  		buf[len++] = '\n';
->  
->  	return len;
-> @@ -1684,6 +1692,31 @@ int hugetlb_overcommit_handler(struct ct
->  	return 0;
->  }
->  
-> +#define NODES_ALLOWED_MAX 64
-> +int hugetlb_nodes_allowed_handler(struct ctl_table *table, int write,
-> +			struct file *file, void __user *buffer,
-> +			size_t *length, loff_t *ppos)
-> +{
-> +	struct hstate *h = &default_hstate;
-> +	int ret = 0;
-> +
-> +	if (write) {
-> +		(void)set_hstate_nodes_allowed(h, buffer, 1);
-> +	} else {
-> +		char buf[NODES_ALLOWED_MAX];
-> +		struct ctl_table tbl = {
-> +			.data = buf,
-> +			.maxlen = NODES_ALLOWED_MAX,
-> +		};
-> +		int len =  format_hstate_nodes_allowed(h, buf, sizeof(buf));
-> +
-> +		if (len)
-> +			ret = proc_dostring(&tbl, write, file, buffer,
-> +						 length, ppos);
-> +	}
-> +	return ret;
-> +}
-> +
->  #endif /* CONFIG_SYSCTL */
->  
->  void hugetlb_report_meminfo(struct seq_file *m)
-> 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
