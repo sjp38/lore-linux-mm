@@ -1,58 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id DEB9B6B005A
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 06:06:40 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5HA6mv4013943
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 17 Jun 2009 19:06:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F62845DE7B
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 19:06:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD43C45DE6E
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 19:06:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 96AE6E08009
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 19:06:47 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 465ECE08003
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 19:06:47 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] Fix malloc() stall in zone_reclaim() and bring behaviour more in line with expectations V3
-In-Reply-To: <alpine.DEB.1.10.0906161049180.26093@gentwo.org>
-References: <20090616134423.GD14241@csn.ul.ie> <alpine.DEB.1.10.0906161049180.26093@gentwo.org>
-Message-Id: <20090617190204.99C6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 17 Jun 2009 19:06:46 +0900 (JST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A9C86B005D
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 06:27:22 -0400 (EDT)
+Date: Wed, 17 Jun 2009 12:28:10 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 01/11] ext3: Get rid of extenddisksize parameter of ext3_get_blocks_handle()
+Message-ID: <20090617102810.GA29931@wotan.suse.de>
+References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-2-git-send-email-jack@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1245088797-29533-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, fengguang.wu@intel.com, linuxram@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 16 Jun 2009, Mel Gorman wrote:
+On Mon, Jun 15, 2009 at 07:59:48PM +0200, Jan Kara wrote:
+> Get rid of extenddisksize parameter of ext3_get_blocks_handle(). This seems to
+> be a relict from some old days and setting disksize in this function does not
+> make much sence. Currently it was set only by ext3_getblk().  Since the
+> parameter has some effect only if create == 1, it is easy to check that the
+> three callers which end up calling ext3_getblk() with create == 1 (ext3_append,
+> ext3_quota_write, ext3_mkdir) do the right thing and set disksize themselves.
 > 
-> > I don't have a particular workload in mind to be perfectly honest. I'm just not
-> > convinced of the wisdom of trying to unmap pages by default in zone_reclaim()
-> > just because the NUMA distances happen to be large.
-> 
-> zone reclaim = 1 is supposed to be light weight with minimal impact. The
-> intend was just to remove potentially unused pagecache pages so that node
-> local allocations can succeed again. So lets not unmap pages.
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-hm, At least major two zone reclaim developer disagree my patch. Thus I have to
-agree with you, because I really don't hope to ignore other developer's opnion.
-
-So, as far as I understand, the conclusion of this thread are
-  - Drop my patch
-  - instead, implement improvement patch of (may_unmap && page_mapped()) case
-  - the documentation should be changed
-  - it's my homework(?)
-
-Can you agree this?
-
+I guess something like this should just go in this merge window if
+ext3 developers are happy with it? There is no real reason to keep
+it with the main patchset is there?
 
 
 --
