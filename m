@@ -1,174 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 142E16B005C
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:16:33 -0400 (EDT)
-Subject: Re: [PATCH 1/5] Free huge pages round robin to balance across nodes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090617131833.GG28529@csn.ul.ie>
-References: <20090616135228.25248.22018.sendpatchset@lts-notebook>
-	 <20090616135236.25248.93692.sendpatchset@lts-notebook>
-	 <20090617131833.GG28529@csn.ul.ie>
-Content-Type: text/plain
-Date: Wed, 17 Jun 2009 13:16:58 -0400
-Message-Id: <1245259018.6235.59.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4DBA86B006A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:27:58 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id C9C3182C4C0
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:04 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id qegoGKXjBwnC for <linux-mm@kvack.org>;
+	Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2D62982C3FD
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 13:45:00 -0400 (EDT)
+Date: Wed, 17 Jun 2009 12:57:37 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 4/9] percpu: cleanup percpu array definitions
+In-Reply-To: <1245210060-24344-5-git-send-email-tj@kernel.org>
+Message-ID: <alpine.DEB.1.10.0906171257130.1695@gentwo.org>
+References: <1245210060-24344-1-git-send-email-tj@kernel.org> <1245210060-24344-5-git-send-email-tj@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@elte.hu, kyle@mcmartin.ca, Jesper.Nilsson@axis.com, benh@kernel.crashing.org, paulmck@linux.vnet.ibm.com, Tony Luck <tony.luck@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Jeremy Fitzhardinge <jeremy@xensource.com>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-06-17 at 14:18 +0100, Mel Gorman wrote:
-> On Tue, Jun 16, 2009 at 09:52:36AM -0400, Lee Schermerhorn wrote:
-> > [PATCH 1/5] Free huge pages round robin to balance across nodes
-> > 
-> > Against:  17may09 mmotm
-> > 
-> > Currently, altho' increasing nr_hugepages will [attempt to]
-> > distribute the new huge pages across all nodes in the system,
-> > reducing nr_hugepages will free or surplus all free pages
-> > from nodes in node id order.  This patch frees huges pages
-> > from nodes in round robin fashion in an attempt to keep
-> > [persistent] hugepage allocates balanced across the nodes.
-> > 
-> > New function free_pool_huge_page() is modeled on and
-> > performs roughly the inverse of alloc_fresh_huge_page().
-> > Replaces dequeue_huge_page() which now has no callers
-> > and can be removed.
-> > 
-> > Helper function hstate_next_to_free_node() uses new hstate
-> > member next_to_free_nid to distribute "frees" across all
-> > nodes with huge pages.
-> > 
-> > I placed this patch first in the series because I think it
-> > [or something similar] should be applied independent of the
-> > rest of the series.  
-> > 
-> 
-> Agreed. Reading though, I can't see any problems with the patch and it
-> does make the freeing symmetric with the allocation.
-> 
-> For clarity though, would it be worth renaming hugetlb_next_nid to
-> next_to_alloc_nid so that there is a clear relationship in the
-> round-robin allocation and freeing of pages amoung online nodes?
 
-OK.  I'll do that in the next version of the series.
 
-> 
-> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > 
-> >  include/linux/hugetlb.h |    1 
-> >  mm/hugetlb.c            |   68 +++++++++++++++++++++++++++++++++---------------
-> >  2 files changed, 48 insertions(+), 21 deletions(-)
-> > 
-> > Index: linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h
-> > ===================================================================
-> > --- linux-2.6.30-rc8-mmotm-090603-1633.orig/include/linux/hugetlb.h	2009-06-04 12:59:29.000000000 -0400
-> > +++ linux-2.6.30-rc8-mmotm-090603-1633/include/linux/hugetlb.h	2009-06-04 12:59:31.000000000 -0400
-> > @@ -184,6 +184,7 @@ unsigned long hugetlb_get_unmapped_area(
-> >  /* Defines one hugetlb page size */
-> >  struct hstate {
-> >  	int hugetlb_next_nid;
-> > +	int next_to_free_nid;
-> >  	unsigned int order;
-> >  	unsigned long mask;
-> >  	unsigned long max_huge_pages;
-> > Index: linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c
-> > ===================================================================
-> > --- linux-2.6.30-rc8-mmotm-090603-1633.orig/mm/hugetlb.c	2009-06-04 12:59:29.000000000 -0400
-> > +++ linux-2.6.30-rc8-mmotm-090603-1633/mm/hugetlb.c	2009-06-04 12:59:31.000000000 -0400
-> > @@ -455,24 +455,6 @@ static void enqueue_huge_page(struct hst
-> >  	h->free_huge_pages_node[nid]++;
-> >  }
-> >  
-> > -static struct page *dequeue_huge_page(struct hstate *h)
-> > -{
-> > -	int nid;
-> > -	struct page *page = NULL;
-> > -
-> > -	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
-> > -		if (!list_empty(&h->hugepage_freelists[nid])) {
-> > -			page = list_entry(h->hugepage_freelists[nid].next,
-> > -					  struct page, lru);
-> > -			list_del(&page->lru);
-> > -			h->free_huge_pages--;
-> > -			h->free_huge_pages_node[nid]--;
-> > -			break;
-> > -		}
-> > -	}
-> > -	return page;
-> > -}
-> > -
-> >  static struct page *dequeue_huge_page_vma(struct hstate *h,
-> >  				struct vm_area_struct *vma,
-> >  				unsigned long address, int avoid_reserve)
-> > @@ -683,6 +665,52 @@ static int alloc_fresh_huge_page(struct 
-> >  	return ret;
-> >  }
-> >  
-> > +/*
-> > + * helper for free_pool_huge_page() - find next node
-> > + * from which to free a huge page
-> > + */
-> > +static int hstate_next_to_free_node(struct hstate *h)
-> > +{
-> > +	int next_nid;
-> > +	next_nid = next_node(h->next_to_free_nid, node_online_map);
-> > +	if (next_nid == MAX_NUMNODES)
-> > +		next_nid = first_node(node_online_map);
-> > +	h->next_to_free_nid = next_nid;
-> > +	return next_nid;
-> > +}
-> > +
-> > +/*
-> > + * Free huge page from pool from next node to free.
-> > + * Attempt to keep persistent huge pages more or less
-> > + * balanced over allowed nodes.
-> > + * Called with hugetlb_lock locked.
-> > + */
-> > +static int free_pool_huge_page(struct hstate *h)
-> > +{
-> > +	int start_nid;
-> > +	int nid;
-> > +	int ret = 0;
-> > +
-> > +	start_nid = h->next_to_free_nid;
-> > +	nid = h->next_to_free_nid;
-> > +
-> > +	do {
-> > +		if (!list_empty(&h->hugepage_freelists[nid])) {
-> > +			struct page *page =
-> > +				list_entry(h->hugepage_freelists[nid].next,
-> > +					  struct page, lru);
-> > +			list_del(&page->lru);
-> > +			h->free_huge_pages--;
-> > +			h->free_huge_pages_node[nid]--;
-> > +			update_and_free_page(h, page);
-> > +			ret = 1;
-> > +		}
-> > +		nid = hstate_next_to_free_node(h);
-> > +	} while (!ret && nid != start_nid);
-> > +
-> > +	return ret;
-> > +}
-> > +
-> >  static struct page *alloc_buddy_huge_page(struct hstate *h,
-> >  			struct vm_area_struct *vma, unsigned long address)
-> >  {
-> > @@ -1226,10 +1254,8 @@ static unsigned long set_max_huge_pages(
-> >  	min_count = max(count, min_count);
-> >  	try_to_free_low(h, min_count);
-> >  	while (min_count < persistent_huge_pages(h)) {
-> > -		struct page *page = dequeue_huge_page(h);
-> > -		if (!page)
-> > +		if (!free_pool_huge_page(h))
-> >  			break;
-> > -		update_and_free_page(h, page);
-> >  	}
-> >  	while (count < persistent_huge_pages(h)) {
-> >  		if (!adjust_pool_surplus(h, 1))
-> > 
-> 
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
