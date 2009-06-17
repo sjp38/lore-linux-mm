@@ -1,194 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CB7206B0087
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:42:11 -0400 (EDT)
-Received: by yxe37 with SMTP id 37so460138yxe.11
-        for <linux-mm@kvack.org>; Wed, 17 Jun 2009 06:43:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090617133708.GA7839@localhost>
-References: <20090615024520.786814520@intel.com>
-	 <20090615031253.530308256@intel.com>
-	 <28c262360906150609gd736bf7p7a57de1b81cedd97@mail.gmail.com>
-	 <20090615152612.GA11700@localhost>
-	 <20090616090308.bac3b1f7.minchan.kim@barrios-desktop>
-	 <20090616134944.GB7524@localhost>
-	 <20090617092826.56730a10.minchan.kim@barrios-desktop>
-	 <20090617072319.GA5841@localhost>
-	 <28c262360906170627p2e57f907y2f8bbdc9fd5804f2@mail.gmail.com>
-	 <20090617133708.GA7839@localhost>
-Date: Wed, 17 Jun 2009 22:43:29 +0900
-Message-ID: <28c262360906170643o3783b0a4k8fbc1001baa8e2e1@mail.gmail.com>
-Subject: Re: [PATCH 09/22] HWPOISON: Handle hardware poisoned pages in
-	try_to_unmap
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9156B6B0085
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:51:55 -0400 (EDT)
+Date: Wed, 17 Jun 2009 15:53:31 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 07/11] vfs: Unmap underlying metadata of new data buffers only when buffer is mapped
+Message-ID: <20090617135331.GA20678@wotan.suse.de>
+References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-8-git-send-email-jack@suse.cz> <20090617103543.GB29931@wotan.suse.de> <20090617120520.GD2612@duck.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090617120520.GD2612@duck.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 17, 2009 at 10:37 PM, Wu Fengguang<fengguang.wu@intel.com> wrot=
-e:
-> On Wed, Jun 17, 2009 at 09:27:36PM +0800, Minchan Kim wrote:
->> On Wed, Jun 17, 2009 at 4:23 PM, Wu Fengguang<fengguang.wu@intel.com> wr=
-ote:
->> > On Wed, Jun 17, 2009 at 08:28:26AM +0800, Minchan Kim wrote:
->> >> On Tue, 16 Jun 2009 21:49:44 +0800
->> >> Wu Fengguang <fengguang.wu@intel.com> wrote:
->> >>
->> >> > On Tue, Jun 16, 2009 at 08:03:08AM +0800, Minchan Kim wrote:
->> >> > > On Mon, 15 Jun 2009 23:26:12 +0800
->> >> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
->> >> > >
->> >> > > > On Mon, Jun 15, 2009 at 09:09:03PM +0800, Minchan Kim wrote:
->> >> > > > > On Mon, Jun 15, 2009 at 11:45 AM, Wu Fengguang<fengguang.wu@i=
-ntel.com> wrote:
->> >> > > > > > From: Andi Kleen <ak@linux.intel.com>
->> >> > > > > >
->> >> > > > > > When a page has the poison bit set replace the PTE with a p=
-oison entry.
->> >> > > > > > This causes the right error handling to be done later when =
-a process runs
->> >> > > > > > into it.
->> >> > > > > >
->> >> > > > > > Also add a new flag to not do that (needed for the memory-f=
-ailure handler
->> >> > > > > > later)
->> >> > > > > >
->> >> > > > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
->> >> > > > > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
->> >> > > > > >
->> >> > > > > > ---
->> >> > > > > > =C2=A0include/linux/rmap.h | =C2=A0 =C2=A01 +
->> >> > > > > > =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =
-=C2=A0 =C2=A09 ++++++++-
->> >> > > > > > =C2=A02 files changed, 9 insertions(+), 1 deletion(-)
->> >> > > > > >
->> >> > > > > > --- sound-2.6.orig/mm/rmap.c
->> >> > > > > > +++ sound-2.6/mm/rmap.c
->> >> > > > > > @@ -958,7 +958,14 @@ static int try_to_unmap_one(struct pag=
-e
->> >> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Update high watermark before =
-we lower rss */
->> >> > > > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0update_hiwater_rss(mm);
->> >> > > > > >
->> >> > > > > > - =C2=A0 =C2=A0 =C2=A0 if (PageAnon(page)) {
->> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 if (PageHWPoison(page) && !(flags & =
-TTU_IGNORE_HWPOISON)) {
->> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (Page=
-Anon(page))
->> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 dec_mm_counter(mm, anon_rss);
->> >> > > > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if =
-(!is_migration_entry(pte_to_swp_entry(*pte)))
->> >> > > > >
->> >> > > > > Isn't it straightforward to use !is_hwpoison_entry ?
->> >> > > >
->> >> > > > Good catch! =C2=A0It looks like a redundant check: the
->> >> > > > page_check_address() at the beginning of the function guarantee=
-s that
->> >> > > > !is_migration_entry() or !is_migration_entry() tests will all b=
-e TRUE.
->> >> > > > So let's do this?
->> >> > > It seems you expand my sight :)
->> >> > >
->> >> > > I don't know migration well.
->> >> > > How page_check_address guarantee it's not migration entry ?
->> >> >
->> >> > page_check_address() calls pte_present() which returns the
->> >> > (_PAGE_PRESENT | _PAGE_PROTNONE) bits. While x86-64 defines
->> >> >
->> >> > #define __swp_entry(type, offset) =C2=A0 =C2=A0 =C2=A0 ((swp_entry_=
-t) { \
->> >> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0((type) << (_PAGE_BIT_PRESENT + 1)) \
->> >> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0| ((offset) << SWP_OFFSET_SHIFT) })
->> >> >
->> >> > where SWP_OFFSET_SHIFT is defined to the bigger one of
->> >> > max(_PAGE_BIT_PROTNONE + 1, _PAGE_BIT_FILE + 1) =3D max(8+1, 6+1) =
-=3D 9.
->> >> >
->> >> > So __swp_entry(type, offset) :=3D (type << 1) | (offset << 9)
->> >> >
->> >> > We know that the swap type is 5 bits. So the bit 0 _PAGE_PRESENT an=
-d bit 8
->> >> > _PAGE_PROTNONE will all be zero for swap entries.
->> >> >
->> >>
->> >> Thanks for kind explanation :)
->> >
->> > You are welcome~
->> >
->> >> >
->> >> > > In addtion, If the page is poison while we are going to
->> >> > > migration((PAGE_MIGRATION && migration) =3D=3D TRUE), we should d=
-ecrease
->> >> > > file_rss ?
->> >> >
->> >> > It will die on trying to migrate the poisoned page so we don't care
->> >> > the accounting. But normally the poisoned page shall already be
->> >>
->> >>
->> >> Okay. then, how about this ?
->> >> We should not increase file_rss on trying to migrate the poisoned pag=
-e
->> >>
->> >> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!is_migra=
-tion_entry(pte_to_swp_entry(*pte)))
->> >> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (!(PAGE_MI=
-GRATION && migration))
->> >
->> > This is good if we are going to stop the hwpoison page from being
->> > consumed by move_to_new_page(), but I highly doubt we'll ever add
->> > PageHWPoison() checks into the migration code.
->> >
->> > Because this race window is small enough:
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0TestSetPageHWPoison(p);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock_page(page);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 try_to_unmap(page, TTU_MIG=
-RATION|...);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0lock_page_nosync(p);
->> >
->> > such small race windows can be found all over the kernel, it's just
->> > insane to try to fix any of them.
->>
->> Sorry for too late response.
->>
->> I see your point.
->> My opinion is that at least we must be notified when such situation happ=
-en.
->> So I think it would be better to add some warning to fix up it when it
->> happen even thought =C2=A0it is small race window.
->
-> Notification is also pointless here: we'll die hard on
-> accessing/consuming the poisoned page anyway :(
+On Wed, Jun 17, 2009 at 02:05:20PM +0200, Jan Kara wrote:
+> On Wed 17-06-09 12:35:43, Nick Piggin wrote:
+> > On Mon, Jun 15, 2009 at 07:59:54PM +0200, Jan Kara wrote:
+> > > When we do delayed allocation of some buffer, we want to signal to VFS that
+> > > the buffer is new (set buffer_new) so that it properly zeros out everything.
+> > > But we don't have the buffer mapped yet so we cannot really unmap underlying
+> > > metadata in this state. Make VFS avoid doing unmapping of metadata when the
+> > > buffer is not yet mapped.
+> > 
+> > Is this a seperate bugfix for delalloc filesystems? What is the error
+> > case of attempting to unmap underlying metadata of non mapped buffer?
+> > Won't translate to a serious bug will it?
+>   If you do unmap_underlying_metadata on !mapped buffer, the kernel will
+> oops because it will try to dereference bh->b_bdev which is NULL. Ext4 or
+> XFS workaround this issue by setting b_bdev to the real device and b_blocknr
+> to ~0 so unmap_underlying_metadata does not oops.  As I didn't want to do
+> the same hack in ext3, I need this patch...
 
-My intention wasn't to recover it.
-
-It just add something like WARN_ON.
-You said it is small window enough. but I think it can happen more
-hight probability in migration-workload.(At a moment, I don't know
-what kinds of app)
-For such case, If we can hear reporting of warning, at that time we
-can consider migration handling for HWPoison.
-
-> Thanks,
-> Fengguang
->
->
+OK, just trying to understand the patchset. It would be nice to
+merge this ASAP as well and remove the ext4 and xfs hacks.
 
 
+>   You're right it's not directly connected with the mkwrite problem and
+> can go in separately. Given how late it is, I'd like to get patch number 2
+> reviewed (generic mkwrite changes), so that it can go together with patch
+> number 4 (ext4 fixes) in the current merge window. The rest is not that
+> urgent since it's not oopsable and you can hit it only when running out
+> of space (or hitting quota limit)...
 
---=20
-Kinds regards,
-Minchan Kim
+Sorry I was so late with looking at it. I am reading it now though
+(especially #2) ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
