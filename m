@@ -1,292 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1906B004F
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 02:28:33 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5H6TOHm017374
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 17 Jun 2009 15:29:24 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D2F1745DD7B
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 15:29:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A93EF45DD78
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 15:29:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 944461DB8038
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 15:29:23 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 493DDE08006
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 15:29:20 +0900 (JST)
-Date: Wed, 17 Jun 2009 15:27:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][BUGFIX] memcg: rmdir doesn't return
-Message-Id: <20090617152748.6b6c643e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090617054955.GF7646@balbir.in.ibm.com>
-References: <20090615115021.c79444cb.nishimura@mxp.nes.nec.co.jp>
-	<20090615120213.e9a3bd1d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090615171715.53743dce.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090616114735.c7a91b8b.nishimura@mxp.nes.nec.co.jp>
-	<20090616140050.4172f988.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090616153810.fd710c5b.nishimura@mxp.nes.nec.co.jp>
-	<20090616154820.c9065809.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090616174436.5a4b6577.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090617045643.GE7646@balbir.in.ibm.com>
-	<20090617141109.8d9a47ea.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090617054955.GF7646@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 97B986B005A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 02:35:59 -0400 (EDT)
+Date: Wed, 17 Jun 2009 14:37:02 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [RFC][PATCH] HWPOISON: only early kill processes who installed
+	SIGBUS handler
+Message-ID: <20090617063702.GA20922@localhost>
+References: <20090615024520.786814520@intel.com> <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <20090615064447.GA18390@wotan.suse.de> <20090615070914.GC31969@one.firstfloor.org> <20090615071907.GA8665@wotan.suse.de> <20090615121001.GA10944@localhost> <20090615122528.GA13256@wotan.suse.de> <20090615142225.GA11167@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090615142225.GA11167@localhost>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Li Zefan <lizf@cn.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Jun 2009 11:19:55 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-17 14:11:09]:
-> 
-> > On Wed, 17 Jun 2009 10:26:43 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-16 17:44:36]:
+On Mon, Jun 15, 2009 at 10:22:25PM +0800, Wu Fengguang wrote:
+> On Mon, Jun 15, 2009 at 08:25:28PM +0800, Nick Piggin wrote:
+> > On Mon, Jun 15, 2009 at 08:10:01PM +0800, Wu Fengguang wrote:
+> > > On Mon, Jun 15, 2009 at 03:19:07PM +0800, Nick Piggin wrote:
+> > > > > For KVM you need early kill, for the others it remains to be seen.
+> > > > 
+> > > > Right. It's almost like you need to do a per-process thing, and
+> > > > those that can handle things (such as the new SIGBUS or the new
+> > > > EIO) could get those, and others could be killed.
 > > > 
-> > > > On Tue, 16 Jun 2009 15:48:20 +0900
-> > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > 
-> > > > > > It has been working well so far, but I will continue to test for more long time.
-> > > > > > 
-> > > > > Thank you. I'd like to find out more clean fix, keeping this as an option.
-> > > > > 
-> > > > This is cleaned up version. works well in following test.
-> > > > 
-> > > > ==
-> > > > 1. mount -t tmpfs /dev/null /mnt/tmpfs
-> > > > 2. mount -t cgroup /dev/null /mnt/cgroups -o memory
-> > > > 3. mkdir /mnt/cgroups/A/
-> > > > 4. echo $$ > /mnt/cgroups/A/tasks
-> > > > 5. echo 4M > /mnt/cgroups/A/memory.limit_in_bytes
-> > > > 5. dd if=/dev/zero of=/mnt/tmpfs/testfile bs=1024 count=30000
-> > > >  => 26M of swap.
-> > > > 6. echo $$ > /mnt/cgroups/tasks
-> > > >  => group "A" is empty now.
-> > > > 7-a. while true; do cat /mnt/tmpfs/testfile > /dev/null;done
-> > > > 
-> > > > In ohter shell.
-> > > > 7-b. rmdir /mnt/cgroups/A
-> > > > ==
-> > > > Of course, you have more compliated ones..
-> > > > 
-> > > > the patch seems a bit long but most of patch is comment..
-> > > > 
-> > > > ==
-> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > 
-> > > > In general, cgroup is for tasks and cgroup subsys(css)'s refcnt is maintained
-> > > > per objects related to tasks. But memcg counts refcnt per pages because
-> > > > the pointer to css is recorded per page. And more, hierarchy-management support
-> > > > requires safe css refcnt management while a rmdir() is ongoing.
-> > > > 
-> > > > css_tryget()/css_put() is for such purpose and works well.
-> > > > 
-> > > > But, frequent css_put()/get() tends to prevent rmdir() and users can see
-> > > > EBUSY very often. To fix that, waitqueue-for-rmdir was introduced and
-> > > > rmdir() can work in synchronous way with cgroup subsytems. But this logic
-> > > > expects "refcnt obtained by css_tryget() is temporal and will go down to
-> > > > 0 soon, then rmdir() will wake up soon."
-> > > > 
-> > > > But memcg's swapin code breaks the assumption. (But necessary...)
-> > > > This patch try to reuse another anotation of CGRP_WAIT_ON_RMDIR flag to
-> > > > check whether cgroup is under rmdir if memcg got a *not termporal* refcnt 
-> > > > by css_tryget().
-> > > > 
-> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > ---
-> > > >  include/linux/cgroup.h |    7 +++++++
-> > > >  kernel/cgroup.c        |   46 +++++++++++++++++++++++++++-------------------
-> > > >  mm/memcontrol.c        |   11 +++++++++--
-> > > >  3 files changed, 43 insertions(+), 21 deletions(-)
-> > > > 
-> > > > Index: linux-2.6.30.org/include/linux/cgroup.h
-> > > > ===================================================================
-> > > > --- linux-2.6.30.org.orig/include/linux/cgroup.h
-> > > > +++ linux-2.6.30.org/include/linux/cgroup.h
-> > > > @@ -365,6 +365,13 @@ int cgroup_task_count(const struct cgrou
-> > > >  /* Return true if cgrp is a descendant of the task's cgroup */
-> > > >  int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
-> > > > 
-> > > > +void __cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp);
-> > > > +static inline void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > > +{
-> > > > +	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-> > > > +		__cgroup_wakeup_rmdir_waiters(cgrp);
-> > > > +}
-> > > > +
-> > > >  /*
-> > > >   * Control Group subsystem type.
-> > > >   * See Documentation/cgroups/cgroups.txt for details
-> > > > Index: linux-2.6.30.org/kernel/cgroup.c
-> > > > ===================================================================
-> > > > --- linux-2.6.30.org.orig/kernel/cgroup.c
-> > > > +++ linux-2.6.30.org/kernel/cgroup.c
-> > > > @@ -737,10 +737,9 @@ static void cgroup_d_remove_dir(struct d
-> > > >   */
-> > > >  DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
-> > > > 
-> > > > -static void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > > +void __cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > > >  {
-> > > > -	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-> > > > -		wake_up_all(&cgroup_rmdir_waitq);
-> > > > +	wake_up_all(&cgroup_rmdir_waitq);
-> > > >  }
-> > > > 
-> > > >  static int rebind_subsystems(struct cgroupfs_root *root,
-> > > > @@ -2667,13 +2666,27 @@ static int cgroup_rmdir(struct inode *un
-> > > > 
-> > > >  	/* the vfs holds both inode->i_mutex already */
-> > > >  again:
-> > > > +	/*
-> > > > +	 * css_put/get is provided for subsys to grab refcnt to css. In typical
-> > > > +	 * case, subsystem has no reference after pre_destroy(). But, under
-> > > > +	 * hierarchy management, some *temporal* refcnt can be hold.
-> > > > +	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
-> > > > +	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
-> > > > +	 * is called when css_put() is called and refcnt goes down to 0.
-> > > > +	 *
-> > > > +	 * Subsys can check CGRP_WAIT_ON_RMDIR bit by itself to know
-> > > > +	 * it's under ongoing rmdir() or not. Because css_tryget() returns false
-> > > > +	 * only after css->refcnt returns 0, checking this bit is useful when
-> > > > +	 * css' refcnt seems to be not temporal.
-> > > > +	 */
-> > > > +	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > +	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-> > > > +
-> > > >  	mutex_lock(&cgroup_mutex);
-> > > > -	if (atomic_read(&cgrp->count) != 0) {
-> > > > -		mutex_unlock(&cgroup_mutex);
-> > > > -		return -EBUSY;
-> > > > -	}
-> > > > -	if (!list_empty(&cgrp->children)) {
-> > > > +	if (atomic_read(&cgrp->count) != 0 || !list_empty(&cgrp->children)) {
-> > > >  		mutex_unlock(&cgroup_mutex);
-> > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > >  		return -EBUSY;
-> > > >  	}
-> > > >  	mutex_unlock(&cgroup_mutex);
-> > > > @@ -2683,25 +2696,20 @@ again:
-> > > >  	 * that rmdir() request comes.
-> > > >  	 */
-> > > >  	ret = cgroup_call_pre_destroy(cgrp);
-> > > > -	if (ret)
-> > > > +	if (ret) {
-> > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > >  		return ret;
-> > > > +	}
-> > > > 
-> > > >  	mutex_lock(&cgroup_mutex);
-> > > >  	parent = cgrp->parent;
-> > > >  	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-> > > >  		mutex_unlock(&cgroup_mutex);
-> > > > +		finish_wait(&cgroup_rmdir_waitq, &wait);
-> > > > +		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > >  		return -EBUSY;
-> > > >  	}
-> > > > -	/*
-> > > > -	 * css_put/get is provided for subsys to grab refcnt to css. In typical
-> > > > -	 * case, subsystem has no reference after pre_destroy(). But, under
-> > > > -	 * hierarchy management, some *temporal* refcnt can be hold.
-> > > > -	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
-> > > > -	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
-> > > > -	 * is called when css_put() is called and refcnt goes down to 0.
-> > > > -	 */
-> > > > -	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-> > > > -	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-> > > > 
-> > > >  	if (!cgroup_clear_css_refs(cgrp)) {
-> > > >  		mutex_unlock(&cgroup_mutex);
-> > > > Index: linux-2.6.30.org/mm/memcontrol.c
-> > > > ===================================================================
-> > > > --- linux-2.6.30.org.orig/mm/memcontrol.c
-> > > > +++ linux-2.6.30.org/mm/memcontrol.c
-> > > > @@ -1338,6 +1338,7 @@ __mem_cgroup_commit_charge_swapin(struct
-> > > >  		return;
-> > > >  	if (!ptr)
-> > > >  		return;
-> > > > +	css_get(&ptr->css);
-> > > >  	pc = lookup_page_cgroup(page);
-> > > >  	mem_cgroup_lru_del_before_commit_swapcache(page);
-> > > >  	__mem_cgroup_commit_charge(ptr, pc, ctype);
-> > > > @@ -1367,8 +1368,14 @@ __mem_cgroup_commit_charge_swapin(struct
-> > > >  		}
-> > > >  		rcu_read_unlock();
-> > > >  	}
-> > > > -	/* add this page(page_cgroup) to the LRU we want. */
-> > > > -
-> > > > +	/*
-> > > > +	 * Because we charged against a cgroup which is obtained by record
-> > > > +	 * in swap_cgroup, not by task, there is a possibility that someone is
-> > > > +	 * waiting for rmdir. This happens when a swap entry is shared
-> > > > +	 * among cgroups. After wakeup, pre_destroy() will be called again.
-> > > > +	 */
-> > > > +	cgroup_wakeup_rmdir_waiters(&ptr->css.cgroup);
-> > > > +	css_put(&ptr->css);
-> > > >  }
-> > > > 
-> > > >  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-> > > > 
-> > > >
-> > > 
-> > > I am a little confused by the infrastructure. I think it is OK to
-> > > return -EBUSY and then use notify_on_release to figure out when to
-> > > free the cgroup. Are we moving away from the design?
-> > >  
+> > > To send early SIGBUS kills to processes who has called
+> > > sigaction(SIGBUS, ...)?  KVM will sure do that. For other apps we
+> > > don't mind they can understand that signal at all.
 > > 
-> > When you use cgroup with _hierarchy_ in real world, rmdir returns -EBUSY very
-> > very often. (Because hierarchy dramatically increase chance to css_get() to empty
-> > cgroup.)
-> > 
+> > For apps that hook into SIGBUS for some other means and
 > 
-> I completely understand that part, but I thought we had solved this
-> problem through notify_on_release and release_agent. I am not against
-> it, but I want to know why release_agent will not solve this problem
-> (is it too loose for control?)
+> Yes I was referring to the sigaction(SIGBUS) apps, others will
+> be late killed anyway.
 > 
+> > do not understand the new type of SIGBUS signal? What about
+> > those?
+> 
+> We introduced two new SIGBUS codes:
+>         BUS_MCEERR_AO=5         for early kill
+>         BUS_MCEERR_AR=4         for late  kill
+> I'd assume a legacy application will handle them in the same way (both
+> are unexpected code to the application).
+> 
+> We don't care whether the application can be killed by BUS_MCEERR_AO
+> or BUS_MCEERR_AR depending on its SIGBUS handler implementation.
+> But (in the rare case) if the handler
+> - refused to die on BUS_MCEERR_AR, it may create a busy loop and
+>   flooding of SIGBUS signals, which is a bug of the application.
+>   BUS_MCEERR_AO is one time and won't lead to busy loops.
+> - does something that hurts itself (ie. data safety) on BUS_MCEERR_AO,
+>   it may well hurt the same way on BUS_MCEERR_AR. The latter one is
+>   unavoidable, so the application must be fixed anyway.
 
-release_agent is not useful with memcg by following reason.
+This patch materializes the automatically early kill idea.
+It aims to remove the vm.memory_failure_ealy_kill sysctl parameter.
 
-1. release_agent() is called when css->count get to be 0.
-2. until force_empty() is called, css->count > 0.
-3. to call force_empty, rmdir or memory.force_empty should be kicked.
-4. Then, release_agent doesn't work for automatic rmdir.
-
-You have to change release_agent definition/implimentation to rmdir memcg's
-directory automatically.
-
-And even if release_agent() is called, it will do rmdir and see -EBUSY.
-I don't think multiple calls of release_agent against a cgroup is a sane
-activity. 
-
-But under current implementation, release_agent can be called multiple times.
-(This is other topic, maybe.)
-
-
+This is mainly a policy change, please comment.
 
 Thanks,
--Kame
+Fengguang
+
+---
+HWPOISON: only early kill processes who installed SIGBUS handler
+
+We want to send SIGBUS.BUS_MCEERR_AO signals to KVM ASAP, so that
+it is able to take actions to isolate the corrupted page. In fact,
+any applications that does extensive internal caching (KVM, Oracle,
+etc.) is advised to install a SIGBUS handler to get early notifications
+of corrupted memory, so that it has good possibility to find and remove
+the page from its cache. If don't do so, they will later receive the
+SIGBUS.BUS_MCEERR_AR signal on accessing the corrupted memory, which
+can be deadly (too hard to rescue).
+
+For applications that don't care the signal, let them continue to run
+until they try to consume the corrupted data.
+
+For applications that used to catch the SIGBUS handler but don't understand
+the new BUS_MCEERR_AO/BUS_MCEERR_AR codes, they may
+- refused to die on BUS_MCEERR_AR, creating a busy loop and
+  flooding of SIGBUS signals, which is a bug of the application.
+  BUS_MCEERR_AO is an one shot event and won't lead to busy loops.
+- does something that hurts itself (ie. data safety) on BUS_MCEERR_AO,
+  it may well hurt the same way on BUS_MCEERR_AR. The latter one is
+  unavoidable, so the application must be fixed anyway.
 
 
+CC: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/memory-failure.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
-
-
-
-
-
-
-
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -205,6 +205,20 @@ static void kill_procs_ao(struct list_he
+ 	}
+ }
+ 
++static bool task_early_kill_elegible(struct task_struct *tsk)
++{
++	__sighandler_t handler;
++
++	if (!tsk->mm)
++		return false;
++
++	handler = tsk->sighand->action[SIGBUS-1].sa.sa_handler;
++	if (handler == SIG_DFL || handler == SIG_IGN)
++		return false;
++
++	return true;
++}
++
+ /*
+  * Collect processes when the error hit an anonymous page.
+  */
+@@ -222,7 +236,7 @@ static void collect_procs_anon(struct pa
+ 		goto out;
+ 
+ 	for_each_process (tsk) {
+-		if (!tsk->mm)
++		if (!task_early_kill_elegible(tsk))
+ 			continue;
+ 		list_for_each_entry (vma, &av->head, anon_vma_node) {
+ 			if (!page_mapped_in_vma(page, vma))
+@@ -262,7 +276,7 @@ static void collect_procs_file(struct pa
+ 	for_each_process(tsk) {
+ 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 
+-		if (!tsk->mm)
++		if (!task_early_kill_elegible(tsk))
+ 			continue;
+ 
+ 		vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
