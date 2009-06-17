@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9156B6B0085
-	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 09:51:55 -0400 (EDT)
-Date: Wed, 17 Jun 2009 15:53:31 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 07/11] vfs: Unmap underlying metadata of new data buffers only when buffer is mapped
-Message-ID: <20090617135331.GA20678@wotan.suse.de>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-8-git-send-email-jack@suse.cz> <20090617103543.GB29931@wotan.suse.de> <20090617120520.GD2612@duck.suse.cz>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E2276B005A
+	for <linux-mm@kvack.org>; Wed, 17 Jun 2009 10:00:56 -0400 (EDT)
+Date: Wed, 17 Jun 2009 09:00:53 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: + page_alloc-oops-when-setting-percpu_pagelist_fraction.patch
+	added to -mm tree
+Message-ID: <20090617140053.GB32637@sgi.com>
+References: <200906161901.n5GJ1osY026940@imap1.linux-foundation.org> <20090617091040.99BB.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090617120520.GD2612@duck.suse.cz>
+In-Reply-To: <20090617091040.99BB.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: cl@linux-foundation.org, mel@csn.ul.ie, nickpiggin@yahoo.com.au, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 17, 2009 at 02:05:20PM +0200, Jan Kara wrote:
-> On Wed 17-06-09 12:35:43, Nick Piggin wrote:
-> > On Mon, Jun 15, 2009 at 07:59:54PM +0200, Jan Kara wrote:
-> > > When we do delayed allocation of some buffer, we want to signal to VFS that
-> > > the buffer is new (set buffer_new) so that it properly zeros out everything.
-> > > But we don't have the buffer mapped yet so we cannot really unmap underlying
-> > > metadata in this state. Make VFS avoid doing unmapping of metadata when the
-> > > buffer is not yet mapped.
+On Wed, Jun 17, 2009 at 09:21:27AM +0900, KOSAKI Motohiro wrote:
+> (switch to lkml)
+> 
+> Sorry for late review.
+> 
+> >  mm/page_alloc.c |    6 +++++-
+> >  1 file changed, 5 insertions(+), 1 deletion(-)
 > > 
-> > Is this a seperate bugfix for delalloc filesystems? What is the error
-> > case of attempting to unmap underlying metadata of non mapped buffer?
-> > Won't translate to a serious bug will it?
->   If you do unmap_underlying_metadata on !mapped buffer, the kernel will
-> oops because it will try to dereference bh->b_bdev which is NULL. Ext4 or
-> XFS workaround this issue by setting b_bdev to the real device and b_blocknr
-> to ~0 so unmap_underlying_metadata does not oops.  As I didn't want to do
-> the same hack in ext3, I need this patch...
+> > diff -puN mm/page_alloc.c~page_alloc-oops-when-setting-percpu_pagelist_fraction mm/page_alloc.c
+> > --- a/mm/page_alloc.c~page_alloc-oops-when-setting-percpu_pagelist_fraction
+> > +++ a/mm/page_alloc.c
+> > @@ -2806,7 +2806,11 @@ static int __cpuinit process_zones(int c
+> >  
+> >  	node_set_state(node, N_CPU);	/* this node has a cpu */
+> >  
+> > -	for_each_populated_zone(zone) {
+> > +	for_each_zone(zone) {
+> > +		if (!populated_zone(zone)) {
+> > +			zone_pcp(zone, cpu) = &boot_pageset[cpu];
+> > +			continue;
+> > +		}
+> >  		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
+> >  					 GFP_KERNEL, node);
+> >  		if (!zone_pcp(zone, cpu))
+> 
+> I don't think this code works.
+> pcp is only protected local_irq_save(), not spin lock. it assume
+> each cpu have different own pcp. but this patch break this assumption.
+> Now, we can share boot_pageset by multiple cpus.
+> 
 
-OK, just trying to understand the patchset. It would be nice to
-merge this ASAP as well and remove the ext4 and xfs hacks.
+I'm not quite understanding what you mean.
 
-
->   You're right it's not directly connected with the mkwrite problem and
-> can go in separately. Given how late it is, I'd like to get patch number 2
-> reviewed (generic mkwrite changes), so that it can go together with patch
-> number 4 (ext4 fixes) in the current merge window. The rest is not that
-> urgent since it's not oopsable and you can hit it only when running out
-> of space (or hitting quota limit)...
-
-Sorry I was so late with looking at it. I am reading it now though
-(especially #2) ;)
+Prior to the cpu going down, each unpopulated zone pointed to the boot_pageset (per_cpu_pageset) for it's cpu (it's array element), so things had been set up this way already.  I could be missing something, but am not sure why restoring this would be a risk?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
