@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0696B005A
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 02:33:41 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [this_cpu_xx V2 10/19] this_cpu: X86 optimized this_cpu operations
-Date: Fri, 19 Jun 2009 15:11:49 +0930
-References: <20090617203337.399182817@gentwo.org> <alpine.DEB.1.10.0906181134440.26369@gentwo.org> <4A3A65F7.6070404@kernel.org>
-In-Reply-To: <4A3A65F7.6070404@kernel.org>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 165866B005A
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 03:09:05 -0400 (EDT)
+Received: from toip5.srvr.bell.ca ([209.226.175.88])
+          by tomts43-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20090618115953.TKGV11189.tomts43-srv.bellnexxia.net@toip5.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Thu, 18 Jun 2009 07:59:53 -0400
+Date: Thu, 18 Jun 2009 07:59:46 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [this_cpu_xx V2 16/19] this_cpu: slub aggressive use of
+	this_cpu operations in the hotpaths
+Message-ID: <20090618115946.GA11108@Krystal>
+References: <20090617203337.399182817@gentwo.org> <20090617203445.892030202@gentwo.org> <1245306801.12010.10.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200906191511.50690.rusty@rustcorp.com.au>
+In-Reply-To: <1245306801.12010.10.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, akpm@linux-foundation.org, linux-mm@kvack.org, mingo@elte.hu, davem@davemloft.net
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Jun 2009 01:36:15 am Tejun Heo wrote:
-> Christoph Lameter wrote:
-> > On Thu, 18 Jun 2009, Tejun Heo wrote:
-> >> Ah... okay, so it's supposed to take a lvalue.  I think it would be
-> >> better to make it take pointer.  lvalue parameter is just weird when
-> >> dynamic percpu variables are involved.  The old percpu accessors
-> >> taking lvalue has more to do with the way percpu variables were
-> >> defined in the beginning than anything else and are inconsistent with
-> >> other similar accessors in the kernel.  As the new accessors are gonna
-> >> replace the old ones eventually and maybe leave only the most often
-> >> used ones as wrapper around pointer based ones, I think it would be
-> >> better to make the transition while introducing new accessors.
-> >
-> > The main purpose of these operations is to increment counters. Passing a
-> > pointer would mean adding the & operator in all locations. Is there any
-> > benefit through the use of the & operator?
-> >
-> > lvalues of structs in the form of my_struct->field is a natural form of
-> > referring to scalars.
-> >
-> > The operation occurs on the object not on the pointer.
-> >
-> > The special feature is that the address of the object is taken and its
-> > address is relocated so that the current processors instance of the
-> > object is used.
->
-> Functionally, there's no practical difference but it's just weird to
-> use scalar as input/output parameter.  All the atomic and bitops
-> operations are taking pointers.  In fact, there are only very few
-> which take lvalue input and modify it, so I think it would be much
-> better to take pointers like normal C functions and macros for the
-> sake of consistency.
+* Pekka Enberg (penberg@cs.helsinki.fi) wrote:
+> On Wed, 2009-06-17 at 16:33 -0400, cl@linux-foundation.org wrote:
+> > Use this_cpu_* operations in the hotpath to avoid calculations of
+> > kmem_cache_cpu pointer addresses.
+> > 
+> > It is not clear if this is always an advantage.
+> > 
+> > On x86 there is a tradeof: Multiple uses segment prefixes against an
+> > address calculation and more register pressure.
+> > 
+> > On the other hand the use of prefixes is necessary if we want to use
+> > Mathieus scheme for fastpaths that do not require interrupt disable.
+> 
+> On an unrelated note, it sure would be nice if the SLUB allocator didn't
+> have to disable interrupts because then we could just get rid of the gfp
+> masking there completely.
+> 
 
-Absolutely agreed here; C is pass by value and any use of macros to violate 
-that is abhorrent.  Let's not spread the horro of cpus_* or local_irq_save()!
+The solution I had just gets rid of the irqoff for the fast path. The
+slow path still needs to disable interrupts.
 
-Thanks,
-Rusty.
+Mathieu
+
+> 			Pekka
+> 
+
+-- 
+Mathieu Desnoyers
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
