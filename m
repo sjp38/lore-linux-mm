@@ -1,201 +1,336 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3EDBA6B004F
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 10:23:07 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20090618132020.GA21444@jukie.net>
-References: <20090618132020.GA21444@jukie.net> <20090615123658.GC4721@jukie.net> <20090613182721.GA24072@jukie.net> <25357.1245068384@redhat.com> <25124.1245074627@redhat.com> <20090617120451.GF30951@jukie.net>
-Subject: Re: [v2.6.30 nfs+fscache] lockdep: inconsistent lock state
-Date: Thu, 18 Jun 2009 15:23:43 +0100
-Message-ID: <16247.1245335023@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A43956B005A
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 10:45:15 -0400 (EDT)
+Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090618093301.GD14903@csn.ul.ie>
+References: <20090616135228.25248.22018.sendpatchset@lts-notebook>
+	 <20090617130216.GF28529@csn.ul.ie> <1245258954.6235.58.camel@lts-notebook>
+	 <20090618093301.GD14903@csn.ul.ie>
+Content-Type: text/plain
+Date: Thu, 18 Jun 2009 10:46:34 -0400
+Message-Id: <1245336394.1025.65.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bart Trojanowski <bart@jukie.net>
-Cc: dhowells@redhat.com, linux-kernel@vger.kernel.org, linux-cachefs@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Bart Trojanowski <bart@jukie.net> wrote:
+On Thu, 2009-06-18 at 10:33 +0100, Mel Gorman wrote:
+> On Wed, Jun 17, 2009 at 01:15:54PM -0400, Lee Schermerhorn wrote:
+> > On Wed, 2009-06-17 at 14:02 +0100, Mel Gorman wrote:
+> > > On Tue, Jun 16, 2009 at 09:52:28AM -0400, Lee Schermerhorn wrote:
+> > > > Because of assymmetries in some NUMA platforms, and "interesting"
+> > > > topologies emerging in the "scale up x86" world, we have need for
+> > > > better control over the placement of "fresh huge pages".  A while
+> > > > back Nish Aravamundan floated a series of patches to add per node
+> > > > controls for allocating pages to the hugepage pool and removing
+> > > > them.  Nish apparently moved on to other tasks before those patches
+> > > > were accepted.  I have kept a copy of Nish's patches and have
+> > > > intended to rebase and test them and resubmit.
+> > > > 
+> > > > In an [off-list] exchange with Mel Gorman, who admits to knowledge
+> > > > in the huge pages area, I asked his opinion of per node controls
+> > > > for huge pages and he suggested another approach:  using the mempolicy
+> > > > of the task that changes nr_hugepages to constrain the fresh huge
+> > > > page allocations.  I considered this approach but it seemed to me
+> > > > to be a misuse of mempolicy for populating the huge pages free
+> > > > pool. 
+> > > 
+> > > Why would it be a misuse? Fundamentally, the huge page pools are being
+> > > filled by the current process when nr_hugepages is being used. Or are
+> > > you concerned about the specification of hugepages on the kernel command
+> > > line?
+> > 
+> > Well, "misuse" might be too strong [and I already softened it from
+> > "abuse" :)]--more like "not a good fit, IMO".   I agree that it could be
+> > made to work, but it just didn't "feel" right.  I suppose that we could
+> > use alloc_pages_current() with the necessary gfp flags to specify the
+> > "thisnode"/"exact_node" semantics [no fallback], making sure we didn't
+> > OOM kill the task if a node couldn't satisfy the huge page
+> > allocation, ...  I think it would require major restructuring of
+> > set_max_huge_pages(), ...  Maybe that would be the right thing to do and
+> > maybe we'll end up there, but I was looking for a simpler approach.  
+> > 
+> 
+> Ultimately I think it's the right way of doing things. hugepages in the
+> past had a large number of "special" considerations in comparison to the
+> core VM. We've removed a fair few of the special cases in the last year
+> and I'd rather avoid introducing more of them.
+> 
+> If I was as an administrator, I would prefer being able to do allocate
+> hugepages only on two nodes with
+> 
+> # numactl --interleave 0,2 hugeadm --pool-pages-min=2M:128
 
-> Pid: 29607, comm: kslowd Not tainted 2.6.30-kvm4-dirty #5
-> Call Trace:
->  [<ffffffff80235b69>] ? __wake_up+0x27/0x55
->  [<ffffffffa02575cc>] cachefiles_read_waiter+0x5d/0x102 [cachefiles]
->  [<ffffffff80233a55>] __wake_up_common+0x4b/0x7a
->  [<ffffffff80235b7f>] __wake_up+0x3d/0x55
->  [<ffffffff8025a2cd>] __wake_up_bit+0x31/0x33
->  [<ffffffff802a51c6>] unlock_page+0x27/0x2b
->  [<ffffffffa0234fba>] ext3_truncate+0x4bb/0x8fd [ext3]
->  [<ffffffff802ba7d7>] ? unmap_mapping_range+0x232/0x241
->  [<ffffffff8026976d>] ? trace_hardirqs_on+0xd/0xf
->  [<ffffffff802ba987>] vmtruncate+0xc4/0xe4
->  [<ffffffff802ebfae>] inode_setattr+0x30/0x12a
->  [<ffffffffa023299f>] ext3_setattr+0x198/0x1ff [ext3]
->  [<ffffffff802ec241>] notify_change+0x199/0x2e4
->  [<ffffffffa02545b1>] cachefiles_attr_changed+0x10c/0x181 [cachefiles]
->  [<ffffffffa0256110>] ? cachefiles_walk_to_object+0x68b/0x798 [cachefiles]
->  [<ffffffffa0254c72>] cachefiles_lookup_object+0xac/0xd4 [cachefiles]
->  [<ffffffffa017450f>] fscache_lookup_object+0x136/0x14e [fscache]
->  [<ffffffffa0174aad>] fscache_object_slow_work_execute+0x243/0x814 [fscache]
->  [<ffffffff802a4092>] slow_work_thread+0x278/0x43a
->  [<ffffffff8025a2f7>] ? autoremove_wake_function+0x0/0x3d
->  [<ffffffff802a3e1a>] ? slow_work_thread+0x0/0x43a
->  [<ffffffff802a3e1a>] ? slow_work_thread+0x0/0x43a
->  [<ffffffff80259ee8>] kthread+0x5b/0x88
->  [<ffffffff8020ce8a>] child_rip+0xa/0x20
->  [<ffffffff805a1968>] ? _spin_unlock_irq+0x30/0x3b
->  [<ffffffff8020c850>] ? restore_args+0x0/0x30
->  [<ffffffff8023fcf8>] ? finish_task_switch+0x40/0x111
->  [<ffffffff80259e68>] ? kthreadd+0x10f/0x134
->  [<ffffffff80259e8d>] ? kthread+0x0/0x88
->  [<ffffffff8020ce80>] ? child_rip+0x0/0x20
-> CacheFiles: I/O Error: Readpage failed on backing file c0000000000830
-> FS-Cache: Cache cachefiles stopped due to I/O error
+Of course, this means that hugeadm itself and any library pages it pulls
+in will be interleaved across those nodes.  I don't know that that's an
+issue.  hugeadm or any command used to resize the pool will need to run
+somewhere.
 
-Yeah, I know what that is.  Patch attached.
+> 
+> instead of
+> 
+> # echo some_magic > /proc/sys/vm/hugepage_nodes_allowed
+> # hugeadm --pool-pages-min=2M:128
+> 
+> hugeadm would have to be taught about the new sysctl of course if it's created
+> but it still feels more awkward than it should be and numactl should already
+> be familar.
+> 
+> > And, yes, the kernel command line was a consideration.  Because of that,
+> > I considered specifying a boot time "nodes_allowed" mask and
+> > constructing a "nodes_allowed" mask at run time from the current task's
+> > policy.  But, it seemed more straightforward to my twisted way of
+> > thinking to make the nodes_allowed mask a bona fide hstate attribute.
+> > 
+> 
+> I see scope for allowing the nodemask to be specified at boot-time all right,
+> heck it might even be required! 
 
-David
----
-From: David Howells <dhowells@redhat.com>
-Subject: [PATCH] CacheFiles: Don't write a full page if there's only a partial page to cache
+Yeah, the hugepages doc does recommend that one allocate the pool at
+boot time or in an init script when the allocations still have a good
+chance of succeeding.
 
-cachefiles_write_page() writes a full page to the backing file for the last
-page of the netfs file, even if the netfs file's last page is only a partial
-page.
+> However, I am somewhat attached to the idea
+> of static hugepage allocation obeying memory policies.
 
-This causes the EOF on the backing file to be extended beyond the EOF of the
-netfs, and thus the backing file will be truncated by cachefiles_attr_changed()
-called from cachefiles_lookup_object().
+Really?  I couldn't tell ;).
 
-So we need to limit the write we make to the backing file on that last page
-such that it doesn't push the EOF too far.
+> 
+> > > 
+> > > > Interleave policy doesn't have same "this node" semantics
+> > > > that we want
+> > > 
+> > > By "this node" semantics, do you mean allocating from one specific node?
+> > 
+> > Yes.
+> > 
+> > > In that case, why would specifying a nodemask of just one node not be
+> > > sufficient?
+> > 
+> > Maybe along with GFP_THISNODE. 
+> 
+> But a nodemask of just one node might as well be GFP_THISNODE, right?
+
+No.  w/o GFP_THISNODE, the allocation will use the generic zonelist and
+will fallback to another node if the target node doesn't have any
+available huge pages.  Looks just like any other higher order page
+allocation.  And w/o 'THISNODE, I think we'll OOM kill the task
+increasing max hugepages if the allocation fails--need to test this.  We
+may want/accept this behavior for satisfying tasks' page faults, but not
+for allocating static huge pages into the pool--IMO, anyway.
+
+So, my approach to using task mempolicy would be to construct a
+"nodes_allowed" mask from the policy and then use the same
+alloc_pages_exact_node() with the same flags we currently use.  This is
+what I mean about it being a "misfit".  What I really want is a node
+mask over which I'll distribute the huge pages.  The policy mode [bind,
+pref, interleave, local] is irrelevant other than in constructing this
+mask.  That's what led me to the nodes_allowed attribute/sysctl.
+
+> 
+> > In general, we want to interleave the
+> > persistent huge pages over multiple nodes, but we don't want the
+> > allocations to succeed by falling back to another node.  Then we end up
+> > with unbalanced allocations.  This is how fresh huge page allocation
+> > worked before it was changed to use "THISNODE".
+> > 
+> > 
+> > > 
+> > > > and bind policy would require constructing a custom
+> > > > node mask for node as well as addressing OOM, which we don't want
+> > > > during fresh huge page allocation. 
+> > > 
+> > > Would the required mask not already be setup when the process set the
+> > > policy? OOM is not a major concern, it doesn't trigger for failed
+> > > hugepage allocations.
+> > 
+> > Perhaps not with the current implementation.  However, a certain,
+> > currently shipping, enterprise distro added a "quick and dirty"  [well,
+> > "dirty", anyway :)] implementation of "thisnode" behavior to elimiate
+> > the unwanted fallback behavior and resulting huge pages imbalance by
+> > constructing an ad hoc "MPOL_BIND" policy for allocating huge pages.  We
+> > found that this DOES result in oom kill of the task increasing
+> > nr_hugepages if it encountered a node w/ no available huge pages.
+> > 
+> 
+> Fun.
+> 
+> > If one used "echo" [usually a shell builtin] to increase nr_hugepages,
+> > it killed off your shell.  sysctl was somewhat better--only killed
+> > sysctl.  The good news was that oom kill just sets a thread info flag,
+> > so the nr_hugepages handler continued to allocate pages around the nodes
+> > and further oom kills were effective no-ops.  When the allocations was
+> > done, the victim task would die.  End users might not consider this
+> > acceptable behavior.
+> > 
+> 
+> No. My current expectation is that we've handled the vast majority of
+> cases where processes could get unexpectedly killed just because they
+> were looking funny at hugepages.
+
+Yes, doesn't seem to happen with current mainline kernel with or without
+this series.
+
+> 
+> > I wasn't sure we'd avoid this situation if we dropped back to using task
+> > mempolicy via, e.g., alloc_pages_current().  So, I thought I'd run this
+> > proposal [nodes_allowed] by you.
+> > 
+> 
+> I'm not wholesale against it. Minimally, I see scope for specifying the
+> nodemask at boot-time but I'm less sold on the sysctl at the moment because
+> I'm not convinced that applying memory policies when sizing the hugepage pool
+> cannot be made work to solve your problem.
+
+Oh, I'm sure they can be made to work.  Even for the boot command line,
+one could specify a policy and we have the mechanism to parse that.
+However, it still feels to me like the wrong tool for the job.
+Populating the pool is, IMO, quite different from handling page faults.
+
+I do worry about the proverbial "junior admin", charged with increasing
+the huge page pool, forgetting to use numactl and the correct policy as
+determined by, say, the system architect.  I suppose one could provide
+wrappers around hugeadm or whatever to always use some predefined 
 
 
-Also, if a backing file that has a partial page at the end is expanded, we
-discard the partial page and refetch it on the basis that we then have a hole
-in the file with invalid data, and should the power go out...  A better way to
-deal with this could be to record a note that the partial page contains invalid
-data until the correct data is written into it.
+I think we have a couple of models at play here:
 
-This isn't a problem for netfs's that discard the whole backing file if the
-file size changes (such as NFS).
+1) a more static, architected system layout, where I want to place the
+static huge pages on a specific set of nodes [perhaps at boot time]
+where the will be used for some long-running "enterprise" application[s]
+to which the system is more or less dedicated.  Alternatively, one may
+just want to avoid [ever] having static huge pages allocated on some set
+of nodes.
 
-Signed-off-by: David Howells <dhowells@redhat.com>
----
+2) a more dynamic model using libhugetlbfs [which which I have ZERO
+experience :(] in which we are using overcommitted/surplus huge pages
+in addition to a fairly uniformly distributed pool of static huge pages,
+counting on defragmentation and lumpy reclaim to satisfy requests for
+huge pages in excess of the static pool.
 
- fs/cachefiles/interface.c     |   20 +++++++++++++++++---
- fs/cachefiles/rdwr.c          |   23 +++++++++++++++++++----
- include/linux/fscache-cache.h |    3 +++
- 3 files changed, 39 insertions(+), 7 deletions(-)
+Perhaps you see things differently.  However, if you agree, I'm thinking
+we might want to describe these models in the hugepage kernel doc.  Even
+if you don't agree, I think it would be a good idea to mention the use
+cases for huge pages in that doc.
 
+> 
+> > > 
+> > > > One could derive a node mask
+> > > > of allowed nodes for huge pages from the mempolicy of the task
+> > > > that is modifying nr_hugepages and use that for fresh huge pages
+> > > > with GFP_THISNODE.  However, if we're not going to use mempolicy
+> > > > directly--e.g., via alloc_page_current() or alloc_page_vma() [with
+> > > > yet another on-stack pseudo-vma :(]--I thought it cleaner to
+> > > > define a "nodes allowed" nodemask for populating the [persistent]
+> > > > huge pages free pool.
+> > > > 
+> > > 
+> > > How about adding alloc_page_mempolicy() that takes the explicit mempolicy
+> > > you need?
+> > 
+> > Interesting you should mention this.  Somewhat off topic:  I have a
+> > "cleanup" and reorg of shared policy and vma policy that separates
+> > policy lookup from allocation, and adds an "alloc_page_pol()" function.
+> > This is part of my series to generalize shared policy and extend it to
+> > shared, mmap()ed regular files.  That aspect of the series [shared
+> > policy on shared mmaped files] got a lot of push back without any
+> > consideration of the technical details of the patches themselves.
+> 
+> Those arguements feel vaguely familiar. I think I read the thread although
+> the specifics of the objections escape me. Think there was something about
+> non-determinism if two processes shared a mapping with different policies
+> and no idea which should take precedence.
 
-diff --git a/fs/cachefiles/interface.c b/fs/cachefiles/interface.c
-index 431accd..919a7b6 100644
---- a/fs/cachefiles/interface.c
-+++ b/fs/cachefiles/interface.c
-@@ -403,12 +403,26 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
- 	if (oi_size == ni_size)
- 		return 0;
- 
--	newattrs.ia_size = ni_size;
--	newattrs.ia_valid = ATTR_SIZE;
--
- 	cachefiles_begin_secure(cache, &saved_cred);
- 	mutex_lock(&object->backer->d_inode->i_mutex);
-+
-+	/* if there's an extension to a partial page at the end of the backing
-+	 * file, we need to discard the partial page so that we pick up new
-+	 * data after it */
-+	if (oi_size & ~PAGE_MASK && ni_size > oi_size) {
-+		_debug("discard tail %llx", oi_size);
-+		newattrs.ia_valid = ATTR_SIZE;
-+		newattrs.ia_size = oi_size & PAGE_MASK;
-+		ret = notify_change(object->backer, &newattrs);
-+		if (ret < 0)
-+			goto truncate_failed;
-+	}
-+
-+	newattrs.ia_valid = ATTR_SIZE;
-+	newattrs.ia_size = ni_size;
- 	ret = notify_change(object->backer, &newattrs);
-+
-+truncate_failed:
- 	mutex_unlock(&object->backer->d_inode->i_mutex);
- 	cachefiles_end_secure(cache, saved_cred);
- 
-diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
-index a69787e..86639c1 100644
---- a/fs/cachefiles/rdwr.c
-+++ b/fs/cachefiles/rdwr.c
-@@ -801,7 +801,8 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
- 	struct cachefiles_cache *cache;
- 	mm_segment_t old_fs;
- 	struct file *file;
--	loff_t pos;
-+	loff_t pos, eof;
-+	size_t len;
- 	void *data;
- 	int ret;
- 
-@@ -835,15 +836,29 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
- 		ret = -EIO;
- 		if (file->f_op->write) {
- 			pos = (loff_t) page->index << PAGE_SHIFT;
-+
-+			/* we mustn't write more data than we have, so we have
-+			 * to beware of a partial page at EOF */
-+			eof = object->fscache.store_limit_l;
-+			len = PAGE_SIZE;
-+			if (eof & ~PAGE_MASK) {
-+				ASSERTCMP(pos, <, eof);
-+				if (eof - pos < PAGE_SIZE) {
-+					_debug("cut short %llx to %llx",
-+					       pos, eof);
-+					len = eof - pos;
-+					ASSERTCMP(pos + len, ==, eof);
-+				}
-+			}
-+
- 			data = kmap(page);
- 			old_fs = get_fs();
- 			set_fs(KERNEL_DS);
- 			ret = file->f_op->write(
--				file, (const void __user *) data, PAGE_SIZE,
--				&pos);
-+				file, (const void __user *) data, len, &pos);
- 			set_fs(old_fs);
- 			kunmap(page);
--			if (ret != PAGE_SIZE)
-+			if (ret != len)
- 				ret = -EIO;
- 		}
- 		fput(file);
-diff --git a/include/linux/fscache-cache.h b/include/linux/fscache-cache.h
-index 84d3532..97229be 100644
---- a/include/linux/fscache-cache.h
-+++ b/include/linux/fscache-cache.h
-@@ -374,6 +374,7 @@ struct fscache_object {
- 	struct list_head	dep_link;	/* link in parent's dependents list */
- 	struct list_head	pending_ops;	/* unstarted operations on this object */
- 	pgoff_t			store_limit;	/* current storage limit */
-+	loff_t			store_limit_l;	/* current storage limit */
- };
- 
- extern const char *fscache_object_states[];
-@@ -414,6 +415,7 @@ void fscache_object_init(struct fscache_object *object,
- 	object->events = object->event_mask = 0;
- 	object->flags = 0;
- 	object->store_limit = 0;
-+	object->store_limit_l = 0;
- 	object->cache = cache;
- 	object->cookie = cookie;
- 	object->parent = NULL;
-@@ -460,6 +462,7 @@ static inline void fscache_object_lookup_error(struct fscache_object *object)
- static inline
- void fscache_set_store_limit(struct fscache_object *object, loff_t i_size)
- {
-+	object->store_limit_l = i_size;
- 	object->store_limit = i_size >> PAGE_SHIFT;
- 	if (i_size & ~PAGE_MASK)
- 		object->store_limit++;
+Actually, that last sentence describes the situation I'm trying to
+avoid.  But, that's another conversation...
+
+> > Besides having need/requests for this capability, the resulting cleanup,
+> > removal of all on-stack pseudo-vmas, ..., the series actually seems to
+> > perform [slightly] better on the testing I've done.
+> > 
+> > I keep this series up to date and hope to repost again sometime with
+> > benchmark results. 
+> > 
+> 
+> Sounds like a good idea. If the cleanup yielded an alloc_page_pol()
+> function, it might make the patch for hugetlbfs more straight-forward.
+> 
+> > 
+> > > 
+> > > > This patch series introduces a [per hugepage size] "sysctl",
+> > > > hugepages_nodes_allowed, that specifies a nodemask to constrain
+> > > > the allocation of persistent, fresh huge pages.   The nodemask
+> > > > may be specified by a sysctl, a sysfs huge pages attribute and
+> > > > on the kernel boot command line.  
+> > > > 
+> > > > The series includes a patch to free hugepages from the pool in a
+> > > > "round robin" fashion, interleaved across all on-line nodes to
+> > > > balance the hugepage pool across nodes.  Nish had a patch to do
+> > > > this, too.
+> > > > 
+> > > > Together, these changes don't provide the fine grain of control
+> > > > that per node attributes would. 
+> > > 
+> > > I'm failing to understand at the moment why mem policies set by numactl
+> > > would not do the job for allocation at least. Freeing is a different problem.
+> > 
+> > They could be made to work.  I actually started coding up a patch to
+> > extract a "nodes allowed" mask from the policy for use with
+> > alloc_fresh_huge_page[_node]() so that I could maintain the overall
+> > structure and use alloc_page_exact_node() with nodes in the allowed
+> > mask.  And, as you say, with some investigation, we may find that we can
+> > use alloc_pages_current() with appropriate flags to achieve the exact
+> > node semantics on each node in the policy.
+> > 
+> 
+> I'd like to see it investigated more please.
+
+OK.  That will take a bit longer. :)   I do think we'll need to
+reorganize set_max_huge_pages to "drive" the nodes allowed [from the
+policy] from the top loop, rather than bury it down in
+alloc_fresh_huge_page().  Might even end up eliminating that function
+and call the per node version directly.  If we drive from the top, we
+can use the policy mask for freeing static huge pages, as well, altho'
+we'd have to decide the sense of the mask:  does is specify the nodes
+from which to free or the nodes where we want static huge pages to
+remain.
+
+I had planned anyway to go back and look at this, even with the
+nodes_allowed attribute/sysctl so that, when decreasing nr_hugepages, we
+free unused huge pages and demote to surplus in-use pages on the
+non-allowed nodes before those on the allowed nodes.
+
+So, I think I'll clean up this series, based on your feed back, so we'll
+have something to compare with the mempolicy version and then look into
+the alternate implementation.  It'll be a while [probably] before I can
+spend the time to do the latter.
+
+Thanks for your efforts to review these.
+
+Lee
+
+> 
+> > > 
+> > > > Specifically, there is no easy
+> > > > way to reduce the persistent huge page count for a specific node.
+> > > > I think the degree of control provided by these patches is the
+> > > > minimal necessary and sufficient for managing the persistent the
+> > > > huge page pool.  However, with a bit more reorganization,  we
+> > > > could implement per node controls if others would find that
+> > > > useful.
+> > > > 
+> > > > For more info, see the patch descriptions and the updated kernel
+> > > > hugepages documentation.
+> > > > 
+> > > 
+> > 
+> > More in response to your comments on the individual patches.
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
