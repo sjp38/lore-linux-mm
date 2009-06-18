@@ -1,114 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B7B496B0088
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 12:32:30 -0400 (EDT)
-Date: Thu, 18 Jun 2009 09:33:26 -0700
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 79BDC6B0083
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 12:56:04 -0400 (EDT)
+Date: Thu, 18 Jun 2009 09:57:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 0/3] make mapped executable pages the first class
  citizen
-Message-ID: <20090618093326.2bf1aa43@jbarnes-g45>
-In-Reply-To: <20090618012532.GB19732@localhost>
-References: <20090516090005.916779788@intel.com>
-	<1242485776.32543.834.camel@laptop>
-	<20090617141135.0d622bfe@jbarnes-g45>
-	<20090618012532.GB19732@localhost>
+Message-Id: <20090618095729.d2f27896.akpm@linux-foundation.org>
+In-Reply-To: <2015.1245341938@redhat.com>
+References: <32411.1245336412@redhat.com>
+	<20090517022327.280096109@intel.com>
+	<2015.1245341938@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: David Howells <dhowells@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Jun 2009 09:25:32 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Thu, 18 Jun 2009 17:18:58 +0100 David Howells <dhowells@redhat.com> wrote:
 
-> On Thu, Jun 18, 2009 at 05:11:35AM +0800, Jesse Barnes wrote:
-> > On Sat, 16 May 2009 16:56:16 +0200
-> > Peter Zijlstra <peterz@infradead.org> wrote:
-> > 
-> > > On Sat, 2009-05-16 at 17:00 +0800, Wu Fengguang wrote:
-> > > > Andrew,
-> > > > 
-> > > > This patchset makes mapped executable pages the first class
-> > > > citizen. This version has incorparated many valuable comments
-> > > > from people in the CC list, and runs OK on my desktop. Let's
-> > > > test it in your -mm?
-> > > 
-> > > Seems like a good set to me. Thanks for following this through Wu!
-> > 
-> > Now that this set has hit the mainline I just wanted to chime in and
-> > say this makes a big difference.  Under my current load (a parallel
-> > kernel build and virtualbox session the old kernel would have been
-> > totally unusable.  With Linus's current bits, things are much better
-> > (still a little sluggish with a big dd going on in the virtualbox,
-> > but actually usable).
-> > 
-> > Thanks!
 > 
-> Jesse, thank you for the feedback :)  And I'd like to credit Rik for
-> his patch on protecting active file LRU pages from being flushed by
-> streaming IO!
+> Okay, after dropping all my devel patches, I got the OOM to happen again;
+> fresh trace attached.  I was running LTP and an NFSD, and I was spamming the
+> NFSD continuously from another machine (mount;tar;umount;repeat).
+> 
+>
+> ...
+>
+> Mem-Info:
+> DMA per-cpu:
+> CPU    0: hi:    0, btch:   1 usd:   0
+> CPU    1: hi:    0, btch:   1 usd:   0
+> DMA32 per-cpu:
+> CPU    0: hi:  186, btch:  31 usd:  57
+> CPU    1: hi:  186, btch:  31 usd:   0
+> Active_anon:70104 active_file:1 inactive_anon:6557
+>  inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
+>  free:4062 slab:41969 mapped:541 pagetables:59663 bounce:0
 
-Unfortunately I came in this morning to an OOM'd machine.  I do push it
-pretty hard, but this is the first time I've seen an OOM.  It happened
-yesterday evening while I was away from the machine:
+77000 pages in anonymous memory, no swap online.
 
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426677] apt-check invoked oom-killer: gfp_mask=0x201da, order=0, oom_adj=0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426682] apt-check cpuset=/ mems_allowed=0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426686] Pid: 23105, comm: apt-check Tainted: G    B   W  2.6.30 #11
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426688] Call Trace:
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426696]  [<ffffffff810861fd>] ? cpuset_print_task_mems_allowed+0x8d/0xa0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426701]  [<ffffffff810b984e>] oom_kill_process+0x17e/0x290
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426705]  [<ffffffff810b9e0b>] ? select_bad_process+0x8b/0x110
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426708]  [<ffffffff810b9ee0>] __out_of_memory+0x50/0xb0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426712]  [<ffffffff810b9f9f>] out_of_memory+0x5f/0xc0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426715]  [<ffffffff810bc5a3>] __alloc_pages_nodemask+0x623/0x640
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426719]  [<ffffffff810bf8ea>] __do_page_cache_readahead+0xda/0x210
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426722]  [<ffffffff810bfa3c>] ra_submit+0x1c/0x20
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426725]  [<ffffffff810b886e>] filemap_fault+0x3ce/0x3e0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426729]  [<ffffffff810ce3a3>] __do_fault+0x53/0x510
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426732]  [<ffffffff810d27ea>] handle_mm_fault+0x1da/0x8c0
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426737]  [<ffffffff814b5724>] do_page_fault+0x1a4/0x310
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426740]  [<ffffffff814b31d5>] page_fault+0x25/0x30
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426742] Mem-Info:
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426744] DMA per-cpu:
-Jun 18 07:44:52 jbarnes-g45 kernel: [64377.426746] CPU    0: hi:    0, btch:   1 usd:   0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426748] CPU    1: hi:    0, btch:   1 usd:   0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426750] CPU    2: hi:    0, btch:   1 usd:   0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426752] CPU    3: hi:    0, btch:   1 usd:   0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426754] DMA32 per-cpu:
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426756] CPU    0: hi:  186, btch:  31 usd: 103
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426758] CPU    1: hi:  186, btch:  31 usd: 117
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426760] CPU    2: hi:  186, btch:  31 usd: 181
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426762] CPU    3: hi:  186, btch:  31 usd: 181
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426766] Active_anon:290797 active_file:28 inactive_anon:97034
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426767]  inactive_file:61 unevictable:11322 dirty:0 writeback:0 unstable:0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426768]  free:3341 slab:13776 mapped:5880 pagetables:6851 bounce:0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426772] DMA free:7776kB min:40kB low:48kB high:60kB active_anon:556kB inactive_anon:524kB active_file:16kB inactive_file:0kB unevictable:0kB present:15340kB pages_scanned:30 all_unreclaimable? no
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426775] lowmem_reserve[]: 0 1935 1935 1935
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426781] DMA32 free:5588kB min:5608kB low:7008kB high:8412kB active_anon:1162632kB inactive_anon:387612kB active_file:96kB inactive_file:256kB unevictable:45288kB present:1982128kB pages_scanned:980 all_unreclaimable? no
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426784] lowmem_reserve[]: 0 0 0 0
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426787] DMA: 64*4kB 77*8kB 45*16kB 18*32kB 4*64kB 2*128kB 2*256kB 3*512kB 1*1024kB 1*2048kB 0*4096kB = 7800kB
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426796] DMA32: 871*4kB 149*8kB 1*16kB 2*32kB 1*64kB 0*128kB 1*256kB 1*512kB 0*1024kB 0*2048kB 0*4096kB = 5588kB
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426804] 151250 total pagecache pages
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426806] 18973 pages in swap cache
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426808] Swap cache stats: add 610640, delete 591667, find 144356/181468
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426810] Free swap  = 0kB
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426811] Total swap = 979956kB
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.434828] 507136 pages RAM
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.434831] 23325 pages reserved
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.434832] 190892 pages shared
-Jun 18 07:44:53 jbarnes-g45 kernel: [64377.434833] 248816 pages non-shared
+42000 pages in slab.  Maybe this is a leak?
 
-As you can see, all my swap has been eaten and my anon lists are pretty
-huge (relative to memory size, I only have 2G in this box).  I suspect
-the gfx driver is eating quite a bit of the anon memory, but this is
-the first OOM I've seen...  I'll look around for some tools to analyze
-my anon memory usage; maybe Virtualbox is doing something pathological;
-clearly something is out of control here at any rate.
--- 
-Jesse Barnes, Intel Open Source Technology Center
+60000 pagetable pages.  Seems rather a lot?
+
+179000 pages accounted for above
+
+> DMA free:3920kB min:60kB low:72kB high:88kB active_anon:2268kB inactive_anon:428kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 968 968 968
+> DMA32 free:12328kB min:3948kB low:4932kB high:5920kB active_anon:278148kB inactive_anon:25800kB active_file:4kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0 0
+> DMA: 8*4kB 0*8kB 1*16kB 1*32kB 2*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3920kB
+> DMA32: 2474*4kB 56*8kB 8*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 12328kB
+
+present memory: 15364 + 992032 = 1007396kB.  250000 pages.  It's a 1GB
+box, yes?
+
+> 1660 total pagecache pages
+> 0 pages in swap cache
+> Swap cache stats: add 0, delete 0, find 0/0
+> Free swap  = 0kB
+> Total swap = 0kB
+> 255744 pages RAM
+> 5588 pages reserved
+> 255749 pages shared
+> 215785 pages non-shared
+> Out of memory: kill process 6838 (msgctl11) score 152029 or a child
+> Killed process 8850 (msgctl11)
+
+afacit, 70000 pages are unaccounted for (leaked?)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
