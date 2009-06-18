@@ -1,60 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5ABCA6B004F
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 15:39:58 -0400 (EDT)
-Message-ID: <4A3A9844.8030004@redhat.com>
-Date: Thu, 18 Jun 2009 15:40:52 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [Patch] mm tracepoints update - use case.
-References: <20090423092933.F6E9.A69D9226@jp.fujitsu.com>	 <4A36925D.4090000@redhat.com> <20090616170811.99A6.A69D9226@jp.fujitsu.com> <1245352954.3212.67.camel@dhcp-100-19-198.bos.redhat.com>
-In-Reply-To: <1245352954.3212.67.camel@dhcp-100-19-198.bos.redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D37F96B004F
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 16:07:04 -0400 (EDT)
+Subject: [PATCH] bootmem.c: Avoid c90 declaration warning
+From: Joe Perches <joe@perches.com>
+Content-Type: text/plain
+Date: Thu, 18 Jun 2009 13:07:13 -0700
+Message-Id: <1245355633.29927.16.camel@Joe-Laptop.home>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, =?UTF-8?B?RnLpppjpp7tpYyBXZWlzYmVja2Vy?= <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rostedt@goodmis.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Larry Woodman wrote:
+Signed-off-by: Joe Perches <joe@perches.com>
 
->> - Please don't display mm and/or another kernel raw pointer.
->>   if we assume non stop system, we can't use kernel-dump. Thus kernel pointer
->>   logging is not so useful.
-> 
-> OK, I just dont know how valuable the trace output is with out some raw
-> data like the mm_struct.
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 282df0a..09d9c98 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -536,11 +536,13 @@ static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
+ 		return kzalloc(size, GFP_NOWAIT);
+ 
+ #ifdef CONFIG_HAVE_ARCH_BOOTMEM
++	{
+ 	bootmem_data_t *p_bdata;
+ 
+ 	p_bdata = bootmem_arch_preferred_node(bdata, size, align, goal, limit);
+ 	if (p_bdata)
+ 		return alloc_bootmem_core(p_bdata, size, align, goal, limit);
++	}
+ #endif
+ 	return NULL;
+ }
 
-I believe that we do want something like the mm_struct in
-the trace info, so we can figure out which process was
-allocating pages, etc...
-
->> - Please consider how do this feature works on mem-cgroup.
->>   (IOW, please don't ignore many "if (scanning_global_lru())")
-
-Good point, we want to trace cgroup vs non-cgroup reclaims,
-too.
-
->> - tracepoint caller shouldn't have any assumption of displaying representation.
->>   e.g.
->>     wrong)  trace_mm_pagereclaim_pgout(mapping, page->index<<PAGE_SHIFT, PageAnon(page));
->>     good)   trace_mm_pagereclaim_pgout(mapping, page)
-> 
-> OK.
-> 
->>   that's general and good callback and/or hook manner.
-
-How do we figure those out from the page pointer at the time
-the tracepoint triggers?
-
-I believe that it would be useful to export that info in the
-trace point, since we cannot expect the userspace trace tool
-to figure out these things from the struct page address.
-
-Or did I overlook something here?
-
--- 
-All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
