@@ -1,241 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 380186B004F
-	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 05:32:06 -0400 (EDT)
-Date: Thu, 18 Jun 2009 10:33:02 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
-Message-ID: <20090618093301.GD14903@csn.ul.ie>
-References: <20090616135228.25248.22018.sendpatchset@lts-notebook> <20090617130216.GF28529@csn.ul.ie> <1245258954.6235.58.camel@lts-notebook>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 849B16B005A
+	for <linux-mm@kvack.org>; Thu, 18 Jun 2009 05:55:04 -0400 (EDT)
+Date: Thu, 18 Jun 2009 17:56:44 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] HWPOISON: only early kill processes who installed
+	SIGBUS handler
+Message-ID: <20090618095644.GA1422@localhost>
+References: <4A35BD7A.9070208@linux.vnet.ibm.com> <20090615042753.GA20788@localhost> <20090615064447.GA18390@wotan.suse.de> <20090615070914.GC31969@one.firstfloor.org> <20090615071907.GA8665@wotan.suse.de> <20090615121001.GA10944@localhost> <20090615122528.GA13256@wotan.suse.de> <20090615142225.GA11167@localhost> <20090617063702.GA20922@localhost> <20090617080404.GB31192@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1245258954.6235.58.camel@lts-notebook>
+In-Reply-To: <20090617080404.GB31192@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 17, 2009 at 01:15:54PM -0400, Lee Schermerhorn wrote:
-> On Wed, 2009-06-17 at 14:02 +0100, Mel Gorman wrote:
-> > On Tue, Jun 16, 2009 at 09:52:28AM -0400, Lee Schermerhorn wrote:
-> > > Because of assymmetries in some NUMA platforms, and "interesting"
-> > > topologies emerging in the "scale up x86" world, we have need for
-> > > better control over the placement of "fresh huge pages".  A while
-> > > back Nish Aravamundan floated a series of patches to add per node
-> > > controls for allocating pages to the hugepage pool and removing
-> > > them.  Nish apparently moved on to other tasks before those patches
-> > > were accepted.  I have kept a copy of Nish's patches and have
-> > > intended to rebase and test them and resubmit.
+On Wed, Jun 17, 2009 at 04:04:04PM +0800, Nick Piggin wrote:
+> On Wed, Jun 17, 2009 at 02:37:02PM +0800, Wu Fengguang wrote:
+> > On Mon, Jun 15, 2009 at 10:22:25PM +0800, Wu Fengguang wrote:
+> > > On Mon, Jun 15, 2009 at 08:25:28PM +0800, Nick Piggin wrote:
+> > > > On Mon, Jun 15, 2009 at 08:10:01PM +0800, Wu Fengguang wrote:
+> > > > > On Mon, Jun 15, 2009 at 03:19:07PM +0800, Nick Piggin wrote:
+> > > > > > > For KVM you need early kill, for the others it remains to be seen.
+> > > > > > 
+> > > > > > Right. It's almost like you need to do a per-process thing, and
+> > > > > > those that can handle things (such as the new SIGBUS or the new
+> > > > > > EIO) could get those, and others could be killed.
+> > > > > 
+> > > > > To send early SIGBUS kills to processes who has called
+> > > > > sigaction(SIGBUS, ...)?  KVM will sure do that. For other apps we
+> > > > > don't mind they can understand that signal at all.
+> > > > 
+> > > > For apps that hook into SIGBUS for some other means and
 > > > 
-> > > In an [off-list] exchange with Mel Gorman, who admits to knowledge
-> > > in the huge pages area, I asked his opinion of per node controls
-> > > for huge pages and he suggested another approach:  using the mempolicy
-> > > of the task that changes nr_hugepages to constrain the fresh huge
-> > > page allocations.  I considered this approach but it seemed to me
-> > > to be a misuse of mempolicy for populating the huge pages free
-> > > pool. 
-> > 
-> > Why would it be a misuse? Fundamentally, the huge page pools are being
-> > filled by the current process when nr_hugepages is being used. Or are
-> > you concerned about the specification of hugepages on the kernel command
-> > line?
-> 
-> Well, "misuse" might be too strong [and I already softened it from
-> "abuse" :)]--more like "not a good fit, IMO".   I agree that it could be
-> made to work, but it just didn't "feel" right.  I suppose that we could
-> use alloc_pages_current() with the necessary gfp flags to specify the
-> "thisnode"/"exact_node" semantics [no fallback], making sure we didn't
-> OOM kill the task if a node couldn't satisfy the huge page
-> allocation, ...  I think it would require major restructuring of
-> set_max_huge_pages(), ...  Maybe that would be the right thing to do and
-> maybe we'll end up there, but I was looking for a simpler approach.  
-> 
-
-Ultimately I think it's the right way of doing things. hugepages in the
-past had a large number of "special" considerations in comparison to the
-core VM. We've removed a fair few of the special cases in the last year
-and I'd rather avoid introducing more of them.
-
-If I was as an administrator, I would prefer being able to do allocate
-hugepages only on two nodes with
-
-# numactl --interleave 0,2 hugeadm --pool-pages-min=2M:128
-
-instead of
-
-# echo some_magic > /proc/sys/vm/hugepage_nodes_allowed
-# hugeadm --pool-pages-min=2M:128
-
-hugeadm would have to be taught about the new sysctl of course if it's created
-but it still feels more awkward than it should be and numactl should already
-be familar.
-
-> And, yes, the kernel command line was a consideration.  Because of that,
-> I considered specifying a boot time "nodes_allowed" mask and
-> constructing a "nodes_allowed" mask at run time from the current task's
-> policy.  But, it seemed more straightforward to my twisted way of
-> thinking to make the nodes_allowed mask a bona fide hstate attribute.
-> 
-
-I see scope for allowing the nodemask to be specified at boot-time all right,
-heck it might even be required! However, I am somewhat attached to the idea
-of static hugepage allocation obeying memory policies.
-
-> > 
-> > > Interleave policy doesn't have same "this node" semantics
-> > > that we want
-> > 
-> > By "this node" semantics, do you mean allocating from one specific node?
-> 
-> Yes.
-> 
-> > In that case, why would specifying a nodemask of just one node not be
-> > sufficient?
-> 
-> Maybe along with GFP_THISNODE. 
-
-But a nodemask of just one node might as well be GFP_THISNODE, right?
-
-> In general, we want to interleave the
-> persistent huge pages over multiple nodes, but we don't want the
-> allocations to succeed by falling back to another node.  Then we end up
-> with unbalanced allocations.  This is how fresh huge page allocation
-> worked before it was changed to use "THISNODE".
-> 
-> 
-> > 
-> > > and bind policy would require constructing a custom
-> > > node mask for node as well as addressing OOM, which we don't want
-> > > during fresh huge page allocation. 
-> > 
-> > Would the required mask not already be setup when the process set the
-> > policy? OOM is not a major concern, it doesn't trigger for failed
-> > hugepage allocations.
-> 
-> Perhaps not with the current implementation.  However, a certain,
-> currently shipping, enterprise distro added a "quick and dirty"  [well,
-> "dirty", anyway :)] implementation of "thisnode" behavior to elimiate
-> the unwanted fallback behavior and resulting huge pages imbalance by
-> constructing an ad hoc "MPOL_BIND" policy for allocating huge pages.  We
-> found that this DOES result in oom kill of the task increasing
-> nr_hugepages if it encountered a node w/ no available huge pages.
-> 
-
-Fun.
-
-> If one used "echo" [usually a shell builtin] to increase nr_hugepages,
-> it killed off your shell.  sysctl was somewhat better--only killed
-> sysctl.  The good news was that oom kill just sets a thread info flag,
-> so the nr_hugepages handler continued to allocate pages around the nodes
-> and further oom kills were effective no-ops.  When the allocations was
-> done, the victim task would die.  End users might not consider this
-> acceptable behavior.
-> 
-
-No. My current expectation is that we've handled the vast majority of
-cases where processes could get unexpectedly killed just because they
-were looking funny at hugepages.
-
-> I wasn't sure we'd avoid this situation if we dropped back to using task
-> mempolicy via, e.g., alloc_pages_current().  So, I thought I'd run this
-> proposal [nodes_allowed] by you.
-> 
-
-I'm not wholesale against it. Minimally, I see scope for specifying the
-nodemask at boot-time but I'm less sold on the sysctl at the moment because
-I'm not convinced that applying memory policies when sizing the hugepage pool
-cannot be made work to solve your problem.
-
-> > 
-> > > One could derive a node mask
-> > > of allowed nodes for huge pages from the mempolicy of the task
-> > > that is modifying nr_hugepages and use that for fresh huge pages
-> > > with GFP_THISNODE.  However, if we're not going to use mempolicy
-> > > directly--e.g., via alloc_page_current() or alloc_page_vma() [with
-> > > yet another on-stack pseudo-vma :(]--I thought it cleaner to
-> > > define a "nodes allowed" nodemask for populating the [persistent]
-> > > huge pages free pool.
+> > > Yes I was referring to the sigaction(SIGBUS) apps, others will
+> > > be late killed anyway.
 > > > 
-> > 
-> > How about adding alloc_page_mempolicy() that takes the explicit mempolicy
-> > you need?
-> 
-> Interesting you should mention this.  Somewhat off topic:  I have a
-> "cleanup" and reorg of shared policy and vma policy that separates
-> policy lookup from allocation, and adds an "alloc_page_pol()" function.
-> This is part of my series to generalize shared policy and extend it to
-> shared, mmap()ed regular files.  That aspect of the series [shared
-> policy on shared mmaped files] got a lot of push back without any
-> consideration of the technical details of the patches themselves.
-
-Those arguements feel vaguely familiar. I think I read the thread although
-the specifics of the objections escape me. Think there was something about
-non-determinism if two processes shared a mapping with different policies
-and no idea which should take precedence.
-
-> Besides having need/requests for this capability, the resulting cleanup,
-> removal of all on-stack pseudo-vmas, ..., the series actually seems to
-> perform [slightly] better on the testing I've done.
-> 
-> I keep this series up to date and hope to repost again sometime with
-> benchmark results. 
-> 
-
-Sounds like a good idea. If the cleanup yielded an alloc_page_pol()
-function, it might make the patch for hugetlbfs more straight-forward.
-
-> 
-> > 
-> > > This patch series introduces a [per hugepage size] "sysctl",
-> > > hugepages_nodes_allowed, that specifies a nodemask to constrain
-> > > the allocation of persistent, fresh huge pages.   The nodemask
-> > > may be specified by a sysctl, a sysfs huge pages attribute and
-> > > on the kernel boot command line.  
+> > > > do not understand the new type of SIGBUS signal? What about
+> > > > those?
 > > > 
-> > > The series includes a patch to free hugepages from the pool in a
-> > > "round robin" fashion, interleaved across all on-line nodes to
-> > > balance the hugepage pool across nodes.  Nish had a patch to do
-> > > this, too.
+> > > We introduced two new SIGBUS codes:
+> > >         BUS_MCEERR_AO=5         for early kill
+> > >         BUS_MCEERR_AR=4         for late  kill
+> > > I'd assume a legacy application will handle them in the same way (both
+> > > are unexpected code to the application).
 > > > 
-> > > Together, these changes don't provide the fine grain of control
-> > > that per node attributes would. 
+> > > We don't care whether the application can be killed by BUS_MCEERR_AO
+> > > or BUS_MCEERR_AR depending on its SIGBUS handler implementation.
+> > > But (in the rare case) if the handler
+> > > - refused to die on BUS_MCEERR_AR, it may create a busy loop and
+> > >   flooding of SIGBUS signals, which is a bug of the application.
+> > >   BUS_MCEERR_AO is one time and won't lead to busy loops.
+> > > - does something that hurts itself (ie. data safety) on BUS_MCEERR_AO,
+> > >   it may well hurt the same way on BUS_MCEERR_AR. The latter one is
+> > >   unavoidable, so the application must be fixed anyway.
 > > 
-> > I'm failing to understand at the moment why mem policies set by numactl
-> > would not do the job for allocation at least. Freeing is a different problem.
-> 
-> They could be made to work.  I actually started coding up a patch to
-> extract a "nodes allowed" mask from the policy for use with
-> alloc_fresh_huge_page[_node]() so that I could maintain the overall
-> structure and use alloc_page_exact_node() with nodes in the allowed
-> mask.  And, as you say, with some investigation, we may find that we can
-> use alloc_pages_current() with appropriate flags to achieve the exact
-> node semantics on each node in the policy.
-> 
-
-I'd like to see it investigated more please.
-
+> > This patch materializes the automatically early kill idea.
+> > It aims to remove the vm.memory_failure_ealy_kill sysctl parameter.
 > > 
-> > > Specifically, there is no easy
-> > > way to reduce the persistent huge page count for a specific node.
-> > > I think the degree of control provided by these patches is the
-> > > minimal necessary and sufficient for managing the persistent the
-> > > huge page pool.  However, with a bit more reorganization,  we
-> > > could implement per node controls if others would find that
-> > > useful.
-> > > 
-> > > For more info, see the patch descriptions and the updated kernel
-> > > hugepages documentation.
-> > > 
-> > 
+> > This is mainly a policy change, please comment.
 > 
-> More in response to your comments on the individual patches.
+> Well then you can still early-kill random apps that did not
+> want it, and you may still cause problems if its sigbus
+> handler does something nontrivial.
 > 
+> Can you use a prctl or something so it can expclitly
+> register interest in this?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+OK, this patch allows one to request early kill by calling
+prctl(PR_MEMORY_FAILURE_EARLY_KILL, 1, ...).
+
+Now either app or admin can choose to enable/disable early kill on
+a per-process basis. But still, an admin won't be able to change the
+behavior of an application who calls prctl() to set the option by itself.
+
+Thanks,
+Fengguang
+
+---
+ include/linux/prctl.h |    6 ++++++
+ include/linux/sched.h |    1 +
+ kernel/sys.c          |    6 ++++++
+ mm/memory-failure.c   |   12 ++++++++++--
+ 4 files changed, 23 insertions(+), 2 deletions(-)
+
+--- sound-2.6.orig/include/linux/prctl.h
++++ sound-2.6/include/linux/prctl.h
+@@ -88,4 +88,10 @@
+ #define PR_TASK_PERF_COUNTERS_DISABLE		31
+ #define PR_TASK_PERF_COUNTERS_ENABLE		32
+ 
++/*
++ * Send early SIGBUS.BUS_MCEERR_AO notification on memory corruption?
++ * Useful for KVM and mission critical apps.
++ */
++#define PR_MEMORY_FAILURE_EARLY_KILL		33
++
+ #endif /* _LINUX_PRCTL_H */
+--- sound-2.6.orig/include/linux/sched.h
++++ sound-2.6/include/linux/sched.h
+@@ -1666,6 +1666,7 @@ extern cputime_t task_gtime(struct task_
+ #define PF_MEMALLOC	0x00000800	/* Allocating memory */
+ #define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
+ #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
++#define PF_EARLY_KILL	0x00004000	/* early kill me on memory failure */
+ #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
+ #define PF_FROZEN	0x00010000	/* frozen for system suspend */
+ #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
+--- sound-2.6.orig/kernel/sys.c
++++ sound-2.6/kernel/sys.c
+@@ -1545,6 +1545,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
+ 				current->timer_slack_ns = arg2;
+ 			error = 0;
+ 			break;
++		case PR_MEMORY_FAILURE_EARLY_KILL:
++			if (arg2)
++				me->flags |= PF_EARLY_KILL;
++			else
++				me->flags &= ~PF_EARLY_KILL;
++			break;
+ 		default:
+ 			error = -EINVAL;
+ 			break;
+--- sound-2.6.orig/mm/memory-failure.c
++++ sound-2.6/mm/memory-failure.c
+@@ -205,6 +205,14 @@ static void kill_procs_ao(struct list_he
+ 	}
+ }
+ 
++static bool task_early_kill_elegible(struct task_struct *tsk)
++{
++	if (!tsk->mm)
++		return false;
++
++	return tsk->flags & PF_EARLY_KILL;
++}
++
+ /*
+  * Collect processes when the error hit an anonymous page.
+  */
+@@ -222,7 +230,7 @@ static void collect_procs_anon(struct pa
+ 		goto out;
+ 
+ 	for_each_process (tsk) {
+-		if (!tsk->mm)
++		if (!task_early_kill_elegible(tsk))
+ 			continue;
+ 		list_for_each_entry (vma, &av->head, anon_vma_node) {
+ 			if (!page_mapped_in_vma(page, vma))
+@@ -262,7 +270,7 @@ static void collect_procs_file(struct pa
+ 	for_each_process(tsk) {
+ 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 
+-		if (!tsk->mm)
++		if (!task_early_kill_elegible(tsk))
+ 			continue;
+ 
+ 		vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
