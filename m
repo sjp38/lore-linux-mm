@@ -1,41 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4E0036B005A
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 01:26:41 -0400 (EDT)
-Date: Fri, 19 Jun 2009 13:27:26 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0C6DB6B004F
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 01:57:18 -0400 (EDT)
+Date: Fri, 19 Jun 2009 13:58:48 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH 0/3] make mapped executable pages the first class
 	citizen
-Message-ID: <20090619052725.GD5603@localhost>
-References: <32411.1245336412@redhat.com> <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com>
+Message-ID: <20090619055848.GA27802@localhost>
+References: <20090517022327.280096109@intel.com> <32411.1245336412@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2015.1245341938@redhat.com>
+In-Reply-To: <32411.1245336412@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: David Howells <dhowells@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "Wang, Roger" <roger.wang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Jesse Barnes <jbarnes@virtuousgeek.org>, "Wang, Roger" <roger.wang@intel.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 19, 2009 at 12:18:58AM +0800, David Howells wrote:
+On Thu, Jun 18, 2009 at 10:46:52PM +0800, David Howells wrote:
 > 
-> Okay, after dropping all my devel patches, I got the OOM to happen again;
-> fresh trace attached.  I was running LTP and an NFSD, and I was spamming the
-> NFSD continuously from another machine (mount;tar;umount;repeat).
-
-It's not likely Rik or mine patches can create OOM situations.
-
-But the problem is true - Roger also reports OOM on 2.6.30.
-He's running a 2GB desktop that suspend/resumes a lot.
-
-Thanks,
-Fengguang
-
+> Hmmm....  It's possible that this makes my test box implode horribly when
+> running LTP.
+> 
+> I'm going to bisect it to see if this is actually due to your patches.
+> 
+> Note that I don't have any swap space.  This after a fresh reboot:
+> 
+>         [root@andromeda ~]# cat /proc/meminfo
+>         MemTotal:        1000624 kB
+>         MemFree:          797328 kB
+>         Buffers:           13272 kB
+>         Cached:           121744 kB
+>         SwapCached:            0 kB
+>         Active:            36240 kB
+>         Inactive:         115856 kB
+>         Active(anon):      17448 kB
+>         Inactive(anon):        0 kB
+>         Active(file):      18792 kB
+>         Inactive(file):   115856 kB
+>         Unevictable:           0 kB
+>         Mlocked:               0 kB
+>         SwapTotal:             0 kB
+>         SwapFree:              0 kB
+>         Dirty:                28 kB
+>         Writeback:             0 kB
+>         AnonPages:         17280 kB
+>         Mapped:             5376 kB
+>         Slab:              42984 kB
+>         SReclaimable:       6956 kB
+>         SUnreclaim:        36028 kB
+>         PageTables:         1304 kB
+>         NFS_Unstable:          0 kB
+>         Bounce:                0 kB
+>         WritebackTmp:          0 kB
+>         CommitLimit:      500312 kB
+>         Committed_AS:      52596 kB
+>         VmallocTotal:   34359738367 kB
+>         VmallocUsed:      190044 kB
+>         VmallocChunk:   34359546363 kB
+>         DirectMap4k:       13312 kB
+>         DirectMap2M:     1009664 kB
 > 
 > David
 > ---
 > Initializing cgroup subsys cpuset
-> Linux version 2.6.30-cachefs (dhowells@warthog.procyon.org.uk) (gcc version 4.4.0 20090506 (Red Hat 4.4.0-4) (GCC) ) #107 SMP Thu Jun 18 15:36:16 BST 2009
+> Linux version 2.6.30-cachefs (dhowells@warthog.procyon.org.uk) (gcc version 4.4.0 20090506 (Red Hat 4.4.0-4) (GCC) ) #106 SMP Wed Jun 17 22:10:31 BST 2009
 > Command line: initrd=andromeda-initrd console=tty0 console=ttyS0,115200 ro root=/dev/sda2 enforcing=1 debug BOOT_IMAGE=andromeda-vmlinuz
 > KERNEL supported cpus:
 >   Intel GenuineIntel
@@ -157,14 +186,14 @@ Fengguang
 > Initializing CPU#0
 > Checking aperture...
 > No AGP bridge found
-> Memory: 996952k/1022976k available (2949k kernel code, 1188k absent, 24132k reserved, 1679k data, 360k init)
+> Memory: 996952k/1022976k available (2953k kernel code, 1188k absent, 24132k reserved, 1678k data, 360k init)
 > NR_IRQS:320
 > Fast TSC calibration using PIT
-> Detected 1865.185 MHz processor.
+> Detected 1864.978 MHz processor.
 > Console: colour VGA+ 80x25
 > console [tty0] enabled
 > console [ttyS0] enabled
-> Calibrating delay loop (skipped), value calculated using timer frequency.. 3730.37 BogoMIPS (lpj=7460740)
+> Calibrating delay loop (skipped), value calculated using timer frequency.. 3729.95 BogoMIPS (lpj=7459912)
 > Security Framework initialized
 > SELinux:  Initializing.
 > SELinux:  Starting in enforcing mode
@@ -185,7 +214,7 @@ Fengguang
 > CPU0: Intel(R) Core(TM)2 CPU          6300  @ 1.86GHz stepping 06
 > Booting processor 1 APIC 0x1 ip 0x6000
 > Initializing CPU#1
-> Calibrating delay using timer specific routine.. 3729.90 BogoMIPS (lpj=7459814)
+> Calibrating delay using timer specific routine.. 3525.06 BogoMIPS (lpj=7050122)
 > CPU: L1 I cache: 32K, L1 D cache: 32K
 > CPU: L2 cache: 2048K
 > CPU: Physical Processor ID: 0
@@ -196,7 +225,7 @@ Fengguang
 > CPU1: Intel(R) Core(TM)2 CPU          6300  @ 1.86GHz stepping 06
 > checking TSC synchronization [CPU#0 -> CPU#1]: passed.
 > Brought up 2 CPUs
-> Total of 2 processors activated (7460.27 BogoMIPS).
+> Total of 2 processors activated (7255.01 BogoMIPS).
 > NET: Registered protocol family 16
 > ACPI: bus type pci registered
 > PCI: MCFG configuration 0: base f0000000 segment 0 buses 0 - 127
@@ -378,7 +407,7 @@ Fengguang
 > Unpacking initramfs...
 > Freeing initrd memory: 2606k freed
 > audit: initializing netlink socket (disabled)
-> type=2000 audit(1245336472.149:1): initialized
+> type=2000 audit(1245320564.157:1): initialized
 > VFS: Disk quotas dquot_6.5.2
 > Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
 > SGI XFS with ACLs, security attributes, large block/inode numbers, no debug enabled
@@ -468,12 +497,12 @@ Fengguang
 > TCP cubic registered
 > input: AT Translated Set 2 keyboard as /class/input/input2
 > NET: Registered protocol family 17
+> ata2: SATA link down (SStatus 0 SControl 300)
+> ata1: SATA link up 1.5 Gbps (SStatus 113 SControl 300)
 > registered taskstats version 1
 > ata6: SATA link down (SStatus 0 SControl 300)
-> rtc_cmos 00:03: setting system clock to 2009-06-18 14:47:54 UTC (1245336474)
 > ata5: SATA link down (SStatus 0 SControl 300)
-> ata1: SATA link up 1.5 Gbps (SStatus 113 SControl 300)
-> ata2: SATA link down (SStatus 0 SControl 300)
+> rtc_cmos 00:03: setting system clock to 2009-06-18 10:22:46 UTC (1245320566)
 > ata1.00: ATA-7: ST380211AS, 3.AAE, max UDMA/133
 > ata1.00: 156301488 sectors, multi 0: LBA48 NCQ (depth 31/32)
 > ata1.00: configured for UDMA/133
@@ -485,7 +514,7 @@ Fengguang
 >  sda: sda1 sda2 sda3 sda4 < sda5 sda6 sda7 sda8 >
 > sd 0:0:0:0: [sda] Attached SCSI disk
 > Freeing unused kernel memory: 360k freed
-> Write protecting the kernel read-only data: 4320k
+> Write protecting the kernel read-only data: 4324k
 > Red Hat nash version 6.0.52 starting
 > Mounting proc filesystem
 > Mounting sysfs filesystem
@@ -499,9 +528,12 @@ Fengguang
 > Waiting for driver initialization.
 > Creating root device.
 > Mounting root filesystem.
+> EXT3-fs: INFO: recovery required on readonly filesystem.
+> EXT3-fs: write access will be enabled during recovery.
 > kjournald starting.  Commit interval 5 seconds
-> Setting up otherEXT3-fs: mounted filesystem with writeback data mode.
+> Setting up otherEXT3-fs: recovery complete.
 >  filesystems.
+> EXT3-fs: mounted filesystem with writeback data mode.
 > Setting up new root fs
 > no fstab.sys, mounting internal defaults
 > SELinux: 8192 avtab hash slots, 177803 rules.
@@ -529,7 +561,7 @@ Fengguang
 > SELinux: initialized (dev bdev, type bdev), uses genfs_contexts
 > SELinux: initialized (dev rootfs, type rootfs), uses genfs_contexts
 > SELinux: initialized (dev sysfs, type sysfs), uses genfs_contexts
-> type=1403 audit(1245336481.989:2): policy loaded auid=4294967295 ses=4294967295
+> type=1403 audit(1245320574.561:2): policy loaded auid=4294967295 ses=4294967295
 > Switching to new root and running init.
 > unmounting old /dev
 > unmounting old /proc
@@ -541,8 +573,9 @@ Fengguang
 > Checking filesystems
 > Checking all file systems.
 > [/sbin/fsck.ext3 (1) -- /] fsck.ext3 -a /dev/sda2
-> /1: clean, 330519/2621440 files, 1528859/2620603 blocks
+> /1: clean, 330515/2621440 files, 1528849/2620603 blocks
 > [/sbin/fsck.ext3 (1) -- /boot] fsck.ext3 -a /dev/sda1
+> /boot1: recovering journal
 > /boot1: clean, 79/50200 files, 72187/200780 blocks
 > [  OK  ]
 > Remounting root filesystem in read-write mode:  [  OK  ]
@@ -599,96 +632,9 @@ Fengguang
 > 
 > modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
 > 
+> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
+> 
 > warning: `capget01' uses 32-bit capabilities (legacy support in use)
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> Adding 65528k swap on ./swapfile01.  Priority:-1 extents:141 across:498688k
-> Adding 65528k swap on ./swapfile01.  Priority:-1 extents:203 across:829292k
-> Adding 65528k swap on ./swapfile01.  Priority:-1 extents:151 across:811620k
-> Unable to find swap-space signature
-> Adding 32k swap on alreadyused.  Priority:-1 extents:4 across:18988k
-> Adding 32k swap on swapfile02.  Priority:-1 extents:4 across:1064k
-> Adding 32k swap on swapfile03.  Priority:-2 extents:1 across:32k
-> Adding 32k swap on swapfile04.  Priority:-3 extents:4 across:18976k
-> Adding 32k swap on swapfile05.  Priority:-4 extents:2 across:44k
-> Adding 32k swap on swapfile06.  Priority:-5 extents:1 across:32k
-> Adding 32k swap on swapfile07.  Priority:-6 extents:2 across:60k
-> Adding 32k swap on swapfile08.  Priority:-7 extents:2 across:32k
-> Adding 32k swap on swapfile09.  Priority:-8 extents:1 across:32k
-> Adding 32k swap on swapfile10.  Priority:-9 extents:2 across:36k
-> Adding 32k swap on swapfile11.  Priority:-10 extents:1 across:32k
-> Adding 32k swap on swapfile12.  Priority:-11 extents:2 across:32k
-> Adding 32k swap on swapfile13.  Priority:-12 extents:1 across:32k
-> Adding 32k swap on swapfile14.  Priority:-13 extents:1 across:32k
-> Adding 32k swap on swapfile15.  Priority:-14 extents:1 across:32k
-> Adding 32k swap on swapfile16.  Priority:-15 extents:2 across:32k
-> Adding 32k swap on swapfile17.  Priority:-16 extents:1 across:32k
-> Adding 32k swap on swapfile18.  Priority:-17 extents:2 across:44k
-> Adding 32k swap on swapfile19.  Priority:-18 extents:2 across:1316k
-> Adding 32k swap on swapfile20.  Priority:-19 extents:2 across:32k
-> Adding 32k swap on swapfile21.  Priority:-20 extents:2 across:72k
-> Adding 32k swap on swapfile22.  Priority:-21 extents:1 across:32k
-> Adding 32k swap on swapfile23.  Priority:-22 extents:1 across:32k
-> Adding 32k swap on swapfile24.  Priority:-23 extents:3 across:44k
-> Adding 32k swap on swapfile25.  Priority:-24 extents:1 across:32k
-> Adding 32k swap on swapfile26.  Priority:-25 extents:1 across:32k
-> Adding 32k swap on swapfile27.  Priority:-26 extents:1 across:32k
-> Adding 32k swap on swapfile28.  Priority:-27 extents:2 across:32k
-> Adding 32k swap on swapfile29.  Priority:-28 extents:1 across:32k
-> Adding 32k swap on swapfile30.  Priority:-29 extents:1 across:32k
-> Adding 32k swap on swapfile31.  Priority:-30 extents:1 across:32k
-> Adding 32k swap on firstswapfile.  Priority:-31 extents:2 across:32k
-> Adding 32k swap on secondswapfile.  Priority:-32 extents:2 across:44k
-> warning: process `sysctl01' used the deprecated sysctl system call with 1.1.
-> warning: process `sysctl01' used the deprecated sysctl system call with 1.2.
-> warning: process `sysctl03' used the deprecated sysctl system call with 1.1.
-> warning: process `sysctl03' used the deprecated sysctl system call with 1.1.
-> warning: process `sysctl04' used the deprecated sysctl system call with
-> RPC: Registered udp transport module.
-> RPC: Registered tcp transport module.
-> Installing knfsd (copyright (C) 1996 okir@monad.swb.de).
-> NFSD: Using /var/lib/nfs/v4recovery as the NFSv4 state recovery directory
-> NFSD: starting 90-second grace period
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
-> modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
-> 
 > modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
 > 
 > modprobe: FATAL: Could not load /lib/modules/2.6.30-cachefs/modules.dep: No such file or directory
@@ -697,18 +643,17 @@ Fengguang
 > 
 > msgctl11 invoked oom-killer: gfp_mask=0xd0, order=1, oom_adj=0
 > msgctl11 cpuset=/ mems_allowed=0
-> Pid: 12411, comm: msgctl11 Not tainted 2.6.30-cachefs #107
+> Pid: 30549, comm: msgctl11 Not tainted 2.6.30-cachefs #106
 > Call Trace:
->  [<ffffffff81071612>] ? oom_kill_process.clone.0+0xa9/0x245
->  [<ffffffff810736e7>] ? drain_local_pages+0x0/0x13
->  [<ffffffff810718d9>] ? __out_of_memory+0x12b/0x142
->  [<ffffffff8107195a>] ? out_of_memory+0x6a/0x94
->  [<ffffffff81074002>] ? __alloc_pages_nodemask+0x422/0x50b
->  [<ffffffff81031112>] ? copy_process+0x95/0x1158
->  [<ffffffff81074155>] ? __get_free_pages+0x12/0x50
->  [<ffffffff81031135>] ? copy_process+0xb8/0x1158
->  [<ffffffff81081346>] ? handle_mm_fault+0x2d5/0x645
->  [<ffffffff81032314>] ? do_fork+0x13f/0x2ba
+>  [<ffffffff81071dae>] ? oom_kill_process.clone.0+0xa9/0x245
+>  [<ffffffff81072075>] ? __out_of_memory+0x12b/0x142
+>  [<ffffffff810720f6>] ? out_of_memory+0x6a/0x94
+>  [<ffffffff8107479e>] ? __alloc_pages_nodemask+0x422/0x50b
+>  [<ffffffff81031110>] ? copy_process+0x93/0x113f
+>  [<ffffffff810748f1>] ? __get_free_pages+0x12/0x50
+>  [<ffffffff81031130>] ? copy_process+0xb3/0x113f
+>  [<ffffffff81081ae2>] ? handle_mm_fault+0x2d5/0x645
+>  [<ffffffff810322fb>] ? do_fork+0x13f/0x2ba
 >  [<ffffffff81022a0b>] ? do_page_fault+0x1f1/0x206
 >  [<ffffffff8100b0d3>] ? stub_clone+0x13/0x20
 >  [<ffffffff8100ad6b>] ? system_call_fastpath+0x16/0x1b
@@ -717,28 +662,83 @@ Fengguang
 > CPU    0: hi:    0, btch:   1 usd:   0
 > CPU    1: hi:    0, btch:   1 usd:   0
 > DMA32 per-cpu:
-> CPU    0: hi:  186, btch:  31 usd:  57
-> CPU    1: hi:  186, btch:  31 usd:   0
-> Active_anon:70104 active_file:1 inactive_anon:6557
->  inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
->  free:4062 slab:41969 mapped:541 pagetables:59663 bounce:0
-> DMA free:3920kB min:60kB low:72kB high:88kB active_anon:2268kB inactive_anon:428kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> CPU    0: hi:  186, btch:  31 usd:   0
+> CPU    1: hi:  186, btch:  31 usd:  47
+> Active_anon:80388 active_file:0 inactive_anon:822
+>  inactive_file:2 unevictable:0 dirty:0 writeback:0 unstable:0
+>  free:2053 slab:38793 mapped:357 pagetables:60476 bounce:0
+> DMA free:3916kB min:60kB low:72kB high:88kB active_anon:3608kB inactive_anon:128kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
 > lowmem_reserve[]: 0 968 968 968
-> DMA32 free:12328kB min:3948kB low:4932kB high:5920kB active_anon:278148kB inactive_anon:25800kB active_file:4kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> DMA32 free:4296kB min:3948kB low:4932kB high:5920kB active_anon:317944kB inactive_anon:3160kB active_file:0kB inactive_file:8kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+
+There are hardly any active/inactive_file pages. So it's not likely
+Rik or mine patches.
+
 > lowmem_reserve[]: 0 0 0 0
-> DMA: 8*4kB 0*8kB 1*16kB 1*32kB 2*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3920kB
-> DMA32: 2474*4kB 56*8kB 8*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 12328kB
-> 1660 total pagecache pages
+> DMA: 1*4kB 1*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3916kB
+> DMA32: 576*4kB 15*8kB 1*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 4296kB
+
+There are plenty of free pages. Is it a page allocator bug? Is it
+stable v2.6.30 or pre 2.6.31-rc1?
+
+Thanks,
+Fengguang
+
+> 1854 total pagecache pages
 > 0 pages in swap cache
 > Swap cache stats: add 0, delete 0, find 0/0
 > Free swap  = 0kB
 > Total swap = 0kB
 > 255744 pages RAM
 > 5588 pages reserved
-> 255749 pages shared
-> 215785 pages non-shared
-> Out of memory: kill process 6838 (msgctl11) score 152029 or a child
-> Killed process 8850 (msgctl11)
+> 230698 pages shared
+> 217103 pages non-shared
+> Out of memory: kill process 25166 (msgctl11) score 133496 or a child
+> Killed process 28855 (msgctl11)
+> msgctl11 invoked oom-killer: gfp_mask=0xd0, order=1, oom_adj=0
+> msgctl11 cpuset=/ mems_allowed=0
+> Pid: 30312, comm: msgctl11 Not tainted 2.6.30-cachefs #106
+> Call Trace:
+>  [<ffffffff81071dae>] ? oom_kill_process.clone.0+0xa9/0x245
+>  [<ffffffff81072075>] ? __out_of_memory+0x12b/0x142
+>  [<ffffffff810720f6>] ? out_of_memory+0x6a/0x94
+>  [<ffffffff8107479e>] ? __alloc_pages_nodemask+0x422/0x50b
+>  [<ffffffff81031110>] ? copy_process+0x93/0x113f
+>  [<ffffffff810748f1>] ? __get_free_pages+0x12/0x50
+>  [<ffffffff81031130>] ? copy_process+0xb3/0x113f
+>  [<ffffffff81029a83>] ? update_curr+0x53/0xdf
+>  [<ffffffff81081e00>] ? handle_mm_fault+0x5f3/0x645
+>  [<ffffffff810322fb>] ? do_fork+0x13f/0x2ba
+>  [<ffffffff81022a0b>] ? do_page_fault+0x1f1/0x206
+>  [<ffffffff8100b0d3>] ? stub_clone+0x13/0x20
+>  [<ffffffff8100ad6b>] ? system_call_fastpath+0x16/0x1b
+> Mem-Info:
+> DMA per-cpu:
+> CPU    0: hi:    0, btch:   1 usd:   0
+> CPU    1: hi:    0, btch:   1 usd:   0
+> DMA32 per-cpu:
+> CPU    0: hi:  186, btch:  31 usd:   0
+> CPU    1: hi:  186, btch:  31 usd:   0
+> Active_anon:79646 active_file:2 inactive_anon:4113
+>  inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
+>  free:1966 slab:38417 mapped:2 pagetables:61720 bounce:0
+> DMA free:3916kB min:60kB low:72kB high:88kB active_anon:3608kB inactive_anon:256kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 968 968 968
+> DMA32 free:3948kB min:3948kB low:4932kB high:5920kB active_anon:314976kB inactive_anon:16196kB active_file:8kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0 0
+> DMA: 1*4kB 1*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3916kB
+> DMA32: 443*4kB 20*8kB 10*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 3948kB
+> 36 total pagecache pages
+> 0 pages in swap cache
+> Swap cache stats: add 0, delete 0, find 0/0
+> Free swap  = 0kB
+> Total swap = 0kB
+> 255744 pages RAM
+> 5588 pages reserved
+> 151665 pages shared
+> 220702 pages non-shared
+> Out of memory: kill process 25166 (msgctl11) score 133404 or a child
+> Killed process 28860 (msgctl11)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
