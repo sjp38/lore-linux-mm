@@ -1,60 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 243E56B004D
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 12:42:22 -0400 (EDT)
-Date: Fri, 19 Jun 2009 09:43:38 -0700
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class
- citizen
-Message-ID: <20090619094338.4d3c566d@jbarnes-g45>
-In-Reply-To: <20090619093224.GA30898@localhost>
-References: <20090516090005.916779788@intel.com>
-	<1242485776.32543.834.camel@laptop>
-	<20090617141135.0d622bfe@jbarnes-g45>
-	<20090618012532.GB19732@localhost>
-	<20090619090011.GA30561@localhost>
-	<1245402289.13761.24606.camel@twins>
-	<20090619093224.GA30898@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id BFD786B0055
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 12:45:55 -0400 (EDT)
+Date: Fri, 19 Jun 2009 18:43:59 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] bootmem.c: Avoid c90 declaration warning
+Message-ID: <20090619164359.GA2265@cmpxchg.org>
+References: <1245355633.29927.16.camel@Joe-Laptop.home> <20090618132410.0b55cd90.akpm@linux-foundation.org> <20090618215744.GA10816@cmpxchg.org> <4A3ADB33.8060102@kernel.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A3ADB33.8060102@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "Wang, Roger" <roger.wang@intel.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Jun 2009 17:32:24 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> On Fri, Jun 19, 2009 at 05:04:49PM +0800, Peter Zijlstra wrote:
-> > On Fri, 2009-06-19 at 17:00 +0800, Wu, Fengguang wrote:
-> > > [add CC]
-> > > 
-> > > This OOM case looks like the same bug encountered by David
-> > > Howells.
-> > > 
-> > > > Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426766]
-> > > > Active_anon:290797 active_file:28 inactive_anon:97034 Jun 18
-> > > > 07:44:53 jbarnes-g45 kernel: [64377.426767]  inactive_file:61
-> > > > unevictable:11322 dirty:0 writeback:0 unstable:0 Jun 18
-> > > > 07:44:53 jbarnes-g45 kernel: [64377.426768]  free:3341
-> > > > slab:13776 mapped:5880 pagetables:6851 bounce:0
-> > > 
-> > > active/inactive_anon pages take up 4/5 memory.  Are you using
-> > > TMPFS a lot?
+On Thu, Jun 18, 2009 at 05:26:27PM -0700, Yinghai Lu wrote:
+> Johannes Weiner wrote:
+> > On Thu, Jun 18, 2009 at 01:24:10PM -0700, Andrew Morton wrote:
+> >> Unrelatedly, I'm struggling a bit with bootmem_arch_preferred_node(). 
+> >> It's only defined if CONFIG_X86_32=y && CONFIG_NEED_MULTIPLE_NODES=y,
+> >> but it gets called if CONFIG_HAVE_ARCH_BOOTMEM=y.
+> >>
+> >> Is this correct, logical and as simple as we can make it??
 > > 
-> > I suspect its his GEM thingy ;-)
+> > x86_32 numa is the only setter of HAVE_ARCH_BOOTMEM.  I don't know why
+> > this arch has a strict preference/requirement(?) for bootmem on node
+> > 0.
+> > 
+> > I found this mail from Yinghai
+> > 
+> >   http://marc.info/?l=linux-kernel&m=123614990906256&w=2
+> > 
+> > where he says that it expects all bootmem on node zero but with the
+> > current code and alloc_arch_preferred_bootmem() failing, we could fall
+> > back to another node.  Won't this break?  Yinghai?
 > 
-> Very likely - GEM allocates drm objects from the internal tmpfs,
-> and libdrm_intel seems to never free drm objects from its cache.
+> not sure it is the same problem. the fix was in mainline already.
 
-Yeah, a good chunk of that is GEM objects.  I generally haven't seen
-OOMs due to excessive GEM allocation though, until recently.  We've got
-some patches queued up to manage the object cache better (actually free
-pages when we don't need them!), so that should help.
+I just wanted to know if the requirement for bootmem on node 0 is
+strict or just a preference.  Do you perhaps happen to know? :)
 
--- 
-Jesse Barnes, Intel Open Source Technology Center
+> > Otherwise, could we perhaps use something as simple as this?
+> > 
+> > diff --git a/arch/x86/include/asm/mmzone_32.h b/arch/x86/include/asm/mmzone_32.h
+> > index ede6998..b68a672 100644
+> > --- a/arch/x86/include/asm/mmzone_32.h
+> > +++ b/arch/x86/include/asm/mmzone_32.h
+> > @@ -92,8 +92,7 @@ static inline int pfn_valid(int pfn)
+> >  
+> >  #ifdef CONFIG_NEED_MULTIPLE_NODES
+> >  /* always use node 0 for bootmem on this numa platform */
+> > -#define bootmem_arch_preferred_node(__bdata, size, align, goal, limit)	\
+> > -	(NODE_DATA(0)->bdata)
+> > +#define bootmem_arch_preferred_node (NODE(0)->bdata)
+> >  #endif /* CONFIG_NEED_MULTIPLE_NODES */
+> >  
+> >  #endif /* _ASM_X86_MMZONE_32_H */
+> > diff --git a/mm/bootmem.c b/mm/bootmem.c
+> > index 282df0a..0097fa2 100644
+> > --- a/mm/bootmem.c
+> > +++ b/mm/bootmem.c
+> > @@ -528,23 +528,6 @@ find_block:
+> >  	return NULL;
+> >  }
+> >  
+> > -static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
+> > -					unsigned long size, unsigned long align,
+> > -					unsigned long goal, unsigned long limit)
+> > -{
+> > -	if (WARN_ON_ONCE(slab_is_available()))
+> > -		return kzalloc(size, GFP_NOWAIT);
+> > -
+> > -#ifdef CONFIG_HAVE_ARCH_BOOTMEM
+> > -	bootmem_data_t *p_bdata;
+> > -
+> > -	p_bdata = bootmem_arch_preferred_node(bdata, size, align, goal, limit);
+> > -	if (p_bdata)
+> > -		return alloc_bootmem_core(p_bdata, size, align, goal, limit);
+> > -#endif
+> > -	return NULL;
+> > -}
+> > -
+> >  static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+> >  					unsigned long align,
+> >  					unsigned long goal,
+> > @@ -553,11 +536,15 @@ static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+> >  	bootmem_data_t *bdata;
+> >  	void *region;
+> >  
+> > +	if (WARN_ON_ONCE(slab_is_available()))
+> > +		return kzalloc(size, GFP_NOWAIT);
+> >  restart:
+> > -	region = alloc_arch_preferred_bootmem(NULL, size, align, goal, limit);
+> > +#ifdef bootmem_arch_preferred_node
+> > +	region = alloc_bootmem_core(bootmem_arch_preferred_node,
+> > +				size, align, goal, limit);
+> >  	if (region)
+> >  		return region;
+> > -
+> > +#endif
+> >  	list_for_each_entry(bdata, &bdata_list, list) {
+> >  		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
+> >  			continue;
+> > @@ -636,13 +623,11 @@ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+> >  {
+> >  	void *ptr;
+> >  
+> > -	ptr = alloc_arch_preferred_bootmem(bdata, size, align, goal, limit);
+> > -	if (ptr)
+> > -		return ptr;
+> > -
+> > +#ifndef bootmem_arch_preferred_node
+> >  	ptr = alloc_bootmem_core(bdata, size, align, goal, limit);
+> >  	if (ptr)
+> >  		return ptr;
+> > +#endif
+> >  
+> >  	return ___alloc_bootmem(size, align, goal, limit);
+> >  }
+> 
+> 
+> any reason to kill alloc_arch_preferred_bootmem?
+
+Yeah, I think the diffstat is convincing hehe.  And I think it looks
+more straight forward, but no strong feelings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
