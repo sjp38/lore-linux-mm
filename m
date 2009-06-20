@@ -1,41 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F0EA96B004D
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 22:27:45 -0400 (EDT)
-Message-ID: <4A3C4946.6030100@redhat.com>
-Date: Fri, 19 Jun 2009 22:28:22 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id F0C1C6B004D
+	for <linux-mm@kvack.org>; Sat, 20 Jun 2009 00:30:37 -0400 (EDT)
+Date: Sat, 20 Jun 2009 12:33:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class
+	citizen
+Message-ID: <20090620043303.GA19855@localhost>
+References: <32411.1245336412@redhat.com> <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com> <20090618095729.d2f27896.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/4] tmem: precache implementation (layered on tmem)
-References: <67c05b05-c8e2-4e8f-a234-52a86e657404@default>
-In-Reply-To: <67c05b05-c8e2-4e8f-a234-52a86e657404@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090618095729.d2f27896.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Howells <dhowells@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Dan Magenheimer wrote:
+On Thu, Jun 18, 2009 at 09:57:29AM -0700, Andrew Morton wrote:
+> On Thu, 18 Jun 2009 17:18:58 +0100 David Howells <dhowells@redhat.com> wrote:
+> 
+> > 
+> > Okay, after dropping all my devel patches, I got the OOM to happen again;
+> > fresh trace attached.  I was running LTP and an NFSD, and I was spamming the
+> > NFSD continuously from another machine (mount;tar;umount;repeat).
+> > 
+> >
+> > ...
+> >
+> > Mem-Info:
+> > DMA per-cpu:
+> > CPU    0: hi:    0, btch:   1 usd:   0
+> > CPU    1: hi:    0, btch:   1 usd:   0
+> > DMA32 per-cpu:
+> > CPU    0: hi:  186, btch:  31 usd:  57
+> > CPU    1: hi:  186, btch:  31 usd:   0
+> > Active_anon:70104 active_file:1 inactive_anon:6557
+> >  inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
+> >  free:4062 slab:41969 mapped:541 pagetables:59663 bounce:0
+> 
+> 77000 pages in anonymous memory, no swap online.
+> 
+> 42000 pages in slab.  Maybe this is a leak?
+> 
+> 60000 pagetable pages.  Seems rather a lot?
+> 
+> 179000 pages accounted for above
+> 
+> > DMA free:3920kB min:60kB low:72kB high:88kB active_anon:2268kB inactive_anon:428kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> > lowmem_reserve[]: 0 968 968 968
+> > DMA32 free:12328kB min:3948kB low:4932kB high:5920kB active_anon:278148kB inactive_anon:25800kB active_file:4kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> > lowmem_reserve[]: 0 0 0 0
+> > DMA: 8*4kB 0*8kB 1*16kB 1*32kB 2*64kB 1*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3920kB
+> > DMA32: 2474*4kB 56*8kB 8*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 12328kB
+> 
+> present memory: 15364 + 992032 = 1007396kB.  250000 pages.  It's a 1GB
+> box, yes?
+> 
+> > 1660 total pagecache pages
+> > 0 pages in swap cache
+> > Swap cache stats: add 0, delete 0, find 0/0
+> > Free swap  = 0kB
+> > Total swap = 0kB
+> > 255744 pages RAM
+> > 5588 pages reserved
+> > 255749 pages shared
+> > 215785 pages non-shared
+> > Out of memory: kill process 6838 (msgctl11) score 152029 or a child
+> > Killed process 8850 (msgctl11)
+> 
+> afacit, 70000 pages are unaccounted for (leaked?)
 
-> @@ -110,6 +111,9 @@
->  		s->s_qcop = sb_quotactl_ops;
->  		s->s_op = &default_op;
->  		s->s_time_gran = 1000000000;
-> +#ifdef CONFIG_PRECACHE
-> +		s->precache_poolid = -1;
-> +#endif
->  	}
->  out:
->  	return s;
+David, could you try running this when it occurred again?
 
-Please generate your patches with -up so we can see
-which functions are being modified by each patch hunk.
-That makes it a lot easier to find the context and
-see what you are trying to do.
+        make Documentation/vm/page-types
+        Documentation/vm/page-types --raw  # run as root
 
--- 
-All rights reversed.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
