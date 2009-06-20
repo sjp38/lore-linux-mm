@@ -1,113 +1,89 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 12/15] HWPOISON: per process early kill option prctl(PR_MEMORY_FAILURE_EARLY_KILL)
-Date: Sat, 20 Jun 2009 11:16:20 +0800
-Message-ID: <20090620031626.237671605@intel.com>
+Subject: [PATCH 06/15] HWPOISON: x86: Add VM_FAULT_HWPOISON handling to x86 page fault handler v2
+Date: Sat, 20 Jun 2009 11:16:14 +0800
+Message-ID: <20090620031625.449041353@intel.com>
 References: <20090620031608.624240019@intel.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1756124AbZFTDUP@vger.kernel.org>
-Content-Disposition: inline; filename=hwpoison-prctl-early-kill.patch
-Sender: linux-kernel-owner@vger.kernel.org
+Return-path: <owner-linux-mm@kvack.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 636046B0088
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:31 -0400 (EDT)
+Content-Disposition: inline; filename=x86-vmfault-poison
+Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-This allows an application to request for early SIGBUS.BUS_MCEERR_AO
-notification as soon as memory corruption in its virtual address space is
-detected.
+From: Andi Kleen <ak@linux.intel.com>
 
-The default option is late kill, ie. only kill the process when it actually
-tries to access the corrupted data. But an admin can still request a legacy
-application to be early killed by writing a wrapper tool which calls prctl()
-and exec the application:
+Add VM_FAULT_HWPOISON handling to the x86 page fault handler. This is 
+very similar to VM_FAULT_OOM, the only difference is that a different
+si_code is passed to user space and the new addr_lsb field is initialized.
 
-	# this_app_shall_be_early_killed  legacy_app
+v2: Make the printk more verbose/unique
 
-KVM needs the early kill signal. At early kill time it has good opportunity
-to isolate the corruption in guest kernel pages. It will be too late to do
-anything useful on late kill.
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
-Proposed by Nick Pidgin.
-
-Cc: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/prctl.h |    6 ++++++
- include/linux/sched.h |    1 +
- kernel/sys.c          |    6 ++++++
- mm/memory-failure.c   |   12 ++++++++++--
- 4 files changed, 23 insertions(+), 2 deletions(-)
+ arch/x86/mm/fault.c |   19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
 
---- sound-2.6.orig/include/linux/prctl.h
-+++ sound-2.6/include/linux/prctl.h
-@@ -88,4 +88,10 @@
- #define PR_TASK_PERF_COUNTERS_DISABLE		31
- #define PR_TASK_PERF_COUNTERS_ENABLE		32
+--- sound-2.6.orig/arch/x86/mm/fault.c
++++ sound-2.6/arch/x86/mm/fault.c
+@@ -167,6 +167,7 @@ force_sig_info_fault(int si_signo, int s
+ 	info.si_errno	= 0;
+ 	info.si_code	= si_code;
+ 	info.si_addr	= (void __user *)address;
++	info.si_addr_lsb = si_code == BUS_MCEERR_AR ? PAGE_SHIFT : 0;
  
-+/*
-+ * Send early SIGBUS.BUS_MCEERR_AO notification on memory corruption?
-+ * Useful for KVM and mission critical apps.
-+ */
-+#define PR_MEMORY_FAILURE_EARLY_KILL		33
-+
- #endif /* _LINUX_PRCTL_H */
---- sound-2.6.orig/include/linux/sched.h
-+++ sound-2.6/include/linux/sched.h
-@@ -1666,6 +1666,7 @@ extern cputime_t task_gtime(struct task_
- #define PF_MEMALLOC	0x00000800	/* Allocating memory */
- #define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
- #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
-+#define PF_EARLY_KILL	0x00004000	/* kill me early on memory failure */
- #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
- #define PF_FROZEN	0x00010000	/* frozen for system suspend */
- #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
---- sound-2.6.orig/kernel/sys.c
-+++ sound-2.6/kernel/sys.c
-@@ -1545,6 +1545,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
- 				current->timer_slack_ns = arg2;
- 			error = 0;
- 			break;
-+		case PR_MEMORY_FAILURE_EARLY_KILL:
-+			if (arg2)
-+				me->flags |= PF_EARLY_KILL;
-+			else
-+				me->flags &= ~PF_EARLY_KILL;
-+			break;
- 		default:
- 			error = -EINVAL;
- 			break;
---- sound-2.6.orig/mm/memory-failure.c
-+++ sound-2.6/mm/memory-failure.c
-@@ -214,6 +214,14 @@ static void kill_procs_ao(struct list_he
- 	}
+ 	force_sig_info(si_signo, &info, tsk);
+ }
+@@ -798,10 +799,12 @@ out_of_memory(struct pt_regs *regs, unsi
  }
  
-+static bool task_early_kill_elegible(struct task_struct *tsk)
-+{
-+	if (!tsk->mm)
-+		return false;
-+
-+	return tsk->flags & PF_EARLY_KILL;
-+}
-+
- /*
-  * Collect processes when the error hit an anonymous page.
-  */
-@@ -231,7 +239,7 @@ static void collect_procs_anon(struct pa
- 		goto out;
+ static void
+-do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
++do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
++	  unsigned int fault)
+ {
+ 	struct task_struct *tsk = current;
+ 	struct mm_struct *mm = tsk->mm;
++	int code = BUS_ADRERR;
  
- 	for_each_process (tsk) {
--		if (!tsk->mm)
-+		if (!task_early_kill_elegible(tsk))
- 			continue;
- 		list_for_each_entry (vma, &av->head, anon_vma_node) {
- 			if (!page_mapped_in_vma(page, vma))
-@@ -271,7 +279,7 @@ static void collect_procs_file(struct pa
- 	for_each_process(tsk) {
- 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 	up_read(&mm->mmap_sem);
  
--		if (!tsk->mm)
-+		if (!task_early_kill_elegible(tsk))
- 			continue;
+@@ -817,7 +820,15 @@ do_sigbus(struct pt_regs *regs, unsigned
+ 	tsk->thread.error_code	= error_code;
+ 	tsk->thread.trap_no	= 14;
  
- 		vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff,
+-	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
++#ifdef CONFIG_MEMORY_FAILURE
++	if (fault & VM_FAULT_HWPOISON) {
++		printk(KERN_ERR
++	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
++			tsk->comm, tsk->pid, address);
++		code = BUS_MCEERR_AR;
++	}
++#endif
++	force_sig_info_fault(SIGBUS, code, address, tsk);
+ }
+ 
+ static noinline void
+@@ -827,8 +838,8 @@ mm_fault_error(struct pt_regs *regs, uns
+ 	if (fault & VM_FAULT_OOM) {
+ 		out_of_memory(regs, error_code, address);
+ 	} else {
+-		if (fault & VM_FAULT_SIGBUS)
+-			do_sigbus(regs, error_code, address);
++		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON))
++			do_sigbus(regs, error_code, address, fault);
+ 		else
+ 			BUG();
+ 	}
 
 -- 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
