@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 16D206B004D
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 21:49:35 -0400 (EDT)
-Message-ID: <4A3C4083.2080205@redhat.com>
-Date: Fri, 19 Jun 2009 21:50:59 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/4] tmem: infrastructure for tmem layer
-References: <b6ebd2d7-7bac-4aa0-8910-991304979fb9@default>
-In-Reply-To: <b6ebd2d7-7bac-4aa0-8910-991304979fb9@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E3BC6B004D
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 22:10:16 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090620002817.GA2524@elf.ucw.cz>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090619145913.GA1389@ucw.cz> <1245450449.16880.10.camel@pasglop>
+	 <20090619232336.GA2442@elf.ucw.cz> <1245455409.16880.15.camel@pasglop>
+	 <20090620002817.GA2524@elf.ucw.cz>
+Content-Type: text/plain
+Date: Sat, 20 Jun 2009 12:10:09 +1000
+Message-Id: <1245463809.16880.18.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Magenheimer wrote:
+On Sat, 2009-06-20 at 02:28 +0200, Pavel Machek wrote:
+> 
+> Academic for boot, probably real for suspend/resume. There the atomic
+> reserves could matter because the memory can be pretty full when you
+> start suspend.
 
-> --- linux-2.6.30/mm/Makefile	2009-06-09 21:05:27.000000000 -0600
-> +++ linux-2.6.30-tmem/mm/Makefile	2009-06-19 09:33:59.000000000 -0600
-> @@ -16,6 +16,8 @@
->  obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
->  obj-$(CONFIG_BOUNCE)	+= bounce.o
->  obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
-> +obj-$(CONFIG_PRESWAP)	+= preswap.o
-> +obj-$(CONFIG_PRECACHE)	+= precache.o
+Right, that might be something to look into, though we haven't yet
+applied the technique for suspend & resume. My main issue with it at the
+moment is how do I synchronize with allocations that are already
+sleeping when changing the gfp flag mask without bloating the normal
+path. I haven't had time to look into it, it's mostly a problem local to
+the page allocator and reclaim, not much to do with SL*Bs though, which
+is fortunate.
 
-This patch does not actually add preswap.c or precache.c,
-so it would lead to an uncompilable changeset.
+I also suspect that we might want to try to make -some- amount of free
+space before starting suspend, though of course not nearly as
+aggressively as with std.
 
-This in turn breaks git bisect.
-
-Please make sure that every changeset that is applied results
-in a compilable and bootable kernel.
-
--- 
-All rights reversed.
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
