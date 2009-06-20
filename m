@@ -1,69 +1,95 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 07/15] HWPOISON: define VM_FAULT_HWPOISON to 0 when feature is disabled
-Date: Sat, 20 Jun 2009 11:16:15 +0800
-Message-ID: <20090620031625.586031116@intel.com>
+Subject: [PATCH 01/15] HWPOISON: Add page flag for poisoned pages
+Date: Sat, 20 Jun 2009 11:16:09 +0800
+Message-ID: <20090620031624.692166383@intel.com>
 References: <20090620031608.624240019@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B21E46B005A
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:32 -0400 (EDT)
-Content-Disposition: inline; filename=hwpoison-remove-ifdef.patch
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1776A6B0062
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:33 -0400 (EDT)
+Content-Disposition: inline; filename=page-flag-poison
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+From: Andi Kleen <ak@linux.intel.com>
 
-So as to eliminate one #ifdef in the C source.
+Hardware poisoned pages need special handling in the VM and shouldn't be
+touched again. This requires a new page flag. Define it here.
 
-Proposed by Nick Piggin.
+The page flags wars seem to be over, so it shouldn't be a problem
+to get a new one.
 
-Acked-by: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+v2: Add TestSetHWPoison (suggested by Johannes Weiner)
+v3: Define TestSetHWPoison on !CONFIG_MEMORY_FAILURE (Fengguang)
+
+Acked-by: Christoph Lameter <cl@linux.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+
 ---
- arch/x86/mm/fault.c |    3 +--
- include/linux/mm.h  |    7 ++++++-
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ include/linux/page-flags.h |   21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
---- sound-2.6.orig/arch/x86/mm/fault.c
-+++ sound-2.6/arch/x86/mm/fault.c
-@@ -820,14 +820,13 @@ do_sigbus(struct pt_regs *regs, unsigned
- 	tsk->thread.error_code	= error_code;
- 	tsk->thread.trap_no	= 14;
- 
--#ifdef CONFIG_MEMORY_FAILURE
- 	if (fault & VM_FAULT_HWPOISON) {
- 		printk(KERN_ERR
- 	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
- 			tsk->comm, tsk->pid, address);
- 		code = BUS_MCEERR_AR;
- 	}
--#endif
-+
- 	force_sig_info_fault(SIGBUS, code, address, tsk);
- }
- 
---- sound-2.6.orig/include/linux/mm.h
-+++ sound-2.6/include/linux/mm.h
-@@ -700,11 +700,16 @@ static inline int page_mapped(struct pag
- #define VM_FAULT_SIGBUS	0x0002
- #define VM_FAULT_MAJOR	0x0004
- #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
--#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
- 
- #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
- #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
- 
-+#ifdef CONFIG_MEMORY_FAILURE
-+#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
-+#else
-+#define VM_FAULT_HWPOISON 0
-+#endif
-+
- #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
+--- sound-2.6.orig/include/linux/page-flags.h
++++ sound-2.6/include/linux/page-flags.h
+@@ -51,6 +51,9 @@
+  * PG_buddy is set to indicate that the page is free and in the buddy system
+  * (see mm/page_alloc.c).
+  *
++ * PG_hwpoison indicates that a page got corrupted in hardware and contains
++ * data with incorrect ECC bits that triggered a machine check. Accessing is
++ * not safe since it may cause another machine check. Don't touch!
+  */
  
  /*
+@@ -102,6 +105,9 @@ enum pageflags {
+ #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+ 	PG_uncached,		/* Page has been mapped as uncached */
+ #endif
++#ifdef CONFIG_MEMORY_FAILURE
++	PG_hwpoison,		/* hardware poisoned page. Don't touch */
++#endif
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
+@@ -182,6 +188,9 @@ static inline void ClearPage##uname(stru
+ #define __CLEARPAGEFLAG_NOOP(uname)					\
+ static inline void __ClearPage##uname(struct page *page) {  }
+ 
++#define TESTSETFLAG_FALSE(uname)					\
++static inline int TestSetPage##uname(struct page *page) { return 0; }
++
+ #define TESTCLEARFLAG_FALSE(uname)					\
+ static inline int TestClearPage##uname(struct page *page) { return 0; }
+ 
+@@ -265,6 +274,16 @@ PAGEFLAG(Uncached, uncached)
+ PAGEFLAG_FALSE(Uncached)
+ #endif
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++PAGEFLAG(HWPoison, hwpoison)
++TESTSETFLAG(HWPoison, hwpoison)
++#define __PG_HWPOISON (1UL << PG_hwpoison)
++#else
++PAGEFLAG_FALSE(HWPoison)
++TESTSETFLAG_FALSE(HWPoison)
++#define __PG_HWPOISON 0
++#endif
++
+ static inline int PageUptodate(struct page *page)
+ {
+ 	int ret = test_bit(PG_uptodate, &(page)->flags);
+@@ -389,7 +408,7 @@ static inline void __ClearPageTail(struc
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
+ 
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
 
 -- 
 
