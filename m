@@ -1,84 +1,95 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 04/15] HWPOISON: Add new SIGBUS error codes for hardware poison signals
-Date: Sat, 20 Jun 2009 11:16:12 +0800
-Message-ID: <20090620031625.120958248@intel.com>
+Subject: [PATCH 10/15] HWPOISON: check and isolate corrupted free pages v3
+Date: Sat, 20 Jun 2009 11:16:18 +0800
+Message-ID: <20090620031625.977050921@intel.com>
 References: <20090620031608.624240019@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 09B126B0055
-	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:30 -0400 (EDT)
-Content-Disposition: inline; filename=poison-signal
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4FAA46B0083
+	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:31 -0400 (EDT)
+Content-Disposition: inline; filename=free-pages-poison
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+From: Wu Fengguang <fengguang.wu@intel.com>
 
-Add new SIGBUS codes for reporting machine checks as signals. When 
-the hardware detects an uncorrected ECC error it can trigger these
-signals.
+If memory corruption hits the free buddy pages, we can safely ignore them.
+No one will access them until page allocation time, then prep_new_page()
+will automatically check and isolate PG_hwpoison page for us (for 0-order
+allocation).
 
-This is needed for telling KVM's qemu about machine checks that happen to
-guests, so that it can inject them, but might be also useful for other programs.
-I find it useful in my test programs.
+This patch expands prep_new_page() to check every component page in a high
+order page allocation, in order to completely stop PG_hwpoison pages from
+being recirculated.
 
-This patch merely defines the new types.
+Note that the common case -- only allocating a single page, doesn't
+do any more work than before. Allocating > order 0 does a bit more work,
+but that's relatively uncommon.
 
-- Define two new si_codes for SIGBUS.  BUS_MCEERR_AO and BUS_MCEERR_AR
-* BUS_MCEERR_AO is for "Action Optional" machine checks, which means that some
-corruption has been detected in the background, but nothing has been consumed
-so far. The program can ignore those if it wants (but most programs would
-already get killed)
-* BUS_MCEERR_AR is for "Action Required" machine checks. This happens
-when corrupted data is consumed or the application ran into an area
-which has been known to be corrupted earlier. These require immediate
-action and cannot just returned to. Most programs would kill themselves.
-- They report the address of the corruption in the user address space
-in si_addr.
-- Define a new si_addr_lsb field that reports the extent of the corruption
-to user space. That's currently always a (small) page. The user application
-cannot tell where in this page the corruption happened.
+This simple implementation may drop some innocent neighbor pages, hopefully
+it is not a big problem because the event should be rare enough.
 
-AK: I plan to write a man page update before anyone asks.
+This patch adds some runtime costs to high order page users.
 
+[AK: Improved description]
+
+v2: Andi Kleen:
+Port to -mm code
+Move check into separate function.
+Don't dump stack in bad_pages for hwpoisoned pages.
+v3: Fengguang:
+But still taint the kernel: PG_hwpoison might be set by a software bug.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/asm-generic/siginfo.h |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |   18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
 
---- sound-2.6.orig/include/asm-generic/siginfo.h
-+++ sound-2.6/include/asm-generic/siginfo.h
-@@ -82,6 +82,7 @@ typedef struct siginfo {
- #ifdef __ARCH_SI_TRAPNO
- 			int _trapno;	/* TRAP # which caused the signal */
- #endif
-+			short _addr_lsb; /* LSB of the reported address */
- 		} _sigfault;
+--- sound-2.6.orig/mm/page_alloc.c
++++ sound-2.6/mm/page_alloc.c
+@@ -233,6 +233,10 @@ static void bad_page(struct page *page)
+ 	static unsigned long nr_shown;
+ 	static unsigned long nr_unshown;
  
- 		/* SIGPOLL */
-@@ -112,6 +113,7 @@ typedef struct siginfo {
- #ifdef __ARCH_SI_TRAPNO
- #define si_trapno	_sifields._sigfault._trapno
- #endif
-+#define si_addr_lsb	_sifields._sigfault._addr_lsb
- #define si_band		_sifields._sigpoll._band
- #define si_fd		_sifields._sigpoll._fd
- 
-@@ -192,7 +194,11 @@ typedef struct siginfo {
- #define BUS_ADRALN	(__SI_FAULT|1)	/* invalid address alignment */
- #define BUS_ADRERR	(__SI_FAULT|2)	/* non-existant physical address */
- #define BUS_OBJERR	(__SI_FAULT|3)	/* object specific hardware error */
--#define NSIGBUS		3
-+/* hardware memory error consumed on a machine check: action required */
-+#define BUS_MCEERR_AR	(__SI_FAULT|4)
-+/* hardware memory error detected in process but not consumed: action optional*/
-+#define BUS_MCEERR_AO	(__SI_FAULT|5)
-+#define NSIGBUS		5
- 
++	/* Don't complain about poisoned pages */
++	if (PageHWPoison(page))
++		goto out;
++
+ 	/*
+ 	 * Allow a burst of 60 reports, then keep quiet for that minute;
+ 	 * or allow a steady drip of one report per second.
+@@ -646,7 +650,7 @@ static inline void expand(struct zone *z
  /*
-  * SIGTRAP si_codes
+  * This page is about to be returned from the page allocator
+  */
+-static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
++static inline int check_new_page(struct page *page)
+ {
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+@@ -655,6 +659,18 @@ static int prep_new_page(struct page *pa
+ 		bad_page(page);
+ 		return 1;
+ 	}
++	return 0;
++}
++
++static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
++{
++	int i;
++
++	for (i = 0; i < (1 << order); i++) {
++		struct page *p = page + i;
++		if (unlikely(check_new_page(p)))
++			return 1;
++	}
+ 
+ 	set_page_private(page, 0);
+ 	set_page_refcounted(page);
 
 -- 
 
