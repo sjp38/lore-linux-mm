@@ -1,13 +1,13 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 14/15] HWPOISON: Add simple debugfs interface to inject hwpoison on arbitary PFNs
-Date: Sat, 20 Jun 2009 11:16:22 +0800
-Message-ID: <20090620031626.631590814@intel.com>
+Subject: [PATCH 02/15] HWPOISON: Export some rmap vma locking to outside world
+Date: Sat, 20 Jun 2009 11:16:10 +0800
+Message-ID: <20090620031624.835219550@intel.com>
 References: <20090620031608.624240019@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A0FC76B0062
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AAD076B006A
 	for <linux-mm@kvack.org>; Fri, 19 Jun 2009 23:19:30 -0400 (EDT)
-Content-Disposition: inline; filename=pfn-inject
+Content-Disposition: inline; filename=export-rmap
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "Wu, Fengguang" <fengguang.wu@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
@@ -15,89 +15,54 @@ List-Id: linux-mm.kvack.org
 
 From: Andi Kleen <ak@linux.intel.com>
 
-Useful for some testing scenarios, although specific testing is often
-done better through MADV_POISON
+Needed for later patch that walks rmap entries on its own.
 
-This can be done with the x86 level MCE injector too, but this interface
-allows it to do independently from low level x86 changes.
-
-Open issues: 
-Should be disabled for cgroups.
+This used to be very frowned upon, but memory-failure.c does
+some rather specialized rmap walking and rmap has been stable
+for quite some time, so I think it's ok now to export it.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/Kconfig           |    4 ++++
- mm/Makefile          |    1 +
- mm/hwpoison-inject.c |   41 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+)
+ include/linux/rmap.h |    6 ++++++
+ mm/rmap.c            |    4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
 
---- /dev/null
-+++ sound-2.6/mm/hwpoison-inject.c
-@@ -0,0 +1,41 @@
-+/* Inject a hwpoison memory failure on a arbitary pfn */
-+#include <linux/module.h>
-+#include <linux/debugfs.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+
-+static struct dentry *hwpoison_dir, *corrupt_pfn;
-+
-+static int hwpoison_inject(void *data, u64 val)
-+{
-+	if (!capable(CAP_SYS_ADMIN))
-+		return -EPERM;
-+	printk(KERN_INFO "Injecting memory failure at pfn %Lx\n", val);
-+	memory_failure(val, 18);
-+	return 0;
-+}
-+
-+DEFINE_SIMPLE_ATTRIBUTE(hwpoison_fops, NULL, hwpoison_inject, "%lli\n");
-+
-+static void pfn_inject_exit(void)
-+{
-+	if (hwpoison_dir)
-+		debugfs_remove_recursive(hwpoison_dir);
-+}
-+
-+static int pfn_inject_init(void)
-+{
-+	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
-+	if (hwpoison_dir == NULL)
-+		return -ENOMEM;
-+	corrupt_pfn = debugfs_create_file("corrupt-pfn", 0600, hwpoison_dir,
-+					  NULL, &hwpoison_fops);
-+	if (corrupt_pfn == NULL) {
-+		pfn_inject_exit();
-+		return -ENOMEM;
-+	}
-+	return 0;
-+}
-+
-+module_init(pfn_inject_init);
-+module_exit(pfn_inject_exit);
---- sound-2.6.orig/mm/Kconfig
-+++ sound-2.6/mm/Kconfig
-@@ -242,6 +242,10 @@ config KSM
- config MEMORY_FAILURE
- 	bool
+--- sound-2.6.orig/include/linux/rmap.h
++++ sound-2.6/include/linux/rmap.h
+@@ -116,6 +116,12 @@ int try_to_munlock(struct page *);
+ int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
+ #endif
  
-+config HWPOISON_INJECT
-+	tristate "Hardware poison pages injector"
-+	depends on MEMORY_FAILURE && DEBUG_KERNEL
++/*
++ * Called by memory-failure.c to kill processes.
++ */
++struct anon_vma *page_lock_anon_vma(struct page *page);
++void page_unlock_anon_vma(struct anon_vma *anon_vma);
 +
- config NOMMU_INITIAL_TRIM_EXCESS
- 	int "Turn on mmap() excess space trimming before booting"
- 	depends on !MMU
---- sound-2.6.orig/mm/Makefile
-+++ sound-2.6/mm/Makefile
-@@ -43,5 +43,6 @@ endif
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
- obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
-+obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ #else	/* !CONFIG_MMU */
+ 
+ #define anon_vma_init()		do {} while (0)
+--- sound-2.6.orig/mm/rmap.c
++++ sound-2.6/mm/rmap.c
+@@ -191,7 +191,7 @@ void __init anon_vma_init(void)
+  * Getting a lock on a stable anon_vma from a page off the LRU is
+  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
+  */
+-static struct anon_vma *page_lock_anon_vma(struct page *page)
++struct anon_vma *page_lock_anon_vma(struct page *page)
+ {
+ 	struct anon_vma *anon_vma;
+ 	unsigned long anon_mapping;
+@@ -211,7 +211,7 @@ out:
+ 	return NULL;
+ }
+ 
+-static void page_unlock_anon_vma(struct anon_vma *anon_vma)
++void page_unlock_anon_vma(struct anon_vma *anon_vma)
+ {
+ 	spin_unlock(&anon_vma->lock);
+ 	rcu_read_unlock();
 
 -- 
 
