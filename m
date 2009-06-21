@@ -1,39 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A866B0055
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 04:47:11 -0400 (EDT)
-Date: Sun, 21 Jun 2009 10:57:21 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 11/15] HWPOISON: The high level memory error handler in the VM v8
-Message-ID: <20090621085721.GD8218@one.firstfloor.org>
-References: <20090620031608.624240019@intel.com> <20090620031626.106150781@intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 09B746B006A
+	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 05:30:31 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090621061847.GB1474@ucw.cz>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090619145913.GA1389@ucw.cz> <1245450449.16880.10.camel@pasglop>
+	 <20090619232336.GA2442@elf.ucw.cz> <1245455409.16880.15.camel@pasglop>
+	 <20090620002817.GA2524@elf.ucw.cz> <1245463809.16880.18.camel@pasglop>
+	 <20090621061847.GB1474@ucw.cz>
+Content-Type: text/plain
+Date: Sun, 21 Jun 2009 19:31:05 +1000
+Message-Id: <1245576665.16880.24.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090620031626.106150781@intel.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, hugh.dickins@tiscali.co.uk, npiggin@suse.de, chris.mason@oracle.com, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-> v8:
-> check for page_mapped_in_vma() on anon pages (Hugh, Fengguang)
 
-This change was no good as discussed earlier.
+> > Right, that might be something to look into, though we haven't yet
+> > applied the technique for suspend & resume. My main issue with it at the
+> > moment is how do I synchronize with allocations that are already
+> > sleeping when changing the gfp flag mask without bloating the normal
+> 
+> Well, but the problem already exists, no? If someone is already
+> sleeping due to __GFP_WAIT, he'll probably sleep till the resume.
 
-> test and use page->mapping instead of page_mapping() (Fengguang)
-> cleanup some early kill comments (Fengguang)
+Yes. In fact, without the masking, a driver that hasn't been suspended
+yet could well start sleeping in GFP_KERNEL after the disk driver has
+suspended. It may do so while holding a mutex or similar, which might
+deadlock its own suspend() callback. It's not something that drivers can
+trivially address by having a pre-suspend hook, and avoid allocations,
+since allocations may be done by subsystems on behalf of the driver or
+such. It's a can of worms, which is why I believe the only sane approach
+is to stop allocators from doing IOs once we start suspend.
 
-This stuff belongs into the manpage. I haven't written it yet,
-but will. I don't think kernel source comments is the right place.
+So yes, just applying the mask would help, but wouldn't completely fix
+it unless we also find a way to synchronize.
 
-> introduce invalidate_inode_page() and don't remove dirty/writeback pages
-> from page cache (Nick, Fengguang)
+> ...well, if he's sleeping in the disk driver, I suspect driver will
+> finish outstanding requests as part of .suspend().
+> 
+> > I also suspect that we might want to try to make -some- amount of free
+> > space before starting suspend, though of course not nearly as
+> > aggressively as with std.
+> 
+> We free 4MB in 2.6.30, but Rafael is removing that for 2.6.31 :-(.
 
-I'm still dubious this is a good idea, it means potentially a lot 
-of pages not covered.
+Well... we are taking a chance of making the above scenario more likely
+to hit then.
 
--Andi
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
