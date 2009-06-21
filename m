@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F15236B008A
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 14:39:57 -0400 (EDT)
-Date: Sun, 21 Jun 2009 20:37:30 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v3] swap: virtual swap readahead
-Message-ID: <20090621183730.GA4796@cmpxchg.org>
-References: <1244628314.13761.11617.camel@twins> <20090610113214.GA5657@localhost> <20090610102516.08f7300f@jbarnes-x200> <20090611052228.GA20100@localhost> <20090611101741.GA1974@cmpxchg.org> <20090612015927.GA6804@localhost> <20090615182216.GA1661@cmpxchg.org> <20090618091949.GA711@localhost> <20090618130121.GA1817@cmpxchg.org> <Pine.LNX.4.64.0906211858560.3968@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0906211858560.3968@sister.anvils>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0484A6B0092
+	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 16:41:26 -0400 (EDT)
+Date: Sun, 21 Jun 2009 13:42:35 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: handle_mm_fault() calling convention cleanup..
+Message-ID: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "Barnes, Jesse" <jesse.barnes@intel.com>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-arch@vger.kernel.org
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 21, 2009 at 07:07:03PM +0100, Hugh Dickins wrote:
-> Hi Hannes,
-> 
-> On Thu, 18 Jun 2009, Johannes Weiner wrote:
-> > On Thu, Jun 18, 2009 at 05:19:49PM +0800, Wu Fengguang wrote:
-> > 
-> > Okay, evaluating this test-patch any further probably isn't worth it.
-> > It's too aggressive, I think readahead is stealing pages reclaimed by
-> > other allocations which in turn oom.
-> > 
-> > Back to the original problem: you detected increased latency for
-> > launching new applications, so they get less share of the IO bandwidth
-> > than without the patch.
-> > 
-> > I can see two reasons for this:
-> > 
-> >   a) the new heuristics don't work out and we read more unrelated
-> >   pages than before
-> > 
-> >   b) we readahead more pages in total as the old code would stop at
-> >   holes, as described above
-> > 
-> > We can verify a) by comparing major fault numbers between the two
-> > kernels with your testload.  If they increase with my patch, we
-> > anticipate the wrong slots and every fault has do the reading itself.
-> > 
-> > b) seems to be a trade-off.  After all, the IO resources you have less
-> > for new applications in your test is the bandwidth that is used by
-> > swapping applications.  My qsbench numbers are a sign for this as the
-> > only IO going on is swap.
-> > 
-> > Of course, the theory is not to improve swap performance by increasing
-> > the readahead window but to choose better readahead candidates.  So I
-> > will run your tests and qsbench with a smaller page cluster and see if
-> > this improves both loads.
-> 
-> Hmm, sounds rather pessimistic; but I've not decided about it either.
 
-It seems the problem was not that real after all:
+Just a heads up that I committed the patches that I sent out two months 
+ago to make the fault handling routines use the finer-grained fault flags 
+(FAULT_FLAG_xyzzy) rather than passing in a boolean for "write".
 
-	http://lkml.org/lkml/2009/6/18/109
+That was originally for the NOPAGE_RETRY patches, but it's a general 
+cleanup too. I have this suspicion that we should extend this to 
+"get_user_pages()" too, instead of having those boolean "write" and 
+"force" flags (and GUP_FLAGS_xyzzy as opposed to FAULT_FLAGS_yyzzy).
 
-> May I please hand over to you this collection of adjustments to your
-> v3 virtual swap readahead patch, for you to merge in or split up or
-> mess around with, generally take ownership of, however you wish?
-> So you can keep adjusting shmem.c to match memory.c if necessary.
+We should probably also get rid of the insane FOLL_xyz flags too. Right 
+now the code in fact depends on FOLL_WRITE being the same as 
+FAULT_FLAGS_WRITE, and while that is a simple dependency, it's just crazy 
+how we have all these different flags for what ends up often boiling down 
+to the same fundamental issue in the end (even if not all versions of the 
+flags are necessarily always valid for all uses).
 
-I will adopt them, thank you!
+I fixed up all architectures that I noticed (at least microblaze had been 
+added since the original patches in April), but arch maintainers should 
+double-check. Arch maintainers might also want to check whether the 
+mindless conversion of
 
-	Hannes
+	'is_write' => 'is_write ? FAULT_FLAGS_WRITE : 0'
+
+might perhaps be written in some more natural way (for example, maybe 
+you'd like to get rid of 'iswrite' as a variable entirely, and replace it 
+with a 'fault_flags' variable).
+
+It's pushed out and tested on x86-64, but it really was such a mindless 
+conversion that I hope it works on all architectures. But I thought I'd 
+better give people a shout-out regardless.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
