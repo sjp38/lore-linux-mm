@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DE6536B004D
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 02:23:12 -0400 (EDT)
-Date: Sun, 21 Jun 2009 08:18:47 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
-	suspending
-Message-ID: <20090621061847.GB1474@ucw.cz>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI> <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI> <20090619145913.GA1389@ucw.cz> <1245450449.16880.10.camel@pasglop> <20090619232336.GA2442@elf.ucw.cz> <1245455409.16880.15.camel@pasglop> <20090620002817.GA2524@elf.ucw.cz> <1245463809.16880.18.camel@pasglop>
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 699C06B004F
+	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 04:42:12 -0400 (EDT)
+Date: Sun, 21 Jun 2009 10:52:12 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 12/15] HWPOISON: per process early kill option prctl(PR_MEMORY_FAILURE_EARLY_KILL)
+Message-ID: <20090621085212.GC8218@one.firstfloor.org>
+References: <20090620031608.624240019@intel.com> <20090620031626.237671605@intel.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1245463809.16880.18.camel@pasglop>
+In-Reply-To: <20090620031626.237671605@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, npiggin@suse.de, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andi Kleen <andi@firstfloor.org>, "riel@redhat.com" <riel@redhat.com>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
-> > Academic for boot, probably real for suspend/resume. There the atomic
-> > reserves could matter because the memory can be pretty full when you
-> > start suspend.
+On Sat, Jun 20, 2009 at 11:16:20AM +0800, Wu Fengguang wrote:
+> The default option is late kill, ie. only kill the process when it actually
+> tries to access the corrupted data. But an admin can still request a legacy
+> application to be early killed by writing a wrapper tool which calls prctl()
+> and exec the application:
 > 
-> Right, that might be something to look into, though we haven't yet
-> applied the technique for suspend & resume. My main issue with it at the
-> moment is how do I synchronize with allocations that are already
-> sleeping when changing the gfp flag mask without bloating the normal
+> 	# this_app_shall_be_early_killed  legacy_app
+> 
+> KVM needs the early kill signal. At early kill time it has good opportunity
+> to isolate the corruption in guest kernel pages. It will be too late to do
+> anything useful on late kill.
+> 
+> Proposed by Nick Pidgin.
 
-Well, but the problem already exists, no? If someone is already
-sleeping due to __GFP_WAIT, he'll probably sleep till the resume.
+If anything you would need two flags per process: one to signify
+that the application set the flag and another what the actual
+value is.
 
-...well, if he's sleeping in the disk driver, I suspect driver will
-finish outstanding requests as part of .suspend().
+Also you broke the existing qemu implementation now which obviously
+doesn't know about this new flag.
 
-> I also suspect that we might want to try to make -some- amount of free
-> space before starting suspend, though of course not nearly as
-> aggressively as with std.
+I don't think we need this patch right now.
 
-We free 4MB in 2.6.30, but Rafael is removing that for 2.6.31 :-(.
+> +static bool task_early_kill_elegible(struct task_struct *tsk)
+> +{
+> +	if (!tsk->mm)
+> +		return false;
 
-									Pavel
+I don't think this can happen.
+
+> +
+> +	return tsk->flags & PF_EARLY_KILL;
+
+This type mixing is also dangerous, if someone create e.g. a char bool
+it would be always false.
+
+-Andi
+
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
