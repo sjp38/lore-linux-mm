@@ -1,100 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DF82C6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 17:24:55 -0400 (EDT)
-Subject: [PATCH] Hugepages should be accounted as unevictable pages.
-From: Alok Kataria <akataria@vmware.com>
-Reply-To: akataria@vmware.com
-Content-Type: text/plain
-Date: Mon, 22 Jun 2009 14:25:41 -0700
-Message-Id: <1245705941.26649.19.camel@alok-dev1>
+	by kanga.kvack.org (Postfix) with ESMTP id 83FF56B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 18:15:17 -0400 (EDT)
+Date: Mon, 22 Jun 2009 15:15:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][RFC] mm: uncached vma support with writenotify
+Message-Id: <20090622151537.2f8009f7.akpm@linux-foundation.org>
+In-Reply-To: <20090615033240.GC31902@linux-sh.org>
+References: <20090614132845.17543.11882.sendpatchset@rx1.opensource.se>
+	<20090615033240.GC31902@linux-sh.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: magnus.damm@gmail.com, arnd@arndb.de, linux-mm@kvack.org, jayakumar.lkml@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Looking at the output of /proc/meminfo, a user might get confused in thinking
-that there are zero unevictable pages, though, in reality their can be
-hugepages which are inherently unevictable. 
+On Mon, 15 Jun 2009 12:32:40 +0900
+Paul Mundt <lethal@linux-sh.org> wrote:
 
-Though hugepages are not handled by the unevictable lru framework, they are
-infact unevictable in nature and global statistics counter should reflect that. 
+> On Sun, Jun 14, 2009 at 10:28:45PM +0900, Magnus Damm wrote:
+> > --- 0001/mm/mmap.c
+> > +++ work/mm/mmap.c	2009-06-11 21:43:16.000000000 +0900
+> > @@ -1209,8 +1209,20 @@ munmap_back:
+> >  	pgoff = vma->vm_pgoff;
+> >  	vm_flags = vma->vm_flags;
+> >  
+> > -	if (vma_wants_writenotify(vma))
+> > +	if (vma_wants_writenotify(vma)) {
+> > +		pgprot_t pprot = vma->vm_page_prot;
+> > +
+> > +		/* Can vma->vm_page_prot have changed??
+> > +		 *
+> > +		 * Answer: Yes, drivers may have changed it in their
+> > +		 *         f_op->mmap method.
+> > +		 *
+> > +		 * Ensures that vmas marked as uncached stay that way.
+> > +		 */
+> >  		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+> > +		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
+> > +			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+> > +	}
+> >  
+> >  	vma_link(mm, vma, prev, rb_link, rb_parent);
+> >  	file = vma->vm_file;
+> > 
+> I guess the only real issue here is that we presently have no generic
+> interface in the kernel for setting a VMA uncached. pgprot_noncached()
+> is the closest approximation we have, but there are still architectures
+> that do not implement it.
+> 
+> Given that this comes up at least once a month, perhaps it makes sense to
+> see which platforms are still outstanding. At least cris, h8300,
+> m68knommu, s390, and xtensa all presently lack a definition for it. The
+> nommu cases are easily handled, but the rest still require some attention
+> from their architecture maintainers before we can really start treating
+> this as a generic interface.
+> 
+> Until then, you will have to do what every other user of
+> pgprot_noncached() code does in generic code:
+> 
+> 	#ifdef pgprot_noncached
+> 		vma->vm_page_prot = pgprot_noncached(...);
+> 	#endif
+> 
+> OTOH, I guess we could just add something like:
+> 
+> 	#define pgprot_noncached(x)	(x) 
+> 
+> which works fine for the nommu case, and which functionally is no
+> different from what happens right now anyways for the users that don't
+> wire it up sanely.
+> 
+> Arnd, what do you think about throwing this at asm-generic?
+> 
 
-For instance, I have allocated 20 huge pages on my system, meminfo shows this 
+I think Arnd fell asleep ;)
 
-Unevictable:           0 kB
-Mlocked:               0 kB
-HugePages_Total:      20
-HugePages_Free:       20
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-
-After the patch:
-
-Unevictable:       81920 kB
-Mlocked:               0 kB
-HugePages_Total:      20
-HugePages_Free:       20
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-
-Signed-off-by: Alok N Kataria <akataria@vmware.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-
-Index: linux-2.6/Documentation/vm/unevictable-lru.txt
-===================================================================
---- linux-2.6.orig/Documentation/vm/unevictable-lru.txt	2009-06-22 11:49:27.000000000 -0700
-+++ linux-2.6/Documentation/vm/unevictable-lru.txt	2009-06-22 13:57:32.000000000 -0700
-@@ -71,6 +71,12 @@ The unevictable list addresses the follo
- 
-  (*) Those mapped into VM_LOCKED [mlock()ed] VMAs.
- 
-+ (*) Hugetlb pages are also unevictable. Hugepages are already implemented in
-+     a way that these pages don't reside on the LRU and hence are not iterated
-+     over during the vmscan. So there is no need to move around these pages
-+     across different LRU's. We just account these pages as unevictable for
-+     correct statistics.
-+
- The infrastructure may also be able to handle other conditions that make pages
- unevictable, either by definition or by circumstance, in the future.
- 
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c	2009-06-22 11:49:57.000000000 -0700
-+++ linux-2.6/mm/hugetlb.c	2009-06-22 14:04:05.000000000 -0700
-@@ -533,6 +533,8 @@ static void update_and_free_page(struct 
- 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
- 				1 << PG_private | 1<< PG_writeback);
- 	}
-+	mod_zone_page_state(page_zone(page), NR_LRU_BASE + LRU_UNEVICTABLE,
-+				-(pages_per_huge_page(h)));
- 	set_compound_page_dtor(page, NULL);
- 	set_page_refcounted(page);
- 	arch_release_hugepage(page);
-@@ -584,6 +586,8 @@ static void prep_new_huge_page(struct hs
- 	spin_lock(&hugetlb_lock);
- 	h->nr_huge_pages++;
- 	h->nr_huge_pages_node[nid]++;
-+	mod_zone_page_state(page_zone(page), NR_LRU_BASE + LRU_UNEVICTABLE,
-+				pages_per_huge_page(h));
- 	spin_unlock(&hugetlb_lock);
- 	put_page(page); /* free it into the hugepage allocator */
- }
-@@ -749,6 +753,9 @@ static struct page *alloc_buddy_huge_pag
- 		 */
- 		h->nr_huge_pages_node[nid]++;
- 		h->surplus_huge_pages_node[nid]++;
-+		mod_zone_page_state(page_zone(page),
-+					NR_LRU_BASE + LRU_UNEVICTABLE,
-+					pages_per_huge_page(h));
- 		__count_vm_event(HTLB_BUDDY_PGALLOC);
- 	} else {
- 		h->nr_huge_pages--;
-
+> 
+>  include/asm-generic/pgtable.h |    4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index e410f60..e2bd73e 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -129,6 +129,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
+>  #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+>  #endif
+>  
+> +#ifndef pgprot_noncached
+> +#define pgprot_noncached(prot)	(prot)
+> +#endif
+> +
+>  #ifndef pgprot_writecombine
+>  #define pgprot_writecombine pgprot_noncached
+>  #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
