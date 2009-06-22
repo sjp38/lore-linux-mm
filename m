@@ -1,78 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6786D6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 17:07:23 -0400 (EDT)
-Received: by fxm24 with SMTP id 24so4621421fxm.38
-        for <linux-mm@kvack.org>; Mon, 22 Jun 2009 14:07:34 -0700 (PDT)
-Date: Tue, 23 Jun 2009 01:07:39 +0400
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH] ifdef AIO stuff in mm_struct
-Message-ID: <20090622210739.GA2331@x200.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id DF82C6B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 17:24:55 -0400 (EDT)
+Subject: [PATCH] Hugepages should be accounted as unevictable pages.
+From: Alok Kataria <akataria@vmware.com>
+Reply-To: akataria@vmware.com
+Content-Type: text/plain
+Date: Mon, 22 Jun 2009 14:25:41 -0700
+Message-Id: <1245705941.26649.19.camel@alok-dev1>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-->ioctx_lock and ->ioctx_list are used only under CONFIG_AIO.
+Looking at the output of /proc/meminfo, a user might get confused in thinking
+that there are zero unevictable pages, though, in reality their can be
+hugepages which are inherently unevictable. 
 
-Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
----
- include/linux/mm_types.h |    5 ++---
- kernel/fork.c            |   11 +++++++++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
+Though hugepages are not handled by the unevictable lru framework, they are
+infact unevictable in nature and global statistics counter should reflect that. 
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 7acc843..f69ced6 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -261,11 +261,10 @@ struct mm_struct {
- 	unsigned long flags; /* Must use atomic bitops to access the bits */
+For instance, I have allocated 20 huge pages on my system, meminfo shows this 
+
+Unevictable:           0 kB
+Mlocked:               0 kB
+HugePages_Total:      20
+HugePages_Free:       20
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+
+After the patch:
+
+Unevictable:       81920 kB
+Mlocked:               0 kB
+HugePages_Total:      20
+HugePages_Free:       20
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+
+Signed-off-by: Alok N Kataria <akataria@vmware.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+
+Index: linux-2.6/Documentation/vm/unevictable-lru.txt
+===================================================================
+--- linux-2.6.orig/Documentation/vm/unevictable-lru.txt	2009-06-22 11:49:27.000000000 -0700
++++ linux-2.6/Documentation/vm/unevictable-lru.txt	2009-06-22 13:57:32.000000000 -0700
+@@ -71,6 +71,12 @@ The unevictable list addresses the follo
  
- 	struct core_state *core_state; /* coredumping support */
--
--	/* aio bits */
-+#ifdef CONFIG_AIO
- 	spinlock_t		ioctx_lock;
- 	struct hlist_head	ioctx_list;
--
-+#endif
- #ifdef CONFIG_MM_OWNER
- 	/*
- 	 * "owner" points to a task that is regarded as the canonical
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 467746b..8d3e47f 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -420,6 +420,14 @@ __setup("coredump_filter=", coredump_filter_setup);
+  (*) Those mapped into VM_LOCKED [mlock()ed] VMAs.
  
- #include <linux/init_task.h>
- 
-+static void mm_init_aio(struct mm_struct *mm)
-+{
-+#ifdef CONFIG_AIO
-+	spin_lock_init(&mm->ioctx_lock);
-+	INIT_HLIST_HEAD(&mm->ioctx_list);
-+#endif
-+}
++ (*) Hugetlb pages are also unevictable. Hugepages are already implemented in
++     a way that these pages don't reside on the LRU and hence are not iterated
++     over during the vmscan. So there is no need to move around these pages
++     across different LRU's. We just account these pages as unevictable for
++     correct statistics.
 +
- static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
- {
- 	atomic_set(&mm->mm_users, 1);
-@@ -432,10 +440,9 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
- 	set_mm_counter(mm, file_rss, 0);
- 	set_mm_counter(mm, anon_rss, 0);
- 	spin_lock_init(&mm->page_table_lock);
--	spin_lock_init(&mm->ioctx_lock);
--	INIT_HLIST_HEAD(&mm->ioctx_list);
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
-+	mm_init_aio(mm);
- 	mm_init_owner(mm, p);
+ The infrastructure may also be able to handle other conditions that make pages
+ unevictable, either by definition or by circumstance, in the future.
  
- 	if (likely(!mm_alloc_pgd(mm))) {
+Index: linux-2.6/mm/hugetlb.c
+===================================================================
+--- linux-2.6.orig/mm/hugetlb.c	2009-06-22 11:49:57.000000000 -0700
++++ linux-2.6/mm/hugetlb.c	2009-06-22 14:04:05.000000000 -0700
+@@ -533,6 +533,8 @@ static void update_and_free_page(struct 
+ 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
+ 				1 << PG_private | 1<< PG_writeback);
+ 	}
++	mod_zone_page_state(page_zone(page), NR_LRU_BASE + LRU_UNEVICTABLE,
++				-(pages_per_huge_page(h)));
+ 	set_compound_page_dtor(page, NULL);
+ 	set_page_refcounted(page);
+ 	arch_release_hugepage(page);
+@@ -584,6 +586,8 @@ static void prep_new_huge_page(struct hs
+ 	spin_lock(&hugetlb_lock);
+ 	h->nr_huge_pages++;
+ 	h->nr_huge_pages_node[nid]++;
++	mod_zone_page_state(page_zone(page), NR_LRU_BASE + LRU_UNEVICTABLE,
++				pages_per_huge_page(h));
+ 	spin_unlock(&hugetlb_lock);
+ 	put_page(page); /* free it into the hugepage allocator */
+ }
+@@ -749,6 +753,9 @@ static struct page *alloc_buddy_huge_pag
+ 		 */
+ 		h->nr_huge_pages_node[nid]++;
+ 		h->surplus_huge_pages_node[nid]++;
++		mod_zone_page_state(page_zone(page),
++					NR_LRU_BASE + LRU_UNEVICTABLE,
++					pages_per_huge_page(h));
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC);
+ 	} else {
+ 		h->nr_huge_pages--;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
