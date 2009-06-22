@@ -1,58 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BBA286B004F
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 05:54:18 -0400 (EDT)
-Subject: Re: [PATCH] kmemleak: use pr_fmt
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <1245440992.6201.17.camel@Joe-Laptop>
-References: <1245341337.29927.8.camel@Joe-Laptop.home>
-	 <1245405220.12653.25.camel@pc1117.cambridge.arm.com>
-	 <1245440992.6201.17.camel@Joe-Laptop>
-Content-Type: text/plain
-Date: Mon, 22 Jun 2009 10:55:52 +0100
-Message-Id: <1245664552.15580.36.camel@pc1117.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD706B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 06:06:26 -0400 (EDT)
+Date: Mon, 22 Jun 2009 11:06:32 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Performance degradation seen after using one list for hot/cold
+	pages.
+Message-ID: <20090622100632.GB3981@csn.ul.ie>
+References: <70875432E21A4185AD2E007941B6A792@sisodomain.com> <20090622164147.720683f8.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090622164147.720683f8.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Joe Perches <joe@perches.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Narayanan Gopalakrishnan <narayanan.g@samsung.com>, linux-mm@kvack.org, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-06-19 at 12:49 -0700, Joe Perches wrote:
-> On Fri, 2009-06-19 at 10:53 +0100, Catalin Marinas wrote:
-> > Thanks for the patch. It missed one pr_info case (actually invoked via
-> > the pr_helper macro).
+On Mon, Jun 22, 2009 at 04:41:47PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon, 22 Jun 2009 11:20:14 +0530
+> Narayanan Gopalakrishnan <narayanan.g@samsung.com> wrote:
 > 
-> This change will affect the seq_printf uses.
-> Some think the seq output should be immutable.
-> Perhaps that's important to you or others.
+> > Hi,
+> > 
+> > We are facing a performance degradation of 2 MBps in kernels 2.6.25 and
+> > above.
+> > We were able to zero on the fact that the exact patch that has affected us
+> > is this
+> > (http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdi
+> > ff;h=3dfa5721f12c3d5a441448086bee156887daa961), that changes to have one
+> > list for hot/cold pages. 
+> > 
+> > We see the at the block driver the pages we get are not contiguous hence the
+> > number of LLD requests we are making have increased which is the cause of
+> > this problem.
+> > 
+> > The page allocation in our case is called from aio_read and hence it always
+> > calls page_cache_alloc_cold(mapping) from readahead.
+> > 
+> > We have found a hack for this that is, removing the __GFP_COLD macro when
+> > __page_cache_alloc()is called helps us to regain the performance as we see
+> > contiguous pages in block driver.
+> > 
+> > Has anyone faced this problem or can give a possible solution for this?
+> > 
 
-My point was that with your patch, the kmemleak kernel messages with
-pr_info were something like:
+I've seen this problem before. In the 2.6.24 timeframe, performance degradation
+of IO was reported when I broke the property of the buddy allocator that
+returns contiguous pages in some cases. IIRC, some IO devices can automatically
+merge requests if the pages happen to be physically contiguous.
 
-kmemleak: kmemleak: unreferenced object ...
-kmemleak:   comm ...
-kmemleak:   backtrace:
+> > Our target is OMAP2430 custom board with 128MB RAM.
+> > 
+> Added some CCs.
+> 
+> My understanding is this: 
+> 
+> Assume A,B,C,D are pfn of continuous pages. (B=A+1, C=A+2, D=A+3)
+> 
+> 1) When there are 2 lists for hot and cold pages, pcp list is constracted in
+>    following order after rmqueue_bulk().
+> 
+>    pcp_list[cold] (next) <-> A <-> B <-> C <-> D <-(prev) pcp_list[cold]
+> 
+>    The pages are drained from "next" and pages were given in sequence of
+>    A, B, C, D...
+> 
+> 2) Now, pcp list is constracted as following after  rmqueue_bulk()
+> 
+> 	pcp_list (next) <-> A <-> B <-> C <-> D <-> (prev) pcp_list
+> 
+>    When __GFP_COLD, the page is drained via "prev" and sequence of given pages
+>    is D,C,B,A...
+> 
+>    Then, removing __GFP_COLD allows you to allocate pages in sequence of
+>    A, B, C, D.
+> 
+> Looking into page_alloc.c::rmqueue_bulk(),
+>  871     /*
+>  872      * Split buddy pages returned by expand() are received here
+>  873      * in physical page order. The page is added to the callers and
+>  874      * list and the list head then moves forward. From the callers
+>  875      * perspective, the linked list is ordered by page number in
+>  876      * some conditions. This is useful for IO devices that can
+>  877      * merge IO requests if the physical pages are ordered
+>  878      * properly.
+>  879      */
+> 
+> Order of pfn is taken into account but doesn't work well for __GFP_COLD
+> allocation. (works well for not __GFP_COLD allocation.)
+> Using 2 lists again or modify current behavior ?
+> 
 
-After dropping "kmemleak: " in the print_helper() call, kernel messages
-become (which I find nicer):
+This analysis looks spot-on. The lack of physical contiguity is what is
+critical, not that the pages are hot or cold in cache. I think it would be
+overkill to reintroduce two separate lists to preserve the ordering in
+that case. How about something like the following?
 
-kmemleak: unreferenced object ...
-kmemleak:   comm ...
-kmemleak:   backtrace:
+==== CUT HERE ====
+[PATCH] page-allocator: Preserve PFN ordering when __GFP_COLD is set
 
-For the seq_printf() we really don't need the "kmemleak: " prefix since
-you read a kmemleak-specific file anyway. With my modification, the seq
-output becomes:
+The page allocator tries to preserve contiguous PFN ordering when returning
+pages such that repeated callers to the allocator have a strong chance of
+getting physically contiguous pages, particularly when external fragmentation
+is low. However, of the bulk of the allocations have __GFP_COLD set as
+they are due to aio_read() for example, then the PFNs are in reverse PFN
+order. This can cause performance degration when used with IO
+controllers that could have merged the requests.
 
-unreferenced object ...
-  comm ...
-  backtrace:
+This patch attempts to preserve the contiguous ordering of PFNs for
+users of __GFP_COLD.
 
-i.e. without the "kmemleak: " prefix on the "unreferenced ..." line.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ mm/page_alloc.c |   13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
--- 
-Catalin
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a5f3c27..9cd32c8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -882,7 +882,7 @@ retry_reserve:
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order, 
+ 			unsigned long count, struct list_head *list,
+-			int migratetype)
++			int migratetype, int cold)
+ {
+ 	int i;
+ 	
+@@ -901,7 +901,10 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 		 * merge IO requests if the physical pages are ordered
+ 		 * properly.
+ 		 */
+-		list_add(&page->lru, list);
++		if (likely(cold == 0))
++			list_add(&page->lru, list);
++		else
++			list_add_tail(&page->lru, list);
+ 		set_page_private(page, migratetype);
+ 		list = &page->lru;
+ 	}
+@@ -1119,7 +1122,8 @@ again:
+ 		local_irq_save(flags);
+ 		if (!pcp->count) {
+ 			pcp->count = rmqueue_bulk(zone, 0,
+-					pcp->batch, &pcp->list, migratetype);
++					pcp->batch, &pcp->list,
++					migratetype, cold);
+ 			if (unlikely(!pcp->count))
+ 				goto failed;
+ 		}
+@@ -1138,7 +1142,8 @@ again:
+ 		/* Allocate more to the pcp list if necessary */
+ 		if (unlikely(&page->lru == &pcp->list)) {
+ 			pcp->count += rmqueue_bulk(zone, 0,
+-					pcp->batch, &pcp->list, migratetype);
++					pcp->batch, &pcp->list,
++					migratetype, cold);
+ 			page = list_entry(pcp->list.next, struct page, lru);
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
