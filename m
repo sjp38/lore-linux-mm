@@ -1,105 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F21A36B004F
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 16:53:39 -0400 (EDT)
-Date: Mon, 22 Jun 2009 21:55:18 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: BUG: Bad page state [was: Strange oopses in 2.6.30]
-Message-ID: <20090622205518.GH3981@csn.ul.ie>
-References: <1245506908.6327.36.camel@localhost> <4A3CFFEC.1000805@gmail.com> <20090622113652.21E7.A69D9226@jp.fujitsu.com> <1245656529.18751.22.camel@penberg-laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6786D6B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 17:07:23 -0400 (EDT)
+Received: by fxm24 with SMTP id 24so4621421fxm.38
+        for <linux-mm@kvack.org>; Mon, 22 Jun 2009 14:07:34 -0700 (PDT)
+Date: Tue, 23 Jun 2009 01:07:39 +0400
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: [PATCH] ifdef AIO stuff in mm_struct
+Message-ID: <20090622210739.GA2331@x200.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1245656529.18751.22.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiri Slaby <jirislaby@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 22, 2009 at 10:42:09AM +0300, Pekka Enberg wrote:
-> On Mon, 2009-06-22 at 11:39 +0900, KOSAKI Motohiro wrote:
-> > (cc to Mel and some reviewer)
-> > 
-> > > Flags are:
-> > > 0000000000400000 -- __PG_MLOCKED
-> > > 800000000050000c -- my page flags
-> > >         3650000c -- Maxim's page flags
-> > > 0000000000693ce1 -- my PAGE_FLAGS_CHECK_AT_FREE
-> > 
-> > I guess commit da456f14d (page allocator: do not disable interrupts in
-> > free_page_mlock()) is a bit wrong.
-> > 
-> > current code is:
-> > -------------------------------------------------------------
-> > static void free_hot_cold_page(struct page *page, int cold)
-> > {
-> > (snip)
-> >         int clearMlocked = PageMlocked(page);
-> > (snip)
-> >         if (free_pages_check(page))
-> >                 return;
-> > (snip)
-> >         local_irq_save(flags);
-> >         if (unlikely(clearMlocked))
-> >                 free_page_mlock(page);
-> > -------------------------------------------------------------
-> > 
-> > Oh well, we remove PG_Mlocked *after* free_pages_check().
-> > Then, it makes false-positive warning.
-> > 
-> > Sorry, my review was also wrong. I think reverting this patch is better ;)
-> 
-> Well, I am not sure we need to revert the patch. I'd argue it's simply a
-> bug in free_pages_check() that can be fixed with something like this.
-> Mel, what do you think?
-> 
+->ioctx_lock and ->ioctx_list are used only under CONFIG_AIO.
 
-I think you removed the check for the wrong flag - PG_locked vs
-PG_mlocked :).
+Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+---
+ include/linux/mm_types.h |    5 ++---
+ kernel/fork.c            |   11 +++++++++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)
 
-That aside, I reckon your intention was not far off the mark. I posted a
-separate patch to see about warning once when PG_mlocked is set and
-counting the event. When the warning appears, it's not world ending but
-chances are it's something that needs to be fixed up.
-
-> 			Pekka
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index d6792f8..b002b65 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -385,7 +385,7 @@ static inline void __ClearPageTail(struct page *page)
->   * these flags set.  It they are, there is a problem.
->   */
->  #define PAGE_FLAGS_CHECK_AT_FREE \
-> -	(1 << PG_lru	 | 1 << PG_locked    | \
-> +	(1 << PG_lru	 | \
->  	 1 << PG_private | 1 << PG_private_2 | \
->  	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
->  	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a5f3c27..ff7c713 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -497,6 +497,11 @@ static void free_page_mlock(struct page *page) { }
->  
->  static inline int free_pages_check(struct page *page)
->  {
-> +	/*
-> +	 * Note: the page can have PG_mlock set here because we clear it
-> +	 * lazily to avoid unnecessary disabling and enabling of interrupts in
-> +	 * page free fastpath.
-> +	 */
->  	if (unlikely(page_mapcount(page) |
->  		(page->mapping != NULL)  |
->  		(atomic_read(&page->_count) != 0) |
-> 
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 7acc843..f69ced6 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -261,11 +261,10 @@ struct mm_struct {
+ 	unsigned long flags; /* Must use atomic bitops to access the bits */
+ 
+ 	struct core_state *core_state; /* coredumping support */
+-
+-	/* aio bits */
++#ifdef CONFIG_AIO
+ 	spinlock_t		ioctx_lock;
+ 	struct hlist_head	ioctx_list;
+-
++#endif
+ #ifdef CONFIG_MM_OWNER
+ 	/*
+ 	 * "owner" points to a task that is regarded as the canonical
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 467746b..8d3e47f 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -420,6 +420,14 @@ __setup("coredump_filter=", coredump_filter_setup);
+ 
+ #include <linux/init_task.h>
+ 
++static void mm_init_aio(struct mm_struct *mm)
++{
++#ifdef CONFIG_AIO
++	spin_lock_init(&mm->ioctx_lock);
++	INIT_HLIST_HEAD(&mm->ioctx_list);
++#endif
++}
++
+ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+ {
+ 	atomic_set(&mm->mm_users, 1);
+@@ -432,10 +440,9 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+ 	set_mm_counter(mm, file_rss, 0);
+ 	set_mm_counter(mm, anon_rss, 0);
+ 	spin_lock_init(&mm->page_table_lock);
+-	spin_lock_init(&mm->ioctx_lock);
+-	INIT_HLIST_HEAD(&mm->ioctx_list);
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+ 	mm->cached_hole_size = ~0UL;
++	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
