@@ -1,55 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F1EA6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 01:52:06 -0400 (EDT)
-Received: from epmmp2 (mailout3.samsung.com [203.254.224.33])
- by mailout1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0KLM00JVULJ3I2@mailout1.samsung.com> for linux-mm@kvack.org;
- Mon, 22 Jun 2009 14:49:51 +0900 (KST)
-Received: from Narayanang ([107.108.214.192])
- by mmp2.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTPA id <0KLM00FNULJ2GD@mmp2.samsung.com> for linux-mm@kvack.org; Mon,
- 22 Jun 2009 14:49:51 +0900 (KST)
-Date: Mon, 22 Jun 2009 11:20:14 +0530
-From: Narayanan Gopalakrishnan <narayanan.g@samsung.com>
-Subject: Performance degradation seen after using one list for hot/cold pages.
-Message-id: <70875432E21A4185AD2E007941B6A792@sisodomain.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7BIT
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 941506B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 03:40:55 -0400 (EDT)
+Subject: Re: BUG: Bad page state [was: Strange oopses in 2.6.30]
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20090622113652.21E7.A69D9226@jp.fujitsu.com>
+References: <1245506908.6327.36.camel@localhost>
+	 <4A3CFFEC.1000805@gmail.com>  <20090622113652.21E7.A69D9226@jp.fujitsu.com>
+Date: Mon, 22 Jun 2009 10:42:09 +0300
+Message-Id: <1245656529.18751.22.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Jiri Slaby <jirislaby@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 2009-06-22 at 11:39 +0900, KOSAKI Motohiro wrote:
+> (cc to Mel and some reviewer)
+> 
+> > Flags are:
+> > 0000000000400000 -- __PG_MLOCKED
+> > 800000000050000c -- my page flags
+> >         3650000c -- Maxim's page flags
+> > 0000000000693ce1 -- my PAGE_FLAGS_CHECK_AT_FREE
+> 
+> I guess commit da456f14d (page allocator: do not disable interrupts in
+> free_page_mlock()) is a bit wrong.
+> 
+> current code is:
+> -------------------------------------------------------------
+> static void free_hot_cold_page(struct page *page, int cold)
+> {
+> (snip)
+>         int clearMlocked = PageMlocked(page);
+> (snip)
+>         if (free_pages_check(page))
+>                 return;
+> (snip)
+>         local_irq_save(flags);
+>         if (unlikely(clearMlocked))
+>                 free_page_mlock(page);
+> -------------------------------------------------------------
+> 
+> Oh well, we remove PG_Mlocked *after* free_pages_check().
+> Then, it makes false-positive warning.
+> 
+> Sorry, my review was also wrong. I think reverting this patch is better ;)
 
-We are facing a performance degradation of 2 MBps in kernels 2.6.25 and
-above.
-We were able to zero on the fact that the exact patch that has affected us
-is this
-(http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdi
-ff;h=3dfa5721f12c3d5a441448086bee156887daa961), that changes to have one
-list for hot/cold pages. 
+Well, I am not sure we need to revert the patch. I'd argue it's simply a
+bug in free_pages_check() that can be fixed with something like this.
+Mel, what do you think?
 
-We see the at the block driver the pages we get are not contiguous hence the
-number of LLD requests we are making have increased which is the cause of
-this problem.
+			Pekka
 
-The page allocation in our case is called from aio_read and hence it always
-calls page_cache_alloc_cold(mapping) from readahead.
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index d6792f8..b002b65 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -385,7 +385,7 @@ static inline void __ClearPageTail(struct page *page)
+  * these flags set.  It they are, there is a problem.
+  */
+ #define PAGE_FLAGS_CHECK_AT_FREE \
+-	(1 << PG_lru	 | 1 << PG_locked    | \
++	(1 << PG_lru	 | \
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a5f3c27..ff7c713 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -497,6 +497,11 @@ static void free_page_mlock(struct page *page) { }
+ 
+ static inline int free_pages_check(struct page *page)
+ {
++	/*
++	 * Note: the page can have PG_mlock set here because we clear it
++	 * lazily to avoid unnecessary disabling and enabling of interrupts in
++	 * page free fastpath.
++	 */
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+ 		(atomic_read(&page->_count) != 0) |
 
-We have found a hack for this that is, removing the __GFP_COLD macro when
-__page_cache_alloc()is called helps us to regain the performance as we see
-contiguous pages in block driver.
-
-Has anyone faced this problem or can give a possible solution for this?
-
-Our target is OMAP2430 custom board with 128MB RAM.
-
-Regards,
-
-Narayanan Gopalakrishnan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
