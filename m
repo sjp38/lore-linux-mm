@@ -1,90 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id ECE456B004D
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 23:49:15 -0400 (EDT)
-Received: by pzk34 with SMTP id 34so3000963pzk.12
-        for <linux-mm@kvack.org>; Sun, 21 Jun 2009 20:50:48 -0700 (PDT)
-Message-ID: <4A3EFF93.4000100@gmail.com>
-Date: Mon, 22 Jun 2009 11:50:43 +0800
-From: Huang Shijie <shijie8@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] remove unused line for mmap_region()
-References: <1245595421-3441-1-git-send-email-shijie8@gmail.com> <Pine.LNX.4.64.0906211917350.4583@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0906211917350.4583@sister.anvils>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0F1EA6B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 01:52:06 -0400 (EDT)
+Received: from epmmp2 (mailout3.samsung.com [203.254.224.33])
+ by mailout1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KLM00JVULJ3I2@mailout1.samsung.com> for linux-mm@kvack.org;
+ Mon, 22 Jun 2009 14:49:51 +0900 (KST)
+Received: from Narayanang ([107.108.214.192])
+ by mmp2.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTPA id <0KLM00FNULJ2GD@mmp2.samsung.com> for linux-mm@kvack.org; Mon,
+ 22 Jun 2009 14:49:51 +0900 (KST)
+Date: Mon, 22 Jun 2009 11:20:14 +0530
+From: Narayanan Gopalakrishnan <narayanan.g@samsung.com>
+Subject: Performance degradation seen after using one list for hot/cold pages.
+Message-id: <70875432E21A4185AD2E007941B6A792@sisodomain.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-> On Sun, 21 Jun 2009, Huang Shijie wrote:
->
->   
->> 	The variable pgoff is not used in the following codes.
->> 	So, just remove the line.
->>
->> Signed-off-by: Huang Shijie <shijie8@gmail.com>
->>     
->
-> Hmm, hmm, well, I suppose a grudging Ack, though I'd happily be overruled.
->
-> Of course you are right, so why am I so reluctant to acknowledge it?
->
-> Because it's exceptional for addr and pgoff to be different after
-> coming back from the file's ->mmap method, and if someone adds a
-> use for pgoff lower down (there was, of course, a use for pgoff
-> in vma_merge lower down, until Linus moved that higher in 2.6.29),
-> it's a fair bet that they'll forget to restore the update you're
-> removing, and a fair bet that nobody will notice that it's gone
-> wrong for a while.
->
->   
-I knew the file's ->mmap method can change addr and pgoff, but I think 
-the comment of
-DavidM is enough to remind the person who wants to use pgoff lower down 
-that pgoff maybe
-go wrong for a while.
+We are facing a performance degradation of 2 MBps in kernels 2.6.25 and
+above.
+We were able to zero on the fact that the exact patch that has affected us
+is this
+(http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdi
+ff;h=3dfa5721f12c3d5a441448086bee156887daa961), that changes to have one
+list for hot/cold pages. 
 
-But now, it (this line) looks like a big fly on 'Mona Lisa'. :)
-> However, what would be likely to need pgoff lower down, other than
-> another attempt at vma_merge?  And given how we're now working with
-> the vma_merge higher up (before pgoff had a chance to be adjusted),
-> I think we can conclude that anything needing to meddle with pgoff
-> would be setting some vm_flags that prevent merging anyway.
->
->   
-Could you tell some drivers which will meddle with pgoff?
-If a driver changes pgoff,the work done by vma_merge higher up will be 
-invalidated.
-The process gets a wrong memory map.
-> So I can just about bring myself to Ack your patch, but...
->
-> Hugh
->
->   
->> ---
->>  mm/mmap.c |    1 -
->>  1 files changed, 0 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 34579b2..1dd6aaa 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -1210,7 +1210,6 @@ munmap_back:
->>  	 *         f_op->mmap method. -DaveM
->>  	 */
->>  	addr = vma->vm_start;
->> -	pgoff = vma->vm_pgoff;
->>  	vm_flags = vma->vm_flags;
->>  
->>  	if (vma_wants_writenotify(vma))
->> -- 
->> 1.6.0.6
->>     
->
->   
+We see the at the block driver the pages we get are not contiguous hence the
+number of LLD requests we are making have increased which is the cause of
+this problem.
+
+The page allocation in our case is called from aio_read and hence it always
+calls page_cache_alloc_cold(mapping) from readahead.
+
+We have found a hack for this that is, removing the __GFP_COLD macro when
+__page_cache_alloc()is called helps us to regain the performance as we see
+contiguous pages in block driver.
+
+Has anyone faced this problem or can give a possible solution for this?
+
+Our target is OMAP2430 custom board with 128MB RAM.
+
+Regards,
+
+Narayanan Gopalakrishnan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
