@@ -1,125 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E546B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 16:40:17 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 58AD66B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 16:49:18 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <636843ec-b290-4ea9-b629-1d364f3b1112@default>
-Date: Mon, 22 Jun 2009 13:41:19 -0700 (PDT)
+Message-ID: <90774647-7bf6-4d54-bd39-e7ff74d055ab@default>
+Date: Mon, 22 Jun 2009 13:50:36 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: [RFC] transcendent memory for Linux
-In-Reply-To: <20090622132702.6638d841@skybase>
+In-Reply-To: <4A3F95A6.5040503@nortel.com>
 Content-Type: text/plain; charset=Windows-1252
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Tmem has some similarity to IBM's Collaborative Memory Management,
-> > but creates more of a partnership between the kernel and the
-> > "privileged entity" and is not very invasive.  Tmem may be
-> > applicable for KVM and containers; there is some disagreement on
-> > the extent of its value. Tmem is highly complementary to ballooning
-> > (aka page granularity hot plug) and memory deduplication (aka
-> > transparent content-based page sharing) but still has value
-> > when neither are present.
 
-Hi Martin --
+> > What if there was a class of memory that is of unknown
+> > and dynamically variable size, is addressable only indirectly
+> > by the kernel, can be configured either as persistent or
+> > as "ephemeral" (meaning it will be around for awhile, but
+> > might disappear without warning), and is still fast enough
+> > to be synchronously accessible?
+> >=20
+> > We call this latter class "transcendent memory"
+>=20
+> While true that this memory is "exceeding usual limits", the more
+> important criteria is that it may disappear.
+>=20
+> It might be clearer to just call it "ephemeral memory".
 
-Thanks much for taking the time to reply!
+Ephemeral tmem (precache) may be the most interesting, but there
+is persistent tmem (preswap) as well.  Both are working today
+and both are included in the patches I posted.
 
-> The basic idea seems to be that you reduce the amount of memory
-> available to the guest and as a compensation give the guest some
-> tmem, no?
+Looking for a term encompassing both, I chose "transcendent".
 
-That's mostly right.  Tmem's primary role is to help
-with guests that have had their available memory reduced
-(via ballooning or hotplug or some future mechanism).
-However tmem additionally provides a way of providing otherwise
-unused-by-the-hypervisor ("fallow") memory to a guest,
-essentially expanding a guest kernel's page cache if
-no other guest is using the RAM anyway.
+> There is going to be some overhead due to the extra copying, and at
+> times there could be two copies of data in memory.  It seems possible
+> that certain apps right a the borderline could end up running slower
+> because they can't fit in the regular+ephemeral memory due to the
+> duplication, while the same amount of memory used normally could have
+> been sufficient.
 
-And "as a compensation GIVE the guest some tmem" is misleading,
-because tmem (at least ephemeral tmem) is never "given"
-to a guest.  A better word might be "loaned" or "rented".
-The guest gets to use some tmem for awhile but if it
-doesn't use it effectively, the memory is "repossessed"
-(or the guest is "evicted" from using that memory)
-transparently so that it can be used more effectively
-elsewhere.
+This is likely true, but I expect the duplicates to be few
+and transient and a very small fraction of the total memory cost for
+virtualization (and similar abstraction technologies).
 
-> If that is the case then the effect of tmem is somewhat
-> comparable to the volatile page cache pages.
+> I suspect trying to optimize management of this could be difficult.
 
-There is definitely some similarity in that both are providing
-useful information to the hypervisor.  In CMM's case, the
-guest is passively providing info; in tmem's case it is
-actively providing info and making use of the info within
-the kernel, not just in the hypervsior, which is why I described it
-as "more of a partnership".
+True.  Optimizing the management of ANY resource across many
+consumers is difficult.  But wasting the resource because its
+a pain to optimize doesn't seem to be a good answer either.
 
-> The big advantage of this approach is its simplicity, but there
-> are down sides as well:
-> 1) You need to copy the data between the tmem pool and the page
-> cache. At least temporarily there are two copies of the same
-> page around. That increases the total amount of used memory.
-
-Certainly this is theoretically true, but I think the increase
-is small and transient.  The kernel only puts the page into
-precache when it has decided to use that page for another
-purpose (due to memory pressure).  Until it actually
-"reprovisions" the page, the data is briefly duplicated.
-
-On the other hand, copying eliminates the need for fancy
-games with virtual mappings and TLB entries.  Copying appears
-to be getting much faster on recent CPUs; I'm not sure
-if this is also true of TLB operations.
-
-> 2) The guest has a smaller memory size. Either the memory is
-> large enough for the working set size in which case tmem is
-> ineffective...
-
-Yes, if the kernel has memory to "waste" (e.g. never refaults and
-never swaps), tmem is ineffective.  The goal of tmem is to optimize
-memory usage across an environment where there is contention
-among multiple users (guests) for a limited resource (RAM).
-If your environment always has enough RAM for every guest
-and there's never any contention, you don't want tmem... but
-I'd assert you've wasted money in your data center by buying
-too much RAM!
-
-> or the working set does not fit which increases
-> the memory pressure and the cpu cycles spent in the mm code.
-
-True, this is where preswap is useful.  Without tmem/preswap,
-"does not fit" means swap-to-disk or refaulting is required.
-Preswap alleviates the memory pressure by using tmem to
-essentially swap to "magic memory" and precache reduces the
-need for refaulting.
-
-> 3) There is an additional turning knob, the size of the tmem pool
-> for the guest. I see the need for a clever algorithm to determine
-> the size for the different tmem pools.
-
-Yes, some policy in the hypervisor is still required, essentially
-a "memory scheduler".  The working implementation (in Xen)
-uses FIFO, but modified by admin-configurable "weight" values
-to allow QoS and avoid DoS.=20
-
-> Overall I would say its worthwhile to investigate the performance
-> impacts of the approach.
-
-Thanks.  I'd appreciate any thoughts or experience you have
-in this area (onlist or offlist) as I don't think there are
-any adequate benchmarks that aren't either myopic for a complex
-environment or contrived (and thus misleading) to prove an
-isolated point.
-
-I would also guess that tmem is more beneficial on recent
-multi-core processors, and more costly on older chips.
-
-Thanks again,
+Thanks!
 Dan
 
 --
