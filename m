@@ -1,166 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD706B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 06:06:26 -0400 (EDT)
-Date: Mon, 22 Jun 2009 11:06:32 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Performance degradation seen after using one list for hot/cold
-	pages.
-Message-ID: <20090622100632.GB3981@csn.ul.ie>
-References: <70875432E21A4185AD2E007941B6A792@sisodomain.com> <20090622164147.720683f8.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090622164147.720683f8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C9BEB6B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 06:43:03 -0400 (EDT)
+Received: from ep_ms13_bk (mailout3.samsung.com [203.254.224.33])
+ by mailout1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KLM00MYVZ34A9@mailout1.samsung.com> for linux-mm@kvack.org;
+ Mon, 22 Jun 2009 19:42:40 +0900 (KST)
+Received: from ep_spt04 (ms13.samsung.com [203.254.225.109])
+ by ms13.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KLM007HSZ34JE@ms13.samsung.com> for linux-mm@kvack.org; Mon,
+ 22 Jun 2009 19:42:40 +0900 (KST)
+Content-return: prohibited
+Date: Mon, 22 Jun 2009 10:42:40 +0000 (GMT)
+From: NARAYANAN GOPALAKRISHNAN <narayanan.g@samsung.com>
+Subject: Re: Re: Performance degradation seen after using one list for hot/cold
+ pages.
+Reply-to: narayanan.g@samsung.com
+Message-id: <4268941.50031245667360535.JavaMail.weblogic@epml20>
+MIME-version: 1.0
+MIME-version: 1.0
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Narayanan Gopalakrishnan <narayanan.g@samsung.com>, linux-mm@kvack.org, cl@linux-foundation.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 22, 2009 at 04:41:47PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 22 Jun 2009 11:20:14 +0530
-> Narayanan Gopalakrishnan <narayanan.g@samsung.com> wrote:
-> 
-> > Hi,
-> > 
-> > We are facing a performance degradation of 2 MBps in kernels 2.6.25 and
-> > above.
-> > We were able to zero on the fact that the exact patch that has affected us
-> > is this
-> > (http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdi
-> > ff;h=3dfa5721f12c3d5a441448086bee156887daa961), that changes to have one
-> > list for hot/cold pages. 
-> > 
-> > We see the at the block driver the pages we get are not contiguous hence the
-> > number of LLD requests we are making have increased which is the cause of
-> > this problem.
-> > 
-> > The page allocation in our case is called from aio_read and hence it always
-> > calls page_cache_alloc_cold(mapping) from readahead.
-> > 
-> > We have found a hack for this that is, removing the __GFP_COLD macro when
-> > __page_cache_alloc()is called helps us to regain the performance as we see
-> > contiguous pages in block driver.
-> > 
-> > Has anyone faced this problem or can give a possible solution for this?
-> > 
+SGksDQogDQpXZSBoYWQgYWxzbyB0cmllZCB0aGlzIHBhdGNoIGFuZCBpdCBmaXhlcyB0aGUgaXNz
+dWUuIFRoZSByZWFkL3dyaXRlIHBlcmZvcm1hbmNlIGlzIHJlZ2FpbmVkLg0KVGhlIHBhdGNoIGxv
+b2tzIE9LLg0KDQpDYW4gdGhpcyBiZSBtZXJnZWQ/IA0KDQpSZWdhcmRzLA0KDQpOYXJheWFuYW4N
+Cg0KIA0KIA0KDQotLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLQ0KU2VuZGVyIDogTWVs
+IEdvcm1hbjxtZWxAY3NuLnVsLmllPg0KRGF0ZSAgIDogSnVuIDIyLCAyMDA5IDE1OjA2IChHTVQr
+MDU6MDApDQpUaXRsZSAgOiBSZTogUGVyZm9ybWFuY2UgZGVncmFkYXRpb24gc2VlbiBhZnRlciB1
+c2luZyBvbmUgbGlzdCBmb3IgaG90L2NvbGQJcGFnZXMuDQoNCk9uIE1vbiwgSnVuIDIyLCAyMDA5
+IGF0IDA0OjQxOjQ3UE0gKzA5MDAsIEtBTUVaQVdBIEhpcm95dWtpIHdyb3RlOg0KPiBPbiBNb24s
+IDIyIEp1biAyMDA5IDExOjIwOjE0ICswNTMwDQo+IE5hcmF5YW5hbiBHb3BhbGFrcmlzaG5hbiA8
+bmFyYXlhbmFuLmdAc2Ftc3VuZy5jb20+IHdyb3RlOg0KPiANCj4gPiBIaSwNCj4gPiANCj4gPiBX
+ZSBhcmUgZmFjaW5nIGEgcGVyZm9ybWFuY2UgZGVncmFkYXRpb24gb2YgMiBNQnBzIGluIGtlcm5l
+bHMgMi42LjI1IGFuZA0KPiA+IGFib3ZlLg0KPiA+IFdlIHdlcmUgYWJsZSB0byB6ZXJvIG9uIHRo
+ZSBmYWN0IHRoYXQgdGhlIGV4YWN0IHBhdGNoIHRoYXQgaGFzIGFmZmVjdGVkIHVzDQo+ID4gaXMg
+dGhpcw0KPiA+IChodHRwOi8vZ2l0Lmtlcm5lbC5vcmcvP3A9bGludXgva2VybmVsL2dpdC90b3J2
+YWxkcy9saW51eC0yLjYuZ2l0O2E9Y29tbWl0ZGkNCj4gPiBmZjtoPTNkZmE1NzIxZjEyYzNkNWE0
+NDE0NDgwODZiZWUxNTY4ODdkYWE5NjEpLCB0aGF0IGNoYW5nZXMgdG8gaGF2ZSBvbmUNCj4gPiBs
+aXN0IGZvciBob3QvY29sZCBwYWdlcy4gDQo+ID4gDQo+ID4gV2Ugc2VlIHRoZSBhdCB0aGUgYmxv
+Y2sgZHJpdmVyIHRoZSBwYWdlcyB3ZSBnZXQgYXJlIG5vdCBjb250aWd1b3VzIGhlbmNlIHRoZQ0K
+PiA+IG51bWJlciBvZiBMTEQgcmVxdWVzdHMgd2UgYXJlIG1ha2luZyBoYXZlIGluY3JlYXNlZCB3
+aGljaCBpcyB0aGUgY2F1c2Ugb2YNCj4gPiB0aGlzIHByb2JsZW0uDQo+ID4gDQo+ID4gVGhlIHBh
+Z2UgYWxsb2NhdGlvbiBpbiBvdXIgY2FzZSBpcyBjYWxsZWQgZnJvbSBhaW9fcmVhZCBhbmQgaGVu
+Y2UgaXQgYWx3YXlzDQo+ID4gY2FsbHMgcGFnZV9jYWNoZV9hbGxvY19jb2xkKG1hcHBpbmcpIGZy
+b20gcmVhZGFoZWFkLg0KPiA+IA0KPiA+IFdlIGhhdmUgZm91bmQgYSBoYWNrIGZvciB0aGlzIHRo
+YXQgaXMsIHJlbW92aW5nIHRoZSBfX0dGUF9DT0xEIG1hY3JvIHdoZW4NCj4gPiBfX3BhZ2VfY2Fj
+aGVfYWxsb2MoKWlzIGNhbGxlZCBoZWxwcyB1cyB0byByZWdhaW4gdGhlIHBlcmZvcm1hbmNlIGFz
+IHdlIHNlZQ0KPiA+IGNvbnRpZ3VvdXMgcGFnZXMgaW4gYmxvY2sgZHJpdmVyLg0KPiA+IA0KPiA+
+IEhhcyBhbnlvbmUgZmFjZWQgdGhpcyBwcm9ibGVtIG9yIGNhbiBnaXZlIGEgcG9zc2libGUgc29s
+dXRpb24gZm9yIHRoaXM/DQo+ID4gDQoNCkkmIzM5O3ZlIHNlZW4gdGhpcyBwcm9ibGVtIGJlZm9y
+ZS4gSW4gdGhlIDIuNi4yNCB0aW1lZnJhbWUsIHBlcmZvcm1hbmNlIGRlZ3JhZGF0aW9uDQpvZiBJ
+TyB3YXMgcmVwb3J0ZWQgd2hlbiBJIGJyb2tlIHRoZSBwcm9wZXJ0eSBvZiB0aGUgYnVkZHkgYWxs
+b2NhdG9yIHRoYXQNCnJldHVybnMgY29udGlndW91cyBwYWdlcyBpbiBzb21lIGNhc2VzLiBJSVJD
+LCBzb21lIElPIGRldmljZXMgY2FuIGF1dG9tYXRpY2FsbHkNCm1lcmdlIHJlcXVlc3RzIGlmIHRo
+ZSBwYWdlcyBoYXBwZW4gdG8gYmUgcGh5c2ljYWxseSBjb250aWd1b3VzLg0KDQo+ID4gT3VyIHRh
+cmdldCBpcyBPTUFQMjQzMCBjdXN0b20gYm9hcmQgd2l0aCAxMjhNQiBSQU0uDQo+ID4gDQo+IEFk
+ZGVkIHNvbWUgQ0NzLg0KPiANCj4gTXkgdW5kZXJzdGFuZGluZyBpcyB0aGlzOiANCj4gDQo+IEFz
+c3VtZSBBLEIsQyxEIGFyZSBwZm4gb2YgY29udGludW91cyBwYWdlcy4gKEI9QSsxLCBDPUErMiwg
+RD1BKzMpDQo+IA0KPiAxKSBXaGVuIHRoZXJlIGFyZSAyIGxpc3RzIGZvciBob3QgYW5kIGNvbGQg
+cGFnZXMsIHBjcCBsaXN0IGlzIGNvbnN0cmFjdGVkIGluDQo+ICAgIGZvbGxvd2luZyBvcmRlciBh
+ZnRlciBybXF1ZXVlX2J1bGsoKS4NCj4gDQo+ICAgIHBjcF9saXN0W2NvbGRdIChuZXh0KSA8LT4g
+QSA8LT4gQiA8LT4gQyA8LT4gRCA8LShwcmV2KSBwY3BfbGlzdFtjb2xkXQ0KPiANCj4gICAgVGhl
+IHBhZ2VzIGFyZSBkcmFpbmVkIGZyb20gIm5leHQiIGFuZCBwYWdlcyB3ZXJlIGdpdmVuIGluIHNl
+cXVlbmNlIG9mDQo+ICAgIEEsIEIsIEMsIEQuLi4NCj4gDQo+IDIpIE5vdywgcGNwIGxpc3QgaXMg
+Y29uc3RyYWN0ZWQgYXMgZm9sbG93aW5nIGFmdGVyICBybXF1ZXVlX2J1bGsoKQ0KPiANCj4gICAg
+IHBjcF9saXN0IChuZXh0KSA8LT4gQSA8LT4gQiA8LT4gQyA8LT4gRCA8LT4gKHByZXYpIHBjcF9s
+aXN0DQo+IA0KPiAgICBXaGVuIF9fR0ZQX0NPTEQsIHRoZSBwYWdlIGlzIGRyYWluZWQgdmlhICJw
+cmV2IiBhbmQgc2VxdWVuY2Ugb2YgZ2l2ZW4gcGFnZXMNCj4gICAgaXMgRCxDLEIsQS4uLg0KPiAN
+Cj4gICAgVGhlbiwgcmVtb3ZpbmcgX19HRlBfQ09MRCBhbGxvd3MgeW91IHRvIGFsbG9jYXRlIHBh
+Z2VzIGluIHNlcXVlbmNlIG9mDQo+ICAgIEEsIEIsIEMsIEQuDQo+IA0KPiBMb29raW5nIGludG8g
+cGFnZV9hbGxvYy5jOjpybXF1ZXVlX2J1bGsoKSwNCj4gIDg3MSAgICAgLyoNCj4gIDg3MiAgICAg
+ICogU3BsaXQgYnVkZHkgcGFnZXMgcmV0dXJuZWQgYnkgZXhwYW5kKCkgYXJlIHJlY2VpdmVkIGhl
+cmUNCj4gIDg3MyAgICAgICogaW4gcGh5c2ljYWwgcGFnZSBvcmRlci4gVGhlIHBhZ2UgaXMgYWRk
+ZWQgdG8gdGhlIGNhbGxlcnMgYW5kDQo+ICA4NzQgICAgICAqIGxpc3QgYW5kIHRoZSBsaXN0IGhl
+YWQgdGhlbiBtb3ZlcyBmb3J3YXJkLiBGcm9tIHRoZSBjYWxsZXJzDQo+ICA4NzUgICAgICAqIHBl
+cnNwZWN0aXZlLCB0aGUgbGlua2VkIGxpc3QgaXMgb3JkZXJlZCBieSBwYWdlIG51bWJlciBpbg0K
+PiAgODc2ICAgICAgKiBzb21lIGNvbmRpdGlvbnMuIFRoaXMgaXMgdXNlZnVsIGZvciBJTyBkZXZp
+Y2VzIHRoYXQgY2FuDQo+ICA4NzcgICAgICAqIG1lcmdlIElPIHJlcXVlc3RzIGlmIHRoZSBwaHlz
+aWNhbCBwYWdlcyBhcmUgb3JkZXJlZA0KPiAgODc4ICAgICAgKiBwcm9wZXJseS4NCj4gIDg3OSAg
+ICAgICovDQo+IA0KPiBPcmRlciBvZiBwZm4gaXMgdGFrZW4gaW50byBhY2NvdW50IGJ1dCBkb2Vz
+biYjMzk7dCB3b3JrIHdlbGwgZm9yIF9fR0ZQX0NPTEQNCj4gYWxsb2NhdGlvbi4gKHdvcmtzIHdl
+bGwgZm9yIG5vdCBfX0dGUF9DT0xEIGFsbG9jYXRpb24uKQ0KPiBVc2luZyAyIGxpc3RzIGFnYWlu
+IG9yIG1vZGlmeSBjdXJyZW50IGJlaGF2aW9yID8NCj4gDQoNClRoaXMgYW5hbHlzaXMgbG9va3Mg
+c3BvdC1vbi4gVGhlIGxhY2sgb2YgcGh5c2ljYWwgY29udGlndWl0eSBpcyB3aGF0IGlzDQpjcml0
+aWNhbCwgbm90IHRoYXQgdGhlIHBhZ2VzIGFyZSBob3Qgb3IgY29sZCBpbiBjYWNoZS4gSSB0aGlu
+ayBpdCB3b3VsZCBiZQ0Kb3ZlcmtpbGwgdG8gcmVpbnRyb2R1Y2UgdHdvIHNlcGFyYXRlIGxpc3Rz
+IHRvIHByZXNlcnZlIHRoZSBvcmRlcmluZyBpbg0KdGhhdCBjYXNlLiBIb3cgYWJvdXQgc29tZXRo
+aW5nIGxpa2UgdGhlIGZvbGxvd2luZz8NCg0KPT09PSBDVVQgSEVSRSA9PT09DQpbUEFUQ0hdIHBh
+Z2UtYWxsb2NhdG9yOiBQcmVzZXJ2ZSBQRk4gb3JkZXJpbmcgd2hlbiBfX0dGUF9DT0xEIGlzIHNl
+dA0KDQpUaGUgcGFnZSBhbGxvY2F0b3IgdHJpZXMgdG8gcHJlc2VydmUgY29udGlndW91cyBQRk4g
+b3JkZXJpbmcgd2hlbiByZXR1cm5pbmcNCnBhZ2VzIHN1Y2ggdGhhdCByZXBlYXRlZCBjYWxsZXJz
+IHRvIHRoZSBhbGxvY2F0b3IgaGF2ZSBhIHN0cm9uZyBjaGFuY2Ugb2YNCmdldHRpbmcgcGh5c2lj
+YWxseSBjb250aWd1b3VzIHBhZ2VzLCBwYXJ0aWN1bGFybHkgd2hlbiBleHRlcm5hbCBmcmFnbWVu
+dGF0aW9uDQppcyBsb3cuIEhvd2V2ZXIsIG9mIHRoZSBidWxrIG9mIHRoZSBhbGxvY2F0aW9ucyBo
+YXZlIF9fR0ZQX0NPTEQgc2V0IGFzDQp0aGV5IGFyZSBkdWUgdG8gYWlvX3JlYWQoKSBmb3IgZXhh
+bXBsZSwgdGhlbiB0aGUgUEZOcyBhcmUgaW4gcmV2ZXJzZSBQRk4NCm9yZGVyLiBUaGlzIGNhbiBj
+YXVzZSBwZXJmb3JtYW5jZSBkZWdyYXRpb24gd2hlbiB1c2VkIHdpdGggSU8NCmNvbnRyb2xsZXJz
+IHRoYXQgY291bGQgaGF2ZSBtZXJnZWQgdGhlIHJlcXVlc3RzLg0KDQpUaGlzIHBhdGNoIGF0dGVt
+cHRzIHRvIHByZXNlcnZlIHRoZSBjb250aWd1b3VzIG9yZGVyaW5nIG9mIFBGTnMgZm9yDQp1c2Vy
+cyBvZiBfX0dGUF9DT0xELg0KDQpTaWduZWQtb2ZmLWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVs
+LmllPg0KLS0tIA0KIG1tL3BhZ2VfYWxsb2MuYyB8ICAgMTMgKysrKysrKysrLS0tLQ0KIDEgZmls
+ZSBjaGFuZ2VkLCA5IGluc2VydGlvbnMoKyksIDQgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQg
+YS9tbS9wYWdlX2FsbG9jLmMgYi9tbS9wYWdlX2FsbG9jLmMNCmluZGV4IGE1ZjNjMjcuLjljZDMy
+YzggMTAwNjQ0DQotLS0gYS9tbS9wYWdlX2FsbG9jLmMNCisrKyBiL21tL3BhZ2VfYWxsb2MuYw0K
+QEAgLTg4Miw3ICs4ODIsNyBAQCByZXRyeV9yZXNlcnZlOg0KICAqLw0KIHN0YXRpYyBpbnQgcm1x
+dWV1ZV9idWxrKHN0cnVjdCB6b25lICp6b25lLCB1bnNpZ25lZCBpbnQgb3JkZXIsIA0KICAgICAg
+ICAgICAgIHVuc2lnbmVkIGxvbmcgY291bnQsIHN0cnVjdCBsaXN0X2hlYWQgKmxpc3QsDQotICAg
+ICAgICAgICAgaW50IG1pZ3JhdGV0eXBlKQ0KKyAgICAgICAgICAgIGludCBtaWdyYXRldHlwZSwg
+aW50IGNvbGQpDQogew0KICAgICBpbnQgaTsNCiAgICAgDQpAQCAtOTAxLDcgKzkwMSwxMCBAQCBz
+dGF0aWMgaW50IHJtcXVldWVfYnVsayhzdHJ1Y3Qgem9uZSAqem9uZSwgdW5zaWduZWQgaW50IG9y
+ZGVyLA0KICAgICAgICAgICogbWVyZ2UgSU8gcmVxdWVzdHMgaWYgdGhlIHBoeXNpY2FsIHBhZ2Vz
+IGFyZSBvcmRlcmVkDQogICAgICAgICAgKiBwcm9wZXJseS4NCiAgICAgICAgICAqLw0KLSAgICAg
+ICAgbGlzdF9hZGQoJnBhZ2UtPmxydSwgbGlzdCk7DQorICAgICAgICBpZiAobGlrZWx5KGNvbGQg
+PT0gMCkpDQorICAgICAgICAgICAgbGlzdF9hZGQoJnBhZ2UtPmxydSwgbGlzdCk7DQorICAgICAg
+ICBlbHNlDQorICAgICAgICAgICAgbGlzdF9hZGRfdGFpbCgmcGFnZS0+bHJ1LCBsaXN0KTsNCiAg
+ICAgICAgIHNldF9wYWdlX3ByaXZhdGUocGFnZSwgbWlncmF0ZXR5cGUpOw0KICAgICAgICAgbGlz
+dCA9ICZwYWdlLT5scnU7DQogICAgIH0NCkBAIC0xMTE5LDcgKzExMjIsOCBAQCBhZ2FpbjoNCiAg
+ICAgICAgIGxvY2FsX2lycV9zYXZlKGZsYWdzKTsNCiAgICAgICAgIGlmICghcGNwLT5jb3VudCkg
+ew0KICAgICAgICAgICAgIHBjcC0+Y291bnQgPSBybXF1ZXVlX2J1bGsoem9uZSwgMCwNCi0gICAg
+ICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3AtPmxpc3QsIG1pZ3JhdGV0eXBlKTsNCisg
+ICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3AtPmxpc3QsDQorICAgICAgICAgICAg
+ICAgICAgICBtaWdyYXRldHlwZSwgY29sZCk7DQogICAgICAgICAgICAgaWYgKHVubGlrZWx5KCFw
+Y3AtPmNvdW50KSkNCiAgICAgICAgICAgICAgICAgZ290byBmYWlsZWQ7DQogICAgICAgICB9DQpA
+QCAtMTEzOCw3ICsxMTQyLDggQEAgYWdhaW46DQogICAgICAgICAvKiBBbGxvY2F0ZSBtb3JlIHRv
+IHRoZSBwY3AgbGlzdCBpZiBuZWNlc3NhcnkgKi8NCiAgICAgICAgIGlmICh1bmxpa2VseSgmcGFn
+ZS0+bHJ1ID09ICZwY3AtPmxpc3QpKSB7DQogICAgICAgICAgICAgcGNwLT5jb3VudCArPSBybXF1
+ZXVlX2J1bGsoem9uZSwgMCwNCi0gICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3At
+Pmxpc3QsIG1pZ3JhdGV0eXBlKTsNCisgICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZw
+Y3AtPmxpc3QsDQorICAgICAgICAgICAgICAgICAgICBtaWdyYXRldHlwZSwgY29sZCk7DQogICAg
+ICAgICAgICAgcGFnZSA9IGxpc3RfZW50cnkocGNwLT5saXN0Lm5leHQsIHN0cnVjdCBwYWdlLCBs
+cnUpOw0KICAgICAgICAgfQ0KIA0KDQotLQ0KVG8gdW5zdWJzY3JpYmUsIHNlbmQgYSBtZXNzYWdl
+IHdpdGggJiMzOTt1bnN1YnNjcmliZSBsaW51eC1tbSYjMzk7IGluDQp0aGUgYm9keSB0byBtYWpv
+cmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwNCnNlZTogaHR0cDov
+L3d3dy5saW51eC1tbS5vcmcvIC4NCkRvbiYjMzk7dCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRv
+bnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3JnIDwvYT4NCg0KIA0KIA0KTmFyYXlhbmFuIEdv
+cGFsYWtyaXNobmFuDQpNZW1vcnkgU29sdXRpb25zIERpdmlzaW9uLA0KU2Ftc3VuZyBJbmRpYSBT
+b2Z0d2FyZSBPcGVyYXRpb25zLA0KUGhvbmU6ICg5MSkgODAtNDE4MTk5OTkgRXh0bjogNTE0OA0K
+TW9iaWxlOiA5MS05MzQxMC00MjAyMg0KIA0KIA==
 
-I've seen this problem before. In the 2.6.24 timeframe, performance degradation
-of IO was reported when I broke the property of the buddy allocator that
-returns contiguous pages in some cases. IIRC, some IO devices can automatically
-merge requests if the pages happen to be physically contiguous.
-
-> > Our target is OMAP2430 custom board with 128MB RAM.
-> > 
-> Added some CCs.
-> 
-> My understanding is this: 
-> 
-> Assume A,B,C,D are pfn of continuous pages. (B=A+1, C=A+2, D=A+3)
-> 
-> 1) When there are 2 lists for hot and cold pages, pcp list is constracted in
->    following order after rmqueue_bulk().
-> 
->    pcp_list[cold] (next) <-> A <-> B <-> C <-> D <-(prev) pcp_list[cold]
-> 
->    The pages are drained from "next" and pages were given in sequence of
->    A, B, C, D...
-> 
-> 2) Now, pcp list is constracted as following after  rmqueue_bulk()
-> 
-> 	pcp_list (next) <-> A <-> B <-> C <-> D <-> (prev) pcp_list
-> 
->    When __GFP_COLD, the page is drained via "prev" and sequence of given pages
->    is D,C,B,A...
-> 
->    Then, removing __GFP_COLD allows you to allocate pages in sequence of
->    A, B, C, D.
-> 
-> Looking into page_alloc.c::rmqueue_bulk(),
->  871     /*
->  872      * Split buddy pages returned by expand() are received here
->  873      * in physical page order. The page is added to the callers and
->  874      * list and the list head then moves forward. From the callers
->  875      * perspective, the linked list is ordered by page number in
->  876      * some conditions. This is useful for IO devices that can
->  877      * merge IO requests if the physical pages are ordered
->  878      * properly.
->  879      */
-> 
-> Order of pfn is taken into account but doesn't work well for __GFP_COLD
-> allocation. (works well for not __GFP_COLD allocation.)
-> Using 2 lists again or modify current behavior ?
-> 
-
-This analysis looks spot-on. The lack of physical contiguity is what is
-critical, not that the pages are hot or cold in cache. I think it would be
-overkill to reintroduce two separate lists to preserve the ordering in
-that case. How about something like the following?
-
-==== CUT HERE ====
-[PATCH] page-allocator: Preserve PFN ordering when __GFP_COLD is set
-
-The page allocator tries to preserve contiguous PFN ordering when returning
-pages such that repeated callers to the allocator have a strong chance of
-getting physically contiguous pages, particularly when external fragmentation
-is low. However, of the bulk of the allocations have __GFP_COLD set as
-they are due to aio_read() for example, then the PFNs are in reverse PFN
-order. This can cause performance degration when used with IO
-controllers that could have merged the requests.
-
-This patch attempts to preserve the contiguous ordering of PFNs for
-users of __GFP_COLD.
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- mm/page_alloc.c |   13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a5f3c27..9cd32c8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -882,7 +882,7 @@ retry_reserve:
-  */
- static int rmqueue_bulk(struct zone *zone, unsigned int order, 
- 			unsigned long count, struct list_head *list,
--			int migratetype)
-+			int migratetype, int cold)
- {
- 	int i;
- 	
-@@ -901,7 +901,10 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 		 * merge IO requests if the physical pages are ordered
- 		 * properly.
- 		 */
--		list_add(&page->lru, list);
-+		if (likely(cold == 0))
-+			list_add(&page->lru, list);
-+		else
-+			list_add_tail(&page->lru, list);
- 		set_page_private(page, migratetype);
- 		list = &page->lru;
- 	}
-@@ -1119,7 +1122,8 @@ again:
- 		local_irq_save(flags);
- 		if (!pcp->count) {
- 			pcp->count = rmqueue_bulk(zone, 0,
--					pcp->batch, &pcp->list, migratetype);
-+					pcp->batch, &pcp->list,
-+					migratetype, cold);
- 			if (unlikely(!pcp->count))
- 				goto failed;
- 		}
-@@ -1138,7 +1142,8 @@ again:
- 		/* Allocate more to the pcp list if necessary */
- 		if (unlikely(&page->lru == &pcp->list)) {
- 			pcp->count += rmqueue_bulk(zone, 0,
--					pcp->batch, &pcp->list, migratetype);
-+					pcp->batch, &pcp->list,
-+					migratetype, cold);
- 			page = list_entry(pcp->list.next, struct page, lru);
- 		}
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
