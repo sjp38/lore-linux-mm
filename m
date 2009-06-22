@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5693D6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 18:42:36 -0400 (EDT)
-Date: Mon, 22 Jun 2009 15:43:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Low overhead patches for the memory cgroup controller (v5)
-Message-Id: <20090622154343.9cdbf23a.akpm@linux-foundation.org>
-In-Reply-To: <20090615043900.GF23577@balbir.in.ibm.com>
-References: <20090615043900.GF23577@balbir.in.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9E8736B004F
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 19:14:36 -0400 (EDT)
+Date: Mon, 22 Jun 2009 16:15:02 -0700 (PDT)
+Message-Id: <20090622.161502.74508182.davem@davemloft.net>
+Subject: Re: [PATCH 3/3] net-dccp: Suppress warning about large allocations
+ from DCCP
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1245685414-8979-4-git-send-email-mel@csn.ul.ie>
+References: <1245685414-8979-1-git-send-email-mel@csn.ul.ie>
+	<1245685414-8979-4-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kamezawa.hiroyuki@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, menage@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mel@csn.ul.ie
+Cc: akpm@linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, htd@fancy-poultry.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Jun 2009 10:09:00 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+From: Mel Gorman <mel@csn.ul.ie>
+Date: Mon, 22 Jun 2009 16:43:34 +0100
 
->
-> ...
+> The DCCP protocol tries to allocate some large hash tables during
+> initialisation using the largest size possible.  This can be larger than
+> what the page allocator can provide so it prints a warning. However, the
+> caller is able to handle the situation so this patch suppresses the warning.
 > 
-> This patch changes the memory cgroup and removes the overhead associated
-> with accounting all pages in the root cgroup. As a side-effect, we can
-> no longer set a memory hard limit in the root cgroup.
-> 
-> A new flag to track whether the page has been accounted or not
-> has been added as well. Flags are now set atomically for page_cgroup,
-> pcg_default_flags is now obsolete and removed.
-> 
-> ...
->
-> @@ -1114,9 +1121,22 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
->  		css_put(&mem->css);
->  		return;
->  	}
-> +
->  	pc->mem_cgroup = mem;
->  	smp_wmb();
-> -	pc->flags = pcg_default_flags[ctype];
-> +	switch (ctype) {
-> +	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-> +	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-> +		SetPageCgroupCache(pc);
-> +		SetPageCgroupUsed(pc);
-> +		break;
-> +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> +		ClearPageCgroupCache(pc);
-> +		SetPageCgroupUsed(pc);
-> +		break;
-> +	default:
-> +		break;
-> +	}
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Do we still need the smp_wmb()?
+It's probably much more appropriate to make this stuff use
+alloc_large_system_hash(), like TCP does (see net/ipv4/tcp.c
+tcp_init()).
 
-It's hard to say, because we forgot to document it :(
+All of this complicated DCCP hash table size computation code will
+simply disappear.  And it'll fix the warning too :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
