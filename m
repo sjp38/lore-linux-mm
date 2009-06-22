@@ -1,120 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8960F6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 08:25:37 -0400 (EDT)
-Date: Mon, 22 Jun 2009 14:26:15 +0200
-From: Ingo Molnar <mingo@elte.hu>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A9CF86B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 08:31:33 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5MCWUwg004976
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 22 Jun 2009 21:32:30 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E3B845DE4F
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 21:32:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7461C45DD72
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 21:32:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D445E08009
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 21:32:30 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id ED2ADE08001
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 21:32:26 +0900 (JST)
+Message-ID: <f9931fe09c239cd30222bf8532e62b65.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090622122615.GA28503@elte.hu>
+References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090622105231.GA17242@elte.hu>
+    <18e69edd004ec13730246bd40600448c.squirrel@webmail-b.css.fujitsu.com>
+    <ec48fff1916d3e82c3c4fc610245f0b6.squirrel@webmail-b.css.fujitsu.com>
+    <20090622122615.GA28503@elte.hu>
+Date: Mon, 22 Jun 2009 21:32:26 +0900 (JST)
 Subject: Re: [RFC][PATCH] cgroup: fix permanent wait in rmdir
-Message-ID: <20090622122615.GA28503@elte.hu>
-References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com> <20090622105231.GA17242@elte.hu> <18e69edd004ec13730246bd40600448c.squirrel@webmail-b.css.fujitsu.com> <ec48fff1916d3e82c3c4fc610245f0b6.squirrel@webmail-b.css.fujitsu.com>
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ec48fff1916d3e82c3c4fc610245f0b6.squirrel@webmail-b.css.fujitsu.com>
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
+Ingo Molnar wrote:
+>> Ah, while I test 2.6.30-git18 (includes above patch), I don't see
+>> above stack dump (with LIST_DEBUG=y) under quick memory pressure
+>> test...
+>
+> Note, it still occurs even with latest -git (f234012).
+>
+Could you try this ? (Sorry, I can't send a patch right now)
+== vmscan.c
+865 static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+866                 struct list_head *src, struct list_head *dst,
+867                 unsigned long *scanned, int order, int mode, int file)
+868 {
+869         unsigned long nr_taken = 0;
+870         unsigned long scan;
+871
+<snip>
+ 930                         /* Check that we have not crossed a zone
+boundary. */
+931                         if (unlikely(page_zone_id(cursor_page) !=
+zone_id))
+932                                 continue;
+933                         if (__isolate_lru_page(cursor_page, mode,
+file) == 0) {
+934                                 list_move(&cursor_page->lru, dst);
+935                                 mem_cgroup_del_lru(page);
+936                                 nr_taken++;
+937                                 scan++;
+938                         }
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > Ingo Molnar wrote:
-> >>
-> >> FYI, there's a new cgroup related list corruption warning/crash that
-> >> i've seen a lot of times in latest -tip tests:
-> >>
-> >> [  478.555544] ------------[ cut here ]------------
-> >> [  478.556523] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
-> >> [  478.556523] Hardware name:
-> >> [  478.556523] list_add corruption. next->prev should be prev
-> >> (ffff88003e640448), but was ffff88003fa1a6e8. (next=ffff88003fa1a8a0).
-> >> [  478.556523] Modules linked in:
-> >> [  478.556523] Pid: 470, comm: kswapd0 Not tainted 2.6.30-tip #10989
-> >> [  478.556523] Call Trace:
-> >> [  478.556523]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
-> >> [  478.556523]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
-> >> [  478.556523]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
-> >> [  478.556523]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
-> >> [  478.556523]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
-> >> [  478.556523]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
-> >> [  478.556523]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
-> >> [  478.556523]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
-> >> [  478.556523]  [<ffffffff81306150>] __list_add+0x70/0xa0
-> >> [  478.556523]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
-> >> [  478.556523]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
-> >> [  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> >> [  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> >> [  478.556523]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
-> >> [  478.556523]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
-> >> [  478.556523]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
-> >> [  478.556523]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
-> >> [  478.556523]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
-> >> [  478.556523]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
-> >> [  478.556523]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
-> >> [  478.556523]  [<ffffffff8107516e>] kthread+0x9e/0xb0
-> >> [  478.556523]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
-> >> [  478.556523]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
-> >> [  478.556523]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
-> >> [  478.556523]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
-> >> [  478.556523]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
-> >> [  478.556523] ---[ end trace 9f3122957c34141e ]---
-> >> [  484.923530] ------------[ cut here ]------------
-> >> [  484.924525] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
-> >> [  484.924525] Hardware name:
-> >> [  484.924525] list_add corruption. next->prev should be prev
-> >> (ffff88003e640448), but was ffff88003fa192e8. (next=ffff88003fa14d88).
-> >> [  484.941152] Modules linked in:
-> >> [  484.941152] Pid: 470, comm: kswapd0 Tainted: G        W  2.6.30-tip
-> >> #10989
-> >> [  484.941152] Call Trace:
-> >> [  484.941152]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
-> >> [  484.941152]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
-> >> [  484.941152]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
-> >> [  484.941152]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
-> >> [  484.941152]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
-> >> [  484.941152]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
-> >> [  484.941152]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
-> >> [  484.941152]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
-> >> [  484.941152]  [<ffffffff81306150>] __list_add+0x70/0xa0
-> >> [  484.941152]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
-> >> [  484.941152]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
-> >> [  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> >> [  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> >> [  484.941152]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
-> >> [  484.941152]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
-> >> [  484.941152]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
-> >> [  484.941152]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
-> >> [  484.941152]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
-> >> [  484.941152]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
-> >> [  484.941152]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
-> >> [  484.941152]  [<ffffffff8107516e>] kthread+0x9e/0xb0
-> >> [  484.941152]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
-> >> [  484.941152]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
-> >> [  484.941152]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
-> >> [  484.941152]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
-> >> [  484.941152]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
-> >> [  484.941152] ---[ end trace 9f3122957c34141f ]---
-> >> [  485.365631] ------------[ cut here ]------------
-> >> [  485.368029] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
-> >>
-> >> has this been reported before? Is there a fix for it i missed?
-> >>
-> > Hmm, looks new one.
-> >
-> > Maybe related to my latest post which modifies __isolate_lru_page()
-> > memcg: fix lru rotation in isolate_pages
-> >
-> > I'll dig tomorrow, sorry.
-> >
-> Ah, while I test 2.6.30-git18 (includes above patch), I don't see 
-> above stack dump (with LIST_DEBUG=y) under quick memory pressure 
-> test...
+change line 935
+from
+  mem_cgroup_del_lru(page);
+to
+  mem_cgroup_del_lru(cursor_page);
 
-Note, it still occurs even with latest -git (f234012).
 
-	Ingo
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
