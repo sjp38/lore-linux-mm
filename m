@@ -1,129 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A4A966B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 07:26:29 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5MBRGZi005743
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 22 Jun 2009 20:27:16 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 766CC45DE51
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:27:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 56B6B45DE4F
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:27:16 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4011E1DB803B
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:27:16 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E34ED1DB803A
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:27:15 +0900 (JST)
-Message-ID: <18e69edd004ec13730246bd40600448c.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090622105231.GA17242@elte.hu>
-References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090622105231.GA17242@elte.hu>
-Date: Mon, 22 Jun 2009 20:27:15 +0900 (JST)
-Subject: Re: [RFC][PATCH] cgroup: fix permanent wait in rmdir
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with ESMTP id 0A76B6B004F
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 07:26:33 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate8.de.ibm.com (8.14.3/8.13.8) with ESMTP id n5MBR4LK588572
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 11:27:04 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5MBR40J3403848
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 13:27:04 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5MBR45J027447
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 13:27:04 +0200
+Date: Mon, 22 Jun 2009 13:27:02 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC] transcendent memory for Linux
+Message-ID: <20090622132702.6638d841@skybase>
+In-Reply-To: <cd40cd91-66e9-469d-b079-3a899a3ccadb@default>
+References: <cd40cd91-66e9-469d-b079-3a899a3ccadb@default>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
->
-> FYI, there's a new cgroup related list corruption warning/crash that
-> i've seen a lot of times in latest -tip tests:
->
-> [  478.555544] ------------[ cut here ]------------
-> [  478.556523] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
-> [  478.556523] Hardware name:
-> [  478.556523] list_add corruption. next->prev should be prev
-> (ffff88003e640448), but was ffff88003fa1a6e8. (next=ffff88003fa1a8a0).
-> [  478.556523] Modules linked in:
-> [  478.556523] Pid: 470, comm: kswapd0 Not tainted 2.6.30-tip #10989
-> [  478.556523] Call Trace:
-> [  478.556523]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
-> [  478.556523]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
-> [  478.556523]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
-> [  478.556523]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
-> [  478.556523]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
-> [  478.556523]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
-> [  478.556523]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
-> [  478.556523]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
-> [  478.556523]  [<ffffffff81306150>] __list_add+0x70/0xa0
-> [  478.556523]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
-> [  478.556523]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
-> [  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> [  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> [  478.556523]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
-> [  478.556523]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
-> [  478.556523]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
-> [  478.556523]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
-> [  478.556523]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
-> [  478.556523]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
-> [  478.556523]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
-> [  478.556523]  [<ffffffff8107516e>] kthread+0x9e/0xb0
-> [  478.556523]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
-> [  478.556523]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
-> [  478.556523]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
-> [  478.556523]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
-> [  478.556523]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
-> [  478.556523] ---[ end trace 9f3122957c34141e ]---
-> [  484.923530] ------------[ cut here ]------------
-> [  484.924525] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
-> [  484.924525] Hardware name:
-> [  484.924525] list_add corruption. next->prev should be prev
-> (ffff88003e640448), but was ffff88003fa192e8. (next=ffff88003fa14d88).
-> [  484.941152] Modules linked in:
-> [  484.941152] Pid: 470, comm: kswapd0 Tainted: G        W  2.6.30-tip
-> #10989
-> [  484.941152] Call Trace:
-> [  484.941152]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
-> [  484.941152]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
-> [  484.941152]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
-> [  484.941152]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
-> [  484.941152]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
-> [  484.941152]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
-> [  484.941152]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
-> [  484.941152]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
-> [  484.941152]  [<ffffffff81306150>] __list_add+0x70/0xa0
-> [  484.941152]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
-> [  484.941152]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
-> [  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> [  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
-> [  484.941152]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
-> [  484.941152]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
-> [  484.941152]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
-> [  484.941152]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
-> [  484.941152]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
-> [  484.941152]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
-> [  484.941152]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
-> [  484.941152]  [<ffffffff8107516e>] kthread+0x9e/0xb0
-> [  484.941152]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
-> [  484.941152]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
-> [  484.941152]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
-> [  484.941152]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
-> [  484.941152]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
-> [  484.941152] ---[ end trace 9f3122957c34141f ]---
-> [  485.365631] ------------[ cut here ]------------
-> [  485.368029] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
->
-> has this been reported before? Is there a fix for it i missed?
->
-Hmm, looks new one.
+On Fri, 19 Jun 2009 16:53:45 -0700 (PDT)
+Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
 
-Maybe related to my latest post which modifies __isolate_lru_page()
-memcg: fix lru rotation in isolate_pages
+> Tmem has some similarity to IBM's Collaborative Memory Management,
+> but creates more of a partnership between the kernel and the
+> "privileged entity" and is not very invasive.  Tmem may be
+> applicable for KVM and containers; there is some disagreement on
+> the extent of its value. Tmem is highly complementary to ballooning
+> (aka page granularity hot plug) and memory deduplication (aka
+> transparent content-based page sharing) but still has value
+> when neither are present.
 
-I'll dig tomorrow, sorry.
+The basic idea seems to be that you reduce the amount of memory
+available to the guest and as a compensation give the guest some
+tmem, no? If that is the case then the effect of tmem is somewhat
+comparable to the volatile page cache pages.
 
-Thanks,
--Kame
+The big advantage of this approach is its simplicity, but there
+are down sides as well:
+1) You need to copy the data between the tmem pool and the page
+cache. At least temporarily there are two copies of the same
+page around. That increases the total amount of used memory.
+2) The guest has a smaller memory size. Either the memory is
+large enough for the working set size in which case tmem is
+ineffective, or the working set does not fit which increases
+the memory pressure and the cpu cycles spent in the mm code.
+3) There is an additional turning knob, the size of the tmem pool
+for the guest. I see the need for a clever algorithm to determine
+the size for the different tmem pools.
 
+Overall I would say its worthwhile to investigate the performance
+impacts of the approach.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
