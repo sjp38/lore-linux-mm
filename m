@@ -1,149 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C9BEB6B004D
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 06:43:03 -0400 (EDT)
-Received: from ep_ms13_bk (mailout3.samsung.com [203.254.224.33])
- by mailout1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0KLM00MYVZ34A9@mailout1.samsung.com> for linux-mm@kvack.org;
- Mon, 22 Jun 2009 19:42:40 +0900 (KST)
-Received: from ep_spt04 (ms13.samsung.com [203.254.225.109])
- by ms13.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0KLM007HSZ34JE@ms13.samsung.com> for linux-mm@kvack.org; Mon,
- 22 Jun 2009 19:42:40 +0900 (KST)
-Content-return: prohibited
-Date: Mon, 22 Jun 2009 10:42:40 +0000 (GMT)
-From: NARAYANAN GOPALAKRISHNAN <narayanan.g@samsung.com>
-Subject: Re: Re: Performance degradation seen after using one list for hot/cold
- pages.
-Reply-to: narayanan.g@samsung.com
-Message-id: <4268941.50031245667360535.JavaMail.weblogic@epml20>
-MIME-version: 1.0
-MIME-version: 1.0
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: base64
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AD336B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 06:51:05 -0400 (EDT)
+Date: Mon, 22 Jun 2009 12:52:31 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC][PATCH] cgroup: fix permanent wait in rmdir
+Message-ID: <20090622105231.GA17242@elte.hu>
+References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-SGksDQogDQpXZSBoYWQgYWxzbyB0cmllZCB0aGlzIHBhdGNoIGFuZCBpdCBmaXhlcyB0aGUgaXNz
-dWUuIFRoZSByZWFkL3dyaXRlIHBlcmZvcm1hbmNlIGlzIHJlZ2FpbmVkLg0KVGhlIHBhdGNoIGxv
-b2tzIE9LLg0KDQpDYW4gdGhpcyBiZSBtZXJnZWQ/IA0KDQpSZWdhcmRzLA0KDQpOYXJheWFuYW4N
-Cg0KIA0KIA0KDQotLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLQ0KU2VuZGVyIDogTWVs
-IEdvcm1hbjxtZWxAY3NuLnVsLmllPg0KRGF0ZSAgIDogSnVuIDIyLCAyMDA5IDE1OjA2IChHTVQr
-MDU6MDApDQpUaXRsZSAgOiBSZTogUGVyZm9ybWFuY2UgZGVncmFkYXRpb24gc2VlbiBhZnRlciB1
-c2luZyBvbmUgbGlzdCBmb3IgaG90L2NvbGQJcGFnZXMuDQoNCk9uIE1vbiwgSnVuIDIyLCAyMDA5
-IGF0IDA0OjQxOjQ3UE0gKzA5MDAsIEtBTUVaQVdBIEhpcm95dWtpIHdyb3RlOg0KPiBPbiBNb24s
-IDIyIEp1biAyMDA5IDExOjIwOjE0ICswNTMwDQo+IE5hcmF5YW5hbiBHb3BhbGFrcmlzaG5hbiA8
-bmFyYXlhbmFuLmdAc2Ftc3VuZy5jb20+IHdyb3RlOg0KPiANCj4gPiBIaSwNCj4gPiANCj4gPiBX
-ZSBhcmUgZmFjaW5nIGEgcGVyZm9ybWFuY2UgZGVncmFkYXRpb24gb2YgMiBNQnBzIGluIGtlcm5l
-bHMgMi42LjI1IGFuZA0KPiA+IGFib3ZlLg0KPiA+IFdlIHdlcmUgYWJsZSB0byB6ZXJvIG9uIHRo
-ZSBmYWN0IHRoYXQgdGhlIGV4YWN0IHBhdGNoIHRoYXQgaGFzIGFmZmVjdGVkIHVzDQo+ID4gaXMg
-dGhpcw0KPiA+IChodHRwOi8vZ2l0Lmtlcm5lbC5vcmcvP3A9bGludXgva2VybmVsL2dpdC90b3J2
-YWxkcy9saW51eC0yLjYuZ2l0O2E9Y29tbWl0ZGkNCj4gPiBmZjtoPTNkZmE1NzIxZjEyYzNkNWE0
-NDE0NDgwODZiZWUxNTY4ODdkYWE5NjEpLCB0aGF0IGNoYW5nZXMgdG8gaGF2ZSBvbmUNCj4gPiBs
-aXN0IGZvciBob3QvY29sZCBwYWdlcy4gDQo+ID4gDQo+ID4gV2Ugc2VlIHRoZSBhdCB0aGUgYmxv
-Y2sgZHJpdmVyIHRoZSBwYWdlcyB3ZSBnZXQgYXJlIG5vdCBjb250aWd1b3VzIGhlbmNlIHRoZQ0K
-PiA+IG51bWJlciBvZiBMTEQgcmVxdWVzdHMgd2UgYXJlIG1ha2luZyBoYXZlIGluY3JlYXNlZCB3
-aGljaCBpcyB0aGUgY2F1c2Ugb2YNCj4gPiB0aGlzIHByb2JsZW0uDQo+ID4gDQo+ID4gVGhlIHBh
-Z2UgYWxsb2NhdGlvbiBpbiBvdXIgY2FzZSBpcyBjYWxsZWQgZnJvbSBhaW9fcmVhZCBhbmQgaGVu
-Y2UgaXQgYWx3YXlzDQo+ID4gY2FsbHMgcGFnZV9jYWNoZV9hbGxvY19jb2xkKG1hcHBpbmcpIGZy
-b20gcmVhZGFoZWFkLg0KPiA+IA0KPiA+IFdlIGhhdmUgZm91bmQgYSBoYWNrIGZvciB0aGlzIHRo
-YXQgaXMsIHJlbW92aW5nIHRoZSBfX0dGUF9DT0xEIG1hY3JvIHdoZW4NCj4gPiBfX3BhZ2VfY2Fj
-aGVfYWxsb2MoKWlzIGNhbGxlZCBoZWxwcyB1cyB0byByZWdhaW4gdGhlIHBlcmZvcm1hbmNlIGFz
-IHdlIHNlZQ0KPiA+IGNvbnRpZ3VvdXMgcGFnZXMgaW4gYmxvY2sgZHJpdmVyLg0KPiA+IA0KPiA+
-IEhhcyBhbnlvbmUgZmFjZWQgdGhpcyBwcm9ibGVtIG9yIGNhbiBnaXZlIGEgcG9zc2libGUgc29s
-dXRpb24gZm9yIHRoaXM/DQo+ID4gDQoNCkkmIzM5O3ZlIHNlZW4gdGhpcyBwcm9ibGVtIGJlZm9y
-ZS4gSW4gdGhlIDIuNi4yNCB0aW1lZnJhbWUsIHBlcmZvcm1hbmNlIGRlZ3JhZGF0aW9uDQpvZiBJ
-TyB3YXMgcmVwb3J0ZWQgd2hlbiBJIGJyb2tlIHRoZSBwcm9wZXJ0eSBvZiB0aGUgYnVkZHkgYWxs
-b2NhdG9yIHRoYXQNCnJldHVybnMgY29udGlndW91cyBwYWdlcyBpbiBzb21lIGNhc2VzLiBJSVJD
-LCBzb21lIElPIGRldmljZXMgY2FuIGF1dG9tYXRpY2FsbHkNCm1lcmdlIHJlcXVlc3RzIGlmIHRo
-ZSBwYWdlcyBoYXBwZW4gdG8gYmUgcGh5c2ljYWxseSBjb250aWd1b3VzLg0KDQo+ID4gT3VyIHRh
-cmdldCBpcyBPTUFQMjQzMCBjdXN0b20gYm9hcmQgd2l0aCAxMjhNQiBSQU0uDQo+ID4gDQo+IEFk
-ZGVkIHNvbWUgQ0NzLg0KPiANCj4gTXkgdW5kZXJzdGFuZGluZyBpcyB0aGlzOiANCj4gDQo+IEFz
-c3VtZSBBLEIsQyxEIGFyZSBwZm4gb2YgY29udGludW91cyBwYWdlcy4gKEI9QSsxLCBDPUErMiwg
-RD1BKzMpDQo+IA0KPiAxKSBXaGVuIHRoZXJlIGFyZSAyIGxpc3RzIGZvciBob3QgYW5kIGNvbGQg
-cGFnZXMsIHBjcCBsaXN0IGlzIGNvbnN0cmFjdGVkIGluDQo+ICAgIGZvbGxvd2luZyBvcmRlciBh
-ZnRlciBybXF1ZXVlX2J1bGsoKS4NCj4gDQo+ICAgIHBjcF9saXN0W2NvbGRdIChuZXh0KSA8LT4g
-QSA8LT4gQiA8LT4gQyA8LT4gRCA8LShwcmV2KSBwY3BfbGlzdFtjb2xkXQ0KPiANCj4gICAgVGhl
-IHBhZ2VzIGFyZSBkcmFpbmVkIGZyb20gIm5leHQiIGFuZCBwYWdlcyB3ZXJlIGdpdmVuIGluIHNl
-cXVlbmNlIG9mDQo+ICAgIEEsIEIsIEMsIEQuLi4NCj4gDQo+IDIpIE5vdywgcGNwIGxpc3QgaXMg
-Y29uc3RyYWN0ZWQgYXMgZm9sbG93aW5nIGFmdGVyICBybXF1ZXVlX2J1bGsoKQ0KPiANCj4gICAg
-IHBjcF9saXN0IChuZXh0KSA8LT4gQSA8LT4gQiA8LT4gQyA8LT4gRCA8LT4gKHByZXYpIHBjcF9s
-aXN0DQo+IA0KPiAgICBXaGVuIF9fR0ZQX0NPTEQsIHRoZSBwYWdlIGlzIGRyYWluZWQgdmlhICJw
-cmV2IiBhbmQgc2VxdWVuY2Ugb2YgZ2l2ZW4gcGFnZXMNCj4gICAgaXMgRCxDLEIsQS4uLg0KPiAN
-Cj4gICAgVGhlbiwgcmVtb3ZpbmcgX19HRlBfQ09MRCBhbGxvd3MgeW91IHRvIGFsbG9jYXRlIHBh
-Z2VzIGluIHNlcXVlbmNlIG9mDQo+ICAgIEEsIEIsIEMsIEQuDQo+IA0KPiBMb29raW5nIGludG8g
-cGFnZV9hbGxvYy5jOjpybXF1ZXVlX2J1bGsoKSwNCj4gIDg3MSAgICAgLyoNCj4gIDg3MiAgICAg
-ICogU3BsaXQgYnVkZHkgcGFnZXMgcmV0dXJuZWQgYnkgZXhwYW5kKCkgYXJlIHJlY2VpdmVkIGhl
-cmUNCj4gIDg3MyAgICAgICogaW4gcGh5c2ljYWwgcGFnZSBvcmRlci4gVGhlIHBhZ2UgaXMgYWRk
-ZWQgdG8gdGhlIGNhbGxlcnMgYW5kDQo+ICA4NzQgICAgICAqIGxpc3QgYW5kIHRoZSBsaXN0IGhl
-YWQgdGhlbiBtb3ZlcyBmb3J3YXJkLiBGcm9tIHRoZSBjYWxsZXJzDQo+ICA4NzUgICAgICAqIHBl
-cnNwZWN0aXZlLCB0aGUgbGlua2VkIGxpc3QgaXMgb3JkZXJlZCBieSBwYWdlIG51bWJlciBpbg0K
-PiAgODc2ICAgICAgKiBzb21lIGNvbmRpdGlvbnMuIFRoaXMgaXMgdXNlZnVsIGZvciBJTyBkZXZp
-Y2VzIHRoYXQgY2FuDQo+ICA4NzcgICAgICAqIG1lcmdlIElPIHJlcXVlc3RzIGlmIHRoZSBwaHlz
-aWNhbCBwYWdlcyBhcmUgb3JkZXJlZA0KPiAgODc4ICAgICAgKiBwcm9wZXJseS4NCj4gIDg3OSAg
-ICAgICovDQo+IA0KPiBPcmRlciBvZiBwZm4gaXMgdGFrZW4gaW50byBhY2NvdW50IGJ1dCBkb2Vz
-biYjMzk7dCB3b3JrIHdlbGwgZm9yIF9fR0ZQX0NPTEQNCj4gYWxsb2NhdGlvbi4gKHdvcmtzIHdl
-bGwgZm9yIG5vdCBfX0dGUF9DT0xEIGFsbG9jYXRpb24uKQ0KPiBVc2luZyAyIGxpc3RzIGFnYWlu
-IG9yIG1vZGlmeSBjdXJyZW50IGJlaGF2aW9yID8NCj4gDQoNClRoaXMgYW5hbHlzaXMgbG9va3Mg
-c3BvdC1vbi4gVGhlIGxhY2sgb2YgcGh5c2ljYWwgY29udGlndWl0eSBpcyB3aGF0IGlzDQpjcml0
-aWNhbCwgbm90IHRoYXQgdGhlIHBhZ2VzIGFyZSBob3Qgb3IgY29sZCBpbiBjYWNoZS4gSSB0aGlu
-ayBpdCB3b3VsZCBiZQ0Kb3ZlcmtpbGwgdG8gcmVpbnRyb2R1Y2UgdHdvIHNlcGFyYXRlIGxpc3Rz
-IHRvIHByZXNlcnZlIHRoZSBvcmRlcmluZyBpbg0KdGhhdCBjYXNlLiBIb3cgYWJvdXQgc29tZXRo
-aW5nIGxpa2UgdGhlIGZvbGxvd2luZz8NCg0KPT09PSBDVVQgSEVSRSA9PT09DQpbUEFUQ0hdIHBh
-Z2UtYWxsb2NhdG9yOiBQcmVzZXJ2ZSBQRk4gb3JkZXJpbmcgd2hlbiBfX0dGUF9DT0xEIGlzIHNl
-dA0KDQpUaGUgcGFnZSBhbGxvY2F0b3IgdHJpZXMgdG8gcHJlc2VydmUgY29udGlndW91cyBQRk4g
-b3JkZXJpbmcgd2hlbiByZXR1cm5pbmcNCnBhZ2VzIHN1Y2ggdGhhdCByZXBlYXRlZCBjYWxsZXJz
-IHRvIHRoZSBhbGxvY2F0b3IgaGF2ZSBhIHN0cm9uZyBjaGFuY2Ugb2YNCmdldHRpbmcgcGh5c2lj
-YWxseSBjb250aWd1b3VzIHBhZ2VzLCBwYXJ0aWN1bGFybHkgd2hlbiBleHRlcm5hbCBmcmFnbWVu
-dGF0aW9uDQppcyBsb3cuIEhvd2V2ZXIsIG9mIHRoZSBidWxrIG9mIHRoZSBhbGxvY2F0aW9ucyBo
-YXZlIF9fR0ZQX0NPTEQgc2V0IGFzDQp0aGV5IGFyZSBkdWUgdG8gYWlvX3JlYWQoKSBmb3IgZXhh
-bXBsZSwgdGhlbiB0aGUgUEZOcyBhcmUgaW4gcmV2ZXJzZSBQRk4NCm9yZGVyLiBUaGlzIGNhbiBj
-YXVzZSBwZXJmb3JtYW5jZSBkZWdyYXRpb24gd2hlbiB1c2VkIHdpdGggSU8NCmNvbnRyb2xsZXJz
-IHRoYXQgY291bGQgaGF2ZSBtZXJnZWQgdGhlIHJlcXVlc3RzLg0KDQpUaGlzIHBhdGNoIGF0dGVt
-cHRzIHRvIHByZXNlcnZlIHRoZSBjb250aWd1b3VzIG9yZGVyaW5nIG9mIFBGTnMgZm9yDQp1c2Vy
-cyBvZiBfX0dGUF9DT0xELg0KDQpTaWduZWQtb2ZmLWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVs
-LmllPg0KLS0tIA0KIG1tL3BhZ2VfYWxsb2MuYyB8ICAgMTMgKysrKysrKysrLS0tLQ0KIDEgZmls
-ZSBjaGFuZ2VkLCA5IGluc2VydGlvbnMoKyksIDQgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQg
-YS9tbS9wYWdlX2FsbG9jLmMgYi9tbS9wYWdlX2FsbG9jLmMNCmluZGV4IGE1ZjNjMjcuLjljZDMy
-YzggMTAwNjQ0DQotLS0gYS9tbS9wYWdlX2FsbG9jLmMNCisrKyBiL21tL3BhZ2VfYWxsb2MuYw0K
-QEAgLTg4Miw3ICs4ODIsNyBAQCByZXRyeV9yZXNlcnZlOg0KICAqLw0KIHN0YXRpYyBpbnQgcm1x
-dWV1ZV9idWxrKHN0cnVjdCB6b25lICp6b25lLCB1bnNpZ25lZCBpbnQgb3JkZXIsIA0KICAgICAg
-ICAgICAgIHVuc2lnbmVkIGxvbmcgY291bnQsIHN0cnVjdCBsaXN0X2hlYWQgKmxpc3QsDQotICAg
-ICAgICAgICAgaW50IG1pZ3JhdGV0eXBlKQ0KKyAgICAgICAgICAgIGludCBtaWdyYXRldHlwZSwg
-aW50IGNvbGQpDQogew0KICAgICBpbnQgaTsNCiAgICAgDQpAQCAtOTAxLDcgKzkwMSwxMCBAQCBz
-dGF0aWMgaW50IHJtcXVldWVfYnVsayhzdHJ1Y3Qgem9uZSAqem9uZSwgdW5zaWduZWQgaW50IG9y
-ZGVyLA0KICAgICAgICAgICogbWVyZ2UgSU8gcmVxdWVzdHMgaWYgdGhlIHBoeXNpY2FsIHBhZ2Vz
-IGFyZSBvcmRlcmVkDQogICAgICAgICAgKiBwcm9wZXJseS4NCiAgICAgICAgICAqLw0KLSAgICAg
-ICAgbGlzdF9hZGQoJnBhZ2UtPmxydSwgbGlzdCk7DQorICAgICAgICBpZiAobGlrZWx5KGNvbGQg
-PT0gMCkpDQorICAgICAgICAgICAgbGlzdF9hZGQoJnBhZ2UtPmxydSwgbGlzdCk7DQorICAgICAg
-ICBlbHNlDQorICAgICAgICAgICAgbGlzdF9hZGRfdGFpbCgmcGFnZS0+bHJ1LCBsaXN0KTsNCiAg
-ICAgICAgIHNldF9wYWdlX3ByaXZhdGUocGFnZSwgbWlncmF0ZXR5cGUpOw0KICAgICAgICAgbGlz
-dCA9ICZwYWdlLT5scnU7DQogICAgIH0NCkBAIC0xMTE5LDcgKzExMjIsOCBAQCBhZ2FpbjoNCiAg
-ICAgICAgIGxvY2FsX2lycV9zYXZlKGZsYWdzKTsNCiAgICAgICAgIGlmICghcGNwLT5jb3VudCkg
-ew0KICAgICAgICAgICAgIHBjcC0+Y291bnQgPSBybXF1ZXVlX2J1bGsoem9uZSwgMCwNCi0gICAg
-ICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3AtPmxpc3QsIG1pZ3JhdGV0eXBlKTsNCisg
-ICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3AtPmxpc3QsDQorICAgICAgICAgICAg
-ICAgICAgICBtaWdyYXRldHlwZSwgY29sZCk7DQogICAgICAgICAgICAgaWYgKHVubGlrZWx5KCFw
-Y3AtPmNvdW50KSkNCiAgICAgICAgICAgICAgICAgZ290byBmYWlsZWQ7DQogICAgICAgICB9DQpA
-QCAtMTEzOCw3ICsxMTQyLDggQEAgYWdhaW46DQogICAgICAgICAvKiBBbGxvY2F0ZSBtb3JlIHRv
-IHRoZSBwY3AgbGlzdCBpZiBuZWNlc3NhcnkgKi8NCiAgICAgICAgIGlmICh1bmxpa2VseSgmcGFn
-ZS0+bHJ1ID09ICZwY3AtPmxpc3QpKSB7DQogICAgICAgICAgICAgcGNwLT5jb3VudCArPSBybXF1
-ZXVlX2J1bGsoem9uZSwgMCwNCi0gICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3At
-Pmxpc3QsIG1pZ3JhdGV0eXBlKTsNCisgICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZw
-Y3AtPmxpc3QsDQorICAgICAgICAgICAgICAgICAgICBtaWdyYXRldHlwZSwgY29sZCk7DQogICAg
-ICAgICAgICAgcGFnZSA9IGxpc3RfZW50cnkocGNwLT5saXN0Lm5leHQsIHN0cnVjdCBwYWdlLCBs
-cnUpOw0KICAgICAgICAgfQ0KIA0KDQotLQ0KVG8gdW5zdWJzY3JpYmUsIHNlbmQgYSBtZXNzYWdl
-IHdpdGggJiMzOTt1bnN1YnNjcmliZSBsaW51eC1tbSYjMzk7IGluDQp0aGUgYm9keSB0byBtYWpv
-cmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBMaW51eCBNTSwNCnNlZTogaHR0cDov
-L3d3dy5saW51eC1tbS5vcmcvIC4NCkRvbiYjMzk7dCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRv
-bnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3JnIDwvYT4NCg0KIA0KIA0KTmFyYXlhbmFuIEdv
-cGFsYWtyaXNobmFuDQpNZW1vcnkgU29sdXRpb25zIERpdmlzaW9uLA0KU2Ftc3VuZyBJbmRpYSBT
-b2Z0d2FyZSBPcGVyYXRpb25zLA0KUGhvbmU6ICg5MSkgODAtNDE4MTk5OTkgRXh0bjogNTE0OA0K
-TW9iaWxlOiA5MS05MzQxMC00MjAyMg0KIA0KIA==
 
+FYI, there's a new cgroup related list corruption warning/crash that 
+i've seen a lot of times in latest -tip tests:
+
+[  478.555544] ------------[ cut here ]------------
+[  478.556523] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
+[  478.556523] Hardware name:         
+[  478.556523] list_add corruption. next->prev should be prev (ffff88003e640448), but was ffff88003fa1a6e8. (next=ffff88003fa1a8a0).
+[  478.556523] Modules linked in:
+[  478.556523] Pid: 470, comm: kswapd0 Not tainted 2.6.30-tip #10989
+[  478.556523] Call Trace:
+[  478.556523]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
+[  478.556523]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
+[  478.556523]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
+[  478.556523]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
+[  478.556523]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
+[  478.556523]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
+[  478.556523]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
+[  478.556523]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
+[  478.556523]  [<ffffffff81306150>] __list_add+0x70/0xa0
+[  478.556523]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
+[  478.556523]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
+[  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
+[  478.556523]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
+[  478.556523]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
+[  478.556523]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
+[  478.556523]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
+[  478.556523]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
+[  478.556523]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
+[  478.556523]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
+[  478.556523]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
+[  478.556523]  [<ffffffff8107516e>] kthread+0x9e/0xb0
+[  478.556523]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
+[  478.556523]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
+[  478.556523]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
+[  478.556523]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
+[  478.556523]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
+[  478.556523] ---[ end trace 9f3122957c34141e ]---
+[  484.923530] ------------[ cut here ]------------
+[  484.924525] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
+[  484.924525] Hardware name:         
+[  484.924525] list_add corruption. next->prev should be prev (ffff88003e640448), but was ffff88003fa192e8. (next=ffff88003fa14d88).
+[  484.941152] Modules linked in:
+[  484.941152] Pid: 470, comm: kswapd0 Tainted: G        W  2.6.30-tip #10989
+[  484.941152] Call Trace:
+[  484.941152]  [<ffffffff81306150>] ? __list_add+0x70/0xa0
+[  484.941152]  [<ffffffff810598dc>] warn_slowpath_common+0x8c/0xc0
+[  484.941152]  [<ffffffff81059999>] warn_slowpath_fmt+0x69/0x70
+[  484.941152]  [<ffffffff81086e3b>] ? __lock_acquired+0x18b/0x2b0
+[  484.941152]  [<ffffffff811022f0>] ? page_check_address+0x110/0x1a0
+[  484.941152]  [<ffffffff812ebcf2>] ? cpumask_any_but+0x42/0xb0
+[  484.941152]  [<ffffffff8108c528>] ? __lock_release+0x38/0x90
+[  484.941152]  [<ffffffff811024e1>] ? page_referenced_one+0x91/0x120
+[  484.941152]  [<ffffffff81306150>] __list_add+0x70/0xa0
+[  484.941152]  [<ffffffff8111dc63>] mem_cgroup_add_lru_list+0x63/0x70
+[  484.941152]  [<ffffffff810eaee4>] move_active_pages_to_lru+0xf4/0x180
+[  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
+[  484.941152]  [<ffffffff810eb758>] ? shrink_active_list+0x1f8/0x2a0
+[  484.941152]  [<ffffffff810eb794>] shrink_active_list+0x234/0x2a0
+[  484.941152]  [<ffffffff810ec3c3>] shrink_zone+0x173/0x1f0
+[  484.941152]  [<ffffffff810ece0a>] balance_pgdat+0x4da/0x4e0
+[  484.941152]  [<ffffffff810eb240>] ? isolate_pages_global+0x0/0x60
+[  484.941152]  [<ffffffff810ed3b6>] kswapd+0x106/0x150
+[  484.941152]  [<ffffffff810752f0>] ? autoremove_wake_function+0x0/0x40
+[  484.941152]  [<ffffffff810ed2b0>] ? kswapd+0x0/0x150
+[  484.941152]  [<ffffffff8107516e>] kthread+0x9e/0xb0
+[  484.941152]  [<ffffffff8100d2ba>] child_rip+0xa/0x20
+[  484.941152]  [<ffffffff8100cc40>] ? restore_args+0x0/0x30
+[  484.941152]  [<ffffffff81075085>] ? kthreadd+0xb5/0x100
+[  484.941152]  [<ffffffff810750d0>] ? kthread+0x0/0xb0
+[  484.941152]  [<ffffffff8100d2b0>] ? child_rip+0x0/0x20
+[  484.941152] ---[ end trace 9f3122957c34141f ]---
+[  485.365631] ------------[ cut here ]------------
+[  485.368029] WARNING: at lib/list_debug.c:26 __list_add+0x70/0xa0()
+
+has this been reported before? Is there a fix for it i missed?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
