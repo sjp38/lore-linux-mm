@@ -1,68 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A76B6B004F
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 07:26:33 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate8.de.ibm.com (8.14.3/8.13.8) with ESMTP id n5MBR4LK588572
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 11:27:04 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5MBR40J3403848
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 13:27:04 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5MBR45J027447
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 13:27:04 +0200
-Date: Mon, 22 Jun 2009 13:27:02 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [RFC] transcendent memory for Linux
-Message-ID: <20090622132702.6638d841@skybase>
-In-Reply-To: <cd40cd91-66e9-469d-b079-3a899a3ccadb@default>
-References: <cd40cd91-66e9-469d-b079-3a899a3ccadb@default>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8621A6B004D
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 07:31:11 -0400 (EDT)
+Received: from ep_ms13_bk (mailout5.samsung.com [203.254.224.35])
+ by mailout1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KLN009HG1DFZ2@mailout1.samsung.com> for linux-mm@kvack.org;
+ Mon, 22 Jun 2009 20:32:03 +0900 (KST)
+Received: from ep_spt02 (ms13.samsung.com [203.254.225.109])
+ by ms13.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0KLN007BF1DFS5@ms13.samsung.com> for linux-mm@kvack.org; Mon,
+ 22 Jun 2009 20:32:03 +0900 (KST)
+Content-return: prohibited
+Date: Mon, 22 Jun 2009 11:32:03 +0000 (GMT)
+From: NARAYANAN GOPALAKRISHNAN <narayanan.g@samsung.com>
+Subject: Re: Re: Re: Performance degradation seen after using one list for
+	hot/cold pages.
+Reply-to: narayanan.g@samsung.com
+Message-id: <20626261.51271245670323628.JavaMail.weblogic@epml20>
+MIME-version: 1.0
+MIME-version: 1.0
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Jun 2009 16:53:45 -0700 (PDT)
-Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+SGksDQoNCldlIGFyZSBydW5uaW5nIG9uIFZGQVQuDQpXZSBhcmUgdXNpbmcgaW96b25lIHBlcmZv
+cm1hbmNlIGJlbmNobWFya2luZyB0b29sIChodHRwOi8vd3d3Lmlvem9uZS5vcmcvc3JjL2N1cnJl
+bnQvaW96b25lM18zMjYudGFyKSBmb3IgdGVzdGluZy4NCg0KVGhlIHBhcmFtZXRlcnMgYXJlIA0K
+L2lvem9uZSAtQSAtczEwTSAtZSAtVSAvdG1wIC1mIC90bXAvaW96b25lX2ZpbGUNCg0KT3VyIGJs
+b2NrIGRyaXZlciByZXF1aXJlcyByZXF1ZXN0cyB0byBiZSBtZXJnZWQgdG8gZ2V0IHRoZSBiZXN0
+IHBlcmZvcm1hbmNlLg0KVGhpcyB3YXMgbm90IGhhcHBlbmluZyBkdWUgdG8gbm9uLWNvbnRpZ3Vv
+dXMgcGFnZXMgaW4gYWxsIGtlcm5lbHMgPj0gMi42LjI1Lg0KDQpSZWdhcmRzLA0KDQpOYXJheWFu
+YW4gDQogDQoNCi0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tDQpTZW5kZXIgOiBNZWwg
+R29ybWFuPG1lbEBjc24udWwuaWU+DQpEYXRlICAgOiBKdW4gMjIsIDIwMDkgMTY6MDkgKEdNVCsw
+NTowMCkNClRpdGxlICA6IFJlOiBSZTogUGVyZm9ybWFuY2UgZGVncmFkYXRpb24gc2VlbiBhZnRl
+ciB1c2luZyBvbmUgbGlzdCBmb3IJaG90L2NvbGQgcGFnZXMuDQoNCk9uIE1vbiwgSnVuIDIyLCAy
+MDA5IGF0IDEwOjQyOjQwQU0gKzAwMDAsIE5BUkFZQU5BTiBHT1BBTEFLUklTSE5BTiB3cm90ZToN
+Cj4gSGksDQo+ICANCj4gV2UgaGFkIGFsc28gdHJpZWQgdGhpcyBwYXRjaCBhbmQgaXQgZml4ZXMg
+dGhlIGlzc3VlLiBUaGUgcmVhZC93cml0ZSBwZXJmb3JtYW5jZSBpcyByZWdhaW5lZC4NCj4gVGhl
+IHBhdGNoIGxvb2tzIE9LLg0KPiANCj4gQ2FuIHRoaXMgYmUgbWVyZ2VkPyANCj4gDQoNCk5vdCBq
+dXN0IHlldC4gSXMgdGhlcmUgYW55IGNoYW5jZSB5b3UgY291bGQgcHJvdmlkZSBhIHNpbXBsZSB0
+ZXN0IHByb2dyYW0NCnVzaW5nIEFJTyByZWFkIGFuZCB0ZWxsIG1lIHdoYXQgZmlsZXN5c3RlbSB5
+b3UgYXJlIGJhc2VkIG9uIHBsZWFzZT8gSSYjMzk7ZA0KbGlrZSB0byBhdCBsZWFzdCBsb29rIGF0
+IGlkZW50aWZ5aW5nIHdoZW4gdGhlIHJlYWRhaGVhZCBpcyBoYXBwZW5pbmcgZHVlIHRvDQphaW9f
+cmVhZCgpIGFuZCB1c2luZyBwYWdlX2NhY2hlX2FsbG9jKCkgaW5zdGVhZCBvZiBwYWdlX2NhY2hl
+X2FsbG9jX2NvbGQoKQ0KaW4gdGhhdCBjYXNlLiBJdCB3b3VsZCBhdm9pZCBhZGRpbmcgYSBicmFu
+Y2ggdG8gdGhlIHBhZ2UgYWxsb2NhdG9yIGl0c2VsZi4NCg0KPiAtLS0tLS0tIE9yaWdpbmFsIE1l
+c3NhZ2UgLS0tLS0tLQ0KPiBTZW5kZXIgOiBNZWwgR29ybWFuPG1lbEBjc24udWwuaWU+DQo+IERh
+dGUgICA6IEp1biAyMiwgMjAwOSAxNTowNiAoR01UKzA1OjAwKQ0KPiBUaXRsZSAgOiBSZTogUGVy
+Zm9ybWFuY2UgZGVncmFkYXRpb24gc2VlbiBhZnRlciB1c2luZyBvbmUgbGlzdCBmb3IgaG90L2Nv
+bGQgICAgcGFnZXMuDQo+IA0KPiBPbiBNb24sIEp1biAyMiwgMjAwOSBhdCAwNDo0MTo0N1BNICsw
+OTAwLCBLQU1FWkFXQSBIaXJveXVraSB3cm90ZToNCj4gPiBPbiBNb24sIDIyIEp1biAyMDA5IDEx
+OjIwOjE0ICswNTMwDQo+ID4gTmFyYXlhbmFuIEdvcGFsYWtyaXNobmFuIDxuYXJheWFuYW4uZ0Bz
+YW1zdW5nLmNvbT4gd3JvdGU6DQo+ID4gDQo+ID4gPiBIaSwNCj4gPiA+IA0KPiA+ID4gV2UgYXJl
+IGZhY2luZyBhIHBlcmZvcm1hbmNlIGRlZ3JhZGF0aW9uIG9mIDIgTUJwcyBpbiBrZXJuZWxzIDIu
+Ni4yNSBhbmQNCj4gPiA+IGFib3ZlLg0KPiA+ID4gV2Ugd2VyZSBhYmxlIHRvIHplcm8gb24gdGhl
+IGZhY3QgdGhhdCB0aGUgZXhhY3QgcGF0Y2ggdGhhdCBoYXMgYWZmZWN0ZWQgdXMNCj4gPiA+IGlz
+IHRoaXMNCj4gPiA+IChodHRwOi8vZ2l0Lmtlcm5lbC5vcmcvP3A9bGludXgva2VybmVsL2dpdC90
+b3J2YWxkcy9saW51eC0yLjYuZ2l0O2E9Y29tbWl0ZGkNCj4gPiA+IGZmO2g9M2RmYTU3MjFmMTJj
+M2Q1YTQ0MTQ0ODA4NmJlZTE1Njg4N2RhYTk2MSksIHRoYXQgY2hhbmdlcyB0byBoYXZlIG9uZQ0K
+PiA+ID4gbGlzdCBmb3IgaG90L2NvbGQgcGFnZXMuIA0KPiA+ID4gDQo+ID4gPiBXZSBzZWUgdGhl
+IGF0IHRoZSBibG9jayBkcml2ZXIgdGhlIHBhZ2VzIHdlIGdldCBhcmUgbm90IGNvbnRpZ3VvdXMg
+aGVuY2UgdGhlDQo+ID4gPiBudW1iZXIgb2YgTExEIHJlcXVlc3RzIHdlIGFyZSBtYWtpbmcgaGF2
+ZSBpbmNyZWFzZWQgd2hpY2ggaXMgdGhlIGNhdXNlIG9mDQo+ID4gPiB0aGlzIHByb2JsZW0uDQo+
+ID4gPiANCj4gPiA+IFRoZSBwYWdlIGFsbG9jYXRpb24gaW4gb3VyIGNhc2UgaXMgY2FsbGVkIGZy
+b20gYWlvX3JlYWQgYW5kIGhlbmNlIGl0IGFsd2F5cw0KPiA+ID4gY2FsbHMgcGFnZV9jYWNoZV9h
+bGxvY19jb2xkKG1hcHBpbmcpIGZyb20gcmVhZGFoZWFkLg0KPiA+ID4gDQo+ID4gPiBXZSBoYXZl
+IGZvdW5kIGEgaGFjayBmb3IgdGhpcyB0aGF0IGlzLCByZW1vdmluZyB0aGUgX19HRlBfQ09MRCBt
+YWNybyB3aGVuDQo+ID4gPiBfX3BhZ2VfY2FjaGVfYWxsb2MoKWlzIGNhbGxlZCBoZWxwcyB1cyB0
+byByZWdhaW4gdGhlIHBlcmZvcm1hbmNlIGFzIHdlIHNlZQ0KPiA+ID4gY29udGlndW91cyBwYWdl
+cyBpbiBibG9jayBkcml2ZXIuDQo+ID4gPiANCj4gPiA+IEhhcyBhbnlvbmUgZmFjZWQgdGhpcyBw
+cm9ibGVtIG9yIGNhbiBnaXZlIGEgcG9zc2libGUgc29sdXRpb24gZm9yIHRoaXM/DQo+ID4gPiAN
+Cj4gDQo+IEkmJiMzNTszOTt2ZSBzZWVuIHRoaXMgcHJvYmxlbSBiZWZvcmUuIEluIHRoZSAyLjYu
+MjQgdGltZWZyYW1lLCBwZXJmb3JtYW5jZSBkZWdyYWRhdGlvbg0KPiBvZiBJTyB3YXMgcmVwb3J0
+ZWQgd2hlbiBJIGJyb2tlIHRoZSBwcm9wZXJ0eSBvZiB0aGUgYnVkZHkgYWxsb2NhdG9yIHRoYXQN
+Cj4gcmV0dXJucyBjb250aWd1b3VzIHBhZ2VzIGluIHNvbWUgY2FzZXMuIElJUkMsIHNvbWUgSU8g
+ZGV2aWNlcyBjYW4gYXV0b21hdGljYWxseQ0KPiBtZXJnZSByZXF1ZXN0cyBpZiB0aGUgcGFnZXMg
+aGFwcGVuIHRvIGJlIHBoeXNpY2FsbHkgY29udGlndW91cy4NCj4gDQo+ID4gPiBPdXIgdGFyZ2V0
+IGlzIE9NQVAyNDMwIGN1c3RvbSBib2FyZCB3aXRoIDEyOE1CIFJBTS4NCj4gPiA+IA0KPiA+IEFk
+ZGVkIHNvbWUgQ0NzLg0KPiA+IA0KPiA+IE15IHVuZGVyc3RhbmRpbmcgaXMgdGhpczogDQo+ID4g
+DQo+ID4gQXNzdW1lIEEsQixDLEQgYXJlIHBmbiBvZiBjb250aW51b3VzIHBhZ2VzLiAoQj1BKzEs
+IEM9QSsyLCBEPUErMykNCj4gPiANCj4gPiAxKSBXaGVuIHRoZXJlIGFyZSAyIGxpc3RzIGZvciBo
+b3QgYW5kIGNvbGQgcGFnZXMsIHBjcCBsaXN0IGlzIGNvbnN0cmFjdGVkIGluDQo+ID4gICAgZm9s
+bG93aW5nIG9yZGVyIGFmdGVyIHJtcXVldWVfYnVsaygpLg0KPiA+IA0KPiA+ICAgIHBjcF9saXN0
+W2NvbGRdIChuZXh0KSA8LT4gQSA8LT4gQiA8LT4gQyA8LT4gRCA8LShwcmV2KSBwY3BfbGlzdFtj
+b2xkXQ0KPiA+IA0KPiA+ICAgIFRoZSBwYWdlcyBhcmUgZHJhaW5lZCBmcm9tICJuZXh0IiBhbmQg
+cGFnZXMgd2VyZSBnaXZlbiBpbiBzZXF1ZW5jZSBvZg0KPiA+ICAgIEEsIEIsIEMsIEQuLi4NCj4g
+PiANCj4gPiAyKSBOb3csIHBjcCBsaXN0IGlzIGNvbnN0cmFjdGVkIGFzIGZvbGxvd2luZyBhZnRl
+ciAgcm1xdWV1ZV9idWxrKCkNCj4gPiANCj4gPiAgICAgcGNwX2xpc3QgKG5leHQpIDwtPiBBIDwt
+PiBCIDwtPiBDIDwtPiBEIDwtPiAocHJldikgcGNwX2xpc3QNCj4gPiANCj4gPiAgICBXaGVuIF9f
+R0ZQX0NPTEQsIHRoZSBwYWdlIGlzIGRyYWluZWQgdmlhICJwcmV2IiBhbmQgc2VxdWVuY2Ugb2Yg
+Z2l2ZW4gcGFnZXMNCj4gPiAgICBpcyBELEMsQixBLi4uDQo+ID4gDQo+ID4gICAgVGhlbiwgcmVt
+b3ZpbmcgX19HRlBfQ09MRCBhbGxvd3MgeW91IHRvIGFsbG9jYXRlIHBhZ2VzIGluIHNlcXVlbmNl
+IG9mDQo+ID4gICAgQSwgQiwgQywgRC4NCj4gPiANCj4gPiBMb29raW5nIGludG8gcGFnZV9hbGxv
+Yy5jOjpybXF1ZXVlX2J1bGsoKSwNCj4gPiAgODcxICAgICAvKg0KPiA+ICA4NzIgICAgICAqIFNw
+bGl0IGJ1ZGR5IHBhZ2VzIHJldHVybmVkIGJ5IGV4cGFuZCgpIGFyZSByZWNlaXZlZCBoZXJlDQo+
+ID4gIDg3MyAgICAgICogaW4gcGh5c2ljYWwgcGFnZSBvcmRlci4gVGhlIHBhZ2UgaXMgYWRkZWQg
+dG8gdGhlIGNhbGxlcnMgYW5kDQo+ID4gIDg3NCAgICAgICogbGlzdCBhbmQgdGhlIGxpc3QgaGVh
+ZCB0aGVuIG1vdmVzIGZvcndhcmQuIEZyb20gdGhlIGNhbGxlcnMNCj4gPiAgODc1ICAgICAgKiBw
+ZXJzcGVjdGl2ZSwgdGhlIGxpbmtlZCBsaXN0IGlzIG9yZGVyZWQgYnkgcGFnZSBudW1iZXIgaW4N
+Cj4gPiAgODc2ICAgICAgKiBzb21lIGNvbmRpdGlvbnMuIFRoaXMgaXMgdXNlZnVsIGZvciBJTyBk
+ZXZpY2VzIHRoYXQgY2FuDQo+ID4gIDg3NyAgICAgICogbWVyZ2UgSU8gcmVxdWVzdHMgaWYgdGhl
+IHBoeXNpY2FsIHBhZ2VzIGFyZSBvcmRlcmVkDQo+ID4gIDg3OCAgICAgICogcHJvcGVybHkuDQo+
+ID4gIDg3OSAgICAgICovDQo+ID4gDQo+ID4gT3JkZXIgb2YgcGZuIGlzIHRha2VuIGludG8gYWNj
+b3VudCBidXQgZG9lc24mJiMzNTszOTt0IHdvcmsgd2VsbCBmb3IgX19HRlBfQ09MRA0KPiA+IGFs
+bG9jYXRpb24uICh3b3JrcyB3ZWxsIGZvciBub3QgX19HRlBfQ09MRCBhbGxvY2F0aW9uLikNCj4g
+PiBVc2luZyAyIGxpc3RzIGFnYWluIG9yIG1vZGlmeSBjdXJyZW50IGJlaGF2aW9yID8NCj4gPiAN
+Cj4gDQo+IFRoaXMgYW5hbHlzaXMgbG9va3Mgc3BvdC1vbi4gVGhlIGxhY2sgb2YgcGh5c2ljYWwg
+Y29udGlndWl0eSBpcyB3aGF0IGlzDQo+IGNyaXRpY2FsLCBub3QgdGhhdCB0aGUgcGFnZXMgYXJl
+IGhvdCBvciBjb2xkIGluIGNhY2hlLiBJIHRoaW5rIGl0IHdvdWxkIGJlDQo+IG92ZXJraWxsIHRv
+IHJlaW50cm9kdWNlIHR3byBzZXBhcmF0ZSBsaXN0cyB0byBwcmVzZXJ2ZSB0aGUgb3JkZXJpbmcg
+aW4NCj4gdGhhdCBjYXNlLiBIb3cgYWJvdXQgc29tZXRoaW5nIGxpa2UgdGhlIGZvbGxvd2luZz8N
+Cj4gDQo+ID09PT0gQ1VUIEhFUkUgPT09PQ0KPiBbUEFUQ0hdIHBhZ2UtYWxsb2NhdG9yOiBQcmVz
+ZXJ2ZSBQRk4gb3JkZXJpbmcgd2hlbiBfX0dGUF9DT0xEIGlzIHNldA0KPiANCj4gVGhlIHBhZ2Ug
+YWxsb2NhdG9yIHRyaWVzIHRvIHByZXNlcnZlIGNvbnRpZ3VvdXMgUEZOIG9yZGVyaW5nIHdoZW4g
+cmV0dXJuaW5nDQo+IHBhZ2VzIHN1Y2ggdGhhdCByZXBlYXRlZCBjYWxsZXJzIHRvIHRoZSBhbGxv
+Y2F0b3IgaGF2ZSBhIHN0cm9uZyBjaGFuY2Ugb2YNCj4gZ2V0dGluZyBwaHlzaWNhbGx5IGNvbnRp
+Z3VvdXMgcGFnZXMsIHBhcnRpY3VsYXJseSB3aGVuIGV4dGVybmFsIGZyYWdtZW50YXRpb24NCj4g
+aXMgbG93LiBIb3dldmVyLCBvZiB0aGUgYnVsayBvZiB0aGUgYWxsb2NhdGlvbnMgaGF2ZSBfX0dG
+UF9DT0xEIHNldCBhcw0KPiB0aGV5IGFyZSBkdWUgdG8gYWlvX3JlYWQoKSBmb3IgZXhhbXBsZSwg
+dGhlbiB0aGUgUEZOcyBhcmUgaW4gcmV2ZXJzZSBQRk4NCj4gb3JkZXIuIFRoaXMgY2FuIGNhdXNl
+IHBlcmZvcm1hbmNlIGRlZ3JhdGlvbiB3aGVuIHVzZWQgd2l0aCBJTw0KPiBjb250cm9sbGVycyB0
+aGF0IGNvdWxkIGhhdmUgbWVyZ2VkIHRoZSByZXF1ZXN0cy4NCj4gDQo+IFRoaXMgcGF0Y2ggYXR0
+ZW1wdHMgdG8gcHJlc2VydmUgdGhlIGNvbnRpZ3VvdXMgb3JkZXJpbmcgb2YgUEZOcyBmb3INCj4g
+dXNlcnMgb2YgX19HRlBfQ09MRC4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IE1lbCBHb3JtYW4gPG1l
+bEBjc24udWwuaWU+DQo+IC0tLSANCj4gIG1tL3BhZ2VfYWxsb2MuYyB8ICAgMTMgKysrKysrKysr
+LS0tLQ0KPiAgMSBmaWxlIGNoYW5nZWQsIDkgaW5zZXJ0aW9ucygrKSwgNCBkZWxldGlvbnMoLSkN
+Cj4gDQo+IGRpZmYgLS1naXQgYS9tbS9wYWdlX2FsbG9jLmMgYi9tbS9wYWdlX2FsbG9jLmMNCj4g
+aW5kZXggYTVmM2MyNy4uOWNkMzJjOCAxMDA2NDQNCj4gLS0tIGEvbW0vcGFnZV9hbGxvYy5jDQo+
+ICsrKyBiL21tL3BhZ2VfYWxsb2MuYw0KPiBAQCAtODgyLDcgKzg4Miw3IEBAIHJldHJ5X3Jlc2Vy
+dmU6DQo+ICAgKi8NCj4gIHN0YXRpYyBpbnQgcm1xdWV1ZV9idWxrKHN0cnVjdCB6b25lICp6b25l
+LCB1bnNpZ25lZCBpbnQgb3JkZXIsIA0KPiAgICAgICAgICAgICAgdW5zaWduZWQgbG9uZyBjb3Vu
+dCwgc3RydWN0IGxpc3RfaGVhZCAqbGlzdCwNCj4gLSAgICAgICAgICAgIGludCBtaWdyYXRldHlw
+ZSkNCj4gKyAgICAgICAgICAgIGludCBtaWdyYXRldHlwZSwgaW50IGNvbGQpDQo+ICB7DQo+ICAg
+ICAgaW50IGk7DQo+ICAgICAgDQo+IEBAIC05MDEsNyArOTAxLDEwIEBAIHN0YXRpYyBpbnQgcm1x
+dWV1ZV9idWxrKHN0cnVjdCB6b25lICp6b25lLCB1bnNpZ25lZCBpbnQgb3JkZXIsDQo+ICAgICAg
+ICAgICAqIG1lcmdlIElPIHJlcXVlc3RzIGlmIHRoZSBwaHlzaWNhbCBwYWdlcyBhcmUgb3JkZXJl
+ZA0KPiAgICAgICAgICAgKiBwcm9wZXJseS4NCj4gICAgICAgICAgICovDQo+IC0gICAgICAgIGxp
+c3RfYWRkKCZwYWdlLT5scnUsIGxpc3QpOw0KPiArICAgICAgICBpZiAobGlrZWx5KGNvbGQgPT0g
+MCkpDQo+ICsgICAgICAgICAgICBsaXN0X2FkZCgmcGFnZS0+bHJ1LCBsaXN0KTsNCj4gKyAgICAg
+ICAgZWxzZQ0KPiArICAgICAgICAgICAgbGlzdF9hZGRfdGFpbCgmcGFnZS0+bHJ1LCBsaXN0KTsN
+Cj4gICAgICAgICAgc2V0X3BhZ2VfcHJpdmF0ZShwYWdlLCBtaWdyYXRldHlwZSk7DQo+ICAgICAg
+ICAgIGxpc3QgPSAmcGFnZS0+bHJ1Ow0KPiAgICAgIH0NCj4gQEAgLTExMTksNyArMTEyMiw4IEBA
+IGFnYWluOg0KPiAgICAgICAgICBsb2NhbF9pcnFfc2F2ZShmbGFncyk7DQo+ICAgICAgICAgIGlm
+ICghcGNwLT5jb3VudCkgew0KPiAgICAgICAgICAgICAgcGNwLT5jb3VudCA9IHJtcXVldWVfYnVs
+ayh6b25lLCAwLA0KPiAtICAgICAgICAgICAgICAgICAgICBwY3AtPmJhdGNoLCAmcGNwLT5saXN0
+LCBtaWdyYXRldHlwZSk7DQo+ICsgICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3At
+Pmxpc3QsDQo+ICsgICAgICAgICAgICAgICAgICAgIG1pZ3JhdGV0eXBlLCBjb2xkKTsNCj4gICAg
+ICAgICAgICAgIGlmICh1bmxpa2VseSghcGNwLT5jb3VudCkpDQo+ICAgICAgICAgICAgICAgICAg
+Z290byBmYWlsZWQ7DQo+ICAgICAgICAgIH0NCj4gQEAgLTExMzgsNyArMTE0Miw4IEBAIGFnYWlu
+Og0KPiAgICAgICAgICAvKiBBbGxvY2F0ZSBtb3JlIHRvIHRoZSBwY3AgbGlzdCBpZiBuZWNlc3Nh
+cnkgKi8NCj4gICAgICAgICAgaWYgKHVubGlrZWx5KCZwYWdlLT5scnUgPT0gJnBjcC0+bGlzdCkp
+IHsNCj4gICAgICAgICAgICAgIHBjcC0+Y291bnQgKz0gcm1xdWV1ZV9idWxrKHpvbmUsIDAsDQo+
+IC0gICAgICAgICAgICAgICAgICAgIHBjcC0+YmF0Y2gsICZwY3AtPmxpc3QsIG1pZ3JhdGV0eXBl
+KTsNCj4gKyAgICAgICAgICAgICAgICAgICAgcGNwLT5iYXRjaCwgJnBjcC0+bGlzdCwNCj4gKyAg
+ICAgICAgICAgICAgICAgICAgbWlncmF0ZXR5cGUsIGNvbGQpOw0KPiAgICAgICAgICAgICAgcGFn
+ZSA9IGxpc3RfZW50cnkocGNwLT5saXN0Lm5leHQsIHN0cnVjdCBwYWdlLCBscnUpOw0KPiAgICAg
+ICAgICB9DQo+ICANCj4gDQo+IC0tDQo+IFRvIHVuc3Vic2NyaWJlLCBzZW5kIGEgbWVzc2FnZSB3
+aXRoICYmIzM1OzM5O3Vuc3Vic2NyaWJlIGxpbnV4LW1tJiYjMzU7Mzk7IGluDQo+IHRoZSBib2R5
+IHRvIG1ham9yZG9tb0BrdmFjay5vcmcuICBGb3IgbW9yZSBpbmZvIG9uIExpbnV4IE1NLA0KPiBz
+ZWU6IGh0dHA6Ly93d3cubGludXgtbW0ub3JnLyAuDQo+IERvbiYmIzM1OzM5O3QgZW1haWw6IDxh
+IGhyZWY9bWFpbHRvOiJkb250QGt2YWNrLm9yZyI+IGVtYWlsQGt2YWNrLm9yZyA8L2E+DQo+IA0K
+PiAgDQo+ICANCj4gTmFyYXlhbmFuIEdvcGFsYWtyaXNobmFuDQo+IE1lbW9yeSBTb2x1dGlvbnMg
+RGl2aXNpb24sDQo+IFNhbXN1bmcgSW5kaWEgU29mdHdhcmUgT3BlcmF0aW9ucywNCj4gUGhvbmU6
+ICg5MSkgODAtNDE4MTk5OTkgRXh0bjogNTE0OA0KPiBNb2JpbGU6IDkxLTkzNDEwLTQyMDIyDQo+
+ICANCj4gIA0KLS0gDQpNZWwgR29ybWFuDQpQYXJ0LXRpbWUgUGhkIFN0dWRlbnQgICAgICAgICAg
+ICAgICAgICAgICAgICAgIExpbnV4IFRlY2hub2xvZ3kgQ2VudGVyDQpVbml2ZXJzaXR5IG9mIExp
+bWVyaWNrICAgICAgICAgICAgICAgICAgICAgICAgIElCTSBEdWJsaW4gU29mdHdhcmUgTGFiDQoN
+Ci0tDQpUbyB1bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAmIzM5O3Vuc3Vic2NyaWJl
+IGxpbnV4LW1tJiMzOTsgaW4NCnRoZSBib2R5IHRvIG1ham9yZG9tb0BrdmFjay5vcmcuICBGb3Ig
+bW9yZSBpbmZvIG9uIExpbnV4IE1NLA0Kc2VlOiBodHRwOi8vd3d3LmxpbnV4LW1tLm9yZy8gLg0K
+RG9uJiMzOTt0IGVtYWlsOiA8YSBocmVmPW1haWx0bzoiZG9udEBrdmFjay5vcmciPiBlbWFpbEBr
+dmFjay5vcmcgPC9hPg0KDQog
 
-> Tmem has some similarity to IBM's Collaborative Memory Management,
-> but creates more of a partnership between the kernel and the
-> "privileged entity" and is not very invasive.  Tmem may be
-> applicable for KVM and containers; there is some disagreement on
-> the extent of its value. Tmem is highly complementary to ballooning
-> (aka page granularity hot plug) and memory deduplication (aka
-> transparent content-based page sharing) but still has value
-> when neither are present.
-
-The basic idea seems to be that you reduce the amount of memory
-available to the guest and as a compensation give the guest some
-tmem, no? If that is the case then the effect of tmem is somewhat
-comparable to the volatile page cache pages.
-
-The big advantage of this approach is its simplicity, but there
-are down sides as well:
-1) You need to copy the data between the tmem pool and the page
-cache. At least temporarily there are two copies of the same
-page around. That increases the total amount of used memory.
-2) The guest has a smaller memory size. Either the memory is
-large enough for the working set size in which case tmem is
-ineffective, or the working set does not fit which increases
-the memory pressure and the cpu cycles spent in the mm code.
-3) There is an additional turning knob, the size of the tmem pool
-for the guest. I see the need for a clever algorithm to determine
-the size for the different tmem pools.
-
-Overall I would say its worthwhile to investigate the performance
-impacts of the approach.
-
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
