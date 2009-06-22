@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0484A6B0092
-	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 16:41:26 -0400 (EDT)
-Date: Sun, 21 Jun 2009 13:42:35 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: handle_mm_fault() calling convention cleanup..
-Message-ID: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1C3056B004D
+	for <linux-mm@kvack.org>; Sun, 21 Jun 2009 22:19:26 -0400 (EDT)
+Date: Sun, 21 Jun 2009 19:20:01 -0700 (PDT)
+Message-Id: <20090621.192001.46889618.davem@davemloft.net>
+Subject: Re: handle_mm_fault() calling convention cleanup..
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
+References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-arch@vger.kernel.org
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
+To: torvalds@linux-foundation.org
+Cc: linux-arch@vger.kernel.org, hugh@veritas.com, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, fengguang.wu@intel.com, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 21 Jun 2009 13:42:35 -0700 (PDT)
 
-Just a heads up that I committed the patches that I sent out two months 
-ago to make the fault handling routines use the finer-grained fault flags 
-(FAULT_FLAG_xyzzy) rather than passing in a boolean for "write".
+> I fixed up all architectures that I noticed (at least microblaze had been 
+> added since the original patches in April), but arch maintainers should 
+> double-check. Arch maintainers might also want to check whether the 
+> mindless conversion of
+> 
+> 	'is_write' => 'is_write ? FAULT_FLAGS_WRITE : 0'
+> 
+> might perhaps be written in some more natural way (for example, maybe 
+> you'd like to get rid of 'iswrite' as a variable entirely, and replace it 
+> with a 'fault_flags' variable).
+> 
+> It's pushed out and tested on x86-64, but it really was such a mindless 
+> conversion that I hope it works on all architectures. But I thought I'd 
+> better give people a shout-out regardless.
 
-That was originally for the NOPAGE_RETRY patches, but it's a general 
-cleanup too. I have this suspicion that we should extend this to 
-"get_user_pages()" too, instead of having those boolean "write" and 
-"force" flags (and GUP_FLAGS_xyzzy as opposed to FAULT_FLAGS_yyzzy).
-
-We should probably also get rid of the insane FOLL_xyz flags too. Right 
-now the code in fact depends on FOLL_WRITE being the same as 
-FAULT_FLAGS_WRITE, and while that is a simple dependency, it's just crazy 
-how we have all these different flags for what ends up often boiling down 
-to the same fundamental issue in the end (even if not all versions of the 
-flags are necessarily always valid for all uses).
-
-I fixed up all architectures that I noticed (at least microblaze had been 
-added since the original patches in April), but arch maintainers should 
-double-check. Arch maintainers might also want to check whether the 
-mindless conversion of
-
-	'is_write' => 'is_write ? FAULT_FLAGS_WRITE : 0'
-
-might perhaps be written in some more natural way (for example, maybe 
-you'd like to get rid of 'iswrite' as a variable entirely, and replace it 
-with a 'fault_flags' variable).
-
-It's pushed out and tested on x86-64, but it really was such a mindless 
-conversion that I hope it works on all architectures. But I thought I'd 
-better give people a shout-out regardless.
-
-		Linus
+Sparc looks good, and sparc64 seems to work fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
