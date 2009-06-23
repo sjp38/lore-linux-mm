@@ -1,32 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 984E66B005D
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 08:55:13 -0400 (EDT)
-Date: Tue, 23 Jun 2009 20:56:44 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] hugetlb: fault flags instead of write_access
-Message-ID: <20090623125644.GA18603@localhost>
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C55266B005D
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 08:58:42 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: xtensa: add pgprot_noncached
+Date: Tue, 23 Jun 2009 15:00:31 +0200
+References: <20090614132845.17543.11882.sendpatchset@rx1.opensource.se> <20090622151537.2f8009f7.akpm@linux-foundation.org> <200906231441.37158.arnd@arndb.de>
+In-Reply-To: <200906231441.37158.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200906231500.32385.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Chris Zankel <chris@zankel.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mundt <lethal@linux-sh.org>, magnus.damm@gmail.com, linux-mm@kvack.org, jayakumar.lkml@gmail.com, Jesper Nilsson <jesper.nilsson@axis.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 23, 2009 at 08:49:05PM +0800, Hugh Dickins wrote:
-> handle_mm_fault() is now passing fault flags rather than write_access
-> down to hugetlb_fault(), so better recognize that in hugetlb_fault(),
-> and in hugetlb_no_page().
->
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+This adds a straightforward pgprot_noncached() macro for
+xtensa, so we can use it in architecture independent code
+in the future.
 
-Looks OK and compiles OK.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Thanks,
-Fengguang
+--- a/arch/xtensa/include/asm/pgtable.h
++++ b/arch/xtensa/include/asm/pgtable.h
+@@ -251,6 +251,9 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ 	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
+ }
+ 
++#define pgprot_noncached(prot) \
++	__pgprot((pgprot_val(prot) & ~_PAGE_CA_MASK) | _PAGE_CA_BYPASS)
++
+ /*
+  * Certain architectures need to do special things when pte's
+  * within a page table are directly modified.  Thus, the following
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
