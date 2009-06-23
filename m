@@ -1,95 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 66E836B004F
-	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:02:50 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5N02pt3011397
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 03C6F6B004F
+	for <linux-mm@kvack.org>; Mon, 22 Jun 2009 20:07:56 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5N088DW007346
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 23 Jun 2009 09:02:52 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AA7145DE51
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:02:51 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5297245DE4E
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:02:51 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D0FB1DB8038
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:02:51 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D81741DB8040
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:02:50 +0900 (JST)
-Date: Tue, 23 Jun 2009 09:01:16 +0900
+	Tue, 23 Jun 2009 09:08:08 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 077E445DD7D
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:08:08 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BD93B45DD7E
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:08:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0B901DB8040
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:08:07 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 591C01DB8038
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 09:08:04 +0900 (JST)
+Date: Tue, 23 Jun 2009 09:06:30 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Low overhead patches for the memory cgroup controller (v5)
-Message-Id: <20090623090116.556d4f97.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090622154343.9cdbf23a.akpm@linux-foundation.org>
-References: <20090615043900.GF23577@balbir.in.ibm.com>
-	<20090622154343.9cdbf23a.akpm@linux-foundation.org>
+Subject: Re: Performance degradation seen after using one list for hot/cold
+ pages.
+Message-Id: <20090623090630.f06b7b17.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090622165236.GE3981@csn.ul.ie>
+References: <20626261.51271245670323628.JavaMail.weblogic@epml20>
+	<20090622165236.GE3981@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbir@linux.vnet.ibm.com, kamezawa.hiroyuki@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, menage@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: NARAYANAN GOPALAKRISHNAN <narayanan.g@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Jun 2009 15:43:43 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Mon, 22 Jun 2009 17:52:36 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> On Mon, 15 Jun 2009 10:09:00 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> >
-> > ...
+> On Mon, Jun 22, 2009 at 11:32:03AM +0000, NARAYANAN GOPALAKRISHNAN wrote:
+> > Hi,
 > > 
-> > This patch changes the memory cgroup and removes the overhead associated
-> > with accounting all pages in the root cgroup. As a side-effect, we can
-> > no longer set a memory hard limit in the root cgroup.
+> > We are running on VFAT.
+> > We are using iozone performance benchmarking tool (http://www.iozone.org/src/current/iozone3_326.tar) for testing.
 > > 
-> > A new flag to track whether the page has been accounted or not
-> > has been added as well. Flags are now set atomically for page_cgroup,
-> > pcg_default_flags is now obsolete and removed.
+> > The parameters are 
+> > /iozone -A -s10M -e -U /tmp -f /tmp/iozone_file
 > > 
-> > ...
-> >
-> > @@ -1114,9 +1121,22 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> >  		css_put(&mem->css);
-> >  		return;
-> >  	}
-> > +
-> >  	pc->mem_cgroup = mem;
-> >  	smp_wmb();
-> > -	pc->flags = pcg_default_flags[ctype];
-> > +	switch (ctype) {
-> > +	case MEM_CGROUP_CHARGE_TYPE_CACHE:
-> > +	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
-> > +		SetPageCgroupCache(pc);
-> > +		SetPageCgroupUsed(pc);
-> > +		break;
-> > +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> > +		ClearPageCgroupCache(pc);
-> > +		SetPageCgroupUsed(pc);
-> > +		break;
-> > +	default:
-> > +		break;
-> > +	}
+> > Our block driver requires requests to be merged to get the best performance.
+> > This was not happening due to non-contiguous pages in all kernels >= 2.6.25.
+> > 
 > 
-> Do we still need the smp_wmb()?
+> Ok, by the looks of things, all the aio_read() requests are due to readahead
+> as opposed to explicit AIO  requests from userspace. In this case, nothing
+> springs to mind that would avoid excessive requests for cold pages.
 > 
-> It's hard to say, because we forgot to document it :(
+> It looks like the simpliest solution is to go with the patch I posted.
+> Does anyone see a better alternative that doesn't branch in rmqueue_bulk()
+> or add back the hot/cold PCP lists?
 > 
-Sorry for lack of documentation.
+No objection.  But 2 questions...
 
-pc->mem_cgroup should be visible before SetPageCgroupUsed(). Othrewise,
-A routine believes USED bit will see bad pc->mem_cgroup.
+> -        list_add(&page->lru, list);
+> +        if (likely(cold == 0))
+> +            list_add(&page->lru, list);
+> +        else
+> +            list_add_tail(&page->lru, list);
+>          set_page_private(page, migratetype);
+>          list = &page->lru;
+>      }
 
-I'd like to  add a comment later (againt new mmotm.)
+1. if (likely(coild == 0))
+	"likely" is necessary ?
+
+2. Why moving pointer "list" rather than following ?
+
+	if (cold)
+		list_add(&page->lru, list);
+	else
+		list_add_tail(&page->lru, list);
+
 
 Thanks,
 -Kame
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
