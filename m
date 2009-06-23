@@ -1,62 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9718C6B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 18:23:01 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7DC416B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 18:54:19 -0400 (EDT)
+Message-ID: <4A415D62.20109@redhat.com>
+Date: Tue, 23 Jun 2009 18:55:30 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] Hugepages should be accounted as unevictable pages.
-From: Alok Kataria <akataria@vmware.com>
-Reply-To: akataria@vmware.com
-In-Reply-To: <1245795352.17685.31312.camel@nimitz>
-References: <20090623093459.2204.A69D9226@jp.fujitsu.com>
-	 <1245732411.18339.6.camel@alok-dev1>
-	 <20090623135017.220D.A69D9226@jp.fujitsu.com>
-	 <20090623141147.8f2cef18.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1245736441.18339.21.camel@alok-dev1>  <4A41481D.1060607@redhat.com>
-	 <1245793331.24110.33.camel@alok-dev1> <1245795352.17685.31312.camel@nimitz>
-Content-Type: text/plain
-Date: Tue, 23 Jun 2009 15:23:43 -0700
-Message-Id: <1245795823.24110.48.camel@alok-dev1>
-Mime-Version: 1.0
+References: <20090623093459.2204.A69D9226@jp.fujitsu.com>	 <1245732411.18339.6.camel@alok-dev1>	 <20090623135017.220D.A69D9226@jp.fujitsu.com>	 <20090623141147.8f2cef18.kamezawa.hiroyu@jp.fujitsu.com>	 <1245736441.18339.21.camel@alok-dev1>  <4A41481D.1060607@redhat.com>	 <1245793331.24110.33.camel@alok-dev1>  <4A414F55.2040808@redhat.com> <1245794811.24110.41.camel@alok-dev1>
+In-Reply-To: <1245794811.24110.41.camel@alok-dev1>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akataria@vmware.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Alok Kataria wrote:
+> On Tue, 2009-06-23 at 14:55 -0700, Rik van Riel wrote:
+>> Alok Kataria wrote:
+>>> On Tue, 2009-06-23 at 14:24 -0700, Rik van Riel wrote:
 
-On Tue, 2009-06-23 at 15:15 -0700, Dave Hansen wrote:
-> On Tue, 2009-06-23 at 14:42 -0700, Alok Kataria wrote:
-> > One thing that i forgot to mention earlier is that, I just need a way to
-> > provide a hint about the total locked memory  on the system and it
-> > doesn't need to be the exact number at that point in time.
-> > 
-> > Lee, due to this reason lazy culling of unevictable pages is fine too. 
-> > 
-> > Hugepages, similar to mlocked pages, are special because the user could
-> > specify how much memory it wants to reserve for this purpose. So that
-> > needs to be taken into consideration i.e it cannot be calculated in some
-> > way. 
+>> Things like page tables and dentry/inode caches vary
+>> according to the use case and are allocated as needed.
+>> They are in no way "static in nature".
 > 
-> Could you just teach the thing to which you are hinting that it also
-> needs to go look in sysfs for huge page counts?
+> Maybe static was the wrong word to use here. 
+> What i meant was that you could always calculate the *maximum* amount of
+> memory that is going to be used by page table and can also determine the
+> % of memory that will be used by slab caches.
 
-:) yeah i could do that too...the point is that its a module and the
-function to get the hugepages count is not exported right now. I could
-very well add this as an exported symbol and use it from there, but
-there can be someone who doesn't want symbols to be unnecessarily
-exported if their is no in-tree modular usage of that symbol. 
+My point is that you cannot do that.
 
-Other than that it also doesn't quite sound right that I have to query
-the kernel for different variables when unevictable should get me all of
-user specified locked usage.
+We have seen systems with 30% of physical memory in
+page tables, as well as systems with a similar amount
+of memory in the slab cache.
 
-Thanks,
-Alok
+Yes, these were running legitimate workloads.
 
->   Or, is there a
-> requirement that it come out of a single meminfo field?
-> 
-> -- Dave
-> 
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
