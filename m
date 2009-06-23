@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2D79C6B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 07:13:49 -0400 (EDT)
-Date: Tue, 23 Jun 2009 12:14:08 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] remove unused line for mmap_region()
-In-Reply-To: <4A3EFF93.4000100@gmail.com>
-Message-ID: <Pine.LNX.4.64.0906231155180.6167@sister.anvils>
-References: <1245595421-3441-1-git-send-email-shijie8@gmail.com>
- <Pine.LNX.4.64.0906211917350.4583@sister.anvils> <4A3EFF93.4000100@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 255976B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 08:25:22 -0400 (EDT)
+Subject: Re: [PATCH] Hugepages should be accounted as unevictable pages.
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090623135017.220D.A69D9226@jp.fujitsu.com>
+References: <20090623093459.2204.A69D9226@jp.fujitsu.com>
+	 <1245732411.18339.6.camel@alok-dev1>
+	 <20090623135017.220D.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 23 Jun 2009 08:26:03 -0400
+Message-Id: <1245759963.1944.11.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akataria@vmware.com, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Jun 2009, Huang Shijie wrote:
-> >   
-> I knew the file's ->mmap method can change addr and pgoff,
-> but I think the comment of DavidM is enough to remind the
-> person who wants to use pgoff lower down that pgoff maybe
-> go wrong for a while.
-
-Indeed it's a very helpful comment from DaveM there.  Unfortunately,
-we can't really repeat that comment on every line below where
-somebody might in future want to insert a use of pgoff, and not all
-of us are as good at actually reading nearby comments as you are!
-
+On Tue, 2009-06-23 at 14:05 +0900, KOSAKI Motohiro wrote:
+> > > > Unevictable:           0 kB
+> > > > Mlocked:               0 kB
+> > > > HugePages_Total:      20
+> > > > HugePages_Free:       20
+> > > > HugePages_Rsvd:        0
+> > > > HugePages_Surp:        0
+> > > > 
+> > > > After the patch:
+> > > > 
+> > > > Unevictable:       81920 kB
+> > > > Mlocked:               0 kB
+> > > > HugePages_Total:      20
+> > > > HugePages_Free:       20
+> > > > HugePages_Rsvd:        0
+> > > > HugePages_Surp:        0
+> > > 
+> > > At first, We should clarify the spec of unevictable.
+> > > Currently, Unevictable field mean the number of pages in unevictable-lru
+> > > and hugepage never insert any lru.
+> > > 
+> > > I think this patch will change this rule.
+> > 
+> > I agree, and that's why I added a comment to the documentation file to
+> > that effect. If you think its not explicit or doesn't explain what its
+> > supposed to we can add something more there.
+> > 
+> > IMO, the proc output should give the total number of unevictable pages
+> > in the system and, since hugepages are also in fact unevictable so I
+> > don't see a reason why they shouldn't be accounted accordingly.
+> > What do you think ? 
 > 
-> But now, it (this line) looks like a big fly on 'Mona Lisa'. :)
-> > However, what would be likely to need pgoff lower down, other than
-> > another attempt at vma_merge?  And given how we're now working with
-> > the vma_merge higher up (before pgoff had a chance to be adjusted),
-> > I think we can conclude that anything needing to meddle with pgoff
-> > would be setting some vm_flags that prevent merging anyway.
-> >
-> Could you tell some drivers which will meddle with pgoff?
+> ummm...
+> 
+> I'm not sure this unevictable definition is good idea or not. currently
+> hugepage isn't only non-account memory, but also various kernel memory doesn't
+> account.
+> 
+> one of drawback is that zone_page_state(UNEVICTABLE) lost to mean #-of-unevictable-pages.
+> e.g.  following patch is wrong?
+> 
+> fs/proc/meminfo.c meminfo_proc_show()
+> ----------------------------
+> -                K(pages[LRU_UNEVICTABLE]),
+> +                K(pages[LRU_UNEVICTABLE]) + hstate->nr_huge_pages,
+> 
+> 
+> Plus, I didn't find any practical benefit in this patch. do you have it?
+> or You only want to natural definition?
+> 
+> I don't have any strong oppose reason, but I also don't have any strong
+> agree reason.
+> 
+> 
+> Lee, What do you think?
+> 
 
-I can't name a list of drivers offhand, no (but note VM_PFNMAP areas
-have a particular use for vm_pgoff, so all those drivers are likely
-to be on the list).  May I please leave that investigation to you?
+Alok asked me about this off-list.  Like you, I have no strong feelings
+either way.  Before this patch, yes, the Unevictable meminfo item does
+correspond to the number of pages on the unevictable lru.  However, I
+don't know that this is all that useful to an administrator.  And, I
+don't think we depend on this count anywhere in the code.  So, perhaps
+having the system "do the math" to add the unevictable huge pages to
+this item is more useful.  Then, again, as you point out, there is a lot
+of kernel memory that is also unevictable that would not be accounted
+here.  
 
-What I expect you to find in the end is that every driver which does
-meddle with pgoff in its ->mmap, also has some other characteristic
-(e.g. sets VM_IO or VM_DONTEXPAND or VM_RESERVED or VM_PFNMAP, or
-even some other flag which the new vm_flags wouldn't have set),
-which will prevent its vmas being merged anyway.
-
-> If a driver changes pgoff,the work done by vma_merge higher
-> up will be invalidated. The process gets a wrong memory map.
-
-It's probably all okay; but I won't be astonished if you discover
-one or two cases which ought to be fixed up, probably by adding
-one of those flags.
-
-Thanks,
-Hugh
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
