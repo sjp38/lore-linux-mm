@@ -1,58 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 24D786B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 00:14:56 -0400 (EDT)
-Date: Tue, 23 Jun 2009 13:13:33 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH] cgroup: fix permanent wait in rmdir
-Message-Id: <20090623131333.be387c84.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090623092223.a44e7b20.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090623092223.a44e7b20.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 237AC6B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 00:18:53 -0400 (EDT)
+Date: Mon, 22 Jun 2009 21:19:27 -0700 (PDT)
+Message-Id: <20090622.211927.245716932.davem@davemloft.net>
+Subject: Re: [PATCH 3/3] net-dccp: Suppress warning about large allocations
+ from DCCP
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20090623023936.GA2721@ghostprotocols.net>
+References: <1245685414-8979-4-git-send-email-mel@csn.ul.ie>
+	<20090622.161502.74508182.davem@davemloft.net>
+	<20090623023936.GA2721@ghostprotocols.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: acme@redhat.com
+Cc: mel@csn.ul.ie, akpm@linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, htd@fancy-poultry.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Jun 2009 09:22:23 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 22 Jun 2009 18:37:07 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+From: Arnaldo Carvalho de Melo <acme@redhat.com>
+Date: Mon, 22 Jun 2009 23:39:36 -0300
+
+> Em Mon, Jun 22, 2009 at 04:15:02PM -0700, David Miller escreveu:
+>> It's probably much more appropriate to make this stuff use
+>> alloc_large_system_hash(), like TCP does (see net/ipv4/tcp.c
+>> tcp_init()).
+>> 
+>> All of this complicated DCCP hash table size computation code will
+>> simply disappear.  And it'll fix the warning too :-)
 > 
-> > previous discussion was this => http://marc.info/?t=124478543600001&r=1&w=2
-> > 
-> > I think this is a minimum fix (in code size and behavior) and because
-> > we can take a BIG LOCK, this kind of check is necessary, anyway.
-> > Any comments are welcome.
-> 
-> I'll split this into 2 patches...and I found I should check page-migration, too.
-I'll wait a new version, but can you explain in advance this page-migration case ?
+> He mentioned that in the conversation that lead to this new patch
+> series, problem is that alloc_large_system_hash is __init, so when you
+> try to load dccp.ko it will not be available.
 
-> > +static int mem_cgroup_retry_rmdir(struct cgroup_subsys *ss,
-> > +				  struct cgroup *cont)
-> > +{
-> > +	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-> > +
-> > +	if (res_counter_read_u64(&memcg->res, RES_USAGE))
-It should be &mem->res.
+Fair enough.
 
-> > +		return 1;
-> > +	return 0;
-> > +}
-> > +
-> > +
-
-
-Thanks,
-Daisuke Nishimura.
-
-> Then, modifing swap account logic is not help, at last.
-> 
-> Thanks,
-> -Kame
-> 
+It's such an unfortunate duplication of code, it's likely therefore
+better to remove the __init tag and export that symbol.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
