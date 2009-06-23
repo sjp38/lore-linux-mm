@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 255976B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 08:25:22 -0400 (EDT)
-Subject: Re: [PATCH] Hugepages should be accounted as unevictable pages.
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090623135017.220D.A69D9226@jp.fujitsu.com>
-References: <20090623093459.2204.A69D9226@jp.fujitsu.com>
-	 <1245732411.18339.6.camel@alok-dev1>
-	 <20090623135017.220D.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 23 Jun 2009 08:26:03 -0400
-Message-Id: <1245759963.1944.11.camel@lts-notebook>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9723E6B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 08:39:18 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH][RFC] mm: uncached vma support with writenotify
+Date: Tue, 23 Jun 2009 14:40:11 +0200
+References: <20090614132845.17543.11882.sendpatchset@rx1.opensource.se> <20090615033240.GC31902@linux-sh.org> <20090622151537.2f8009f7.akpm@linux-foundation.org>
+In-Reply-To: <20090622151537.2f8009f7.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200906231440.11590.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akataria@vmware.com, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Mundt <lethal@linux-sh.org>, magnus.damm@gmail.com, arnd@arndb.de, linux-mm@kvack.org, jayakumar.lkml@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-06-23 at 14:05 +0900, KOSAKI Motohiro wrote:
-> > > > Unevictable:           0 kB
-> > > > Mlocked:               0 kB
-> > > > HugePages_Total:      20
-> > > > HugePages_Free:       20
-> > > > HugePages_Rsvd:        0
-> > > > HugePages_Surp:        0
-> > > > 
-> > > > After the patch:
-> > > > 
-> > > > Unevictable:       81920 kB
-> > > > Mlocked:               0 kB
-> > > > HugePages_Total:      20
-> > > > HugePages_Free:       20
-> > > > HugePages_Rsvd:        0
-> > > > HugePages_Surp:        0
-> > > 
-> > > At first, We should clarify the spec of unevictable.
-> > > Currently, Unevictable field mean the number of pages in unevictable-lru
-> > > and hugepage never insert any lru.
-> > > 
-> > > I think this patch will change this rule.
-> > 
-> > I agree, and that's why I added a comment to the documentation file to
-> > that effect. If you think its not explicit or doesn't explain what its
-> > supposed to we can add something more there.
-> > 
-> > IMO, the proc output should give the total number of unevictable pages
-> > in the system and, since hugepages are also in fact unevictable so I
-> > don't see a reason why they shouldn't be accounted accordingly.
-> > What do you think ? 
-> 
-> ummm...
-> 
-> I'm not sure this unevictable definition is good idea or not. currently
-> hugepage isn't only non-account memory, but also various kernel memory doesn't
-> account.
-> 
-> one of drawback is that zone_page_state(UNEVICTABLE) lost to mean #-of-unevictable-pages.
-> e.g.  following patch is wrong?
-> 
-> fs/proc/meminfo.c meminfo_proc_show()
-> ----------------------------
-> -                K(pages[LRU_UNEVICTABLE]),
-> +                K(pages[LRU_UNEVICTABLE]) + hstate->nr_huge_pages,
-> 
-> 
-> Plus, I didn't find any practical benefit in this patch. do you have it?
-> or You only want to natural definition?
-> 
-> I don't have any strong oppose reason, but I also don't have any strong
-> agree reason.
-> 
-> 
-> Lee, What do you think?
-> 
+On Tuesday 23 June 2009, you wrote:
 
-Alok asked me about this off-list.  Like you, I have no strong feelings
-either way.  Before this patch, yes, the Unevictable meminfo item does
-correspond to the number of pages on the unevictable lru.  However, I
-don't know that this is all that useful to an administrator.  And, I
-don't think we depend on this count anywhere in the code.  So, perhaps
-having the system "do the math" to add the unevictable huge pages to
-this item is more useful.  Then, again, as you point out, there is a lot
-of kernel memory that is also unevictable that would not be accounted
-here.  
+> > I guess the only real issue here is that we presently have no generic
+> > interface in the kernel for setting a VMA uncached. pgprot_noncached()
+> > is the closest approximation we have, but there are still architectures
+> > that do not implement it.
+> > 
+> > Given that this comes up at least once a month, perhaps it makes sense to
+> > see which platforms are still outstanding. At least cris, h8300,
+> > m68knommu, s390, and xtensa all presently lack a definition for it. The
+> > nommu cases are easily handled, but the rest still require some attention
+> > from their architecture maintainers before we can really start treating
+> > this as a generic interface.
 
-Lee
+For m68knommu, h8300 and s390, doing nothing is correct because they
+either don't have page tables or don't control caching through them.
+Xtensa could easily add it, they have the respective caching strategy
+in their page flags. On cris, caching is controlled through the high
+bit of the address, but I guess that means we could just add
+'#define _PAGE_UNCACHED  (1 << 31)' there and set that for uncached.
+
+> > which works fine for the nommu case, and which functionally is no
+> > different from what happens right now anyways for the users that don't
+> > wire it up sanely.
+> > 
+> > Arnd, what do you think about throwing this at asm-generic?
+> > 
+> 
+> I think Arnd fell asleep ;)
+
+For some reason I did not get the original mail. I've added
+the patch to my asm-generic queue and will send a pull request
+together with other patches I got.
+
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
