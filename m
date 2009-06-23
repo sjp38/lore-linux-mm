@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4DC586B0055
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 17:35:56 -0400 (EDT)
-Message-ID: <4A414ADC.5080402@redhat.com>
-Date: Tue, 23 Jun 2009 17:36:28 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CF7216B0055
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 17:37:35 -0400 (EDT)
+Message-ID: <4A414B3E.9020000@redhat.com>
+Date: Tue, 23 Jun 2009 17:38:06 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] hugetlb: fault flags instead of write_access
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
+Subject: Re: [PATCH] mm: don't rely on flags coincidence
+References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <Pine.LNX.4.64.0906231349250.19552@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0906231349250.19552@sister.anvils>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,11 +17,15 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> handle_mm_fault() is now passing fault flags rather than write_access
-> down to hugetlb_fault(), so better recognize that in hugetlb_fault(),
-> and in hugetlb_no_page().
+> Indeed FOLL_WRITE matches FAULT_FLAG_WRITE, matches GUP_FLAGS_WRITE,
+> and it's tempting to devise a set of Grand Unified Paging flags;
+> but not today.  So until then, let's rely upon the compiler to spot
+> the coincidence, "rather than have that subtle dependency and a
+> comment for it" - as you remarked in another context yesterday.
 > 
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+
+Good catch.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 
