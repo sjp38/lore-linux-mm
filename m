@@ -1,88 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8726B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 00:54:20 -0400 (EDT)
-Date: Tue, 23 Jun 2009 13:54:05 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH] cgroup: fix permanent wait in rmdir
-Message-Id: <20090623135405.4dc80f2a.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090623134420.9103eac5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090622183707.dd9e665b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090623092223.a44e7b20.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090623131333.be387c84.nishimura@mxp.nes.nec.co.jp>
-	<20090623134420.9103eac5.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id D6F1B6B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 01:05:43 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5N55mCq022051
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 23 Jun 2009 14:05:50 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96BDA45DD7E
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 14:05:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EDA945DD7C
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 14:05:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D4FB1DB803C
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 14:05:48 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EA1211DB8038
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 14:05:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] Hugepages should be accounted as unevictable pages.
+In-Reply-To: <1245732411.18339.6.camel@alok-dev1>
+References: <20090623093459.2204.A69D9226@jp.fujitsu.com> <1245732411.18339.6.camel@alok-dev1>
+Message-Id: <20090623135017.220D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 23 Jun 2009 14:05:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: akataria@vmware.com
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Jun 2009 13:44:20 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 23 Jun 2009 13:13:33 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > On Tue, 23 Jun 2009 09:22:23 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Mon, 22 Jun 2009 18:37:07 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > Unevictable:           0 kB
+> > > Mlocked:               0 kB
+> > > HugePages_Total:      20
+> > > HugePages_Free:       20
+> > > HugePages_Rsvd:        0
+> > > HugePages_Surp:        0
 > > > 
-> > > > previous discussion was this => http://marc.info/?t=124478543600001&r=1&w=2
-> > > > 
-> > > > I think this is a minimum fix (in code size and behavior) and because
-> > > > we can take a BIG LOCK, this kind of check is necessary, anyway.
-> > > > Any comments are welcome.
+> > > After the patch:
 > > > 
-> > > I'll split this into 2 patches...and I found I should check page-migration, too.
-> > I'll wait a new version, but can you explain in advance this page-migration case ?
+> > > Unevictable:       81920 kB
+> > > Mlocked:               0 kB
+> > > HugePages_Total:      20
+> > > HugePages_Free:       20
+> > > HugePages_Rsvd:        0
+> > > HugePages_Surp:        0
 > > 
-> 
-> Not far from swap-in case.
-> 
-> Assume cgroup "A" which includes file caches. A task in other group mmap file caches
-> and do page migration and rmdir against "A" is called at the same time.
-> 
-> In mem_cgroup_prepare_migration(), following check is used.
-> 
-> ==
-> 	lock_page_cgroup(pc);
-> 	if (PageCgroupUsed(pc)) {
-> 		mem = pc->mem_cgroup;
-> 		css_get(&mem->css);
-> 	}
-> 	unlock_page_cgroup(pc);
-> 	<======================================(*)
-> 	if (mem) {
-> 		<==============================(**)
-> 		try_charge();
-> 		...
-> 	}
-> ==
-> 
-> At (*), we grab css refcnt which can be under pre_destroy() and
-> At (**), pre_destroy may returns 0 but charge may be done after the end of pre_destroy().
-> 
-Ah I see, you're right.
-
-Thank you for your clarification.
-
-Daisuke Nishimura.
-
-> 
-> > > > +static int mem_cgroup_retry_rmdir(struct cgroup_subsys *ss,
-> > > > +				  struct cgroup *cont)
-> > > > +{
-> > > > +	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-> > > > +
-> > > > +	if (res_counter_read_u64(&memcg->res, RES_USAGE))
-> > It should be &mem->res.
+> > At first, We should clarify the spec of unevictable.
+> > Currently, Unevictable field mean the number of pages in unevictable-lru
+> > and hugepage never insert any lru.
 > > 
-> yes.
-> too many typos in my patches in these days..
+> > I think this patch will change this rule.
 > 
-> Thanks,
-> -Kame
+> I agree, and that's why I added a comment to the documentation file to
+> that effect. If you think its not explicit or doesn't explain what its
+> supposed to we can add something more there.
 > 
+> IMO, the proc output should give the total number of unevictable pages
+> in the system and, since hugepages are also in fact unevictable so I
+> don't see a reason why they shouldn't be accounted accordingly.
+> What do you think ? 
+
+ummm...
+
+I'm not sure this unevictable definition is good idea or not. currently
+hugepage isn't only non-account memory, but also various kernel memory doesn't
+account.
+
+one of drawback is that zone_page_state(UNEVICTABLE) lost to mean #-of-unevictable-pages.
+e.g.  following patch is wrong?
+
+fs/proc/meminfo.c meminfo_proc_show()
+----------------------------
+-                K(pages[LRU_UNEVICTABLE]),
++                K(pages[LRU_UNEVICTABLE]) + hstate->nr_huge_pages,
+
+
+Plus, I didn't find any practical benefit in this patch. do you have it?
+or You only want to natural definition?
+
+I don't have any strong oppose reason, but I also don't have any strong
+agree reason.
+
+
+Lee, What do you think?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
