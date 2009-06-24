@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 40DC16B005A
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 22:48:09 -0400 (EDT)
-Date: Wed, 24 Jun 2009 10:49:05 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class
-	citizen
-Message-ID: <20090624024905.GA32094@localhost>
-References: <7561.1245768237@redhat.com> <20090624023251.GA16483@localhost> <20090624114055.225D.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 61B0B6B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 23:18:14 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id m34so78699wag.22
+        for <linux-mm@kvack.org>; Tue, 23 Jun 2009 20:18:46 -0700 (PDT)
+Message-ID: <4A419A7F.8050604@gmail.com>
+Date: Wed, 24 Jun 2009 11:16:15 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090624114055.225D.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] remove unused line for mmap_region()
+References: <1245595421-3441-1-git-send-email-shijie8@gmail.com> <Pine.LNX.4.64.0906211917350.4583@sister.anvils> <4A3EFF93.4000100@gmail.com> <Pine.LNX.4.64.0906231155180.6167@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0906231155180.6167@sister.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 24, 2009 at 10:43:21AM +0800, KOSAKI Motohiro wrote:
-> > On Tue, Jun 23, 2009 at 10:43:57PM +0800, David Howells wrote:
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > David, could you try running this when it occurred again?
-> > > > 
-> > > >         make Documentation/vm/page-types
-> > > >         Documentation/vm/page-types --raw  # run as root
-> > > 
-> > > Okay.  I managed to catch it between the first and second OOMs, and ran the
-> > > command you asked for.
-> > 
-> > Thank you!
-> > 
-> > > 0x0000000000000000	    142261      555  ________________________________	
-> > > 0x0000000000000400	      6797       26  __________B_____________________	buddy
-> > 
-> > The buddy+free numbers are pretty high. 26MB PG_buddy pages means much
-> > more actual free pages. So I bet the 555MB no-flag pages are mostly free pages.
-> 
-> You mean our VM can make OOM although it have 600MB free pages?
-
-Not exactly from one of the previous OOM messages:
-
-DMA: 1*4kB 1*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3916kB
-DMA32: 576*4kB 15*8kB 1*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 4296kB
-
-It looks like something goes wrong with the buddy system?
-
-Thanks,
-Fengguang
+ 
+> I can't name a list of drivers offhand, no (but note VM_PFNMAP areas
+> have a particular use for vm_pgoff, so all those drivers are likely
+> to be on the list).  May I please leave that investigation to you?
+>
+>   
+ok.
+> What I expect you to find in the end is that every driver which does
+> meddle with pgoff in its ->mmap, also has some other characteristic
+> (e.g. sets VM_IO or VM_DONTEXPAND or VM_RESERVED or VM_PFNMAP, or
+> even some other flag which the new vm_flags wouldn't have set),
+> which will prevent its vmas being merged anyway.
+>
+>   
+Unfortunately,the driver's -->mmap is called below the vma_merge(),
+so even if the driver sets the VM_SPECIAL flag, it does not prevent the
+vmas being merged actually.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
