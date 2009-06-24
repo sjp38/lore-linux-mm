@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E2616B005A
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 03:11:09 -0400 (EDT)
-Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
-	by smtp-out.google.com with ESMTP id n5O7BMLE011384
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 08:11:22 +0100
-Received: from wa-out-1112.google.com (wagm34.prod.google.com [10.114.214.34])
-	by spaceape7.eur.corp.google.com with ESMTP id n5O7BJFw018808
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 00:11:20 -0700
-Received: by wa-out-1112.google.com with SMTP id m34so113679wag.3
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2009 00:11:19 -0700 (PDT)
-Date: Wed, 24 Jun 2009 00:11:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
-In-Reply-To: <alpine.DEB.2.00.0906181154340.10979@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.0906240006540.16528@chino.kir.corp.google.com>
-References: <20090616135228.25248.22018.sendpatchset@lts-notebook> <20090617130216.GF28529@csn.ul.ie> <1245258954.6235.58.camel@lts-notebook> <alpine.DEB.2.00.0906181154340.10979@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8967E6B004F
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 05:17:06 -0400 (EDT)
+Received: from mlsv6.hitachi.co.jp (unknown [133.144.234.166])
+	by mail9.hitachi.co.jp (Postfix) with ESMTP id BDAD237C82
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 18:17:35 +0900 (JST)
+Message-ID: <4A41EF15.2060507@hitachi.com>
+Date: Wed, 24 Jun 2009 18:17:09 +0900
+From: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 11/15] HWPOISON: The high level memory error handler in
+    the VM v8
+References: <20090620031608.624240019@intel.com>
+    <20090620031626.106150781@intel.com>
+    <20090621085721.GD8218@one.firstfloor.org>
+In-Reply-To: <20090621085721.GD8218@one.firstfloor.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Ranjit Manomohan <ranjitm@google.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, hugh.dickins@tiscali.co.uk, npiggin@suse.de, chris.mason@oracle.com, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Jun 2009, David Rientjes wrote:
+Andi Kleen wrote:
 
-> Manipulating hugepages via a nodemask seems less ideal than, as you 
-> mentioned, per-node hugepage controls, probably via 
-> /sys/kernel/system/node/node*/nr_hugepages.  This type of interface 
-> provides all the functionality that this patchset does, including hugepage 
-> allocation and freeing, but with more power to explicitly allocate and 
-> free on targeted nodes.  /proc/sys/vm/nr_hugepages would remain to 
-> round-robin the allocation (and freeing, with your patch 1/5 which I 
-> ack'd).
+>>introduce invalidate_inode_page() and don't remove dirty/writeback pages
+>>from page cache (Nick, Fengguang)
 > 
-> Such an interface would also automatically deal with all memory 
-> hotplug/remove issues without storing or keeping a nodemask updated.
-> 
+> I'm still dubious this is a good idea, it means potentially a lot 
+> of pages not covered.
 
-Expanding this proposal out a little bit, we'd want all the power of the 
-/sys/kernel/mm/hugepages tunables for each node.  The best way of doing 
-that is probably to keep the current /sys/kernel/mm/hugepages directory as 
-is (already published Documentation/ABI/testing/sysfs-kernel-mm-hugepages) 
-for the system-wide hugepage state and then add individual 
-`hugepages-<size>kB' directories to each /sys/devices/system/node/node* to 
-target allocations and freeing for the per-node hugepage state.  
-Otherwise, we lack node targeted support for multiple hugepagesz= users.
+I think this is not bad idea for now.
+Certainly we become unable to recover from uncorrected memory error
+on dirty page cache pages, it will be safer than the old patch.
+
+As for ext3 filesystem, unlike usual I/O error, the I/O error
+generated by HWPOISON feature doesn't cause journal abort and
+read-only remount even if the fs has been mounted with data=ordered
+and data_err=abort options.  So we can re-read the old data and
+update the fs after failing to write out dirty data, this may
+cause an integrity problem.  And improper data can be exposed
+by the re-read if it's a newly allocated data block.
+
+The amount of dirty pages are not so many because it is limited
+by dirty_ratio or dirty_bytes.  HWPOISON feature is still
+useful even if it doesn't cover dirty page cache pages. :-)
+
+Regards,
+-- 
+Hidehiro Kawai
+Hitachi, Systems Development Laboratory
+Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
