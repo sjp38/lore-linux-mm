@@ -1,37 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C95E96B004F
-	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 21:41:47 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5O1h4vq018591
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 24 Jun 2009 10:43:04 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E3C2C45DE56
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 10:43:03 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BE1A245DE53
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 10:43:03 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A0E491DB8063
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 10:43:03 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 362291DB805F
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 10:43:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class citizen
-In-Reply-To: <7561.1245768237@redhat.com>
-References: <20090620043303.GA19855@localhost> <7561.1245768237@redhat.com>
-Message-Id: <20090624104150.2257.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 633A06B004F
+	for <linux-mm@kvack.org>; Tue, 23 Jun 2009 22:32:08 -0400 (EDT)
+Date: Wed, 24 Jun 2009 10:32:51 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class
+	citizen
+Message-ID: <20090624023251.GA16483@localhost>
+References: <20090620043303.GA19855@localhost> <32411.1245336412@redhat.com> <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com> <20090618095729.d2f27896.akpm@linux-foundation.org> <7561.1245768237@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 24 Jun 2009 10:43:02 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7561.1245768237@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: David Howells <dhowells@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jun 23, 2009 at 10:43:57PM +0800, David Howells wrote:
 > Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
 > > David, could you try running this when it occurred again?
@@ -41,7 +27,18 @@ List-ID: <linux-mm.kvack.org>
 > 
 > Okay.  I managed to catch it between the first and second OOMs, and ran the
 > command you asked for.
-> 
+
+Thank you!
+
+> 0x0000000000000000	    142261      555  ________________________________	
+> 0x0000000000000400	      6797       26  __________B_____________________	buddy
+
+The buddy+free numbers are pretty high. 26MB PG_buddy pages means much
+more actual free pages. So I bet the 555MB no-flag pages are mostly free pages.
+
+Thanks,
+Fengguang
+
 > David
 > ---
 >              flags	page-count       MB  symbolic-flags			long-symbolic-flags
@@ -87,12 +84,6 @@ List-ID: <linux-mm.kvack.org>
 > 0x0000000000005868	       366        1  ___U_lA____Ma_b_________________	uptodate,lru,active,mmap,anonymous,swapbacked
 > 0x000000000000586c	         1        0  __RU_lA____Ma_b_________________	referenced,uptodate,lru,active,mmap,anonymous,swapbacked
 >              total	    255744      999
-
-reclaimable pages are very few. I don't think we see vmscan issue.
-I guess it's memory leak issue.
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
