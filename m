@@ -1,96 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E16716B0055
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 18:26:52 -0400 (EDT)
-Date: Wed, 24 Jun 2009 15:27:32 -0700
+	by kanga.kvack.org (Postfix) with ESMTP id 4BD966B004D
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 19:10:51 -0400 (EDT)
+Date: Wed, 24 Jun 2009 16:10:28 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
-Message-Id: <20090624152732.d6352f4f.akpm@linux-foundation.org>
-In-Reply-To: <1245839904.3210.85.camel@localhost.localdomain>
-References: <1245839904.3210.85.camel@localhost.localdomain>
+Subject: Re: [RFC] Reduce the resource counter lock overhead
+Message-Id: <20090624161028.b165a61a.akpm@linux-foundation.org>
+In-Reply-To: <20090624170516.GT8642@balbir.in.ibm.com>
+References: <20090624170516.GT8642@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>
+To: balbir@linux.vnet.ibm.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, menage@google.com, xemul@openvz.org, linux-mm@kvack.org, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jun 2009 11:38:24 +0100
-Richard Kennedy <richard@rsk.demon.co.uk> wrote:
+On Wed, 24 Jun 2009 22:35:16 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> When writing to 2 (or more) devices at the same time, stop
-> balance_dirty_pages moving dirty pages to writeback when it has reached
-> the bdi threshold. This prevents balance_dirty_pages overshooting its
-> limits and moving all dirty pages to writeback.     
+> Hi, All,
 > 
->     
-> Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
-> ---
-> balance_dirty_pages can overreact and move all of the dirty pages to
-> writeback unnecessarily.
-> 
-> balance_dirty_pages makes its decision to throttle based on the number
-> of dirty plus writeback pages that are over the calculated limit,so it
-> will continue to move pages even when there are plenty of pages in
-> writeback and less than the threshold still dirty.
-> 
-> This allows it to overshoot its limits and move all the dirty pages to
-> writeback while waiting for the drives to catch up and empty the
-> writeback list. 
-> 
-> A simple fio test easily demonstrates this problem.  
-> 
-> fio --name=f1 --directory=/disk1 --size=2G -rw=write
-> 	--name=f2 --directory=/disk2 --size=1G --rw=write 		--startdelay=10
-> 
-> The attached graph before.png shows how all pages are moved to writeback
-> as the second write starts and the throttling kicks in.
-> 
-> after.png is the same test with the patch applied, which clearly shows
-> that it keeps dirty_background_ratio dirty pages in the buffer.
-> The values and timings of the graphs are only approximate but are good
-> enough to show the behaviour.  
-> 
-> This is the simplest fix I could find, but I'm not entirely sure that it
-> alone will be enough for all cases. But it certainly is an improvement
-> on my desktop machine writing to 2 disks.
-> 
-> Do we need something more for machines with large arrays where
-> bdi_threshold * number_of_drives is greater than the dirty_ratio ?
-> 
+> I've been experimenting with reduction of resource counter locking
+> overhead. My benchmarks show a marginal improvement, /proc/lock_stat
+> however shows that the lock contention time and held time reduce
+> by quite an amount after this patch. 
 
-um.  Interesting find.  Jens, was any of your performance testing using
-multiple devices?  If so, it looks like the results just got invalidated :)
+That looks sane.
 
+> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+>                               class name    con-bounces    contentions
+> waittime-min   waittime-max waittime-total    acq-bounces
+> acquisitions   holdtime-min   holdtime-max holdtime-total
+> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 > 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 7b0dcea..7687879 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -541,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
->  		 * filesystems (i.e. NFS) in which data may have been
->  		 * written to the server's write cache, but has not yet
->  		 * been flushed to permanent storage.
-> +		 * Only move pages to writeback if this bdi is over its
-> +		 * threshold otherwise wait until the disk writes catch
-> +		 * up.
->  		 */
-> -		if (bdi_nr_reclaimable) {
-> +		if (bdi_nr_reclaimable > bdi_thresh) {
->  			writeback_inodes(&wbc);
->  			pages_written += write_chunk - wbc.nr_to_write;
->  			get_dirty_limits(&background_thresh, &dirty_thresh,
+>                           &counter->lock:       1534627        1575341
+> 0.57          18.39      675713.23       43330446      138524248
+> 0.43         148.13    54133607.05
+>                           --------------
+>                           &counter->lock         809559
+> [<ffffffff810810c5>] res_counter_charge+0x3f/0xed
+>                           &counter->lock         765782
+> [<ffffffff81081045>] res_counter_uncharge+0x2c/0x6d
+>                           --------------
+>                           &counter->lock         653284
+> [<ffffffff81081045>] res_counter_uncharge+0x2c/0x6d
+>                           &counter->lock         922057
+> [<ffffffff810810c5>] res_counter_charge+0x3f/0xed
 
-yup, we need to think about the effect with zillions of disks.  Peter,
-could you please take a look?
+Please turn off the wordwrapping before sending the signed-off version.
 
-Also...  get_dirty_limits() is rather hard to grok.  The callers of
-get_dirty_limits() treat its three return values as "thresholds", but
-they're not named as thresholds within get_dirty_limits() itself, which
-is a bit confusing.  And the meaning of each of those return values is
-pretty obscure from the code - could we document them please?
+>  static inline bool res_counter_check_under_limit(struct res_counter *cnt)
+>  {
+>  	bool ret;
+> -	unsigned long flags;
+> +	unsigned long flags, seq;
+>  
+> -	spin_lock_irqsave(&cnt->lock, flags);
+> -	ret = res_counter_limit_check_locked(cnt);
+> -	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	do {
+> +		seq = read_seqbegin_irqsave(&cnt->lock, flags);
+> +		ret = res_counter_limit_check_locked(cnt);
+> +	} while (read_seqretry_irqrestore(&cnt->lock, seq, flags));
+>  	return ret;
+>  }
 
+This change makes the inlining of these functions even more
+inappropriate than it already was.
+
+This function should be static in memcontrol.c anyway?
+
+Which function is calling mem_cgroup_check_under_limit() so much? 
+__mem_cgroup_try_charge()?  If so, I'm a bit surprised because
+inefficiencies of this nature in page reclaim rarely are demonstrable -
+reclaim just doesn't get called much.  Perhaps this is a sign that
+reclaim is scanning the same pages over and over again and is being
+inefficient at a higher level?
+
+Do we really need to call mem_cgroup_hierarchical_reclaim() as
+frequently as we apparently are doing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
