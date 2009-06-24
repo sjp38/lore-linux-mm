@@ -1,46 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DAADF6B004F
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 09:07:26 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20090624023251.GA16483@localhost>
-References: <20090624023251.GA16483@localhost> <20090620043303.GA19855@localhost> <32411.1245336412@redhat.com> <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com> <20090618095729.d2f27896.akpm@linux-foundation.org> <7561.1245768237@redhat.com>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class citizen
-Date: Wed, 24 Jun 2009 14:07:19 +0100
-Message-ID: <3901.1245848839@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 489B36B005A
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 09:17:53 -0400 (EDT)
+Subject: Re: kmemleak: Early log buffer exceeded
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <20090624100809.GA3299@localdomain.by>
+References: <20090623212648.GA9502@localdomain.by>
+	 <1245836105.16283.13.camel@pc1117.cambridge.arm.com>
+	 <20090624100809.GA3299@localdomain.by>
+Content-Type: text/plain
+Date: Wed, 24 Jun 2009 14:18:20 +0100
+Message-Id: <1245849500.32629.22.camel@pc1117.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>, "riel@redhat.com" <riel@redhat.com>
-Cc: dhowells@redhat.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2009-06-24 at 13:08 +0300, Sergey Senozhatsky wrote:
+> On (06/24/09 10:35), Catalin Marinas wrote:
+> > > So, my questions are:
+> > > 1. Is 200 really enough? Why 200 not 512, 1024 (for example)?
+> > 
+> > It seems that in your case it isn't. It is fine on the machines I tested
+> > it on but choosing this figure wasn't too scientific.
+> > 
+> > I initially had it bigger and marked with the __init attribute to free
+> > it after initialisation but this was causing (harmless) section mismatch
+> > warnings.
+> 
+> Why not configure it?
 
-Okay, I've bisected it down to a narrow range of 60 commits, which include
-various mm patches from Fengguang and Rik.
+Yes, that's the best approach for now. As for dynamic allocation,
+alloc_bootmem is the only option but it needs more testing to make sure
+it doesn't fail in certain circumstances.
 
-	bad: b8d9a86590fb334d28c5905a4c419ece7d08e37d
-	good: 03347e2592078a90df818670fddf97a33eec70fb
+> (Well, CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE is a bit ugly.)
 
-The bad one is definitely bad; the good one is very probably good (the V4L
-commit list branched from there, and survived about 40 iterations of LTP
-without coughing up an OOM).
+I couldn't come up with a better one either. Here's the patch:
 
-I've attached my bisection log to this point, and I'm continuing trying to
-narrow it down.
 
-git bisect visualise produces a nice linear list of commits between the bounds
-it's currently working.  Is there any way to produce that as a text dump?
+kmemleak: Allow the early log buffer to be configurable.
 
-David
+From: Catalin Marinas <catalin.marinas@arm.com>
+
+Kmemleak needs to track all the memory allocations but some of these
+happen before kmemleak is initialised. These are stored in an internal
+buffer which may be exceeded in some kernel configurations. This patch
+adds a configuration option with a default value of 300 and removes the
+stack dump when the kmemleak early log buffer is exceeded.
+
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
-git bisect start
-# bad: [c868d550115b9ccc0027c67265b9520790f05601] mm: Move pgtable_cache_init() earlier
-git bisect bad c868d550115b9ccc0027c67265b9520790f05601
-# good: [300df7dc89cc276377fc020704e34875d5c473b6] Merge branch 'upstream-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2
-git bisect good 300df7dc89cc276377fc020704e34875d5c473b6
-# good: [e1f5b94fd0c93c3e27ede88b7ab652d086dc960f] Merge git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb-2.6
-git bisect good e1f5b94fd0c93c3e27ede88b7ab652d086dc960f
-# bad: [b8d9a86590fb334d28c5905a4c419ece7d08e37d] Documentation/accounting/getdelays.c intialize the variable before using it
-git bisect bad b8d9a86590fb334d28c5905a4c419ece7d08e37d
+ lib/Kconfig.debug |   12 ++++++++++++
+ mm/kmemleak.c     |    5 +++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 4c32b1a..5cba26f 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -359,6 +359,18 @@ config DEBUG_KMEMLEAK
+ 	  In order to access the kmemleak file, debugfs needs to be
+ 	  mounted (usually at /sys/kernel/debug).
+ 
++config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
++	int "Maximum kmemleak early log entries"
++	depends on DEBUG_KMEMLEAK
++	range 200 2000
++	default 300
++	help
++	  Kmemleak must track all the memory allocations to avoid
++	  reporting false positives. Since memory may be allocated or
++	  freed before kmemleak is initialised, an early log buffer is
++	  used to store these actions. If kmemleak reports "early log
++	  buffer exceeded", please increase this value.
++
+ config DEBUG_KMEMLEAK_TEST
+ 	tristate "Simple test for the kernel memory leak detector"
+ 	depends on DEBUG_KMEMLEAK
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index c96f2c8..17096d1 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -235,7 +235,7 @@ struct early_log {
+ };
+ 
+ /* early logging buffer and current position */
+-static struct early_log early_log[200];
++static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
+ static int crt_early_log;
+ 
+ static void kmemleak_disable(void);
+@@ -696,7 +696,8 @@ static void log_early(int op_type, const void *ptr, size_t size,
+ 	struct early_log *log;
+ 
+ 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
+-		kmemleak_stop("Early log buffer exceeded\n");
++		pr_warning("Early log buffer exceeded\n");
++		kmemleak_disable();
+ 		return;
+ 	}
+ 
+
+Thanks.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
