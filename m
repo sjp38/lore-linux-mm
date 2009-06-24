@@ -1,100 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 174126B004D
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 18:26:08 -0400 (EDT)
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id n5OMQrm2031242
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 23:26:54 +0100
-Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
-	by zps36.corp.google.com with ESMTP id n5OMQoPQ032649
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 15:26:51 -0700
-Received: by pzk41 with SMTP id 41so773941pzk.19
-        for <linux-mm@kvack.org>; Wed, 24 Jun 2009 15:26:50 -0700 (PDT)
-Date: Wed, 24 Jun 2009 15:26:46 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
-In-Reply-To: <1245842724.6439.19.camel@lts-notebook>
-Message-ID: <alpine.DEB.2.00.0906241451460.30523@chino.kir.corp.google.com>
-References: <20090616135228.25248.22018.sendpatchset@lts-notebook> <20090617130216.GF28529@csn.ul.ie> <1245258954.6235.58.camel@lts-notebook> <alpine.DEB.2.00.0906181154340.10979@chino.kir.corp.google.com> <alpine.DEB.2.00.0906240006540.16528@chino.kir.corp.google.com>
- <1245842724.6439.19.camel@lts-notebook>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id E16716B0055
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 18:26:52 -0400 (EDT)
+Date: Wed, 24 Jun 2009 15:27:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
+Message-Id: <20090624152732.d6352f4f.akpm@linux-foundation.org>
+In-Reply-To: <1245839904.3210.85.camel@localhost.localdomain>
+References: <1245839904.3210.85.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Ranjit Manomohan <ranjitm@google.com>
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jun 2009, Lee Schermerhorn wrote:
+On Wed, 24 Jun 2009 11:38:24 +0100
+Richard Kennedy <richard@rsk.demon.co.uk> wrote:
 
-> David:
+> When writing to 2 (or more) devices at the same time, stop
+> balance_dirty_pages moving dirty pages to writeback when it has reached
+> the bdi threshold. This prevents balance_dirty_pages overshooting its
+> limits and moving all dirty pages to writeback.     
 > 
-> Nish mentioned this to me a while back when I asked about his patches.
-> That's one of my reasons for seeing if the simpler [IMO] nodes_allowed
-> would be sufficient.  I'm currently updating the nodes_allowed series
-> per Mel's cleanup suggestions.
-
-The /proc/sys/vm/hugepages_nodes_allowed support is troublesome because 
-it's global and can race with other writers, such as for tasks in two 
-disjoint cpusets attempting to allocate hugepages concurrently.
-
-> I'll then prototype Mel's preferred
-> method of using the task's mempolicy.
-
-This proposal eliminates the aforementioned race, but now has the opposite 
-problem: if a single task is allocating hugepages for multiple cpusets, it 
-must setup the correct mempolicies to allocate (or free) for the new 
-cpuset mems.
-
-> I still have reservations about
-> this:  static huge page allocation is currently not constrained by
-> policy nor cpusets, and I can't tell whether the task's mempolicy was
-> set explicitly to contstrain the huge pages or just inherited from the
-> parent shell.
+>     
+> Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> ---
+> balance_dirty_pages can overreact and move all of the dirty pages to
+> writeback unnecessarily.
 > 
-
-Agreed.  I do think that we used to constrain hugepage allocations by 
-cpuset in the past, though, when the allocation was simply done via 
-alloc_pages_node().  We'd fallback to using nodes outside of 
-cpuset_current_mems_allowed when the nodes were too full or fragmented.
-
-> Next I'll also dust off Nish's old per node hugetlb control patches and
-> see what it task to update them for the multiple sizes.  It will look
-> pretty much as you suggest.  Do you have any suggestions for a boot
-> command line syntax to specify per node huge page counts at boot time
-> [assuming we still want this]?  Currently, for default huge page size,
-> distributed across nodes, we have:
+> balance_dirty_pages makes its decision to throttle based on the number
+> of dirty plus writeback pages that are over the calculated limit,so it
+> will continue to move pages even when there are plenty of pages in
+> writeback and less than the threshold still dirty.
 > 
-> 	hugepages=<N>
+> This allows it to overshoot its limits and move all the dirty pages to
+> writeback while waiting for the drives to catch up and empty the
+> writeback list. 
 > 
-> I was thinking something like:
+> A simple fio test easily demonstrates this problem.  
 > 
-> 	hugepages=(node:count,...)
+> fio --name=f1 --directory=/disk1 --size=2G -rw=write
+> 	--name=f2 --directory=/disk2 --size=1G --rw=write 		--startdelay=10
 > 
-> using the '(' as a flag for per node counts, w/o needing to prescan for
-> ':'
+> The attached graph before.png shows how all pages are moved to writeback
+> as the second write starts and the throttling kicks in.
+> 
+> after.png is the same test with the patch applied, which clearly shows
+> that it keeps dirty_background_ratio dirty pages in the buffer.
+> The values and timings of the graphs are only approximate but are good
+> enough to show the behaviour.  
+> 
+> This is the simplest fix I could find, but I'm not entirely sure that it
+> alone will be enough for all cases. But it certainly is an improvement
+> on my desktop machine writing to 2 disks.
+> 
+> Do we need something more for machines with large arrays where
+> bdi_threshold * number_of_drives is greater than the dirty_ratio ?
 > 
 
-The hugepages=(node:count,...) option would still need to be interleaved 
-with hugepagesz= for the various sizes.  This could become pretty cryptic:
+um.  Interesting find.  Jens, was any of your performance testing using
+multiple devices?  If so, it looks like the results just got invalidated :)
 
-	hugepagesz=2M hugepages=(0:10,1:20) hugepagesz=1G 	\
-		hugepages=(2:10,3:10)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 7b0dcea..7687879 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -541,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
+>  		 * filesystems (i.e. NFS) in which data may have been
+>  		 * written to the server's write cache, but has not yet
+>  		 * been flushed to permanent storage.
+> +		 * Only move pages to writeback if this bdi is over its
+> +		 * threshold otherwise wait until the disk writes catch
+> +		 * up.
+>  		 */
+> -		if (bdi_nr_reclaimable) {
+> +		if (bdi_nr_reclaimable > bdi_thresh) {
+>  			writeback_inodes(&wbc);
+>  			pages_written += write_chunk - wbc.nr_to_write;
+>  			get_dirty_limits(&background_thresh, &dirty_thresh,
 
-and I assume we'd use `count' of 99999 for nodes of unknown sizes where we 
-simply want to allocate as many hugepages as possible.
+yup, we need to think about the effect with zillions of disks.  Peter,
+could you please take a look?
 
-We'd still need to support hugepages=N for large NUMA machines so we don't 
-have to specify the same number of hugepages per node for a true 
-interleave, which would require an extremely large command line.  And then 
-the behavior of
+Also...  get_dirty_limits() is rather hard to grok.  The callers of
+get_dirty_limits() treat its three return values as "thresholds", but
+they're not named as thresholds within get_dirty_limits() itself, which
+is a bit confusing.  And the meaning of each of those return values is
+pretty obscure from the code - could we document them please?
 
-	hugepagesz=1G hugepages=(0:10,1:20) hugepages=30
-
-needs to be defined.  In that case, does hugepages=30 override the 
-previous settings if this system only has dual nodes?  If so, for SGI's 1K 
-node systems it's going to be difficult to specify many nodes with 10 
-hugepages and a few with 20.  So perhaps hugepages=(node:count,...) should 
-increment or decrement the hugepages= value, if specified?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
