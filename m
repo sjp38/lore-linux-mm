@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 74D016B005A
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 05:35:32 -0400 (EDT)
-Received: by pxi40 with SMTP id 40so1132747pxi.12
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2009 02:36:38 -0700 (PDT)
-Date: Thu, 25 Jun 2009 18:36:16 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] prevent to reclaim anon page of lumpy reclaim for no swap
- space
-Message-Id: <20090625183616.23b55b24.minchan.kim@barrios-desktop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F7D6B004F
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 05:55:14 -0400 (EDT)
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
+ suspending
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090625043432.GA23949@wotan.suse.de>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
+	 <20090619145913.GA1389@ucw.cz> <1245450449.16880.10.camel@pasglop>
+	 <20090619232336.GA2442@elf.ucw.cz> <1245455409.16880.15.camel@pasglop>
+	 <20090620002817.GA2524@elf.ucw.cz> <1245463809.16880.18.camel@pasglop>
+	 <20090621061847.GB1474@ucw.cz> <1245576665.16880.24.camel@pasglop>
+	 <20090625043432.GA23949@wotan.suse.de>
+Content-Type: text/plain
+Date: Thu, 25 Jun 2009 19:56:33 +1000
+Message-Id: <1245923793.22312.5.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pavel Machek <pavel@ucw.cz>, Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 List-ID: <linux-mm.kvack.org>
 
-This patch prevent to reclaim anon page in case of no swap space.
-VM already prevent to reclaim anon page in various place.
-But it doesnt't prevent it for lumpy reclaim.
+> Maybe so. Masking off __GFP_WAIT up in slab and page allocator
+> isn't really needed though (or necessarily a good idea to throw
+> out that information far from where it is used).
+> 
+> Checking for suspend active and avoiding writeout from reclaim
+> for example might be a better idea.
 
-It shuffles lru list unnecessary so that it is pointless.
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/vmscan.c |    6 ++++++
- 1 files changed, 6 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 026f452..fb401fe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -830,7 +830,13 @@ int __isolate_lru_page(struct page *page, int mode, int file)
- 	 * When this function is being called for lumpy reclaim, we
- 	 * initially look into all LRU pages, active, inactive and
- 	 * unevictable; only give shrink_page_list evictable pages.
-+
-+	 * If we don't have enough swap space, reclaiming of anon page
-+	 * is pointless.
- 	 */
-+	if (nr_swap_pages <= 0 && PageAnon(page))
-+		return ret;
-+
- 	if (PageUnevictable(page))
- 		return ret;
+Ah ok. Yes, I agree. I'm not familiar with those code path and
+so masking gfp here sounded like the easier solution but you may well be
+right here :-)
  
--- 
-1.5.4.3
+> > So yes, just applying the mask would help, but wouldn't completely fix
+> > it unless we also find a way to synchronize.
+> 
+> You could potentially use srcu or something like that in page
+> reclaim in order to have a way to be able to kick everyone
+> out. page reclaim entry/exit from the page allocator isn't such
+> a fastpath though, so even a simple mutex or something may be
+> possible.
 
+Ok. Well, I'll leave that to the suspend/resume folks for now, as I'm
+way too busy at the moment to give that a serious look, but thanks for
+the pointer.
 
+Cheers,
+Ben.
 
-
--- 
-Kinds Regards
-Minchan Kim
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
