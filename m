@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8590E6B004F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 17:26:50 -0400 (EDT)
-Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem
- in sl[aou]b
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20090625193137.GA16861@linux.vnet.ibm.com>
-References: <20090625193137.GA16861@linux.vnet.ibm.com>
-Content-Type: text/plain
-Date: Thu, 25 Jun 2009 16:27:19 -0500
-Message-Id: <1245965239.21085.393.camel@calx>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CD9696B0055
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 17:27:53 -0400 (EDT)
+Date: Thu, 25 Jun 2009 14:28:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] memcg: cgroup fix rmdir hang
+Message-Id: <20090625142809.ac6b7b85.akpm@linux-foundation.org>
+In-Reply-To: <20090623160720.36230fa2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090623160720.36230fa2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: paulmck@linux.vnet.ibm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, penberg@cs.helsinki.fi, jdb@comx.dk, Nick Piggin <npiggin@suse.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-06-25 at 12:31 -0700, Paul E. McKenney wrote:
-> Hello!
+On Tue, 23 Jun 2009 16:07:20 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> previous discussion was this => http://marc.info/?t=124478543600001&r=1&w=2
 > 
-> Jesper noted that kmem_cache_destroy() invokes synchronize_rcu() rather
-> than rcu_barrier() in the SLAB_DESTROY_BY_RCU case, which could result
-> in RCU callbacks accessing a kmem_cache after it had been destroyed.
+> This patch tries to fix problem as
+>   - rmdir can sleep very very long if swap entry is shared between multiple
+>     cgroups
 > 
-> The following untested (might not even compile) patch proposes a fix.
-
-Acked-by: Matt Mackall <mpm@selenic.com>
-
-Nick, you'll want to make sure you get this in SLQB.
-
-> Reported-by: Jesper Dangaard Brouer <jdb@comx.dk>
-> Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> ---
+> Now, cgroup's rmdir path does following
 > 
->  slab.c |    2 +-
->  slob.c |    2 ++
->  slub.c |    2 ++
->  3 files changed, 5 insertions(+), 1 deletion(-)
+> ==
+> again:
+> 	check there are no tasks and children group.
+> 	call pre_destroy()
+> 	check css's refcnt
+> 	if (refcnt > 0) {
+> 		sleep until css's refcnt goes down to 0.
+> 		goto again
+> 	}
+> ==
 > 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index e74a16e..5241b65 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2547,7 +2547,7 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
->  	}
->  
->  	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-> -		synchronize_rcu();
-> +		rcu_barrier();
->  
->  	__kmem_cache_destroy(cachep);
->  	mutex_unlock(&cache_chain_mutex);
-> diff --git a/mm/slob.c b/mm/slob.c
-> index c78742d..9641da3 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -595,6 +595,8 @@ EXPORT_SYMBOL(kmem_cache_create);
->  void kmem_cache_destroy(struct kmem_cache *c)
->  {
->  	kmemleak_free(c);
-> +	if (c->flags & SLAB_DESTROY_BY_RCU)
-> +		rcu_barrier();
->  	slob_free(c, sizeof(struct kmem_cache));
->  }
->  EXPORT_SYMBOL(kmem_cache_destroy);
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 819f056..a9201d8 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2595,6 +2595,8 @@ static inline int kmem_cache_close(struct kmem_cache *s)
->   */
->  void kmem_cache_destroy(struct kmem_cache *s)
->  {
-> +	if (s->flags & SLAB_DESTROY_BY_RCU)
-> +		rcu_barrier();
->  	down_write(&slub_lock);
->  	s->refcount--;
->  	if (!s->refcount) {
+> Unfortunately, memory cgroup does following at charge.
+> 
+> 	css_get(&memcg->css)
+> 	....
+> 	charge(memcg) (increase USAGE)
+> 	...
+> And this "memcg" is not necessary to include the caller, task.
+> 
+> pre_destroy() tries to reduce memory usage until USAGE goes down to 0.
+> Then, there is a race that
+> 	- css's refcnt > 0 (and memcg's usage > 0)
+> 	- rmdir() caller sleeps until css->refcnt goes down 0.
+> 	- But to make css->refcnt be 0, pre_destroy() should be called again.
+> 
+> This patch tries to fix this in asyhcnrounos way (i.e. without big lock.)
+> Any comments are welcome.
+> 
 
--- 
-http://selenic.com : development and support for Mercurial and Linux
-
+Do you believe that these fixes should be backported into 2.6.30.x?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
