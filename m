@@ -1,91 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 30AFD6B0055
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 05:10:54 -0400 (EDT)
-Received: by pzk26 with SMTP id 26so1144890pzk.12
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2009 02:11:12 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CF42A6B004F
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 05:25:56 -0400 (EDT)
+Date: Thu, 25 Jun 2009 11:26:43 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
+Message-ID: <20090625092642.GG31415@kernel.dk>
+References: <1245839904.3210.85.camel@localhost.localdomain> <20090624152732.d6352f4f.akpm@linux-foundation.org> <1245916833.31755.78.camel@twins> <20090625091033.GF31415@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <20090623090630.f06b7b17.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20626261.51271245670323628.JavaMail.weblogic@epml20>
-	 <20090622165236.GE3981@csn.ul.ie>
-	 <20090623090630.f06b7b17.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 25 Jun 2009 18:11:12 +0900
-Message-ID: <28c262360906250211p4f5d8b30q156a06d97ddb7da7@mail.gmail.com>
-Subject: Re: Performance degradation seen after using one list for hot/cold
-	pages.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090625091033.GF31415@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, NARAYANAN GOPALAKRISHNAN <narayanan.g@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Kennedy <richard@rsk.demon.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 23, 2009 at 9:06 AM, KAMEZAWA
-Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 22 Jun 2009 17:52:36 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
->
->> On Mon, Jun 22, 2009 at 11:32:03AM +0000, NARAYANAN GOPALAKRISHNAN wrote=
-:
->> > Hi,
->> >
->> > We are running on VFAT.
->> > We are using iozone performance benchmarking tool (http://www.iozone.o=
-rg/src/current/iozone3_326.tar) for testing.
->> >
->> > The parameters are
->> > /iozone -A -s10M -e -U /tmp -f /tmp/iozone_file
->> >
->> > Our block driver requires requests to be merged to get the best perfor=
-mance.
->> > This was not happening due to non-contiguous pages in all kernels >=3D=
- 2.6.25.
->> >
->>
->> Ok, by the looks of things, all the aio_read() requests are due to reada=
-head
->> as opposed to explicit AIO =C2=A0requests from userspace. In this case, =
-nothing
->> springs to mind that would avoid excessive requests for cold pages.
->>
->> It looks like the simpliest solution is to go with the patch I posted.
->> Does anyone see a better alternative that doesn't branch in rmqueue_bulk=
-()
->> or add back the hot/cold PCP lists?
->>
-> No objection. =C2=A0But 2 questions...
->
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add(&page->lru, list);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0if (likely(cold =3D=3D 0))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add(&page->lru, list);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0else
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add_tail(&page->lru, lis=
-t);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0set_page_private(page, migratetype);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list =3D &page->lru;
->> =C2=A0 =C2=A0 =C2=A0}
->
-> 1. if (likely(coild =3D=3D 0))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0"likely" is necessary ?
->
-> 2. Why moving pointer "list" rather than following ?
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (cold)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add(&page->lr=
-u, list);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_add_tail(&pag=
-e->lru, list);
+On Thu, Jun 25 2009, Jens Axboe wrote:
+> On Thu, Jun 25 2009, Peter Zijlstra wrote:
+> > On Wed, 2009-06-24 at 15:27 -0700, Andrew Morton wrote:
+> > > On Wed, 24 Jun 2009 11:38:24 +0100
+> > > Richard Kennedy <richard@rsk.demon.co.uk> wrote:
+> > > 
+> > > > When writing to 2 (or more) devices at the same time, stop
+> > > > balance_dirty_pages moving dirty pages to writeback when it has reached
+> > > > the bdi threshold. This prevents balance_dirty_pages overshooting its
+> > > > limits and moving all dirty pages to writeback.     
+> > > > 
+> > > >     
+> > > > Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> > > > ---
+> > 
+> > Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> 
+> After doing some integration and update work on the writeback branch, I
+> threw 2.6.31-rc1, 2.6.31-rc1+patch, 2.6.31-rc1+writeback into the test
+> mix. The writeback series include this patch as a prep patch. Results
+> for the mmap write test case:
+> 
+> Kernel          Throughput      usr     sys     ctx     util
+> --------------------------------------------------------------
+> vanilla         184MB/sec       19.51%  50.49%  12995   82.88%
+> vanilla         184MB/sec       19.60%  50.77%  12846   83.47%
+> vanilla         182MB/sec       19.25%  51.18%  14692   82.76%
+> vanilla+patch   169MB/sec       18.08%  43.61%   9507   76.38%
+> vanilla+patch   170MB/sec       18.37%  43.46%  10275   76.62%
+> vanilla+patch   165MB/sec       17.59%  42.06%  10165   74.39%
+> writeback       215MB/sec       22.69%  53.23%   4085   92.32%
+> writeback       214MB/sec       24.31%  52.90%   4495   92.40%
+> writeback       208MB/sec       23.14%  52.12%   4067   91.68%
+> 
+> To be perfectly clear:
+> 
+> vanilla         2.6.31-rc1 stock
+> vanilla+patch   2.6.31-rc1 + bdi_thresh patch
+> writeback       2.6.31-rc1 + bdi_thresh patch + writeback series
+> 
+> This is just a single spindle w/ext4, nothing fancy. I'll do a 3-series
+> run with the writeback and this patch backed out, to see if it makes a
+> difference here. I didn't do that initially, since the results were in
+> the range that I expected.
 
+Results for writeback without the bdi_thresh patch
 
-I agree.
-We can remove unnecessary list head moving forward.
+Kernel          Throughput      usr     sys     ctx     util
+--------------------------------------------------------------
+wb-bdi_thresh   211MB/sec       22.71%  53.30%   4050   91.19%
+wb-bdi_thresh   212MB/sec       22.78%  53.55%   4809   91.51%
+wb-bdi_thresh   212MB/sec       22.99%  54.23%   4715   93.10%
 
+Not a lot of difference there, without more than three runs it's hard to
+say what is significant. Could be a small decrease in throughput, if the
+208MB/sec results from above is an outlier (I think it is, ~215MB/sec is
+usually the most consistent result).
 
---=20
-Kinds regards,
-Minchan Kim
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
