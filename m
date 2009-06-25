@@ -1,60 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 51F7D6B004F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 05:55:14 -0400 (EDT)
-Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or
- suspending
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090625043432.GA23949@wotan.suse.de>
-References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI>
-	 <20090619145913.GA1389@ucw.cz> <1245450449.16880.10.camel@pasglop>
-	 <20090619232336.GA2442@elf.ucw.cz> <1245455409.16880.15.camel@pasglop>
-	 <20090620002817.GA2524@elf.ucw.cz> <1245463809.16880.18.camel@pasglop>
-	 <20090621061847.GB1474@ucw.cz> <1245576665.16880.24.camel@pasglop>
-	 <20090625043432.GA23949@wotan.suse.de>
+	by kanga.kvack.org (Postfix) with SMTP id 5F28A6B004F
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 06:02:57 -0400 (EDT)
+Subject: [PATCH v3 10/10] nf_conntrack: Use rcu_barrier()
+From: Jesper Dangaard Brouer <jdb@comx.dk>
+Reply-To: jdb@comx.dk
+In-Reply-To: <1245922153.24921.56.camel@localhost.localdomain>
+References: <20090623150330.22490.87327.stgit@localhost>
+	 <20090623150444.22490.27931.stgit@localhost>  <4A410185.3090706@trash.net>
+	 <1245834139.6695.31.camel@localhost.localdomain>
+	 <1245836409.6695.35.camel@localhost.localdomain> <4A423108.60109@trash.net>
+	 <1245922153.24921.56.camel@localhost.localdomain>
 Content-Type: text/plain
-Date: Thu, 25 Jun 2009 19:56:33 +1000
-Message-Id: <1245923793.22312.5.camel@pasglop>
-Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Jun 2009 12:02:58 +0200
+Message-Id: <1245924178.24921.61.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pavel Machek <pavel@ucw.cz>, Pekka J Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, akpm@linux-foundation.org, cl@linux-foundation.org, torvalds@linux-foundation.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Patrick McHardy <kaber@trash.net>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, dougthompson@xmission.com, bluesmoke-devel@lists.sourceforge.net, axboe@kernel.dk, christine.caulfield@googlemail.com, Trond.Myklebust@netapp.com, linux-wireless@vger.kernel.org, johannes@sipsolutions.net, yoshfuji@linux-ipv6.org, shemminger@linux-foundation.org, linux-nfs@vger.kernel.org, bfields@fieldses.org, neilb@suse.de, linux-ext4@vger.kernel.org, tytso@mit.edu, adilger@sun.com, netfilter-devel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Maybe so. Masking off __GFP_WAIT up in slab and page allocator
-> isn't really needed though (or necessarily a good idea to throw
-> out that information far from where it is used).
-> 
-> Checking for suspend active and avoiding writeout from reclaim
-> for example might be a better idea.
+On Thu, 2009-06-25 at 11:29 +0200, Jesper Dangaard Brouer wrote:
+> Should I make two different patchs?
 
-Ah ok. Yes, I agree. I'm not familiar with those code path and
-so masking gfp here sounded like the easier solution but you may well be
-right here :-)
- 
-> > So yes, just applying the mask would help, but wouldn't completely fix
-> > it unless we also find a way to synchronize.
-> 
-> You could potentially use srcu or something like that in page
-> reclaim in order to have a way to be able to kick everyone
-> out. page reclaim entry/exit from the page allocator isn't such
-> a fastpath though, so even a simple mutex or something may be
-> possible.
+Here is the single patch... Patrick tell me if you want it split up?
 
-Ok. Well, I'll leave that to the suspend/resume folks for now, as I'm
-way too busy at the moment to give that a serious look, but thanks for
-the pointer.
 
-Cheers,
-Ben.
+[PATCH v3 10/10] nf_conntrack: Use rcu_barrier()
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+From: Jesper Dangaard Brouer <hawk@comx.dk>
+
+RCU barriers, rcu_barrier(), is inserted two places.
+
+ In nf_conntrack_expect.c nf_conntrack_expect_fini() before the
+ kmem_cache_destroy().  Firstly to make sure the callback to the
+ nf_ct_expect_free_rcu() code is still around.  Secondly because I'm
+ unsure about the consequence of having in flight
+ nf_ct_expect_free_rcu/kmem_cache_free() calls while doing a
+ kmem_cache_destroy() slab destroy.
+
+ And in nf_conntrack_extend.c nf_ct_extend_unregister(), inorder to
+ wait for completion of callbacks to __nf_ct_ext_free_rcu(), which is
+ invoked by __nf_ct_ext_add().  It might be more efficient to call
+ rcu_barrier() in nf_conntrack_core.c nf_conntrack_cleanup_net(), but
+ thats make it more difficult to read the code (as the callback code
+ in located in nf_conntrack_extend.c).
+
+Signed-off-by: Jesper Dangaard Brouer <hawk@comx.dk>
+---
+
+ net/netfilter/nf_conntrack_expect.c |    4 +++-
+ net/netfilter/nf_conntrack_extend.c |    2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+
+diff --git a/net/netfilter/nf_conntrack_expect.c b/net/netfilter/nf_conntrack_expect.c
+index afde8f9..2032dfe 100644
+--- a/net/netfilter/nf_conntrack_expect.c
++++ b/net/netfilter/nf_conntrack_expect.c
+@@ -617,8 +617,10 @@ err1:
+ void nf_conntrack_expect_fini(struct net *net)
+ {
+ 	exp_proc_remove(net);
+-	if (net_eq(net, &init_net))
++	if (net_eq(net, &init_net)) {
++		rcu_barrier(); /* Wait for call_rcu() before destroy */
+ 		kmem_cache_destroy(nf_ct_expect_cachep);
++	}
+ 	nf_ct_free_hashtable(net->ct.expect_hash, net->ct.expect_vmalloc,
+ 			     nf_ct_expect_hsize);
+ }
+diff --git a/net/netfilter/nf_conntrack_extend.c b/net/netfilter/nf_conntrack_extend.c
+index 4b2c769..fef95be 100644
+--- a/net/netfilter/nf_conntrack_extend.c
++++ b/net/netfilter/nf_conntrack_extend.c
+@@ -186,6 +186,6 @@ void nf_ct_extend_unregister(struct nf_ct_ext_type *type)
+ 	rcu_assign_pointer(nf_ct_ext_types[type->id], NULL);
+ 	update_alloc_size(type);
+ 	mutex_unlock(&nf_ct_ext_type_mutex);
+-	synchronize_rcu();
++	rcu_barrier(); /* Wait for completion of call_rcu()'s */
+ }
+ EXPORT_SYMBOL_GPL(nf_ct_extend_unregister);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
