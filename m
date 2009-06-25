@@ -1,130 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 776106B004D
-	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 19:53:45 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5ONtPnJ006616
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 25 Jun 2009 08:55:25 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A72545DD7B
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 08:55:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FB7C45DD78
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 08:55:25 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 19E661DB8038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 08:55:25 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEA491DB8040
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 08:55:21 +0900 (JST)
-Date: Thu, 25 Jun 2009 08:53:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Reduce the resource counter lock overhead
-Message-Id: <20090625085347.a64654a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090624161028.b165a61a.akpm@linux-foundation.org>
-References: <20090624170516.GT8642@balbir.in.ibm.com>
-	<20090624161028.b165a61a.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F9096B004F
+	for <linux-mm@kvack.org>; Wed, 24 Jun 2009 22:14:11 -0400 (EDT)
+Subject: Re: [PATCH 0/5] Huge Pages Nodes Allowed
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.2.00.0906241451460.30523@chino.kir.corp.google.com>
+References: <20090616135228.25248.22018.sendpatchset@lts-notebook>
+	 <20090617130216.GF28529@csn.ul.ie> <1245258954.6235.58.camel@lts-notebook>
+	 <alpine.DEB.2.00.0906181154340.10979@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.0906240006540.16528@chino.kir.corp.google.com>
+	 <1245842724.6439.19.camel@lts-notebook>
+	 <alpine.DEB.2.00.0906241451460.30523@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Wed, 24 Jun 2009 22:14:20 -0400
+Message-Id: <1245896060.6439.159.camel@lts-notebook>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, menage@google.com, xemul@openvz.org, linux-mm@kvack.org, lizf@cn.fujitsu.com
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Ranjit Manomohan <ranjitm@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jun 2009 16:10:28 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Wed, 24 Jun 2009 22:35:16 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Wed, 2009-06-24 at 15:26 -0700, David Rientjes wrote:
+> On Wed, 24 Jun 2009, Lee Schermerhorn wrote:
 > 
-> > Hi, All,
+> > David:
 > > 
-> > I've been experimenting with reduction of resource counter locking
-> > overhead. My benchmarks show a marginal improvement, /proc/lock_stat
-> > however shows that the lock contention time and held time reduce
-> > by quite an amount after this patch. 
+> > Nish mentioned this to me a while back when I asked about his patches.
+> > That's one of my reasons for seeing if the simpler [IMO] nodes_allowed
+> > would be sufficient.  I'm currently updating the nodes_allowed series
+> > per Mel's cleanup suggestions.
 > 
-> That looks sane.
+> The /proc/sys/vm/hugepages_nodes_allowed support is troublesome because 
+> it's global and can race with other writers, such as for tasks in two 
+> disjoint cpusets attempting to allocate hugepages concurrently.
+
+Agreed.  If one has multiple administrators or privileged tasks trying
+to modify the huge page pool simultaneously, this is problematic.  For
+"single administrator" system, it might be workable.  And it seemed a
+fairly minimal change at a time where I didn't see much interest in this
+area in the community.
+
 > 
-I suprized to see seq_lock here can reduce the overhead.
+> > I'll then prototype Mel's preferred
+> > method of using the task's mempolicy.
+> 
+> This proposal eliminates the aforementioned race, but now has the opposite 
+> problem: if a single task is allocating hugepages for multiple cpusets, it 
+> must setup the correct mempolicies to allocate (or free) for the new 
+> cpuset mems.
 
+Agreed.  To support this proposal, we'll need to construct a "nodes
+allowed" mask from the policy [and I don't think we want default policy
+to mean "local" in this case--big change in behavior!] and pass that to
+the allocation functions.  Racing allocators can then use different
+masks.
 
-> > -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-> >                               class name    con-bounces    contentions
-> > waittime-min   waittime-max waittime-total    acq-bounces
-> > acquisitions   holdtime-min   holdtime-max holdtime-total
-> > -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> 
+> > I still have reservations about
+> > this:  static huge page allocation is currently not constrained by
+> > policy nor cpusets, and I can't tell whether the task's mempolicy was
+> > set explicitly to contstrain the huge pages or just inherited from the
+> > parent shell.
 > > 
-> >                           &counter->lock:       1534627        1575341
-> > 0.57          18.39      675713.23       43330446      138524248
-> > 0.43         148.13    54133607.05
-> >                           --------------
-> >                           &counter->lock         809559
-> > [<ffffffff810810c5>] res_counter_charge+0x3f/0xed
-> >                           &counter->lock         765782
-> > [<ffffffff81081045>] res_counter_uncharge+0x2c/0x6d
-> >                           --------------
-> >                           &counter->lock         653284
-> > [<ffffffff81081045>] res_counter_uncharge+0x2c/0x6d
-> >                           &counter->lock         922057
-> > [<ffffffff810810c5>] res_counter_charge+0x3f/0xed
 > 
-> Please turn off the wordwrapping before sending the signed-off version.
+> Agreed.  I do think that we used to constrain hugepage allocations by 
+> cpuset in the past, though, when the allocation was simply done via 
+> alloc_pages_node().  We'd fallback to using nodes outside of 
+> cpuset_current_mems_allowed when the nodes were too full or fragmented.
+
+I do recall a discussion about huge page allocation being constrained by
+cpusets or not.  I don't recall whether they were and this was changed,
+or they weren't [as is currently the case] and someone [Nish?] proposed
+to change that.  I'd need to search for that exchange.  
+
+Would having cpusets constrain huge page pool allocation meet your
+needs?
+
 > 
-> >  static inline bool res_counter_check_under_limit(struct res_counter *cnt)
-> >  {
-> >  	bool ret;
-> > -	unsigned long flags;
-> > +	unsigned long flags, seq;
-> >  
-> > -	spin_lock_irqsave(&cnt->lock, flags);
-> > -	ret = res_counter_limit_check_locked(cnt);
-> > -	spin_unlock_irqrestore(&cnt->lock, flags);
-> > +	do {
-> > +		seq = read_seqbegin_irqsave(&cnt->lock, flags);
-> > +		ret = res_counter_limit_check_locked(cnt);
-> > +	} while (read_seqretry_irqrestore(&cnt->lock, seq, flags));
-> >  	return ret;
-> >  }
+> > Next I'll also dust off Nish's old per node hugetlb control patches and
+> > see what it task to update them for the multiple sizes.  It will look
+> > pretty much as you suggest.  Do you have any suggestions for a boot
+> > command line syntax to specify per node huge page counts at boot time
+> > [assuming we still want this]?  Currently, for default huge page size,
+> > distributed across nodes, we have:
+> > 
+> > 	hugepages=<N>
+> > 
+> > I was thinking something like:
+> > 
+> > 	hugepages=(node:count,...)
+> > 
+> > using the '(' as a flag for per node counts, w/o needing to prescan for
+> > ':'
+> > 
 > 
-> This change makes the inlining of these functions even more
-> inappropriate than it already was.
+> The hugepages=(node:count,...) option would still need to be interleaved 
+> with hugepagesz= for the various sizes.  
+
+Well, yes.  I'd assumed that.  
+
+
+> This could become pretty cryptic:
 > 
-> This function should be static in memcontrol.c anyway?
+> 	hugepagesz=2M hugepages=(0:10,1:20) hugepagesz=1G 	\
+> 		hugepages=(2:10,3:10)
 > 
-> Which function is calling mem_cgroup_check_under_limit() so much? 
-> __mem_cgroup_try_charge()?  If so, I'm a bit surprised because
-> inefficiencies of this nature in page reclaim rarely are demonstrable -
-> reclaim just doesn't get called much.  Perhaps this is a sign that
-> reclaim is scanning the same pages over and over again and is being
-> inefficient at a higher level?
+> and I assume we'd use `count' of 99999 for nodes of unknown sizes where we 
+> simply want to allocate as many hugepages as possible.
+
+If one needed that capability--"allocate as many as possible"--then,
+yes, I guess any ridiculously large count would do the trick.
+
 > 
-> Do we really need to call mem_cgroup_hierarchical_reclaim() as
-> frequently as we apparently are doing?
+> We'd still need to support hugepages=N for large NUMA machines so we don't 
+> have to specify the same number of hugepages per node for a true 
+> interleave, which would require an extremely large command line.  And then 
+> the behavior of
 > 
+> 	hugepagesz=1G hugepages=(0:10,1:20) hugepages=30
+> 
+> needs to be defined.  In that case, does hugepages=30 override the 
+> previous settings if this system only has dual nodes?  If so, for SGI's 1K 
+> node systems it's going to be difficult to specify many nodes with 10 
+> hugepages and a few with 20.  So perhaps hugepages=(node:count,...) should 
+> increment or decrement the hugepages= value, if specified?
 
-Most of modification to res_counter is
-	- charge
-	- uncharge
-and not
-	- read
+Mel mentioned that we probably don't need boot command line hugepage
+allocation all that much with lumpy reclaim, etc.  I can see his point.
+If we can't allocate all the hugepages we need from an early init script
+or similar, we probably don't have enough memory anyway.  For
+compatibility, I supposed we need to retain the hugepages= parameter.
+And, we've added the hugepagesz parameter, so we need to retain that.
+But, maybe we should initially limit per node allocations to sysfs node
+attributes post boot?
 
-What kind of workload can be much improved ?
-IIUC, in general, using seq_lock to frequently modified counter just makes
-it slow.
+-------------
+Related question:  do you think we need per node overcommit limits?  I'm
+having difficulty understanding what the semantics of the global limit
+would be with per node limits--i.e., how would one distribute the global
+limit across nodes [for backwards compatibility].  With nr_hugepages,
+today we just do a best effort to distribute the requested number of
+pages over the on-line nodes.  If we fail to allocate that many, we
+don't remember the initial request, just how many we actually allocated
+where ever they landed.  But, I don't see how that works with limits.  I
+suppose we could arrange that if you don't specify a per node limit, the
+global limit applies when attempting to allocate a surplus page on a
+given node.  If you do [so specify], then the respective node limit
+applies, whether or not the sum of per node surplus pages exceeds the
+global limit.
 
-Could you show improved kernbench or unixbench score ?
+Thoughts?
 
-Thanks,
--Kame
-
-
-
-
-
-
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
