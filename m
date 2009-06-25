@@ -1,39 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1386B004F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 10:32:49 -0400 (EDT)
-Message-ID: <4A438AC8.3010907@trash.net>
-Date: Thu, 25 Jun 2009 16:33:44 +0200
-From: Patrick McHardy <kaber@trash.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4CBB36B005C
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 10:34:17 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so1639750gxk.14
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2009 07:35:20 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 10/10] nf_conntrack: Use rcu_barrier()
-References: <20090623150330.22490.87327.stgit@localhost>	 <20090623150444.22490.27931.stgit@localhost>  <4A410185.3090706@trash.net>	 <1245834139.6695.31.camel@localhost.localdomain>	 <1245836409.6695.35.camel@localhost.localdomain> <4A423108.60109@trash.net>	 <1245922153.24921.56.camel@localhost.localdomain> <1245924178.24921.61.camel@localhost.localdomain>
-In-Reply-To: <1245924178.24921.61.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4A438522.7040309@redhat.com>
+References: <20090625183616.23b55b24.minchan.kim@barrios-desktop>
+	 <4A438522.7040309@redhat.com>
+Date: Thu, 25 Jun 2009 23:30:11 +0900
+Message-ID: <28c262360906250730h7f8240c2mb1411ef147b239b2@mail.gmail.com>
+Subject: Re: [PATCH] prevent to reclaim anon page of lumpy reclaim for no swap
+	space
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: jdb@comx.dk
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, dougthompson@xmission.com, bluesmoke-devel@lists.sourceforge.net, axboe@kernel.dk, christine.caulfield@googlemail.com, Trond.Myklebust@netapp.com, linux-wireless@vger.kernel.org, johannes@sipsolutions.net, yoshfuji@linux-ipv6.org, shemminger@linux-foundation.org, linux-nfs@vger.kernel.org, bfields@fieldses.org, neilb@suse.de, linux-ext4@vger.kernel.org, tytso@mit.edu, adilger@sun.com, netfilter-devel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Jesper Dangaard Brouer wrote:
-> RCU barriers, rcu_barrier(), is inserted two places.
-> 
->  In nf_conntrack_expect.c nf_conntrack_expect_fini() before the
->  kmem_cache_destroy().  Firstly to make sure the callback to the
->  nf_ct_expect_free_rcu() code is still around.  Secondly because I'm
->  unsure about the consequence of having in flight
->  nf_ct_expect_free_rcu/kmem_cache_free() calls while doing a
->  kmem_cache_destroy() slab destroy.
-> 
->  And in nf_conntrack_extend.c nf_ct_extend_unregister(), inorder to
->  wait for completion of callbacks to __nf_ct_ext_free_rcu(), which is
->  invoked by __nf_ct_ext_add().  It might be more efficient to call
->  rcu_barrier() in nf_conntrack_core.c nf_conntrack_cleanup_net(), but
->  thats make it more difficult to read the code (as the callback code
->  in located in nf_conntrack_extend.c).
+On Thu, Juna 25, 2009 at 11:09 PM, Rik van Riel<riel@redhat.com> wrote:
+> Minchan Kim wrote:
+>>
+>> This patch prevent to reclaim anon page in case of no swap space.
+>> VM already prevent to reclaim anon page in various place.
+>> But it doesnt't prevent it for lumpy reclaim.
+>>
+>> It shuffles lru list unnecessary so that it is pointless.
+>> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> ---
+>> =C2=A0mm/vmscan.c | =C2=A0 =C2=A06 ++++++
+>> =C2=A01 files changed, 6 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 026f452..fb401fe 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -830,7 +830,13 @@ int __isolate_lru_page(struct page *page, int mode,
+>> int file)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * When this function is being called for lum=
+py reclaim, we
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * initially look into all LRU pages, active,=
+ inactive and
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * unevictable; only give shrink_page_list ev=
+ictable pages.
+>> +
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* If we don't have enough swap space, recla=
+iming of anon page
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* is pointless.
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+>> + =C2=A0 =C2=A0 =C2=A0 if (nr_swap_pages <=3D 0 && PageAnon(page))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ret;
+>> +
+>
+> Should that be something like this:
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (nr_swap_pages <=3D 0 && (PageAnon(page) &&=
+ !PageSwapCache(page)))
+>
+> We can still reclaim anonymous pages that already have
+> a swap slot assigned to them.
 
-Applied, thanks Jesper.
+Yes. I missed that.
+Thanks for careful review. Rik. :)
+
+>
+> --
+> All rights reversed.
+>
+
+
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
