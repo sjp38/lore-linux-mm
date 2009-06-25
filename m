@@ -1,114 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 883E86B004F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 10:42:48 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so1651074gxk.14
-        for <linux-mm@kvack.org>; Thu, 25 Jun 2009 07:44:09 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BEB066B004F
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 10:43:31 -0400 (EDT)
+Date: Thu, 25 Jun 2009 16:44:50 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
+Message-ID: <20090625144450.GT31415@kernel.dk>
+References: <1245839904.3210.85.camel@localhost.localdomain> <200906251533.12925.a1426z@gawab.com> <20090625124342.GN31415@kernel.dk> <200906251646.22785.a1426z@gawab.com>
 MIME-Version: 1.0
-In-Reply-To: <2f11576a0906250714o5d77db11wd32c1c7139753cb5@mail.gmail.com>
-References: <20090625183616.23b55b24.minchan.kim@barrios-desktop>
-	 <2f11576a0906250714o5d77db11wd32c1c7139753cb5@mail.gmail.com>
-Date: Thu, 25 Jun 2009 23:44:09 +0900
-Message-ID: <28c262360906250744h5bf9f0a0w265d8c35e7d69335@mail.gmail.com>
-Subject: Re: [PATCH] prevent to reclaim anon page of lumpy reclaim for no swap
-	space
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200906251646.22785.a1426z@gawab.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Al Boldi <a1426z@gawab.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Richard Kennedy <richard@rsk.demon.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 25, 2009 at 11:14 PM, KOSAKI
-Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
->> This patch prevent to reclaim anon page in case of no swap space.
->> VM already prevent to reclaim anon page in various place.
->> But it doesnt't prevent it for lumpy reclaim.
->>
->> It shuffles lru list unnecessary so that it is pointless.
->
-> NAK.
->
-> 1. if system have no swap, add_to_swap() never get swap entry.
->   eary check don't improve performance so much.
+On Thu, Jun 25 2009, Al Boldi wrote:
+> Jens Axboe wrote:
+> > On Thu, Jun 25 2009, Al Boldi wrote:
+> > > Jens Axboe wrote:
+> > > > On Thu, Jun 25 2009, Jens Axboe wrote:
+> > > > > On Thu, Jun 25 2009, Peter Zijlstra wrote:
+> > > > > > On Wed, 2009-06-24 at 15:27 -0700, Andrew Morton wrote:
+> > > > > > > On Wed, 24 Jun 2009 11:38:24 +0100
+> > > > > > >
+> > > > > > > Richard Kennedy <richard@rsk.demon.co.uk> wrote:
+> > > > > > > > When writing to 2 (or more) devices at the same time, stop
+> > > > > > > > balance_dirty_pages moving dirty pages to writeback when it has
+> > > > > > > > reached the bdi threshold. This prevents balance_dirty_pages
+> > > > > > > > overshooting its limits and moving all dirty pages to
+> > > > > > > > writeback.
+> > > > > > > >
+> > > > > > > >
+> > > > > > > > Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> > > > > > > > ---
+> > > > > >
+> > > > > > Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > > > >
+> > > > > After doing some integration and update work on the writeback branch,
+> > > > > I threw 2.6.31-rc1, 2.6.31-rc1+patch, 2.6.31-rc1+writeback into the
+> > > > > test mix. The writeback series include this patch as a prep patch.
+> > > > > Results for the mmap write test case:
+> > > > >
+> > > > > Kernel          Throughput      usr     sys     ctx     util
+> > > > > --------------------------------------------------------------
+> > > > > vanilla         184MB/sec       19.51%  50.49%  12995   82.88%
+> > > > > vanilla         184MB/sec       19.60%  50.77%  12846   83.47%
+> > > > > vanilla         182MB/sec       19.25%  51.18%  14692   82.76%
+> > > > > vanilla+patch   169MB/sec       18.08%  43.61%   9507   76.38%
+> > > > > vanilla+patch   170MB/sec       18.37%  43.46%  10275   76.62%
+> > > > > vanilla+patch   165MB/sec       17.59%  42.06%  10165   74.39%
+> > > > > writeback       215MB/sec       22.69%  53.23%   4085   92.32%
+> > > > > writeback       214MB/sec       24.31%  52.90%   4495   92.40%
+> > > > > writeback       208MB/sec       23.14%  52.12%   4067   91.68%
+> > > > >
+> > > > > To be perfectly clear:
+> > > > >
+> > > > > vanilla         2.6.31-rc1 stock
+> > > > > vanilla+patch   2.6.31-rc1 + bdi_thresh patch
+> > > > > writeback       2.6.31-rc1 + bdi_thresh patch + writeback series
+> > > > >
+> > > > > This is just a single spindle w/ext4, nothing fancy. I'll do a
+> > > > > 3-series run with the writeback and this patch backed out, to see if
+> > > > > it makes a difference here. I didn't do that initially, since the
+> > > > > results were in the range that I expected.
+> > > >
+> > > > Results for writeback without the bdi_thresh patch
+> > > >
+> > > > Kernel          Throughput      usr     sys     ctx     util
+> > > > --------------------------------------------------------------
+> > > > wb-bdi_thresh   211MB/sec       22.71%  53.30%   4050   91.19%
+> > > > wb-bdi_thresh   212MB/sec       22.78%  53.55%   4809   91.51%
+> > > > wb-bdi_thresh   212MB/sec       22.99%  54.23%   4715   93.10%
+> > > >
+> > > > Not a lot of difference there, without more than three runs it's hard
+> > > > to say what is significant. Could be a small decrease in throughput, if
+> > > > the 208MB/sec results from above is an outlier (I think it is,
+> > > > ~215MB/sec is usually the most consistent result).
+> > >
+> > > What's the iowait on these runs?
+> >
+> > Not sure, I didn't check. Why do you ask?
+> 
+> iowait gives you an indication of seekactivity.
 
-Hmm. I mean no swap space but not no swap device.
-add_to_swap ? You mean Rik pointed me out ?
-If system have swap device, Rik's pointing is right.
-I will update his suggestion.
+The test case is random mmap writes to files that have been laid out
+sequentially. So it's all seeks. The target drive is an SSD disk though,
+so it doesn't matter a whole lot (it's a good SSD).
 
-> 2. __isolate_lru_page() is not only called lumpy reclaim case, but
-> also be called
->    normal reclaim.
-
-You mean about performance degradation ?
-I think most case have enough swap space and then one condition
-variable(nr_swap_page) check is trivial. I think.
-We can also use [un]likely but I am not sure it help us.
-
-
-> 3. if system have no swap, anon pages shuffuling doesn't cause any matter.
-
-Again, I mean no swap space but no swap device system.
-And I have a plan to remove anon_vma in no swap device system.
-
-As you point me out, it's pointless in no swap device system.
-I don't like unnecessary structure memory footprint and locking overhead.
-I think no swap device system is problem in server environment as well
-as embedded. but I am not sure when I will do. :)
-
-
-> Then, I don't think this patch's benefit is bigger than side effect.
->
->
->
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
->> ---
->>  mm/vmscan.c |    6 ++++++
->>  1 files changed, 6 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 026f452..fb401fe 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -830,7 +830,13 @@ int __isolate_lru_page(struct page *page, int mode, int file)
->>         * When this function is being called for lumpy reclaim, we
->>         * initially look into all LRU pages, active, inactive and
->>         * unevictable; only give shrink_page_list evictable pages.
->> +
->> +        * If we don't have enough swap space, reclaiming of anon page
->> +        * is pointless.
->>         */
->> +       if (nr_swap_pages <= 0 && PageAnon(page))
->> +               return ret;
->> +
->>        if (PageUnevictable(page))
->>                return ret;
->>
->> --
->> 1.5.4.3
->>
->>
->>
->>
->> --
->> Kinds Regards
->> Minchan Kim
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
->
-
-
-
---
-Kinds regards,
-Minchan Kim
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
