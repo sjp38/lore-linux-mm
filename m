@@ -1,67 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 82E796B007E
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 00:39:28 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5P4efXx012651
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 25 Jun 2009 13:40:41 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B7EB845DE4F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 13:40:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9818845DD72
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 13:40:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8564EE08002
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 13:40:41 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 42A621DB8037
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 13:40:41 +0900 (JST)
-Date: Thu, 25 Jun 2009 13:39:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Reduce the resource counter lock overhead
-Message-Id: <20090625133908.6ae3dd40.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090624204426.3dc9e108.akpm@linux-foundation.org>
-References: <20090624170516.GT8642@balbir.in.ibm.com>
-	<20090624161028.b165a61a.akpm@linux-foundation.org>
-	<20090625085347.a64654a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090625032717.GX8642@balbir.in.ibm.com>
-	<20090624204426.3dc9e108.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 178976B0085
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 00:40:40 -0400 (EDT)
+Date: Thu, 25 Jun 2009 06:41:55 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH v2] slab,slub: ignore __GFP_WAIT if we're booting or suspending
+Message-ID: <20090625044155.GC23949@wotan.suse.de>
+References: <Pine.LNX.4.64.0906121113210.29129@melkki.cs.Helsinki.FI> <Pine.LNX.4.64.0906121201490.30049@melkki.cs.Helsinki.FI> <20090612091002.GA32052@elte.hu> <84144f020906120249y20c32d47y5615a32b3c9950df@mail.gmail.com> <20090612100756.GA25185@elte.hu> <84144f020906120311x7c7dd628s82e3ca9a840f9890@mail.gmail.com> <1244805060.7172.126.camel@pasglop> <1244806440.30512.51.camel@penberg-laptop> <20090612083005.56336219.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090612083005.56336219.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, menage@google.com, xemul@openvz.org, linux-mm@kvack.org, lizf@cn.fujitsu.com
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jun 2009 20:44:26 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Fri, Jun 12, 2009 at 08:30:05AM -0700, Andrew Morton wrote:
+> On Fri, 12 Jun 2009 14:34:00 +0300 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> 
+> > +static gfp_t slab_gfp_mask __read_mostly = __GFP_BITS_MASK & ~__GFP_WAIT;
+> 
+> It'd be safer and saner to disable __GFP_FS and __GFP_IO as well. 
+> Having either of those flags set without __GFP_WAIT is a somewhat
+> self-contradictory thing and there might be code under reclaim which
+> assumes that __GFP_FS|__GFP_IO implies __GFP_WAIT.
+> 
+> <wonders why mempool_alloc() didn't clear __GFP_FS>
 
-> On Thu, 25 Jun 2009 08:57:17 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > We do a read everytime before we charge.
-> 
-> See, a good way to fix that is to not do it.  Instead of
-> 
-> 	if (under_limit())
-> 		charge_some_more(amount);
-> 	else
-> 		goto fail;
-> 
-> one can do 
-> 
-> 	if (try_to_charge_some_more(amount) < 0)
-> 		goto fail;
-> 
-> which will halve the locking frequency.  Which may not be as beneficial
-> as avoiding the locking altogether on the read side, dunno.
-> 
-I don't think we do read-before-write ;)
-
-Thanks,
--Kame
+Maybe we never get there if __GFP_WAIT is clear? It would be neater
+if it did clear __GFP_FS, though...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
