@@ -1,96 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A07126B0055
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 09:57:22 -0400 (EDT)
-Message-ID: <4A4382A9.8070300@trash.net>
-Date: Thu, 25 Jun 2009 15:59:05 +0200
-From: Patrick McHardy <kaber@trash.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 544116B0055
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 10:09:25 -0400 (EDT)
+Message-ID: <4A438522.7040309@redhat.com>
+Date: Thu, 25 Jun 2009 10:09:38 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 10/10] nf_conntrack: Use rcu_barrier() and	fix	kmem_cache_create
- flags
-References: <20090623150330.22490.87327.stgit@localhost>	 <20090623150444.22490.27931.stgit@localhost>  <4A410185.3090706@trash.net>	 <1245834139.6695.31.camel@localhost.localdomain>	 <1245836409.6695.35.camel@localhost.localdomain> <4A423108.60109@trash.net> <1245922153.24921.56.camel@localhost.localdomain>
-In-Reply-To: <1245922153.24921.56.camel@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH] prevent to reclaim anon page of lumpy reclaim for no
+ swap space
+References: <20090625183616.23b55b24.minchan.kim@barrios-desktop>
+In-Reply-To: <20090625183616.23b55b24.minchan.kim@barrios-desktop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: jdb@comx.dk
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "David S. Miller" <davem@davemloft.net>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, dougthompson@xmission.com, bluesmoke-devel@lists.sourceforge.net, axboe@kernel.dk, christine.caulfield@googlemail.com, Trond.Myklebust@netapp.com, linux-wireless@vger.kernel.org, johannes@sipsolutions.net, yoshfuji@linux-ipv6.org, shemminger@linux-foundation.org, linux-nfs@vger.kernel.org, bfields@fieldses.org, neilb@suse.de, linux-ext4@vger.kernel.org, tytso@mit.edu, adilger@sun.com, netfilter-devel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Jesper Dangaard Brouer wrote:
-> On Wed, 2009-06-24 at 15:58 +0200, Patrick McHardy wrote:
->> Jesper Dangaard Brouer wrote:
->>> Adjusting SLAB_DESTROY_BY_RCU flags.
->>>
->>>  kmem_cache_create("nf_conntrack", ...) does not need the
->>>  SLAB_DESTROY_BY_RCU flag.
->> It does need it. We're using it instead of call_rcu() for conntracks.
->>
->>>  But the
->>>  kmem_cache_create("nf_conntrack_expect", ...) should use the
->>>  SLAB_DESTROY_BY_RCU flag, because it uses a call_rcu() callback to
->>>  invoke kmem_cache_free().
->> No, using call_rcu() means we don't need SLAB_DESTROY_BY_RCU.
->> Please see the note in include/linux/slab.h.
+Minchan Kim wrote:
+> This patch prevent to reclaim anon page in case of no swap space.
+> VM already prevent to reclaim anon page in various place.
+> But it doesnt't prevent it for lumpy reclaim.
 > 
-> Oh, I see.  The description is some what cryptic, but I think I got it,
-> after reading through the code.
+> It shuffles lru list unnecessary so that it is pointless.
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/vmscan.c |    6 ++++++
+>  1 files changed, 6 insertions(+), 0 deletions(-)
 > 
-> BUT this still means that we need to do rcu_barrier() if the
-> SLAB_DESTROY_BY_RCU is NOT set and we do call_rcu() our self.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 026f452..fb401fe 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -830,7 +830,13 @@ int __isolate_lru_page(struct page *page, int mode, int file)
+>  	 * When this function is being called for lumpy reclaim, we
+>  	 * initially look into all LRU pages, active, inactive and
+>  	 * unevictable; only give shrink_page_list evictable pages.
+> +
+> +	 * If we don't have enough swap space, reclaiming of anon page
+> +	 * is pointless.
+>  	 */
+> +	if (nr_swap_pages <= 0 && PageAnon(page))
+> +		return ret;
+> +
 
-Correct, in that case its necessary.
+Should that be something like this:
 
-> My understanding for the code is (please feel free to correct me): that
-> if SLAB_DESTROY_BY_RCU _is_ set, then the __cache_shrink() call will
-> call drain_freelist(), which calls slab_destroy().
-> 
-> If SLAB_DESTROY_BY_RCU _is_ set, then slab_destroy() will then start a
-> call_rcu() callback to kmem_rcu_free() which calls kmem_cache_free().
-> Given that the callback code kmem_rcu_free() is not removed, we are not
-> worried about unloading the module at this point.
+	if (nr_swap_pages <= 0 && (PageAnon(page) && !PageSwapCache(page)))
 
-Yep, thats my understanding as well.
+We can still reclaim anonymous pages that already have
+a swap slot assigned to them.
 
-> I'm a bit worried about what happens if __kmem_cache_destroy() is
-> invoked and there is still callbacks for kmem_rcu_free() in flight?
-> The synchronize_rcu() between __cache_shrink() and
-> __kmem_cache_destroy() should perhaps be changed to rcu_barrier()?
-> 
-> But I'm sure that the SLAB/MM guys will tell me that this case is
-> handled (and something about its unlinked from the appropiate
-> lists)??? ;-)
-
-I'll leave that question to the MM guys :)
-
->>> RCU barriers, rcu_barrier(), is inserted two places.
->>>
->>>  In nf_conntrack_expect.c nf_conntrack_expect_fini() before the
->>>  kmem_cache_destroy(), even though the use of the SLAB_DESTROY_BY_RCU
->>>  flag, because slub does not (currently) handle rcu sync correctly.
->> I think that should be fixed in slub then.
-> 
-> I don't think so, we/I'm are talking about "nf_conntrack_expect" and not
-> "nf_conntrack" slab.  Clearly the slab "nf_conntrack" is handled
-> correcly (according to description above). 
-> 
-> We still need to make sure the callbacks for "nf_conntrack_expect", are
-> done before unloading/removing the code they are about to call.
-
-Yes, my response was referring to potential sl*b bugs, but
-you're correct, we do need rcu_barrier() for expectations.
-
->>>  And in nf_conntrack_extend.c nf_ct_extend_unregister(), inorder to
->>>  wait for completion of callbacks to __nf_ct_ext_free_rcu(), which is
->>>  invoked by __nf_ct_ext_add().  It might be more efficient to call
->>>  rcu_barrier() in nf_conntrack_core.c nf_conntrack_cleanup_net(), but
->>>  thats make it more difficult to read the code (as the callback code
->>>  in located in nf_conntrack_extend.c).
->> This one looks fine.
-> 
-> Should I make two different patchs?
-
-Either way is fine.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
