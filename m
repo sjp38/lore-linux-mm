@@ -1,121 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BFC516B005C
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 02:31:11 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5P6W8ao031432
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 25 Jun 2009 15:32:08 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C000045DE5D
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 15:32:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6269D45DE4F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 15:32:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D497E08004
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 15:32:07 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F3A2A1DB8038
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 15:32:06 +0900 (JST)
-Date: Thu, 25 Jun 2009 15:30:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] Reduce the resource counter lock overhead
-Message-Id: <20090625153033.17852d85.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090625054042.GA8642@balbir.in.ibm.com>
-References: <20090624170516.GT8642@balbir.in.ibm.com>
-	<20090624161028.b165a61a.akpm@linux-foundation.org>
-	<20090625085347.a64654a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090625032717.GX8642@balbir.in.ibm.com>
-	<20090624204426.3dc9e108.akpm@linux-foundation.org>
-	<20090625133908.6ae3dd40.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090625054042.GA8642@balbir.in.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B1B336B0055
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 03:04:02 -0400 (EDT)
+Date: Thu, 25 Jun 2009 00:03:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] video: arch specific page protection support for
+ deferred  io
+Message-Id: <20090625000359.7e201c58.akpm@linux-foundation.org>
+In-Reply-To: <aec7e5c30906242306x64832a8dtfd78fa00ba751ca9@mail.gmail.com>
+References: <20090624105413.13925.65192.sendpatchset@rx1.opensource.se>
+	<20090624195647.9d0064c7.akpm@linux-foundation.org>
+	<aec7e5c30906242306x64832a8dtfd78fa00ba751ca9@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp, menage@google.com, xemul@openvz.org, linux-mm@kvack.org, lizf@cn.fujitsu.com
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: linux-fbdev-devel@lists.sourceforge.net, adaplas@gmail.com, arnd@arndb.de, linux-mm@kvack.org, lethal@linux-sh.org, jayakumar.lkml@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jun 2009 11:10:42 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thu, 25 Jun 2009 15:06:24 +0900 Magnus Damm <magnus.damm@gmail.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-25 13:39:08]:
-> 
-> > On Wed, 24 Jun 2009 20:44:26 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Thu, 25 Jun 2009 08:57:17 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > We do a read everytime before we charge.
-> > > 
-> > > See, a good way to fix that is to not do it.  Instead of
-> > > 
-> > > 	if (under_limit())
-> > > 		charge_some_more(amount);
-> > > 	else
-> > > 		goto fail;
-> > > 
-> > > one can do 
-> > > 
-> > > 	if (try_to_charge_some_more(amount) < 0)
-> > > 		goto fail;
-> > > 
-> > > which will halve the locking frequency.  Which may not be as beneficial
-> > > as avoiding the locking altogether on the read side, dunno.
-> > > 
-> > I don't think we do read-before-write ;)
+> On Thu, Jun 25, 2009 at 11:56 AM, Andrew
+> Morton<akpm@linux-foundation.org> wrote:
+> > On Wed, 24 Jun 2009 19:54:13 +0900 Magnus Damm <magnus.damm@gmail.com> wrote:
 > >
+> >> From: Magnus Damm <damm@igel.co.jp>
+> >>
+> >> This patch adds arch specific page protection support to deferred io.
+> >>
+> >> Instead of overwriting the info->fbops->mmap pointer with the
+> >> deferred io specific mmap callback, modify fb_mmap() to include
+> >> a #ifdef wrapped call to fb_deferred_io_mmap(). __The function
+> >> fb_deferred_io_mmap() is extended to call fb_pgprotect() in the
+> >> case of non-vmalloc() frame buffers.
+> >>
+> >> With this patch uncached deferred io can be used together with
+> >> the sh_mobile_lcdcfb driver. Without this patch arch specific
+> >> page protection code in fb_pgprotect() never gets invoked with
+> >> deferred io.
+> >>
+> >> Signed-off-by: Magnus Damm <damm@igel.co.jp>
+> >> ---
+> >>
+> >> __For proper runtime operation with uncached vmas make sure
+> >> __"[PATCH][RFC] mm: uncached vma support with writenotify"
+> >> __is applied. There are no merge order dependencies.
+> >
+> > So this is dependent upon a patch which is in your tree, which is in
+> > linux-next?
 > 
-> I need to figure out the reason for read contention and why seqlock's
-> help. Like I said before I am seeing some strange values for
-> reclaim_stats on the root cgroup, even though it is not reclaimable or
-> not used for reclaim. There can be two reasons
+> I tried to say that there were _no_ dependencies merge wise. =)
+>
+> There are 3 levels of dependencies:
+> 1: pgprot_noncached() patches from Arnd
+> 2: mm: uncached vma support with writenotify
+> 3: video: arch specfic page protection support for deferred io
 > 
-I don't remember but reclaim_stat goes bad ? new BUG ?
-reclaim_stat means zone_recaim_stat gotten by get_reclaim_stat() ?
+> 2 depends on 1 to compile, but 3 (this one) is disconnected from 2 and
+> 1. So this patch can be merged independently.
 
-IIUC, after your ROOT_CGROUP-no-LRU patch, reclaim_stat of root cgroup
-will never be accessed. Right ?
+OIC.  I didn't like the idea of improper runtime operation ;)
 
+Still, it's messy.  If only because various trees might be running
+untested combinations of patches.  Can we get these all into the same
+tree?  Paul's?
 
-> 1. Reclaim
-> 2. User space constantly reading the counters
 > 
-> I have no user space utilities I am aware of running on the system,
-> constantly reading the contents of the files. 
-> 
+> The code is fbmem.c is currently filled with #ifdefs today, want me
+> create inline versions for fb_deferred_io_open() and
+> fb_deferred_io_fsync() as well?
 
-This is from your result.
-
-                    Before                 After
-class name       &counter->lock:   &(&counter->lock)->lock
-con-bounces      1534627                   962193  
-contentions      1575341                   976349 
-waittime-min     0.57                      0.60  
-waittime-max     18.39                     14.07
-waittime-total   675713.23                 465926.04 
-acq-bounces      43330446                  21364165
-acquisitions     138524248                 66041988
-holdtime-min     0.43                      0.45
-holdtime-max     148.13                    88.31
-holdtime-total   54133607.05               25395513.12
-
->From this result, acquisitions is changed as
- - 138524248 => 66041988
-Almost half.
-
-Then,
-- "read" should be half of all counter access.
-or
-- did you enabped swap cgroup in "after" test ?
-
-BTW, if this result is against "Root" cgroup, no reclaim by memcg
-will happen after your no-ROOT-LRU patch.
-
-Thanks,
--Kame
+It was a minor point.  Your call.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
