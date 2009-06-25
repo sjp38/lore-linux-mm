@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AAE986B004F
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 13:46:29 -0400 (EDT)
-Date: Thu, 25 Jun 2009 13:47:55 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite
-	when blocksize < pagesize
-Message-ID: <20090625174754.GA21957@infradead.org>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A85666B005A
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 14:06:04 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so742341qwf.44
+        for <linux-mm@kvack.org>; Thu, 25 Jun 2009 11:06:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090625161753.GB30755@wotan.suse.de>
+In-Reply-To: <aec7e5c30906242306x64832a8dtfd78fa00ba751ca9@mail.gmail.com>
+References: <20090624105413.13925.65192.sendpatchset@rx1.opensource.se>
+	 <20090624195647.9d0064c7.akpm@linux-foundation.org>
+	 <aec7e5c30906242306x64832a8dtfd78fa00ba751ca9@mail.gmail.com>
+Date: Fri, 26 Jun 2009 02:06:13 +0800
+Message-ID: <45a44e480906251106h6cd72a72h380da4283be62506@mail.gmail.com>
+Subject: Re: [PATCH] video: arch specific page protection support for deferred
+	io
+From: Jaya Kumar <jayakumar.lkml@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fbdev-devel@lists.sourceforge.net, adaplas@gmail.com, arnd@arndb.de, linux-mm@kvack.org, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 25, 2009 at 06:17:53PM +0200, Nick Piggin wrote:
-> Basically the problems is that i_op->truncate a) cannot return an error
-> (which is causing problems missing -EIO today anyway), and b) is called
-> after i_size update which makes it not possible to error-out without
-> races anyway, and c) does not get the old i_size so you can't unmap the
-> last partial page with it.
-> 
-> My patch is basically moving ->truncate call into setattr, and have
-> the filesystem call vmtruncate. I've jt to clean up loose ends.
+On Thu, Jun 25, 2009 at 2:06 PM, Magnus Damm<magnus.damm@gmail.com> wrote:
+>
+> The code is fbmem.c is currently filled with #ifdefs today, want me
+> create inline versions for fb_deferred_io_open() and
+> fb_deferred_io_fsync() as well?
+>
 
-We absolutely need to get rid of ->truncate.  Due to the above issues
-XFS already does the majority of the truncate work from setattr, and it
-works pretty well.  The only problem is the generic aops calling
-vmtruncate directly.
+The patch looks good. I was going to suggest that it might be
+attractive to use __attribute__(weak) for each of the dummy functions
+instead of ifdefs in this case, but I can't remember if there was a
+consensus about attribute-weak versus ifdefs.
+
+Thanks,
+jaya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
