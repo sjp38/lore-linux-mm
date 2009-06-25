@@ -1,59 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 833B06B008A
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 01:01:06 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5P4oKhE008655
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 00:50:20 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5P5147E255572
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 01:01:04 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5P4wfW4029746
-	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 00:58:42 -0400
-Date: Thu, 25 Jun 2009 10:31:02 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC] Reduce the resource counter lock overhead
-Message-ID: <20090625050102.GY8642@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090624170516.GT8642@balbir.in.ibm.com> <20090624161028.b165a61a.akpm@linux-foundation.org> <20090625085347.a64654a7.kamezawa.hiroyu@jp.fujitsu.com> <20090625032717.GX8642@balbir.in.ibm.com> <20090624204426.3dc9e108.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id BBFEB6B004F
+	for <linux-mm@kvack.org>; Thu, 25 Jun 2009 01:13:38 -0400 (EDT)
+Date: Thu, 25 Jun 2009 07:13:59 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
+Message-ID: <20090625051359.GB31415@kernel.dk>
+References: <1245839904.3210.85.camel@localhost.localdomain> <20090624152732.d6352f4f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090624204426.3dc9e108.akpm@linux-foundation.org>
+In-Reply-To: <20090624152732.d6352f4f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, menage@google.com, xemul@openvz.org, linux-mm@kvack.org, lizf@cn.fujitsu.com
+Cc: Richard Kennedy <richard@rsk.demon.co.uk>, a.p.zijlstra@chello.nl, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@linux-foundation.org> [2009-06-24 20:44:26]:
+On Wed, Jun 24 2009, Andrew Morton wrote:
+> On Wed, 24 Jun 2009 11:38:24 +0100
+> Richard Kennedy <richard@rsk.demon.co.uk> wrote:
+> 
+> > When writing to 2 (or more) devices at the same time, stop
+> > balance_dirty_pages moving dirty pages to writeback when it has reached
+> > the bdi threshold. This prevents balance_dirty_pages overshooting its
+> > limits and moving all dirty pages to writeback.     
+> > 
+> >     
+> > Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> > ---
+> > balance_dirty_pages can overreact and move all of the dirty pages to
+> > writeback unnecessarily.
+> > 
+> > balance_dirty_pages makes its decision to throttle based on the number
+> > of dirty plus writeback pages that are over the calculated limit,so it
+> > will continue to move pages even when there are plenty of pages in
+> > writeback and less than the threshold still dirty.
+> > 
+> > This allows it to overshoot its limits and move all the dirty pages to
+> > writeback while waiting for the drives to catch up and empty the
+> > writeback list. 
+> > 
+> > A simple fio test easily demonstrates this problem.  
+> > 
+> > fio --name=f1 --directory=/disk1 --size=2G -rw=write
+> > 	--name=f2 --directory=/disk2 --size=1G --rw=write 		--startdelay=10
+> > 
+> > The attached graph before.png shows how all pages are moved to writeback
+> > as the second write starts and the throttling kicks in.
+> > 
+> > after.png is the same test with the patch applied, which clearly shows
+> > that it keeps dirty_background_ratio dirty pages in the buffer.
+> > The values and timings of the graphs are only approximate but are good
+> > enough to show the behaviour.  
+> > 
+> > This is the simplest fix I could find, but I'm not entirely sure that it
+> > alone will be enough for all cases. But it certainly is an improvement
+> > on my desktop machine writing to 2 disks.
+> > 
+> > Do we need something more for machines with large arrays where
+> > bdi_threshold * number_of_drives is greater than the dirty_ratio ?
+> > 
+> 
+> um.  Interesting find.  Jens, was any of your performance testing using
+> multiple devices?  If so, it looks like the results just got invalidated :)
 
-> On Thu, 25 Jun 2009 08:57:17 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > We do a read everytime before we charge.
-> 
-> See, a good way to fix that is to not do it.  Instead of
-> 
-> 	if (under_limit())
-> 		charge_some_more(amount);
-> 	else
-> 		goto fail;
-> 
-> one can do 
-> 
-> 	if (try_to_charge_some_more(amount) < 0)
-> 		goto fail;
-> 
-> which will halve the locking frequency.  Which may not be as beneficial
-> as avoiding the locking altogether on the read side, dunno.
->
+"invalidated" is a bit too much I think, skewed is more like it. But
+most of my testing has been on a single spindle, only the very first
+patches used 10 disks as a test base.
 
-My bad, we do it all under one lock. We do a read within the charge
-lock. I should get some Tea or coffee before responding to emails in
-the morning. 
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index 7b0dcea..7687879 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -541,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
+> >  		 * filesystems (i.e. NFS) in which data may have been
+> >  		 * written to the server's write cache, but has not yet
+> >  		 * been flushed to permanent storage.
+> > +		 * Only move pages to writeback if this bdi is over its
+> > +		 * threshold otherwise wait until the disk writes catch
+> > +		 * up.
+> >  		 */
+> > -		if (bdi_nr_reclaimable) {
+> > +		if (bdi_nr_reclaimable > bdi_thresh) {
+> >  			writeback_inodes(&wbc);
+> >  			pages_written += write_chunk - wbc.nr_to_write;
+> >  			get_dirty_limits(&background_thresh, &dirty_thresh,
+> 
+> yup, we need to think about the effect with zillions of disks.  Peter,
+> could you please take a look?
+> 
+> Also...  get_dirty_limits() is rather hard to grok.  The callers of
+> get_dirty_limits() treat its three return values as "thresholds", but
+> they're not named as thresholds within get_dirty_limits() itself, which
+> is a bit confusing.  And the meaning of each of those return values is
+> pretty obscure from the code - could we document them please?
+
+This is indeed a pretty interesting find!
 
 -- 
-	Balbir
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
