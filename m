@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 042E06B005D
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 05:11:22 -0400 (EDT)
-Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem
- in sl[aou]b
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090626090355.GA11450@wotan.suse.de>
-References: <20090625193137.GA16861@linux.vnet.ibm.com>
-	 <1245965239.21085.393.camel@calx>  <20090626090355.GA11450@wotan.suse.de>
-Date: Fri, 26 Jun 2009 12:11:40 +0300
-Message-Id: <1246007500.27533.23.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id B26F06B0062
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 05:11:28 -0400 (EDT)
+Date: Fri, 26 Jun 2009 12:13:17 +0300
+From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
+Subject: Re: kmemleak suggestion (long message)
+Message-ID: <20090626091316.GD3451@localdomain.by>
+References: <20090625221816.GA3480@localdomain.by>
+ <20090626065923.GA14078@elte.hu>
+ <84144f020906260007u3e79086bv91900e487ba0fb50@mail.gmail.com>
+ <20090626081452.GB3451@localdomain.by>
+ <1246004270.27533.16.camel@penberg-laptop>
+ <20090626085056.GC3451@localdomain.by>
+ <1246006463.30717.12.camel@pc1117.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1246006463.30717.12.camel@pc1117.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Matt Mackall <mpm@selenic.com>, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, jdb@comx.dk
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-06-26 at 11:03 +0200, Nick Piggin wrote:
-> On Thu, Jun 25, 2009 at 04:27:19PM -0500, Matt Mackall wrote:
-> > On Thu, 2009-06-25 at 12:31 -0700, Paul E. McKenney wrote:
-> > > Hello!
-> > > 
-> > > Jesper noted that kmem_cache_destroy() invokes synchronize_rcu() rather
-> > > than rcu_barrier() in the SLAB_DESTROY_BY_RCU case, which could result
-> > > in RCU callbacks accessing a kmem_cache after it had been destroyed.
-> > > 
-> > > The following untested (might not even compile) patch proposes a fix.
-> > 
-> > Acked-by: Matt Mackall <mpm@selenic.com>
-> > 
-> > Nick, you'll want to make sure you get this in SLQB.
+On (06/26/09 09:54), Catalin Marinas wrote:
+> > Well, we just move 'spam' out of syslog. Not dealing with 'spam' itself.
+> > I'm not sure about 'filtering in userspace when you read'. Suppose I use
+> > 'tail -f /debug/mm/kmemleak'. How can I easy suppress printing of (for example):
 > 
-> Thanks Matt. Paul, I think this should be appropriate for
-> stable@kernel.org too?
+> I don't have a strong opinion on this patch at the moment, I'll have a
+> look later today.
+>
+Well, take a look please. 
+I find it (suggested mechanism) to be useful. 
 
-Yup, I added cc to the patch. Thanks!
+> > Or any report with tty_ldisc_try_get (ppp generates tons of them).
+> 
+> BTW, that's a real leak IMHO (posted a patch yesterday in reply to the
+> initial report to Alan Cox).
+>
+I'll try to find link to see it. Since tty_ldisc_try_get reports started
+to 'annoy' me.
+ 
+> -- 
+> Catalin
+> 
 
-			Pekka
+	Sergey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
