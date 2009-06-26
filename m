@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9606B006A
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 08:48:20 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5QCiXM1013704
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 08:44:33 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5QCnlWX247100
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 08:49:47 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5QCnjnu016683
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 08:49:46 -0400
-Date: Fri, 26 Jun 2009 10:18:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: add commens for expaing memory barrier (Was Re:
-	Low overhead patches for the memory cgroup controller (v5)
-Message-ID: <20090626044803.GG8642@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090615043900.GF23577@balbir.in.ibm.com> <20090622154343.9cdbf23a.akpm@linux-foundation.org> <20090623090116.556d4f97.kamezawa.hiroyu@jp.fujitsu.com> <20090626095745.01cef410.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E46E6B0082
+	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 08:53:26 -0400 (EDT)
+Date: Fri, 26 Jun 2009 14:55:05 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite when blocksize < pagesize
+Message-ID: <20090626125505.GD11450@wotan.suse.de>
+References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de> <20090626122141.GB32125@duck.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090626095745.01cef410.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090626122141.GB32125@duck.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyuki@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, menage@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-06-26 09:57:45]:
+On Fri, Jun 26, 2009 at 02:21:41PM +0200, Jan Kara wrote:
+> > Now I may be speaking too soon. It might trun out that my fix is
+> > complex as well, but let me just give you an RFC and we can discuss.
+>   I've looked at your patch and it's definitely a worthwhile cleanup.
+> But it's not quite enough for what I need. I'll try to describe the issue
+> as I'm aware of it and possible solutions and maybe you'll have some idea
+> about a better solution.
+>   PROBLEM: We have a file 'f' of length OLD_ISIZE mmapped upto some offset
+> OFF (multiple of pagesize). The problem generally happens when OLD_ISIZE <
+> OFF and subsequent filesystem operation (it need not be just truncate() but
+> also a plain write() creating a hole - this is the main reason why the
+> patch is much more complicated than I'd like) increases file size to
+> NEW_ISIZE.
+>   The first decision: mmap() documentation says: "The effect of changing
+> the size of the underlying file of a mapping on the pages that correspond
+> to added or removed regions of the file is  unspecified." So according to
+> this it would be perfectly fine if we just discarded all the data beyond
+> OLD_ISIZE written via that particular mmap(). It would be even technically
+> doable - vma would store minimum i_size which was ever seen at page_mkwrite
+> time, page_mkwrite will allocate buffers only upto vma->i_size, we silently
+> discard all unmapped dirty buffers. But I also see two problems with this:
+>   1) So far we were much nicer to the user and when the file size has been
+> increased, user could happily write data via old mmap upto new file size.
+> I'd almost bet some people rely on this especially in the case
+> truncate-down, truncate-up, write via mmap.
+>   2) It's kind of fragile to discard dirty unmapped buffers without a
+> warning.
+> 
+>   So I took the decision that data written via mmap() should be stored
+> on disk properly if they were written inside i_size at the time the write
+> via mmap() happened. This decision basically dictates, that you have to do
+> some magic for the page containing OLD_ISIZE at the time file size is going
+> to be extended. All kinds of magic I could think of required taking
+> PageLock of the page containing OLD_ISIZE and that makes locking for the
+> write case interesting:
+>   1) write creating a hole has to update i_size inside PageLock for the
+> page it writes to (to avoid races with block_write_full_page()).
+>   2) we have to take PageLock for the page containing OLD_ISIZE sometime
+> before i_size gets updated to do our magic -> this has to happen in
+> write_begin().
+> 
+>   Now about the magic: There are two things I could imagine we do:
+> a) when the page containing OLD_ISIZE is dirty, try to allocate blocks
+> under it as needed for NEW_ISIZE - but the errors when this fails will
+> return to the process doing truncate / creating hole with write which is
+> kind of strange. Also we maybe allocate blocks unnecessarily because user
+> may never actually write to the page containing OLD_ISIZE again...
+> b) we writeout the page, writeprotect it and let page_mkwrite() do it's
+> work when it's called again. This is nice from the theoretical POV but
+> gets a bit messy - we have to make sure page_mkwrite() for that page
+> doesn't proceed until we update the i_size. Which is why I introduced that
+> inode bit-lock. We cannot use e.g. i_mutex for that because it ranks above
+> mmap_sem which is held when we enter page_mkwrite.
+> 
+>   So if you have any idea how to better solve this, you are welcome ;).
 
-> On Tue, 23 Jun 2009 09:01:16 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > Do we still need the smp_wmb()?
-> > > 
-> > > It's hard to say, because we forgot to document it :(
-> > > 
-> > Sorry for lack of documentation.
-> > 
-> > pc->mem_cgroup should be visible before SetPageCgroupUsed(). Othrewise,
-> > A routine believes USED bit will see bad pc->mem_cgroup.
-> > 
-> > I'd like to  add a comment later (againt new mmotm.)
-> > 
-> 
-> Ok, it's now.
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Add comments for the reason of smp_wmb() in mem_cgroup_commit_charge().
-> 
-> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |    7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> Index: mmotm-2.6.31-Jun25/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.31-Jun25.orig/mm/memcontrol.c
-> +++ mmotm-2.6.31-Jun25/mm/memcontrol.c
-> @@ -1134,6 +1134,13 @@ static void __mem_cgroup_commit_charge(s
->  	}
-> 
->  	pc->mem_cgroup = mem;
-> +	/*
-> + 	 * We access a page_cgroup asynchronously without lock_page_cgroup().
-> + 	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
-> + 	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
-> + 	 * before USED bit, we need memory barrier here.
-> + 	 * See mem_cgroup_add_lru_list(), etc.
-> + 	 */
+Ah thanks, the write(2) case I missed. That does get complex to
+do with the page lock.
 
+I agree with the semantics you are aiming for, and I agree we should
+not try to allocate blocks when extending i_size.
 
-I don't think this is sufficient, since in
-mem_cgroup_get_reclaim_stat_from_page() we say we need this since we
-set used bit without atomic operation. The used bit is now atomically
-set. I think we need to reword other comments as well.
- 
+We actually could update i_size after dropping the page lock in
+these paths. That would give a window where we can page_mkclean
+the old partial page before the i_size update.
 
--- 
-	Balbir
+However this does actually require that we remove the partial-page
+zeroing that writepage does. I think it does it in order to attempt
+to write zeroes into the fs even if the app does mmaped writes
+past i_size... but it is pretty dumb anyway really because the
+behaviour is undefined anyway so there is no problem if weird
+stuff gets written there (it should be zeroed out when extending
+the file anyway), and also there is nothing to prevent races of
+subsequent mmapped writes before the DMA completes.
+
+But once we remove that, then we can solve it with the page lock
+I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
