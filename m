@@ -1,36 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 813046B004D
-	for <linux-mm@kvack.org>; Sat, 27 Jun 2009 14:34:45 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DECC36B004D
+	for <linux-mm@kvack.org>; Sat, 27 Jun 2009 14:39:18 -0400 (EDT)
 From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20090627125412.GA1667@cmpxchg.org>
-References: <20090627125412.GA1667@cmpxchg.org> <3901.1245848839@redhat.com> <20090624023251.GA16483@localhost> <20090620043303.GA19855@localhost> <32411.1245336412@redhat.com> <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com> <20090618095729.d2f27896.akpm@linux-foundation.org> <7561.1245768237@redhat.com> <26537.1246086769@redhat.com> 
-Subject: Re: Found the commit that causes the OOMs
-Date: Sat, 27 Jun 2009 19:35:26 +0100
-Message-ID: <28486.1246127726@redhat.com>
+In-Reply-To: <20090627115306.GA1741@cmpxchg.org>
+References: <20090627115306.GA1741@cmpxchg.org> <7561.1245768237@redhat.com> <20090624023251.GA16483@localhost> <20090624114055.225D.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class citizen
+Date: Sat, 27 Jun 2009 19:40:17 +0100
+Message-ID: <28520.1246128017@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: dhowells@redhat.com, Wu Fengguang <fengguang.wu@intel.com>, "riel@redhat.com" <riel@redhat.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>
+Cc: dhowells@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> This is from your OOM-run dmesg, David:
-> 
->   Adding 32k swap on swapfile22.  Priority:-21 extents:1 across:32k
->   Adding 32k swap on swapfile23.  Priority:-22 extents:1 across:32k
->   Adding 32k swap on swapfile24.  Priority:-23 extents:3 across:44k
->   Adding 32k swap on swapfile25.  Priority:-24 extents:1 across:32k
-> 
-> So we actually have swap?  Or are those removed again before the OOM?
+> No, it has 600MB free pages after an OOM - which only means that the
+> OOM killer did a good job ;-)
 
-That's merely a transient situation caused by the LTP swapfile tests.
-Ordinarily, my test machine does not have swap.  At the time the OOMs occur
-there is no swapspace and the msgctl9 or msgctl11 tests are usually being run.
+The system usually gets into a pretty much dead state after a couple of OOMs
+of so.   There's also the little fact that prior to that commit, the OOMs
+don't happen at all as far as I can tell.
 
-> The following patch should improve on that.
-
-I can give it a spin when I get home later.
+I don't know for certain that the OOMs don't happen on the commits that have
+come up good.  Sadly, all I can say is that after running N commits, I haven't
+seen an OOM.
 
 David
 
