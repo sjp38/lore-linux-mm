@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C46FA6B0098
-	for <linux-mm@kvack.org>; Fri, 26 Jun 2009 18:45:05 -0400 (EDT)
-Date: Sat, 27 Jun 2009 01:48:02 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
-Subject: Re: kmemleak suggestion (long message)
-Message-ID: <20090626224802.GB3858@localdomain.by>
-References: <20090625221816.GA3480@localdomain.by>
- <20090626065923.GA14078@elte.hu>
- <84144f020906260007u3e79086bv91900e487ba0fb50@mail.gmail.com>
- <20090626081452.GB3451@localdomain.by>
- <1246004270.27533.16.camel@penberg-laptop>
- <20090626085056.GC3451@localdomain.by>
- <1246032766.30717.44.camel@pc1117.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1246032766.30717.44.camel@pc1117.cambridge.arm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F25176B009A
+	for <linux-mm@kvack.org>; Sat, 27 Jun 2009 00:11:37 -0400 (EDT)
+Received: by pxi40 with SMTP id 40so276083pxi.12
+        for <linux-mm@kvack.org>; Fri, 26 Jun 2009 21:11:57 -0700 (PDT)
+Date: Sat, 27 Jun 2009 13:11:52 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2][mmotm-2009-0625-1549]  prevent to reclaim anon page of
+ lumpy reclaim for no swap space
+Message-Id: <20090627131152.519b86ed.minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (06/26/09 17:12), Catalin Marinas wrote:
-> I had a look at your patch and I tend to agree with Pekka. It really
-> adds too much complexity for something that could be easily done in user
-> space (could be more concise or even written in perl, awk, sed, python
-> etc.):
-> 
-> cat /sys/kernel/debug/kmemleak | tr "\n" "#" \
-> 	| sed -e "s/#unreferenced/\nunreferenced/g" \
-> 	| grep -v "tty_ldisc_try_get" | tr "#" "\n"
-> 
-Well, it's hardly can be compared with 
-echo "block=ADDRESS_FROM_STACK" > /.../kmemleak
+Since v1. 
+ * fix - prevent anon page which already don't have swap slot
+	 (by Rik van Riel suggestion)
+ * change some comment
 
-Frankly, I still found it useful (as you don't have to write in perl, awk, sed, python etc 
-to see 50 lines (you are interested in) out of 1000.
-You just watching reports.)
+== CUT HERE ==
 
-(well, maybe not as useful as with syslog.)
+This patch prevent to reclaim anon page in case of no swap space.
+
+VM already prevent to reclaim anon page in various place.
+But it doesnt't prevent it for lumpy reclaim.
+
+It shuffles lru list unnecessary so that it is pointless.
+
+__isolate_lru_page is called on slow path so that some condition
+check could be not critical about performance.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+--- mm/vmscan.c.orig	2009-06-27 12:30:41.000000000 +0900
++++ mm/vmscan.c	2009-06-27 12:32:00.000000000 +0900
+@@ -830,7 +830,13 @@ int __isolate_lru_page(struct page *page
+ 	 * When this function is being called for lumpy reclaim, we
+ 	 * initially look into all LRU pages, active, inactive and
+ 	 * unevictable; only give shrink_page_list evictable pages.
++	 *
++	 * If we don't have enough swap space, reclaiming of anon page
++	 * which don't already have a swap slot is pointless.
+ 	 */
++	if (nr_swap_pages <= 0 && (PageAnon(page) && !PageSwapCache(page)))
++		return ret;
++
+ 	if (PageUnevictable(page))
+ 		return ret;
  
-Anyway, the decision is yours. And let it be so.
-Thanks.
 
-> Thanks anyway.
-> 
-> -- 
-> Catalin
-> 
-
-	Sergey
+-- 
+Kinds Regards,
+Minchan Kim 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
