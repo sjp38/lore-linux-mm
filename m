@@ -1,336 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3889C6B005A
-	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 12:48:43 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so5627867gxk.14
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2009 09:50:14 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 30D686B005C
+	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 12:51:54 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so5630337gxk.14
+        for <linux-mm@kvack.org>; Sun, 28 Jun 2009 09:53:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090628151026.GB25076@localhost>
-References: <2015.1245341938@redhat.com> <7561.1245768237@redhat.com>
-	 <26537.1246086769@redhat.com> <20090627125412.GA1667@cmpxchg.org>
-	 <20090628113246.GA18409@localhost>
-	 <28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
-	 <28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com>
-	 <20090628142239.GA20986@localhost>
-	 <2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com>
-	 <20090628151026.GB25076@localhost>
-Date: Mon, 29 Jun 2009 01:50:14 +0900
-Message-ID: <28c262360906280950i2f3924afgf75f80b285981c7@mail.gmail.com>
+In-Reply-To: <20090627153630.GA6803@cmpxchg.org>
+References: <20090624023251.GA16483@localhost> <32411.1245336412@redhat.com>
+	 <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com>
+	 <20090618095729.d2f27896.akpm@linux-foundation.org>
+	 <7561.1245768237@redhat.com> <26537.1246086769@redhat.com>
+	 <20090627125412.GA1667@cmpxchg.org>
+	 <28c262360906270650v6c276591u417d64573ecfba29@mail.gmail.com>
+	 <20090627153630.GA6803@cmpxchg.org>
+Date: Mon, 29 Jun 2009 01:53:32 +0900
+Message-ID: <28c262360906280953r67a8f450s62931bd7fa8d6108@mail.gmail.com>
 Subject: Re: Found the commit that causes the OOMs
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Howells <dhowells@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Looks good.
-
-David, Can you test with this patch ?
-
-On Mon, Jun 29, 2009 at 12:10 AM, Wu Fengguang<fengguang.wu@intel.com> wrot=
-e:
-> On Sun, Jun 28, 2009 at 11:01:40PM +0800, KOSAKI Motohiro wrote:
->> > Yes, smaller inactive_anon means smaller (pointless) nr_scanned,
->> > and therefore less slab scans. Strictly speaking, it's not the fault
->> > of your patch. It indicates that the slab scan ratio algorithm should
->> > be updated too :)
+On Sun, Jun 28, 2009 at 12:36 AM, Johannes Weiner<hannes@cmpxchg.org> wrote=
+:
+> On Sat, Jun 27, 2009 at 10:50:25PM +0900, Minchan Kim wrote:
+>> Hi, Hannes.
 >>
->> I don't think this patch is related to minchan's patch.
->> but I think this patch is good.
->
-> OK.
->
->>
->> > We could refine the estimation of "reclaimable" pages like this:
->>
->> hmhm, reasonable idea.
->
-> Thank you.
->
+>> On Sat, Jun 27, 2009 at 9:54 PM, Johannes Weiner<hannes@cmpxchg.org> wro=
+te:
+>> > On Sat, Jun 27, 2009 at 08:12:49AM +0100, David Howells wrote:
+>> >>
+>> >> I've managed to bisect things to find the commit that causes the OOMs=
+. =C2=A0It's:
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 commit 69c854817566db82c362797b4a6521d0b00fe1d8
+>> >> =C2=A0 =C2=A0 =C2=A0 Author: MinChan Kim <minchan.kim@gmail.com>
+>> >> =C2=A0 =C2=A0 =C2=A0 Date: =C2=A0 Tue Jun 16 15:32:44 2009 -0700
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 vmscan: prevent shrinking of activ=
+e anon lru list in case of no swap space V3
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrink_zone() can deactivate activ=
+e anon pages even if we don't have a
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 swap device. =C2=A0Many embedded p=
+roducts don't have a swap device. =C2=A0So the
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 deactivation of anon pages is unne=
+cessary.
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 This patch prevents unnecessary de=
+activation of anon lru pages. =C2=A0But, it
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 don't prevent aging of anon pages =
+to swap out.
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Minchan Kim <mincha=
+n.kim@gmail.com>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Acked-by: KOSAKI Motohiro <kosaki.=
+motohiro@jp.fujitsu.com>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Cc: Johannes Weiner <hannes@cmpxch=
+g.org>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Acked-by: Rik van Riel <riel@redha=
+t.com>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Andrew Morton <akpm=
+@linux-foundation.org>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Linus Torvalds <tor=
+valds@linux-foundation.org>
+>> >>
+>> >> This exhibits the problem. =C2=A0The previous commit:
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 commit 35282a2de4e5e4e173ab61aa9d7015886021a821
+>> >> =C2=A0 =C2=A0 =C2=A0 Author: Brice Goglin <Brice.Goglin@ens-lyon.org>
+>> >> =C2=A0 =C2=A0 =C2=A0 Date: =C2=A0 Tue Jun 16 15:32:43 2009 -0700
+>> >>
+>> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 migration: only migrate_prep() onc=
+e per move_pages()
+>> >>
+>> >> survives 16 iterations of the LTP syscall testsuite without exhibitin=
+g the
+>> >> problem.
 >> >
->> > diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
->> > index 416f748..e9c5b0e 100644
->> > --- a/include/linux/vmstat.h
->> > +++ b/include/linux/vmstat.h
->> > @@ -167,14 +167,7 @@ static inline unsigned long zone_page_state(struc=
-t zone *zone,
->> > =C2=A0}
+>> > Here is the patch in question:
 >> >
->> > =C2=A0extern unsigned long global_lru_pages(void);
->> > -
->> > -static inline unsigned long zone_lru_pages(struct zone *zone)
->> > -{
->> > - =C2=A0 =C2=A0 =C2=A0 return (zone_page_state(zone, NR_ACTIVE_ANON)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(z=
-one, NR_ACTIVE_FILE)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(z=
-one, NR_INACTIVE_ANON)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(z=
-one, NR_INACTIVE_FILE));
->> > -}
->> > +extern unsigned long zone_lru_pages(void);
->> >
->> > =C2=A0#ifdef CONFIG_NUMA
->> > =C2=A0/*
 >> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index 026f452..4281c6f 100644
+>> > index 7592d8e..879d034 100644
 >> > --- a/mm/vmscan.c
 >> > +++ b/mm/vmscan.c
->> > @@ -2123,10 +2123,31 @@ void wakeup_kswapd(struct zone *zone, int orde=
-r)
+>> > @@ -1570,7 +1570,7 @@ static void shrink_zone(int priority, struct zon=
+e *zone,
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Even if we did not try to evict anon pag=
+es at all, we want to
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 * rebalance the anon lru active/inactive r=
+atio.
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+>> > - =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc))
+>> > + =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc) && nr_swap_p=
+ages > 0)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0shrink_active_l=
+ist(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
 >> >
->> > =C2=A0unsigned long global_lru_pages(void)
->> > =C2=A0{
->> > - =C2=A0 =C2=A0 =C2=A0 return global_page_state(NR_ACTIVE_ANON)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state=
-(NR_ACTIVE_FILE)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state=
-(NR_INACTIVE_ANON)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state=
-(NR_INACTIVE_FILE);
->> > + =C2=A0 =C2=A0 =C2=A0 int nr;
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 nr =3D global_page_state(zone, NR_ACTIVE_FILE) =
-+
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(zone, NR_=
-INACTIVE_FILE);
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 if (total_swap_pages)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr +=3D global_page=
-_state(zone, NR_ACTIVE_ANON) +
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 global_page_state(zone, NR_INACTIVE_ANON);
->> > +
->> > + =C2=A0 =C2=A0 =C2=A0 return nr;
->> > +}
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0throttle_vm_writeout(sc->gfp_mask);
+>> >
+>> > When this was discussed, I think we missed that nr_swap_pages can
+>> > actually get zero on swap systems as well and this should have been
+>> > total_swap_pages - otherwise we also stop balancing the two anon lists
+>> > when swap is _full_ which was not the intention of this change at all.
 >>
->> Please change function name too.
->> Now, this function only account reclaimable pages.
+>> At that time we considered it so that we didn't prevent anon list
+>> aging for background reclaim.
+>> Do you think it is not enough ?
 >
-> Good suggestion - I did considered renaming them to *_relaimable_pages.
->
->> Plus, total_swap_pages is bad. if we need to concern "reclaimable
->> pages", we should use nr_swap_pages.
->
->> I mean, swap-full also makes anon is unreclaimable althouth system
->> have sone swap device.
->
-> Right, changed to (nr_swap_pages > 0).
->
-> Thanks,
-> Fengguang
-> ---
->
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 416f748..8d8aa20 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -166,15 +166,8 @@ static inline unsigned long zone_page_state(struct z=
-one *zone,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return x;
-> =C2=A0}
->
-> -extern unsigned long global_lru_pages(void);
-> -
-> -static inline unsigned long zone_lru_pages(struct zone *zone)
-> -{
-> - =C2=A0 =C2=A0 =C2=A0 return (zone_page_state(zone, NR_ACTIVE_ANON)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(zone=
-, NR_ACTIVE_FILE)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(zone=
-, NR_INACTIVE_ANON)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + zone_page_state(zone=
-, NR_INACTIVE_FILE));
-> -}
-> +extern unsigned long global_reclaimable_pages(void);
-> +extern unsigned long zone_reclaimable_pages(void);
->
-> =C2=A0#ifdef CONFIG_NUMA
-> =C2=A0/*
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index a91b870..74c3067 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -394,7 +394,8 @@ static unsigned long highmem_dirtyable_memory(unsigne=
-d long total)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *z =3D
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
->
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 x +=3D zone_page_state=
-(z, NR_FREE_PAGES) + zone_lru_pages(z);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 x +=3D zone_page_state=
-(z, NR_FREE_PAGES) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zo=
-ne_reclaimable_pages(z);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Make sure that the number of highmem pages =
-is never larger
-> @@ -418,7 +419,7 @@ unsigned long determine_dirtyable_memory(void)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long x;
->
-> - =C2=A0 =C2=A0 =C2=A0 x =3D global_page_state(NR_FREE_PAGES) + global_lr=
-u_pages();
-> + =C2=A0 =C2=A0 =C2=A0 x =3D global_page_state(NR_FREE_PAGES) + global_re=
-claimable_pages();
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!vm_highmem_is_dirtyable)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0x -=3D highmem_dir=
-tyable_memory(x);
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 026f452..3768332 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1693,7 +1693,7 @@ static unsigned long do_try_to_free_pages(struct zo=
-nelist *zonelist,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
->
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 lru_pages +=3D zone_lru_pages(zone);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 lru_pages +=3D zone_reclaimable_pages(zone);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
->
-> @@ -1910,7 +1910,7 @@ loop_again:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0for (i =3D 0; i <=
-=3D end_zone; i++) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0struct zone *zone =3D pgdat->node_zones + i;
->
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 lru_pages +=3D zone_lru_pages(zone);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 lru_pages +=3D zone_reclaimable_pages(zone);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> @@ -1954,7 +1954,7 @@ loop_again:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (zone_is_all_unreclaimable(zone))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (nr_slab =3D=3D 0 && zone->pages_scanned >=3D
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 (zone_lru_pages(zone) * 6))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (zone_reclai=
-mable_pages(zone) * 6))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone_set_=
-flag(zone,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0ZONE_ALL_UNRECLAIMABLE);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0/*
-> @@ -2121,12 +2121,33 @@ void wakeup_kswapd(struct zone *zone, int order)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0wake_up_interruptible(&pgdat->kswapd_wait);
-> =C2=A0}
->
-> -unsigned long global_lru_pages(void)
-> +unsigned long global_reclaimable_pages(void)
-> =C2=A0{
-> - =C2=A0 =C2=A0 =C2=A0 return global_page_state(NR_ACTIVE_ANON)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state(NR=
-_ACTIVE_FILE)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state(NR=
-_INACTIVE_ANON)
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 + global_page_state(NR=
-_INACTIVE_FILE);
-> + =C2=A0 =C2=A0 =C2=A0 int nr;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 nr =3D global_page_state(zone, NR_ACTIVE_FILE) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(zone, NR_INA=
-CTIVE_FILE);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (total_swap_pages)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr +=3D global_page_st=
-ate(zone, NR_ACTIVE_ANON) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 g=
-lobal_page_state(zone, NR_INACTIVE_ANON);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return nr;
-> +}
-> +
-> +
-> +unsigned long zone_reclaimable_pages(struct zone *zone)
-> +{
-> + =C2=A0 =C2=A0 =C2=A0 int nr;
-> +
-> + =C2=A0 =C2=A0 =C2=A0 nr =3D zone_page_state(zone, NR_ACTIVE_FILE) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone_page_state(zone, NR_INACT=
-IVE_FILE);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 if (nr_swap_pages > 0)
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr +=3D zone_page_stat=
-e(zone, NR_ACTIVE_ANON) +
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 z=
-one_page_state(zone, NR_INACTIVE_ANON);
-> +
-> + =C2=A0 =C2=A0 =C2=A0 return nr;
-> =C2=A0}
->
-> =C2=A0#ifdef CONFIG_HIBERNATION
-> @@ -2198,7 +2219,7 @@ unsigned long shrink_all_memory(unsigned long nr_pa=
-ges)
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0current->reclaim_state =3D &reclaim_state;
->
-> - =C2=A0 =C2=A0 =C2=A0 lru_pages =3D global_lru_pages();
-> + =C2=A0 =C2=A0 =C2=A0 lru_pages =3D global_reclaimable_pages();
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_slab =3D global_page_state(NR_SLAB_RECLAIMA=
-BLE);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* If slab caches are huge, it's better to hit=
- them first */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (nr_slab >=3D lru_pages) {
-> @@ -2240,7 +2261,7 @@ unsigned long shrink_all_memory(unsigned long nr_pa=
-ges)
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0reclaim_state.reclaimed_slab =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0shrink_slab(sc.nr_scanned, sc.gfp_mask,
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_lru_p=
-ages());
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_reclaimable_pages()=
-);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0sc.nr_reclaimed +=3D reclaim_state.reclaimed_slab;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (sc.nr_reclaimed >=3D nr_pages)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto out;
-> @@ -2257,7 +2278,8 @@ unsigned long shrink_all_memory(unsigned long nr_pa=
-ges)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!sc.nr_reclaimed) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0do {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0reclaim_state.reclaimed_slab =3D 0;
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 shrink_slab(nr_pages, sc.gfp_mask, global_lru_pages());
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 shrink_slab(nr_pages, sc.gfp_mask,
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_reclaimable_pages()=
-);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0sc.nr_reclaimed +=3D reclaim_state.reclaimed_slab;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0} while (sc.nr_rec=
-laimed < nr_pages &&
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0reclaim_state.reclaimed_slab > 0);
+> With a heavy multiprocess anon load, direct reclaimers will likely
+> reuse the reclaimed pages for anon mappings, so you have a handful of
+> processes shuffling pages on the active list and only one thread that
+> tries to balance. =C2=A0I can imagine that it can not keep up for long.
+
+I agree. :)
+total_swap_pages is better than nr_swap_pages although it isn't
+related this problem.
+
+
 >
 
 
