@@ -1,133 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 30D686B005C
-	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 12:51:54 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so5630337gxk.14
-        for <linux-mm@kvack.org>; Sun, 28 Jun 2009 09:53:32 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8F36D6B004D
+	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 13:33:53 -0400 (EDT)
+Date: Sun, 28 Jun 2009 20:36:32 +0300
+From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
+Subject: kmemleak hexdump proposal
+Message-ID: <20090628173632.GA3890@localdomain.by>
 MIME-Version: 1.0
-In-Reply-To: <20090627153630.GA6803@cmpxchg.org>
-References: <20090624023251.GA16483@localhost> <32411.1245336412@redhat.com>
-	 <20090517022327.280096109@intel.com> <2015.1245341938@redhat.com>
-	 <20090618095729.d2f27896.akpm@linux-foundation.org>
-	 <7561.1245768237@redhat.com> <26537.1246086769@redhat.com>
-	 <20090627125412.GA1667@cmpxchg.org>
-	 <28c262360906270650v6c276591u417d64573ecfba29@mail.gmail.com>
-	 <20090627153630.GA6803@cmpxchg.org>
-Date: Mon, 29 Jun 2009 01:53:32 +0900
-Message-ID: <28c262360906280953r67a8f450s62931bd7fa8d6108@mail.gmail.com>
-Subject: Re: Found the commit that causes the OOMs
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Howells <dhowells@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 28, 2009 at 12:36 AM, Johannes Weiner<hannes@cmpxchg.org> wrote=
-:
-> On Sat, Jun 27, 2009 at 10:50:25PM +0900, Minchan Kim wrote:
->> Hi, Hannes.
->>
->> On Sat, Jun 27, 2009 at 9:54 PM, Johannes Weiner<hannes@cmpxchg.org> wro=
-te:
->> > On Sat, Jun 27, 2009 at 08:12:49AM +0100, David Howells wrote:
->> >>
->> >> I've managed to bisect things to find the commit that causes the OOMs=
-. =C2=A0It's:
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 commit 69c854817566db82c362797b4a6521d0b00fe1d8
->> >> =C2=A0 =C2=A0 =C2=A0 Author: MinChan Kim <minchan.kim@gmail.com>
->> >> =C2=A0 =C2=A0 =C2=A0 Date: =C2=A0 Tue Jun 16 15:32:44 2009 -0700
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 vmscan: prevent shrinking of activ=
-e anon lru list in case of no swap space V3
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 shrink_zone() can deactivate activ=
-e anon pages even if we don't have a
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 swap device. =C2=A0Many embedded p=
-roducts don't have a swap device. =C2=A0So the
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 deactivation of anon pages is unne=
-cessary.
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 This patch prevents unnecessary de=
-activation of anon lru pages. =C2=A0But, it
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 don't prevent aging of anon pages =
-to swap out.
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Minchan Kim <mincha=
-n.kim@gmail.com>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Acked-by: KOSAKI Motohiro <kosaki.=
-motohiro@jp.fujitsu.com>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Cc: Johannes Weiner <hannes@cmpxch=
-g.org>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Acked-by: Rik van Riel <riel@redha=
-t.com>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Andrew Morton <akpm=
-@linux-foundation.org>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Signed-off-by: Linus Torvalds <tor=
-valds@linux-foundation.org>
->> >>
->> >> This exhibits the problem. =C2=A0The previous commit:
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 commit 35282a2de4e5e4e173ab61aa9d7015886021a821
->> >> =C2=A0 =C2=A0 =C2=A0 Author: Brice Goglin <Brice.Goglin@ens-lyon.org>
->> >> =C2=A0 =C2=A0 =C2=A0 Date: =C2=A0 Tue Jun 16 15:32:43 2009 -0700
->> >>
->> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 migration: only migrate_prep() onc=
-e per move_pages()
->> >>
->> >> survives 16 iterations of the LTP syscall testsuite without exhibitin=
-g the
->> >> problem.
->> >
->> > Here is the patch in question:
->> >
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index 7592d8e..879d034 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -1570,7 +1570,7 @@ static void shrink_zone(int priority, struct zon=
-e *zone,
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Even if we did not try to evict anon pag=
-es at all, we want to
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 * rebalance the anon lru active/inactive r=
-atio.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
->> > - =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc))
->> > + =C2=A0 =C2=A0 =C2=A0 if (inactive_anon_is_low(zone, sc) && nr_swap_p=
-ages > 0)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0shrink_active_l=
-ist(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0throttle_vm_writeout(sc->gfp_mask);
->> >
->> > When this was discussed, I think we missed that nr_swap_pages can
->> > actually get zero on swap systems as well and this should have been
->> > total_swap_pages - otherwise we also stop balancing the two anon lists
->> > when swap is _full_ which was not the intention of this change at all.
->>
->> At that time we considered it so that we didn't prevent anon list
->> aging for background reclaim.
->> Do you think it is not enough ?
->
-> With a heavy multiprocess anon load, direct reclaimers will likely
-> reuse the reclaimed pages for anon mappings, so you have a handful of
-> processes shuffling pages on the active list and only one thread that
-> tries to balance. =C2=A0I can imagine that it can not keep up for long.
+Hello.
+What do you think about ability to 'watch' leaked region? (hex + ascii).
+(done via lib/hexdump.c)
 
-I agree. :)
-total_swap_pages is better than nr_swap_pages although it isn't
-related this problem.
+To turn on hex dump:
+echo "hexdump=on" > /sys/kernel/debug/kmemleak
+
+/**
+Or (as alternative):
+echo "hexdump=f6aac7f8" > /sys/kernel/debug/kmemleak
+where f6aac7f8 - object's pointer.
+**/
+
+cat /sys/kernel/debug/kmemleak
+
+unreferenced object 0xf6aac7f8 (size 32):
+  comm "swapper", pid 1, jiffies 4294877610
+HEX dump:
+70 6e 70 20 30 30 3a 30 61 00 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a a5  pnp 00:0a.ZZZZZZZZZZZZZZZZZZZZZ.
+
+  backtrace:
+    [<c10e92eb>] kmemleak_alloc+0x11b/0x2b0
+    [<c10e4b91>] kmem_cache_alloc+0x111/0x1c0
+    [<c12c424e>] reserve_range+0x3e/0x1b0
+    [<c12c4454>] system_pnp_probe+0x94/0x140
+    [<c12baf84>] pnp_device_probe+0x84/0x100
+    [<c12f1919>] driver_probe_device+0x89/0x170
+    [<c12f1a99>] __driver_attach+0x99/0xa0
+    [<c12f1028>] bus_for_each_dev+0x58/0x90
+    [<c12f1764>] driver_attach+0x24/0x40
+    [<c12f0804>] bus_add_driver+0xc4/0x290
+    [<c12f1e10>] driver_register+0x70/0x130
+    [<c12bacd6>] pnp_register_driver+0x26/0x40
+    [<c15d4620>] pnp_system_init+0x1b/0x2e
+    [<c100115f>] do_one_initcall+0x3f/0x1a0
+    [<c15aa4af>] kernel_init+0x13e/0x1a6
+    [<c1003e07>] kernel_thread_helper+0x7/0x10
+unreferenced object 0xf63f4d18 (size 192):
+  comm "swapper", pid 1, jiffies 4294878292
+HEX dump:
+3c 06 00 00 00 00 00 00 78 69 00 00 00 00 00 00 0a 00 00 00 00 00 00 00 0a 00 00 00 00 00 00 00  <.......xi......................
+25 0c 00 00 00 00 00 00 25 0c 00 00 00 00 00 00 32 05 00 00 00 00 00 00 60 54 00 00 00 00 00 00  %.......%.......2.......`T......
+0a 00 00 00 00 00 00 00 0a 00 00 00 00 00 00 00 1f 0a 00 00 00 00 00 00 1f 0a 00 00 00 00 00 00  ................................
+28 04 00 00 00 00 00 00 48 3f 00 00 00 00 00 00 0a 00 00 00 00 00 00 00 0a 00 00 00 00 00 00 00  (.......H?......................
+19 08 00 00 00 00 00 00 19 08 00 00 00 00 00 00 1e 03 00 00 00 00 00 00 30 2a 00 00 00 00 00 00  ........................0*......
+0a 00 00 00 00 00 00 00 0a 00 00 00 00 00 00 00 13 06 00 00 00 00 00 00 13 06 00 00 00 00 00 00  ................................
+
+  backtrace:
+    [<c10e92eb>] kmemleak_alloc+0x11b/0x2b0
+    [<c10e584d>] __kmalloc+0x16d/0x210
+    [<c12b5757>] acpi_processor_register_performance+0x28e/0x468
+    [<c1016797>] acpi_cpufreq_cpu_init+0x97/0x560
+    [<c134d802>] cpufreq_add_dev+0x122/0x580
+    [<c12efd47>] sysdev_driver_register+0xa7/0x140
+    [<c134ca4e>] cpufreq_register_driver+0x9e/0x170
+    [<c15b4e0f>] acpi_cpufreq_init+0x8b/0xcd
+    [<c100115f>] do_one_initcall+0x3f/0x1a0
+    [<c15aa4af>] kernel_init+0x13e/0x1a6
+    [<c1003e07>] kernel_thread_helper+0x7/0x10
+    [<ffffffff>] 0xffffffff
+
+To disable hex dump:
+echo "hexdump=off" > /sys/kernel/debug/kmemleak
+
+I guess it could safe someone's time.
+(May be, showed examples aren't so good. Just to demonstrate the idea.)
+
+(concept. feel free to ask for comments.)
+
+diff -u -p
+
+--- kmemleak.c	2009-06-28 20:18:59.000000000 +0300
++++ linux-2.6-sergey/mm/kmemleak.c	2009-06-28 20:21:29.000000000 +0300
+@@ -160,6 +160,13 @@ struct kmemleak_object {
+ /* flag set to not scan the object */
+ #define OBJECT_NO_SCAN		(1 << 2)
+ 
++/* number of bytes to print per line; must be 16 or 32 */
++#define HEX_ROW_SIZE 32
++/* number of bytes to print at a time (1, 2, 4, 8) */
++#define HEX_GROUP_SIZE 1
++/* include ASCII after the hex output */ 
++#define HEX_ASCII 1
++
+ /* the list of all allocated objects */
+ static LIST_HEAD(object_list);
+ /* the list of gray-colored objects (see color_gray comment below) */
+@@ -182,6 +189,9 @@ static atomic_t kmemleak_early_log = ATO
+ /* set if a fata kmemleak error has occurred */
+ static atomic_t kmemleak_error = ATOMIC_INIT(0);
+ 
++/* set if HEX dump should be printed */
++static atomic_t kmemleak_hex_dump = ATOMIC_INIT(0);
++
+ /* minimum and maximum address that may be valid pointers */
+ static unsigned long min_addr = ULONG_MAX;
+ static unsigned long max_addr;
+@@ -290,6 +300,29 @@ static int unreferenced_object(struct km
+ 			       jiffies_last_scan);
+ }
+ 
++
++static void object_hex_dump(struct seq_file *seq, struct kmemleak_object *object)
++{
++	const u8 *ptr = (const u8*)object->pointer;
++	int len = object->size;
++	int i, linelen, remaining = object->size;
++	unsigned char linebuf[200];
++	
++	seq_printf(seq, "HEX dump:\n");
++	
++	for (i = 0; i < len; i += HEX_ROW_SIZE) {
++		linelen = min(remaining, HEX_ROW_SIZE);
++		remaining -= HEX_ROW_SIZE;
++		hex_dump_to_buffer(ptr + i, linelen, HEX_ROW_SIZE, HEX_GROUP_SIZE,
++				linebuf, sizeof(linebuf), HEX_ASCII);
++
++		seq_printf(seq, "%s\n", linebuf);	
++	}
++	
++	seq_printf(seq, "\n");
++}
++
++
+ /*
+  * Printing of the unreferenced objects information to the seq file. The
+  * print_unreferenced function must be called with the object->lock held.
+@@ -301,10 +334,17 @@ static void print_unreferenced(struct se
+ 
+ 	seq_printf(seq, "unreferenced object 0x%08lx (size %zu):\n",
+ 		   object->pointer, object->size);
++
+ 	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
+ 		   object->comm, object->pid, object->jiffies);
+-	seq_printf(seq, "  backtrace:\n");
+ 
++	/* check whether hex dump should be printed*/
++	if (atomic_read(&kmemleak_hex_dump))
++		object_hex_dump(seq, object);
++	
++	
++	seq_printf(seq, "  backtrace:\n");
++	
+ 	for (i = 0; i < object->trace_len; i++) {
+ 		void *ptr = (void *)object->trace[i];
+ 		seq_printf(seq, "    [<%p>] %pS\n", ptr, ptr);
+@@ -1269,6 +1309,12 @@ static ssize_t kmemleak_write(struct fil
+ 		start_scan_thread();
+ 	else if (strncmp(buf, "scan=off", 8) == 0)
+ 		stop_scan_thread();
++	else if (strncmp(buf, "hexdump=on", 10) == 0) {
++		atomic_set(&kmemleak_hex_dump, 1);
++	}
++	else if (strncmp(buf, "hexdump=off", 11) == 0) {
++		atomic_set(&kmemleak_hex_dump, 0);
++	}
+ 	else if (strncmp(buf, "scan=", 5) == 0) {
+ 		unsigned long secs;
+ 		int err;
 
 
->
-
-
-
---=20
-Kinds regards,
-Minchan Kim
+	Sergey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
