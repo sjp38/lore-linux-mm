@@ -1,92 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F03156B004D
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 12:56:28 -0400 (EDT)
-Date: Mon, 29 Jun 2009 09:57:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: Found the commit that causes the OOMs
-Message-Id: <20090629095729.cc9f183c.akpm@linux-foundation.org>
-In-Reply-To: <17087.1246279435@redhat.com>
-References: <2f11576a0906290048t29667ae0sd75c96d023b113e2@mail.gmail.com>
-	<3901.1245848839@redhat.com>
-	<2015.1245341938@redhat.com>
-	<20090618095729.d2f27896.akpm@linux-foundation.org>
-	<7561.1245768237@redhat.com>
-	<26537.1246086769@redhat.com>
-	<20090627125412.GA1667@cmpxchg.org>
-	<20090628113246.GA18409@localhost>
-	<28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
-	<2f11576a0906280749v25ab725dn8f98fbc1d2e5a5fd@mail.gmail.com>
-	<28c262360906280947o6f9358ddh20ab549e875282a9@mail.gmail.com>
-	<17087.1246279435@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 75B7B6B004D
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 13:09:33 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5TGvO3B026794
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 12:57:24 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5TH9m1a185046
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 13:09:48 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5TH9lfO001320
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 13:09:47 -0400
+Date: Mon, 29 Jun 2009 22:39:01 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: [BUGFIX] [mmotm] Reduce memory resource controller overhead fixes
+Message-ID: <20090629170901.GB11273@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jun 2009 13:43:55 +0100 David Howells <dhowells@redhat.com> wrote:
 
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > David, Can you please try to following patch? it was posted to LKML
-> > about 1-2 week ago.
-> > 
-> > Subject "[BUGFIX][PATCH] fix lumpy reclaim lru handiling at
-> > isolate_lru_pages v2"
-> 
-> It is already committed, but I ran a test on the latest Linus kernel anyway:
-> 
-> msgctl11 invoked oom-killer: gfp_mask=0xd0, order=1, oom_adj=0
-> msgctl11 cpuset=/ mems_allowed=0
-> Pid: 20366, comm: msgctl11 Not tainted 2.6.31-rc1-cachefs #144
-> Call Trace:
->  [<ffffffff810718d2>] ? oom_kill_process.clone.0+0xa9/0x245
->  [<ffffffff81071b99>] ? __out_of_memory+0x12b/0x142
->  [<ffffffff81071c1a>] ? out_of_memory+0x6a/0x94
->  [<ffffffff810742e4>] ? __alloc_pages_nodemask+0x42e/0x51d
->  [<ffffffff81031416>] ? copy_process+0x95/0x114f
->  [<ffffffff8107443c>] ? __get_free_pages+0x12/0x4f
->  [<ffffffff81031439>] ? copy_process+0xb8/0x114f
->  [<ffffffff8108192e>] ? handle_mm_fault+0x5dd/0x62f
->  [<ffffffff8103260f>] ? do_fork+0x13f/0x2ba
->  [<ffffffff81022c22>] ? do_page_fault+0x1f8/0x20d
->  [<ffffffff8100b0d3>] ? stub_clone+0x13/0x20
->  [<ffffffff8100ad6b>] ? system_call_fastpath+0x16/0x1b
-> Mem-Info:
-> DMA per-cpu:
-> CPU    0: hi:    0, btch:   1 usd:   0
-> CPU    1: hi:    0, btch:   1 usd:   0
-> DMA32 per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 159
-> CPU    1: hi:  186, btch:  31 usd:   2
-> Active_anon:70477 active_file:1 inactive_anon:4514
->  inactive_file:7 unevictable:0 dirty:0 writeback:0 unstable:0
->  free:1954 slab:42078 mapped:237 pagetables:57791 bounce:0
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-~170k pages unreclaimable and ~70k pages unaccounted for.
+Fix an incorrect condition in memcg lru manipulation
 
-This does not look like a reclaim problem?
+The PageAcctLRU bit itself does not mean a lot without checking
+if the mem cgroup is the same as the root cgroup. This patch
+fixes a left over from the previous versions.
 
-> DMA free:3932kB min:60kB low:72kB high:88kB active_anon:236kB inactive_anon:0kB active_file:4kB inactive_file:4kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 968 968 968
-> DMA32 free:3884kB min:3948kB low:4932kB high:5920kB active_anon:281672kB inactive_anon:18056kB active_file:0kB inactive_file:24kB unevictable:0kB present:992032kB pages_scanned:6 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> DMA: 180*4kB 36*8kB 3*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 0*1024kB 1*2048kB 0*4096kB = 3936kB
-> DMA32: 491*4kB 0*8kB 0*16kB 0*32kB 0*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 3884kB
-> 1808 total pagecache pages
-> 0 pages in swap cache
-> Swap cache stats: add 0, delete 0, find 0/0
-> Free swap  = 0kB
-> Total swap = 0kB
-> 255744 pages RAM
-> 5589 pages reserved
-> 249340 pages shared
-> 219039 pages non-shared
-> Out of memory: kill process 11471 (msgctl11) score 112393 or a child
-> Killed process 12318 (msgctl11)
+Reported-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+
+ mm/memcontrol.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4cc9d0d..0608719 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -414,7 +414,7 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
+ 	 */
+ 	smp_rmb();
+ 	/* unused or root page is not rotated. */
+-	if (!PageCgroupUsed(pc) || PageCgroupAcctLRU(pc))
++	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
+ 		return;
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	list_move(&pc->lru, &mz->lists[lru]);
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
