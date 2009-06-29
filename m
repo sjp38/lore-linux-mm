@@ -1,36 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 322586B0055
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 17:50:53 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 100AA6B0055
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 17:50:59 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Mon, 29 Jun 2009 17:52:26 -0400
-Message-Id: <20090629215226.20038.42028.sendpatchset@lts-notebook>
-Subject: [PATCH 0/3] Balance Freeing of Huge Pages across Nodes
+Date: Mon, 29 Jun 2009 17:52:34 -0400
+Message-Id: <20090629215234.20038.62303.sendpatchset@lts-notebook>
+In-Reply-To: <20090629215226.20038.42028.sendpatchset@lts-notebook>
+References: <20090629215226.20038.42028.sendpatchset@lts-notebook>
+Subject: [PATCH 1/3] Balance Freeing of Huge Pages across Nodes
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH] 0/3 Balance Freeing of Huge Pages across Nodes
+[PATCH] 1/3 Balance Freeing of Huge Pages across Nodes
 
-This series contains V3 of the of the "Balance Freeing of Huge
-Pages across Nodes" patch--containing a minor cleanup from v2--
-and two additional, related patches.  I have added David Rientjes'
-ACK from V2, hoping that the change to v3 doesn't invalidate that.
+Against:  25jun09 mmotm
 
-Patch 2/3 reworks the free_pool_huge_page() function so that it
-may also be used by return_unused_surplus_page().  This patch
-needs careful review [and, testing?].  Perhaps Mel Gorman can 
-give it a go with the hugepages regression tests.
+Free huges pages from nodes in round robin fashion in an
+attempt to keep [persistent a.k.a static] hugepages balanced
+across nodes
 
-Patch 3/3 updates the vm hugetlbpage documentation to clarify 
-the usage and to add the description of the balancing of freeing
-of huge pages.  Most of the update is from my earlier "huge pages
-nodes_allowed" patch series, without mention of the nodes_allowed
-mask and associated boot parameter, sysctl and attributes.
+New function free_pool_huge_page() is modeled on and
+performs roughly the inverse of alloc_fresh_huge_page().
+Replaces dequeue_huge_page() which now has no callers,
+so this patch removes it.
 
+Helper function hstate_next_node_to_free() uses new hstate
+member next_to_free_nid to distribute "frees" across all
+nodes with huge pages.
 
-Lee
+V2:
+
+At Mel Gorman's suggestion:  renamed hstate_next_node() to
+hstate_next_node_to_alloc() for symmetry.  Also, renamed
+hstate member hugetlb_next_node to next_node_to_free.
+["hugetlb" is implicit in the hstate struct, I think].
+
+New in this version:
+
+Modified adjust_pool_surplus() to use hstate_next_node_to_alloc()
+and hstate_next_node_to_free() to advance node id for adjusting
+surplus huge page count, as this is equivalent to allocating and
+freeing persistent huge pages.  [Can't blame Mel for this part.]
+
+V3:
+
+Minor cleanup: rename 'nid' to 'next_nid' in free_pool_huge_page() to
+better match alloc_fresh_huge_page() conventions.
+
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ include/linux/hugetlb.h |    3 -
+ mm/hugetlb.c            |  132 +++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 88 insertions(+), 47 deletions(-)
+
+Index: linux-2.6.31-rc1-mmotm-090625-1549/include/linux/hugetlb.h
+===================================================================
+--- linux-2.6.31-rc1-mmotm-090625-1549.orig/include/linux/hugetlb.h	2009-06-29 10:21:12.000000000 -0400
++++ linux-2.6.31-rc1-mmotm-090625-1549/include/linux/hugetlb.h	2009-06-29 10:27:18.000000000 -0400
+@@ -183,7 +183,8 @@ unsigned long hugetlb_get_unmapped_area(
+ #define HSTATE_NAME_LEN 32
+ /* Defines one hugetlb page size */
+ struct hstate {
+-	int hugetlb_next_nid;
++	int next_nid_to_alloc;
++	int next_nid_to_free;
+ 	unsigned int order;
+ 	unsigned long mask;
+ 	unsigned long max_huge_pages;
+Index: linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c
+===================================================================
+--- linux-2.6.31-rc1-mmotm-090625-1549.orig/mm/hugetlb.c	2009-06-29 10:21:12.000000000 -0400
++++ linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c	2009-06-29 15:53:55.000000000 -0400
+@@ -455,24 +455,6 @@ static void enqueue_huge_page(struct hst
+ 	h->free_huge_pages_node[nid]++;
+ }
+ 
+-static struct page *dequeue_huge_page(struct hstate *h)
+-{
+-	int nid;
+-	struct page *page = NULL;
+-
+-	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
+-		if (!list_empty(&h->hugepage_freelists[nid])) {
+-			page = list_entry(h->hugepage_freelists[nid].next,
+-					  struct page, lru);
+-			list_del(&page->lru);
+-			h->free_huge_pages--;
+-			h->free_huge_pages_node[nid]--;
+-			break;
+-		}
+-	}
+-	return page;
+-}
+-
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+@@ -640,7 +622,7 @@ static struct page *alloc_fresh_huge_pag
+ 
+ /*
+  * Use a helper variable to find the next node and then
+- * copy it back to hugetlb_next_nid afterwards:
++ * copy it back to next_nid_to_alloc afterwards:
+  * otherwise there's a window in which a racer might
+  * pass invalid nid MAX_NUMNODES to alloc_pages_exact_node.
+  * But we don't need to use a spin_lock here: it really
+@@ -649,13 +631,13 @@ static struct page *alloc_fresh_huge_pag
+  * if we just successfully allocated a hugepage so that
+  * the next caller gets hugepages on the next node.
+  */
+-static int hstate_next_node(struct hstate *h)
++static int hstate_next_node_to_alloc(struct hstate *h)
+ {
+ 	int next_nid;
+-	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
++	next_nid = next_node(h->next_nid_to_alloc, node_online_map);
+ 	if (next_nid == MAX_NUMNODES)
+ 		next_nid = first_node(node_online_map);
+-	h->hugetlb_next_nid = next_nid;
++	h->next_nid_to_alloc = next_nid;
+ 	return next_nid;
+ }
+ 
+@@ -666,14 +648,15 @@ static int alloc_fresh_huge_page(struct 
+ 	int next_nid;
+ 	int ret = 0;
+ 
+-	start_nid = h->hugetlb_next_nid;
++	start_nid = h->next_nid_to_alloc;
++	next_nid = start_nid;
+ 
+ 	do {
+-		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
++		page = alloc_fresh_huge_page_node(h, next_nid);
+ 		if (page)
+ 			ret = 1;
+-		next_nid = hstate_next_node(h);
+-	} while (!page && h->hugetlb_next_nid != start_nid);
++		next_nid = hstate_next_node_to_alloc(h);
++	} while (!page && next_nid != start_nid);
+ 
+ 	if (ret)
+ 		count_vm_event(HTLB_BUDDY_PGALLOC);
+@@ -683,6 +666,52 @@ static int alloc_fresh_huge_page(struct 
+ 	return ret;
+ }
+ 
++/*
++ * helper for free_pool_huge_page() - find next node
++ * from which to free a huge page
++ */
++static int hstate_next_node_to_free(struct hstate *h)
++{
++	int next_nid;
++	next_nid = next_node(h->next_nid_to_free, node_online_map);
++	if (next_nid == MAX_NUMNODES)
++		next_nid = first_node(node_online_map);
++	h->next_nid_to_free = next_nid;
++	return next_nid;
++}
++
++/*
++ * Free huge page from pool from next node to free.
++ * Attempt to keep persistent huge pages more or less
++ * balanced over allowed nodes.
++ * Called with hugetlb_lock locked.
++ */
++static int free_pool_huge_page(struct hstate *h)
++{
++	int start_nid;
++	int next_nid;
++	int ret = 0;
++
++	start_nid = h->next_nid_to_free;
++	next_nid = start_nid;
++
++	do {
++		if (!list_empty(&h->hugepage_freelists[next_nid])) {
++			struct page *page =
++				list_entry(h->hugepage_freelists[next_nid].next,
++					  struct page, lru);
++			list_del(&page->lru);
++			h->free_huge_pages--;
++			h->free_huge_pages_node[next_nid]--;
++			update_and_free_page(h, page);
++			ret = 1;
++		}
++		next_nid = hstate_next_node_to_free(h);
++	} while (!ret && next_nid != start_nid);
++
++	return ret;
++}
++
+ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
+@@ -1007,7 +1036,7 @@ int __weak alloc_bootmem_huge_page(struc
+ 		void *addr;
+ 
+ 		addr = __alloc_bootmem_node_nopanic(
+-				NODE_DATA(h->hugetlb_next_nid),
++				NODE_DATA(h->next_nid_to_alloc),
+ 				huge_page_size(h), huge_page_size(h), 0);
+ 
+ 		if (addr) {
+@@ -1019,7 +1048,7 @@ int __weak alloc_bootmem_huge_page(struc
+ 			m = addr;
+ 			goto found;
+ 		}
+-		hstate_next_node(h);
++		hstate_next_node_to_alloc(h);
+ 		nr_nodes--;
+ 	}
+ 	return 0;
+@@ -1140,31 +1169,43 @@ static inline void try_to_free_low(struc
+  */
+ static int adjust_pool_surplus(struct hstate *h, int delta)
+ {
+-	static int prev_nid;
+-	int nid = prev_nid;
++	int start_nid, next_nid;
+ 	int ret = 0;
+ 
+ 	VM_BUG_ON(delta != -1 && delta != 1);
+-	do {
+-		nid = next_node(nid, node_online_map);
+-		if (nid == MAX_NUMNODES)
+-			nid = first_node(node_online_map);
+ 
+-		/* To shrink on this node, there must be a surplus page */
+-		if (delta < 0 && !h->surplus_huge_pages_node[nid])
+-			continue;
+-		/* Surplus cannot exceed the total number of pages */
+-		if (delta > 0 && h->surplus_huge_pages_node[nid] >=
++	if (delta < 0)
++		start_nid = h->next_nid_to_alloc;
++	else
++		start_nid = h->next_nid_to_free;
++	next_nid = start_nid;
++
++	do {
++		int nid = next_nid;
++		if (delta < 0)  {
++			next_nid = hstate_next_node_to_alloc(h);
++			/*
++			 * To shrink on this node, there must be a surplus page
++			 */
++			if (!h->surplus_huge_pages_node[nid])
++				continue;
++		}
++		if (delta > 0) {
++			next_nid = hstate_next_node_to_free(h);
++			/*
++			 * Surplus cannot exceed the total number of pages
++			 */
++			if (h->surplus_huge_pages_node[nid] >=
+ 						h->nr_huge_pages_node[nid])
+-			continue;
++				continue;
++		}
+ 
+ 		h->surplus_huge_pages += delta;
+ 		h->surplus_huge_pages_node[nid] += delta;
+ 		ret = 1;
+ 		break;
+-	} while (nid != prev_nid);
++	} while (next_nid != start_nid);
+ 
+-	prev_nid = nid;
+ 	return ret;
+ }
+ 
+@@ -1226,10 +1267,8 @@ static unsigned long set_max_huge_pages(
+ 	min_count = max(count, min_count);
+ 	try_to_free_low(h, min_count);
+ 	while (min_count < persistent_huge_pages(h)) {
+-		struct page *page = dequeue_huge_page(h);
+-		if (!page)
++		if (!free_pool_huge_page(h))
+ 			break;
+-		update_and_free_page(h, page);
+ 	}
+ 	while (count < persistent_huge_pages(h)) {
+ 		if (!adjust_pool_surplus(h, 1))
+@@ -1441,7 +1480,8 @@ void __init hugetlb_add_hstate(unsigned 
+ 	h->free_huge_pages = 0;
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+-	h->hugetlb_next_nid = first_node(node_online_map);
++	h->next_nid_to_alloc = first_node(node_online_map);
++	h->next_nid_to_free = first_node(node_online_map);
+ 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+ 					huge_page_size(h)/1024);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
