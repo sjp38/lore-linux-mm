@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A39EE6B005A
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 10:34:04 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 597406B005D
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 10:43:59 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <0dbec206-c157-4482-8fd7-4ccf9c2bdc5a@default>
-Date: Mon, 29 Jun 2009 07:34:34 -0700 (PDT)
+Message-ID: <5331ec14-c599-4317-bd5b-55911b8ee916@default>
+Date: Mon, 29 Jun 2009 07:44:50 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: [RFC] transcendent memory for Linux
-In-Reply-To: <20090624150420.GH1784@ucw.cz>
+In-Reply-To: <63386a3d0906270618h5be01265v759f5acd1f49682f@mail.gmail.com>
 Content-Type: text/plain; charset=Windows-1252
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
+To: Linus Walleij <linus.ml.walleij@gmail.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, jeremy@goop.org, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, linux-embedded@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Pavel --
 
-Thanks for the feedback!
 
-> This description (whole mail) needs to go into=20
-> Documentation/, somewhere.=20
-
-Good idea.  I'll do that for the next time I post the patches.
-
-> > Normal memory is directly addressable by the kernel,
-> > of a known normally-fixed size, synchronously accessible,
-> > and persistent (though not across a reboot).
-> ...
-> > Transcendent memory, or "tmem" for short, provides a
-> > well-defined API to access this unusual class of memory.
-> > The basic operations are page-copy-based and use a flexible
-> > object-oriented addressing mechanism.  Tmem assumes
+> From: Linus Walleij [mailto:linus.ml.walleij@gmail.com]
+> Sent: Saturday, June 27, 2009 7:19 AM
+> Subject: Re: [RFC] transcendent memory for Linux
 >=20
-> Should this API be documented, somewhere? Is it in-kernel API or does
-> userland see it?
-
-It is documented currently at:
-
-http://oss.oracle.com/projects/tmem/documentation/api/
-
-(just noticed I still haven't posted version 0.0.2 which
-has a few minor changes).
-
-I will add a briefer description of this API in Documentation/
-
-It is in-kernel only because some of the operations have
-a parameter that is a physical page frame number.
-
-> > "Preswap" IS persistent, but for various reasons may not always
-> > be available for use, again due to factors that may not be
-> > visible to the kernel (but, briefly, if the kernel is being
-> > "good" and has shared its resources nicely, then it will be
-> > able to use preswap, else it will not).  Once a page is put,
-> > a get on the page will always succeed.  So when the kernel
-> > finds itself in a situation where it needs to swap out a page,
-> > it first attempts to use preswap.  If the put works, a disk
-> > write and (usually) a disk read are avoided.  If it doesn't,
-> > the page is written to swap as usual.  Unlike precache, whether
+> > We call this latter class "transcendent memory" and it
+> > provides an interesting opportunity to more efficiently
+> > utilize RAM in a virtualized environment. =A0However this
+> > "memory but not really memory" may also have applications
+> > in NON-virtualized environments, such as hotplug-memory
+> > deletion, SSDs, and page cache compression. =A0Others have
+> > suggested ideas such as allowing use of highmem memory
+> > without a highmem kernel, or use of spare video memory.
 >=20
-> Ok, how much slower this gets in the worst case? Single hypercall to
-> find out that preswap is unavailable? I guess that compared to disk
-> access that's lost in the noise?
+> Here is what I consider may be a use case from the embedded
+> world: we have to save power as much as possible, so we need
+> to shut off entire banks of memory.
+>=20
+> Currently people do things like put memory into self-refresh
+> and then sleep, but for long lapses of time you would
+> want to compress memory towards lower addresses and
+> turn as many banks as possible off.
+>=20
+> So we have something like 4x16MB banks of RAM =3D 64MB RAM,
+> and the most necessary stuff easily fits in one of them.
+> If we can shut down 3x16MB we save 3 x power supply of the
+> RAMs.
+>=20
+> However in embedded we don't have any swap, so we'd need
+> some call that would attempt to remove a memory by paging
+> out code and data that has been demand-paged in
+> from the FS but no dirty pages, these should instead be
+> moved down to memory which will be retained, and the
+> call should fail if we didn't succeed to migrate all
+> dirty pages.
+>=20
+> Would this be possible with transcendent memory?
 
-Yes, the overhead of one hypercall per swap page is lost in
-the noise.
+Yes, I think this would work nicely as a use case for tmem.
+
+As Avi points out, you could do this with memory defragmentation,
+but if you know in advance that you will be frequently
+powering on and off a bank of RAM, you could put only
+ephemeral memory into it (enforced by a kernel policy and
+the tmem API), then defragmentation (and compression towards
+lower addresses) would not be necessary, and you could power
+off a bank with no loss of data.
+
+One issue though: I would guess that copying pages of memory
+could be very slow in an inexpensive embedded processor.
 
 Dan
 
