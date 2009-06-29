@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AFF5A6B0055
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 17:56:06 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 012C06B004D
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 18:15:52 -0400 (EDT)
+Message-ID: <4A493D19.4050908@goop.org>
+Date: Mon, 29 Jun 2009 15:15:53 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Message-ID: <a2cac9b3-74c1-4eea-8273-afe2226cef1d@default>
-Date: Mon, 29 Jun 2009 14:57:23 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] transcendent memory for Linux
-In-Reply-To: <4A4930DA.5030700@goop.org>
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC] transcendent memory for Linux
+References: <a2cac9b3-74c1-4eea-8273-afe2226cef1d@default>
+In-Reply-To: <a2cac9b3-74c1-4eea-8273-afe2226cef1d@default>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
 Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
 List-ID: <linux-mm.kvack.org>
 
-> From: Jeremy Fitzhardinge [mailto:jeremy@goop.org]
->=20
-> On 06/29/09 14:13, Dan Magenheimer wrote:
-> > The uuid is only used for shared pools.  If two different
-> > "tmem clients" (guests) agree on a 128-bit "shared secret",
-> > they can share a tmem pool.  For ocfs2, the 128-bit uuid in
-> > the on-disk superblock is used for this purpose to implement
-> > shared precache.  (Pages evicted by one cluster node
-> > can be used by another cluster node that co-resides on
-> > the same physical system.)=20
->=20
-> What are the implications of some third party VM guessing the=20
-> "uuid" of
-> a shared pool?  Presumably they could view and modify the contents of
-> the pool.  Is there any security model beyond making UUIDs=20
-> unguessable?
+On 06/29/09 14:57, Dan Magenheimer wrote:
+> Interesting question.  But, more than the 128-bit UUID must
+> be guessed... a valid 64-bit object id and a valid 32-bit
+> page index must also be guessed (though most instances of
+> the page index are small numbers so easy to guess).  Once
+> 192 bits are guessed though, yes, the pages could be viewed
+> and modified.  I suspect there are much more easily targeted
+> security holes in most data centers than guessing 192 (or
+> even 128) bits.
+>   
 
-Interesting question.  But, more than the 128-bit UUID must
-be guessed... a valid 64-bit object id and a valid 32-bit
-page index must also be guessed (though most instances of
-the page index are small numbers so easy to guess).  Once
-192 bits are guessed though, yes, the pages could be viewed
-and modified.  I suspect there are much more easily targeted
-security holes in most data centers than guessing 192 (or
-even 128) bits.
+If its possible to verify the uuid is valid before trying to find a
+valid oid+page, then its much easier (since you can concentrate on the
+uuid first).  If the uuid is derived from something like the
+filesystem's uuid - which wouldn't normally be considered sensitive
+information - then its not like its a search of the full 128-bit space. 
+And even if it were secret, uuids are not generally 128 randomly chosen
+bits.
 
-Now this only affects shared pools, and shared-precache is still
-experimental and not really part of this patchset.  Does "mount"
-of an accessible disk/filesystem have a better security model?
-Perhaps there are opportunities to leverage that?
+You also have to consider the case of a domain which was once part of
+the ocfs cluster, but now is not - it may still know the uuid, but not
+be otherwise allowed to use the cluster.
 
-> > The (page)size argument is always fixed (at PAGE_SIZE) for
-> > any given kernel.  The underlying implementation can
-> > be capable of supporting multiple pagesizes.
->
-> Pavel's other point was that merging the size field into the=20
-> flags is a
-> bit unusual/ugly.  But you can workaround that by just defining the
-> "flag" values for each plausible page size, since there's a=20
-> pretty small
-> bound: TMEM_PAGESZ_4K, 8K, etc.
+> Now this only affects shared pools, and shared-precache is still
+> experimental and not really part of this patchset.  Does "mount"
+> of an accessible disk/filesystem have a better security model?
+> Perhaps there are opportunities to leverage that?
+>   
 
-OK I see.  Yes the point (and the workaround) are valid.
-=20
-> Also, having an "API version number" is a very bad idea.  Such version
-> numbers are very inflexible and basically don't work (esp if you're
-> expecting to have multiple independent implementations of this API).=20
-> Much better is to have feature flags; the caller asks for features on
-> the new pool, and pool creation either succeeds or doesn't (a call to
-> return the set of supported features is a good compliment).
+Well, a domain is allowed to access any block device you give it access
+to.  I'm not sure what the equivalent model for tmem would be.
 
-Yes.  Perhaps all the non-flag bits should just be reserved for
-future use.  Today, the implementation just checks for (and implements)
-only zero anyway and nothing is defined anywhere except the 4K
-pagesize at the lowest levels of the (currently xen-only) API.
+Anyway, it sounds like you need to think a fair bit more about shared
+tmem's security model before it can be considered for use.
 
-Thanks,
-Dan
+> Yes.  Perhaps all the non-flag bits should just be reserved for
+> future use.  Today, the implementation just checks for (and implements)
+> only zero anyway and nothing is defined anywhere except the 4K
+> pagesize at the lowest levels of the (currently xen-only) API.
+>   
+
+Yes.  It should fail if it sees any unknown flags set in a guest request.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
