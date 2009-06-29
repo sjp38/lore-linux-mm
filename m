@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 306E16B004D
-	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 21:45:40 -0400 (EDT)
-Subject: [PATCH 1/5]memhp: update zone pcp at memory online
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 05E3F6B0055
+	for <linux-mm@kvack.org>; Sun, 28 Jun 2009 21:45:47 -0400 (EDT)
+Subject: [PATCH 2/5]memhp: exclude isolated page from pco page alloc
 From: Shaohua Li <shaohua.li@intel.com>
 Content-Type: text/plain
-Date: Mon, 29 Jun 2009 09:47:03 +0800
-Message-Id: <1246240023.26292.17.camel@sli10-desk.sh.intel.com>
+Date: Mon, 29 Jun 2009 09:47:12 +0800
+Message-Id: <1246240032.26292.18.camel@sli10-desk.sh.intel.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,78 +14,45 @@ To: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-In my test, 128M memory is hot add, but zone's pcp batch is 0, which
-is an obvious error. When pages are onlined, zone pcp should be
-updated accordingly.
+pages marked as isolated should not be allocated again. If such
+pages reside in pcp list, they can be allocated too, so there is
+a ping-pong memory offline frees some pages to pcp list and the
+pages get allocated and then memory offline frees them again,
+this loop will happen again and again.
+
+This should have no impact in normal code path, because in normal
+code path, pages in pcp list aren't isolated, and below loop will
+break in the first entry.
 
 Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 ---
- include/linux/mm.h  |    2 ++
- mm/memory_hotplug.c |    1 +
- mm/page_alloc.c     |   25 +++++++++++++++++++++++++
- 3 files changed, 28 insertions(+)
+ mm/page_alloc.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h	2009-06-26 09:41:08.000000000 +0800
-+++ linux/include/linux/mm.h	2009-06-26 09:41:10.000000000 +0800
-@@ -1073,6 +1073,8 @@ extern void setup_per_cpu_pageset(void);
- static inline void setup_per_cpu_pageset(void) {}
- #endif
- 
-+extern void zone_pcp_update(struct zone *zone);
-+
- /* nommu.c */
- extern atomic_long_t mmap_pages_allocated;
- 
-Index: linux/mm/memory_hotplug.c
-===================================================================
---- linux.orig/mm/memory_hotplug.c	2009-06-26 09:41:08.000000000 +0800
-+++ linux/mm/memory_hotplug.c	2009-06-26 09:41:10.000000000 +0800
-@@ -422,6 +422,7 @@ int online_pages(unsigned long pfn, unsi
- 	zone->present_pages += onlined_pages;
- 	zone->zone_pgdat->node_present_pages += onlined_pages;
- 
-+	zone_pcp_update(zone);
- 	setup_per_zone_wmarks();
- 	calculate_zone_inactive_ratio(zone);
- 	if (onlined_pages) {
 Index: linux/mm/page_alloc.c
 ===================================================================
---- linux.orig/mm/page_alloc.c	2009-06-26 09:41:08.000000000 +0800
-+++ linux/mm/page_alloc.c	2009-06-26 09:41:10.000000000 +0800
-@@ -3131,6 +3131,31 @@ int zone_wait_table_init(struct zone *zo
- 	return 0;
- }
+--- linux.orig/mm/page_alloc.c	2009-06-26 09:41:10.000000000 +0800
++++ linux/mm/page_alloc.c	2009-06-26 09:44:07.000000000 +0800
+@@ -1137,9 +1137,18 @@ again:
  
-+static int __zone_pcp_update(void *data)
-+{
-+	struct zone *zone = data;
-+	int cpu;
-+	unsigned long batch = zone_batchsize(zone), flags;
-+
-+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-+		struct per_cpu_pageset *pset;
-+		struct per_cpu_pages *pcp;
-+
-+		pset = zone_pcp(zone, cpu);
-+		pcp = &pset->pcp;
-+
-+		local_irq_save(flags);
-+		free_pages_bulk(zone, pcp->count, &pcp->list, 0);
-+		setup_pageset(pset, batch);
-+		local_irq_restore(flags);
-+	}
-+}
-+
-+void zone_pcp_update(struct zone *zone)
-+{
-+	stop_machine(__zone_pcp_update, zone, NULL);
-+}
-+
- static __meminit void zone_pcp_init(struct zone *zone)
- {
- 	int cpu;
+ 		/* Allocate more to the pcp list if necessary */
+ 		if (unlikely(&page->lru == &pcp->list)) {
++			int get_one_page = 0;
+ 			pcp->count += rmqueue_bulk(zone, 0,
+ 					pcp->batch, &pcp->list, migratetype);
+-			page = list_entry(pcp->list.next, struct page, lru);
++			list_for_each_entry(page, &pcp->list, lru) {
++				if (get_pageblock_migratetype(page) !=
++				    MIGRATE_ISOLATE) {
++					get_one_page = 1;
++					break;
++				}
++			}
++			if (!get_one_page)
++				goto failed;
+ 		}
+ 
+ 		list_del(&page->lru);
 
 
 --
