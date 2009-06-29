@@ -1,173 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 551296B005A
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 08:54:26 -0400 (EDT)
-Date: Mon, 29 Jun 2009 20:55:49 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8B4416B005A
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 08:57:38 -0400 (EDT)
+Date: Mon, 29 Jun 2009 20:59:11 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: Found the commit that causes the OOMs
-Message-ID: <20090629125549.GA22932@localhost>
-References: <26537.1246086769@redhat.com> <20090627125412.GA1667@cmpxchg.org> <20090628113246.GA18409@localhost> <28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com> <28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com> <20090628142239.GA20986@localhost> <2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com> <20090628151026.GB25076@localhost> <20090629091741.ab815ae7.minchan.kim@barrios-desktop> <17678.1246270219@redhat.com>
+Message-ID: <20090629125911.GB22932@localhost>
+References: <2015.1245341938@redhat.com> <20090618095729.d2f27896.akpm@linux-foundation.org> <7561.1245768237@redhat.com> <26537.1246086769@redhat.com> <20090627125412.GA1667@cmpxchg.org> <20090628113246.GA18409@localhost> <28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com> <2f11576a0906280749v25ab725dn8f98fbc1d2e5a5fd@mail.gmail.com> <28c262360906280947o6f9358ddh20ab549e875282a9@mail.gmail.com> <17087.1246279435@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <17678.1246270219@redhat.com>
+In-Reply-To: <17087.1246279435@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: David Howells <dhowells@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 29, 2009 at 06:10:19PM +0800, David Howells wrote:
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Mon, Jun 29, 2009 at 08:43:55PM +0800, David Howells wrote:
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> > Yes, good catch! (sorry I was in a hurry at the time..)
+> > David, Can you please try to following patch? it was posted to LKML
+> > about 1-2 week ago.
+> > 
+> > Subject "[BUGFIX][PATCH] fix lumpy reclaim lru handiling at
+> > isolate_lru_pages v2"
 > 
-> That doesn't compile:
+> It is already committed, but I ran a test on the latest Linus kernel anyway:
 
-Sorry! This one compiles OK:
+page-types showed that there are only ~1MB mapped regular (non-tmpfs) file pages.
+So not surprisingly it didn't help.
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 416f748..30bb1fe 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -166,15 +166,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
- 	return x;
- }
- 
--extern unsigned long global_lru_pages(void);
--
--static inline unsigned long zone_lru_pages(struct zone *zone)
--{
--	return (zone_page_state(zone, NR_ACTIVE_ANON)
--		+ zone_page_state(zone, NR_ACTIVE_FILE)
--		+ zone_page_state(zone, NR_INACTIVE_ANON)
--		+ zone_page_state(zone, NR_INACTIVE_FILE));
--}
-+extern unsigned long global_reclaimable_pages(void);
-+extern unsigned long zone_reclaimable_pages(struct zone *zone);
- 
- #ifdef CONFIG_NUMA
- /*
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a91b870..74c3067 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -394,7 +394,8 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
- 		struct zone *z =
- 			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
- 
--		x += zone_page_state(z, NR_FREE_PAGES) + zone_lru_pages(z);
-+		x += zone_page_state(z, NR_FREE_PAGES) +
-+		     zone_reclaimable_pages(z);
- 	}
- 	/*
- 	 * Make sure that the number of highmem pages is never larger
-@@ -418,7 +419,7 @@ unsigned long determine_dirtyable_memory(void)
- {
- 	unsigned long x;
- 
--	x = global_page_state(NR_FREE_PAGES) + global_lru_pages();
-+	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
- 
- 	if (!vm_highmem_is_dirtyable)
- 		x -= highmem_dirtyable_memory(x);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 026f452..1e29c7d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1693,7 +1693,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 				continue;
- 
--			lru_pages += zone_lru_pages(zone);
-+			lru_pages += zone_reclaimable_pages(zone);
- 		}
- 	}
- 
-@@ -1910,7 +1910,7 @@ loop_again:
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
- 
--			lru_pages += zone_lru_pages(zone);
-+			lru_pages += zone_reclaimable_pages(zone);
- 		}
- 
- 		/*
-@@ -1954,7 +1954,7 @@ loop_again:
- 			if (zone_is_all_unreclaimable(zone))
- 				continue;
- 			if (nr_slab == 0 && zone->pages_scanned >=
--						(zone_lru_pages(zone) * 6))
-+					(zone_reclaimable_pages(zone) * 6))
- 					zone_set_flag(zone,
- 						      ZONE_ALL_UNRECLAIMABLE);
- 			/*
-@@ -2121,12 +2121,33 @@ void wakeup_kswapd(struct zone *zone, int order)
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
- 
--unsigned long global_lru_pages(void)
-+unsigned long global_reclaimable_pages(void)
- {
--	return global_page_state(NR_ACTIVE_ANON)
--		+ global_page_state(NR_ACTIVE_FILE)
--		+ global_page_state(NR_INACTIVE_ANON)
--		+ global_page_state(NR_INACTIVE_FILE);
-+	int nr;
-+
-+	nr = global_page_state(NR_ACTIVE_FILE) +
-+	     global_page_state(NR_INACTIVE_FILE);
-+
-+	if (nr_swap_pages > 0)
-+		nr += global_page_state(NR_ACTIVE_ANON) +
-+		      global_page_state(NR_INACTIVE_ANON);
-+
-+	return nr;
-+}
-+
-+
-+unsigned long zone_reclaimable_pages(struct zone *zone)
-+{
-+	int nr;
-+
-+	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
-+	     zone_page_state(zone, NR_INACTIVE_FILE);
-+
-+	if (nr_swap_pages > 0)
-+		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
-+		      zone_page_state(zone, NR_INACTIVE_ANON);
-+
-+	return nr;
- }
- 
- #ifdef CONFIG_HIBERNATION
-@@ -2198,7 +2219,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
- 
- 	current->reclaim_state = &reclaim_state;
- 
--	lru_pages = global_lru_pages();
-+	lru_pages = global_reclaimable_pages();
- 	nr_slab = global_page_state(NR_SLAB_RECLAIMABLE);
- 	/* If slab caches are huge, it's better to hit them first */
- 	while (nr_slab >= lru_pages) {
-@@ -2240,7 +2261,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
- 
- 			reclaim_state.reclaimed_slab = 0;
- 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
--					global_lru_pages());
-+				    global_reclaimable_pages());
- 			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
- 			if (sc.nr_reclaimed >= nr_pages)
- 				goto out;
-@@ -2257,7 +2278,8 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
- 	if (!sc.nr_reclaimed) {
- 		do {
- 			reclaim_state.reclaimed_slab = 0;
--			shrink_slab(nr_pages, sc.gfp_mask, global_lru_pages());
-+			shrink_slab(nr_pages, sc.gfp_mask,
-+				    global_reclaimable_pages());
- 			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
- 		} while (sc.nr_reclaimed < nr_pages &&
- 				reclaim_state.reclaimed_slab > 0);
+> msgctl11 invoked oom-killer: gfp_mask=0xd0, order=1, oom_adj=0
+> msgctl11 cpuset=/ mems_allowed=0
+> Pid: 20366, comm: msgctl11 Not tainted 2.6.31-rc1-cachefs #144
+> Call Trace:
+>  [<ffffffff810718d2>] ? oom_kill_process.clone.0+0xa9/0x245
+>  [<ffffffff81071b99>] ? __out_of_memory+0x12b/0x142
+>  [<ffffffff81071c1a>] ? out_of_memory+0x6a/0x94
+>  [<ffffffff810742e4>] ? __alloc_pages_nodemask+0x42e/0x51d
+>  [<ffffffff81031416>] ? copy_process+0x95/0x114f
+>  [<ffffffff8107443c>] ? __get_free_pages+0x12/0x4f
+>  [<ffffffff81031439>] ? copy_process+0xb8/0x114f
+>  [<ffffffff8108192e>] ? handle_mm_fault+0x5dd/0x62f
+>  [<ffffffff8103260f>] ? do_fork+0x13f/0x2ba
+>  [<ffffffff81022c22>] ? do_page_fault+0x1f8/0x20d
+>  [<ffffffff8100b0d3>] ? stub_clone+0x13/0x20
+>  [<ffffffff8100ad6b>] ? system_call_fastpath+0x16/0x1b
+> Mem-Info:
+> DMA per-cpu:
+> CPU    0: hi:    0, btch:   1 usd:   0
+> CPU    1: hi:    0, btch:   1 usd:   0
+> DMA32 per-cpu:
+> CPU    0: hi:  186, btch:  31 usd: 159
+> CPU    1: hi:  186, btch:  31 usd:   2
+> Active_anon:70477 active_file:1 inactive_anon:4514
+>  inactive_file:7 unevictable:0 dirty:0 writeback:0 unstable:0
+>  free:1954 slab:42078 mapped:237 pagetables:57791 bounce:0
+> DMA free:3932kB min:60kB low:72kB high:88kB active_anon:236kB inactive_anon:0kB active_file:4kB inactive_file:4kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 968 968 968
+> DMA32 free:3884kB min:3948kB low:4932kB high:5920kB active_anon:281672kB inactive_anon:18056kB active_file:0kB inactive_file:24kB unevictable:0kB present:992032kB pages_scanned:6 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0 0
+> DMA: 180*4kB 36*8kB 3*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 0*1024kB 1*2048kB 0*4096kB = 3936kB
+> DMA32: 491*4kB 0*8kB 0*16kB 0*32kB 0*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 3884kB
+> 1808 total pagecache pages
+> 0 pages in swap cache
+> Swap cache stats: add 0, delete 0, find 0/0
+> Free swap  = 0kB
+> Total swap = 0kB
+> 255744 pages RAM
+> 5589 pages reserved
+> 249340 pages shared
+> 219039 pages non-shared
+> Out of memory: kill process 11471 (msgctl11) score 112393 or a child
+> Killed process 12318 (msgctl11)
+> 
+> 
+> David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
