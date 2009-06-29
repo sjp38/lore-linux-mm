@@ -1,53 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0C6DF6B005A
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 07:06:22 -0400 (EDT)
-Date: Mon, 29 Jun 2009 14:08:12 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
-Subject: Re: kmemleak hexdump proposal
-Message-ID: <20090629110812.GC3731@localdomain.by>
-References: <20090628173632.GA3890@localdomain.by>
- <84144f020906290243u7a362465p6b1f566257fa3239@mail.gmail.com>
- <20090629101917.GA3093@localdomain.by>
- <1246270774.6364.9.camel@penberg-laptop>
- <20090629104553.GA3731@localdomain.by>
- <1246273108.21450.19.camel@pc1117.cambridge.arm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FBE36B005A
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 08:28:36 -0400 (EDT)
+Date: Mon, 29 Jun 2009 13:29:25 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] hugetlb: fault flags instead of write_access
+Message-ID: <20090629122925.GB5065@csn.ul.ie>
+References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1246273108.21450.19.camel@pc1117.cambridge.arm.com>
+In-Reply-To: <Pine.LNX.4.64.0906231345001.19552@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (06/29/09 11:58), Catalin Marinas wrote:
-> On Mon, 2009-06-29 at 13:45 +0300, Sergey Senozhatsky wrote:
-> > BTW, printing it all the time we can spam kmemleak (in case there are objects sized 2K, 4K and so on).
-> > That's why I wrote about hexdump=OBJECT_POINTER.
+On Tue, Jun 23, 2009 at 01:49:05PM +0100, Hugh Dickins wrote:
+> handle_mm_fault() is now passing fault flags rather than write_access
+> down to hugetlb_fault(), so better recognize that in hugetlb_fault(),
+> and in hugetlb_no_page().
 > 
-> I'm more in favour of an on/off hexdump feature (maybe even permanently
-> on) and with a limit to the number of bytes it displays. For larger
-> blocks, the hexdump=OBJECT_POINTER is easily achievable in user space
-> via /dev/kmem.
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+
+Patch looks good and passes libhugetlbfs regression tests. It passes
+with or without the tests but without this patch, it's only a
+co-incidence it passes as opposed to designed.
+
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+
+> ---
 > 
-Yeah. Good point.
-
-> My proposal is for an always on hexdump but with no more than 2-3 lines
-> of hex values. 
-I like it.
-
-> As Pekka said, I should get it into linux-next before the
-> next merging window.
-I'll send new patch to you (today evening)/(tomorrow). 
-Ok?
-
+>  include/linux/hugetlb.h |    4 ++--
+>  mm/hugetlb.c            |   17 +++++++++--------
+>  2 files changed, 11 insertions(+), 10 deletions(-)
 > 
-> -- 
-> Catalin
+> --- 2.6.30-git20/include/linux/hugetlb.h	2009-06-23 11:06:22.000000000 +0100
+> +++ linux/include/linux/hugetlb.h	2009-06-23 13:07:57.000000000 +0100
+> @@ -33,7 +33,7 @@ void hugetlb_report_meminfo(struct seq_f
+>  int hugetlb_report_node_meminfo(int, char *);
+>  unsigned long hugetlb_total_pages(void);
+>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> -			unsigned long address, int write_access);
+> +			unsigned long address, unsigned int flags);
+>  int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+>  						struct vm_area_struct *vma,
+>  						int acctflags);
+> @@ -98,7 +98,7 @@ static inline void hugetlb_report_meminf
+>  #define pud_huge(x)	0
+>  #define is_hugepage_only_range(mm, addr, len)	0
+>  #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+> -#define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+> +#define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
+>  
+>  #define hugetlb_change_protection(vma, address, end, newprot)
+>  
+> --- 2.6.30-git20/mm/hugetlb.c	2009-06-23 11:06:25.000000000 +0100
+> +++ linux/mm/hugetlb.c	2009-06-23 13:07:57.000000000 +0100
+> @@ -1985,7 +1985,7 @@ static struct page *hugetlbfs_pagecache_
+>  }
+>  
+>  static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> -			unsigned long address, pte_t *ptep, int write_access)
+> +			unsigned long address, pte_t *ptep, unsigned int flags)
+>  {
+>  	struct hstate *h = hstate_vma(vma);
+>  	int ret = VM_FAULT_SIGBUS;
+> @@ -2053,7 +2053,7 @@ retry:
+>  	 * any allocations necessary to record that reservation occur outside
+>  	 * the spinlock.
+>  	 */
+> -	if (write_access && !(vma->vm_flags & VM_SHARED))
+> +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
+>  		if (vma_needs_reservation(h, vma, address) < 0) {
+>  			ret = VM_FAULT_OOM;
+>  			goto backout_unlocked;
+> @@ -2072,7 +2072,7 @@ retry:
+>  				&& (vma->vm_flags & VM_SHARED)));
+>  	set_huge_pte_at(mm, address, ptep, new_pte);
+>  
+> -	if (write_access && !(vma->vm_flags & VM_SHARED)) {
+> +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+>  		/* Optimization, do the COW without a second fault */
+>  		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
+>  	}
+> @@ -2091,7 +2091,7 @@ backout_unlocked:
+>  }
+>  
+>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> -			unsigned long address, int write_access)
+> +			unsigned long address, unsigned int flags)
+>  {
+>  	pte_t *ptep;
+>  	pte_t entry;
+> @@ -2112,7 +2112,7 @@ int hugetlb_fault(struct mm_struct *mm,
+>  	mutex_lock(&hugetlb_instantiation_mutex);
+>  	entry = huge_ptep_get(ptep);
+>  	if (huge_pte_none(entry)) {
+> -		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
+> +		ret = hugetlb_no_page(mm, vma, address, ptep, flags);
+>  		goto out_mutex;
+>  	}
+>  
+> @@ -2126,7 +2126,7 @@ int hugetlb_fault(struct mm_struct *mm,
+>  	 * page now as it is used to determine if a reservation has been
+>  	 * consumed.
+>  	 */
+> -	if (write_access && !pte_write(entry)) {
+> +	if ((flags & FAULT_FLAG_WRITE) && !pte_write(entry)) {
+>  		if (vma_needs_reservation(h, vma, address) < 0) {
+>  			ret = VM_FAULT_OOM;
+>  			goto out_mutex;
+> @@ -2143,7 +2143,7 @@ int hugetlb_fault(struct mm_struct *mm,
+>  		goto out_page_table_lock;
+>  
+>  
+> -	if (write_access) {
+> +	if (flags & FAULT_FLAG_WRITE) {
+>  		if (!pte_write(entry)) {
+>  			ret = hugetlb_cow(mm, vma, address, ptep, entry,
+>  							pagecache_page);
+> @@ -2152,7 +2152,8 @@ int hugetlb_fault(struct mm_struct *mm,
+>  		entry = pte_mkdirty(entry);
+>  	}
+>  	entry = pte_mkyoung(entry);
+> -	if (huge_ptep_set_access_flags(vma, address, ptep, entry, write_access))
+> +	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
+> +						flags & FAULT_FLAG_WRITE))
+>  		update_mmu_cache(vma, address, entry);
+>  
+>  out_page_table_lock:
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
-	Sergey
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
