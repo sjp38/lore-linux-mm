@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D10156B005C
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 17:22:59 -0400 (EDT)
-Message-ID: <4A4930DA.5030700@goop.org>
-Date: Mon, 29 Jun 2009 14:23:38 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: [RFC] transcendent memory for Linux
-References: <6639b922-4ed7-48fd-9a3d-c78a4f93355c@default>
-In-Reply-To: <6639b922-4ed7-48fd-9a3d-c78a4f93355c@default>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 322586B0055
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 17:50:53 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Mon, 29 Jun 2009 17:52:26 -0400
+Message-Id: <20090629215226.20038.42028.sendpatchset@lts-notebook>
+Subject: [PATCH 0/3] Balance Freeing of Huge Pages across Nodes
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
+To: linux-mm@kvack.org, linux-numa@vger.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 06/29/09 14:13, Dan Magenheimer wrote:
-> The uuid is only used for shared pools.  If two different
-> "tmem clients" (guests) agree on a 128-bit "shared secret",
-> they can share a tmem pool.  For ocfs2, the 128-bit uuid in
-> the on-disk superblock is used for this purpose to implement
-> shared precache.  (Pages evicted by one cluster node
-> can be used by another cluster node that co-resides on
-> the same physical system.)
->   
+[PATCH] 0/3 Balance Freeing of Huge Pages across Nodes
 
-What are the implications of some third party VM guessing the "uuid" of
-a shared pool?  Presumably they could view and modify the contents of
-the pool.  Is there any security model beyond making UUIDs unguessable?
+This series contains V3 of the of the "Balance Freeing of Huge
+Pages across Nodes" patch--containing a minor cleanup from v2--
+and two additional, related patches.  I have added David Rientjes'
+ACK from V2, hoping that the change to v3 doesn't invalidate that.
 
-> The (page)size argument is always fixed (at PAGE_SIZE) for
-> any given kernel.  The underlying implementation can
-> be capable of supporting multiple pagesizes.
->   
+Patch 2/3 reworks the free_pool_huge_page() function so that it
+may also be used by return_unused_surplus_page().  This patch
+needs careful review [and, testing?].  Perhaps Mel Gorman can 
+give it a go with the hugepages regression tests.
 
-Pavel's other point was that merging the size field into the flags is a
-bit unusual/ugly.  But you can workaround that by just defining the
-"flag" values for each plausible page size, since there's a pretty small
-bound: TMEM_PAGESZ_4K, 8K, etc.
+Patch 3/3 updates the vm hugetlbpage documentation to clarify 
+the usage and to add the description of the balancing of freeing
+of huge pages.  Most of the update is from my earlier "huge pages
+nodes_allowed" patch series, without mention of the nodes_allowed
+mask and associated boot parameter, sysctl and attributes.
 
-Also, having an "API version number" is a very bad idea.  Such version
-numbers are very inflexible and basically don't work (esp if you're
-expecting to have multiple independent implementations of this API). 
-Much better is to have feature flags; the caller asks for features on
-the new pool, and pool creation either succeeds or doesn't (a call to
-return the set of supported features is a good compliment).
 
-    J
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
