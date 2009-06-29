@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 012C06B004D
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 18:15:52 -0400 (EDT)
-Message-ID: <4A493D19.4050908@goop.org>
-Date: Mon, 29 Jun 2009 15:15:53 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+	by kanga.kvack.org (Postfix) with SMTP id 32D416B004D
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 18:29:55 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 26CCB82C49B
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 18:48:20 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 2Uf6Zj6QNGgU for <linux-mm@kvack.org>;
+	Mon, 29 Jun 2009 18:48:20 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id A489682C49F
+	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 18:48:14 -0400 (EDT)
+Date: Mon, 29 Jun 2009 18:30:12 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem
+ in sl[aou]b
+In-Reply-To: <20090625193137.GA16861@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.1.10.0906291827050.21956@gentwo.org>
+References: <20090625193137.GA16861@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] transcendent memory for Linux
-References: <a2cac9b3-74c1-4eea-8273-afe2226cef1d@default>
-In-Reply-To: <a2cac9b3-74c1-4eea-8273-afe2226cef1d@default>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, mpm@selenic.com, jdb@comx.dk
 List-ID: <linux-mm.kvack.org>
 
-On 06/29/09 14:57, Dan Magenheimer wrote:
-> Interesting question.  But, more than the 128-bit UUID must
-> be guessed... a valid 64-bit object id and a valid 32-bit
-> page index must also be guessed (though most instances of
-> the page index are small numbers so easy to guess).  Once
-> 192 bits are guessed though, yes, the pages could be viewed
-> and modified.  I suspect there are much more easily targeted
-> security holes in most data centers than guessing 192 (or
-> even 128) bits.
->   
+On Thu, 25 Jun 2009, Paul E. McKenney wrote:
 
-If its possible to verify the uuid is valid before trying to find a
-valid oid+page, then its much easier (since you can concentrate on the
-uuid first).  If the uuid is derived from something like the
-filesystem's uuid - which wouldn't normally be considered sensitive
-information - then its not like its a search of the full 128-bit space. 
-And even if it were secret, uuids are not generally 128 randomly chosen
-bits.
+> Jesper noted that kmem_cache_destroy() invokes synchronize_rcu() rather
+> than rcu_barrier() in the SLAB_DESTROY_BY_RCU case, which could result
+> in RCU callbacks accessing a kmem_cache after it had been destroyed.
+>
+> The following untested (might not even compile) patch proposes a fix.
 
-You also have to consider the case of a domain which was once part of
-the ocfs cluster, but now is not - it may still know the uuid, but not
-be otherwise allowed to use the cluster.
+It could be seen to be the responsibility of the caller of
+kmem_cache_destroy to insure that no accesses are pending.
 
-> Now this only affects shared pools, and shared-precache is still
-> experimental and not really part of this patchset.  Does "mount"
-> of an accessible disk/filesystem have a better security model?
-> Perhaps there are opportunities to leverage that?
->   
+If the caller specified destroy by rcu on cache creation then he also
+needs to be aware of not destroying the cache itself until all rcu actions
+are complete. This is similar to the caution that has to be execised then
+accessing cache data itself.
 
-Well, a domain is allowed to access any block device you give it access
-to.  I'm not sure what the equivalent model for tmem would be.
-
-Anyway, it sounds like you need to think a fair bit more about shared
-tmem's security model before it can be considered for use.
-
-> Yes.  Perhaps all the non-flag bits should just be reserved for
-> future use.  Today, the implementation just checks for (and implements)
-> only zero anyway and nothing is defined anywhere except the 4K
-> pagesize at the lowest levels of the (currently xen-only) API.
->   
-
-Yes.  It should fail if it sees any unknown flags set in a guest request.
-
-    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
