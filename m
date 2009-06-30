@@ -1,100 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BCFDC6B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:10:48 -0400 (EDT)
-Date: Tue, 30 Jun 2009 16:11:03 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: BUG: Bad page state [was: Strange oopses in 2.6.30]
-Message-ID: <20090630151103.GF17561@csn.ul.ie>
-References: <20090623200846.223C.A69D9226@jp.fujitsu.com> <20090629084114.GA28597@csn.ul.ie> <20090630092847.A730.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 967B46B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:36:59 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so64513rvb.26
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 08:38:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090630092847.A730.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090630152324.A73A.A69D9226@jp.fujitsu.com>
+References: <20090630152324.A73A.A69D9226@jp.fujitsu.com>
+Date: Wed, 1 Jul 2009 00:38:08 +0900
+Message-ID: <28c262360906300838m778ed5e4s8fe54501b95ccc0c@mail.gmail.com>
+Subject: Re: [PATCH] Makes slab pages field in show_free_areas() separate two
+	field
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Jiri Slaby <jirislaby@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 09:31:04AM +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> Thank you new version.
-> 
-> > ==== CUT HERE ====
-> > mm: Warn once when a page is freed with PG_mlocked set
-> >     
-> > When a page is freed with the PG_mlocked set, it is considered an unexpected
-> > but recoverable situation. A counter records how often this event happens
-> > but it is easy to miss that this event has occured at all. This patch warns
-> > once when PG_mlocked is set to prompt debuggers to check the counter to
-> > see how often it is happening.
-> >     
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > --- 
-> >  mm/page_alloc.c |   16 ++++++++++++----
-> >  1 file changed, 12 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 5d714f8..519ea6e 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -495,8 +495,16 @@ static inline void free_page_mlock(struct page *page)
-> >  static void free_page_mlock(struct page *page) { }
-> >  #endif
-> >  
-> > -static inline int free_pages_check(struct page *page)
-> > -{
-> > +static inline int free_pages_check(struct page *page, int wasMlocked)
-> > +{
-> > +	if (unlikely(wasMlocked)) {
-> > +		WARN_ONCE(1, KERN_WARNING
-> > +			"Page flag mlocked set for process %s at pfn:%05lx\n"
-> > +			"page:%p flags:0x%lX\n",
-> 
-> 0x%lX is a bit redundunt.
-> %lX insert "0x" string by itself, I think.
-> 
+On Tue, Jun 30, 2009 at 3:25 PM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Subject: [PATCH] Makes slab pages field in show_free_areas() separate two=
+ field
+>
+> if OOM happed, We really want to know the number of rest reclaimable page=
+s.
+> Then, reclaimable slab and unreclaimable slab shouldn't be mixed displain=
+g.
 
-It does not automatically insert the 0x for me and I just did a quick
-test there. Can you double check please?
+Yes. It makes sense to me.
 
-> 
-> > +			current->comm, page_to_pfn(page),
-> > +			page, page->flags|__PG_MLOCKED);
-> > +	}
-> > +
-> >  	if (unlikely(page_mapcount(page) |
-> >  		(page->mapping != NULL)  |
-> >  		(atomic_read(&page->_count) != 0) |
-> > @@ -562,7 +570,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
-> >  	kmemcheck_free_shadow(page, order);
-> >  
-> >  	for (i = 0 ; i < (1 << order) ; ++i)
-> > -		bad += free_pages_check(page + i);
-> > +		bad += free_pages_check(page + i, wasMlocked);
-> >  	if (bad)
-> >  		return;
-> >  
-> > @@ -1027,7 +1035,7 @@ static void free_hot_cold_page(struct page *page, int cold)
-> >  
-> >  	if (PageAnon(page))
-> >  		page->mapping = NULL;
-> > -	if (free_pages_check(page))
-> > +	if (free_pages_check(page, wasMlocked))
-> >  		return;
-> >  
-> >  	if (!PageHighMem(page)) {
-> 
-> Other part looks fine. thanks.
-> 
-> 
-> 
+>
+>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> ---
+> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A07 ++++---
+> =C2=A01 file changed, 4 insertions(+), 3 deletions(-)
+>
+> Index: b/mm/page_alloc.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2119,7 +2119,8 @@ void show_free_areas(void)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" inactive_file:%l=
+u"
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" unevictable:%lu"
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" dirty:%lu writeb=
+ack:%lu unstable:%lu\n"
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " free:%lu slab:%lu ma=
+pped:%lu pagetables:%lu bounce:%lu\n",
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " free:%lu slab_reclai=
+mable:%lu slab_unreclaimable:%lu\n"
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " mapped:%lu pagetable=
+s:%lu bounce:%lu\n",
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_ACTIVE_ANON),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_ACTIVE_FILE),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_INACTIVE_ANON),
+> @@ -2129,8 +2130,8 @@ void show_free_areas(void)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_WRITEBACK),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_UNSTABLE_NFS),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_FREE_PAGES),
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
+LAB_RECLAIMABLE) +
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 global_page_state(NR_SLAB_UNRECLAIMABLE),
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
+LAB_RECLAIMABLE),
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
+LAB_UNRECLAIMABLE),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_FILE_MAPPED),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_PAGETABLE),
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
+NR_BOUNCE));
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
+>
+
+
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
