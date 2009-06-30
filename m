@@ -1,127 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C06E76B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:44:52 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5U6kGWI017366
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 30 Jun 2009 15:46:16 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 31FA745DE50
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:46:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E65CB45DE4E
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:46:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A79FE1DB803E
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:46:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C939E08001
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:46:15 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] cleanup page_remove_rmap()
-Message-Id: <20090630154343.A73F.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EEBEC6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:56:35 -0400 (EDT)
+Received: by fxm2 with SMTP id 2so3393624fxm.38
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2009 23:58:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <20090630060031.GL7070@linux.vnet.ibm.com>
+References: <20090625193137.GA16861@linux.vnet.ibm.com>
+	 <alpine.DEB.1.10.0906291827050.21956@gentwo.org>
+	 <1246315553.21295.100.camel@calx>
+	 <alpine.DEB.1.10.0906291910130.32637@gentwo.org>
+	 <1246320394.21295.105.camel@calx>
+	 <20090630060031.GL7070@linux.vnet.ibm.com>
+Date: Tue, 30 Jun 2009 09:58:22 +0300
+Message-ID: <84144f020906292358j6517b599n471eed4e88781a78@mail.gmail.com>
+Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem in
+	sl[aou]b
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Tue, 30 Jun 2009 15:46:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: paulmck@linux.vnet.ibm.com
+Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jdb@comx.dk
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jun 30, 2009 at 9:00 AM, Paul E.
+McKenney<paulmck@linux.vnet.ibm.com> wrote:
+> On Mon, Jun 29, 2009 at 07:06:34PM -0500, Matt Mackall wrote:
+>> On Mon, 2009-06-29 at 19:19 -0400, Christoph Lameter wrote:
+>> > On Mon, 29 Jun 2009, Matt Mackall wrote:
+>> >
+>> > > This is a reasonable point, and in keeping with the design principle
+>> > > 'callers should handle their own special cases'. However, I think it
+>> > > would be more than a little surprising for kmem_cache_free() to do the
+>> > > right thing, but not kmem_cache_destroy().
+>> >
+>> > kmem_cache_free() must be used carefully when using SLAB_DESTROY_BY_RCU.
+>> > The freed object can be accessed after free until the rcu interval
+>> > expires (well sortof, it may even be reallocated within the interval).
+>> >
+>> > There are special RCU considerations coming already with the use of
+>> > kmem_cache_free().
+>> >
+>> > Adding RCU operations to the kmem_cache_destroy() logic may result in
+>> > unnecessary RCU actions for slabs where the coder is ensuring that the
+>> > RCU interval has passed by other means.
+>>
+>> Do we care? Cache destruction shouldn't be in anyone's fast path.
+>> Correctness is more important and users are more liable to be correct
+>> with this patch.
+>
+> I am with Matt on this one -- if we are going to hand the users of
+> SLAB_DESTROY_BY_RCU a hand grenade, let's at least leave the pin in.
 
-sorry for the delay resend.
+I don't even claim to understand all the RCU details here but I don't
+see why we should care about _kmem_cache_destroy()_ performance at
+this level. Christoph, hmmm?
 
-=================
-Subject: [PATCH] cleanup page_remove_rmap()
-
-page_remove_rmap() has multiple PageAnon() test and it has
-a bit deeply nesting.
-
-cleanup here.
-
-note: this patch doesn't have behavior change.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/rmap.c |   57 ++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 30 insertions(+), 27 deletions(-)
-
-Index: b/mm/rmap.c
-===================================================================
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -738,34 +738,37 @@ void page_dup_rmap(struct page *page, st
-  */
- void page_remove_rmap(struct page *page)
- {
--	if (atomic_add_negative(-1, &page->_mapcount)) {
--		/*
--		 * Now that the last pte has gone, s390 must transfer dirty
--		 * flag from storage key to struct page.  We can usually skip
--		 * this if the page is anon, so about to be freed; but perhaps
--		 * not if it's in swapcache - there might be another pte slot
--		 * containing the swap entry, but page not yet written to swap.
--		 */
--		if ((!PageAnon(page) || PageSwapCache(page)) &&
--		    page_test_dirty(page)) {
--			page_clear_dirty(page);
--			set_page_dirty(page);
--		}
--		if (PageAnon(page))
--			mem_cgroup_uncharge_page(page);
--		__dec_zone_page_state(page,
--			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
--		mem_cgroup_update_mapped_file_stat(page, -1);
--		/*
--		 * It would be tidy to reset the PageAnon mapping here,
--		 * but that might overwrite a racing page_add_anon_rmap
--		 * which increments mapcount after us but sets mapping
--		 * before us: so leave the reset to free_hot_cold_page,
--		 * and remember that it's only reliable while mapped.
--		 * Leaving it set also helps swapoff to reinstate ptes
--		 * faster for those pages still in swapcache.
--		 */
-+	/* page still mapped by someone else? */
-+	if (!atomic_add_negative(-1, &page->_mapcount))
-+		return;
-+
-+	/*
-+	 * Now that the last pte has gone, s390 must transfer dirty
-+	 * flag from storage key to struct page.  We can usually skip
-+	 * this if the page is anon, so about to be freed; but perhaps
-+	 * not if it's in swapcache - there might be another pte slot
-+	 * containing the swap entry, but page not yet written to swap.
-+	 */
-+	if ((!PageAnon(page) || PageSwapCache(page)) && page_test_dirty(page)) {
-+		page_clear_dirty(page);
-+		set_page_dirty(page);
-+	}
-+	if (PageAnon(page)) {
-+		mem_cgroup_uncharge_page(page);
-+		__dec_zone_page_state(page, NR_ANON_PAGES);
-+	} else {
-+		__dec_zone_page_state(page, NR_FILE_MAPPED);
- 	}
-+	mem_cgroup_update_mapped_file_stat(page, -1);
-+	/*
-+	 * It would be tidy to reset the PageAnon mapping here,
-+	 * but that might overwrite a racing page_add_anon_rmap
-+	 * which increments mapcount after us but sets mapping
-+	 * before us: so leave the reset to free_hot_cold_page,
-+	 * and remember that it's only reliable while mapped.
-+	 * Leaving it set also helps swapoff to reinstate ptes
-+	 * faster for those pages still in swapcache.
-+	 */
- }
- 
- /*
-
+                              Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
