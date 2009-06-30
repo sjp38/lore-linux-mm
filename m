@@ -1,60 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E6326B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 01:58:36 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n5U5tA4Y025216
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 01:55:10 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n5U60M35218940
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:00:24 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n5U60M4R021790
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:00:22 -0400
-Date: Mon, 29 Jun 2009 23:00:31 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem
-	in sl[aou]b
-Message-ID: <20090630060031.GL7070@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20090625193137.GA16861@linux.vnet.ibm.com> <alpine.DEB.1.10.0906291827050.21956@gentwo.org> <1246315553.21295.100.camel@calx> <alpine.DEB.1.10.0906291910130.32637@gentwo.org> <1246320394.21295.105.camel@calx>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6678D6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:03:49 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5U63q0f031114
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Jun 2009 15:03:52 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 92A1245DE4F
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:03:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 69D4745DE4E
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:03:51 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 499571DB803F
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:03:51 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2CD21DB8038
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 15:03:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
+Message-Id: <20090630150035.A738.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1246320394.21295.105.camel@calx>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Jun 2009 15:03:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, jdb@comx.dk
+To: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 29, 2009 at 07:06:34PM -0500, Matt Mackall wrote:
-> On Mon, 2009-06-29 at 19:19 -0400, Christoph Lameter wrote:
-> > On Mon, 29 Jun 2009, Matt Mackall wrote:
-> > 
-> > > This is a reasonable point, and in keeping with the design principle
-> > > 'callers should handle their own special cases'. However, I think it
-> > > would be more than a little surprising for kmem_cache_free() to do the
-> > > right thing, but not kmem_cache_destroy().
-> > 
-> > kmem_cache_free() must be used carefully when using SLAB_DESTROY_BY_RCU.
-> > The freed object can be accessed after free until the rcu interval
-> > expires (well sortof, it may even be reallocated within the interval).
-> > 
-> > There are special RCU considerations coming already with the use of
-> > kmem_cache_free().
-> > 
-> > Adding RCU operations to the kmem_cache_destroy() logic may result in
-> > unnecessary RCU actions for slabs where the coder is ensuring that the
-> > RCU interval has passed by other means.
-> 
-> Do we care? Cache destruction shouldn't be in anyone's fast path.
-> Correctness is more important and users are more liable to be correct
-> with this patch.
+Recent "Found the commit that causes the OOMs" discussion notice us that kernel
+stack usage should be showed in OOM log.
 
-I am with Matt on this one -- if we are going to hand the users of
-SLAB_DESTROY_BY_RCU a hand grenade, let's at least leave the pin in.
+At least, I think ;)
 
-							Thanx, Paul
+this patch provide it.
+
+
+========
+Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
+
+if the system have a lot of thread, kernel stack consume unignorable large size
+memory.
+IOW, it make a lot of unaccountable memory.
+
+Tons unaccountable memory bring to harder analyse memory related trouble.
+
+Then, kernel stack account is useful.
+---
+ fs/proc/meminfo.c      |    2 ++
+ include/linux/mmzone.h |    3 ++-
+ kernel/fork.c          |   13 +++++++++++++
+ mm/page_alloc.c        |    6 ++++--
+ mm/vmstat.c            |    1 +
+ 5 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index d5c410d..1fbf8c0 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -85,6 +85,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		"SReclaimable:   %8lu kB\n"
+ 		"SUnreclaim:     %8lu kB\n"
+ 		"PageTables:     %8lu kB\n"
++		"KernelStack     %8lu kB\n"
+ #ifdef CONFIG_QUICKLIST
+ 		"Quicklists:     %8lu kB\n"
+ #endif
+@@ -129,6 +130,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_PAGETABLE)),
++		K(global_page_state(NR_KERNEL_STACK)),
+ #ifdef CONFIG_QUICKLIST
+ 		K(quicklist_total_size()),
+ #endif
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 8895985..d9335b8 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -94,10 +94,11 @@ enum zone_stat_item {
+ 	NR_SLAB_RECLAIMABLE,
+ 	NR_SLAB_UNRECLAIMABLE,
+ 	NR_PAGETABLE,		/* used for pagetables */
++	NR_KERNEL_STACK,
++	/* Second 128 byte cacheline */
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_BOUNCE,
+ 	NR_VMSCAN_WRITE,
+-	/* Second 128 byte cacheline */
+ 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 467746b..21cd4aa 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -137,9 +137,19 @@ struct kmem_cache *vm_area_cachep;
+ /* SLAB cache for mm_struct structures (tsk->mm) */
+ static struct kmem_cache *mm_cachep;
+ 
++static void account_kernel_stack(struct thread_info *ti, int on)
++{
++	struct zone* zone = page_zone(virt_to_page(ti));
++	int sign = on ? 1 : -1;
++	long acct = sign * (THREAD_SIZE / PAGE_SIZE);
++
++	mod_zone_page_state(zone, NR_KERNEL_STACK, acct);
++}
++
+ void free_task(struct task_struct *tsk)
+ {
+ 	prop_local_destroy_single(&tsk->dirties);
++	account_kernel_stack(tsk->stack, 0);
+ 	free_thread_info(tsk->stack);
+ 	rt_mutex_debug_task_free(tsk);
+ 	ftrace_graph_exit_task(tsk);
+@@ -255,6 +265,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	tsk->btrace_seq = 0;
+ #endif
+ 	tsk->splice_pipe = NULL;
++
++	account_kernel_stack(ti, 1);
++
+ 	return tsk;
+ 
+ out:
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 30d5093..0edec1c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2119,7 +2119,8 @@ void show_free_areas(void)
+ 		" inactive_file:%lu"
+ 		" unevictable:%lu"
+ 		" dirty:%lu writeback:%lu unstable:%lu\n"
+-		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
++		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n"
++		" kernel_stack:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+ 		global_page_state(NR_ACTIVE_FILE),
+ 		global_page_state(NR_INACTIVE_ANON),
+@@ -2133,7 +2134,8 @@ void show_free_areas(void)
+ 			global_page_state(NR_SLAB_UNRECLAIMABLE),
+ 		global_page_state(NR_FILE_MAPPED),
+ 		global_page_state(NR_PAGETABLE),
+-		global_page_state(NR_BOUNCE));
++		global_page_state(NR_BOUNCE),
++		global_page_state(NR_KERNEL_STACK));
+ 
+ 	for_each_populated_zone(zone) {
+ 		int i;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 138bed5..ceda39b 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -639,6 +639,7 @@ static const char * const vmstat_text[] = {
+ 	"nr_slab_reclaimable",
+ 	"nr_slab_unreclaimable",
+ 	"nr_page_table_pages",
++	"nr_kernel_stack",
+ 	"nr_unstable",
+ 	"nr_bounce",
+ 	"nr_vmscan_write",
+-- 
+1.6.0.GIT
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
