@@ -1,105 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 967B46B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:36:59 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so64513rvb.26
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 08:38:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090630152324.A73A.A69D9226@jp.fujitsu.com>
-References: <20090630152324.A73A.A69D9226@jp.fujitsu.com>
-Date: Wed, 1 Jul 2009 00:38:08 +0900
-Message-ID: <28c262360906300838m778ed5e4s8fe54501b95ccc0c@mail.gmail.com>
-Subject: Re: [PATCH] Makes slab pages field in show_free_areas() separate two
-	field
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A02D36B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:45:57 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Tue, 30 Jun 2009 11:47:16 -0400
+Message-Id: <20090630154716.1583.25274.sendpatchset@lts-notebook>
+Subject: [RFC 0/3] hugetlb: constrain allocation/free based on task mempolicy
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org, linux-numa@vger.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 3:25 PM, KOSAKI
-Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Subject: [PATCH] Makes slab pages field in show_free_areas() separate two=
- field
->
-> if OOM happed, We really want to know the number of rest reclaimable page=
-s.
-> Then, reclaimable slab and unreclaimable slab shouldn't be mixed displain=
-g.
+RFC 0/3 hugetlb: constrain allocation/free based on task mempolicy
 
-Yes. It makes sense to me.
+Against:  25jun09 mmotm atop the "hugetlb:  balance freeing..."
+series
 
->
->
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+This is V1 of a series of patches to constrain the allocation and
+freeing of persistent huge pages using the task NUMA mempolicy of
+the task modifying "nr_hugepages".  This series is based on Mel
+Gorman's suggestion to use task mempolicy.
 
-> ---
-> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A07 ++++---
-> =C2=A01 file changed, 4 insertions(+), 3 deletions(-)
->
-> Index: b/mm/page_alloc.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2119,7 +2119,8 @@ void show_free_areas(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" inactive_file:%l=
-u"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" unevictable:%lu"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" dirty:%lu writeb=
-ack:%lu unstable:%lu\n"
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " free:%lu slab:%lu ma=
-pped:%lu pagetables:%lu bounce:%lu\n",
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " free:%lu slab_reclai=
-mable:%lu slab_unreclaimable:%lu\n"
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " mapped:%lu pagetable=
-s:%lu bounce:%lu\n",
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_ACTIVE_ANON),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_ACTIVE_FILE),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_INACTIVE_ANON),
-> @@ -2129,8 +2130,8 @@ void show_free_areas(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_WRITEBACK),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_UNSTABLE_NFS),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_FREE_PAGES),
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
-LAB_RECLAIMABLE) +
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 global_page_state(NR_SLAB_UNRECLAIMABLE),
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
-LAB_RECLAIMABLE),
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 global_page_state(NR_S=
-LAB_UNRECLAIMABLE),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_FILE_MAPPED),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_PAGETABLE),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_BOUNCE));
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =C2=A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =C2=A0http://www.tux.org/lkml/
->
+I have some concerns about a subtle change in behavior [see patch
+2/3 and the updated documentation] and the fact that
+this mechanism ignores some of the semantics of the mempolicy
+mode [again, see the doc].   However, this method seems to work
+fairly well.  And, IMO, the resulting code doesn't look all that
+bad.
 
+A couple of limitations in this version:
 
+1) I haven't implemented a boot time parameter to constrain the
+   boot time allocation of huge pages.  This can be added if
+   anyone feels strongly that it is required.
 
---=20
-Kinds regards,
-Minchan Kim
+2) I have not implemented a per node nr_overcommit_hugepages as
+   David Rientjes and I discussed earlier.  Again, this can be
+   added and specific nodes can be addressed using the mempolicy
+   as this series does for allocation and free.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
