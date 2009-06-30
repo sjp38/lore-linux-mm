@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F3F96B004F
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 18:45:25 -0400 (EDT)
-Message-ID: <4A4A95D8.6020708@goop.org>
-Date: Tue, 30 Jun 2009 15:46:48 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8EC2F6B004F
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 19:25:53 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n5UNQdou006055
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 1 Jul 2009 08:26:40 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8751D45DE51
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 08:26:39 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6202445DE55
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 08:26:39 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 467EA1DB8041
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 08:26:39 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 050BB1DB803E
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 08:26:39 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
+In-Reply-To: <alpine.DEB.1.10.0906301011210.6124@gentwo.org>
+References: <20090630150035.A738.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0906301011210.6124@gentwo.org>
+Message-Id: <20090701082531.85C2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] transcendent memory for Linux
-References: <c31ca108-9b68-40ba-936f-3ed2a56fd90b@default>
-In-Reply-To: <c31ca108-9b68-40ba-936f-3ed2a56fd90b@default>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed,  1 Jul 2009 08:26:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, Keir Fraser <keir.fraser@eu.citrix.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On 06/30/09 14:21, Dan Magenheimer wrote:
-> No, the uuid can't be verified.  Tmem gives no indication
-> as to whether a newly-created pool is already in use (shared)
-> by another guest.  So without both the 128-bit uuid and an
-> already-in-use 64-bit object id and 32-bit page index, no data
-> is readable or writable by the attacker.
->   
+> On Tue, 30 Jun 2009, KOSAKI Motohiro wrote:
+> 
+> > +static void account_kernel_stack(struct thread_info *ti, int on)
+> 
+> static inline?
 
-You have to consider things like timing attacks as well (for example, a
-tmem hypercall might return faster if the uuid already exists).
+gcc automatically inlined, IMHO.
 
-Besides, you can tell whether a uuid exists, by at least a couple of
-mechanisms (from a quick read of the source, so I might have overlooked
-something):
+> > +{
+> > +	struct zone* zone = page_zone(virt_to_page(ti));
+> > +	int sign = on ? 1 : -1;
+> > +	long acct = sign * (THREAD_SIZE / PAGE_SIZE);
+> 
+> int pages = THREAD_SIZE / PAGE_SIZE;
+> 
+> ?
 
-   1. You can create new shared pools until it starts failing as a
-      result of hitting the MAX_GLOBAL_SHARED_POOLS limit with junk
-      uuids.  If you then successfully "create" a shared pool while
-      searching, you know it already existed.
-   2. The returned pool id will increase unless the pool already exists,
-      in which case you'll get a smaller id back (ignoring wraparound).
+Will fix. thanks cleaner code advise.
+
+> 
+> > +
+> > +	mod_zone_page_state(zone, NR_KERNEL_STACK, acct);
+> 
+> mod_zone_page_state(zone, NR_KERNEL_STACK, on ? pages : -pages);
+
+yes, will fix.
 
 
-> Hmmm... that is definitely a thornier problem.  I guess the
-> security angle definitely deserves more design.  But, again,
-> this affects only shared precache which is not intended
-> to part of the proposed initial tmem patchset, so this is a futures
-> issue.)
-
-Yeah, a shared namespace of accessible objects is an entirely new thing
-in the Xen universe.  I would also drop Xen support until there's a good
-security story about how they can be used.
-
-    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
