@@ -1,51 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0CD7D6B0055
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 10:26:40 -0400 (EDT)
-Received: by fxm2 with SMTP id 2so216431fxm.38
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 07:26:39 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BCFDC6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:10:48 -0400 (EDT)
+Date: Tue, 30 Jun 2009 16:11:03 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: BUG: Bad page state [was: Strange oopses in 2.6.30]
+Message-ID: <20090630151103.GF17561@csn.ul.ie>
+References: <20090623200846.223C.A69D9226@jp.fujitsu.com> <20090629084114.GA28597@csn.ul.ie> <20090630092847.A730.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0906301014060.6124@gentwo.org>
-References: <20090625193137.GA16861@linux.vnet.ibm.com>
-	 <alpine.DEB.1.10.0906291827050.21956@gentwo.org>
-	 <1246315553.21295.100.camel@calx>
-	 <alpine.DEB.1.10.0906291910130.32637@gentwo.org>
-	 <1246320394.21295.105.camel@calx>
-	 <20090630060031.GL7070@linux.vnet.ibm.com>
-	 <84144f020906292358j6517b599n471eed4e88781a78@mail.gmail.com>
-	 <alpine.DEB.1.10.0906301014060.6124@gentwo.org>
-Date: Tue, 30 Jun 2009 17:26:39 +0300
-Message-ID: <84144f020906300726n4978d59ale5c8a3c076a1501a@mail.gmail.com>
-Subject: Re: [PATCH RFC] fix RCU-callback-after-kmem_cache_destroy problem in
-	sl[aou]b
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090630092847.A730.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: paulmck@linux.vnet.ibm.com, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jdb@comx.dk
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Jiri Slaby <jirislaby@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Tue, Jun 30, 2009 at 09:31:04AM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> Thank you new version.
+> 
+> > ==== CUT HERE ====
+> > mm: Warn once when a page is freed with PG_mlocked set
+> >     
+> > When a page is freed with the PG_mlocked set, it is considered an unexpected
+> > but recoverable situation. A counter records how often this event happens
+> > but it is easy to miss that this event has occured at all. This patch warns
+> > once when PG_mlocked is set to prompt debuggers to check the counter to
+> > see how often it is happening.
+> >     
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > --- 
+> >  mm/page_alloc.c |   16 ++++++++++++----
+> >  1 file changed, 12 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 5d714f8..519ea6e 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -495,8 +495,16 @@ static inline void free_page_mlock(struct page *page)
+> >  static void free_page_mlock(struct page *page) { }
+> >  #endif
+> >  
+> > -static inline int free_pages_check(struct page *page)
+> > -{
+> > +static inline int free_pages_check(struct page *page, int wasMlocked)
+> > +{
+> > +	if (unlikely(wasMlocked)) {
+> > +		WARN_ONCE(1, KERN_WARNING
+> > +			"Page flag mlocked set for process %s at pfn:%05lx\n"
+> > +			"page:%p flags:0x%lX\n",
+> 
+> 0x%lX is a bit redundunt.
+> %lX insert "0x" string by itself, I think.
+> 
 
-On Tue, 30 Jun 2009, Pekka Enberg wrote:
->> I don't even claim to understand all the RCU details here but I don't
->> see why we should care about _kmem_cache_destroy()_ performance at
->> this level. Christoph, hmmm?
+It does not automatically insert the 0x for me and I just did a quick
+test there. Can you double check please?
 
-On Tue, Jun 30, 2009 at 5:20 PM, Christoph
-Lameter<cl@linux-foundation.org> wrote:
-> Well it was surprising to me that kmem_cache_destroy() would perform rcu
-> actions in the first place. RCU is usually handled externally and not
-> within the slab allocator. The only reason that SLAB_DESTROY_BY_RCU exists
-> is because the user cannot otherwise control the final release of memory
-> to the page allocator.
+> 
+> > +			current->comm, page_to_pfn(page),
+> > +			page, page->flags|__PG_MLOCKED);
+> > +	}
+> > +
+> >  	if (unlikely(page_mapcount(page) |
+> >  		(page->mapping != NULL)  |
+> >  		(atomic_read(&page->_count) != 0) |
+> > @@ -562,7 +570,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+> >  	kmemcheck_free_shadow(page, order);
+> >  
+> >  	for (i = 0 ; i < (1 << order) ; ++i)
+> > -		bad += free_pages_check(page + i);
+> > +		bad += free_pages_check(page + i, wasMlocked);
+> >  	if (bad)
+> >  		return;
+> >  
+> > @@ -1027,7 +1035,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+> >  
+> >  	if (PageAnon(page))
+> >  		page->mapping = NULL;
+> > -	if (free_pages_check(page))
+> > +	if (free_pages_check(page, wasMlocked))
+> >  		return;
+> >  
+> >  	if (!PageHighMem(page)) {
+> 
+> Other part looks fine. thanks.
+> 
+> 
+> 
 
-Right. A quick grep for git logs reveals that it's been like that in
-mm/slab.c at least since 2.6.12-rc2 so I think we should consider it
-as part of the slab API and Paul's patch is an obvious bugfix to it.
-
-                                           Pekka
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
