@@ -1,398 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BEEA26B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 09:56:46 -0400 (EDT)
-Date: Tue, 30 Jun 2009 14:58:30 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] Balance Freeing of Huge Pages across Nodes
-Message-ID: <20090630135830.GE17561@csn.ul.ie>
-References: <20090629215226.20038.42028.sendpatchset@lts-notebook> <20090629215234.20038.62303.sendpatchset@lts-notebook> <20090630130515.GD17561@csn.ul.ie> <1246369691.25302.20.camel@lts-notebook>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1246369691.25302.20.camel@lts-notebook>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 222346B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 10:02:04 -0400 (EDT)
+Received: by bwz8 with SMTP id 8so192207bwz.38
+        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 07:01:58 -0700 (PDT)
+Date: Tue, 30 Jun 2009 23:00:58 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Found the commit that causes the OOMs
+Message-Id: <20090630230058.87e530c6.minchan.kim@barrios-desktop>
+In-Reply-To: <20090630092235.GA17561@csn.ul.ie>
+References: <20090628142239.GA20986@localhost>
+	<2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com>
+	<20090628151026.GB25076@localhost>
+	<20090629091741.ab815ae7.minchan.kim@barrios-desktop>
+	<17678.1246270219@redhat.com>
+	<20090629125549.GA22932@localhost>
+	<29432.1246285300@redhat.com>
+	<28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
+	<20090629160725.GF5065@csn.ul.ie>
+	<20090630130741.c191d042.minchan.kim@barrios-desktop>
+	<20090630092235.GA17561@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Mel Gorman <mel@csn.ul.ie>, David Howells <dhowells@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 09:48:11AM -0400, Lee Schermerhorn wrote:
-> On Tue, 2009-06-30 at 14:05 +0100, Mel Gorman wrote:
-> > On Mon, Jun 29, 2009 at 05:52:34PM -0400, Lee Schermerhorn wrote:
-> > > [PATCH] 1/3 Balance Freeing of Huge Pages across Nodes
-> > > 
-> > > Against:  25jun09 mmotm
-> > > 
-> > > Free huges pages from nodes in round robin fashion in an
-> > > attempt to keep [persistent a.k.a static] hugepages balanced
-> > > across nodes
-> > > 
-> > > New function free_pool_huge_page() is modeled on and
-> > > performs roughly the inverse of alloc_fresh_huge_page().
-> > > Replaces dequeue_huge_page() which now has no callers,
-> > > so this patch removes it.
-> > > 
-> > > Helper function hstate_next_node_to_free() uses new hstate
-> > > member next_to_free_nid to distribute "frees" across all
-> > > nodes with huge pages.
-> > > 
-> > > V2:
-> > > 
-> > > At Mel Gorman's suggestion:  renamed hstate_next_node() to
-> > > hstate_next_node_to_alloc() for symmetry.  Also, renamed
-> > > hstate member hugetlb_next_node to next_node_to_free.
-> > > ["hugetlb" is implicit in the hstate struct, I think].
-> > > 
-> > > New in this version:
-> > > 
-> > > Modified adjust_pool_surplus() to use hstate_next_node_to_alloc()
-> > > and hstate_next_node_to_free() to advance node id for adjusting
-> > > surplus huge page count, as this is equivalent to allocating and
-> > > freeing persistent huge pages.  [Can't blame Mel for this part.]
-> > > 
-> > > V3:
-> > > 
-> > > Minor cleanup: rename 'nid' to 'next_nid' in free_pool_huge_page() to
-> > > better match alloc_fresh_huge_page() conventions.
-> > > 
-> > > Acked-by: David Rientjes <rientjes@google.com>
-> > > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > > 
-> > >  include/linux/hugetlb.h |    3 -
-> > >  mm/hugetlb.c            |  132 +++++++++++++++++++++++++++++++-----------------
-> > >  2 files changed, 88 insertions(+), 47 deletions(-)
-> > > 
-> > > Index: linux-2.6.31-rc1-mmotm-090625-1549/include/linux/hugetlb.h
-> > > ===================================================================
-> > > --- linux-2.6.31-rc1-mmotm-090625-1549.orig/include/linux/hugetlb.h	2009-06-29 10:21:12.000000000 -0400
-> > > +++ linux-2.6.31-rc1-mmotm-090625-1549/include/linux/hugetlb.h	2009-06-29 10:27:18.000000000 -0400
-> > > @@ -183,7 +183,8 @@ unsigned long hugetlb_get_unmapped_area(
-> > >  #define HSTATE_NAME_LEN 32
-> > >  /* Defines one hugetlb page size */
-> > >  struct hstate {
-> > > -	int hugetlb_next_nid;
-> > > +	int next_nid_to_alloc;
-> > > +	int next_nid_to_free;
-> > >  	unsigned int order;
-> > >  	unsigned long mask;
-> > >  	unsigned long max_huge_pages;
-> > > Index: linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c
-> > > ===================================================================
-> > > --- linux-2.6.31-rc1-mmotm-090625-1549.orig/mm/hugetlb.c	2009-06-29 10:21:12.000000000 -0400
-> > > +++ linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c	2009-06-29 15:53:55.000000000 -0400
-> > > @@ -455,24 +455,6 @@ static void enqueue_huge_page(struct hst
-> > >  	h->free_huge_pages_node[nid]++;
-> > >  }
-> > >  
-> > > -static struct page *dequeue_huge_page(struct hstate *h)
-> > > -{
-> > > -	int nid;
-> > > -	struct page *page = NULL;
-> > > -
-> > > -	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
-> > > -		if (!list_empty(&h->hugepage_freelists[nid])) {
-> > > -			page = list_entry(h->hugepage_freelists[nid].next,
-> > > -					  struct page, lru);
-> > > -			list_del(&page->lru);
-> > > -			h->free_huge_pages--;
-> > > -			h->free_huge_pages_node[nid]--;
-> > > -			break;
-> > > -		}
-> > > -	}
-> > > -	return page;
-> > > -}
-> > > -
-> > >  static struct page *dequeue_huge_page_vma(struct hstate *h,
-> > >  				struct vm_area_struct *vma,
-> > >  				unsigned long address, int avoid_reserve)
-> > > @@ -640,7 +622,7 @@ static struct page *alloc_fresh_huge_pag
-> > >  
-> > >  /*
-> > >   * Use a helper variable to find the next node and then
-> > > - * copy it back to hugetlb_next_nid afterwards:
-> > > + * copy it back to next_nid_to_alloc afterwards:
-> > >   * otherwise there's a window in which a racer might
-> > >   * pass invalid nid MAX_NUMNODES to alloc_pages_exact_node.
-> > >   * But we don't need to use a spin_lock here: it really
-> > > @@ -649,13 +631,13 @@ static struct page *alloc_fresh_huge_pag
-> > >   * if we just successfully allocated a hugepage so that
-> > >   * the next caller gets hugepages on the next node.
-> > >   */
-> > > -static int hstate_next_node(struct hstate *h)
-> > > +static int hstate_next_node_to_alloc(struct hstate *h)
-> > >  {
-> > >  	int next_nid;
-> > > -	next_nid = next_node(h->hugetlb_next_nid, node_online_map);
-> > > +	next_nid = next_node(h->next_nid_to_alloc, node_online_map);
-> > >  	if (next_nid == MAX_NUMNODES)
-> > >  		next_nid = first_node(node_online_map);
-> > > -	h->hugetlb_next_nid = next_nid;
-> > > +	h->next_nid_to_alloc = next_nid;
-> > >  	return next_nid;
-> > >  }
-> > >  
-> > 
-> > Strictly speaking, next_nid_to_alloc looks more like last_nid_alloced but I
-> > don't think it makes an important difference. Implementing it this way is
-> > shorter and automatically ensures next_nid is an online node. 
-> > 
-> > If you wanted to be pedantic, I think the following untested code would
-> > make it really next_nid_to_alloc but I don't think it's terribly
-> > important.
-> > 
-> > static int hstate_next_node_to_alloc(struct hstate *h)
-> > {
-> > 	int this_nid = h->next_nid_to_alloc;
-> > 
-> > 	/* Check the node didn't get off-lined since */
-> > 	if (unlikely(!node_online(next_nid))) {
-> > 		this_nid = next_node(h->next_nid_to_alloc, node_online_map);
-> > 		h->next_nid_to_alloc = this_nid;
-> > 	}
-> > 
-> > 	h->next_nid_to_alloc = next_node(h->next_nid_to_alloc, node_online_map);
-> > 	if (h->next_nid_to_alloc == MAX_NUMNODES)
-> > 		h->next_nid_to_alloc = first_node(node_online_map);
-> > 
-> > 	return this_nid;
-> > }
-> 
-> Mel:  
-> 
-> I'm about to send out a series that constrains [persistent] huge page
-> alloc and free using task mempolicy, per your suggestion.  The functions
-> 'next_node_to_{alloc|free} and how they're used get reworked in that
-> series quite a bit, and the name becomes more accurate, I think.  And, I
-> think it does handle the node going offline along with handling changing
-> to a new policy nodemask that doesn't include the value saved in the
-> hstate.  We can revisit this, then.
-> 
+Hi, David. 
 
-Sounds good.
+On Tue, 30 Jun 2009 10:22:36 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> However, the way we currently use these functions, they do update the
-> 'next_node_*' field in the hstate, and where the return value is tested
-> [against start_nid], it really is the "next" node. 
-
-Good point.
-
-> If the alloc/free
-> succeeds, then the return value does turn out to be the [last] node we
-> just alloc'd/freed on.  But, again, we've advanced the next node to
-> alloc/free in the hstate.  A nit, I think :).
-> 
-
-It's enough of a concern to go with your current version.
-
+> > > I think this system might be genuinely OOM. It can't reclaim memory and
+> > > we are below the minimum watermarks.
+> > > 
+> > > Is it possible there are pages that are counted as active_anon that in
+> > > fact are reclaimable because they are on the wrong LRU list? If that was
+> > > the case, the lack of rotation to inactive list would prevent them
+> > > getting discovered.
 > > 
-> > > @@ -666,14 +648,15 @@ static int alloc_fresh_huge_page(struct 
-> > >  	int next_nid;
-> > >  	int ret = 0;
-> > >  
-> > > -	start_nid = h->hugetlb_next_nid;
-> > > +	start_nid = h->next_nid_to_alloc;
-> > > +	next_nid = start_nid;
-> > >  
-> > >  	do {
-> > > -		page = alloc_fresh_huge_page_node(h, h->hugetlb_next_nid);
-> > > +		page = alloc_fresh_huge_page_node(h, next_nid);
-> > >  		if (page)
-> > >  			ret = 1;
-> > > -		next_nid = hstate_next_node(h);
-> > > -	} while (!page && h->hugetlb_next_nid != start_nid);
-> > > +		next_nid = hstate_next_node_to_alloc(h);
-> > > +	} while (!page && next_nid != start_nid);
-> > >  
-> > >  	if (ret)
-> > >  		count_vm_event(HTLB_BUDDY_PGALLOC);
-> > > @@ -683,6 +666,52 @@ static int alloc_fresh_huge_page(struct 
-> > >  	return ret;
-> > >  }
-> > >  
-> > > +/*
-> > > + * helper for free_pool_huge_page() - find next node
-> > > + * from which to free a huge page
-> > > + */
-> > > +static int hstate_next_node_to_free(struct hstate *h)
-> > > +{
-> > > +	int next_nid;
-> > > +	next_nid = next_node(h->next_nid_to_free, node_online_map);
-> > > +	if (next_nid == MAX_NUMNODES)
-> > > +		next_nid = first_node(node_online_map);
-> > > +	h->next_nid_to_free = next_nid;
-> > > +	return next_nid;
-> > > +}
-> > > +
-> > > +/*
-> > > + * Free huge page from pool from next node to free.
-> > > + * Attempt to keep persistent huge pages more or less
-> > > + * balanced over allowed nodes.
-> > > + * Called with hugetlb_lock locked.
-> > > + */
-> > > +static int free_pool_huge_page(struct hstate *h)
-> > > +{
-> > > +	int start_nid;
-> > > +	int next_nid;
-> > > +	int ret = 0;
-> > > +
-> > > +	start_nid = h->next_nid_to_free;
-> > > +	next_nid = start_nid;
-> > > +
-> > > +	do {
-> > > +		if (!list_empty(&h->hugepage_freelists[next_nid])) {
-> > > +			struct page *page =
-> > > +				list_entry(h->hugepage_freelists[next_nid].next,
-> > > +					  struct page, lru);
-> > > +			list_del(&page->lru);
-> > > +			h->free_huge_pages--;
-> > > +			h->free_huge_pages_node[next_nid]--;
-> > > +			update_and_free_page(h, page);
-> > > +			ret = 1;
-> > > +		}
-> > > +		next_nid = hstate_next_node_to_free(h);
-> > > +	} while (!ret && next_nid != start_nid);
-> > > +
-> > > +	return ret;
-> > > +}
-> > > +
-> > >  static struct page *alloc_buddy_huge_page(struct hstate *h,
-> > >  			struct vm_area_struct *vma, unsigned long address)
-> > >  {
-> > > @@ -1007,7 +1036,7 @@ int __weak alloc_bootmem_huge_page(struc
-> > >  		void *addr;
-> > >  
-> > >  		addr = __alloc_bootmem_node_nopanic(
-> > > -				NODE_DATA(h->hugetlb_next_nid),
-> > > +				NODE_DATA(h->next_nid_to_alloc),
-> > >  				huge_page_size(h), huge_page_size(h), 0);
-> > >  
-> > >  		if (addr) {
-> > > @@ -1019,7 +1048,7 @@ int __weak alloc_bootmem_huge_page(struc
-> > >  			m = addr;
-> > >  			goto found;
-> > >  		}
-> > > -		hstate_next_node(h);
-> > > +		hstate_next_node_to_alloc(h);
-> > >  		nr_nodes--;
-> > >  	}
-> > >  	return 0;
-> > > @@ -1140,31 +1169,43 @@ static inline void try_to_free_low(struc
-> > >   */
-> > >  static int adjust_pool_surplus(struct hstate *h, int delta)
-> > >  {
-> > > -	static int prev_nid;
-> > > -	int nid = prev_nid;
-> > > +	int start_nid, next_nid;
-> > >  	int ret = 0;
-> > >  
-> > >  	VM_BUG_ON(delta != -1 && delta != 1);
-> > > -	do {
-> > > -		nid = next_node(nid, node_online_map);
-> > > -		if (nid == MAX_NUMNODES)
-> > > -			nid = first_node(node_online_map);
-> > >  
-> > > -		/* To shrink on this node, there must be a surplus page */
-> > > -		if (delta < 0 && !h->surplus_huge_pages_node[nid])
-> > > -			continue;
-> > > -		/* Surplus cannot exceed the total number of pages */
-> > > -		if (delta > 0 && h->surplus_huge_pages_node[nid] >=
-> > > +	if (delta < 0)
-> > > +		start_nid = h->next_nid_to_alloc;
-> > > +	else
-> > > +		start_nid = h->next_nid_to_free;
-> > > +	next_nid = start_nid;
-> > > +
-> > > +	do {
-> > > +		int nid = next_nid;
-> > > +		if (delta < 0)  {
-> > > +			next_nid = hstate_next_node_to_alloc(h);
-> > > +			/*
-> > > +			 * To shrink on this node, there must be a surplus page
-> > > +			 */
-> > > +			if (!h->surplus_huge_pages_node[nid])
-> > > +				continue;
-> > > +		}
-> > > +		if (delta > 0) {
-> > > +			next_nid = hstate_next_node_to_free(h);
-> > > +			/*
-> > > +			 * Surplus cannot exceed the total number of pages
-> > > +			 */
-> > > +			if (h->surplus_huge_pages_node[nid] >=
-> > >  						h->nr_huge_pages_node[nid])
-> > > -			continue;
-> > > +				continue;
-> > > +		}
-> > >  
-> > >  		h->surplus_huge_pages += delta;
-> > >  		h->surplus_huge_pages_node[nid] += delta;
-> > >  		ret = 1;
-> > >  		break;
-> > > -	} while (nid != prev_nid);
-> > > +	} while (next_nid != start_nid);
-> > >  
-> > > -	prev_nid = nid;
-> > >  	return ret;
-> > >  }
-> > >  
-> > > @@ -1226,10 +1267,8 @@ static unsigned long set_max_huge_pages(
-> > >  	min_count = max(count, min_count);
-> > >  	try_to_free_low(h, min_count);
-> > >  	while (min_count < persistent_huge_pages(h)) {
-> > > -		struct page *page = dequeue_huge_page(h);
-> > > -		if (!page)
-> > > +		if (!free_pool_huge_page(h))
-> > >  			break;
-> > > -		update_and_free_page(h, page);
-> > >  	}
-> > >  	while (count < persistent_huge_pages(h)) {
-> > >  		if (!adjust_pool_surplus(h, 1))
-> > > @@ -1441,7 +1480,8 @@ void __init hugetlb_add_hstate(unsigned 
-> > >  	h->free_huge_pages = 0;
-> > >  	for (i = 0; i < MAX_NUMNODES; ++i)
-> > >  		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-> > > -	h->hugetlb_next_nid = first_node(node_online_map);
-> > > +	h->next_nid_to_alloc = first_node(node_online_map);
-> > > +	h->next_nid_to_free = first_node(node_online_map);
-> > >  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
-> > >  					huge_page_size(h)/1024);
-> > >  
+> > I agree. 
+> > One of them is that "[BUGFIX][PATCH] fix lumpy reclaim lru handiling at
+> > isolate_lru_pages v2" as Kosaki already said. 
 > > 
-> > Nothing problematic jumps out at me. Even with hstate_next_node_to_alloc()
-> > as it is;
+> > Unfortunately, David said it's not. 
+> > But I think your guessing make sense. 
 > > 
-> > Acked-by: Mel Gorman <mel@csn.ul.ie>
+> > David. Doesn't it happen OOM if you revert my patch, still?
 > > 
 > 
-> Thanks.  It did seem to test out OK on ia64 [12jun mmotm; 25jun mmotm
-> has a problem there--TBI] and x86_64.  Could use more testing, tho'.
-> Especially with various combinations of persistent and surplus huge
-> pages. 
+> In the event the OOM does not happen with the patch reverted, I suggest
+> you put together a debugging patch that prints out details of all pages
+> on the active_anon LRU list in the event of an OOM. The intention is to
+> figure out what pages are on the active_anon list that shouldn't be.
 
-No harm in that. I've tested the patches a bit and spotted nothing problematic
-to do specifically with your patches. I am able to trigger the OOM killer
-with disturbing lines such as
+Befor I go to the trip, I made debugging patch in a hurry. 
+Mel and I suspect to put the wrong page in lru list.
 
-heap-overflow invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0
+This patch's goal is that print page's detail on active anon lru when it happen OOM.
+Maybe you could expand your log buffer size. 
 
-but I haven't determined if this is something new in mainline or on mmotm yet.
+Could you show me the information with OOM, please ?
 
-> I saw you mention that you have a hugetlb regression test suite.
-> Is that available "out there, somewhere"?  I just grabbed a libhugetlbfs
-> source rpm, but haven't cracked it yet.  Maybe it's there?
-> 
+---
+ include/linux/mm.h |    1 +
+ lib/show_mem.c     |    2 +-
+ mm/page_alloc.c    |   22 ++++++++++++++++++++++
+ mm/vmstat.c        |   14 ++++++++++++++
+ 4 files changed, 38 insertions(+), 1 deletions(-)
 
-It probably is, but I'm not certain. You're better off downloading from
-http://sourceforge.net/projects/libhugetlbfs and doing something like
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ba3a7cb..cfd8111 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -713,6 +713,7 @@ extern void pagefault_out_of_memory(void);
+ 
+ #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
+ 
++extern void show_active_anonpages(void);
+ extern void show_free_areas(void);
+ 
+ #ifdef CONFIG_SHMEM
+diff --git a/lib/show_mem.c b/lib/show_mem.c
+index 238e72a..32a3a32 100644
+--- a/lib/show_mem.c
++++ b/lib/show_mem.c
+@@ -17,7 +17,7 @@ void show_mem(void)
+ 
+ 	printk(KERN_INFO "Mem-Info:\n");
+ 	show_free_areas();
+-
++	show_active_anonpages();
+ 	for_each_online_pgdat(pgdat) {
+ 		unsigned long i, flags;
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5d714f8..d666f9e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2090,6 +2090,28 @@ void si_meminfo_node(struct sysinfo *val, int nid)
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ 
++void show_active_anonpages(void)
++{
++	struct zone *zone;
++	struct list_head *list;
++	struct page *page;
++
++	for_each_populated_zone(zone) {
++		if (list_empty(&zone->lru[LRU_ACTIVE_ANON].list))
++			continue;
++
++		spin_lock_irq(&zone->lru_lock);
++		list = &zone->lru[LRU_ACTIVE_ANON].list;				
++		printk("==== %s ==== \n", zone->name);
++		list_for_each_entry(page, list, lru) {
++			printk(KERN_INFO "pfn:0x%08lx F:0x%08lx anon:%d C:%d M:%d\n",
++				page_to_pfn(page), page->flags, PageAnon(page), 
++				atomic_read(&page->_count), atomic_read(&page->_mapcount));
++		}
++		spin_unlock_irq(&zone->lru_lock);
++	}
++		
++}
+ /*
+  * Show free area list (used inside shift_scroll-lock stuff)
+  * We also calculate the percentage fragmentation. We do this by counting the
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 138bed5..c23ecaa 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -575,6 +575,12 @@ static int fragmentation_open(struct inode *inode, struct file *file)
+ 	return seq_open(file, &fragmentation_op);
+ }
+ 
++static int active_anon_open(struct inode *inode, struct file *file)
++{
++	show_active_anonpages();
++	return -ENOENT;
++}
++
+ static const struct file_operations fragmentation_file_operations = {
+ 	.open		= fragmentation_open,
+ 	.read		= seq_read,
+@@ -582,6 +588,13 @@ static const struct file_operations fragmentation_file_operations = {
+ 	.release	= seq_release,
+ };
+ 
++static const struct file_operations active_anon_file_operations = {
++	.open		= active_anon_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
++
+ static const struct seq_operations pagetypeinfo_op = {
+ 	.start	= frag_start,
+ 	.next	= frag_next,
+@@ -938,6 +951,7 @@ static int __init setup_vmstat(void)
+ #endif
+ #ifdef CONFIG_PROC_FS
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
++	proc_create("activelruinfo", S_IRUGO, NULL, &active_anon_file_operations);
+ 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+ 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+ 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+-- 
+1.5.4.3
 
-make
-./obj/hugeadm --pool-pages-min 2M:64
-./obj/hugeadm --create-global-mounts
-make func
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
