@@ -1,40 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id F0BFB6B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 12:17:50 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id n5UGIH3v018702
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 17:18:18 +0100
-Received: from gxk27 (gxk27.prod.google.com [10.202.11.27])
-	by wpaz29.hot.corp.google.com with ESMTP id n5UGIFeG011522
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 09:18:15 -0700
-Received: by gxk27 with SMTP id 27so874719gxk.10
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 09:18:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F1F1D6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 12:34:01 -0400 (EDT)
+Date: Tue, 30 Jun 2009 17:34:57 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: BUG: Bad page state [was: Strange oopses in 2.6.30]
+Message-ID: <20090630163456.GA6689@csn.ul.ie>
+References: <20090623200846.223C.A69D9226@jp.fujitsu.com> <20090629084114.GA28597@csn.ul.ie> <20090630092847.A730.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090630182304.8049039c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090630180109.f137c10e.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090630180344.d7274644.kamezawa.hiroyu@jp.fujitsu.com>
-	 <6599ad830906300215q56bda5ccnc99862211dc65289@mail.gmail.com>
-	 <20090630182304.8049039c.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 30 Jun 2009 09:18:03 -0700
-Message-ID: <6599ad830906300918i3e3f8611r6d6fb7873c720c70@mail.gmail.com>
-Subject: Re: [PATCH 2/2] cgroup: exlclude release rmdir
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090630092847.A730.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Jiri Slaby <jirislaby@gmail.com>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 2:23 AM, KAMEZAWA
-Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> This patch is _not_ tested by Nishimura.
+On Tue, Jun 30, 2009 at 09:31:04AM +0900, KOSAKI Motohiro wrote:
+> > -static inline int free_pages_check(struct page *page)
+> > -{
+> > +static inline int free_pages_check(struct page *page, int wasMlocked)
+> > +{
+> > +	if (unlikely(wasMlocked)) {
+> > +		WARN_ONCE(1, KERN_WARNING
+> > +			"Page flag mlocked set for process %s at pfn:%05lx\n"
+> > +			"page:%p flags:0x%lX\n",
+> 
+> 0x%lX is a bit redundunt.
+> %lX insert "0x" string by itself, I think.
+> 
 
-True, but it's functionally identical to, and simpler than, the one
-that was tested.
+/me slaps self
 
-Paul
+As hnaz pointed out to me on IRC, %#lX would have done the job of
+putting in the 0x automatically.
+
+==== CUT HERE ====
+mm: Warn once when a page is freed with PG_mlocked set
+
+When a page is freed with the PG_mlocked set, it is considered an unexpected
+but recoverable situation. A counter records how often this event happens
+but it is easy to miss that this event has occured at all. This patch warns
+once when PG_mlocked is set to prompt debuggers to check the counter to see
+how often it is happening.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |   16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5d714f8..519ea6e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -495,8 +495,16 @@ static inline void free_page_mlock(struct page *page)
+ static void free_page_mlock(struct page *page) { }
+ #endif
+ 
+-static inline int free_pages_check(struct page *page)
+-{
++static inline int free_pages_check(struct page *page, int wasMlocked)
++{
++	if (unlikely(wasMlocked)) {
++		WARN_ONCE(1, KERN_WARNING
++			"Page flag mlocked set for process %s at pfn:%05lx\n"
++			"page:%p flags:%#lX\n",
++			current->comm, page_to_pfn(page),
++			page, page->flags|__PG_MLOCKED);
++	}
++
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+ 		(atomic_read(&page->_count) != 0) |
+@@ -562,7 +570,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	kmemcheck_free_shadow(page, order);
+ 
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+-		bad += free_pages_check(page + i);
++		bad += free_pages_check(page + i, wasMlocked);
+ 	if (bad)
+ 		return;
+ 
+@@ -1027,7 +1035,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 
+ 	if (PageAnon(page))
+ 		page->mapping = NULL;
+-	if (free_pages_check(page))
++	if (free_pages_check(page, wasMlocked))
+ 		return;
+ 
+ 	if (!PageHighMem(page)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
