@@ -1,143 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 526EB6B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:49:10 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so67624rvb.26
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 08:50:42 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4EA9B6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 11:56:24 -0400 (EDT)
+Date: Tue, 30 Jun 2009 16:57:44 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: KSM: current madvise rollup
+In-Reply-To: <4A49E051.1080400@redhat.com>
+Message-ID: <Pine.LNX.4.64.0906301518370.967@sister.anvils>
+References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils>
+ <4A49E051.1080400@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20090630140512.GA16923@localhost>
-References: <20090628142239.GA20986@localhost>
-	 <20090628151026.GB25076@localhost>
-	 <20090629091741.ab815ae7.minchan.kim@barrios-desktop>
-	 <17678.1246270219@redhat.com> <20090629125549.GA22932@localhost>
-	 <29432.1246285300@redhat.com>
-	 <28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
-	 <30071.1246290885@redhat.com>
-	 <1246291007.663.630.camel@macbook.infradead.org>
-	 <20090630140512.GA16923@localhost>
-Date: Wed, 1 Jul 2009 00:50:42 +0900
-Message-ID: <28c262360906300850l402e2bb0xca14a2d0571eb3cf@mail.gmail.com>
-Subject: Re: Found the commit that causes the OOMs
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@gmail.com>
-Cc: David Woodhouse <dwmw2@infradead.org>, David Howells <dhowells@redhat.com>, Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 11:05 PM, Wu Fengguang<fengguang.wu@gmail.com> wrot=
-e:
->
-> More data: I boot 2.6.30-rc1 with mem=3D1G and enabled 1GB swap and run m=
-sgctl11.
->
-> It goes OOM at the 2nd run. They are very interesting numbers: memory lea=
-ked?
+Many thanks for your speedy and generous response: I'm glad you like it.
 
-Hmm. It's very serious and another problem since this system have swap
-device and it's not full.
+On Tue, 30 Jun 2009, Izik Eidus wrote:
+> Hugh Dickins wrote:
+> 
+> > I've plenty more to do: still haven't really focussed in on mremap
+> > move, and races when the vma we expect to be VM_MERGEABLE is actually
+> > something else by the time we get mmap_sem for get_user_pages. 
+> 
+> Considering the fact that the madvise run with mmap_sem(write)
+> isn't it enough just to check the VM_MERGEABLE flag?
 
-Can you reproduce it easily ?
+That is most of it, yes: though really we'd want that check down
+inside __get_user_pages(), so that it wouldn't proceed any further
+if by then the vma is not VM_MERGEABLE.  GUP's VM_IO | VM_PFNMAP check
+does already keep it away from the most dangerous areas, but we also
+don't want it to touch VM_HUGETLB ones (faulting in huge pages nobody
+wants), nor any !VM_MERGEABLE really.
 
-I want to reproduce it in my system.
+However, rather than adding another flag to get_user_pages(), we
+probably want to craft KSM's own substitute for it instead: a lot
+of what GUP does (find_extend_vma, in_gate_area, follow_hugetlb_page,
+handle_mm_fault) is stuff you actively do NOT want - all you want,
+I think, is find_vma + VM_MERGEABLE check + follow_page.  And you
+might have gone that way already, except follow_page wasn't EXPORTed,
+and you were at that time supporting KSM as a loadable module.
 
-Did you ran only msgctl11 not all LTP test ?
-Just default parameter ? ex) $ ./testcases/bin/msgctl11
+But that isn't the whole of it.  I don't think there's any other way
+to do it, but with mremap move you can move one VM_MERGEABLE area to
+where another VM_MERGEABLE area was a moment ago, placing KSM pages
+belonging to the one area where KSM pages of the other are expected.
+Can't you?  I don't think that would actually cause data corruption,
+but it could badly poison the stable tree (memcmp'ing against a page
+of data which is not what's expected at that point in the tree),
+rendering KSM close to useless thereafter.  I think.
 
-2nd run ? You mean you execute msgctl11 two time in order ?
-I mean after first test is finished successfully and OOM happens
-second test before ending successfully ?
+The simplest answer to that is to prohibit mremap move on VM_MERGEABLE
+areas.  We already have atypical prohibitions in mremap e.g. it's not
+allowed to span vmas; and I don't think it would limit anybody's real
+life use of KSM.  However, I don't like that solution because it gets
+in the way of things like my testing with all areas VM_MERGEABLE, or
+your applying mergeability to another process address space: if we
+make some area mergeable, then later the app happens to decide it
+wants to move that area, it would get an unexpected failure where
+none normally occurs.  So, I'll probably want to allow mremap move,
+but add a ksm_mremap interface to rearrange the rmap_items at the
+same time (haven't considered locking yet, that's often the problem).
 
+> About page migration - right now it should fail when trying to migrate
+> ksmpage:
+> 
+> /* Establish migration ptes or remove ptes */
+> try_to_unmap(page, 1);
+> 
+> if (!page_mapped(page))
+> rc = move_to_new_page(newpage, page);
+> 
+> 
+> So as I see it, the soultion for this case is the same soultion as for the
+> swapping problem of the ksm pages...:
+> We need something such as extrnal rmap callbacks to make the rmap code be
+> aware of the ksm virtual mappings of the pages - (we can use our data
+> structures information inside ksm such as the stable_tree to track the virtual
+> addresses that point into this page)
+> 
+> So about the page migration i think we need to add support to it, when we add
+> support of swapping, probably one release after we first get ksm merged...
+> 
+> And about cgroups, again, i think swapping is main issue for this, for now we
+> only have max_kernel_page_alloc to control the number of unswappable pages
+> allocated by ksm.
 
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.825958] msgctl11 invoked oom-killer: gf=
-p_mask=3D0x84d0, order=3D0, oom_adj=3D0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.828092] Pid: 29657, comm: msgctl11 Not =
-tainted 2.6.31-rc1 #22
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.830505] Call Trace:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.832010] =C2=A0[<ffffffff8156f366>] ? _s=
-pin_unlock+0x26/0x30
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.834219] =C2=A0[<ffffffff810c8b26>] oom_=
-kill_process+0x176/0x270
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.837603] =C2=A0[<ffffffff810c8def>] ? ba=
-dness+0x18f/0x300
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.839906] =C2=A0[<ffffffff810c9095>] __ou=
-t_of_memory+0x135/0x170
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.842035] =C2=A0[<ffffffff810c91c5>] out_=
-of_memory+0xf5/0x180
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.844270] =C2=A0[<ffffffff810cd86c>] __al=
-loc_pages_nodemask+0x6ac/0x6c0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.846743] =C2=A0[<ffffffff810f8fa8>] allo=
-c_pages_current+0x78/0x100
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.849083] =C2=A0[<ffffffff81033515>] pte_=
-alloc_one+0x15/0x50
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.851282] =C2=A0[<ffffffff810e0eda>] __pt=
-e_alloc+0x2a/0xf0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.853454] =C2=A0[<ffffffff810e16e2>] hand=
-le_mm_fault+0x742/0x830
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.855793] =C2=A0[<ffffffff815725cb>] do_p=
-age_fault+0x1cb/0x330
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.858033] =C2=A0[<ffffffff8156fdf5>] page=
-_fault+0x25/0x30
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.860301] Mem-Info:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.861706] Node 0 DMA per-cpu:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.862523] CPU =C2=A0 =C2=A00: hi: =C2=A0 =
-=C2=A00, btch: =C2=A0 1 usd: =C2=A0 0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.864454] CPU =C2=A0 =C2=A01: hi: =C2=A0 =
-=C2=A00, btch: =C2=A0 1 usd: =C2=A0 0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.866608] Node 0 DMA32 per-cpu:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.867404] CPU =C2=A0 =C2=A00: hi: =C2=A01=
-86, btch: =C2=A031 usd: 197
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.869283] CPU =C2=A0 =C2=A01: hi: =C2=A01=
-86, btch: =C2=A031 usd: 175
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.870511] Active_anon:0 active_file:11 in=
-active_anon:0
->
-> zero anon pages!
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.870512] =C2=A0inactive_file:0 unevictab=
-le:0 dirty:0 writeback:0 unstable:0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.870513] =C2=A0free:1986 slab:42170 mapp=
-ed:96 pagetables:59427 bounce:0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.877722] Node 0 DMA free:3976kB min:56kB=
- low:68kB high:84kB active_anon:0kB inactive_anon:0kB active_file:0kB inact=
-ive_file:0kB unevictable:0kB present:15164kB pages_scanned:429 all_unreclai=
-mable? no
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.883804] lowmem_reserve[]: 0 982 982 982
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.885814] Node 0 DMA32 free:3968kB min:39=
-80kB low:4972kB high:5968kB active_anon:0kB inactive_anon:0kB active_file:4=
-4kB inactive_file:0kB unevictable:0kB present:1005984kB pages_scanned:152 a=
-ll_unreclaimable? no
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.890958] lowmem_reserve[]: 0 0 0 0
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.893183] Node 0 DMA: 4*4kB 3*8kB 2*16kB =
-0*32kB 1*64kB 2*128kB 0*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB =3D 3976kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.897406] Node 0 DMA32: 334*4kB 77*8kB 24=
-*16kB 27*32kB 10*64kB 1*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =
-=3D 3968kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.902753] 625 total pagecache pages
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.903623] 454 pages in swap cache
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.905299] Swap cache stats: add 95129, de=
-lete 94675, find 55783/67607
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.908858] Free swap =C2=A0=3D 1041232kB
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.909618] Total swap =3D 1048568kB
->
-> swap far from full!
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.919456] 262144 pages RAM
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.921071] 12513 pages reserved
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.922790] 314212 pages shared
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.923548] 165757 pages non-shared
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.925234] Out of memory: kill process 207=
-91 (msgctl11) score 2280094 or a child
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0[ 2259.928982] Killed process 21946 (msgctl11)
->
->
+Yes, I woke this morning thinking swapping the KSM pages should be a lot
+easier than I thought originally.  Not much more than plumbing in a third
+alternative to try_to_unmap_file and try_to_unmap_anon, one which goes off
+to KSM to run down the appropriate list hanging off the stable tree.
 
+I'd intended it for other use, but I think now we'll likely give you
+PAGE_MAPPING_KSM 2, so you can fit a tree_item pointer and page flag
+into page_mapping there, instead of anon_vma pointer and PageAnon flag.
+Or more likely, in addition to PageAnon flag.
 
+It's very tempting to get into KSM swapping right now,
+but I'll restrain myself.
 
---=20
-Kinds regards,
-Minchan Kim
+> [replace_page ]
+> > +
+> > +	BUG_ON(PageAnon(newpage));
+> > ...
+> > +
+> > +	page_remove_rmap(oldpage);
+> > +	if (PageAnon(oldpage)) {
+> > +		dec_mm_counter(mm, anon_rss);
+> > +		inc_mm_counter(mm, file_rss);
+> > +	}
+> >   
+> 
+> So now that replace_page is embedded inside ksm.c, i guess we dont need the if
+> (PageAnon() check...) ?
+
+The first time I read you, I thought you were suggesting to remove the
+BUG_ON(PageAnon(newpage)) at the head of replace_page: yes, now that's
+static within ksm.c, it's just a waste of space, better removed.
+
+But you're suggesting remove this check around the dec/inc_mm_counter.
+Well, of course, you're absolutely right; but I'd nonetheless actually
+prefer to keep that test for the moment, as a flag of something odd to
+revisit.  Perhaps you'd prefer a comment "/* Something odd to revisit */"
+instead ;)  But if so, let's keep PageAnon in the text of the comment:
+I know I'm going to want to go back to check usages of PageAnon here,
+and this is a block I'll want to think about.
+
+When testing, I got quite confused for a while when /proc/meminfo
+showed my file pages going up and my anon pages going down.  Yes,
+that block is necessary to keep the stats right for unmap and exit;
+but I think, the more so when we move on to swapping, that we'd
+prefer KSM-substituted-pages to remain counted as anon rather than
+as file, in the bulk of the mm which is unaware of KSM pages.
+Something odd to revisit.
+
+> > +static void cmp_and_merge_page(struct page *page, struct rmap_item
+> > *rmap_item)
+> > +{
+> > +	struct page *page2[1];
+> > +	struct rmap_item *tree_rmap_item;
+> > +	unsigned int checksum;
+> > +	int ret;
+> > +
+> > +	if (rmap_item->stable_tree)
+> > +		remove_rmap_item_from_tree(rmap_item);
+> > +
+> > +	/* We first start with searching the page inside the stable tree */
+> > +	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
+> > +	if (tree_rmap_item) {
+> > +		BUG_ON(!tree_rmap_item->tree_item);
+> > +
+> > +		if (page == page2[0]) {		/* forked */
+> > +			ksm_pages_shared++;
+> > +			ret = 0;
+> 
+> So here we increase the ksm_pages_shared, but how would we decrease it?
+> Shouldnt we map the rmap_item to be stable_tree item?, and add this virtual
+> address into the linked list of the stable tree node?
+> (so when remove_rmap_item() will run we will be able to decrease the
+> number...)
+
+You had me worried, and I wondered how the numbers had worked out
+correctly in testing; and this was a rather recent mod which could
+easily be wrong.  But it's okay, isn't it?  In the very code which
+you included below, there's the insert_to_stable_tree_list which
+does exactly what you want - doesn't it?
+
+> > +		} else
+> > +			ret = try_to_merge_two_pages_noalloc(rmap_item->mm,
+> > +							    page, page2[0],
+> > +
+> > rmap_item->address);
+> > +		put_page(page2[0]);
+> > +
+> > +		if (!ret) {
+> > +			/*
+> > +			 * The page was successfully merged, let's insert its
+> > +			 * rmap_item into the stable tree.
+> > +			 */
+> > +			insert_to_stable_tree_list(rmap_item, tree_rmap_item);
+> > +		}
+> > +		return;
+> > +	}
+
+> > +			/*
+> > +			 * If we fail to insert the page into the stable tree,
+> > +			 * we will have 2 virtual addresses that are pointing
+> > +			 * to a KsmPage left outside the stable tree,
+> > +			 * in which case we need to break_cow on both.
+> > +			 */
+> > +			if (stable_tree_insert(page2[0], tree_item,
+> > +					       tree_rmap_item) == 0) {
+> > +				insert_to_stable_tree_list(rmap_item,
+> > +							   tree_rmap_item);
+> > +			} else {
+> > +				free_tree_item(tree_item);
+> > +				tree_rmap_item->tree_item = NULL;
+> > +				break_cow(tree_mm, tree_addr);
+> > +				break_cow(rmap_item->mm, rmap_item->address);
+> > +				ksm_pages_shared -= 2;
+> >   
+> 
+> Much better handling than my kpage_outside_tree !
+
+You surprise me!  Although I couldn't see what was wrong with doing
+the break_cow()s there, I made that change pretty much as a provocation,
+to force you to explain patiently why we cannot break_cow() there, but
+have to go through the kpage_outside_tree, nkpage_out_tree (how I hated
+that name!) dance.  I thought perhaps that you'd found in testing that
+fixing it all up there got ksmd into making the same "mistake" again
+and again, so better to introduce a delay; then I was going to suggest
+forcing checksum back to 0 instead, and adding a comment (I removed the
+other, no longer stable, reason for "wait" too: thinking, by all means
+reinstate, but let's have a separate patch and comment to explain it).
+
+Surely there's some reason you did it the convoluted way originally?
+Perhaps the locking was different at the time the issue first came up,
+and you were not free to break_cow() here at that time?  Sadly, I don't
+think my testing has gone down this path even once, I hope yours does.
+
+> Great / Excllent work Hugh!, I really like the result, no need from you to
+> split it, i just have walked the code again, and i like it.
+> From the perspective of features, i dont think i want to change anything for
+> the merge release, about the migration/cgroup and all friends,
+> I think the swapping work that will be need to be taken for ksm will solve
+> their problems as well, at least from infrastructure point of view.
+> 
+> I will run it on my server and will try to heavy load it...
+
+Great, I'm so pleased, thank you.
+
+Aside from the break_cows change you already noticed above, there
+was one other thing I wanted to check with you, where my __ksm_enter does:
+	/*
+	 * Insert just behind the scanning cursor, to let the area settle
+	 * down a little; when fork is followed by immediate exec, we don't
+	 * want ksmd to waste time setting up and tearing down an rmap_list.
+	 */
+	list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
+
+Seems reasonable enough, but I've replaced the original list_add
+to the head by a list_add_tail to behind the cursor.  And before
+I brought the cursor into it, I had a list_add_tail to the head.
+
+Now, I prefer list_add_tail because I just find it easier to think
+through the sequence using list_add_tail; but it occurred to me later
+that you might have run tests which show list_add head to behave better.
+
+For example, if you always list_add new mms to the head (and the scan
+runs forwards from the head: last night I added an experimental option
+to run backwards, but notice no difference), then the unstable tree
+will get built up starting with the pages from the new mms, which
+might jostle the tree better than always starting with the same old
+mms?  So I might be spoiling a careful and subtle decision you made.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
