@@ -1,187 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F22C06B004D
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 05:14:44 -0400 (EDT)
-Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
-	by smtp-out.google.com with ESMTP id n5U9F64U010018
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:15:06 -0700
-Received: from yxe27 (yxe27.prod.google.com [10.190.2.27])
-	by zps37.corp.google.com with ESMTP id n5U9F3OK008980
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:15:04 -0700
-Received: by yxe27 with SMTP id 27so2554957yxe.0
-        for <linux-mm@kvack.org>; Tue, 30 Jun 2009 02:15:03 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 33B346B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 05:22:01 -0400 (EDT)
+Date: Tue, 30 Jun 2009 10:22:36 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Found the commit that causes the OOMs
+Message-ID: <20090630092235.GA17561@csn.ul.ie>
+References: <20090628142239.GA20986@localhost> <2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com> <20090628151026.GB25076@localhost> <20090629091741.ab815ae7.minchan.kim@barrios-desktop> <17678.1246270219@redhat.com> <20090629125549.GA22932@localhost> <29432.1246285300@redhat.com> <28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com> <20090629160725.GF5065@csn.ul.ie> <20090630130741.c191d042.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
-In-Reply-To: <20090630180344.d7274644.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090630180109.f137c10e.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090630180344.d7274644.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 30 Jun 2009 02:15:03 -0700
-Message-ID: <6599ad830906300215q56bda5ccnc99862211dc65289@mail.gmail.com>
-Subject: Re: [PATCH 2/2] cgroup: exlclude release rmdir
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090630130741.c191d042.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: David Howells <dhowells@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 2:03 AM, KAMEZAWA
-Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Paul Menage pointed out that css_get()/put() only for avoiding race with
-> rmdir() is complicated and these should be treated as it is for.
->
-> This adds
-> =A0 - cgroup_exclude_rmdir() ....prevent rmdir() for a while.
-> =A0 - cgroup_release_rmdir() ....rerun rmdir() if necessary.
-> And hides cgroup_wakeup_rmdir_waiter() into kernel/cgroup.c, again.
+On Tue, Jun 30, 2009 at 01:07:41PM +0900, Minchan Kim wrote:
+> On Mon, 29 Jun 2009 17:07:25 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > On Tue, Jun 30, 2009 at 12:00:26AM +0900, Minchan Kim wrote:
+> > > On Mon, Jun 29, 2009 at 11:21 PM, David Howells<dhowells@redhat.com> wrote:
+> > > > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > > >
+> > > >> Sorry! This one compiles OK:
+> > > >
+> > > > Sadly that doesn't seem to work either:
+> > > >
+> > > > msgctl11 invoked oom-killer: gfp_mask=0x200da, order=0, oom_adj=0
+> > > > msgctl11 cpuset=/ mems_allowed=0
+> > > > Pid: 30858, comm: msgctl11 Not tainted 2.6.31-rc1-cachefs #146
+> > > > Call Trace:
+> > > >  [<ffffffff8107207e>] ? oom_kill_process.clone.0+0xa9/0x245
+> > > >  [<ffffffff81072345>] ? __out_of_memory+0x12b/0x142
+> > > >  [<ffffffff810723c6>] ? out_of_memory+0x6a/0x94
+> > > >  [<ffffffff81074a90>] ? __alloc_pages_nodemask+0x42e/0x51d
+> > > >  [<ffffffff81080843>] ? do_wp_page+0x2c6/0x5f5
+> > > >  [<ffffffff810820c1>] ? handle_mm_fault+0x5dd/0x62f
+> > > >  [<ffffffff81022c32>] ? do_page_fault+0x1f8/0x20d
+> > > >  [<ffffffff812e069f>] ? page_fault+0x1f/0x30
+> > > > Mem-Info:
+> > > > DMA per-cpu:
+> > > > CPU    0: hi:    0, btch:   1 usd:   0
+> > > > CPU    1: hi:    0, btch:   1 usd:   0
+> > > > DMA32 per-cpu:
+> > > > CPU    0: hi:  186, btch:  31 usd:  38
+> > > > CPU    1: hi:  186, btch:  31 usd: 106
+> > > > Active_anon:75040 active_file:0 inactive_anon:2031
+> > > >  inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
+> > > >  free:1951 slab:41499 mapped:301 pagetables:60674 bounce:0
+> > > > DMA free:3932kB min:60kB low:72kB high:88kB active_anon:2868kB inactive_anon:384kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> > > > lowmem_reserve[]: 0 968 968 968
+> > > > DMA32 free:3872kB min:3948kB low:4932kB high:5920kB active_anon:297292kB inactive_anon:7740kB active_file:0kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> > > > lowmem_reserve[]: 0 0 0 0
+> > > > DMA: 7*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3932kB
+> > > > DMA32: 500*4kB 2*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 3872kB
+> > > > 1928 total pagecache pages
+> > > > 0 pages in swap cache
+> > > > Swap cache stats: add 0, delete 0, find 0/0
+> > > > Free swap  = 0kB
+> > > > Total swap = 0kB
+> > > > 255744 pages RAM
+> > > > 5589 pages reserved
+> > > > 238251 pages shared
+> > > > 216210 pages non-shared
+> > > > Out of memory: kill process 25221 (msgctl11) score 130560 or a child
+> > > > Killed process 26379 (msgctl11)
+> > > 
+> > > Totally, I can't understand this situation.
+> > > Now, this page allocation is order zero and It is just likely GFP_HIGHUSER.
+> > > So it's unlikely interrupt context.
+> > 
+> > The GFP flags that are set are
+> > 
+> > #define __GFP_HIGHMEM	(0x02)
+> > #define __GFP_MOVABLE	(0x08)  /* Page is movable */
+> > #define __GFP_WAIT	(0x10)	/* Can wait and reschedule? */
+> > #define __GFP_IO	(0x40)	/* Can start physical IO? */
+> > #define __GFP_FS	(0x80)	/* Can call down to low-level FS? */
+> > #define __GFP_HARDWALL   (0x20000) /* Enforce hardwall cpuset memory allocs */
+> > 
+> > which are fairly permissive in terms of what action can be taken.
+> > 
+> > > Buddy already has enough fallback DMA32, I think.
+> > 
+> > It doesn't really. We are below the minimum watermark. It wouldn't be
+> > able to grant the allocation until a few pages had been freed.
+> 
+> Yes. I missed that. 
+> 
+> > > Why kernel can't allocate page for order 0 ?
+> > > Is it allocator bug ?
+> > > 
+> > 
+> > If it is, it is not because the allocation failed as the watermarks were not
+> > being met. For this situation to be occuring, it has to be scanning the LRU
+> > lists and making no forward progress. Odd things to note;
+> > 
+> > o active_anon is very large in comparison to inactive_anon. Is this
+> >   because there is no swap and they are no longer being rotated?
+> 
+> Yes. My patch's intention was that. 
+> 
+>        commit 69c854817566db82c362797b4a6521d0b00fe1d8
+>        Author: MinChan Kim <minchan.kim@gmail.com>
+>        Date:   Tue Jun 16 15:32:44 2009 -0700
+> 
+> > o Slab and pagetables are very large. Is slab genuinely unshrinkable?
+> >
+> > I think this system might be genuinely OOM. It can't reclaim memory and
+> > we are below the minimum watermarks.
+> > 
+> > Is it possible there are pages that are counted as active_anon that in
+> > fact are reclaimable because they are on the wrong LRU list? If that was
+> > the case, the lack of rotation to inactive list would prevent them
+> > getting discovered.
+> 
+> I agree. 
+> One of them is that "[BUGFIX][PATCH] fix lumpy reclaim lru handiling at
+> isolate_lru_pages v2" as Kosaki already said. 
+> 
+> Unfortunately, David said it's not. 
+> But I think your guessing make sense. 
+> 
+> David. Doesn't it happen OOM if you revert my patch, still?
+> 
 
-Wouldn't it be better to merge these into a single patch? Having one
-patch that exposes complexity only to take it away in the following
-patch seems unnecessary; the combined patch would be simpler than the
-constituents.
+In the event the OOM does not happen with the patch reverted, I suggest
+you put together a debugging patch that prints out details of all pages
+on the active_anon LRU list in the event of an OOM. The intention is to
+figure out what pages are on the active_anon list that shouldn't be.
 
-Paul
-
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> ---
-> =A0include/linux/cgroup.h | =A0 21 +++++++++++----------
-> =A0kernel/cgroup.c =A0 =A0 =A0 =A0| =A0 17 +++++++++++++++--
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0| =A0 12 ++++--------
-> =A03 files changed, 30 insertions(+), 20 deletions(-)
->
-> Index: mmotm-2.6.31-Jun25/include/linux/cgroup.h
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- mmotm-2.6.31-Jun25.orig/include/linux/cgroup.h
-> +++ mmotm-2.6.31-Jun25/include/linux/cgroup.h
-> @@ -366,17 +366,18 @@ int cgroup_task_count(const struct cgrou
-> =A0int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct=
- *task);
->
-> =A0/*
-> - * Allow to use CGRP_WAIT_ON_RMDIR flag to check race with rmdir() for s=
-ubsys.
-> - * Subsys can call this function if it's necessary to call pre_destroy()=
- again
-> - * because it adds not-temporary refs to css after or while pre_destroy(=
-).
-> - * The caller of this function should use css_tryget(), too.
-> + * When the subsys has to access css and may add permanent refcnt to css=
-,
-> + * it should take care of racy conditions with rmdir(). Following set of
-> + * functions, is for stop/restart rmdir if necessary.
-> + * Because these will call css_get/put, "css" should be alive css.
-> + *
-> + * =A0cgroup_exclude_rmdir();
-> + * =A0...do some jobs which may access arbitrary empty cgroup
-> + * =A0cgroup_release_rmdir();
-> =A0*/
-> -void __cgroup_wakeup_rmdir_waiters(void);
-> -static inline void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
-> -{
-> - =A0 =A0 =A0 if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->=
-flags)))
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 __cgroup_wakeup_rmdir_waiters();
-> -}
-> +
-> +void cgroup_exclude_rmdir(struct cgroup_subsys_state *css);
-> +void cgroup_release_rmdir(struct cgroup_subsys_state *css);
->
-> =A0/*
-> =A0* Control Group subsystem type.
-> Index: mmotm-2.6.31-Jun25/kernel/cgroup.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- mmotm-2.6.31-Jun25.orig/kernel/cgroup.c
-> +++ mmotm-2.6.31-Jun25/kernel/cgroup.c
-> @@ -738,11 +738,24 @@ static void cgroup_d_remove_dir(struct d
-> =A0*/
-> =A0DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
->
-> -void __cgroup_wakeup_rmdir_waiters(void)
-> +static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
-> =A0{
-> - =A0 =A0 =A0 wake_up_all(&cgroup_rmdir_waitq);
-> + =A0 =A0 =A0 if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->=
-flags)))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 wake_up_all(&cgroup_rmdir_waitq);
-> =A0}
->
-> +void cgroup_exclude_rmdir(struct cgroup_subsys_state *css)
-> +{
-> + =A0 =A0 =A0 css_get(css);
-> +}
-> +
-> +void cgroup_release_rmdir(struct cgroup_subsys_state *css)
-> +{
-> + =A0 =A0 =A0 cgroup_wakeup_rmdir_waiter(css->cgroup);
-> + =A0 =A0 =A0 css_put(css);
-> +}
-> +
-> +
-> =A0static int rebind_subsystems(struct cgroupfs_root *root,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long =
-final_bits)
-> =A0{
-> Index: mmotm-2.6.31-Jun25/mm/memcontrol.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- mmotm-2.6.31-Jun25.orig/mm/memcontrol.c
-> +++ mmotm-2.6.31-Jun25/mm/memcontrol.c
-> @@ -1461,7 +1461,7 @@ __mem_cgroup_commit_charge_swapin(struct
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> =A0 =A0 =A0 =A0if (!ptr)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> - =A0 =A0 =A0 css_get(&ptr->css);
-> + =A0 =A0 =A0 cgroup_exclude_rmdir(&ptr->css);
-> =A0 =A0 =A0 =A0pc =3D lookup_page_cgroup(page);
-> =A0 =A0 =A0 =A0mem_cgroup_lru_del_before_commit_swapcache(page);
-> =A0 =A0 =A0 =A0__mem_cgroup_commit_charge(ptr, pc, ctype);
-> @@ -1496,9 +1496,7 @@ __mem_cgroup_commit_charge_swapin(struct
-> =A0 =A0 =A0 =A0 * So, rmdir()->pre_destroy() can be called while we do th=
-is charge.
-> =A0 =A0 =A0 =A0 * In that case, we need to call pre_destroy() again. chec=
-k it here.
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 cgroup_wakeup_rmdir_waiter(ptr->css.cgroup);
-> - =A0 =A0 =A0 css_put(&ptr->css);
-> -
-> + =A0 =A0 =A0 cgroup_release_rmdir(&ptr->css);
-> =A0}
->
-> =A0void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgr=
-oup *ptr)
-> @@ -1704,7 +1702,7 @@ void mem_cgroup_end_migration(struct mem
->
-> =A0 =A0 =A0 =A0if (!mem)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return;
-> - =A0 =A0 =A0 css_get(&mem->css);
-> + =A0 =A0 =A0 cgroup_exclude_rmdir(&mem->css);
-> =A0 =A0 =A0 =A0/* at migration success, oldpage->mapping is NULL. */
-> =A0 =A0 =A0 =A0if (oldpage->mapping) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0target =3D oldpage;
-> @@ -1749,9 +1747,7 @@ void mem_cgroup_end_migration(struct mem
-> =A0 =A0 =A0 =A0 * So, rmdir()->pre_destroy() can be called while we do th=
-is charge.
-> =A0 =A0 =A0 =A0 * In that case, we need to call pre_destroy() again. chec=
-k it here.
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 cgroup_wakeup_rmdir_waiter(mem->css.cgroup);
-> - =A0 =A0 =A0 css_put(&mem->css);
-> -
-> + =A0 =A0 =A0 cgroup_release_rmdir(&mem->css);
-> =A0}
->
-> =A0/*
->
->
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
