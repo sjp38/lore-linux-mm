@@ -1,111 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CDE196B004D
-	for <linux-mm@kvack.org>; Mon, 29 Jun 2009 21:08:44 -0400 (EDT)
-Date: Tue, 30 Jun 2009 09:08:56 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: + memory-hotplug-migrate-swap-cache-page.patch added to -mm
-	tree
-Message-ID: <20090630010856.GE21254@sli10-desk.sh.intel.com>
-References: <200906291949.n5TJnwFx028865@imap1.linux-foundation.org> <alpine.DEB.1.10.0906291813260.21956@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0906291813260.21956@gentwo.org>
+	by kanga.kvack.org (Postfix) with SMTP id BD6DF6B004D
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 00:08:22 -0400 (EDT)
+Received: by pzk41 with SMTP id 41so586554pzk.12
+        for <linux-mm@kvack.org>; Mon, 29 Jun 2009 21:08:35 -0700 (PDT)
+Date: Tue, 30 Jun 2009 13:07:41 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Found the commit that causes the OOMs
+Message-Id: <20090630130741.c191d042.minchan.kim@barrios-desktop>
+In-Reply-To: <20090629160725.GF5065@csn.ul.ie>
+References: <28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
+	<28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com>
+	<20090628142239.GA20986@localhost>
+	<2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com>
+	<20090628151026.GB25076@localhost>
+	<20090629091741.ab815ae7.minchan.kim@barrios-desktop>
+	<17678.1246270219@redhat.com>
+	<20090629125549.GA22932@localhost>
+	<29432.1246285300@redhat.com>
+	<28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
+	<20090629160725.GF5065@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Zhao, Yakui" <yakui.zhao@intel.com>
+To: Mel Gorman <mel@csn.ul.ie>, David Howells <dhowells@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Sorry, last mail sent to wrong list.
+On Mon, 29 Jun 2009 17:07:25 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-On Tue, Jun 30, 2009 at 06:13:54AM +0800, Christoph Lameter wrote:
-> When does this occur? From user space you are typically not able to get to
-> pages that are not mapped into your address space.
-migrate.c has comments about this. swap readahead will make this happen too.
+> On Tue, Jun 30, 2009 at 12:00:26AM +0900, Minchan Kim wrote:
+> > On Mon, Jun 29, 2009 at 11:21 PM, David Howells<dhowells@redhat.com> wrote:
+> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > >
+> > >> Sorry! This one compiles OK:
+> > >
+> > > Sadly that doesn't seem to work either:
+> > >
+> > > msgctl11 invoked oom-killer: gfp_mask=0x200da, order=0, oom_adj=0
+> > > msgctl11 cpuset=/ mems_allowed=0
+> > > Pid: 30858, comm: msgctl11 Not tainted 2.6.31-rc1-cachefs #146
+> > > Call Trace:
+> > > A [<ffffffff8107207e>] ? oom_kill_process.clone.0+0xa9/0x245
+> > > A [<ffffffff81072345>] ? __out_of_memory+0x12b/0x142
+> > > A [<ffffffff810723c6>] ? out_of_memory+0x6a/0x94
+> > > A [<ffffffff81074a90>] ? __alloc_pages_nodemask+0x42e/0x51d
+> > > A [<ffffffff81080843>] ? do_wp_page+0x2c6/0x5f5
+> > > A [<ffffffff810820c1>] ? handle_mm_fault+0x5dd/0x62f
+> > > A [<ffffffff81022c32>] ? do_page_fault+0x1f8/0x20d
+> > > A [<ffffffff812e069f>] ? page_fault+0x1f/0x30
+> > > Mem-Info:
+> > > DMA per-cpu:
+> > > CPU A  A 0: hi: A  A 0, btch: A  1 usd: A  0
+> > > CPU A  A 1: hi: A  A 0, btch: A  1 usd: A  0
+> > > DMA32 per-cpu:
+> > > CPU A  A 0: hi: A 186, btch: A 31 usd: A 38
+> > > CPU A  A 1: hi: A 186, btch: A 31 usd: 106
+> > > Active_anon:75040 active_file:0 inactive_anon:2031
+> > > A inactive_file:0 unevictable:0 dirty:0 writeback:0 unstable:0
+> > > A free:1951 slab:41499 mapped:301 pagetables:60674 bounce:0
+> > > DMA free:3932kB min:60kB low:72kB high:88kB active_anon:2868kB inactive_anon:384kB active_file:0kB inactive_file:0kB unevictable:0kB present:15364kB pages_scanned:0 all_unreclaimable? no
+> > > lowmem_reserve[]: 0 968 968 968
+> > > DMA32 free:3872kB min:3948kB low:4932kB high:5920kB active_anon:297292kB inactive_anon:7740kB active_file:0kB inactive_file:0kB unevictable:0kB present:992032kB pages_scanned:0 all_unreclaimable? no
+> > > lowmem_reserve[]: 0 0 0 0
+> > > DMA: 7*4kB 0*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 1*2048kB 0*4096kB = 3932kB
+> > > DMA32: 500*4kB 2*8kB 0*16kB 0*32kB 1*64kB 0*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB 0*4096kB = 3872kB
+> > > 1928 total pagecache pages
+> > > 0 pages in swap cache
+> > > Swap cache stats: add 0, delete 0, find 0/0
+> > > Free swap A = 0kB
+> > > Total swap = 0kB
+> > > 255744 pages RAM
+> > > 5589 pages reserved
+> > > 238251 pages shared
+> > > 216210 pages non-shared
+> > > Out of memory: kill process 25221 (msgctl11) score 130560 or a child
+> > > Killed process 26379 (msgctl11)
+> > 
+> > Totally, I can't understand this situation.
+> > Now, this page allocation is order zero and It is just likely GFP_HIGHUSER.
+> > So it's unlikely interrupt context.
+> 
+> The GFP flags that are set are
+> 
+> #define __GFP_HIGHMEM	(0x02)
+> #define __GFP_MOVABLE	(0x08)  /* Page is movable */
+> #define __GFP_WAIT	(0x10)	/* Can wait and reschedule? */
+> #define __GFP_IO	(0x40)	/* Can start physical IO? */
+> #define __GFP_FS	(0x80)	/* Can call down to low-level FS? */
+> #define __GFP_HARDWALL   (0x20000) /* Enforce hardwall cpuset memory allocs */
+> 
+> which are fairly permissive in terms of what action can be taken.
+> 
+> > Buddy already has enough fallback DMA32, I think.
+> 
+> It doesn't really. We are below the minimum watermark. It wouldn't be
+> able to grant the allocation until a few pages had been freed.
 
-Thanks,
-Shaohua
-> >
-> > The patch titled
-> >      memory hotplug: migrate swap cache page
-> > has been added to the -mm tree.  Its filename is
-> >      memory-hotplug-migrate-swap-cache-page.patch
-> >
-> > Before you just go and hit "reply", please:
-> >    a) Consider who else should be cc'ed
-> >    b) Prefer to cc a suitable mailing list as well
-> >    c) Ideally: find the original patch on the mailing list and do a
-> >       reply-to-all to that, adding suitable additional cc's
-> >
-> > *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> >
-> > See http://userweb.kernel.org/~akpm/stuff/added-to-mm.txt to find
-> > out what to do about this
-> >
-> > The current -mm tree may be found at http://userweb.kernel.org/~akpm/mmotm/
-> >
-> > ------------------------------------------------------
-> > Subject: memory hotplug: migrate swap cache page
-> > From: Shaohua Li <shaohua.li@intel.com>
-> >
-> > In test, some pages in swap-cache can't be migrated, as they aren't rmap.
-> >
-> > unmap_and_move() ignores swap-cache page which is just read in and hasn't
-> > rmap (see the comments in the code), but swap_aops provides .migratepage.
-> > Better to migrate such pages instead of ignore them.
-> >
-> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Christoph Lameter <cl@linux-foundation.org>
-> > Cc: Yakui Zhao <yakui.zhao@intel.com>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >
-> >  mm/migrate.c |    6 ++++--
-> >  1 file changed, 4 insertions(+), 2 deletions(-)
-> >
-> > diff -puN mm/migrate.c~memory-hotplug-migrate-swap-cache-page mm/migrate.c
-> > --- a/mm/migrate.c~memory-hotplug-migrate-swap-cache-page
-> > +++ a/mm/migrate.c
-> > @@ -147,7 +147,7 @@ out:
-> >  static void remove_file_migration_ptes(struct page *old, struct page *new)
-> >  {
-> >  	struct vm_area_struct *vma;
-> > -	struct address_space *mapping = page_mapping(new);
-> > +	struct address_space *mapping = new->mapping;
-> >  	struct prio_tree_iter iter;
-> >  	pgoff_t pgoff = new->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> >
-> > @@ -664,13 +664,15 @@ static int unmap_and_move(new_page_t get
-> >  			 *    needs to be effective.
-> >  			 */
-> >  			try_to_free_buffers(page);
-> > +			goto rcu_unlock;
-> >  		}
-> > -		goto rcu_unlock;
-> > +		goto skip_unmap;
-> >  	}
-> >
-> >  	/* Establish migration ptes or remove ptes */
-> >  	try_to_unmap(page, 1);
-> >
-> > +skip_unmap:
-> >  	if (!page_mapped(page))
-> >  		rc = move_to_new_page(newpage, page);
-> >
-> > _
-> >
-> > Patches currently in -mm which might be from shaohua.li@intel.com are
-> >
-> > linux-next.patch
-> > memory-hotplug-update-zone-pcp-at-memory-online.patch
-> > memory-hotplug-exclude-isolated-page-from-pco-page-alloc.patch
-> > memory-hotplug-make-pages-from-movable-zone-always-isolatable.patch
-> > memory-hotplug-alloc-page-from-other-node-in-memory-online.patch
-> > memory-hotplug-migrate-swap-cache-page.patch
-> >
-> >
+Yes. I missed that. 
+
+> > Why kernel can't allocate page for order 0 ?
+> > Is it allocator bug ?
+> > 
+> 
+> If it is, it is not because the allocation failed as the watermarks were not
+> being met. For this situation to be occuring, it has to be scanning the LRU
+> lists and making no forward progress. Odd things to note;
+> 
+> o active_anon is very large in comparison to inactive_anon. Is this
+>   because there is no swap and they are no longer being rotated?
+
+Yes. My patch's intention was that. 
+
+       commit 69c854817566db82c362797b4a6521d0b00fe1d8
+       Author: MinChan Kim <minchan.kim@gmail.com>
+       Date:   Tue Jun 16 15:32:44 2009 -0700
+
+> o Slab and pagetables are very large. Is slab genuinely unshrinkable?
+>
+> I think this system might be genuinely OOM. It can't reclaim memory and
+> we are below the minimum watermarks.
+> 
+> Is it possible there are pages that are counted as active_anon that in
+> fact are reclaimable because they are on the wrong LRU list? If that was
+> the case, the lack of rotation to inactive list would prevent them
+> getting discovered.
+
+I agree. 
+One of them is that "[BUGFIX][PATCH] fix lumpy reclaim lru handiling at
+isolate_lru_pages v2" as Kosaki already said. 
+
+Unfortunately, David said it's not. 
+But I think your guessing make sense. 
+
+David. Doesn't it happen OOM if you revert my patch, still?
+
+
+> 
+> -- 
+> Mel Gorman
+> Part-time Phd Student                          Linux Technology Center
+> University of Limerick                         IBM Dublin Software Lab
+
+
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
