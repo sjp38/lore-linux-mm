@@ -1,164 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7C9C16B004F
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 21:36:05 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n611bBxa019727
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Jul 2009 10:37:11 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 898F645DD83
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:37:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55F3B45DD7D
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:37:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 239E91DB8038
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:37:11 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92066E08001
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:37:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH v2] Show kernel stack usage to /proc/meminfo and OOM log
-In-Reply-To: <20090701082531.85C2.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.1.10.0906301011210.6124@gentwo.org> <20090701082531.85C2.A69D9226@jp.fujitsu.com>
-Message-Id: <20090701103622.85CD.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DEEE96B004F
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 21:45:04 -0400 (EDT)
+Date: Wed, 1 Jul 2009 09:46:27 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: + memory-hotplug-update-zone-pcp-at-memory-online.patch added
+	to -mm tree
+Message-ID: <20090701014627.GA23264@sli10-desk.sh.intel.com>
+References: <200906291949.n5TJno8X028680@imap1.linux-foundation.org> <alpine.DEB.1.10.0906291814150.21956@gentwo.org> <20090630005828.GC21254@sli10-desk.sh.intel.com> <alpine.DEB.1.10.0906301020420.6124@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  1 Jul 2009 10:37:09 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0906301020420.6124@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "Zhao, Yakui" <yakui.zhao@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
+On Tue, Jun 30, 2009 at 10:21:34PM +0800, Christoph Lameter wrote:
+> On Tue, 30 Jun 2009, Shaohua Li wrote:
+> 
+> > > foreach possible cpu?
+> > Just follows zone_pcp_init(), do you think we should change that too?
+> 
+> I plan to change that but for now this would be okay.
+> 
+> > > > +		struct per_cpu_pageset *pset;
+> > > > +		struct per_cpu_pages *pcp;
+> > > > +
+> > > > +		pset = zone_pcp(zone, cpu);
+> > > > +		pcp = &pset->pcp;
+> > > > +
+> > > > +		local_irq_save(flags);
+> > > > +		free_pages_bulk(zone, pcp->count, &pcp->list, 0);
+> > >
+> > > There are no pages in the pageset since the pcp batch is zero right?
+> > It might not be zero for a populated zone, see above comments.
+> 
+> But you are populating an unpopulated zone?
+yes, but free_pages_bulk() works with zero pcp->count too. And the zone
+might/might not populate before hotplug, so free the pages is always ok
+here to me.
 
-if the system have a lot of thread, kernel stack consume unignorable large size
-memory.
-IOW, it make a lot of unaccountable memory.
 
-Tons unaccountable memory bring to harder analyse memory related trouble.
+In my test, 128M memory is hot add, but zone's pcp batch is 0, which
+is an obvious error. When pages are onlined, zone pcp should be
+updated accordingly.
 
-Then, kernel stack account is useful.
+Include fixes suggested by Christoph Lameter and Andrew Morton.
 
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 ---
- fs/proc/meminfo.c      |    2 ++
- include/linux/mmzone.h |    3 ++-
- kernel/fork.c          |   12 ++++++++++++
- mm/page_alloc.c        |    6 ++++--
- mm/vmstat.c            |    1 +
- 5 files changed, 21 insertions(+), 3 deletions(-)
+ include/linux/mm.h  |    2 ++
+ mm/memory_hotplug.c |    1 +
+ mm/page_alloc.c     |   26 ++++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+)
 
-Index: b/fs/proc/meminfo.c
+Index: linux/include/linux/mm.h
 ===================================================================
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -85,6 +85,7 @@ static int meminfo_proc_show(struct seq_
- 		"SReclaimable:   %8lu kB\n"
- 		"SUnreclaim:     %8lu kB\n"
- 		"PageTables:     %8lu kB\n"
-+		"KernelStack     %8lu kB\n"
- #ifdef CONFIG_QUICKLIST
- 		"Quicklists:     %8lu kB\n"
+--- linux.orig/include/linux/mm.h	2009-06-30 09:14:21.000000000 +0800
++++ linux/include/linux/mm.h	2009-07-01 09:13:22.000000000 +0800
+@@ -1073,6 +1073,8 @@ extern void setup_per_cpu_pageset(void);
+ static inline void setup_per_cpu_pageset(void) {}
  #endif
-@@ -129,6 +130,7 @@ static int meminfo_proc_show(struct seq_
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_PAGETABLE)),
-+		K(global_page_state(NR_KERNEL_STACK)),
- #ifdef CONFIG_QUICKLIST
- 		K(quicklist_total_size()),
- #endif
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -94,10 +94,11 @@ enum zone_stat_item {
- 	NR_SLAB_RECLAIMABLE,
- 	NR_SLAB_UNRECLAIMABLE,
- 	NR_PAGETABLE,		/* used for pagetables */
-+	NR_KERNEL_STACK,
-+	/* Second 128 byte cacheline */
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_BOUNCE,
- 	NR_VMSCAN_WRITE,
--	/* Second 128 byte cacheline */
- 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
-Index: b/kernel/fork.c
-===================================================================
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -137,9 +137,18 @@ struct kmem_cache *vm_area_cachep;
- /* SLAB cache for mm_struct structures (tsk->mm) */
- static struct kmem_cache *mm_cachep;
  
-+static void account_kernel_stack(struct thread_info *ti, int on)
-+{
-+	struct zone *zone = page_zone(virt_to_page(ti));
-+	int pages = THREAD_SIZE / PAGE_SIZE;
++extern void zone_pcp_update(struct zone *zone);
 +
-+	mod_zone_page_state(zone, NR_KERNEL_STACK, on ? pages : -pages);
+ /* nommu.c */
+ extern atomic_long_t mmap_pages_allocated;
+ 
+Index: linux/mm/memory_hotplug.c
+===================================================================
+--- linux.orig/mm/memory_hotplug.c	2009-06-30 09:14:21.000000000 +0800
++++ linux/mm/memory_hotplug.c	2009-07-01 09:13:22.000000000 +0800
+@@ -422,6 +422,7 @@ int online_pages(unsigned long pfn, unsi
+ 	zone->present_pages += onlined_pages;
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
+ 
++	zone_pcp_update(zone);
+ 	setup_per_zone_wmarks();
+ 	calculate_zone_inactive_ratio(zone);
+ 	if (onlined_pages) {
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c	2009-06-30 09:14:21.000000000 +0800
++++ linux/mm/page_alloc.c	2009-07-01 09:40:08.000000000 +0800
+@@ -3131,6 +3131,32 @@ int zone_wait_table_init(struct zone *zo
+ 	return 0;
+ }
+ 
++static int __zone_pcp_update(void *data)
++{
++	struct zone *zone = data;
++	int cpu;
++	unsigned long batch = zone_batchsize(zone), flags;
++
++	for_each_possible_cpu(cpu) {
++		struct per_cpu_pageset *pset;
++		struct per_cpu_pages *pcp;
++
++		pset = zone_pcp(zone, cpu);
++		pcp = &pset->pcp;
++
++		local_irq_save(flags);
++		free_pages_bulk(zone, pcp->count, &pcp->list, 0);
++		setup_pageset(pset, batch);
++		local_irq_restore(flags);
++	}
++	return 0;
 +}
 +
- void free_task(struct task_struct *tsk)
++void zone_pcp_update(struct zone *zone)
++{
++	stop_machine(__zone_pcp_update, zone, NULL);
++}
++
+ static __meminit void zone_pcp_init(struct zone *zone)
  {
- 	prop_local_destroy_single(&tsk->dirties);
-+	account_kernel_stack(tsk->stack, 0);
- 	free_thread_info(tsk->stack);
- 	rt_mutex_debug_task_free(tsk);
- 	ftrace_graph_exit_task(tsk);
-@@ -255,6 +264,9 @@ static struct task_struct *dup_task_stru
- 	tsk->btrace_seq = 0;
- #endif
- 	tsk->splice_pipe = NULL;
-+
-+	account_kernel_stack(ti, 1);
-+
- 	return tsk;
- 
- out:
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2119,7 +2119,8 @@ void show_free_areas(void)
- 		" inactive_file:%lu"
- 		" unevictable:%lu"
- 		" dirty:%lu writeback:%lu unstable:%lu\n"
--		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
-+		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n"
-+		" kernel_stack:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_ANON),
-@@ -2133,7 +2134,8 @@ void show_free_areas(void)
- 			global_page_state(NR_SLAB_UNRECLAIMABLE),
- 		global_page_state(NR_FILE_MAPPED),
- 		global_page_state(NR_PAGETABLE),
--		global_page_state(NR_BOUNCE));
-+		global_page_state(NR_BOUNCE),
-+		global_page_state(NR_KERNEL_STACK));
- 
- 	for_each_populated_zone(zone) {
- 		int i;
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -639,6 +639,7 @@ static const char * const vmstat_text[] 
- 	"nr_slab_reclaimable",
- 	"nr_slab_unreclaimable",
- 	"nr_page_table_pages",
-+	"nr_kernel_stack",
- 	"nr_unstable",
- 	"nr_bounce",
- 	"nr_vmscan_write",
-
+ 	int cpu;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
