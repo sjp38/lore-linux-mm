@@ -1,26 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A75426B004F
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:43:19 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20090701103622.85CD.A69D9226@jp.fujitsu.com>
-References: <20090701103622.85CD.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0906301011210.6124@gentwo.org> <20090701082531.85C2.A69D9226@jp.fujitsu.com>
-Subject: Re: [PATCH v2] Show kernel stack usage to /proc/meminfo and OOM log
-Date: Wed, 01 Jul 2009 15:44:18 +0100
-Message-ID: <10604.1246459458@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 753106B004F
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 11:42:08 -0400 (EDT)
+Message-ID: <4A4B8486.3020307@redhat.com>
+Date: Wed, 01 Jul 2009 18:45:10 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] ZERO PAGE again
+References: <20090701185759.18634360.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090701185759.18634360.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: dhowells@redhat.com, Christoph Lameter <cl@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes,
-                         Jesse" <jesse.barnes@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On 07/01/2009 12:57 PM, KAMEZAWA Hiroyuki wrote:
+> ZERO PAGE was removed in 2.6.24 (=>  http://lkml.org/lkml/2007/10/9/112)
+> and I had no objections.
+>
+> In these days, at user support jobs, I noticed a few of customers
+> are making use of ZERO_PAGE intentionally...brutal mmap and scan, etc. They are
+> using RHEL4-5(before 2.6.18) then they don't notice that ZERO_PAGE
+> is gone, yet.
+> yes, I can say  "ZERO PAGE is gone" to them in next generation distro.
+>
+> Recently, a question comes to lkml (http://lkml.org/lkml/2009/6/4/383
+>
+> Maybe there are some users of ZERO_PAGE other than my customers.
+> So, can't we use ZERO_PAGE again ?
+>
+> IIUC, the problem of ZERO_PAGE was
+>    - reference count cache ping-pong
+>    - complicated handling.
+>    - the behavior page-fault-twice can make applications slow.
+>
+> This patch is a trial to de-refcounted ZERO_PAGE.
+> Any comments are welcome. I'm sorry for digging grave...
+>    
 
-> +	int pages = THREAD_SIZE / PAGE_SIZE;
+kvm could use this.  There's a fairly involved scenario where the lack 
+of zero page hits us:
 
-Bad assumption.  On FRV, for example, THREAD_SIZE is 8K and PAGE_SIZE is 16K.
+- a guest is started
+- either it doesn't touch all of its memory, or it balloons some of its 
+memory away, so its resident set size is smaller than the total amount 
+of memory it has
+- the guest is live migrated to another host; this involves reading all 
+of the guest memory
 
-David
+If we don't have zero page, all of the not-present pages are faulted in 
+and the resident set size increases; this increases memory pressure, 
+which is what we're trying to avoid (one of the reasons to live migrate 
+is to free memory).
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
