@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0549B6B004D
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 19:03:16 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A23666B004D
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 19:22:41 -0400 (EDT)
+Message-ID: <4A4BEE1A.8090204@acm.org>
+Date: Wed, 01 Jul 2009 17:15:38 -0600
+From: Zan Lynx <zlynx@acm.org>
 MIME-Version: 1.0
-Message-ID: <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
-Date: Wed, 1 Jul 2009 16:02:38 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] transcendent memory for Linux
-In-Reply-To: <4A4A95D8.6020708@goop.org>
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Long lasting MM bug when swap is smaller than RAM
+References: <20090630115819.38b40ba4.attila@kinali.ch>	<4A4ABD8F.40907@gmail.com>	<20090701100432.2d328e46.attila@kinali.ch> <20090701100834.1f740ad5.attila@kinali.ch>
+In-Reply-To: <20090701100834.1f740ad5.attila@kinali.ch>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, Keir Fraser <keir.fraser@eu.citrix.com>
+To: Attila Kinali <attila@kinali.ch>
+Cc: Robert Hancock <hancockrwd@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Jeremy Fitzhardinge [mailto:jeremy@goop.org]
-> On 06/30/09 14:21, Dan Magenheimer wrote:
-> > No, the uuid can't be verified.  Tmem gives no indication
-> > as to whether a newly-created pool is already in use (shared)
-> > by another guest.  So without both the 128-bit uuid and an
-> > already-in-use 64-bit object id and 32-bit page index, no data
-> > is readable or writable by the attacker.
->=20
-> You have to consider things like timing attacks as well (for=20
-> example, a
-> tmem hypercall might return faster if the uuid already exists).
->=20
-> Besides, you can tell whether a uuid exists, by at least a couple of
-> mechanisms (from a quick read of the source, so I might have=20
-> overlooked something):
+Attila Kinali wrote:
+> On Wed, 1 Jul 2009 10:04:32 +0200
+> Attila Kinali <attila@kinali.ch> wrote:
+> 
+>>> But 
+>>> swapping does not only occur if memory is running low. If disk usage is 
+>>> high then non-recently used data may be swapped out to make more room 
+>>> for disk caching.
+>> Hmm..I didn't know this.. thanks!
+> 
+> This was the cause of the problem!
+> 
+> I just restarted svnserv, clamav and bind (the three applications
+> using most memory) and suddenly swap cleared up.
+> 
+> Now the question is, why did they accumulate so much used swap
+> space, while before the RAM upgrade, we hardly used the swap space at all?
 
-All of these still require a large number of guesses
-across a 128-bit space of possible uuids, right?
-It should be easy to implement "guess limits" in xen
-that disable tmem use by a guest if it fails too many guesses.
-I'm a bit more worried about:
+I do not know about the others, but ClamAV suffers from pretty serious 
+memory fragmentation.  What it does is load the updated signatures into 
+a new memory allocation, verify them, then free the old signature 
+allocation.  This results in a large hole in glibc's malloc structures 
+and because of ClamAV's allocation pattern, this hole is difficult to 
+reclaim.  This ClamAV memory fragmentation will continue to grow worse 
+until the daemon is completely restarted.
 
-> You also have to consider the case of a domain which was once part of
-> the ocfs cluster, but now is not - it may still know the uuid, but not
-> be otherwise allowed to use the cluster.
+Under memory pressure the kernel pushes least used pages out to swap, 
+and these unused but still allocated pages of ClamAV are never again 
+used, so out to swap they go.
 
-But on the other hand, the security model here can be that
-if a trusted entity becomes untrusted, you have to change
-the locks.
+I know this because the company I work for tried to fix the memory 
+allocation fragmentation of ClamAV, but they did not like our patch and 
+preferred to continue allowing the memory allocator to fragment in 
+exchange for simpler code.
 
-> Yeah, a shared namespace of accessible objects is an entirely=20
-> new thing
-> in the Xen universe.  I would also drop Xen support until=20
-> there's a good
-> security story about how they can be used.
+-- 
+Zan Lynx
+zlynx@acm.org
 
-While I agree that the security is not bulletproof, I wonder
-if this position might be a bit extreme.  Certainly, the NSA
-should not turn on tmem in a cluster, but that doesn't mean that
-nobody should be allowed to.  I really suspect that there are
-less costly / more rewarding attack vectors at several layers
-in the hardware/software stack of most clusters.
-
-Dan
+"Knowledge is Power.  Power Corrupts.  Study Hard.  Be Evil."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
