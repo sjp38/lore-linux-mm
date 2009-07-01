@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ACB946B004D
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 17:21:26 -0400 (EDT)
-Date: Wed, 1 Jul 2009 14:21:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 2/3] hugetlb:  derive huge pages nodes allowed from task
- mempolicy
-Message-Id: <20090701142152.7f41fe70.akpm@linux-foundation.org>
-In-Reply-To: <20090630154818.1583.26154.sendpatchset@lts-notebook>
-References: <20090630154716.1583.25274.sendpatchset@lts-notebook>
-	<20090630154818.1583.26154.sendpatchset@lts-notebook>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0549B6B004D
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 19:03:16 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
+Date: Wed, 1 Jul 2009 16:02:38 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC] transcendent memory for Linux
+In-Reply-To: <4A4A95D8.6020708@goop.org>
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.org, mel@csn.ul.ie, nacc@us.ibm.com, rientjes@google.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, Keir Fraser <keir.fraser@eu.citrix.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Jun 2009 11:48:18 -0400
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> From: Jeremy Fitzhardinge [mailto:jeremy@goop.org]
+> On 06/30/09 14:21, Dan Magenheimer wrote:
+> > No, the uuid can't be verified.  Tmem gives no indication
+> > as to whether a newly-created pool is already in use (shared)
+> > by another guest.  So without both the 128-bit uuid and an
+> > already-in-use 64-bit object id and 32-bit page index, no data
+> > is readable or writable by the attacker.
+>=20
+> You have to consider things like timing attacks as well (for=20
+> example, a
+> tmem hypercall might return faster if the uuid already exists).
+>=20
+> Besides, you can tell whether a uuid exists, by at least a couple of
+> mechanisms (from a quick read of the source, so I might have=20
+> overlooked something):
 
-> [RFC 2/3] hugetlb:  derive huge pages nodes allowed from task mempolicy
-> 
->
-> ...
->
-> +/**
-> + * huge_mpol_nodes_allowed()
-> + *
-> + * Return a [pointer to a] nodelist for persistent huge page allocation
-> + * based on the current task's mempolicy:
-> + *
-> + * If the task's mempolicy is "default" [NULL], just return NULL for
-> + * default behavior.  Otherwise, extract the policy nodemask for 'bind'
-> + * or 'interleave' policy or construct a nodemask for 'preferred' or
-> + * 'local' policy and return a pointer to a kmalloc()ed nodemask_t.
-> + * It is the caller's responsibility to free this nodemask.
-> + */
+All of these still require a large number of guesses
+across a 128-bit space of possible uuids, right?
+It should be easy to implement "guess limits" in xen
+that disable tmem use by a guest if it fails too many guesses.
+I'm a bit more worried about:
 
-Comment purports to be kereldoc but doesn't look very kerneldoccy?
+> You also have to consider the case of a domain which was once part of
+> the ocfs cluster, but now is not - it may still know the uuid, but not
+> be otherwise allowed to use the cluster.
 
-> +nodemask_t *huge_mpol_nodes_allowed(void)
-> +{
-> +	nodemask_t *nodes_allowed = NULL;
-> +	struct mempolicy *mempolicy;
-> +	int nid;
-> +
-> +	if (!current || !current->mempolicy)
-> +		return NULL;
-> +
-> +	mpol_get(current->mempolicy);
-> +	nodes_allowed = kzalloc(sizeof(*nodes_allowed), GFP_KERNEL);
-> +	if (!nodes_allowed) {
-> +		printk(KERN_WARNING "Unable to allocate nodes allowed mask "
-> +			"for huge page allocation\nFalling back to default\n");
+But on the other hand, the security model here can be that
+if a trusted entity becomes untrusted, you have to change
+the locks.
 
-hm.  If we're going to emit a diagnostic on behalf of userspace, it
-would be best if that diagnostic were to contain sufficient information
-for the identification of the failing application (pid and comm, for
-example).  Otherwise this mesasge would be a real head-scratcher on a
-large and busy system.
+> Yeah, a shared namespace of accessible objects is an entirely=20
+> new thing
+> in the Xen universe.  I would also drop Xen support until=20
+> there's a good
+> security story about how they can be used.
 
-> +		goto out;
-> +	}
-> +
-> +	mempolicy = current->mempolicy;
-> +	switch(mempolicy->mode) {
-> +	case MPOL_PREFERRED:
-> +		if (mempolicy->flags & MPOL_F_LOCAL)
-> +			nid = numa_node_id();
-> +		else
-> +			nid = mempolicy->v.preferred_node;
-> +		node_set(nid, *nodes_allowed);
-> +		break;
-> +
-> +	case MPOL_BIND:
-> +		/* Fall through */
-> +	case MPOL_INTERLEAVE:
-> +			*nodes_allowed =  mempolicy->v.nodes;
+While I agree that the security is not bulletproof, I wonder
+if this position might be a bit extreme.  Certainly, the NSA
+should not turn on tmem in a cluster, but that doesn't mean that
+nobody should be allowed to.  I really suspect that there are
+less costly / more rewarding attack vectors at several layers
+in the hardware/software stack of most clusters.
 
-whitespace broke.
-
-> +		break;
-> +
-> +	default:
-> +		BUG();
-> +	}
-> +
-> +out:
-> +	mpol_put(current->mempolicy);
-> +	return nodes_allowed;
-> +}
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
