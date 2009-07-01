@@ -1,61 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A23666B004D
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 19:22:41 -0400 (EDT)
-Message-ID: <4A4BEE1A.8090204@acm.org>
-Date: Wed, 01 Jul 2009 17:15:38 -0600
-From: Zan Lynx <zlynx@acm.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 99EC46B004D
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 19:31:28 -0400 (EDT)
+Message-ID: <4A4BF1D2.8010305@goop.org>
+Date: Wed, 01 Jul 2009 16:31:30 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: Long lasting MM bug when swap is smaller than RAM
-References: <20090630115819.38b40ba4.attila@kinali.ch>	<4A4ABD8F.40907@gmail.com>	<20090701100432.2d328e46.attila@kinali.ch> <20090701100834.1f740ad5.attila@kinali.ch>
-In-Reply-To: <20090701100834.1f740ad5.attila@kinali.ch>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC] transcendent memory for Linux
+References: <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
+In-Reply-To: <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Attila Kinali <attila@kinali.ch>
-Cc: Robert Hancock <hancockrwd@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, Keir Fraser <keir.fraser@eu.citrix.com>
 List-ID: <linux-mm.kvack.org>
 
-Attila Kinali wrote:
-> On Wed, 1 Jul 2009 10:04:32 +0200
-> Attila Kinali <attila@kinali.ch> wrote:
-> 
->>> But 
->>> swapping does not only occur if memory is running low. If disk usage is 
->>> high then non-recently used data may be swapped out to make more room 
->>> for disk caching.
->> Hmm..I didn't know this.. thanks!
-> 
-> This was the cause of the problem!
-> 
-> I just restarted svnserv, clamav and bind (the three applications
-> using most memory) and suddenly swap cleared up.
-> 
-> Now the question is, why did they accumulate so much used swap
-> space, while before the RAM upgrade, we hardly used the swap space at all?
+On 07/01/09 16:02, Dan Magenheimer wrote:
+> All of these still require a large number of guesses
+> across a 128-bit space of possible uuids, right?
+> It should be easy to implement "guess limits" in xen
+> that disable tmem use by a guest if it fails too many guesses.
+>   
 
-I do not know about the others, but ClamAV suffers from pretty serious 
-memory fragmentation.  What it does is load the updated signatures into 
-a new memory allocation, verify them, then free the old signature 
-allocation.  This results in a large hole in glibc's malloc structures 
-and because of ClamAV's allocation pattern, this hole is difficult to 
-reclaim.  This ClamAV memory fragmentation will continue to grow worse 
-until the daemon is completely restarted.
+How does Xen distinguish between someone "guessing" uuids and a normal
+user which wants to create lots of pools?
 
-Under memory pressure the kernel pushes least used pages out to swap, 
-and these unused but still allocated pages of ClamAV are never again 
-used, so out to swap they go.
+>> You also have to consider the case of a domain which was once part of
+>> the ocfs cluster, but now is not - it may still know the uuid, but not
+>> be otherwise allowed to use the cluster.
+>>     
+>
+> But on the other hand, the security model here can be that
+> if a trusted entity becomes untrusted, you have to change
+> the locks.
+>   
 
-I know this because the company I work for tried to fix the memory 
-allocation fragmentation of ClamAV, but they did not like our patch and 
-preferred to continue allowing the memory allocator to fragment in 
-exchange for simpler code.
+Revocation is one of the big problems with capabilities-based systems.
 
--- 
-Zan Lynx
-zlynx@acm.org
+>> Yeah, a shared namespace of accessible objects is an entirely 
+>> new thing
+>> in the Xen universe.  I would also drop Xen support until 
+>> there's a good
+>> security story about how they can be used.
+>>     
+>
+> While I agree that the security is not bulletproof, I wonder
+> if this position might be a bit extreme.  Certainly, the NSA
+> should not turn on tmem in a cluster, but that doesn't mean that
+> nobody should be allowed to.  I really suspect that there are
+> less costly / more rewarding attack vectors at several layers
+> in the hardware/software stack of most clusters.
+>   
 
-"Knowledge is Power.  Power Corrupts.  Study Hard.  Be Evil."
+Well, I think you can define any security model you like, but I think
+you need to have a defined security model before making it an available
+API.  At the moment the model is defined by whatever you currently have
+implemented, and anyone using the API as-is - without special
+consideration of its security properties - is going to end up vulnerable.
+
+In an earlier mail I said "a shared namespace of accessible objects is
+an entirely new thing in the Xen universe", which is obviously not true:
+we have Xenbus.
+
+It seems to me that a better approach to shared tmem pools should be
+moderated via Xenbus, which in turn allows dom0/xenstored/tmemd/etc to
+apply arbitrary policies to who gets to see what handles, revoke them, etc.
+
+You don't need to deal with "uuids" at the tmem hypercall level. 
+Instead, you have a well-defined xenbus path corresponding to the
+resource; reading it will return a handle number, which you can then use
+with your hypercalls.  If your access is denied or revoked, then the
+read will fail (or the current handle will stop working if revoked). 
+This requires some privileged hypercalls to establish and remove tmem
+handles for a particular domain.
+
+I'm assuming that the job of managing and balancing tmem resources will
+need to happen in a tmem-domain rather than trying to build all that
+policy into Xen itself, so putting a bit more logic in there to manage
+shared access rules doesn't add much complexity to the system.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
