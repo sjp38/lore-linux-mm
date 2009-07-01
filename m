@@ -1,268 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 434F36B004F
-	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 21:48:25 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n611nPUi008061
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Jul 2009 10:49:25 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E35F945DE4E
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:49:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C23E845DE51
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:49:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8667A1DB8038
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:49:24 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D9CA1DB8044
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 10:49:21 +0900 (JST)
-Date: Wed, 1 Jul 2009 10:47:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: fix cgroup rmdir hang v4
-Message-Id: <20090701104747.afdcc6c7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090630180109.f137c10e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090630180109.f137c10e.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AB5AC6B004F
+	for <linux-mm@kvack.org>; Tue, 30 Jun 2009 22:04:14 -0400 (EDT)
+Date: Wed, 1 Jul 2009 03:03:58 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: KSM: current madvise rollup
+In-Reply-To: <4A4A5C56.5000109@redhat.com>
+Message-ID: <Pine.LNX.4.64.0907010057320.4255@sister.anvils>
+References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils>
+ <4A49E051.1080400@redhat.com> <Pine.LNX.4.64.0906301518370.967@sister.anvils>
+ <4A4A5C56.5000109@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ok, here.
+On Tue, 30 Jun 2009, Izik Eidus wrote:
+> Hugh Dickins wrote:
+> > On Tue, 30 Jun 2009, Izik Eidus wrote:
+> > > Hugh Dickins wrote:
+> > >     
+> > > > I've plenty more to do: still haven't really focussed in on mremap
+> > > > move, and races when the vma we expect to be VM_MERGEABLE is actually
+> > > > something else by the time we get mmap_sem for get_user_pages. 
+> > > >       
+> > > Considering the fact that the madvise run with mmap_sem(write)
+> > > isn't it enough just to check the VM_MERGEABLE flag?
+> >
+> > That is most of it, yes: though really we'd want that check down
+> > inside __get_user_pages(), so that it wouldn't proceed any further
+> > if by then the vma is not VM_MERGEABLE.  GUP's VM_IO | VM_PFNMAP check
+> > does already keep it away from the most dangerous areas, but we also
+> > don't want it to touch VM_HUGETLB ones (faulting in huge pages nobody
+> > wants), nor any !VM_MERGEABLE really.
+> 
+> Ouch, I see what you mean!, previously the check for PageKsm() that was made
+> before cmp_and_merge_page() was protecting us against everything but anonymous
+> pages...
+> I saw that you change the condition, but i forgot about that  protection!
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+No, that isn't what I meant, actually.  It's a little worrying that I
+didn't even consider your point when adding the || !rmap_item->stable_tree,
+but on reflection I don't think that changes our protection.
 
-After commit: cgroup: fix frequent -EBUSY at rmdir
-	      ec64f51545fffbc4cb968f0cea56341a4b07e85a
-cgroup's rmdir (especially against memcg) doesn't return -EBUSY
-by temporal ref counts. That commit expects all refs after pre_destroy()
-is temporary but...it wasn't. Then, rmdir can wait permanently.
-This patch tries to fix that and change followings.
+My point is (well, to be honest, I'm adjusting my view as I reply) that
+"PageKsm(page)" is seductive, but dangerously relative.  Until we are
+sure that we're in a VM_MERGEABLE area (and here we are not sure, just
+know that it was when the recent get_next_rmap_item returned that item),
+it means no more than the condition within that function.  You're clear
+about that in the comments above and within PageKsm() itself, but it's
+easily forgotten in the places where it's used.  Here, I'm afraid, I
+read "PageKsm(page[0])" as saying that page[0] is definitely a KSM page,
+but we don't actually know that much, since we're unsure of VM_MERGEABLE.
 
- - set CGRP_WAIT_ON_RMDIR flag before pre_destroy().
- - clear CGRP_WAIT_ON_RMDIR flag when the subsys finds racy case.
-   if there are sleeping ones, wakes them up.
- - rmdir() sleeps only when CGRP_WAIT_ON_RMDIR flag is set.
+Or when you say "I saw that you change the condition", perhaps you don't
+mean my added "|| !rmap_item->stable_tree" below, but my change to PageKsm
+itself, changing it from !PageAnon(page) to page->mapping == NULL?  I
+should explain that actually my testing was with one additional patch
 
-Changelog v4->v5:
-  - added cgroup_exclude_rmdir(), cgroup_release_rmdir().
+@@ -1433,7 +1433,8 @@ int ksm_madvise(struct vm_area_struct *v
+ 			return 0;		/* just ignore the advice */
+ 
+ 		if (vma->vm_file || vma->vm_ops)
+-			return 0;		/* just ignore the advice */
++			if (!(vma->vm_flags & VM_CAN_NONLINEAR))
++				return 0;	/* just ignore the advice */
+ 
+ 		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+ 			if (__ksm_enter(mm) < 0)
 
-Changelog v3->v4:
-  - rewrite/add comments.
-  - remane cgroup_wakeup_rmdir_waiters() to cgroup_wakeup_rmdir_waiter().
-Changelog v2->v3:
-  - removed retry_rmdir() callback.
-  - make use of CGRP_WAIT_ON_RMDIR flag more.
+which extends KSM from pure anonymous vmas to most private file-backed
+vmas, hence I needed the test to distinguish the KSM pages from nearby
+pages in there too.  I left that line out of the rollup I sent, partly
+to separate the extension, but mainly because I'm a bit uncomfortable
+with using "VM_CAN_NONLINEAR" in that way, for two reasons: though it
+is a way of saying "this is a normal kind of filesystem, not some weird
+device driver", if we're going to use it in that way, then we ought to
+get Nick's agreement and probably rename it VM_REGULAR (but would then
+need to define exactly what a filesystem must provide to qualify: that
+might take a while!); the other reason is, I've noticed in the past
+that btrfs is not yet setting VM_CAN_NONLINEAR, I think that's just
+an oversight (which I did once mention to Chris), but ought to check
+with Nick that I've not forgotten some reason why an ordinary filesystem
+might be unable to support nonlinear.
 
-Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/cgroup.h |   14 ++++++++++++
- kernel/cgroup.c        |   55 +++++++++++++++++++++++++++++++++----------------
- mm/memcontrol.c        |   23 +++++++++++++++++---
- 3 files changed, 72 insertions(+), 20 deletions(-)
+However, if we go on to use an actual bit to distinguish PageKsm, as
+I think we shall probably have to to support swapping, then we won't
+need the VM_CAN_NONLINEAR-like check at all: so long as KSM sticks to
+merging only PageAnon pages (and I think "so long as" will be forever),
+it would be safe even on most driver areas, the only exceptions being
+/dev/mem and /dev/kmem (or anything like them: mmaps that can include
+anonymous or KSM pages without them being anonymous or KSM pages in
+the context of that mapping), which are for sure
+marked VM_IO | VM_RESERVED | VM_PFNMAP.
 
-Index: mmotm-2.6.31-Jun25/include/linux/cgroup.h
-===================================================================
---- mmotm-2.6.31-Jun25.orig/include/linux/cgroup.h
-+++ mmotm-2.6.31-Jun25/include/linux/cgroup.h
-@@ -366,6 +366,20 @@ int cgroup_task_count(const struct cgrou
- int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
- 
- /*
-+ * When the subsys has to access css and may add permanent refcnt to css,
-+ * it should take care of racy conditions with rmdir(). Following set of
-+ * functions, is for stop/restart rmdir if necessary.
-+ * Because these will call css_get/put, "css" should be alive css.
-+ *
-+ *  cgroup_exclude_rmdir();
-+ *  ...do some jobs which may access arbitrary empty cgroup
-+ *  cgroup_release_rmdir();
-+ */
-+
-+void cgroup_exclude_rmdir(struct cgroup_subsys_state *css);
-+void cgroup_release_rmdir(struct cgroup_subsys_state *css);
-+
-+/*
-  * Control Group subsystem type.
-  * See Documentation/cgroups/cgroups.txt for details
-  */
-Index: mmotm-2.6.31-Jun25/kernel/cgroup.c
-===================================================================
---- mmotm-2.6.31-Jun25.orig/kernel/cgroup.c
-+++ mmotm-2.6.31-Jun25/kernel/cgroup.c
-@@ -734,16 +734,28 @@ static void cgroup_d_remove_dir(struct d
-  * reference to css->refcnt. In general, this refcnt is expected to goes down
-  * to zero, soon.
-  *
-- * CGRP_WAIT_ON_RMDIR flag is modified under cgroup's inode->i_mutex;
-+ * CGRP_WAIT_ON_RMDIR flag is set under cgroup's inode->i_mutex;
-  */
- DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
- 
--static void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-+static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
- {
--	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-+	if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
- 		wake_up_all(&cgroup_rmdir_waitq);
- }
- 
-+void cgroup_exclude_rmdir(struct cgroup_subsys_state *css)
-+{
-+	css_get(css);
-+}
-+
-+void cgroup_release_rmdir(struct cgroup_subsys_state *css)
-+{
-+	cgroup_wakeup_rmdir_waiter(css->cgroup);
-+	css_put(css);
-+}
-+
-+
- static int rebind_subsystems(struct cgroupfs_root *root,
- 			      unsigned long final_bits)
- {
-@@ -1357,7 +1369,7 @@ int cgroup_attach_task(struct cgroup *cg
- 	 * wake up rmdir() waiter. the rmdir should fail since the cgroup
- 	 * is no longer empty.
- 	 */
--	cgroup_wakeup_rmdir_waiters(cgrp);
-+	cgroup_wakeup_rmdir_waiter(cgrp);
- 	return 0;
- }
- 
-@@ -2696,33 +2708,42 @@ again:
- 	mutex_unlock(&cgroup_mutex);
- 
- 	/*
-+	 * In general, subsystem has no css->refcnt after pre_destroy(). But
-+	 * in racy cases, subsystem may have to get css->refcnt after
-+	 * pre_destroy() and it makes rmdir return with -EBUSY. This sometimes
-+	 * make rmdir return -EBUSY too often. To avoid that, we use waitqueue
-+	 * for cgroup's rmdir. CGRP_WAIT_ON_RMDIR is for synchronizing rmdir
-+	 * and subsystem's reference count handling. Please see css_get/put
-+	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
-+	 */
-+	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-+
-+	/*
- 	 * Call pre_destroy handlers of subsys. Notify subsystems
- 	 * that rmdir() request comes.
- 	 */
- 	ret = cgroup_call_pre_destroy(cgrp);
--	if (ret)
-+	if (ret) {
-+		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		return ret;
-+	}
- 
- 	mutex_lock(&cgroup_mutex);
- 	parent = cgrp->parent;
- 	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-+		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		mutex_unlock(&cgroup_mutex);
- 		return -EBUSY;
- 	}
--	/*
--	 * css_put/get is provided for subsys to grab refcnt to css. In typical
--	 * case, subsystem has no reference after pre_destroy(). But, under
--	 * hierarchy management, some *temporal* refcnt can be hold.
--	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
--	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
--	 * is called when css_put() is called and refcnt goes down to 0.
--	 */
--	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
--
- 	if (!cgroup_clear_css_refs(cgrp)) {
- 		mutex_unlock(&cgroup_mutex);
--		schedule();
-+		/*
-+		 * Because someone may call cgroup_wakeup_rmdir_waiter() before
-+		 * prepare_to_wait(), we need to check this flag.
-+		 */
-+		if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
-+			schedule();
- 		finish_wait(&cgroup_rmdir_waitq, &wait);
- 		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		if (signal_pending(current))
-@@ -3294,7 +3315,7 @@ void __css_put(struct cgroup_subsys_stat
- 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
- 			check_for_release(cgrp);
- 		}
--		cgroup_wakeup_rmdir_waiters(cgrp);
-+		cgroup_wakeup_rmdir_waiter(cgrp);
- 	}
- 	rcu_read_unlock();
- }
-Index: mmotm-2.6.31-Jun25/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.31-Jun25.orig/mm/memcontrol.c
-+++ mmotm-2.6.31-Jun25/mm/memcontrol.c
-@@ -1234,6 +1234,12 @@ static int mem_cgroup_move_account(struc
- 	ret = 0;
- out:
- 	unlock_page_cgroup(pc);
-+	/*
-+	 * We charges against "to" which may not have any tasks. Then, "to"
-+	 * can be under rmdir(). But in current implementation, caller of
-+	 * this function is just force_empty() and it's garanteed that
-+	 * "to" is never removed. So, we don't check rmdir status here.
-+	 */
- 	return ret;
- }
- 
-@@ -1455,6 +1461,7 @@ __mem_cgroup_commit_charge_swapin(struct
- 		return;
- 	if (!ptr)
- 		return;
-+	cgroup_exclude_rmdir(&ptr->css);
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
- 	__mem_cgroup_commit_charge(ptr, pc, ctype);
-@@ -1484,8 +1491,12 @@ __mem_cgroup_commit_charge_swapin(struct
- 		}
- 		rcu_read_unlock();
- 	}
--	/* add this page(page_cgroup) to the LRU we want. */
--
-+	/*
-+	 * At swapin, we may charge account against cgroup which has no tasks.
-+	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-+	 * In that case, we need to call pre_destroy() again. check it here.
-+	 */
-+	cgroup_release_rmdir(&ptr->css);
- }
- 
- void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-@@ -1691,7 +1702,7 @@ void mem_cgroup_end_migration(struct mem
- 
- 	if (!mem)
- 		return;
--
-+	cgroup_exclude_rmdir(&mem->css);
- 	/* at migration success, oldpage->mapping is NULL. */
- 	if (oldpage->mapping) {
- 		target = oldpage;
-@@ -1731,6 +1742,12 @@ void mem_cgroup_end_migration(struct mem
- 	 */
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
- 		mem_cgroup_uncharge_page(target);
-+	/*
-+	 * At migration, we may charge account against cgroup which has no tasks
-+	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-+	 * In that case, we need to call pre_destroy() again. check it here.
-+	 */
-+	cgroup_release_rmdir(&mem->css);
- }
- 
- /*
+I feel I've waved my hands in the air convincingly for several
+paragraphs, and brought in enough confusions to be fairly sure
+of confusing you, without quite getting to address your point.
+I'm not even sure I understood your point.  And whether PageKsm
+means !PageAnon or !page->mapping, for different reasons those
+are both pretty safe, so maybe I've overestimated the danger of
+races here - though I still believe we need to protect against them.
+
+> 
+> Looking again this line you do:
+>                if (!PageKsm(page[0]) ||
+>                    !rmap_item->stable_tree)
+>                    cmp_and_merge_page(page[0], rmap_item);
+> 
+> How would we get into situation where rmap_item->stable_tree would be NULL,
+> and page[0] would be not anonymous page and we would like to enter to
+> cmp_and_merge_page()?
+> 
+> Can you expline more this line please? (I have looked on it before, but i
+> thought i saw reasonable case for it, But now looking again I cant remember)
+
+We get into that situation through fork().  If a task with a
+VM_MERGEABLE vma (which already contains KSM pages) does fork(),
+then the child's mm will contain KSM pages.  The original ksm.c
+would tend to leak KSM pages that way, the KSM page count would
+get decremented when they vanished from the parent's mm, but they
+could be held indefinitely in the child's mm without being counted
+in or out: I fixed that by fork copying MMF_VM_MERGEABLE and putting
+child on mm_list, and this counting in of the KSM pages.
+
+But thank you for saying "page[0] would be not anonymous page", I was
+going to point out the error of reading PageKsm that way now, when I
+realize I've got it wrong myself - I really ought to have changed that
+!PageKsm(page[0]) over to PageAnon(page[0]), shouldn't I?  Though
+probably saved from serious error by try_to_merge_one_page's later
+PageAnon check, haven't I been wasting a lot of time on passing down
+file pages to cmp_and_merge_page() there?  Ah, and you're pointing
+out that they come down anyway with the ||!stable part of the test.
+
+(Though, aside from races, they're only coming down when VM_MERGEABLE's
+vm_file test is overridden, as in my own testing, but not in the rollup
+I sent.)
+
+I'll check that again in the morning: it really reinforces my point
+above that "PageKsm" is too dangerously deceptive as it stands.
+
+
+[ re: PageAnon test before dec/inc_mm_counter ]
+
+> See my comment above, I meant that only Anonymous pages should come into this
+> path..., (I missed the fact that the || condition before the
+> cmp_and_merge_page() call change the behavior and allowed file-mapped pages to
+> get merged)
+
+If file-mapped pages get anywhere near here, it's only a bug.  But I
+do want anonymous COWed pages in private file-mapped areas to be able
+to get here soon.
+
+By this stage, try_to_merge_one_page's
+
+	if (!PageAnon(oldpage))
+		goto out;
+
+has already come into play, so your point stands, that the PageAnon
+test around the dec/inc_mm_counter is strictly unnecessary; but as
+I said, I want to keep it for now as a little warning flag to me.
+
+But put this (the funny way pages move from anon to file) together
+with my PageKsm confusions above, and I think we have a clear case
+for adding the PageKsm flag (in page->mapping with PageAnon) already.
+
+
+[ re: kpage_outside_tree versus double break_cow ]
+
+> > Surely there's some reason you did it the convoluted way originally?
+> > Perhaps the locking was different at the time the issue first came up,
+> > and you were not free to break_cow() here at that time?  Sadly, I don't
+> > think my testing has gone down this path even once, I hope yours does.
+> 
+> Well the only reason that i did it was that it looked more optimal - if we
+> already found 2 identical pages and they are both shared....
+
+Ah, I see, yes, that makes some sense - though I've not fully thought
+it through, and don't have a strong enough grasp on the various reasons
+why stable_tree_insert can fail ...
+
+> The complexity that it add to the code isnt worth it, plus it might turn on to
+> be less effective, beacuse due to the fact that they will be outside the
+> stable_tree, less pages will be merged with them....
+
+... but agree the complexity is not worth it, or not without a stronger
+real life case.  Especially as I never observed it to happen anyway.
+The beauty of the unstable tree is how these temporary failures
+should sort themselves out in due course, without special casing.
+
+
+[ re: list_add_tail ]
+> >
+> > Now, I prefer list_add_tail because I just find it easier to think
+> > through the sequence using list_add_tail; but it occurred to me later
+> > that you might have run tests which show list_add head to behave better.
+> >
+> > For example, if you always list_add new mms to the head (and the scan
+> > runs forwards from the head: last night I added an experimental option
+> > to run backwards, but notice no difference), then the unstable tree
+> > will get built up starting with the pages from the new mms, which
+> > might jostle the tree better than always starting with the same old
+> > mms?  So I might be spoiling a careful and subtle decision you made.
+> 
+> I saw this change, previously the order was made arbitrary - meaning I never
+> thought what should be the right order..
+> So if you feel something is better that way - it is fine (and better than my
+> unopinion for that case)
+
+Okay, thanks.  I think the fork() potential for time-wasting that I
+comment upon in the code makes a good case for doing list_add_tail
+behind the cursor as it stands.  But we can revisit if someone comes
+up with evidence for doing it differently - I think there's scope
+for academic papers on the behaviour of the unstable tree.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
