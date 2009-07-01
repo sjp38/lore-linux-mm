@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D24336B005A
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 13:22:01 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 9E72D82C3A9
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 13:40:22 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id ZPwrkC0YecBg for <linux-mm@kvack.org>;
-	Wed,  1 Jul 2009 13:40:22 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E4C9282C432
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 13:40:17 -0400 (EDT)
-Date: Wed, 1 Jul 2009 13:22:33 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: + memory-hotplug-alloc-page-from-other-node-in-memory-online.patch
- added to -mm tree
-In-Reply-To: <1246419543.18688.14.camel@localhost.localdomain>
-Message-ID: <alpine.DEB.1.10.0907011317030.9522@gentwo.org>
-References: <200906291949.n5TJnuov028806@imap1.linux-foundation.org>  <alpine.DEB.1.10.0906291804340.21956@gentwo.org>  <20090630004735.GA21254@sli10-desk.sh.intel.com>  <20090701025558.GA28524@sli10-desk.sh.intel.com>
- <1246419543.18688.14.camel@localhost.localdomain>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BE2076B005D
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 13:23:18 -0400 (EDT)
+Message-ID: <4A4B9BA1.6040109@redhat.com>
+Date: Wed, 01 Jul 2009 13:23:45 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v2] Show kernel stack usage to /proc/meminfo and OOM log
+References: <20090701103622.85CD.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0906301011210.6124@gentwo.org> <20090701082531.85C2.A69D9226@jp.fujitsu.com> <10604.1246459458@redhat.com> <alpine.DEB.1.10.0907011315540.9522@gentwo.org>
+In-Reply-To: <alpine.DEB.1.10.0907011315540.9522@gentwo.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: yakui <yakui.zhao@intel.com>
-Cc: "Li, Shaohua" <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: David Howells <dhowells@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Jul 2009, yakui wrote:
+Christoph Lameter wrote:
+> On Wed, 1 Jul 2009, David Howells wrote:
+> 
+>> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>>
+>>> +	int pages = THREAD_SIZE / PAGE_SIZE;
+>> Bad assumption.  On FRV, for example, THREAD_SIZE is 8K and PAGE_SIZE is 16K.
+> 
+> Guess that means we need arch specific accounting for this counter.
 
-> If we can't allocate memory from other node when there is no memory on
-> this node, we will have to do something like the bootmem allocator.
-> After the memory page is added to the system memory, we will have to
-> free the memory space used by the memory allocator. At the same time we
-> will have to assure that the hot-plugged memory exists physically.
+Or we count the number of stacks internally and only
+convert to pages whenever we display the value.
 
-The bootmem allocator must stick around it seems. Its more like a node
-bootstrap allocator then.
-
-Maybe we can generalize that. The bootstrap allocator may only need to be
-able boot one node (which simplifies design). During system bringup only
-the boot node is brought up.
-
-Then the other nodes are hotplugged later all in turn using the bootstrap
-allocator for their node setup?
-
-There are a couple of things where one would want to spread out memory
-across the nodes at boot time. How would node hotplugging handle that
-situation?
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
