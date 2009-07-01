@@ -1,284 +1,486 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 486376B004F
-	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 05:47:03 -0400 (EDT)
-Message-ID: <4A4B317F.4050100@redhat.com>
-Date: Wed, 01 Jul 2009 12:50:55 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: KSM: current madvise rollup
-References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils> <4A49E051.1080400@redhat.com> <Pine.LNX.4.64.0906301518370.967@sister.anvils> <4A4A5C56.5000109@redhat.com> <Pine.LNX.4.64.0907010057320.4255@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0907010057320.4255@sister.anvils>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 60C106B004F
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 05:57:55 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n619xh64006089
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 1 Jul 2009 18:59:43 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B94745DE4E
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 18:59:43 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C9B245DD72
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 18:59:43 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FF88E08006
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 18:59:43 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 02B8AE08001
+	for <linux-mm@kvack.org>; Wed,  1 Jul 2009 18:59:43 +0900 (JST)
+Date: Wed, 1 Jul 2009 18:57:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] ZERO PAGE again
+Message-Id: <20090701185759.18634360.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Tue, 30 Jun 2009, Izik Eidus wrote:
->   
->> Hugh Dickins wrote:
->>     
->>> On Tue, 30 Jun 2009, Izik Eidus wrote:
->>>       
->>>> Hugh Dickins wrote:
->>>>     
->>>>         
->>>>> I've plenty more to do: still haven't really focussed in on mremap
->>>>> move, and races when the vma we expect to be VM_MERGEABLE is actually
->>>>> something else by the time we get mmap_sem for get_user_pages. 
->>>>>       
->>>>>           
->>>> Considering the fact that the madvise run with mmap_sem(write)
->>>> isn't it enough just to check the VM_MERGEABLE flag?
->>>>         
->>> That is most of it, yes: though really we'd want that check down
->>> inside __get_user_pages(), so that it wouldn't proceed any further
->>> if by then the vma is not VM_MERGEABLE.  GUP's VM_IO | VM_PFNMAP check
->>> does already keep it away from the most dangerous areas, but we also
->>> don't want it to touch VM_HUGETLB ones (faulting in huge pages nobody
->>> wants), nor any !VM_MERGEABLE really.
->>>       
->> Ouch, I see what you mean!, previously the check for PageKsm() that was made
->> before cmp_and_merge_page() was protecting us against everything but anonymous
->> pages...
->> I saw that you change the condition, but i forgot about that  protection!
->>     
->
-> No, that isn't what I meant, actually.  It's a little worrying that I
-> didn't even consider your point when adding the || !rmap_item->stable_tree,
-> but on reflection I don't think that changes our protection.
->   
+ZERO PAGE was removed in 2.6.24 (=> http://lkml.org/lkml/2007/10/9/112)
+and I had no objections.
 
-Yes, i have forgot about this: PageAnon() check inside 
-try_to_merge_one_page() - we didnt always had it...
-(Sorry for all the mess... ;-))
+In these days, at user support jobs, I noticed a few of customers
+are making use of ZERO_PAGE intentionally...brutal mmap and scan, etc. They are
+using RHEL4-5(before 2.6.18) then they don't notice that ZERO_PAGE
+is gone, yet.
+yes, I can say  "ZERO PAGE is gone" to them in next generation distro.
 
-> My point is (well, to be honest, I'm adjusting my view as I reply) that
-> "PageKsm(page)" is seductive, but dangerously relative.  Until we are
-> sure that we're in a VM_MERGEABLE area (and here we are not sure, just
-> know that it was when the recent get_next_rmap_item returned that item),
-> it means no more than the condition within that function.  You're clear
-> about that in the comments above and within PageKsm() itself, but it's
-> easily forgotten in the places where it's used.  Here, I'm afraid, I
-> read "PageKsm(page[0])" as saying that page[0] is definitely a KSM page,
-> but we don't actually know that much, since we're unsure of VM_MERGEABLE.
->
-> Or when you say "I saw that you change the condition", perhaps you don't
-> mean my added "|| !rmap_item->stable_tree" below, but my change to PageKsm
-> itself, changing it from !PageAnon(page) to page->mapping == NULL?  I
-> should explain that actually my testing was with one additional patch
->
-> @@ -1433,7 +1433,8 @@ int ksm_madvise(struct vm_area_struct *v
->  			return 0;		/* just ignore the advice */
->  
->  		if (vma->vm_file || vma->vm_ops)
-> -			return 0;		/* just ignore the advice */
-> +			if (!(vma->vm_flags & VM_CAN_NONLINEAR))
-> +				return 0;	/* just ignore the advice */
->  
->  		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
->  			if (__ksm_enter(mm) < 0)
->
-> which extends KSM from pure anonymous vmas to most private file-backed
-> vmas, hence I needed the test to distinguish the KSM pages from nearby
-> pages in there too.  I left that line out of the rollup I sent, partly
-> to separate the extension, but mainly because I'm a bit uncomfortable
-> with using "VM_CAN_NONLINEAR" in that way, for two reasons: though it
-> is a way of saying "this is a normal kind of filesystem, not some weird
-> device driver", if we're going to use it in that way, then we ought to
-> get Nick's agreement and probably rename it VM_REGULAR (but would then
-> need to define exactly what a filesystem must provide to qualify: that
-> might take a while!); the other reason is, I've noticed in the past
-> that btrfs is not yet setting VM_CAN_NONLINEAR, I think that's just
-> an oversight (which I did once mention to Chris), but ought to check
-> with Nick that I've not forgotten some reason why an ordinary filesystem
-> might be unable to support nonlinear.
->   
+Recently, a question comes to lkml (http://lkml.org/lkml/2009/6/4/383
 
-Considering the fact that we will try to merge only anonymous pages, and 
-considering the fact of our "O_DIRECT check" i think we can allow to 
-scan any vma...
-the thing is:
-If it is evil driver that play with the page, it will have to run 
-get_user_pages that will increase the pagecount but not the mapcount, 
-and therefore we wont merge it while it is being used by the driver..., 
-now if we will merge the page before the evil driver will do 
-get_user_pages(), then in case it will really want to play with the 
-page, it will have to call get_user_pages(write) that will break the 
-COW..., if it will call get_user_pages(read) it wont be able to write to 
-it...
+Maybe there are some users of ZERO_PAGE other than my customers.
+So, can't we use ZERO_PAGE again ?
 
-Unless the driver would try to do something really tricky, and Do it in 
-a buggy way (Like not checking if the page that it recive is anonymous 
-or not) we should be safe.
+IIUC, the problem of ZERO_PAGE was
+  - reference count cache ping-pong
+  - complicated handling.
+  - the behavior page-fault-twice can make applications slow.
 
-No?
+This patch is a trial to de-refcounted ZERO_PAGE.
+Any comments are welcome. I'm sorry for digging grave...
 
-> However, if we go on to use an actual bit to distinguish PageKsm, as
-> I think we shall probably have to to support swapping, then we won't
-> need the VM_CAN_NONLINEAR-like check at all: so long as KSM sticks to
-> merging only PageAnon pages (and I think "so long as" will be forever),
-> it would be safe even on most driver areas, the only exceptions being
-> /dev/mem and /dev/kmem (or anything like them: mmaps that can include
-> anonymous or KSM pages without them being anonymous or KSM pages in
-> the context of that mapping), which are for sure
-> marked VM_IO | VM_RESERVED | VM_PFNMAP.
->
-> I feel I've waved my hands in the air convincingly for several
-> paragraphs, and brought in enough confusions to be fairly sure
-> of confusing you, without quite getting to address your point.
-> I'm not even sure I understood your point.  And whether PageKsm
-> means !PageAnon or !page->mapping, for different reasons those
-> are both pretty safe, so maybe I've overestimated the danger of
-> races here - though I still believe we need to protect against them.
->
->   
->> Looking again this line you do:
->>                if (!PageKsm(page[0]) ||
->>                    !rmap_item->stable_tree)
->>                    cmp_and_merge_page(page[0], rmap_item);
->>
->> How would we get into situation where rmap_item->stable_tree would be NULL,
->> and page[0] would be not anonymous page and we would like to enter to
->> cmp_and_merge_page()?
->>
->> Can you expline more this line please? (I have looked on it before, but i
->> thought i saw reasonable case for it, But now looking again I cant remember)
->>     
->
-> We get into that situation through fork().  If a task with a
-> VM_MERGEABLE vma (which already contains KSM pages) does fork(),
-> then the child's mm will contain KSM pages.  The original ksm.c
-> would tend to leak KSM pages that way, the KSM page count would
-> get decremented when they vanished from the parent's mm, but they
-> could be held indefinitely in the child's mm without being counted
-> in or out: I fixed that by fork copying MMF_VM_MERGEABLE and putting
-> child on mm_list, and this counting in of the KSM pages.
->
-> But thank you for saying "page[0] would be not anonymous page", I was
-> going to point out the error of reading PageKsm that way now, when I
-> realize I've got it wrong myself - I really ought to have changed that
-> !PageKsm(page[0]) over to PageAnon(page[0]), shouldn't I?  Though
-> probably saved from serious error by try_to_merge_one_page's later
-> PageAnon check, haven't I been wasting a lot of time on passing down
-> file pages to cmp_and_merge_page() there?  Ah, and you're pointing
-> out that they come down anyway with the ||!stable part of the test.
->
-> (Though, aside from races, they're only coming down when VM_MERGEABLE's
-> vm_file test is overridden, as in my own testing, but not in the rollup
-> I sent.)
->
-> I'll check that again in the morning: it really reinforces my point
-> above that "PageKsm" is too dangerously deceptive as it stands.
->   
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Because we have this AnonPage() check in try_to_merge_one_page() it 
-should be safe to allow filebacked pages to go into 
-cmp_and_merge_page(), but! I dont think it anything useful..., we cant 
-merge this pages... so why burn cpu cycles on them?...
+IIUC, ZERO_PAGE was removed in 2.6.24 because
+ * refcounting against ZERO_PAGE makes performance bad
+ * de-refcouning patch for ZERO_PAGE tend to be complicated and ugly.
 
-If you feel more comfortable with PageKsm() -> !page->mapping, we can 
-add an PageAnon check before cmp_and_merge_page()...
+Very long time since 2.6.24 but there are still questions to ZERO PAGE
+and I find a few of my cousotmer expects ZERO_PAGE recently.
 
+This one is a trial for re-introduce ZERO PAGE. This patch modifies
+vm_normal_page(vma, address, pte) as
+ * vm_normal_page(vma, address, pte, zeropage)
+zeropage is a bool pointer. If ZERO_PAGE is found, vm_normal_page returns
+NULL but *zeropage is set to true.
 
->
-> [ re: PageAnon test before dec/inc_mm_counter ]
->
->   
->> See my comment above, I meant that only Anonymous pages should come into this
->> path..., (I missed the fact that the || condition before the
->> cmp_and_merge_page() call change the behavior and allowed file-mapped pages to
->> get merged)
->>     
->
-> If file-mapped pages get anywhere near here, it's only a bug.  But I
-> do want anonymous COWed pages in private file-mapped areas to be able
-> to get here soon.
->
-> By this stage, try_to_merge_one_page's
->
-> 	if (!PageAnon(oldpage))
-> 		goto out;
->
-> has already come into play, so your point stands, that the PageAnon
-> test around the dec/inc_mm_counter is strictly unnecessary; but as
-> I said, I want to keep it for now as a little warning flag to me.
->
-> But put this (the funny way pages move from anon to file) together
-> with my PageKsm confusions above, and I think we have a clear case
-> for adding the PageKsm flag (in page->mapping with PageAnon) already.
->   
+This patch doesn't modify get_user_page()/get_user_page_fast()'s page_count 
+handling.  Then, ZERO_PAGE()'s refcnt can be modified when it's accessed
+via gup. And, this patch doesn't have zeromap_page_range() used in /dev/zero.
 
-You mean to do: PageKsm()-> if !page->mapping && !PageAnon(page) ?
+mlock() uses get_user_pages() for scanning address space and finding pages.
+It should handle zero page (after this.)
+I think all other cases are covered as far as they use vm_normal_page().
 
->
-> [ re: kpage_outside_tree versus double break_cow ]
->
->   
->>> Surely there's some reason you did it the convoluted way originally?
->>> Perhaps the locking was different at the time the issue first came up,
->>> and you were not free to break_cow() here at that time?  Sadly, I don't
->>> think my testing has gone down this path even once, I hope yours does.
->>>       
->> Well the only reason that i did it was that it looked more optimal - if we
->> already found 2 identical pages and they are both shared....
->>     
->
-> Ah, I see, yes, that makes some sense - though I've not fully thought
-> it through, and don't have a strong enough grasp on the various reasons
-> why stable_tree_insert can fail ...
->   
+I wonder....get_user_page() should return NULL if the page is zero page ?
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ fs/proc/task_mmu.c |   16 +++++++-
+ include/linux/mm.h |    2 -
+ mm/fremap.c        |    6 ++-
+ mm/memory.c        |  103 +++++++++++++++++++++++++++++++++++++++++++++--------
+ mm/mempolicy.c     |    7 ++-
+ mm/mlock.c         |    7 +++
+ mm/rmap.c          |    6 ++-
+ 7 files changed, 125 insertions(+), 22 deletions(-)
 
-Honestly - that doesn't make much sense considering the complexity it 
-added, I have no idea what i thought to myself when I wrote it!
-
->> The complexity that it add to the code isnt worth it, plus it might turn on to
->> be less effective, beacuse due to the fact that they will be outside the
->> stable_tree, less pages will be merged with them....
->>     
->
-> ... but agree the complexity is not worth it, or not without a stronger
-> real life case.  Especially as I never observed it to happen anyway.
-> The beauty of the unstable tree is how these temporary failures
-> should sort themselves out in due course, without special casing.
->
->
-> [ re: list_add_tail ]
->   
->>> Now, I prefer list_add_tail because I just find it easier to think
->>> through the sequence using list_add_tail; but it occurred to me later
->>> that you might have run tests which show list_add head to behave better.
->>>
->>> For example, if you always list_add new mms to the head (and the scan
->>> runs forwards from the head: last night I added an experimental option
->>> to run backwards, but notice no difference), then the unstable tree
->>> will get built up starting with the pages from the new mms, which
->>> might jostle the tree better than always starting with the same old
->>> mms?  So I might be spoiling a careful and subtle decision you made.
->>>       
->> I saw this change, previously the order was made arbitrary - meaning I never
->> thought what should be the right order..
->> So if you feel something is better that way - it is fine (and better than my
->> unopinion for that case)
->>     
->
-> Okay, thanks.  I think the fork() potential for time-wasting that I
-> comment upon in the code makes a good case for doing list_add_tail
-> behind the cursor as it stands.  But we can revisit if someone comes
-> up with evidence for doing it differently - I think there's scope
-> for academic papers on the behaviour of the unstable tree.
->   
-
-Well there is a big window for optimizations for both the stable and 
-unstable tree...
-the current code is the naivest implementation of that stable/unstable 
-trees...
-> Hugh
->   
+Index: mmotm-2.6.31-Jun25/mm/memory.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/mm/memory.c
++++ mmotm-2.6.31-Jun25/mm/memory.c
+@@ -482,14 +482,16 @@ static inline int is_cow_mapping(unsigne
+  * advantage is that we don't have to follow the strict linearity rule of
+  * PFNMAP mappings in order to support COWable mappings.
+  *
++ * If we found ZERO_PAGE, NULL is retuned and an argument "zeropage" is set
++ * to true.
+  */
+ #ifdef __HAVE_ARCH_PTE_SPECIAL
+ # define HAVE_PTE_SPECIAL 1
+ #else
+ # define HAVE_PTE_SPECIAL 0
+ #endif
+-struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+-				pte_t pte)
++static struct page *
++__vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+ {
+ 	unsigned long pfn = pte_pfn(pte);
+ 
+@@ -532,6 +534,21 @@ out:
+ 	return pfn_to_page(pfn);
+ }
+ 
++struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
++			    pte_t pte, bool *zeropage)
++{
++	struct page *page;
++
++	*zeropage = false;
++	page = __vm_normal_page(vma, addr, pte);
++	if (page == ZERO_PAGE(0)) {
++		*zeropage = true;
++		return NULL;
++	}
++	return page;
++}
++
++
+ /*
+  * copy one vm_area from one task to the other. Assumes the page tables
+  * already present in the new task to be cleared in the whole range
+@@ -546,6 +563,7 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	pte_t pte = *src_pte;
+ 	struct page *page;
++	bool zerocheck;
+ 
+ 	/* pte contains position in swap or file, so copy. */
+ 	if (unlikely(!pte_present(pte))) {
+@@ -592,12 +610,13 @@ copy_one_pte(struct mm_struct *dst_mm, s
+ 		pte = pte_mkclean(pte);
+ 	pte = pte_mkold(pte);
+ 
+-	page = vm_normal_page(vma, addr, pte);
++	page = vm_normal_page(vma, addr, pte, &zerocheck);
+ 	if (page) {
+ 		get_page(page);
+ 		page_dup_rmap(page, vma, addr);
+ 		rss[!!PageAnon(page)]++;
+-	}
++	} else if (zerocheck)/* no refcnt, no rmap, but increase file rss */
++		rss[0]++;
+ 
+ out_set_pte:
+ 	set_pte_at(dst_mm, addr, dst_pte, pte);
+@@ -768,6 +787,7 @@ static unsigned long zap_pte_range(struc
+ 	spinlock_t *ptl;
+ 	int file_rss = 0;
+ 	int anon_rss = 0;
++	bool zc;
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+ 	arch_enter_lazy_mmu_mode();
+@@ -783,7 +803,7 @@ static unsigned long zap_pte_range(struc
+ 		if (pte_present(ptent)) {
+ 			struct page *page;
+ 
+-			page = vm_normal_page(vma, addr, ptent);
++			page = vm_normal_page(vma, addr, ptent, &zc);
+ 			if (unlikely(details) && page) {
+ 				/*
+ 				 * unmap_shared_mapping_pages() wants to
+@@ -805,6 +825,11 @@ static unsigned long zap_pte_range(struc
+ 			ptent = ptep_get_and_clear_full(mm, addr, pte,
+ 							tlb->fullmm);
+ 			tlb_remove_tlb_entry(tlb, pte, addr);
++
++			if (unlikely(zc)) {
++				file_rss--;
++				continue;
++			}
+ 			if (unlikely(!page))
+ 				continue;
+ 			if (unlikely(details) && details->nonlinear_vma
+@@ -1100,6 +1125,7 @@ struct page *follow_page(struct vm_area_
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
++	bool zc;
+ 
+ 	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+ 	if (!IS_ERR(page)) {
+@@ -1141,9 +1167,11 @@ struct page *follow_page(struct vm_area_
+ 		goto no_page;
+ 	if ((flags & FOLL_WRITE) && !pte_write(pte))
+ 		goto unlock;
+-	page = vm_normal_page(vma, address, pte);
+-	if (unlikely(!page))
++	page = vm_normal_page(vma, address, pte, &zc);
++	if (unlikely(!page && !zc))
+ 		goto bad_page;
++	if (zc)
++		page = ZERO_PAGE(0);
+ 
+ 	if (flags & FOLL_GET)
+ 		get_page(page);
+@@ -1156,7 +1184,8 @@ struct page *follow_page(struct vm_area_
+ 		 * is needed to avoid losing the dirty bit: it is easier to use
+ 		 * mark_page_accessed().
+ 		 */
+-		mark_page_accessed(page);
++		if (!zc)
++			mark_page_accessed(page);
+ 	}
+ unlock:
+ 	pte_unmap_unlock(ptep, ptl);
+@@ -1259,7 +1288,12 @@ int __get_user_pages(struct task_struct 
+ 				return i ? : -EFAULT;
+ 			}
+ 			if (pages) {
+-				struct page *page = vm_normal_page(gate_vma, start, *pte);
++				bool zc;
++				struct page *page;
++				page = vm_normal_page(gate_vma, start,
++						      *pte, &zc);
++				if (zc)
++					page = ZERO_PAGE(0);
+ 				pages[i] = page;
+ 				if (page)
+ 					get_page(page);
+@@ -1954,8 +1988,16 @@ static int do_wp_page(struct mm_struct *
+ 	int reuse = 0, ret = 0;
+ 	int page_mkwrite = 0;
+ 	struct page *dirty_page = NULL;
++	bool zc;
++	gfp_t gfpflags = GFP_HIGHUSER_MOVABLE;
+ 
+-	old_page = vm_normal_page(vma, address, orig_pte);
++	old_page = vm_normal_page(vma, address, orig_pte, &zc);
++	/* If zero page, we don't have to copy...*/
++	if (unlikely(zc)) {
++		/* zc == true but oldpage is null under here */
++		gfpflags |= __GFP_ZERO;
++		goto gotten;
++	}
+ 	if (!old_page) {
+ 		/*
+ 		 * VM_MIXEDMAP !pfn_valid() case
+@@ -2075,8 +2117,8 @@ gotten:
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto oom;
+-	VM_BUG_ON(old_page == ZERO_PAGE(0));
+-	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
++
++	new_page = alloc_page_vma(gfpflags, vma, address);
+ 	if (!new_page)
+ 		goto oom;
+ 	/*
+@@ -2088,7 +2130,8 @@ gotten:
+ 		clear_page_mlock(old_page);
+ 		unlock_page(old_page);
+ 	}
+-	cow_user_page(new_page, old_page, address, vma);
++	if (!zc)
++		cow_user_page(new_page, old_page, address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+ 	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
+@@ -2104,8 +2147,11 @@ gotten:
+ 				dec_mm_counter(mm, file_rss);
+ 				inc_mm_counter(mm, anon_rss);
+ 			}
+-		} else
++		} else {
++			if (zc)
++				dec_mm_counter(mm, file_rss);
+ 			inc_mm_counter(mm, anon_rss);
++		}
+ 		flush_cache_page(vma, address, pte_pfn(orig_pte));
+ 		entry = mk_pte(new_page, vma->vm_page_prot);
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+@@ -2612,6 +2658,31 @@ out_page:
+ 	return ret;
+ }
+ 
++static int anon_map_zeropage(struct mm_struct *mm, struct vm_area_struct *vma,
++			     pmd_t *pmd, unsigned long address)
++{
++	struct page *page;
++	spinlock_t *ptl;
++	pte_t entry;
++	pte_t *page_table;
++	int ret = 1;
++
++	page = ZERO_PAGE(0);
++	entry = mk_pte(page, vma->vm_page_prot);
++	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++	if (!pte_none(*page_table))
++		goto out_unlock;
++	inc_mm_counter(mm, file_rss);
++	set_pte_at(mm, address, page_table, entry);
++	/* No need to invalidate entry...it was not present here. */
++	update_mmu_cache(vma, address, entry);
++	ret = 0;
++out_unlock:
++	pte_unmap_unlock(page_table, ptl);
++	return ret;
++}
++
++
+ /*
+  * We enter with non-exclusive mmap_sem (to exclude vma changes,
+  * but allow concurrent faults), and pte mapped but not yet locked.
+@@ -2630,6 +2701,10 @@ static int do_anonymous_page(struct mm_s
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto oom;
++	if (unlikely(!(flags & FAULT_FLAG_WRITE))) {
++		if (!anon_map_zeropage(mm, vma, pmd, address))
++			return 0;
++	}
+ 	page = alloc_zeroed_user_highpage_movable(vma, address);
+ 	if (!page)
+ 		goto oom;
+Index: mmotm-2.6.31-Jun25/mm/fremap.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/mm/fremap.c
++++ mmotm-2.6.31-Jun25/mm/fremap.c
+@@ -27,13 +27,14 @@ static void zap_pte(struct mm_struct *mm
+ 			unsigned long addr, pte_t *ptep)
+ {
+ 	pte_t pte = *ptep;
++	bool zc;
+ 
+ 	if (pte_present(pte)) {
+ 		struct page *page;
+ 
+ 		flush_cache_page(vma, addr, pte_pfn(pte));
+ 		pte = ptep_clear_flush(vma, addr, ptep);
+-		page = vm_normal_page(vma, addr, pte);
++		page = vm_normal_page(vma, addr, pte, &zc);
+ 		if (page) {
+ 			if (pte_dirty(pte))
+ 				set_page_dirty(page);
+@@ -41,6 +42,9 @@ static void zap_pte(struct mm_struct *mm
+ 			page_cache_release(page);
+ 			update_hiwater_rss(mm);
+ 			dec_mm_counter(mm, file_rss);
++		} else if (zc) {
++			update_hiwater_rss(mm);
++			dec_mm_counter(mm, file_rss);
+ 		}
+ 	} else {
+ 		if (!pte_file(pte))
+Index: mmotm-2.6.31-Jun25/mm/rmap.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/mm/rmap.c
++++ mmotm-2.6.31-Jun25/mm/rmap.c
+@@ -941,9 +941,13 @@ static int try_to_unmap_cluster(unsigned
+ 	update_hiwater_rss(mm);
+ 
+ 	for (; address < end; pte++, address += PAGE_SIZE) {
++		bool zc;
++
+ 		if (!pte_present(*pte))
+ 			continue;
+-		page = vm_normal_page(vma, address, *pte);
++		page = vm_normal_page(vma, address, *pte, &zc);
++		if (zc)
++			continue;
+ 		BUG_ON(!page || PageAnon(page));
+ 
+ 		if (locked_vma) {
+Index: mmotm-2.6.31-Jun25/fs/proc/task_mmu.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/fs/proc/task_mmu.c
++++ mmotm-2.6.31-Jun25/fs/proc/task_mmu.c
+@@ -347,6 +347,7 @@ static int smaps_pte_range(pmd_t *pmd, u
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	int mapcount;
++	bool zc;
+ 
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+@@ -362,7 +363,13 @@ static int smaps_pte_range(pmd_t *pmd, u
+ 
+ 		mss->resident += PAGE_SIZE;
+ 
+-		page = vm_normal_page(vma, addr, ptent);
++		page = vm_normal_page(vma, addr, ptent, &zc);
++		if (zc) {
++			if (pte_young(ptent))
++				mss->referenced += PAGE_SIZE;
++			mss->shared_clean += PAGE_SIZE;
++			/* don't increase mss->pss */
++		}
+ 		if (!page)
+ 			continue;
+ 
+@@ -463,6 +470,7 @@ static int clear_refs_pte_range(pmd_t *p
+ 	pte_t *pte, ptent;
+ 	spinlock_t *ptl;
+ 	struct page *page;
++	bool zc;
+ 
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+@@ -470,7 +478,11 @@ static int clear_refs_pte_range(pmd_t *p
+ 		if (!pte_present(ptent))
+ 			continue;
+ 
+-		page = vm_normal_page(vma, addr, ptent);
++		page = vm_normal_page(vma, addr, ptent, &zc);
++		if (zc) {
++			ptep_test_and_clear_young(vma, addr, pte);
++			continue;
++		}
+ 		if (!page)
+ 			continue;
+ 
+Index: mmotm-2.6.31-Jun25/mm/mempolicy.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/mm/mempolicy.c
++++ mmotm-2.6.31-Jun25/mm/mempolicy.c
+@@ -401,16 +401,17 @@ static int check_pte_range(struct vm_are
+ 	do {
+ 		struct page *page;
+ 		int nid;
++		bool zc;
+ 
+ 		if (!pte_present(*pte))
+ 			continue;
+-		page = vm_normal_page(vma, addr, *pte);
++		page = vm_normal_page(vma, addr, *pte, &zc);
+ 		if (!page)
+ 			continue;
+ 		/*
+ 		 * The check for PageReserved here is important to avoid
+-		 * handling zero pages and other pages that may have been
+-		 * marked special by the system.
++		 * handling pages that may have been marked special by the
++		 * system.
+ 		 *
+ 		 * If the PageReserved would not be checked here then f.e.
+ 		 * the location of the zero page could have an influence
+Index: mmotm-2.6.31-Jun25/include/linux/mm.h
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/include/linux/mm.h
++++ mmotm-2.6.31-Jun25/include/linux/mm.h
+@@ -753,7 +753,7 @@ struct zap_details {
+ };
+ 
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+-		pte_t pte);
++			    pte_t pte, bool *zeropage);
+ 
+ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size);
+Index: mmotm-2.6.31-Jun25/mm/mlock.c
+===================================================================
+--- mmotm-2.6.31-Jun25.orig/mm/mlock.c
++++ mmotm-2.6.31-Jun25/mm/mlock.c
+@@ -220,6 +220,13 @@ static long __mlock_vma_pages_range(stru
+ 		for (i = 0; i < ret; i++) {
+ 			struct page *page = pages[i];
+ 
++			/* we don't lock zero page...*/
++			if (page == ZERO_PAGE(0)) {
++				put_page(page);
++				addr += PAGE_SIZE;
++				nr_pages--;
++				continue;
++			}
+ 			lock_page(page);
+ 			/*
+ 			 * Because we lock page here and migration is blocked
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
