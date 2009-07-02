@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5435F6B005A
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:38:30 -0400 (EDT)
-Received: by wf-out-1314.google.com with SMTP id 25so548638wfa.11
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2009 00:41:18 -0700 (PDT)
-Date: Thu, 2 Jul 2009 16:41:06 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9D96B004D
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:42:22 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so410775rvb.26
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2009 00:45:11 -0700 (PDT)
+Date: Thu, 2 Jul 2009 16:44:59 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
 Subject: Re: Found the commit that causes the OOMs
-Message-Id: <20090702164106.76db077b.minchan.kim@barrios-desktop>
-In-Reply-To: <24767.1246391867@redhat.com>
+Message-Id: <20090702164459.2ce13498.minchan.kim@barrios-desktop>
+In-Reply-To: <20090702164106.76db077b.minchan.kim@barrios-desktop>
 References: <20090630130741.c191d042.minchan.kim@barrios-desktop>
 	<28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
 	<28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com>
@@ -22,88 +22,100 @@ References: <20090630130741.c191d042.minchan.kim@barrios-desktop>
 	<28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
 	<20090629160725.GF5065@csn.ul.ie>
 	<24767.1246391867@redhat.com>
+	<20090702164106.76db077b.minchan.kim@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: David Howells <dhowells@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2 Jul 2009 16:41:06 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-
-On Tue, 30 Jun 2009 20:57:47 +0100
-David Howells <dhowells@redhat.com> wrote:
-
-> Minchan Kim <minchan.kim@gmail.com> wrote:
 > 
-> > David. Doesn't it happen OOM if you revert my patch, still?
 > 
-> It does happen, and indeed happens in v2.6.30, but requires two adjacent runs
-> of msgctl11 to trigger, rather than usually triggering on the first run.  If
-> you interpolate the rest of LTP between the iterations, it doesn't seem to
-> happen at all on v2.6.30.  My guess is that with the rest of LTP interpolated,
-> there's either enough time for some cleanup or something triggers a cleanup
-> (the swapfile tests perhaps?).
+> On Tue, 30 Jun 2009 20:57:47 +0100
+> David Howells <dhowells@redhat.com> wrote:
 > 
-> > Befor I go to the trip, I made debugging patch in a hurry.  Mel and I
-> > suspect to put the wrong page in lru list.
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
 > > 
-> > This patch's goal is that print page's detail on active anon lru when it
-> > happen OOM.  Maybe you could expand your log buffer size.
+> > > David. Doesn't it happen OOM if you revert my patch, still?
+> > 
+> > It does happen, and indeed happens in v2.6.30, but requires two adjacent runs
+> > of msgctl11 to trigger, rather than usually triggering on the first run.  If
+> > you interpolate the rest of LTP between the iterations, it doesn't seem to
+> > happen at all on v2.6.30.  My guess is that with the rest of LTP interpolated,
+> > there's either enough time for some cleanup or something triggers a cleanup
+> > (the swapfile tests perhaps?).
+> > 
+> > > Befor I go to the trip, I made debugging patch in a hurry.  Mel and I
+> > > suspect to put the wrong page in lru list.
+> > > 
+> > > This patch's goal is that print page's detail on active anon lru when it
+> > > happen OOM.  Maybe you could expand your log buffer size.
+> > 
+> > Do you mean to expand the dmesg buffer?  That's probably unnecessary: I capture
+> > the kernel log over a serial port into a file on another machine.
+> > 
+> > > Could you show me the information with OOM, please ?
+> > 
+> > Attached.  It's compressed as there was rather a lot.
+> > 
+> > David
+> > ---
 > 
-> Do you mean to expand the dmesg buffer?  That's probably unnecessary: I capture
-> the kernel log over a serial port into a file on another machine.
+> Hi, David. 
 > 
-> > Could you show me the information with OOM, please ?
+> Sorry for late response.
 > 
-> Attached.  It's compressed as there was rather a lot.
+> I looked over your captured data when I got home but I didn't find any problem
+> in lru page moving scheme.
+> As Wu, Kosaki and Rik discussed, I think this issue is also related to process fork bomb. 
 > 
-> David
-> ---
+> When I tested msgctl11 in my machine with 2.6.31-rc1, I found that:
+> 
+> 2.6.31-rc1		
+> real	0m38.628s
+> user	0m10.589s
+> sys	1m12.613s
+> 
+> vmstat
+> 
+> allocstall 3196
+> 
+> 2.6.31-rc1-revert-mypatch
+> 
+> real	1m17.396s
+> user	0m11.193s
+> sys	4m3.803s 
+> 
+> vmstat
+> 
+> allocstall 584
+> 
+> Sometimes I got OOM, sometime not in with 2.6.31-rc1.
+> 
+> Anyway, the current kernel's test took a rather short time than my reverted patch. 
+> In addition, the current kernel has small allocstall(direct reclaim)
+                                      ^^^^^
+                                      many
+typo
 
-Hi, David. 
+> As you know, my patch was just to remove calling shrink_active_list in case of no swap.
+> shrink_active_list function is a big cost function.
+> The old shrink_active_list could throttle to fork processes by chance. 
+> But by removing that function with my patch, we have a high probability to make process fork bomb. Wu, KOSAKI and Rik, does it make sense? 
+> 
+> So I think you were just lucky with a unnecessary routine.
+> Anyway, AFAIK, Rik is making throttling page reclaim. 
+> I think it can solve your problem. 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
-Sorry for late response.
-
-I looked over your captured data when I got home but I didn't find any problem
-in lru page moving scheme.
-As Wu, Kosaki and Rik discussed, I think this issue is also related to process fork bomb. 
-
-When I tested msgctl11 in my machine with 2.6.31-rc1, I found that:
-
-2.6.31-rc1		
-real	0m38.628s
-user	0m10.589s
-sys	1m12.613s
-
-vmstat
-
-allocstall 3196
-
-2.6.31-rc1-revert-mypatch
-
-real	1m17.396s
-user	0m11.193s
-sys	4m3.803s 
-
-vmstat
-
-allocstall 584
-
-Sometimes I got OOM, sometime not in with 2.6.31-rc1.
-
-Anyway, the current kernel's test took a rather short time than my reverted patch. 
-In addition, the current kernel has small allocstall(direct reclaim)
-
-As you know, my patch was just to remove calling shrink_active_list in case of no swap.
-shrink_active_list function is a big cost function.
-The old shrink_active_list could throttle to fork processes by chance. 
-But by removing that function with my patch, we have a high probability to make process fork bomb. Wu, KOSAKI and Rik, does it make sense? 
-
-So I think you were just lucky with a unnecessary routine.
-Anyway, AFAIK, Rik is making throttling page reclaim. 
-I think it can solve your problem. 
 
 -- 
 Kind regards,
