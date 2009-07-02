@@ -1,97 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 837046B004D
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 02:41:47 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n626iFBJ031150
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 2 Jul 2009 15:44:15 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F404545DE61
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:44:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB8645DE4F
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:44:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BBE11DB8041
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:44:14 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F383AE08003
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:44:13 +0900 (JST)
-Date: Thu, 2 Jul 2009 15:42:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] ZERO PAGE again
-Message-Id: <20090702154234.d7ee06a4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4A4B8486.3020307@redhat.com>
-References: <20090701185759.18634360.kamezawa.hiroyu@jp.fujitsu.com>
-	<4A4B8486.3020307@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CD276B004D
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:19:46 -0400 (EDT)
+Date: Thu, 2 Jul 2009 09:22:25 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite when blocksize < pagesize
+Message-ID: <20090702072225.GC2714@wotan.suse.de>
+References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de> <20090625174754.GA21957@infradead.org> <20090626084225.GA12201@wotan.suse.de> <20090630173716.GA3150@infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090630173716.GA3150@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, npiggin@suse.de, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 01 Jul 2009 18:45:10 +0300
-Avi Kivity <avi@redhat.com> wrote:
-
-> On 07/01/2009 12:57 PM, KAMEZAWA Hiroyuki wrote:
-> > ZERO PAGE was removed in 2.6.24 (=>  http://lkml.org/lkml/2007/10/9/112)
-> > and I had no objections.
-> >
-> > In these days, at user support jobs, I noticed a few of customers
-> > are making use of ZERO_PAGE intentionally...brutal mmap and scan, etc. They are
-> > using RHEL4-5(before 2.6.18) then they don't notice that ZERO_PAGE
-> > is gone, yet.
-> > yes, I can say  "ZERO PAGE is gone" to them in next generation distro.
-> >
-> > Recently, a question comes to lkml (http://lkml.org/lkml/2009/6/4/383
-> >
-> > Maybe there are some users of ZERO_PAGE other than my customers.
-> > So, can't we use ZERO_PAGE again ?
-> >
-> > IIUC, the problem of ZERO_PAGE was
-> >    - reference count cache ping-pong
-> >    - complicated handling.
-> >    - the behavior page-fault-twice can make applications slow.
-> >
-> > This patch is a trial to de-refcounted ZERO_PAGE.
-> > Any comments are welcome. I'm sorry for digging grave...
-> >    
+On Tue, Jun 30, 2009 at 01:37:17PM -0400, Christoph Hellwig wrote:
+> On Fri, Jun 26, 2009 at 10:42:25AM +0200, Nick Piggin wrote:
+> > Yes well we could get rid of ->truncate and have filesystems do it
+> > themselves in setattr, but I figure that moving truncate into
+> > generic setattr is helpful (makes conversions a bit easier too).
+> > Did you see my patch? What do you think of that basic approach?
 > 
-> kvm could use this.  There's a fairly involved scenario where the lack 
-> of zero page hits us:
+> I was waiting for a patch series for your for this to appear, but
+> noticed that you actually had a small proof of concept patch attached,
+> sorry :)
+
+No problem. I'm going to send out a patchset, I've just been working
+on exploring different ideas and trying to work out bugs.
+
+
+> Looking at your patch I really like that vmtruncate now really just
+> does what it's name claims to - truncate the VM-information about
+> the file (well, and the file size).   I'm not so happy about
+> still keeping the two level setattr/truncate indirection.
+
+In my patch series, i_size update eventually is moved out to the
+filesystem too, and vmtruncate just is renamed to truncate_pagecache
+(vmtruncate is not such a bad name, but rename will nicely break
+unconverted modules).
+
+ 
+> But instead of folding truncate into setattr I wonder if we should
+> just add a new ->setsize (aka new trunacte) methodas a top-level
+> entry point instead of ->setattr with ATTR_SIZE given that size
+> changes don't have much in common with the reset of ->setattr.
+
+OK that would be possible and makes sense I guess. The new truncate
+which returns error could basically be renamed in-place. Shall we
+continue to give ATTR_SIZE to setattr, or take that out completely?
+I guess truncate can be considered special because it operates on
+data not only metadata.
+
+Looks like ->setsize would need a flag for ATTR_OPEN too? Any others?
+I'll do a bit of an audit when I get around to it...
+
+ 
+> The only bit shared is updating c/mtime and even that is conditional.
+> So I'd say take most of your patch, but instead of doing an all at
+> once migration migrate filesystems to the new ->setsize callback
+> incrementally and eventually kill off the old code.  This means
+> we'll need a new name for the new vmtruncate-lite but should otherwise
+> be pretty easy.
+
+Makes sense. I'll try to structure it to allow incremental changeover.
+
+ 
+> > >  The only problem is the generic aops calling
+> > > vmtruncate directly.
+> > 
+> > What should be done is require that filesystems trim blocks past
+> > i_size in case of any errors. I actually need to fix up a few
+> > existing bugs in this area too, so I'll look at this..
 > 
-> - a guest is started
-> - either it doesn't touch all of its memory, or it balloons some of its 
-> memory away, so its resident set size is smaller than the total amount 
-> of memory it has
-> - the guest is live migrated to another host; this involves reading all 
-> of the guest memory
+> Basically we want ->setattr with ATTR_SIZE, execept that we already
+> have i_sem and possibly other per-inode locks.  Take a look at
 > 
-> If we don't have zero page, all of the not-present pages are faulted in 
-> and the resident set size increases; this increases memory pressure, 
-> which is what we're trying to avoid (one of the reasons to live migrate 
-> is to free memory).
+> 	http://oss.sgi.com/archives/xfs/2008-04/msg00542.html
 > 
-
-Thank you. I'll make this patch cleaner and fix my English, then post again.
-maybe in the next week.
-
-A case I met was the application level migration. An application save its
-sparse table by scan-and-dump. To know "all memory contents are zero",
-it had to read memory, at least.
-
-Regards,
--Kame
-
-
-
-
-> -- 
-> error compiling committee.c: too many arguments to function
+> and
 > 
+> 	http://oss.sgi.com/archives/xfs/2009-03/msg00214.html
+
+OK thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
