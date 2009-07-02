@@ -1,125 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F9D96B004D
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:42:22 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so410775rvb.26
-        for <linux-mm@kvack.org>; Thu, 02 Jul 2009 00:45:11 -0700 (PDT)
-Date: Thu, 2 Jul 2009 16:44:59 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: Found the commit that causes the OOMs
-Message-Id: <20090702164459.2ce13498.minchan.kim@barrios-desktop>
-In-Reply-To: <20090702164106.76db077b.minchan.kim@barrios-desktop>
-References: <20090630130741.c191d042.minchan.kim@barrios-desktop>
-	<28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
-	<28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com>
-	<20090628142239.GA20986@localhost>
-	<2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com>
-	<20090628151026.GB25076@localhost>
-	<20090629091741.ab815ae7.minchan.kim@barrios-desktop>
-	<17678.1246270219@redhat.com>
-	<20090629125549.GA22932@localhost>
-	<29432.1246285300@redhat.com>
-	<28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
-	<20090629160725.GF5065@csn.ul.ie>
-	<24767.1246391867@redhat.com>
-	<20090702164106.76db077b.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 6B8E26B004F
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 09:26:33 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9B63C82C537
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 09:49:04 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 2Gau9YHDCiU9 for <linux-mm@kvack.org>;
+	Thu,  2 Jul 2009 09:49:04 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B167582C545
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 09:48:54 -0400 (EDT)
+Date: Thu, 2 Jul 2009 09:31:04 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: + memory-hotplug-alloc-page-from-other-node-in-memory-online.patch
+ added to -mm tree
+In-Reply-To: <20090702144415.8B21.E1E9C6FF@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907020929060.32407@gentwo.org>
+References: <1246497073.18688.28.camel@localhost.localdomain> <20090702102208.ff480a2d.kamezawa.hiroyu@jp.fujitsu.com> <20090702144415.8B21.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: David Howells <dhowells@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: yakui <yakui.zhao@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Jul 2009 16:41:06 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Thu, 2 Jul 2009, Yasunori Goto wrote:
 
-> 
-> 
-> On Tue, 30 Jun 2009 20:57:47 +0100
-> David Howells <dhowells@redhat.com> wrote:
-> 
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> > 
-> > > David. Doesn't it happen OOM if you revert my patch, still?
-> > 
-> > It does happen, and indeed happens in v2.6.30, but requires two adjacent runs
-> > of msgctl11 to trigger, rather than usually triggering on the first run.  If
-> > you interpolate the rest of LTP between the iterations, it doesn't seem to
-> > happen at all on v2.6.30.  My guess is that with the rest of LTP interpolated,
-> > there's either enough time for some cleanup or something triggers a cleanup
-> > (the swapfile tests perhaps?).
-> > 
-> > > Befor I go to the trip, I made debugging patch in a hurry.  Mel and I
-> > > suspect to put the wrong page in lru list.
-> > > 
-> > > This patch's goal is that print page's detail on active anon lru when it
-> > > happen OOM.  Maybe you could expand your log buffer size.
-> > 
-> > Do you mean to expand the dmesg buffer?  That's probably unnecessary: I capture
-> > the kernel log over a serial port into a file on another machine.
-> > 
-> > > Could you show me the information with OOM, please ?
-> > 
-> > Attached.  It's compressed as there was rather a lot.
-> > 
-> > David
-> > ---
-> 
-> Hi, David. 
-> 
-> Sorry for late response.
-> 
-> I looked over your captured data when I got home but I didn't find any problem
-> in lru page moving scheme.
-> As Wu, Kosaki and Rik discussed, I think this issue is also related to process fork bomb. 
-> 
-> When I tested msgctl11 in my machine with 2.6.31-rc1, I found that:
-> 
-> 2.6.31-rc1		
-> real	0m38.628s
-> user	0m10.589s
-> sys	1m12.613s
-> 
-> vmstat
-> 
-> allocstall 3196
-> 
-> 2.6.31-rc1-revert-mypatch
-> 
-> real	1m17.396s
-> user	0m11.193s
-> sys	4m3.803s 
-> 
-> vmstat
-> 
-> allocstall 584
-> 
-> Sometimes I got OOM, sometime not in with 2.6.31-rc1.
-> 
-> Anyway, the current kernel's test took a rather short time than my reverted patch. 
-> In addition, the current kernel has small allocstall(direct reclaim)
-                                      ^^^^^
-                                      many
-typo
+> However, I don't enough time for memory hotplug now,
+> and they are just redundant functions now.
+> If someone create new allocator (and unifying bootmem allocator),
+> I'm very glad. :-)
 
-> As you know, my patch was just to remove calling shrink_active_list in case of no swap.
-> shrink_active_list function is a big cost function.
-> The old shrink_active_list could throttle to fork processes by chance. 
-> But by removing that function with my patch, we have a high probability to make process fork bomb. Wu, KOSAKI and Rik, does it make sense? 
-> 
-> So I think you were just lucky with a unnecessary routine.
-> Anyway, AFAIK, Rik is making throttling page reclaim. 
-> I think it can solve your problem. 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+"Senior"ities all around.... A move like that would require serious
+commitment of time. None of us older developers can take that on it
+seems.
 
+Do we need to accept that the zone and page metadata are living on another
+node?
 
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
