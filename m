@@ -1,89 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CD276B004D
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:19:46 -0400 (EDT)
-Date: Thu, 2 Jul 2009 09:22:25 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite when blocksize < pagesize
-Message-ID: <20090702072225.GC2714@wotan.suse.de>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de> <20090625174754.GA21957@infradead.org> <20090626084225.GA12201@wotan.suse.de> <20090630173716.GA3150@infradead.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5435F6B005A
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 03:38:30 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 25so548638wfa.11
+        for <linux-mm@kvack.org>; Thu, 02 Jul 2009 00:41:18 -0700 (PDT)
+Date: Thu, 2 Jul 2009 16:41:06 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Found the commit that causes the OOMs
+Message-Id: <20090702164106.76db077b.minchan.kim@barrios-desktop>
+In-Reply-To: <24767.1246391867@redhat.com>
+References: <20090630130741.c191d042.minchan.kim@barrios-desktop>
+	<28c262360906280630n557bb182n5079e33d21ea4a83@mail.gmail.com>
+	<28c262360906280636l93130ffk14086314e2a6dcb7@mail.gmail.com>
+	<20090628142239.GA20986@localhost>
+	<2f11576a0906280801w417d1b9fpe10585b7a641d41b@mail.gmail.com>
+	<20090628151026.GB25076@localhost>
+	<20090629091741.ab815ae7.minchan.kim@barrios-desktop>
+	<17678.1246270219@redhat.com>
+	<20090629125549.GA22932@localhost>
+	<29432.1246285300@redhat.com>
+	<28c262360906290800v37f91d7av3642b1ad8b5f0477@mail.gmail.com>
+	<20090629160725.GF5065@csn.ul.ie>
+	<24767.1246391867@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090630173716.GA3150@infradead.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: David Howells <dhowells@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 30, 2009 at 01:37:17PM -0400, Christoph Hellwig wrote:
-> On Fri, Jun 26, 2009 at 10:42:25AM +0200, Nick Piggin wrote:
-> > Yes well we could get rid of ->truncate and have filesystems do it
-> > themselves in setattr, but I figure that moving truncate into
-> > generic setattr is helpful (makes conversions a bit easier too).
-> > Did you see my patch? What do you think of that basic approach?
+
+
+On Tue, 30 Jun 2009 20:57:47 +0100
+David Howells <dhowells@redhat.com> wrote:
+
+> Minchan Kim <minchan.kim@gmail.com> wrote:
 > 
-> I was waiting for a patch series for your for this to appear, but
-> noticed that you actually had a small proof of concept patch attached,
-> sorry :)
-
-No problem. I'm going to send out a patchset, I've just been working
-on exploring different ideas and trying to work out bugs.
-
-
-> Looking at your patch I really like that vmtruncate now really just
-> does what it's name claims to - truncate the VM-information about
-> the file (well, and the file size).   I'm not so happy about
-> still keeping the two level setattr/truncate indirection.
-
-In my patch series, i_size update eventually is moved out to the
-filesystem too, and vmtruncate just is renamed to truncate_pagecache
-(vmtruncate is not such a bad name, but rename will nicely break
-unconverted modules).
-
- 
-> But instead of folding truncate into setattr I wonder if we should
-> just add a new ->setsize (aka new trunacte) methodas a top-level
-> entry point instead of ->setattr with ATTR_SIZE given that size
-> changes don't have much in common with the reset of ->setattr.
-
-OK that would be possible and makes sense I guess. The new truncate
-which returns error could basically be renamed in-place. Shall we
-continue to give ATTR_SIZE to setattr, or take that out completely?
-I guess truncate can be considered special because it operates on
-data not only metadata.
-
-Looks like ->setsize would need a flag for ATTR_OPEN too? Any others?
-I'll do a bit of an audit when I get around to it...
-
- 
-> The only bit shared is updating c/mtime and even that is conditional.
-> So I'd say take most of your patch, but instead of doing an all at
-> once migration migrate filesystems to the new ->setsize callback
-> incrementally and eventually kill off the old code.  This means
-> we'll need a new name for the new vmtruncate-lite but should otherwise
-> be pretty easy.
-
-Makes sense. I'll try to structure it to allow incremental changeover.
-
- 
-> > >  The only problem is the generic aops calling
-> > > vmtruncate directly.
+> > David. Doesn't it happen OOM if you revert my patch, still?
+> 
+> It does happen, and indeed happens in v2.6.30, but requires two adjacent runs
+> of msgctl11 to trigger, rather than usually triggering on the first run.  If
+> you interpolate the rest of LTP between the iterations, it doesn't seem to
+> happen at all on v2.6.30.  My guess is that with the rest of LTP interpolated,
+> there's either enough time for some cleanup or something triggers a cleanup
+> (the swapfile tests perhaps?).
+> 
+> > Befor I go to the trip, I made debugging patch in a hurry.  Mel and I
+> > suspect to put the wrong page in lru list.
 > > 
-> > What should be done is require that filesystems trim blocks past
-> > i_size in case of any errors. I actually need to fix up a few
-> > existing bugs in this area too, so I'll look at this..
+> > This patch's goal is that print page's detail on active anon lru when it
+> > happen OOM.  Maybe you could expand your log buffer size.
 > 
-> Basically we want ->setattr with ATTR_SIZE, execept that we already
-> have i_sem and possibly other per-inode locks.  Take a look at
+> Do you mean to expand the dmesg buffer?  That's probably unnecessary: I capture
+> the kernel log over a serial port into a file on another machine.
 > 
-> 	http://oss.sgi.com/archives/xfs/2008-04/msg00542.html
+> > Could you show me the information with OOM, please ?
 > 
-> and
+> Attached.  It's compressed as there was rather a lot.
 > 
-> 	http://oss.sgi.com/archives/xfs/2009-03/msg00214.html
+> David
+> ---
 
-OK thanks.
+Hi, David. 
+
+Sorry for late response.
+
+I looked over your captured data when I got home but I didn't find any problem
+in lru page moving scheme.
+As Wu, Kosaki and Rik discussed, I think this issue is also related to process fork bomb. 
+
+When I tested msgctl11 in my machine with 2.6.31-rc1, I found that:
+
+2.6.31-rc1		
+real	0m38.628s
+user	0m10.589s
+sys	1m12.613s
+
+vmstat
+
+allocstall 3196
+
+2.6.31-rc1-revert-mypatch
+
+real	1m17.396s
+user	0m11.193s
+sys	4m3.803s 
+
+vmstat
+
+allocstall 584
+
+Sometimes I got OOM, sometime not in with 2.6.31-rc1.
+
+Anyway, the current kernel's test took a rather short time than my reverted patch. 
+In addition, the current kernel has small allocstall(direct reclaim)
+
+As you know, my patch was just to remove calling shrink_active_list in case of no swap.
+shrink_active_list function is a big cost function.
+The old shrink_active_list could throttle to fork processes by chance. 
+But by removing that function with my patch, we have a high probability to make process fork bomb. Wu, KOSAKI and Rik, does it make sense? 
+
+So I think you were just lucky with a unnecessary routine.
+Anyway, AFAIK, Rik is making throttling page reclaim. 
+I think it can solve your problem. 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
