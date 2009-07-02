@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AD5126B004D
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 02:35:01 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n626bRfb006695
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 2 Jul 2009 15:37:27 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F93045DE57
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:37:27 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D2B945DE4F
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:37:27 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F4221DB8040
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:37:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AE8651DB803B
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 15:37:26 +0900 (JST)
-Date: Thu, 2 Jul 2009 15:35:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: fix cgroup rmdir hang v4
-Message-Id: <20090702153545.15d313d6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090702063002.GO11273@balbir.in.ibm.com>
-References: <20090630180109.f137c10e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090701104747.afdcc6c7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090702063002.GO11273@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 68E726B004F
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 02:35:53 -0400 (EDT)
+Date: Thu, 2 Jul 2009 08:38:13 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC] transcendent memory for Linux
+Message-ID: <20090702063813.GA18157@elf.ucw.cz>
+References: <4A4A95D8.6020708@goop.org> <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <79a405e4-3c4c-4194-aed4-a3832c6c5d6e@default>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, npiggin@suse.de, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, alan@lxorguk.ukuu.org.uk, Rusty Russell <rusty@rustcorp.com.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Marcelo Tosatti <mtosatti@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, tmem-devel@oss.oracle.com, sunil.mushran@oracle.com, linux-mm@kvack.org, Himanshu Raj <rhim@microsoft.com>, Keir Fraser <keir.fraser@eu.citrix.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Jul 2009 12:00:05 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-01 10:47:47]:
-
-> > -static void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-> > +static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
+> > Yeah, a shared namespace of accessible objects is an entirely 
+> > new thing
+> > in the Xen universe.  I would also drop Xen support until 
+> > there's a good
+> > security story about how they can be used.
 > 
-> Should the function explictly mention rmdir?
-For now, yes. this is only for rmdir.
+> While I agree that the security is not bulletproof, I wonder
+> if this position might be a bit extreme.  Certainly, the NSA
+> should not turn on tmem in a cluster, but that doesn't mean that
+> nobody should be allowed to.  I really suspect that there are
 
-> Also something like
-> release_rmdir should be called release_and_wakeup to make the action
-> clearer.
-> 
-Hm, I don't think this name is too bad. Comment is enough and if we have to
-change the behavior of cgroup-internal work, we have to rename this again.
-This name is not too much explaining but showing enough information.
+This has more problems than "just" security, and yes, security should
+be really solved at design time...
+											Pavel
 
-
-> Looks good to me otherwise and clean.
-> 
-Thank you.
-
-Regards,
--Kame
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
