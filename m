@@ -1,88 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4191F6B004F
-	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 19:49:36 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n62NvmAs026216
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 3 Jul 2009 08:57:48 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 656DD45DE57
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 08:57:48 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A1C345DE52
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 08:57:48 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EFAAA1DB805B
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 08:57:47 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A26AEE08005
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 08:57:47 +0900 (JST)
-Date: Fri, 3 Jul 2009 08:55:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: +
- memory-hotplug-alloc-page-from-other-node-in-memory-online.patch added to
- -mm tree
-Message-Id: <20090703085556.fc711310.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.10.0907020929060.32407@gentwo.org>
-References: <1246497073.18688.28.camel@localhost.localdomain>
-	<20090702102208.ff480a2d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090702144415.8B21.E1E9C6FF@jp.fujitsu.com>
-	<alpine.DEB.1.10.0907020929060.32407@gentwo.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DC9B66B004F
+	for <linux-mm@kvack.org>; Thu,  2 Jul 2009 19:55:05 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6303IWu024985
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 3 Jul 2009 09:03:20 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E267845DE63
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 09:03:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BCC9E45DE51
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 09:03:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A19961DB8041
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 09:03:17 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F0521DB8038
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 09:03:17 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2] Show kernel stack usage to /proc/meminfo and OOM log
+In-Reply-To: <4A4B9BA1.6040109@redhat.com>
+References: <alpine.DEB.1.10.0907011315540.9522@gentwo.org> <4A4B9BA1.6040109@redhat.com>
+Message-Id: <20090703090226.08E6.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri,  3 Jul 2009 09:03:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, yakui <yakui.zhao@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, David Howells <dhowells@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Jul 2009 09:31:04 -0400 (EDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
-
-> On Thu, 2 Jul 2009, Yasunori Goto wrote:
+> Christoph Lameter wrote:
+> > On Wed, 1 Jul 2009, David Howells wrote:
+> > 
+> >> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> >>
+> >>> +	int pages = THREAD_SIZE / PAGE_SIZE;
+> >> Bad assumption.  On FRV, for example, THREAD_SIZE is 8K and PAGE_SIZE is 16K.
+> > 
+> > Guess that means we need arch specific accounting for this counter.
 > 
-> > However, I don't enough time for memory hotplug now,
-> > and they are just redundant functions now.
-> > If someone create new allocator (and unifying bootmem allocator),
-> > I'm very glad. :-)
-> 
-> "Senior"ities all around.... A move like that would require serious
-> commitment of time. None of us older developers can take that on it
-> seems.
-> 
-> Do we need to accept that the zone and page metadata are living on another
-> node?
-> 
-I don't think so. Someone should do. I just think I can't do it _now_.
-(because I have more things to do for cgroup..)
+> Or we count the number of stacks internally and only
+> convert to pages whenever we display the value.
 
-And, if not node-hotplug, memmap is allocated from local memory if possible.
-"We should _never_ allow fallback to other nodes or not" is problem ?
-I think we should allow fallback.
-About pgdat, zones, I hope they will be on-cache...
-
-Maybe followings are necessary for allocating pgdat/zones from local node
-at node-hotplug.
-
-  a) Add new tiny functions to alloacate memory from not-initialized area.
-     allocate pgdat/memmap from here if necessary.
-  b) leave allocated memory from (a) as PG_reserved at onlining.
-  c) There will be "not unpluggable" section after (b). We should show this to
-     users.
-  d) For removal, we have to keep precise trace of PG_reserved pages.
-  e) vmemmap removal, which uses large page for vmemmap, is a problem.
-     edges of section memmap is not aligned to large pages. Then we need
-     some clever trick to handle this.
-
-Allocationg memmap from its own section was an idea (I love this) but
-IBM's 16MB memory section doesn't allow this.
-
-Thanks,
--Kame
-
-
-
+Thanks good idea. I'll implement this today (or tommorow).
 
 
 --
