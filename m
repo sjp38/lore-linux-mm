@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EF4256B004F
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 19:19:27 -0400 (EDT)
-Subject: Re: handle_mm_fault() calling convention cleanup..
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
-Content-Type: text/plain
-Date: Sat, 04 Jul 2009 09:35:07 +1000
-Message-Id: <1246664107.7551.11.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 49D9D6B004F
+	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 21:16:30 -0400 (EDT)
+Date: Sat, 4 Jul 2009 09:27:54 +0800
+From: Roger WANG <roger.wang@intel.com>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class
+ citizen
+Message-ID: <20090704012754.GC3910@wwang29-mobl1.ccr.corp.intel.com>
+References: <20090516090005.916779788@intel.com>
+ <1242485776.32543.834.camel@laptop>
+ <20090617141135.0d622bfe@jbarnes-g45>
+ <20090618012532.GB19732@localhost>
+ <20090619090011.GA30561@localhost>
+ <1245402289.13761.24606.camel@twins>
+ <20090619093224.GA30898@localhost>
+ <20090619094338.4d3c566d@jbarnes-g45>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090619094338.4d3c566d@jbarnes-g45>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
+To: Jesse Barnes <jbarnes@virtuousgeek.org>
+Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2009-06-21 at 13:42 -0700, Linus Torvalds wrote:
-> Just a heads up that I committed the patches that I sent out two months 
-> ago to make the fault handling routines use the finer-grained fault flags 
-> (FAULT_FLAG_xyzzy) rather than passing in a boolean for "write".
-> 
-> That was originally for the NOPAGE_RETRY patches, but it's a general 
-> cleanup too. I have this suspicion that we should extend this to 
-> "get_user_pages()" too, instead of having those boolean "write" and 
-> "force" flags (and GUP_FLAGS_xyzzy as opposed to FAULT_FLAGS_yyzzy).
+Hello Jesse,
 
-BTW. I'd like to extend these if there's no objection one of these days
-to also pass whether it was an exec fault, and pass the full flags to
-ptep_set_access_flags().
+On Sat, 2009-06-20 at 00:43 +0800 Jesse Barnes wrote:
+> On Fri, 19 Jun 2009 17:32:24 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > On Fri, Jun 19, 2009 at 05:04:49PM +0800, Peter Zijlstra wrote:
+> > > On Fri, 2009-06-19 at 17:00 +0800, Wu, Fengguang wrote:
+> > > > [add CC]
+> > > > 
+> > > > This OOM case looks like the same bug encountered by David
+> > > > Howells.
+> > > > 
+> > > > > Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426766]
+> > > > > Active_anon:290797 active_file:28 inactive_anon:97034 Jun 18
+> > > > > 07:44:53 jbarnes-g45 kernel: [64377.426767]  inactive_file:61
+> > > > > unevictable:11322 dirty:0 writeback:0 unstable:0 Jun 18
+> > > > > 07:44:53 jbarnes-g45 kernel: [64377.426768]  free:3341
+> > > > > slab:13776 mapped:5880 pagetables:6851 bounce:0
+> > > > 
+> > > > active/inactive_anon pages take up 4/5 memory.  Are you using
+> > > > TMPFS a lot?
+> > > 
+> > > I suspect its his GEM thingy ;-)
+> > 
+> > Very likely - GEM allocates drm objects from the internal tmpfs,
+> > and libdrm_intel seems to never free drm objects from its cache.
+> 
+> Yeah, a good chunk of that is GEM objects.  I generally haven't seen
+> OOMs due to excessive GEM allocation though, until recently.  We've got
+> some patches queued up to manage the object cache better (actually free
+> pages when we don't need them!), so that should help.
 
-That would (finally) give us a better hook for architectures that need
-to do it to handle i$/d$ coherency. Right now, I go dig for the current
-fault type inside the current pt_regs from ptep_set_access_flags() which
-is positively ugly.
+Could you please point me to those patches so I can try them here? I
+have to kill my X once per day.
 
-Ben.
+Thanks 
 
-> We should probably also get rid of the insane FOLL_xyz flags too. Right 
-> now the code in fact depends on FOLL_WRITE being the same as 
-> FAULT_FLAGS_WRITE, and while that is a simple dependency, it's just crazy 
-> how we have all these different flags for what ends up often boiling down 
-> to the same fundamental issue in the end (even if not all versions of the 
-> flags are necessarily always valid for all uses).
+--Roger
 > 
-> I fixed up all architectures that I noticed (at least microblaze had been 
-> added since the original patches in April), but arch maintainers should 
-> double-check. Arch maintainers might also want to check whether the 
-> mindless conversion of
-> 
-> 	'is_write' => 'is_write ? FAULT_FLAGS_WRITE : 0'
-> 
-> might perhaps be written in some more natural way (for example, maybe 
-> you'd like to get rid of 'iswrite' as a variable entirely, and replace it 
-> with a 'fault_flags' variable).
-> 
-> It's pushed out and tested on x86-64, but it really was such a mindless 
-> conversion that I hope it works on all architectures. But I thought I'd 
-> better give people a shout-out regardless.
-> 
-> 		Linus
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> -- 
+> Jesse Barnes, Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
