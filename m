@@ -1,47 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A666B004F
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 12:23:08 -0400 (EDT)
-Date: Sat, 4 Jul 2009 09:44:38 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: handle_mm_fault() calling convention cleanup..
-In-Reply-To: <1246664107.7551.11.camel@pasglop>
-Message-ID: <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain>
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <1246664107.7551.11.camel@pasglop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B9AF66B004F
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 13:14:18 -0400 (EDT)
+Received: by qyk36 with SMTP id 36so1845947qyk.12
+        for <linux-mm@kvack.org>; Sat, 04 Jul 2009 10:36:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20090704141818.0afa877a.minchan.kim@gmail.com>
+References: <20090704141818.0afa877a.minchan.kim@gmail.com>
+Date: Sun, 5 Jul 2009 02:36:25 +0900
+Message-ID: <2f11576a0907041036i3585206bl475cc9f70176a0db@mail.gmail.com>
+Subject: Re: [PATCH][mmotm] don't attempt to reclaim anon page in lumpy
+	reclaim when no swap space is available
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+2009/7/4 Minchan Kim <minchan.kim@gmail.com>:
+>
+> This patch is based on mmotm 2009-07-02-19-57 reverted
+> 'vmscan: don't attempt to reclaim anon page in lumpy reclaim when no swap=
+ space is available.'
+>
+> This verssion is better than old one.
+> That's because enough swap space check is done in case of only lumpy recl=
+aim.
+> so it can't degrade performance in normal case.
+>
+> =3D=3D CUT HERE =3D=3D
+>
+> VM already avoids attempting to reclaim anon pages in various places, But
+> it doesn't avoid it for lumpy reclaim.
+>
+> It shuffles lru list unnecessary so that it is pointless.
+>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> =A0mm/vmscan.c | =A0 =A07 +++++++
+> =A01 files changed, 7 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 27558aa..977af15 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -930,6 +930,13 @@ static unsigned long isolate_lru_pages(unsigned long=
+ nr_to_scan,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Check that we have not =
+crossed a zone boundary. */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (unlikely(page_zone_id(=
+cursor_page) !=3D zone_id))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* If we don't have enoug=
+h swap space, reclaiming of anon page
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* which don't already ha=
+ve a swap slot is pointless.
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (nr_swap_pages <=3D 0 &&=
+ (PageAnon(cursor_page) &&
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 !PageSwapCache(cursor_page)))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (__isolate_lru_page(cur=
+sor_page, mode, file) =3D=3D 0) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0list_move(=
+&cursor_page->lru, dst);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup=
+_del_lru(cursor_page);
 
-
-On Sat, 4 Jul 2009, Benjamin Herrenschmidt wrote:
-> 
-> BTW. I'd like to extend these if there's no objection one of these days
-> to also pass whether it was an exec fault, and pass the full flags to
-> ptep_set_access_flags().
-
-Sure. No problem, and sounds sane.
-
-Just a tiny word of warning: right now, the conversion I did pretty much 
-depended on the fact that even if I missed a spot, it wouldn't actually 
-make any difference. If somebody used "flags" as a binary value (ie like 
-the old "write_access" kind of semantics), things would still all work, 
-because it was still a "zero-vs-nonzero" issue wrt writes.
-
-And there were cases in the hugepage handling that I had missed, that 
-Hugh picked up. Maybe he picked them all - but be careful.
-
-I didn't add any flags (like the FAULT_FLAG_RETRY thing that started it 
-all) that would actually _require_ everybody to always treat it as a 
-bitmask. And some places still pass the flags down as basically just the 
-"write or not" thing. ptep_set_access_flags() stands out as one of them 
-(and I think your suggestion would actually clean things up), but there 
-are probably others.
-
-		Linus
+okey. this is definitely better. thanks.
+    Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
