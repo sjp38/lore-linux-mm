@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6699F6B0055
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 10:56:47 -0400 (EDT)
-Date: Sat, 4 Jul 2009 11:18:01 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite
-	when blocksize < pagesize
-Message-ID: <20090704151801.GA19682@infradead.org>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de> <20090625174754.GA21957@infradead.org> <20090626084225.GA12201@wotan.suse.de> <20090630173716.GA3150@infradead.org> <20090702072225.GC2714@wotan.suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A666B004F
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 12:23:08 -0400 (EDT)
+Date: Sat, 4 Jul 2009 09:44:38 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: handle_mm_fault() calling convention cleanup..
+In-Reply-To: <1246664107.7551.11.camel@pasglop>
+Message-ID: <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain>
+References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <1246664107.7551.11.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090702072225.GC2714@wotan.suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 02, 2009 at 09:22:25AM +0200, Nick Piggin wrote:
-> > Looking at your patch I really like that vmtruncate now really just
-> > does what it's name claims to - truncate the VM-information about
-> > the file (well, and the file size).   I'm not so happy about
-> > still keeping the two level setattr/truncate indirection.
+
+
+On Sat, 4 Jul 2009, Benjamin Herrenschmidt wrote:
 > 
-> In my patch series, i_size update eventually is moved out to the
-> filesystem too, and vmtruncate just is renamed to truncate_pagecache
-> (vmtruncate is not such a bad name, but rename will nicely break
-> unconverted modules).
+> BTW. I'd like to extend these if there's no objection one of these days
+> to also pass whether it was an exec fault, and pass the full flags to
+> ptep_set_access_flags().
 
-Good, that's a much better calling and naming convention.
+Sure. No problem, and sounds sane.
 
-> > But instead of folding truncate into setattr I wonder if we should
-> > just add a new ->setsize (aka new trunacte) methodas a top-level
-> > entry point instead of ->setattr with ATTR_SIZE given that size
-> > changes don't have much in common with the reset of ->setattr.
-> 
-> OK that would be possible and makes sense I guess. The new truncate
-> which returns error could basically be renamed in-place. Shall we
-> continue to give ATTR_SIZE to setattr, or take that out completely?
-> I guess truncate can be considered special because it operates on
-> data not only metadata.
-> 
-> Looks like ->setsize would need a flag for ATTR_OPEN too? Any others?
-> I'll do a bit of an audit when I get around to it...
+Just a tiny word of warning: right now, the conversion I did pretty much 
+depended on the fact that even if I missed a spot, it wouldn't actually 
+make any difference. If somebody used "flags" as a binary value (ie like 
+the old "write_access" kind of semantics), things would still all work, 
+because it was still a "zero-vs-nonzero" issue wrt writes.
 
-In the end ATTR_SIZE should not be passed to ->setattr anymore, and
-->setsize should become mandatory.  For the transition I would recommend
-calling ->setsize if present else fall back to the current way.  That
-way we can migreate one filesystem per patch to the new scheme.
+And there were cases in the hugepage handling that I had missed, that 
+Hugh picked up. Maybe he picked them all - but be careful.
 
-I would suggest giving the flags to ->setsize their own namespace with
-two flags so far SETSIZE_FTRUNCATE (need to update the file size and
-have a file struct available) and SETSIZE_OPEN for the ATTR_OPEN case.
+I didn't add any flags (like the FAULT_FLAG_RETRY thing that started it 
+all) that would actually _require_ everybody to always treat it as a 
+bitmask. And some places still pass the flags down as basically just the 
+"write or not" thing. ptep_set_access_flags() stands out as one of them 
+(and I think your suggestion would actually clean things up), but there 
+are probably others.
 
-That beeing said I reallye hate the conditiona file argument for
-ftrunctate (currently hidden inside struct iattr), maybe we're better
-off having am optional int (*ftruncate)(struct file *) method for those
-filesystems that need it, with a fallback to ->setsize.
-
-And yeah, maybe ->setsize might better be left as ->truncate, but if
-we want a nicely bisectable migration we'd have to rename the old
-truncate to e.g. ->old_truncate before.  That's probably worth having
-the better naming in the end.
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
