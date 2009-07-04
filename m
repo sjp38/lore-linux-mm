@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 49D9D6B004F
-	for <linux-mm@kvack.org>; Fri,  3 Jul 2009 21:16:30 -0400 (EDT)
-Date: Sat, 4 Jul 2009 09:27:54 +0800
-From: Roger WANG <roger.wang@intel.com>
-Subject: Re: [PATCH 0/3] make mapped executable pages the first class
- citizen
-Message-ID: <20090704012754.GC3910@wwang29-mobl1.ccr.corp.intel.com>
-References: <20090516090005.916779788@intel.com>
- <1242485776.32543.834.camel@laptop>
- <20090617141135.0d622bfe@jbarnes-g45>
- <20090618012532.GB19732@localhost>
- <20090619090011.GA30561@localhost>
- <1245402289.13761.24606.camel@twins>
- <20090619093224.GA30898@localhost>
- <20090619094338.4d3c566d@jbarnes-g45>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090619094338.4d3c566d@jbarnes-g45>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 07BDE6B004F
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 01:00:23 -0400 (EDT)
+Received: by pxi33 with SMTP id 33so2482855pxi.12
+        for <linux-mm@kvack.org>; Fri, 03 Jul 2009 22:18:24 -0700 (PDT)
+Date: Sat, 4 Jul 2009 14:18:18 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH][mmotm] don't attempt to reclaim anon page in lumpy reclaim
+ when no swap space is available
+Message-Id: <20090704141818.0afa877a.minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jesse Barnes <jbarnes@virtuousgeek.org>
-Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello Jesse,
 
-On Sat, 2009-06-20 at 00:43 +0800 Jesse Barnes wrote:
-> On Fri, 19 Jun 2009 17:32:24 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Fri, Jun 19, 2009 at 05:04:49PM +0800, Peter Zijlstra wrote:
-> > > On Fri, 2009-06-19 at 17:00 +0800, Wu, Fengguang wrote:
-> > > > [add CC]
-> > > > 
-> > > > This OOM case looks like the same bug encountered by David
-> > > > Howells.
-> > > > 
-> > > > > Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426766]
-> > > > > Active_anon:290797 active_file:28 inactive_anon:97034 Jun 18
-> > > > > 07:44:53 jbarnes-g45 kernel: [64377.426767]  inactive_file:61
-> > > > > unevictable:11322 dirty:0 writeback:0 unstable:0 Jun 18
-> > > > > 07:44:53 jbarnes-g45 kernel: [64377.426768]  free:3341
-> > > > > slab:13776 mapped:5880 pagetables:6851 bounce:0
-> > > > 
-> > > > active/inactive_anon pages take up 4/5 memory.  Are you using
-> > > > TMPFS a lot?
-> > > 
-> > > I suspect its his GEM thingy ;-)
-> > 
-> > Very likely - GEM allocates drm objects from the internal tmpfs,
-> > and libdrm_intel seems to never free drm objects from its cache.
-> 
-> Yeah, a good chunk of that is GEM objects.  I generally haven't seen
-> OOMs due to excessive GEM allocation though, until recently.  We've got
-> some patches queued up to manage the object cache better (actually free
-> pages when we don't need them!), so that should help.
+This patch is based on mmotm 2009-07-02-19-57 reverted 
+'vmscan: don't attempt to reclaim anon page in lumpy reclaim when no swap space is available.'
 
-Could you please point me to those patches so I can try them here? I
-have to kill my X once per day.
+This verssion is better than old one.
+That's because enough swap space check is done in case of only lumpy reclaim. 
+so it can't degrade performance in normal case.
 
-Thanks 
+== CUT HERE ==
 
---Roger
-> 
-> -- 
-> Jesse Barnes, Intel Open Source Technology Center
+VM already avoids attempting to reclaim anon pages in various places, But
+it doesn't avoid it for lumpy reclaim.
+
+It shuffles lru list unnecessary so that it is pointless.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/vmscan.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 27558aa..977af15 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -930,6 +930,13 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			/* Check that we have not crossed a zone boundary. */
+ 			if (unlikely(page_zone_id(cursor_page) != zone_id))
+ 				continue;
++			/*
++			 * If we don't have enough swap space, reclaiming of anon page
++			 * which don't already have a swap slot is pointless.
++			 */
++			if (nr_swap_pages <= 0 && (PageAnon(cursor_page) &&
++						!PageSwapCache(cursor_page)))
++				continue;
+ 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+ 				list_move(&cursor_page->lru, dst);
+ 				mem_cgroup_del_lru(cursor_page);
+-- 
+1.5.4.3
+
+
+
+-- 
+Kind regards,
+Minchan Kim 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
