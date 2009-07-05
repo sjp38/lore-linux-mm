@@ -1,69 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BC8446B004F
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:58:28 -0400 (EDT)
-Date: Sun, 5 Jul 2009 19:21:59 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CE89C6B005A
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:58:30 -0400 (EDT)
+Date: Sun, 5 Jul 2009 21:02:00 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
-Message-ID: <20090705112159.GB1898@localhost>
-References: <20090705181400.08F1.A69D9226@jp.fujitsu.com> <20090705182337.08F9.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
+Message-ID: <20090705130200.GA6585@localhost>
+References: <20090705182533.0902.A69D9226@jp.fujitsu.com> <20090705121308.GC5252@localhost> <20090705211739.091D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090705182337.08F9.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090705211739.091D.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 05, 2009 at 05:24:07PM +0800, KOSAKI Motohiro wrote:
-> Subject: [PATCH] add buffer cache information to show_free_areas()
+On Sun, Jul 05, 2009 at 08:21:20PM +0800, KOSAKI Motohiro wrote:
+> > On Sun, Jul 05, 2009 at 05:26:18PM +0800, KOSAKI Motohiro wrote:
+> > > Subject: [PATCH] add NR_ANON_PAGES to OOM log
+> > > 
+> > > show_free_areas can display NR_FILE_PAGES, but it can't display
+> > > NR_ANON_PAGES.
+> > > 
+> > > this patch fix its inconsistency.
+> > > 
+> > > 
+> > > Reported-by: Wu Fengguang <fengguang.wu@gmail.com>
+> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > ---
+> > >  mm/page_alloc.c |    1 +
+> > >  1 file changed, 1 insertion(+)
+> > > 
+> > > Index: b/mm/page_alloc.c
+> > > ===================================================================
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -2216,6 +2216,7 @@ void show_free_areas(void)
+> > >  		printk("= %lukB\n", K(total));
+> > >  	}
+> > >  
+> > > +	printk("%ld total anon pages\n", global_page_state(NR_ANON_PAGES));
+> > >  	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
+> > 
+> > Can we put related items together, ie. this looks more friendly:
+> > 
+> >         Anon:XXX active_anon:XXX inactive_anon:XXX
+> >         File:XXX active_file:XXX inactive_file:XXX
 > 
-> When administrator analysis memory shortage reason from OOM log, They
-> often need to know rest number of cache like pages.
+> hmmm. Actually NR_ACTIVE_ANON + NR_INACTIVE_ANON != NR_ANON_PAGES.
+> tmpfs pages are accounted as FILE, but it is stay in anon lru.
 
-nr_blockdev_pages() pages are also accounted in NR_FILE_PAGES.
+Right, that's exactly the reason I propose to put them together: to
+make the number of tmpfs pages obvious.
 
-> Then, show_free_areas() shouldn't only display page cache, but also it
-> should display buffer cache.
+> I think your proposed format easily makes confusion. this format cause to
+> imazine Anon = active_anon + inactive_anon.
 
-So if we are to add this, I'd suggest to put it close to the total
-pagecache line:
+Yes it may confuse normal users :(
 
-        printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
-+       printk("%ld blkdev pagecache pages\n", nr_blockdev_pages());
+> At least, we need to use another name, I think.
+
+Hmm I find it hard to work out a good name.
+
+But instead, it may be a good idea to explicitly compute the tmpfs
+pages, because the excessive use of tmpfs pages could be a common
+reason of OOM.
 
 Thanks,
 Fengguang
-
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2118,7 +2118,7 @@ void show_free_areas(void)
->  	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
->  		" inactive_file:%lu"
->  		" unevictable:%lu"
-> -		" dirty:%lu writeback:%lu unstable:%lu\n"
-> +		" dirty:%lu writeback:%lu buffer:%lu unstable:%lu\n"
->  		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
->  		" mapped:%lu pagetables:%lu bounce:%lu\n",
->  		global_page_state(NR_ACTIVE_ANON),
-> @@ -2128,6 +2128,7 @@ void show_free_areas(void)
->  		global_page_state(NR_UNEVICTABLE),
->  		global_page_state(NR_FILE_DIRTY),
->  		global_page_state(NR_WRITEBACK),
-> +		K(nr_blockdev_pages()),
->  		global_page_state(NR_UNSTABLE_NFS),
->  		global_page_state(NR_FREE_PAGES),
->  		global_page_state(NR_SLAB_RECLAIMABLE),
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
