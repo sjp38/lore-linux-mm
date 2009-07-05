@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 954246B004F
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:28:33 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so862941rvb.26
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2009 03:52:08 -0700 (PDT)
-Date: Sun, 5 Jul 2009 18:51:58 +0800
-From: Wu Fengguang <fengguang.wu@gmail.com>
-Subject: Re: Found the commit that causes the OOMs
-Message-ID: <20090705105158.GA1804@localhost>
-References: <4A4AD07E.2040508@redhat.com> <20090705095520.GA31587@localhost> <20090705193551.090E.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EB95C6B004F
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:33:03 -0400 (EDT)
+Date: Sun, 5 Jul 2009 23:16:28 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
+Message-ID: <20090705151628.GA11307@localhost>
+References: <20090705182533.0902.A69D9226@jp.fujitsu.com> <20090705121308.GC5252@localhost> <20090705211739.091D.A69D9226@jp.fujitsu.com> <20090705130200.GA6585@localhost> <2f11576a0907050619t5dea33cfwc46344600c2b17b5@mail.gmail.com> <28c262360907050804p70bc293uc7330a6d968c0486@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20090705193551.090E.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <28c262360907050804p70bc293uc7330a6d968c0486@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, David Woodhouse <dwmw2@infradead.org>, David Howells <dhowells@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 05, 2009 at 07:38:54PM +0900, KOSAKI Motohiro wrote:
-> > >> OK. thanks.
-> > >> I plan to submit this patch after small more tests. it is useful for OOM analysis.
-> > >
-> > > It is also useful for throttling page reclaim.
-> > >
-> > > If more than half of the inactive pages in a zone are
-> > > isolated, we are probably beyond the point where adding
-> > > additional reclaim processes will do more harm than good.
-> > 
-> > Maybe we can try limiting the isolation phase of direct reclaims to
-> > one per CPU?
-> > 
-> >         mutex_lock(per_cpu_lock);
-> >         isolate_pages();
-> >         shrink_page_list();
-> >         put_back_pages();
-> >         mutex_unlock(per_cpu_lock);
-> > 
-> > This way the isolated pages as well as major parts of direct reclaims
-> > will be bounded by CPU numbers. The added overheads should be trivial
-> > comparing to the reclaim costs.
+On Sun, Jul 05, 2009 at 11:04:17PM +0800, Minchan Kim wrote:
+> On Sun, Jul 5, 2009 at 10:19 PM, KOSAKI
+> Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+> >>> > > + printk("%ld total anon pages\n", global_page_state(NR_ANON_PAGES));
+> >>> > > A  printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
+> >>> >
+> >>> > Can we put related items together, ie. this looks more friendly:
+> >>> >
+> >>> > A  A  A  A  Anon:XXX active_anon:XXX inactive_anon:XXX
+> >>> > A  A  A  A  File:XXX active_file:XXX inactive_file:XXX
+> >>>
+> >>> hmmm. Actually NR_ACTIVE_ANON + NR_INACTIVE_ANON != NR_ANON_PAGES.
+> >>> tmpfs pages are accounted as FILE, but it is stay in anon lru.
+> >>
+> >> Right, that's exactly the reason I propose to put them together: to
+> >> make the number of tmpfs pages obvious.
+> >>
+> >>> I think your proposed format easily makes confusion. this format cause to
+> >>> imazine Anon = active_anon + inactive_anon.
+> >>
+> >> Yes it may confuse normal users :(
+> >>
+> >>> At least, we need to use another name, I think.
+> >>
+> >> Hmm I find it hard to work out a good name.
+> >>
+> >> But instead, it may be a good idea to explicitly compute the tmpfs
+> >> pages, because the excessive use of tmpfs pages could be a common
+> >> reason of OOM.
+> >
+> > Yeah, A explicite tmpfs/shmem accounting is also useful for /proc/meminfo.
 > 
-> hm, this idea makes performance degression on few CPU machine, I think.
+> Do we have to account it explicitly?
 
-Yes, this is also my big worry. But one possible workaround is to
-allow N direct reclaims per CPU.
+When OOM happens, one frequent question to ask is: are there too many
+tmpfs/shmem pages?  Exporting this number makes our oom-message-decoding
+life easier :)
 
-> e.g.
-> if system have only one cpu and sysmtem makes lumpy reclaim, lumpy reclaim
-> makes synchronous pageout and it makes very long waiting time.
+> If we know the exact isolate pages of each lru,
+> 
+> tmpfs/shmem = (NR_ACTIVE_ANON + NR_INACTIVE_ANON + isolate(anon)) -
+> NR_ANON_PAGES.
+> 
+> Is there any cases above equation is wrong ?
 
-We can temporarily drop the lock during the writeback waiting.
-0-order reclaims shall not be blocked by ongoing high order reclaims.
-
-> I suspect per-cpu decision is not useful in this area.
-
-Maybe. I'm just proposing one more possible way to choose from :)
+That's right, but the calculation may be too complex (and boring) for
+our little brain ;)
 
 Thanks,
 Fengguang
