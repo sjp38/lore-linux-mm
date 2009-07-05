@@ -1,81 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C7DDD6B004F
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:42:20 -0400 (EDT)
-Date: Sun, 5 Jul 2009 19:05:48 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/5] add per-zone statistics to show_free_areas()
-Message-ID: <20090705110548.GA1898@localhost>
-References: <20090705181400.08F1.A69D9226@jp.fujitsu.com> <20090705182259.08F6.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2DE436B004F
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:43:45 -0400 (EDT)
+Received: by vwj42 with SMTP id 42so2454031vwj.12
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2009 08:27:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090705182259.08F6.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090705151628.GA11307@localhost>
+References: <20090705182533.0902.A69D9226@jp.fujitsu.com>
+	 <20090705121308.GC5252@localhost>
+	 <20090705211739.091D.A69D9226@jp.fujitsu.com>
+	 <20090705130200.GA6585@localhost>
+	 <2f11576a0907050619t5dea33cfwc46344600c2b17b5@mail.gmail.com>
+	 <28c262360907050804p70bc293uc7330a6d968c0486@mail.gmail.com>
+	 <20090705151628.GA11307@localhost>
+Date: Mon, 6 Jul 2009 00:27:20 +0900
+Message-ID: <28c262360907050827y577c3859g5e05e82935e96010@mail.gmail.com>
+Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 05, 2009 at 05:23:35PM +0800, KOSAKI Motohiro wrote:
-> Subject: [PATCH] add per-zone statistics to show_free_areas()
-> 
-> Currently, show_free_area() mainly display system memory usage. but it
-> doesn't display per-zone memory usage information.
-> 
-> However, if DMA zone OOM occur, Administrator definitely need to know
-> per-zone memory usage information.
+On Mon, Jul 6, 2009 at 12:16 AM, Wu Fengguang<fengguang.wu@intel.com> wrote=
+:
+> On Sun, Jul 05, 2009 at 11:04:17PM +0800, Minchan Kim wrote:
+>> On Sun, Jul 5, 2009 at 10:19 PM, KOSAKI
+>> Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >>> > > + printk("%ld total anon pages\n", global_page_state(NR_ANON_PAG=
+ES));
+>> >>> > > =C2=A0 printk("%ld total pagecache pages\n", global_page_state(N=
+R_FILE_PAGES));
+>> >>> >
+>> >>> > Can we put related items together, ie. this looks more friendly:
+>> >>> >
+>> >>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 Anon:XXX active_anon:XXX inactive_anon=
+:XXX
+>> >>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 File:XXX active_file:XXX inactive_file=
+:XXX
+>> >>>
+>> >>> hmmm. Actually NR_ACTIVE_ANON + NR_INACTIVE_ANON !=3D NR_ANON_PAGES.
+>> >>> tmpfs pages are accounted as FILE, but it is stay in anon lru.
+>> >>
+>> >> Right, that's exactly the reason I propose to put them together: to
+>> >> make the number of tmpfs pages obvious.
+>> >>
+>> >>> I think your proposed format easily makes confusion. this format cau=
+se to
+>> >>> imazine Anon =3D active_anon + inactive_anon.
+>> >>
+>> >> Yes it may confuse normal users :(
+>> >>
+>> >>> At least, we need to use another name, I think.
+>> >>
+>> >> Hmm I find it hard to work out a good name.
+>> >>
+>> >> But instead, it may be a good idea to explicitly compute the tmpfs
+>> >> pages, because the excessive use of tmpfs pages could be a common
+>> >> reason of OOM.
+>> >
+>> > Yeah, =C2=A0explicite tmpfs/shmem accounting is also useful for /proc/=
+meminfo.
+>>
+>> Do we have to account it explicitly?
+>
+> When OOM happens, one frequent question to ask is: are there too many
+> tmpfs/shmem pages? =C2=A0Exporting this number makes our oom-message-deco=
+ding
+> life easier :)
 
-DMA zone is normally lowmem-reserved. But I think the numbers still
-make sense for DMA32.
+Indeed.
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+>> If we know the exact isolate pages of each lru,
+>>
+>> tmpfs/shmem =3D (NR_ACTIVE_ANON + NR_INACTIVE_ANON + isolate(anon)) -
+>> NR_ANON_PAGES.
+>>
+>> Is there any cases above equation is wrong ?
+>
+> That's right, but the calculation may be too complex (and boring) for
+> our little brain ;)
 
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c |   20 ++++++++++++++++++++
->  1 file changed, 20 insertions(+)
-> 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2151,6 +2151,16 @@ void show_free_areas(void)
->  			" inactive_file:%lukB"
->  			" unevictable:%lukB"
->  			" present:%lukB"
-> +			" mlocked:%lukB"
-> +			" dirty:%lukB"
-> +			" writeback:%lukB"
-> +			" mapped:%lukB"
-> +			" slab_reclaimable:%lukB"
-> +			" slab_unreclaimable:%lukB"
-> +			" pagetables:%lukB"
-> +			" unstable:%lukB"
-> +			" bounce:%lukB"
-> +			" writeback_tmp:%lukB"
->  			" pages_scanned:%lu"
->  			" all_unreclaimable? %s"
->  			"\n",
-> @@ -2165,6 +2175,16 @@ void show_free_areas(void)
->  			K(zone_page_state(zone, NR_INACTIVE_FILE)),
->  			K(zone_page_state(zone, NR_UNEVICTABLE)),
->  			K(zone->present_pages),
-> +			K(zone_page_state(zone, NR_MLOCK)),
-> +			K(zone_page_state(zone, NR_FILE_DIRTY)),
-> +			K(zone_page_state(zone, NR_WRITEBACK)),
-> +			K(zone_page_state(zone, NR_FILE_MAPPED)),
-> +			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
-> +			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
-> +			K(zone_page_state(zone, NR_PAGETABLE)),
-> +			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
-> +			K(zone_page_state(zone, NR_BOUNCE)),
-> +			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
->  			zone->pages_scanned,
->  			(zone_is_all_unreclaimable(zone) ? "yes" : "no")
->  			);
-> 
+Yes. if something is change in future or we miss someting, the above
+question may be wrong.
+I wanted to remove overhead of new accouting.
+
+Anyway, I think it's not a big cost in normal system.
+So If you want to add new accounting, I don't have any objection. :)
+
+> Thanks,
+> Fengguang
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
