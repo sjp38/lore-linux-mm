@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C15BB6B004F
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:46:06 -0400 (EDT)
-Received: by vwj42 with SMTP id 42so2417396vwj.12
-        for <linux-mm@kvack.org>; Sun, 05 Jul 2009 07:16:27 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 656846B0055
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 13:46:19 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n65B9xhC002023
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Sun, 5 Jul 2009 20:09:59 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B270E45DE79
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 20:09:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1420345DE6E
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 20:09:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FE131DB803F
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 20:09:57 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A5E731DB8037
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 20:09:56 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] add per-zone statistics to show_free_areas()
+In-Reply-To: <20090705110548.GA1898@localhost>
+References: <20090705182259.08F6.A69D9226@jp.fujitsu.com> <20090705110548.GA1898@localhost>
+Message-Id: <20090705200757.0911.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090705182337.08F9.A69D9226@jp.fujitsu.com>
-References: <20090705181400.08F1.A69D9226@jp.fujitsu.com>
-	 <20090705182337.08F9.A69D9226@jp.fujitsu.com>
-Date: Sun, 5 Jul 2009 23:16:27 +0900
-Message-ID: <28c262360907050716x28671070of7ab21556213b337@mail.gmail.com>
-Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Sun,  5 Jul 2009 20:09:55 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 5, 2009 at 6:24 PM, KOSAKI
-Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Subject: [PATCH] add buffer cache information to show_free_areas()
->
-> When administrator analysis memory shortage reason from OOM log, They
-> often need to know rest number of cache like pages.
->
-> Then, show_free_areas() shouldn't only display page cache, but also it
-> should display buffer cache.
->
->
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
-> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A03 ++-
-> =C2=A01 file changed, 2 insertions(+), 1 deletion(-)
->
-> Index: b/mm/page_alloc.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2118,7 +2118,7 @@ void show_free_areas(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0printk("Active_anon:%lu active_file:%lu inacti=
-ve_anon:%lu\n"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" inactive_file:%l=
-u"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" unevictable:%lu"
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " dirty:%lu writeback:=
-%lu unstable:%lu\n"
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 " dirty:%lu writeback:=
-%lu buffer:%lu unstable:%lu\n"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" free:%lu slab_re=
-claimable:%lu slab_unreclaimable:%lu\n"
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0" mapped:%lu paget=
-ables:%lu bounce:%lu\n",
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_ACTIVE_ANON),
-> @@ -2128,6 +2128,7 @@ void show_free_areas(void)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_UNEVICTABLE),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_FILE_DIRTY),
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0global_page_state(=
-NR_WRITEBACK),
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 K(nr_blockdev_pages())=
-,
+> On Sun, Jul 05, 2009 at 05:23:35PM +0800, KOSAKI Motohiro wrote:
+> > Subject: [PATCH] add per-zone statistics to show_free_areas()
+> > 
+> > Currently, show_free_area() mainly display system memory usage. but it
+> > doesn't display per-zone memory usage information.
+> > 
+> > However, if DMA zone OOM occur, Administrator definitely need to know
+> > per-zone memory usage information.
+> 
+> DMA zone is normally lowmem-reserved. But I think the numbers still
+> make sense for DMA32.
+> 
+> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Why do you show the number with kilobyte unit ?
-Others are already number of pages.
+Yes, x86_64 have DMA and DMA32, but almost 64-bit architecture have
+2 or 4GB "DMA" zone.
+Then, I wrote the patch description by generic name.
 
-Do you have any reason ?
+Thanks.
 
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
