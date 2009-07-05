@@ -1,38 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7B16B004F
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 16:45:36 -0400 (EDT)
-Subject: Re: handle_mm_fault() calling convention cleanup..
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain>
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
-	 <1246664107.7551.11.camel@pasglop>
-	 <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain>
-Content-Type: text/plain
-Date: Sun, 05 Jul 2009 07:08:38 +1000
-Message-Id: <1246741718.7551.22.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 209036B004F
+	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 23:19:52 -0400 (EDT)
+Date: Sun, 5 Jul 2009 11:44:48 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: QUESTION: can netdev_alloc_skb() errors be reduced  by  tuning?
+Message-ID: <20090705034448.GA7588@gondor.apana.org.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A3737CE.3020305@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: starlight@binnacle.cx, linux-kernel@vger.kernel.org, mel@csn.ul.ie, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, Lee.Schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, ebmunson@us.ibm.com, agl@us.ibm.com, apw@canonical.com, wli@movementarian.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2009-07-04 at 09:44 -0700, Linus Torvalds wrote:
+Eric Dumazet <eric.dumazet@gmail.com> wrote:
+> 
+> Because of slab rounding, this reallocation should be done only if resulting data
+> portion is really smaller (50 %) than original skb.
 
-> Just a tiny word of warning: right now, the conversion I did pretty much 
-> depended on the fact that even if I missed a spot, it wouldn't actually 
-> make any difference. If somebody used "flags" as a binary value (ie like 
-> the old "write_access" kind of semantics), things would still all work, 
-> because it was still a "zero-vs-nonzero" issue wrt writes.
-
- .../...
-
-Right. Oh well.. we'll see when I get to it. I have a few higher
-priority things on my pile at the moment.
+If we're going to do this in the core then we should only do it
+in the spots where the packet may be held indefinitely.
 
 Cheers,
-Ben.
+-- 
+Visit Openswan at http://www.openswan.org/
+Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
