@@ -1,34 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 209036B004F
-	for <linux-mm@kvack.org>; Sat,  4 Jul 2009 23:19:52 -0400 (EDT)
-Date: Sun, 5 Jul 2009 11:44:48 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: QUESTION: can netdev_alloc_skb() errors be reduced  by  tuning?
-Message-ID: <20090705034448.GA7588@gondor.apana.org.au>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id F231E6B004F
+	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 12:49:45 -0400 (EDT)
+Received: by vwj42 with SMTP id 42so2389143vwj.12
+        for <linux-mm@kvack.org>; Sun, 05 Jul 2009 06:19:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A3737CE.3020305@gmail.com>
+In-Reply-To: <20090705130200.GA6585@localhost>
+References: <20090705182533.0902.A69D9226@jp.fujitsu.com>
+	 <20090705121308.GC5252@localhost>
+	 <20090705211739.091D.A69D9226@jp.fujitsu.com>
+	 <20090705130200.GA6585@localhost>
+Date: Sun, 5 Jul 2009 22:19:47 +0900
+Message-ID: <2f11576a0907050619t5dea33cfwc46344600c2b17b5@mail.gmail.com>
+Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: starlight@binnacle.cx, linux-kernel@vger.kernel.org, mel@csn.ul.ie, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, Lee.Schermerhorn@hp.com, kosaki.motohiro@jp.fujitsu.com, ebmunson@us.ibm.com, agl@us.ibm.com, apw@canonical.com, wli@movementarian.org, netdev@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet <eric.dumazet@gmail.com> wrote:
-> 
-> Because of slab rounding, this reallocation should be done only if resulting data
-> portion is really smaller (50 %) than original skb.
+>> > > + printk("%ld total anon pages\n", global_page_state(NR_ANON_PAGES))=
+;
+>> > > =A0 printk("%ld total pagecache pages\n", global_page_state(NR_FILE_=
+PAGES));
+>> >
+>> > Can we put related items together, ie. this looks more friendly:
+>> >
+>> > =A0 =A0 =A0 =A0 Anon:XXX active_anon:XXX inactive_anon:XXX
+>> > =A0 =A0 =A0 =A0 File:XXX active_file:XXX inactive_file:XXX
+>>
+>> hmmm. Actually NR_ACTIVE_ANON + NR_INACTIVE_ANON !=3D NR_ANON_PAGES.
+>> tmpfs pages are accounted as FILE, but it is stay in anon lru.
+>
+> Right, that's exactly the reason I propose to put them together: to
+> make the number of tmpfs pages obvious.
+>
+>> I think your proposed format easily makes confusion. this format cause t=
+o
+>> imazine Anon =3D active_anon + inactive_anon.
+>
+> Yes it may confuse normal users :(
+>
+>> At least, we need to use another name, I think.
+>
+> Hmm I find it hard to work out a good name.
+>
+> But instead, it may be a good idea to explicitly compute the tmpfs
+> pages, because the excessive use of tmpfs pages could be a common
+> reason of OOM.
 
-If we're going to do this in the core then we should only do it
-in the spots where the packet may be held indefinitely.
-
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+Yeah,  explicite tmpfs/shmem accounting is also useful for /proc/meminfo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
