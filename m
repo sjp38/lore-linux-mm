@@ -1,72 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B718B6B004F
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 04:32:48 -0400 (EDT)
-Date: Mon, 6 Jul 2009 11:08:04 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 02/11] vfs: Add better VFS support for page_mkwrite when blocksize < pagesize
-Message-ID: <20090706090804.GM2714@wotan.suse.de>
-References: <1245088797-29533-1-git-send-email-jack@suse.cz> <1245088797-29533-3-git-send-email-jack@suse.cz> <20090625161753.GB30755@wotan.suse.de> <20090625174754.GA21957@infradead.org> <20090626084225.GA12201@wotan.suse.de> <20090630173716.GA3150@infradead.org> <20090702072225.GC2714@wotan.suse.de> <20090704151801.GA19682@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090704151801.GA19682@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2E7166B004F
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 04:52:53 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n669SGb4004449
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 6 Jul 2009 18:28:16 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 58A6C45DE70
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 18:28:15 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AF3A545DE6E
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 18:28:14 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B747B1DB8049
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 18:28:11 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 617BBE08019
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 18:28:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/5] add isolate pages vmstat
+In-Reply-To: <28c262360907050751t1fccbf4t4ace572b4e003a13@mail.gmail.com>
+References: <20090705211127.0917.A69D9226@jp.fujitsu.com> <28c262360907050751t1fccbf4t4ace572b4e003a13@mail.gmail.com>
+Message-Id: <20090706182750.0C54.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  6 Jul 2009 18:28:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 04, 2009 at 11:18:01AM -0400, Christoph Hellwig wrote:
-> On Thu, Jul 02, 2009 at 09:22:25AM +0200, Nick Piggin wrote:
-> > I guess truncate can be considered special because it operates on
-> > data not only metadata.
-> > 
-> > Looks like ->setsize would need a flag for ATTR_OPEN too? Any others?
-> > I'll do a bit of an audit when I get around to it...
+> > ? ? ? ?printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
+> > - ? ? ? ? ? ? ? " inactive_file:%lu"
+> > - ? ? ? ? ? ? ? " unevictable:%lu"
+> > + ? ? ? ? ? ? ? " inactive_file:%lu unevictable:%lu isolated:%lu\n"
 > 
-> In the end ATTR_SIZE should not be passed to ->setattr anymore, and
-> ->setsize should become mandatory.  For the transition I would recommend
-> calling ->setsize if present else fall back to the current way.  That
-> way we can migreate one filesystem per patch to the new scheme.
+> It's good.
+> I have a one suggestion.
 > 
-> I would suggest giving the flags to ->setsize their own namespace with
-> two flags so far SETSIZE_FTRUNCATE (need to update the file size and
-> have a file struct available) and SETSIZE_OPEN for the ATTR_OPEN case.
+> I know this patch came from David's OOM problem a few days ago.
 > 
-> That beeing said I reallye hate the conditiona file argument for
-> ftrunctate (currently hidden inside struct iattr), maybe we're better
-> off having am optional int (*ftruncate)(struct file *) method for those
-> filesystems that need it, with a fallback to ->setsize.
+> I think total pages isolated of all lru doesn't help us much.
+> It just represents why [in]active[anon/file] is zero.
+> 
+> How about adding isolate page number per each lru ?
+> 
+> IsolatedPages(file)
+> IsolatedPages(anon)
+> 
+> It can help knowing exact number of each lru.
 
-OK, hmm, but I wonder -- most of the time do_truncate will need to
-call notify_change anyway, so I wonder if avoiding the double
-indirection saves us anything? (It requires 2 indirect calls either
-way). And if we call ->setsize from ->setattr, then a filesystem
-which implements its own ->setattr could avoid one of those indirect
-calls. Not so if do_truncate has to call ->setattr then ->setsize.
+Good suggestion!
+Will fix.
 
-We definitely could call the method ->ftruncate, however (regardless
-of where we call it from). In fact, we could just have a single new
-->ftruncate where struct file * argument is NULL if not called via
-an open file. This should also solve the namimg issue without
-renaming the old method (having both ->truncate and ->ftruncate
-could be slightly confusing at a glance, but we will remove
-->truncate ASAP).
-
-Anyway, let me finish the first draft and post my series and we
-can go over it further.
-
-
-> And yeah, maybe ->setsize might better be left as ->truncate, but if
-> we want a nicely bisectable migration we'd have to rename the old
-> truncate to e.g. ->old_truncate before.  That's probably worth having
-> the better naming in the end.
-
-It is definitely better to not break things as my first patch has
-done. I think it should not be too hard to have intermediate steps.
-
-Thanks,
-Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
