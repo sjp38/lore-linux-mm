@@ -1,126 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BC966B005C
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 12:50:38 -0400 (EDT)
-Date: Mon, 6 Jul 2009 13:28:38 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rfc][patch 3/3] fs: convert ext2,tmpfs to new truncate
-Message-ID: <20090706172838.GC26042@infradead.org>
-References: <20090706165438.GQ2714@wotan.suse.de> <20090706165629.GS2714@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090706165629.GS2714@wotan.suse.de>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0946B005C
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 13:00:32 -0400 (EDT)
+Date: Mon, 6 Jul 2009 10:38:31 -0700
+From: Jesse Barnes <jbarnes@virtuousgeek.org>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class
+ citizen
+Message-ID: <20090706103831.5b987524@jbarnes-g45>
+In-Reply-To: <20090704012754.GC3910@wwang29-mobl1.ccr.corp.intel.com>
+References: <20090516090005.916779788@intel.com>
+	<1242485776.32543.834.camel@laptop>
+	<20090617141135.0d622bfe@jbarnes-g45>
+	<20090618012532.GB19732@localhost>
+	<20090619090011.GA30561@localhost>
+	<1245402289.13761.24606.camel@twins>
+	<20090619093224.GA30898@localhost>
+	<20090619094338.4d3c566d@jbarnes-g45>
+	<20090704012754.GC3910@wwang29-mobl1.ccr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Roger WANG <roger.wang@intel.com>
+Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "tytso@mit.edu" <tytso@mit.edu>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 06, 2009 at 06:56:29PM +0200, Nick Piggin wrote:
+On Sat, 4 Jul 2009 09:27:54 +0800
+Roger WANG <roger.wang@intel.com> wrote:
+
+> Hello Jesse,
 > 
-> Convert filemap_xip.c, buffer.c, and some filesystems to the new truncate
-> convention. Converting generic helpers is using some ugly code (testing
-> for i_op->ftruncate) to distinguish new and old callers... better
-> alternative might be just define a new function for these guys.
+> On Sat, 2009-06-20 at 00:43 +0800 Jesse Barnes wrote:
+> > On Fri, 19 Jun 2009 17:32:24 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > 
+> > > On Fri, Jun 19, 2009 at 05:04:49PM +0800, Peter Zijlstra wrote:
+> > > > On Fri, 2009-06-19 at 17:00 +0800, Wu, Fengguang wrote:
+> > > > > [add CC]
+> > > > > 
+> > > > > This OOM case looks like the same bug encountered by David
+> > > > > Howells.
+> > > > > 
+> > > > > > Jun 18 07:44:53 jbarnes-g45 kernel: [64377.426766]
+> > > > > > Active_anon:290797 active_file:28 inactive_anon:97034 Jun 18
+> > > > > > 07:44:53 jbarnes-g45 kernel: [64377.426767]
+> > > > > > inactive_file:61 unevictable:11322 dirty:0 writeback:0
+> > > > > > unstable:0 Jun 18 07:44:53 jbarnes-g45 kernel:
+> > > > > > [64377.426768]  free:3341 slab:13776 mapped:5880
+> > > > > > pagetables:6851 bounce:0
+> > > > > 
+> > > > > active/inactive_anon pages take up 4/5 memory.  Are you using
+> > > > > TMPFS a lot?
+> > > > 
+> > > > I suspect its his GEM thingy ;-)
+> > > 
+> > > Very likely - GEM allocates drm objects from the internal tmpfs,
+> > > and libdrm_intel seems to never free drm objects from its cache.
+> > 
+> > Yeah, a good chunk of that is GEM objects.  I generally haven't seen
+> > OOMs due to excessive GEM allocation though, until recently.  We've
+> > got some patches queued up to manage the object cache better
+> > (actually free pages when we don't need them!), so that should help.
+> 
+> Could you please point me to those patches so I can try them here? I
+> have to kill my X once per day.
 
-Splitting generic preparations, ext2 and shmem into separate patch would
-be a tad cleaner I think.
+They're all upstream now; I've been running 2.6.31ish plus the latest
+libdrm, Mesa and xf86-video-intel for a week or so and things are much
+better (using the Ubuntu xorg edgers repo).
 
-The testing for the new op is pretty ugly, but this should be just a
-transition help, so it's fine to me.
-
->  		struct page **pagep, void **fsdata)
->  {
-> +	int ret;
-> +
->  	*pagep = NULL;
-> -	return __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
-> +	ret = __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
-> +	if (ret < 0) {
-> +		loff_t isize = inode->i_size;
-> +		if (pos + len > isize)
-> +			ext2_ftruncate(NULL, 0, inode, isize);
-> +	}
-> +	return ret;
-> +}
-> +
-> +static int ext2_write_end(struct file *file, struct address_space *mapping,
-> +			loff_t pos, unsigned len, unsigned copied,
-> +			struct page *page, void *fsdata)
-> +{
-> +	int ret;
-> +
-> +	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
-> +	if (ret < len) {
-> +		loff_t isize = inode->i_size;
-> +		if (pos + len > isize)
-> +			ext2_ftruncate(NULL, 0, inode, isize);
-> +	}
-> +	return ret;
->  }
->  
->  static int
-> @@ -770,13 +793,22 @@ ext2_nobh_write_begin(struct file *file,
->  		loff_t pos, unsigned len, unsigned flags,
->  		struct page **pagep, void **fsdata)
->  {
-> +	int ret;
-> +
->  	/*
->  	 * Dir-in-pagecache still uses ext2_write_begin. Would have to rework
->  	 * directory handling code to pass around offsets rather than struct
->  	 * pages in order to make this work easily.
->  	 */
-> -	return nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-> +	ret = nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
->  							ext2_get_block);
-> +	if (ret < 0) {
-> +		loff_t isize;
-> +		isize = i_size_read(inode);
-> +		if (pos + len > isize)
-> +			ext2_ftruncate(NULL, 0, inode, isize);
-> +	}
-> +	return ret;
->  }
->  
->  static int ext2_nobh_writepage(struct page *page,
-> @@ -796,9 +828,15 @@ ext2_direct_IO(int rw, struct kiocb *ioc
->  {
->  	struct file *file = iocb->ki_filp;
->  	struct inode *inode = file->f_mapping->host;
-> +	ssize_t ret;
->  
-> -	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-> +	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
->  				offset, nr_segs, ext2_get_block, NULL);
-> +	if (ret < 0 && (rw & WRITE)) {
-> +		loff_t isize = i_size_read(inode);
-> +		ext2_ftruncate(NULL, 0, inode, isize);
-
-These calls don't actually have i_alloc_mutex anymore, do they?
-
->  {
-> -	shmem_truncate_range(inode, inode->i_size, (loff_t)-1);
-> +	loff_t oldsize;
-> +	int error;
-> +
-> +	error = inode_truncate_ok(inode, offset);
-> +	if (error)
-> +		return error;
-> +	oldsize = inode->i_size;
-> +	i_size_write(inode, offset);
-> +	truncate_pagecache(inode, oldsize, offset);
-> +	shmem_truncate_range(inode, offset, (loff_t)-1);
-> +
-> +	return error;
->  }
-
-Just make this
-
-	error = simple_ftruncate(...);
-	if (!error)
-		shmem_truncate_range(inode, offset, -1);
-	return error;
+-- 
+Jesse Barnes, Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
