@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D64586B004F
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 06:20:38 -0400 (EDT)
-Subject: Re: handle_mm_fault() calling convention cleanup..
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090706073148.GJ2714@wotan.suse.de>
-References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain>
-	 <1246664107.7551.11.camel@pasglop>
-	 <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain>
-	 <1246741718.7551.22.camel@pasglop>  <20090706073148.GJ2714@wotan.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D05786B004F
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 06:22:52 -0400 (EDT)
+Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem
+	allocator
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
+References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
+	 <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
 Content-Type: text/plain
-Date: Mon, 06 Jul 2009 20:56:16 +1000
-Message-Id: <1246877776.22625.39.camel@pasglop>
+Date: Mon, 06 Jul 2009 11:58:40 +0100
+Message-Id: <1246877921.16785.26.camel@pc1117.cambridge.arm.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
+To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-07-06 at 09:31 +0200, Nick Piggin wrote:
-> I have no problems with that. I'd always intended to have flags
-> go further up the call chain like Linus did (since we'd discussed
-> perhaps making faults interruptible and requiring an extra flag
-> to distinguish get_user_pages callers that were not interruptible).
+On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
+> This patch adds kmemleak_alloc/free callbacks to the bootmem allocator.
+> This would allow scanning of such blocks and help avoiding a whole class
+> of false positives and more kmemleak annotations.
 > 
-> So yes adding more flags to improve code or make things simpler
-> is fine by me :)
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Ingo Molnar <mingo@elte.hu>
+> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+> ---
+>  mm/bootmem.c |   36 +++++++++++++++++++++++++++++-------
+>  1 files changed, 29 insertions(+), 7 deletions(-)
 > 
-That's before you see my evil plan of bringing the flags all the way
-down to set_pte_at() :-)
+> diff --git a/mm/bootmem.c b/mm/bootmem.c
+> index d2a9ce9..18858ad 100644
+> --- a/mm/bootmem.c
+> +++ b/mm/bootmem.c
+> @@ -335,6 +335,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+>  {
+>  	unsigned long start, end;
+>  
+> +	kmemleak_free(__va(physaddr));
 
-Cheers,
-Ben.
+This should actually be
 
++	kmemleak_free_part(__va(physaddr), size);
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
