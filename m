@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D81836B0055
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 06:16:05 -0400 (EDT)
-Subject: [RFC PATCH 1/3] kmemleak: Allow partial freeing of memory blocks
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BEBE66B005A
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 06:16:10 -0400 (EDT)
+Subject: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem allocator
 From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Mon, 06 Jul 2009 11:51:49 +0100
-Message-ID: <20090706105149.16051.99106.stgit@pc1117.cambridge.arm.com>
+Date: Mon, 06 Jul 2009 11:51:55 +0100
+Message-ID: <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
 In-Reply-To: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
 References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
 MIME-Version: 1.0
@@ -16,156 +16,124 @@ To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Functions like free_bootmem() are allowed to free only part of a memory
-block. This patch adds support for this via the kmemleak_free_part()
-callback which removes the original object and creates one or two
-additional objects as a result of the memory block split.
+This patch adds kmemleak_alloc/free callbacks to the bootmem allocator.
+This would allow scanning of such blocks and help avoiding a whole class
+of false positives and more kmemleak annotations.
 
 Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 Cc: Ingo Molnar <mingo@elte.hu>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
- include/linux/kmemleak.h |    4 +++
- mm/kmemleak.c            |   55 ++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 54 insertions(+), 5 deletions(-)
+ mm/bootmem.c |   36 +++++++++++++++++++++++++++++-------
+ 1 files changed, 29 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
-index 7796aed..6a63807 100644
---- a/include/linux/kmemleak.h
-+++ b/include/linux/kmemleak.h
-@@ -27,6 +27,7 @@ extern void kmemleak_init(void);
- extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
- 			   gfp_t gfp);
- extern void kmemleak_free(const void *ptr);
-+extern void kmemleak_free_part(const void *ptr, size_t size);
- extern void kmemleak_padding(const void *ptr, unsigned long offset,
- 			     size_t size);
- extern void kmemleak_not_leak(const void *ptr);
-@@ -71,6 +72,9 @@ static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
- static inline void kmemleak_free(const void *ptr)
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index d2a9ce9..18858ad 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -335,6 +335,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
  {
- }
-+static inline void kmemleak_free_part(const void *ptr, size_t size)
-+{
-+}
- static inline void kmemleak_free_recursive(const void *ptr, unsigned long flags)
+ 	unsigned long start, end;
+ 
++	kmemleak_free(__va(physaddr));
++
+ 	start = PFN_UP(physaddr);
+ 	end = PFN_DOWN(physaddr + size);
+ 
+@@ -354,6 +356,8 @@ void __init free_bootmem(unsigned long addr, unsigned long size)
  {
- }
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 5f7d8ae..57f8081 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -210,6 +210,7 @@ static DEFINE_MUTEX(scan_mutex);
- enum {
- 	KMEMLEAK_ALLOC,
- 	KMEMLEAK_FREE,
-+	KMEMLEAK_FREE_PART,
- 	KMEMLEAK_NOT_LEAK,
- 	KMEMLEAK_IGNORE,
- 	KMEMLEAK_SCAN_AREA,
-@@ -522,15 +523,20 @@ out:
+ 	unsigned long start, end;
  
- /*
-  * Remove the metadata (struct kmemleak_object) for a memory block from the
-- * object_list and object_tree_root and decrement its use_count.
-+ * object_list and object_tree_root and decrement its use_count. If the memory
-+ * block is partially freed (size > 0), the function may create additional
-+ * metadata for the remaining parts of the block.
-  */
--static void delete_object(unsigned long ptr)
-+static void delete_object(unsigned long ptr, size_t size)
++	kmemleak_free_part(__va(addr), size);
++
+ 	start = PFN_UP(addr);
+ 	end = PFN_DOWN(addr + size);
+ 
+@@ -597,7 +601,9 @@ restart:
+ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+ 					unsigned long goal)
  {
- 	unsigned long flags;
- 	struct kmemleak_object *object;
-+	unsigned long start, end;
-+	unsigned int min_count;
-+	gfp_t gfp_flags;
- 
- 	write_lock_irqsave(&kmemleak_lock, flags);
--	object = lookup_object(ptr, 0);
-+	object = lookup_object(ptr, 1);
- 	if (!object) {
- #ifdef DEBUG
- 		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
-@@ -552,8 +558,29 @@ static void delete_object(unsigned long ptr)
- 	 */
- 	spin_lock_irqsave(&object->lock, flags);
- 	object->flags &= ~OBJECT_ALLOCATED;
-+	start = object->pointer;
-+	end = object->pointer + object->size;
-+	min_count = object->min_count;
- 	spin_unlock_irqrestore(&object->lock, flags);
- 	put_object(object);
-+
-+	if (!size)
-+		return;
-+
-+	/*
-+	 * Partial freeing. Just create one or two objects that may result
-+	 * from the memory block split.
-+	 */
-+	if (in_atomic())
-+		gfp_flags = GFP_ATOMIC;
-+	else
-+		gfp_flags = GFP_KERNEL;
-+
-+	if (ptr > start)
-+		create_object(start, ptr - start, min_count, gfp_flags);
-+	if (ptr + size < end)
-+		create_object(ptr + size, end - ptr - size, min_count,
-+			      gfp_flags);
+-	return ___alloc_bootmem_nopanic(size, align, goal, 0);
++	void *ptr =  ___alloc_bootmem_nopanic(size, align, goal, 0);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
  }
  
- /*
-@@ -720,13 +747,28 @@ void kmemleak_free(const void *ptr)
- 	pr_debug("%s(0x%p)\n", __func__, ptr);
- 
- 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
--		delete_object((unsigned long)ptr);
-+		delete_object((unsigned long)ptr, 0);
- 	else if (atomic_read(&kmemleak_early_log))
- 		log_early(KMEMLEAK_FREE, ptr, 0, 0, 0, 0);
+ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+@@ -631,7 +637,9 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+ 			      unsigned long goal)
+ {
+-	return ___alloc_bootmem(size, align, goal, 0);
++	void *ptr = ___alloc_bootmem(size, align, goal, 0);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
  }
- EXPORT_SYMBOL_GPL(kmemleak_free);
  
- /*
-+ * Partial memory freeing function callback. This function is usually called
-+ * from bootmem allocator when (part of) a memory block is freed.
-+ */
-+void kmemleak_free_part(const void *ptr, size_t size)
-+{
-+	pr_debug("%s(0x%p)\n", __func__, ptr);
+ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+@@ -669,10 +677,14 @@ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
+ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+ 				   unsigned long align, unsigned long goal)
+ {
++	void *ptr;
 +
-+	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
-+		delete_object((unsigned long)ptr, size);
-+	else if (atomic_read(&kmemleak_early_log))
-+		log_early(KMEMLEAK_FREE_PART, ptr, size, 0, 0, 0);
-+}
-+EXPORT_SYMBOL_GPL(kmemleak_free_part);
+ 	if (WARN_ON_ONCE(slab_is_available()))
+ 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+ 
+-	return ___alloc_bootmem_node(pgdat->bdata, size, align, goal, 0);
++	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align, goal, 0);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
+ }
+ 
+ #ifdef CONFIG_SPARSEMEM
+@@ -707,14 +719,18 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+ 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+ 
+ 	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size, align, goal, 0);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+ 	if (ptr)
+ 		return ptr;
+ 
+ 	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+ 	if (ptr)
+ 		return ptr;
+ 
+-	return __alloc_bootmem_nopanic(size, align, goal);
++	ptr = __alloc_bootmem_nopanic(size, align, goal);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
+ }
+ 
+ #ifndef ARCH_LOW_ADDRESS_LIMIT
+@@ -737,7 +753,9 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+ 				  unsigned long goal)
+ {
+-	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
++	void *ptr =  ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
+ }
+ 
+ /**
+@@ -758,9 +776,13 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+ 				       unsigned long align, unsigned long goal)
+ {
++	void *ptr;
 +
-+/*
-  * Mark an already allocated memory block as a false positive. This will cause
-  * the block to no longer be reported as leak and always be scanned.
-  */
-@@ -1345,7 +1387,7 @@ static int kmemleak_cleanup_thread(void *arg)
+ 	if (WARN_ON_ONCE(slab_is_available()))
+ 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
  
- 	rcu_read_lock();
- 	list_for_each_entry_rcu(object, &object_list, object_list)
--		delete_object(object->pointer);
-+		delete_object(object->pointer, 0);
- 	rcu_read_unlock();
- 	mutex_unlock(&scan_mutex);
- 
-@@ -1440,6 +1482,9 @@ void __init kmemleak_init(void)
- 		case KMEMLEAK_FREE:
- 			kmemleak_free(log->ptr);
- 			break;
-+		case KMEMLEAK_FREE_PART:
-+			kmemleak_free_part(log->ptr, log->size);
-+			break;
- 		case KMEMLEAK_NOT_LEAK:
- 			kmemleak_not_leak(log->ptr);
- 			break;
+-	return ___alloc_bootmem_node(pgdat->bdata, size, align,
+-				goal, ARCH_LOW_ADDRESS_LIMIT);
++	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align,
++				    goal, ARCH_LOW_ADDRESS_LIMIT);
++	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
++	return ptr;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
