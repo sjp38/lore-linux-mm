@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4641E6B004F
-	for <linux-mm@kvack.org>; Sun,  5 Jul 2009 23:50:40 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n664OMKL027016
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 6 Jul 2009 13:24:22 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 43B9A45DE5D
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 13:24:22 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 20C7345DE55
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 13:24:22 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 08E921DB8041
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 13:24:22 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A76321DB803A
-	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 13:24:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
-In-Reply-To: <28c262360907050716x28671070of7ab21556213b337@mail.gmail.com>
-References: <20090705182337.08F9.A69D9226@jp.fujitsu.com> <28c262360907050716x28671070of7ab21556213b337@mail.gmail.com>
-Message-Id: <20090706132340.52B6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon,  6 Jul 2009 13:24:20 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 62DD66B004F
+	for <linux-mm@kvack.org>; Mon,  6 Jul 2009 02:57:06 -0400 (EDT)
+Date: Mon, 6 Jul 2009 09:31:48 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: handle_mm_fault() calling convention cleanup..
+Message-ID: <20090706073148.GJ2714@wotan.suse.de>
+References: <alpine.LFD.2.01.0906211331480.3240@localhost.localdomain> <1246664107.7551.11.camel@pasglop> <alpine.LFD.2.01.0907040937040.3210@localhost.localdomain> <1246741718.7551.22.camel@pasglop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1246741718.7551.22.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -2118,7 +2118,7 @@ void show_free_areas(void)
-> > ? ? ? ?printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
-> > ? ? ? ? ? ? ? ?" inactive_file:%lu"
-> > ? ? ? ? ? ? ? ?" unevictable:%lu"
-> > - ? ? ? ? ? ? ? " dirty:%lu writeback:%lu unstable:%lu\n"
-> > + ? ? ? ? ? ? ? " dirty:%lu writeback:%lu buffer:%lu unstable:%lu\n"
-> > ? ? ? ? ? ? ? ?" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> > ? ? ? ? ? ? ? ?" mapped:%lu pagetables:%lu bounce:%lu\n",
-> > ? ? ? ? ? ? ? ?global_page_state(NR_ACTIVE_ANON),
-> > @@ -2128,6 +2128,7 @@ void show_free_areas(void)
-> > ? ? ? ? ? ? ? ?global_page_state(NR_UNEVICTABLE),
-> > ? ? ? ? ? ? ? ?global_page_state(NR_FILE_DIRTY),
-> > ? ? ? ? ? ? ? ?global_page_state(NR_WRITEBACK),
-> > + ? ? ? ? ? ? ? K(nr_blockdev_pages()),
+On Sun, Jul 05, 2009 at 07:08:38AM +1000, Benjamin Herrenschmidt wrote:
+> On Sat, 2009-07-04 at 09:44 -0700, Linus Torvalds wrote:
 > 
-> Why do you show the number with kilobyte unit ?
-> Others are already number of pages.
+> > Just a tiny word of warning: right now, the conversion I did pretty much 
+> > depended on the fact that even if I missed a spot, it wouldn't actually 
+> > make any difference. If somebody used "flags" as a binary value (ie like 
+> > the old "write_access" kind of semantics), things would still all work, 
+> > because it was still a "zero-vs-nonzero" issue wrt writes.
 > 
-> Do you have any reason ?
+>  .../...
+> 
+> Right. Oh well.. we'll see when I get to it. I have a few higher
+> priority things on my pile at the moment.
 
-Good catch. this is simple mistake.
-I'll fix it.
+I have no problems with that. I'd always intended to have flags
+go further up the call chain like Linus did (since we'd discussed
+perhaps making faults interruptible and requiring an extra flag
+to distinguish get_user_pages callers that were not interruptible).
 
+So yes adding more flags to improve code or make things simpler
+is fine by me :)
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
