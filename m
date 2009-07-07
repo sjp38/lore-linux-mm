@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 100626B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:23:18 -0400 (EDT)
-Date: Tue, 7 Jul 2009 21:23:51 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH 1/2] vmscan don't isolate too many pages
-Message-ID: <20090707132351.GA6075@localhost>
-References: <20090707182947.0C6D.A69D9226@jp.fujitsu.com> <20090707184034.0C70.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F2CB6B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:29:32 -0400 (EDT)
+Date: Tue, 7 Jul 2009 15:30:14 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [rfc][patch 3/3] fs: convert ext2,tmpfs to new truncate
+Message-ID: <20090707133014.GA2714@wotan.suse.de>
+References: <20090706165438.GQ2714@wotan.suse.de> <20090706165629.GS2714@wotan.suse.de> <4A533559.90303@panasas.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090707184034.0C70.A69D9226@jp.fujitsu.com>
+In-Reply-To: <4A533559.90303@panasas.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Boaz Harrosh <bharrosh@panasas.com>
+Cc: linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 05:47:13PM +0800, KOSAKI Motohiro wrote:
-> Subject: [PATCH] vmscan don't isolate too many pages
+On Tue, Jul 07, 2009 at 02:45:29PM +0300, Boaz Harrosh wrote:
+> On 07/06/2009 07:56 PM, Nick Piggin wrote:
+> > Convert filemap_xip.c, buffer.c, and some filesystems to the new truncate
+> > convention. Converting generic helpers is using some ugly code (testing
+> > for i_op->ftruncate) to distinguish new and old callers... better
+> > alternative might be just define a new function for these guys.
+> > @@ -770,13 +793,22 @@ ext2_nobh_write_begin(struct file *file,
+> >  		loff_t pos, unsigned len, unsigned flags,
+> >  		struct page **pagep, void **fsdata)
+> >  {
+> > +	int ret;
+> > +
+> >  	/*
+> >  	 * Dir-in-pagecache still uses ext2_write_begin. Would have to rework
+> >  	 * directory handling code to pass around offsets rather than struct
+> >  	 * pages in order to make this work easily.
+> >  	 */
+> > -	return nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+> > +	ret = nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+> >  							ext2_get_block);
+> > +	if (ret < 0) {
+> > +		loff_t isize;
+> > +		isize = i_size_read(inode);
 > 
-> If the system have plenty threads or processes, concurrent reclaim can
-> isolate very much pages.
+> Unlike the other places you use i_size_read() here, please explain what is the
+> locking rules for this?
 > 
-> And if other processes isolate _all_ pages on lru, the reclaimer can't find
-> any reclaimable page and it makes accidental OOM.
-> 
-> The solusion is, we should restrict maximum number of isolated pages.
-> (this patch use inactive_page/2)
+> Did your patchset change things in this regard?
 
-Now I think this is a better solution than per-cpu throttling :)
-Will test it tomorrow.
+i_mutex should protect i_size. I was doing a bit of cutting and pasting
+so it probably isn't perfect. I'll double check.
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-
-> 
-> FAQ
-> -------
-> Q: Why do you compared zone accumulate pages, not individual zone pages?
-> A: If we check individual zone, #-of-reclaimer is restricted by smallest zone.
->    it mean decreasing the performance of the system having small dma zone.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c |   27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
-> 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1721,6 +1721,28 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  	return alloc_flags;
->  }
->  
-> +static bool too_many_isolated(struct zonelist *zonelist,
-> +			      enum zone_type high_zoneidx, nodemask_t *nodemask)
-> +{
-> +	unsigned long nr_inactive = 0;
-> +	unsigned long nr_isolated = 0;
-> +	struct zoneref *z;
-> +	struct zone *zone;
-> +
-> +	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> +					high_zoneidx, nodemask) {
-> +		if (!populated_zone(zone))
-> +			continue;
-> +
-> +		nr_inactive += zone_page_state(zone, NR_INACTIVE_ANON);
-> +		nr_inactive += zone_page_state(zone, NR_INACTIVE_FILE);
-> +		nr_isolated += zone_page_state(zone, NR_ISOLATED_ANON);
-> +		nr_isolated += zone_page_state(zone, NR_ISOLATED_FILE);
-> +	}
-> +
-> +	return nr_isolated > nr_inactive;
-> +}
-> +
->  static inline struct page *
->  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	struct zonelist *zonelist, enum zone_type high_zoneidx,
-> @@ -1789,6 +1811,11 @@ rebalance:
->  	if (p->flags & PF_MEMALLOC)
->  		goto nopage;
->  
-> +	if (too_many_isolated(gfp_mask, zonelist, high_zoneidx, nodemask)) {
-> +		schedule_timeout_uninterruptible(HZ/10);
-> +		goto restart;
-> +	}
-> +
->  	/* Try direct reclaim and then allocating */
->  	page = __alloc_pages_direct_reclaim(gfp_mask, order,
->  					zonelist, high_zoneidx,
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
