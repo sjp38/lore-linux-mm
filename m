@@ -1,150 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 188726B0082
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 02:26:13 -0400 (EDT)
-Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem
- allocator
+	by kanga.kvack.org (Postfix) with ESMTP id 1E49D6B0085
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 02:29:35 -0400 (EDT)
+Subject: Re: [RFC PATCH 1/3] kmemleak: Allow partial freeing of memory
+ blocks
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
+In-Reply-To: <20090706105149.16051.99106.stgit@pc1117.cambridge.arm.com>
 References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
-	 <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
-Date: Tue, 07 Jul 2009 10:08:50 +0300
-Message-Id: <1246950530.24285.7.camel@penberg-laptop>
+	 <20090706105149.16051.99106.stgit@pc1117.cambridge.arm.com>
+Date: Tue, 07 Jul 2009 10:12:13 +0300
+Message-Id: <1246950733.24285.10.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
-> This patch adds kmemleak_alloc/free callbacks to the bootmem allocator.
-> This would allow scanning of such blocks and help avoiding a whole class
-> of false positives and more kmemleak annotations.
-> 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Ingo Molnar <mingo@elte.hu>
-> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-
-Looks good to me!
-
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
-But lets cc Johannes on this too.
-
-> ---
->  mm/bootmem.c |   36 +++++++++++++++++++++++++++++-------
->  1 files changed, 29 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/bootmem.c b/mm/bootmem.c
-> index d2a9ce9..18858ad 100644
-> --- a/mm/bootmem.c
-> +++ b/mm/bootmem.c
-> @@ -335,6 +335,8 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
->  {
->  	unsigned long start, end;
->  
-> +	kmemleak_free(__va(physaddr));
+> @@ -552,8 +558,29 @@ static void delete_object(unsigned long ptr)
+>  	 */
+>  	spin_lock_irqsave(&object->lock, flags);
+>  	object->flags &= ~OBJECT_ALLOCATED;
+> +	start = object->pointer;
+> +	end = object->pointer + object->size;
+> +	min_count = object->min_count;
+>  	spin_unlock_irqrestore(&object->lock, flags);
+>  	put_object(object);
 > +
->  	start = PFN_UP(physaddr);
->  	end = PFN_DOWN(physaddr + size);
->  
-> @@ -354,6 +356,8 @@ void __init free_bootmem(unsigned long addr, unsigned long size)
->  {
->  	unsigned long start, end;
->  
-> +	kmemleak_free_part(__va(addr), size);
+> +	if (!size)
+> +		return;
 > +
->  	start = PFN_UP(addr);
->  	end = PFN_DOWN(addr + size);
->  
-> @@ -597,7 +601,9 @@ restart:
->  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
->  					unsigned long goal)
->  {
-> -	return ___alloc_bootmem_nopanic(size, align, goal, 0);
-> +	void *ptr =  ___alloc_bootmem_nopanic(size, align, goal, 0);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  
->  static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
-> @@ -631,7 +637,9 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
->  void * __init __alloc_bootmem(unsigned long size, unsigned long align,
->  			      unsigned long goal)
->  {
-> -	return ___alloc_bootmem(size, align, goal, 0);
-> +	void *ptr = ___alloc_bootmem(size, align, goal, 0);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  
->  static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
-> @@ -669,10 +677,14 @@ static void * __init ___alloc_bootmem_node(bootmem_data_t *bdata,
->  void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
->  				   unsigned long align, unsigned long goal)
->  {
-> +	void *ptr;
+> +	/*
+> +	 * Partial freeing. Just create one or two objects that may result
+> +	 * from the memory block split.
+> +	 */
+> +	if (in_atomic())
+> +		gfp_flags = GFP_ATOMIC;
+> +	else
+> +		gfp_flags = GFP_KERNEL;
+
+Are you sure we can do this? There's a big fat comment on top of
+in_atomic() that suggest this is not safe. Why do we need to create the
+object here anyway and not in the _alloc_ paths where gfp flags are
+explicitly passed?
+
 > +
->  	if (WARN_ON_ONCE(slab_is_available()))
->  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
->  
-> -	return ___alloc_bootmem_node(pgdat->bdata, size, align, goal, 0);
-> +	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align, goal, 0);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
+> +	if (ptr > start)
+> +		create_object(start, ptr - start, min_count, gfp_flags);
+> +	if (ptr + size < end)
+> +		create_object(ptr + size, end - ptr - size, min_count,
+> +			      gfp_flags);
 >  }
 >  
->  #ifdef CONFIG_SPARSEMEM
-> @@ -707,14 +719,18 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
->  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
->  
->  	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size, align, goal, 0);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
->  	if (ptr)
->  		return ptr;
->  
->  	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
->  	if (ptr)
->  		return ptr;
->  
-> -	return __alloc_bootmem_nopanic(size, align, goal);
-> +	ptr = __alloc_bootmem_nopanic(size, align, goal);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  
->  #ifndef ARCH_LOW_ADDRESS_LIMIT
-> @@ -737,7 +753,9 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
->  void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
->  				  unsigned long goal)
->  {
-> -	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
-> +	void *ptr =  ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
->  
->  /**
-> @@ -758,9 +776,13 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
->  void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
->  				       unsigned long align, unsigned long goal)
->  {
-> +	void *ptr;
-> +
->  	if (WARN_ON_ONCE(slab_is_available()))
->  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
->  
-> -	return ___alloc_bootmem_node(pgdat->bdata, size, align,
-> -				goal, ARCH_LOW_ADDRESS_LIMIT);
-> +	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align,
-> +				    goal, ARCH_LOW_ADDRESS_LIMIT);
-> +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> +	return ptr;
->  }
-> 
+>  /*
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
