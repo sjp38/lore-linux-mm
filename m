@@ -1,42 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 834B06B005A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:51:36 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6BD8E82C5E8
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:11:41 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id n3zuZYZF6unU for <linux-mm@kvack.org>;
-	Tue,  7 Jul 2009 13:11:41 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id A146E82C5FD
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:11:36 -0400 (EDT)
-Date: Tue, 7 Jul 2009 12:53:17 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
-In-Reply-To: <28c262360907050827y577c3859g5e05e82935e96010@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0907071252060.5124@gentwo.org>
-References: <20090705182533.0902.A69D9226@jp.fujitsu.com>  <20090705121308.GC5252@localhost>  <20090705211739.091D.A69D9226@jp.fujitsu.com>  <20090705130200.GA6585@localhost>  <2f11576a0907050619t5dea33cfwc46344600c2b17b5@mail.gmail.com>
- <28c262360907050804p70bc293uc7330a6d968c0486@mail.gmail.com>  <20090705151628.GA11307@localhost> <28c262360907050827y577c3859g5e05e82935e96010@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AA4036B005A
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:52:23 -0400 (EDT)
+Date: Tue, 7 Jul 2009 18:53:50 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem allocator
+Message-ID: <20090707165350.GA2782@cmpxchg.org>
+References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com> <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com> <1246950530.24285.7.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1246950530.24285.7.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Jul 2009, Minchan Kim wrote:
+On Tue, Jul 07, 2009 at 10:08:50AM +0300, Pekka Enberg wrote:
+> On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
+> > This patch adds kmemleak_alloc/free callbacks to the bootmem allocator.
+> > This would allow scanning of such blocks and help avoiding a whole class
+> > of false positives and more kmemleak annotations.
+> > 
+> > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> > Cc: Ingo Molnar <mingo@elte.hu>
+> > Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+> 
+> Looks good to me!
+> 
+> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> 
+> But lets cc Johannes on this too.
 
-> Anyway, I think it's not a big cost in normal system.
-> So If you want to add new accounting, I don't have any objection. :)
+> > @@ -597,7 +601,9 @@ restart:
+> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+> >  					unsigned long goal)
+> >  {
+> > -	return ___alloc_bootmem_nopanic(size, align, goal, 0);
+> > +	void *ptr =  ___alloc_bootmem_nopanic(size, align, goal, 0);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> > +	return ptr;
 
-Lets keep the counters to a mininum. If we can calculate the values from
-something else then there is no justification for a new counter.
+You may get an object from kzalloc() here, I don't think you want to
+track that (again), right?
 
-A new counter increases the size of the per cpu structures that exist for
-each zone and each cpu. 1 byte gets multiplies by the number of cpus and
-that gets multiplied by the number of zones.
+Pekka already worked out all the central places to catch 'slab already
+available' allocations, they can probably help you place the hooks.
+
+> >  static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+> > @@ -631,7 +637,9 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+> >  void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+> >  			      unsigned long goal)
+> >  {
+> > -	return ___alloc_bootmem(size, align, goal, 0);
+> > +	void *ptr = ___alloc_bootmem(size, align, goal, 0);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> > +	return ptr;
+
+Same here.
+
+> >  #ifdef CONFIG_SPARSEMEM
+> > @@ -707,14 +719,18 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+> >  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+> >  
+> >  	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size, align, goal, 0);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> >  	if (ptr)
+> >  		return ptr;
+> >  
+> >  	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> >  	if (ptr)
+> >  		return ptr;
+> >  
+> > -	return __alloc_bootmem_nopanic(size, align, goal);
+> > +	ptr = __alloc_bootmem_nopanic(size, align, goal);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> > +	return ptr;
+> >  }
+
+Can you use a central exit and goto?
+
+> >  #ifndef ARCH_LOW_ADDRESS_LIMIT
+> > @@ -737,7 +753,9 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+> >  void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+> >  				  unsigned long goal)
+> >  {
+> > -	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+> > +	void *ptr =  ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> > +	return ptr;
+> >  }
+
+Possible slab object.
+
+> > @@ -758,9 +776,13 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+> >  void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+> >  				       unsigned long align, unsigned long goal)
+> >  {
+> > +	void *ptr;
+> > +
+> >  	if (WARN_ON_ONCE(slab_is_available()))
+> >  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+> >  
+> > -	return ___alloc_bootmem_node(pgdat->bdata, size, align,
+> > -				goal, ARCH_LOW_ADDRESS_LIMIT);
+> > +	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align,
+> > +				    goal, ARCH_LOW_ADDRESS_LIMIT);
+> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+
+These GFP_KERNEL startled me.  We know for sure that this code runs in
+earlylog mode only and gfp is unused, right?  Can you perhaps just
+pass 0 for gfp instead?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
