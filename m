@@ -1,199 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 04EA26B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:14:51 -0400 (EDT)
-Date: Tue, 7 Jul 2009 16:17:25 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
-Subject: Re: kmemleak not tainted
-Message-ID: <20090707131725.GB3238@localdomain.by>
-References: <20090707115128.GA3238@localdomain.by>
- <1246970859.9451.34.camel@pc1117.cambridge.arm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A4BBE6B0055
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:19:46 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so1222229rvb.26
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2009 06:20:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="rJwd6BRFiFCcLxzm"
-Content-Disposition: inline
-In-Reply-To: <1246970859.9451.34.camel@pc1117.cambridge.arm.com>
+In-Reply-To: <20090707184714.0C73.A69D9226@jp.fujitsu.com>
+References: <20090707182947.0C6D.A69D9226@jp.fujitsu.com>
+	 <20090707184714.0C73.A69D9226@jp.fujitsu.com>
+Date: Tue, 7 Jul 2009 22:20:13 +0900
+Message-ID: <28c262360907070620n3e22801egd4493c149a263ecd@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/2] Don't continue reclaim if the system have plenty
+	free memory
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-
---rJwd6BRFiFCcLxzm
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-> On Tue, 2009-07-07 at 14:51 +0300, Sergey Senozhatsky wrote:
-> > kernel: [ 1917.133154] INFO: RCU detected CPU 0 stall (t=3D485140/3000 =
-jiffies)
->=20
-> That's the relevant message. With CONFIG_RCU_CPU_STALL_DETECTOR you may
-> get these messages.
->=20
-> > static struct kmemleak_object *find_and_get_object(unsigned long ptr, i=
-nt alias)
-> > {
-> > 	unsigned long flags;
-> > 	struct kmemleak_object *object =3D NULL;
-> >=20
-> > 	rcu_read_lock();
-> > 	read_lock_irqsave(&kmemleak_lock, flags);
-> > 	if (ptr >=3D min_addr && ptr < max_addr)
-> > 		object =3D lookup_object(ptr, alias);
-> > >>	read_unlock_irqrestore(&kmemleak_lock, flags);
-> >=20
-> > 	/* check whether the object is still available */
-> > 	if (object && !get_object(object))
-> > 		object =3D NULL;
-> > 	rcu_read_unlock();
-> >=20
-> > 	return object;
-> > }
->=20
-> It just happened here because that's where the interrupts were enabled
-> and the timer routine invoked. The rcu-locked region above should be
-> pretty short (just a tree look-up).
->=20
-> What I think happens is that the kmemleak thread runs for several
-> seconds for scanning the memory and there may not be any context
-> switches. I have a patch to add more cond_resched() calls throughout the
-> kmemleak_scan() function which I hope will get merged.=20
-
-Cc me please.
-Thanks.
-
-
-> I don't get any  of these messages with CONFIG_PREEMPT enabled.
->=20
-
-It started with rc2-git1 (may be). Almost every scan ends with RCU pending.
-
-[ 1917.133154] INFO: RCU detected CPU 0 stall (t=3D485140/3000 jiffies)
-[ 1917.133154] Pid: 511, comm: kmemleak Not tainted 2.6.31-rc2-nv-git1-0025=
-4-ga4e2f0a-dirty #2
-[ 1917.133154] Call Trace:
-[ 1917.133154]  [<c141784d>] ? printk+0x23/0x36
-[ 1917.133154]  [<c10a81e0>] __rcu_pending+0x140/0x210
-[ 1917.133154]  [<c10a82da>] rcu_pending+0x2a/0x70
-[ 1917.133154]  [<c1051b8f>] update_process_times+0x3f/0x80
-[ 1917.133154]  [<c107148f>] tick_sched_timer+0x6f/0xf0
-[ 1917.133154]  [<c10640a6>] __run_hrtimer+0x56/0xe0
-[ 1917.133154]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 1917.133154]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 1917.133154]  [<c1064aa5>] hrtimer_interrupt+0x145/0x270
-[ 1917.133154]  [<c101c48c>] smp_apic_timer_interrupt+0x5c/0xb0
-[ 1917.133154]  [<c12582b8>] ? trace_hardirqs_off_thunk+0xc/0x14
-[ 1917.133154]  [<c1003e36>] apic_timer_interrupt+0x36/0x3c
-[ 1917.133154]  [<c141ad61>] ? _read_unlock_irqrestore+0x41/0x70
-[ 1917.133154]  [<c10f7415>] find_and_get_object+0x75/0xe0
-[ 1917.133154]  [<c10f73a0>] ? find_and_get_object+0x0/0xe0
-[ 1917.133154]  [<c10f7577>] scan_block+0x87/0x110
-[ 1917.133154]  [<c10f7880>] kmemleak_scan+0x280/0x420
-[ 1917.133154]  [<c10f7600>] ? kmemleak_scan+0x0/0x420
-[ 1917.133154]  [<c10f80b0>] ? kmemleak_scan_thread+0x0/0xc0
-[ 1917.133154]  [<c10f8100>] kmemleak_scan_thread+0x50/0xc0
-[ 1917.133154]  [<c105ff54>] kthread+0x84/0x90
-[ 1917.133154]  [<c105fed0>] ? kthread+0x0/0x90
-[ 1917.133154]  [<c100401b>] kernel_thread_helper+0x7/0x1c
-[ 1979.742347] kmemleak: 1 new suspected memory leaks (see /sys/kernel/debu=
-g/kmemleak)
-[ 2589.860586] INFO: RCU detected CPU 1 stall (t=3D686958/3000 jiffies)
-[ 2589.860586] Pid: 511, comm: kmemleak Not tainted 2.6.31-rc2-nv-git1-0025=
-4-ga4e2f0a-dirty #2
-[ 2589.860586] Call Trace:
-[ 2589.860586]  [<c141784d>] ? printk+0x23/0x36
-[ 2589.860586]  [<c10a81e0>] __rcu_pending+0x140/0x210
-[ 2589.860586]  [<c10a82da>] rcu_pending+0x2a/0x70
-[ 2589.860586]  [<c1051b8f>] update_process_times+0x3f/0x80
-[ 2589.860586]  [<c107148f>] tick_sched_timer+0x6f/0xf0
-[ 2589.860586]  [<c10640a6>] __run_hrtimer+0x56/0xe0
-[ 2589.860586]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 2589.860586]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 2589.860586]  [<c1064aa5>] hrtimer_interrupt+0x145/0x270
-[ 2589.860586]  [<c104b6c8>] ? _local_bh_enable+0x68/0xd0
-[ 2589.860586]  [<c101c48c>] smp_apic_timer_interrupt+0x5c/0xb0
-[ 2589.860586]  [<c12582b8>] ? trace_hardirqs_off_thunk+0xc/0x14
-[ 2589.860586]  [<c1003e36>] apic_timer_interrupt+0x36/0x3c
-[ 2589.860586]  [<c10795d5>] ? lock_acquire+0xb5/0x120
-[ 2589.860586]  [<c10f73a0>] ? find_and_get_object+0x0/0xe0
-[ 2589.860586]  [<c10f73a0>] ? find_and_get_object+0x0/0xe0
-[ 2589.860586]  [<c10f73eb>] find_and_get_object+0x4b/0xe0
-[ 2589.860586]  [<c10f73a0>] ? find_and_get_object+0x0/0xe0
-[ 2589.860586]  [<c10f7577>] scan_block+0x87/0x110
-[ 2589.860586]  [<c10f7880>] kmemleak_scan+0x280/0x420
-[ 2589.860586]  [<c10f7600>] ? kmemleak_scan+0x0/0x420
-[ 2589.860586]  [<c10f80b0>] ? kmemleak_scan_thread+0x0/0xc0
-[ 2589.860586]  [<c10f8100>] kmemleak_scan_thread+0x50/0xc0
-[ 2589.860586]  [<c105ff54>] kthread+0x84/0x90
-[ 2589.860586]  [<c105fed0>] ? kthread+0x0/0x90
-[ 2589.860586]  [<c100401b>] kernel_thread_helper+0x7/0x1c
-[ 3089.007168] r8169: eth1: link down
-[ 3245.897188] INFO: RCU detected CPU 1 stall (t=3D883769/3000 jiffies)
-[ 3245.897188] Pid: 511, comm: kmemleak Not tainted 2.6.31-rc2-nv-git1-0025=
-4-ga4e2f0a-dirty #2
-[ 3245.897188] Call Trace:
-[ 3245.897188]  [<c141784d>] ? printk+0x23/0x36
-[ 3245.897188]  [<c10a81e0>] __rcu_pending+0x140/0x210
-[ 3245.897188]  [<c10a82da>] rcu_pending+0x2a/0x70
-[ 3245.897188]  [<c1051b8f>] update_process_times+0x3f/0x80
-[ 3245.897188]  [<c107148f>] tick_sched_timer+0x6f/0xf0
-[ 3245.897188]  [<c10640a6>] __run_hrtimer+0x56/0xe0
-[ 3245.897188]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 3245.897188]  [<c1071420>] ? tick_sched_timer+0x0/0xf0
-[ 3245.897188]  [<c1064aa5>] hrtimer_interrupt+0x145/0x270
-[ 3245.897188]  [<c101c48c>] smp_apic_timer_interrupt+0x5c/0xb0
-[ 3245.897188]  [<c12582b8>] ? trace_hardirqs_off_thunk+0xc/0x14
-[ 3245.897188]  [<c1003e36>] apic_timer_interrupt+0x36/0x3c
-[ 3245.897188]  [<c141ad61>] ? _read_unlock_irqrestore+0x41/0x70
-[ 3245.897188]  [<c10f745f>] find_and_get_object+0xbf/0xe0
-[ 3245.897188]  [<c10f73a0>] ? find_and_get_object+0x0/0xe0
-[ 3245.897188]  [<c10f7577>] scan_block+0x87/0x110
-[ 3245.897188]  [<c10f7880>] kmemleak_scan+0x280/0x420
-[ 3245.897188]  [<c10f7600>] ? kmemleak_scan+0x0/0x420
-[ 3245.897188]  [<c10f80b0>] ? kmemleak_scan_thread+0x0/0xc0
-[ 3245.897188]  [<c10f8100>] kmemleak_scan_thread+0x50/0xc0
-[ 3245.897188]  [<c105ff54>] kthread+0x84/0x90
-[ 3245.897188]  [<c105fed0>] ? kthread+0x0/0x90
-[ 3245.897188]  [<c100401b>] kernel_thread_helper+0x7/0x1c
-[ 3290.435108] kmemleak: 5 new suspected memory leaks (see /sys/kernel/debu=
-g/kmemleak)
-
-
-Hm.. Something is broken...
-cat /.../kmemleak
-[ 7933.537868] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D
-[ 7933.537873] [ BUG: lock held when returning to user space! ]
-[ 7933.537876] ------------------------------------------------
-[ 7933.537880] cat/2897 is leaving the kernel with locks still held!
-[ 7933.537884] 1 lock held by cat/2897:
-[ 7933.537887]  #0:  (scan_mutex){+.+.+.}, at: [<c10f717c>] kmemleak_open+0=
-x4c/0x80
-
-
-> --=20
-> Catalin
->=20
-=09
-	Sergey
---rJwd6BRFiFCcLxzm
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iJwEAQECAAYFAkpTSuUACgkQfKHnntdSXjR0OQP/bVH8POBqSYXspc9XtNQ8b++s
-hS5r1HpgiVYZiGRTBj7EbkJzVsgCYa/nWIIvUMHtOv+BbzDVACsC8U6BwO0iDvr8
-PkbBx2n9px16+0Mu+9lGhC4ZBMFNtGl3lP4SKdiXYsQDbf1/327P8GXbAS0+SLhs
-hEIS+aKjz8zznwoflEY=
-=YTQW
------END PGP SIGNATURE-----
-
---rJwd6BRFiFCcLxzm--
+SGksIEtvc2FraS4KCk9uIFR1ZSwgSnVsIDcsIDIwMDkgYXQgNjo0OCBQTSwgS09TQUtJCk1vdG9o
+aXJvPGtvc2FraS5tb3RvaGlyb0BqcC5mdWppdHN1LmNvbT4gd3JvdGU6Cj4gU3ViamVjdDogW1BB
+VENIXSBEb24ndCBjb250aW51ZSByZWNsYWltIGlmIHRoZSBzeXN0ZW0gaGF2ZSBwbGVudHkgZnJl
+ZSBtZW1vcnkKPgo+IE9uIGNvbmN1cnJlbnQgcmVjbGFpbSBzaXR1YXRpb24sIGlmIG9uZSByZWNs
+YWltZXIgbWFrZXMgT09NLCBtYXliZSBvdGhlcgo+IHJlY2xhaW1lciBjYW4gc3RvcCByZWNsYWlt
+IGJlY2F1c2UgT09NIGtpbGxlciBtYWtlcyBlbm91Z2ggZnJlZSBtZW1vcnkuCj4KPiBCdXQgY3Vy
+cmVudCBrZXJuZWwgZG9lc24ndCBoYXZlIGl0cyBsb2dpYy4gVGhlbiwgd2UgY2FuIGZhY2UgZm9s
+bG93aW5nIGFjY2lkZW50YWwKPiAybmQgT09NIHNjZW5hcmlvLgo+Cj4gMS4gU3lzdGVtIG1lbW9y
+eSBpcyB1c2VkIGJ5IG9ubHkgb25lIGJpZyBwcm9jZXNzLgo+IDIuIG1lbW9yeSBzaG9ydGFnZSBv
+Y2N1ciBhbmQgY29uY3VycmVudCByZWNsYWltIHN0YXJ0Lgo+IDMuIE9uZSByZWNsYWltZXIgbWFr
+ZXMgT09NIGFuZCBPT00ga2lsbGVyIGtpbGwgYWJvdmUgYmlnIHByb2Nlc3MuCj4gNC4gQWxtb3N0
+IHJlY2xhaW1hYmxlIHBhZ2Ugd2lsbCBiZSBmcmVlZC4KPiA1LiBBbm90aGVyIHJlY2xhaW1lciBj
+YW4ndCBmaW5kIGFueSByZWNsYWltYWJsZSBwYWdlIGJlY2F1c2UgdGhvc2UgcGFnZXMgYXJlCj4g
+wqAgYWxyZWFkeSBmcmVlZC4KPiA2LiBUaGVuLCBzeXN0ZW0gbWFrZXMgYWNjaWRlbnRhbCBhbmQg
+dW5uZWNlc3NhcnkgMm5kIE9PTSBraWxsZXIuCj4KCkRpZCB5b3Ugc2VlIHRoZSB0aGlzIHNpdHVh
+dGlvbiA/CldoeSBJIGFzayBpcyB0aGF0IHdlIGhhdmUgYWxyZWFkeSBhIHJvdXRpbmUgZm9yIHBy
+ZXZlbnRpbmcgcGFyYWxsZWwKT09NIGtpbGxpbmcgaW4gX19hbGxvY19wYWdlc19tYXlfb29tLgoK
+Q291bGRuJ3QgaXQgcHJvdGVjdCB5b3VyIHNjZW5hcmlvID8KSWYgaXQgY2FuJ3QsIENvdWxkIHlv
+dSBleHBsYWluIHRoZSBzY2VuYXJpbyBpbiBtb3JlIGRldGFpbCA/CgpJIHRoaW5rIGZpcnN0IHdl
+IHRyeSB0byBtb2RpZnkgb2xkIHJvdXRpbmUgd2l0aCBlZmZpY2llbnQuCgo+Cj4gUGx1cywgbm93
+YWRheSBkYXRhY2VudGVyIHN5c3RlbSBoYXZlIGJhZGJveSBwcm9jZXNzIG1vbml0b3Jpbmcgc3lz
+dGVtIGFuZAo+IGl0IGtpbGwgdG9vIG11Y2ggbWVtb3J5IGNvbnN1bXB0aW9uIHByb2Nlc3MuCj4g
+QnV0IGl0IGRvbid0IHN0b3Agb3RoZXIgcmVjbGFpbWVyIGFuZCBpdCBtYWtlcyBhY2NpZGVudGFs
+IDJuZCBPT00gYnkgdGhlCj4gc2FtZSByZWFzb24uCj4KPgo+IFRoaXMgcGF0Y2ggaGF2ZSBvbmUg
+Z29vZCBzaWRlIGVmZmVjdC4gaXQgaW5jcmVhc2UgcmVjbGFpbSBkZXBlbmRlZCBiZW5jaG1hcmsK
+PiBwZXJmb3JtYW5jZS4KPgo+IGUuZy4KPiA9PT09PQo+ICUgLi9oYWNrYmVuY2ggMTQwIHByb2Nl
+c3MgMTAwCj4KPiBiZWZvcmU6Cj4gwqAgwqAgwqAgwqBUaW1lOiA5My4zNjEKPiBhZnRlcjoKPiDC
+oCDCoCDCoCDCoFRpbWU6IDI4Ljc5OQo+Cj4KPgo+IFNpZ25lZC1vZmYtYnk6IEtPU0FLSSBNb3Rv
+aGlybyA8a29zYWtpLm1vdG9oaXJvQGpwLmZ1aml0c3UuY29tPgo+IC0tLQo+IMKgZnMvYnVmZmVy
+LmMgwqAgwqAgwqAgwqAgwqB8IMKgIMKgMiArLQo+IMKgaW5jbHVkZS9saW51eC9zd2FwLmggfCDC
+oCDCoDMgKystCj4gwqBtbS9wYWdlX2FsbG9jLmMgwqAgwqAgwqB8IMKgIMKgMyArKy0KPiDCoG1t
+L3Ztc2Nhbi5jIMKgIMKgIMKgIMKgIMKgfCDCoCAyOSArKysrKysrKysrKysrKysrKysrKysrKysr
+KysrLQo+IMKgNCBmaWxlcyBjaGFuZ2VkLCAzMyBpbnNlcnRpb25zKCspLCA0IGRlbGV0aW9ucygt
+KQo+Cj4gSW5kZXg6IGIvbW0vdm1zY2FuLmMKPiA9PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Cj4gLS0tIGEvbW0vdm1zY2Fu
+LmMKPiArKysgYi9tbS92bXNjYW4uYwo+IEBAIC04Nyw2ICs4Nyw5IEBAIHN0cnVjdCBzY2FuX2Nv
+bnRyb2wgewo+IMKgIMKgIMKgIMKgICovCj4gwqAgwqAgwqAgwqBub2RlbWFza190IMKgIMKgIMKg
+Km5vZGVtYXNrOwo+Cj4gKyDCoCDCoCDCoCAvKiBDYWxsZXIncyBwcmVmZXJyZWQgem9uZS4gKi8K
+PiArIMKgIMKgIMKgIHN0cnVjdCB6b25lIMKgIMKgICpwcmVmZXJyZWRfem9uZTsKPiArCj4gwqAg
+wqAgwqAgwqAvKiBQbHVnZ2FibGUgaXNvbGF0ZSBwYWdlcyBjYWxsYmFjayAqLwo+IMKgIMKgIMKg
+IMKgdW5zaWduZWQgbG9uZyAoKmlzb2xhdGVfcGFnZXMpKHVuc2lnbmVkIGxvbmcgbnIsIHN0cnVj
+dCBsaXN0X2hlYWQgKmRzdCwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHVu
+c2lnbmVkIGxvbmcgKnNjYW5uZWQsIGludCBvcmRlciwgaW50IG1vZGUsCj4gQEAgLTE1MzUsNiAr
+MTUzOCwxMCBAQCBzdGF0aWMgdm9pZCBzaHJpbmtfem9uZShpbnQgcHJpb3JpdHksIHN0Cj4gwqAg
+wqAgwqAgwqB1bnNpZ25lZCBsb25nIG5yX3JlY2xhaW1lZCA9IHNjLT5ucl9yZWNsYWltZWQ7Cj4g
+wqAgwqAgwqAgwqB1bnNpZ25lZCBsb25nIHN3YXBfY2x1c3Rlcl9tYXggPSBzYy0+c3dhcF9jbHVz
+dGVyX21heDsKPiDCoCDCoCDCoCDCoGludCBub3N3YXAgPSAwOwo+ICsgwqAgwqAgwqAgaW50IGNs
+YXNzem9uZV9pZHggPSAwOwo+ICsKPiArIMKgIMKgIMKgIGlmIChzYy0+cHJlZmVycmVkX3pvbmUp
+Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBjbGFzc3pvbmVfaWR4ID0gem9uZV9pZHgoc2MtPnBy
+ZWZlcnJlZF96b25lKTsKPgo+IMKgIMKgIMKgIMKgLyogSWYgd2UgaGF2ZSBubyBzd2FwIHNwYWNl
+LCBkbyBub3QgYm90aGVyIHNjYW5uaW5nIGFub24gcGFnZXMuICovCj4gwqAgwqAgwqAgwqBpZiAo
+IXNjLT5tYXlfc3dhcCB8fCAobnJfc3dhcF9wYWdlcyA8PSAwKSkgewo+IEBAIC0xNTgzLDYgKzE1
+OTAsMjAgQEAgc3RhdGljIHZvaWQgc2hyaW5rX3pvbmUoaW50IHByaW9yaXR5LCBzdAo+IMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgaWYgKG5yX3JlY2xhaW1lZCA+IHN3YXBfY2x1c3Rlcl9tYXggJiYK
+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHByaW9yaXR5IDwgREVGX1BSSU9S
+SVRZICYmICFjdXJyZW50X2lzX2tzd2FwZCgpKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgYnJlYWs7Cj4gKwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgLyoKPiArIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgKiBOb3csIHdlIGhhdmUgcGxlbnR5IGZyZWUgbWVtb3J5Lgo+ICsg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAqIFBlcmhhcHMsIGJpZyBwcm9jZXNzZXMgZXhpdGVkIG9y
+IHRoZXkga2lsbGVkIGJ5IE9PTSBraWxsZXIuCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCog
+VG8gY29udGludWUgcmVjbGFpbSBkb2Vzbid0IG1ha2UgYW55IHNlbnNlLgo+ICsgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAqLwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKHpvbmVfcGFnZV9z
+dGF0ZSh6b25lLCBOUl9GUkVFX1BBR0VTKSA+Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCB6b25lX2xydV9wYWdlcyh6b25lKSAmJgo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+em9uZV93YXRlcm1hcmtfb2soem9uZSwgc2MtPm9yZGVyLCBoaWdoX3dtYXJrX3BhZ2VzKHpvbmUp
+LAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgY2xhc3N6b25lX2lkeCwgMCkpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIC8qIGZha2UgcmVzdWx0IGZvciByZWNsYWltIHN0b3AgKi8KPiArIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIG5yX3JlY2xhaW1lZCArPSBzd2FwX2NsdXN0ZXJfbWF4Owo+ICsg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYnJlYWs7Cj4gKyDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCB9Cj4gwqAgwqAgwqAgwqB9Cj4KPiDCoCDCoCDCoCDCoHNjLT5ucl9yZWNsYWltZWQg
+PSBucl9yZWNsYWltZWQ7Cj4gQEAgLTE3NjcsNyArMTc4OCw4IEBAIG91dDoKPiDCoH0KPgo+IMKg
+dW5zaWduZWQgbG9uZyB0cnlfdG9fZnJlZV9wYWdlcyhzdHJ1Y3Qgem9uZWxpc3QgKnpvbmVsaXN0
+LCBpbnQgb3JkZXIsCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCBnZnBfdCBnZnBfbWFzaywgbm9kZW1hc2tfdCAqbm9kZW1hc2spCj4gKyDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBnZnBfdCBnZnBfbWFzaywgbm9kZW1h
+c2tfdCAqbm9kZW1hc2ssCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBzdHJ1Y3Qgem9uZSAqcHJlZmVycmVkX3pvbmUpCj4gwqB7Cj4gwqAgwqAgwqAgwqBz
+dHJ1Y3Qgc2Nhbl9jb250cm9sIHNjID0gewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgLmdmcF9t
+YXNrID0gZ2ZwX21hc2ssCj4gQEAgLTE3ODAsNiArMTgwMiw3IEBAIHVuc2lnbmVkIGxvbmcgdHJ5
+X3RvX2ZyZWVfcGFnZXMoc3RydWN0IHoKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoC5tZW1fY2dy
+b3VwID0gTlVMTCwKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoC5pc29sYXRlX3BhZ2VzID0gaXNv
+bGF0ZV9wYWdlc19nbG9iYWwsCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAubm9kZW1hc2sgPSBu
+b2RlbWFzaywKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC5wcmVmZXJyZWRfem9uZSA9IHByZWZl
+cnJlZF96b25lLAo+IMKgIMKgIMKgIMKgfTsKPgo+IMKgIMKgIMKgIMKgcmV0dXJuIGRvX3RyeV90
+b19mcmVlX3BhZ2VzKHpvbmVsaXN0LCAmc2MpOwo+IEBAIC0xODA4LDYgKzE4MzEsMTAgQEAgdW5z
+aWduZWQgbG9uZyB0cnlfdG9fZnJlZV9tZW1fY2dyb3VwX3BhZwo+IMKgIMKgIMKgIMKgc2MuZ2Zw
+X21hc2sgPSAoZ2ZwX21hc2sgJiBHRlBfUkVDTEFJTV9NQVNLKSB8Cj4gwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAoR0ZQX0hJR0hVU0VSX01PVkFCTEUgJiB+R0ZQX1JFQ0xBSU1f
+TUFTSyk7Cj4gwqAgwqAgwqAgwqB6b25lbGlzdCA9IE5PREVfREFUQShudW1hX25vZGVfaWQoKSkt
+Pm5vZGVfem9uZWxpc3RzOwo+ICsgwqAgwqAgwqAgZmlyc3Rfem9uZXNfem9uZWxpc3Qoem9uZWxp
+c3QsCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGdmcF96b25l
+KHNjLmdmcF9tYXNrKSwgTlVMTCwKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgJnNjLnByZWZlcnJlZF96b25lKTsKPiArCj4gwqAgwqAgwqAgwqByZXR1cm4gZG9f
+dHJ5X3RvX2ZyZWVfcGFnZXMoem9uZWxpc3QsICZzYyk7Cj4gwqB9Cj4gwqAjZW5kaWYKPiBJbmRl
+eDogYi9mcy9idWZmZXIuYwo+ID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KPiAtLS0gYS9mcy9idWZmZXIuYwo+ICsrKyBi
+L2ZzL2J1ZmZlci5jCj4gQEAgLTI5MCw3ICsyOTAsNyBAQCBzdGF0aWMgdm9pZCBmcmVlX21vcmVf
+bWVtb3J5KHZvaWQpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAmem9uZSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqBpZiAoem9uZSkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHRyeV90
+b19mcmVlX3BhZ2VzKG5vZGVfem9uZWxpc3QobmlkLCBHRlBfTk9GUyksIDAsCj4gLSDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCBHRlBfTk9GUywgTlVMTCk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBHRlBfTk9GUywgTlVMTCwgem9uZSk7Cj4gwqAg
+wqAgwqAgwqB9Cj4gwqB9Cj4KPiBJbmRleDogYi9pbmNsdWRlL2xpbnV4L3N3YXAuaAo+ID09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT0KPiAtLS0gYS9pbmNsdWRlL2xpbnV4L3N3YXAuaAo+ICsrKyBiL2luY2x1ZGUvbGludXgv
+c3dhcC5oCj4gQEAgLTIxMyw3ICsyMTMsOCBAQCBzdGF0aWMgaW5saW5lIHZvaWQgbHJ1X2NhY2hl
+X2FkZF9hY3RpdmVfCj4KPiDCoC8qIGxpbnV4L21tL3Ztc2Nhbi5jICovCj4gwqBleHRlcm4gdW5z
+aWduZWQgbG9uZyB0cnlfdG9fZnJlZV9wYWdlcyhzdHJ1Y3Qgem9uZWxpc3QgKnpvbmVsaXN0LCBp
+bnQgb3JkZXIsCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCBnZnBfdCBnZnBfbWFzaywgbm9kZW1hc2tfdCAqbWFzayk7Cj4gKyDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoGdmcF90
+IGdmcF9tYXNrLCBub2RlbWFza190ICptYXNrLAo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzdHJ1Y3Qgem9uZSAqcHJlZmVycmVkX3pv
+bmUpOwo+IMKgZXh0ZXJuIHVuc2lnbmVkIGxvbmcgdHJ5X3RvX2ZyZWVfbWVtX2Nncm91cF9wYWdl
+cyhzdHJ1Y3QgbWVtX2Nncm91cCAqbWVtLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgZ2ZwX3QgZ2ZwX21h
+c2ssIGJvb2wgbm9zd2FwLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgdW5zaWduZWQgaW50IHN3YXBwaW5l
+c3MpOwo+IEluZGV4OiBiL21tL3BhZ2VfYWxsb2MuYwo+ID09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KPiAtLS0gYS9tbS9w
+YWdlX2FsbG9jLmMKPiArKysgYi9tbS9wYWdlX2FsbG9jLmMKPiBAQCAtMTYyOSw3ICsxNjI5LDgg
+QEAgX19hbGxvY19wYWdlc19kaXJlY3RfcmVjbGFpbShnZnBfdCBnZnBfbQo+IMKgIMKgIMKgIMKg
+cmVjbGFpbV9zdGF0ZS5yZWNsYWltZWRfc2xhYiA9IDA7Cj4gwqAgwqAgwqAgwqBwLT5yZWNsYWlt
+X3N0YXRlID0gJnJlY2xhaW1fc3RhdGU7Cj4KPiAtIMKgIMKgIMKgICpkaWRfc29tZV9wcm9ncmVz
+cyA9IHRyeV90b19mcmVlX3BhZ2VzKHpvbmVsaXN0LCBvcmRlciwgZ2ZwX21hc2ssIG5vZGVtYXNr
+KTsKPiArIMKgIMKgIMKgICpkaWRfc29tZV9wcm9ncmVzcyA9IHRyeV90b19mcmVlX3BhZ2VzKHpv
+bmVsaXN0LCBvcmRlciwgZ2ZwX21hc2ssCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG5vZGVtYXNrLCBwcmVmZXJy
+ZWRfem9uZSk7Cj4KPiDCoCDCoCDCoCDCoHAtPnJlY2xhaW1fc3RhdGUgPSBOVUxMOwo+IMKgIMKg
+IMKgIMKgbG9ja2RlcF9jbGVhcl9jdXJyZW50X3JlY2xhaW1fc3RhdGUoKTsKPgo+Cj4KCgoKLS0g
+CktpbmQgcmVnYXJkcywKTWluY2hhbiBLaW0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
