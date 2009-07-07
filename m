@@ -1,119 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AA4036B005A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:52:23 -0400 (EDT)
-Date: Tue, 7 Jul 2009 18:53:50 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem allocator
-Message-ID: <20090707165350.GA2782@cmpxchg.org>
-References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com> <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com> <1246950530.24285.7.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1246950530.24285.7.camel@penberg-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 229F36B005A
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:57:49 -0400 (EDT)
+Date: Tue, 7 Jul 2009 09:59:39 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+In-Reply-To: <20090707140033.GB2714@wotan.suse.de>
+Message-ID: <alpine.LFD.2.01.0907070952341.3210@localhost.localdomain>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090707140033.GB2714@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 10:08:50AM +0300, Pekka Enberg wrote:
-> On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
-> > This patch adds kmemleak_alloc/free callbacks to the bootmem allocator.
-> > This would allow scanning of such blocks and help avoiding a whole class
-> > of false positives and more kmemleak annotations.
-> > 
-> > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> > Cc: Ingo Molnar <mingo@elte.hu>
-> > Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+
+
+On Tue, 7 Jul 2009, Nick Piggin wrote:
 > 
-> Looks good to me!
-> 
-> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-> 
-> But lets cc Johannes on this too.
+> I just wouldn't like to re-add significant complexity back to
+> the vm without good and concrete examples. OK I agree that
+> just saying "rewrite your code" is not so good, but are there
+> real significant problems? Is it inside just a particuar linear
+> algebra library or something  that might be able to be updated?
 
-> > @@ -597,7 +601,9 @@ restart:
-> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
-> >  					unsigned long goal)
-> >  {
-> > -	return ___alloc_bootmem_nopanic(size, align, goal, 0);
-> > +	void *ptr =  ___alloc_bootmem_nopanic(size, align, goal, 0);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> > +	return ptr;
+The thing is, ZERO_PAGE really used to work very well.
 
-You may get an object from kzalloc() here, I don't think you want to
-track that (again), right?
+It was not only useful for simple "I want lots of memory, and I'm going to 
+use it pretty sparsely" (which _is_ a very valid thing to do), but it was 
+useful for TLB benchmarking, and for cache-efficient "I'm going to write 
+lots of zeroes to files", and for a number of other uses.
 
-Pekka already worked out all the central places to catch 'slab already
-available' allocations, they can probably help you place the hooks.
+You can talk about TLB pressure all you want, but the fact is, quite often 
+normal cache effects dominate - and ZERO_PAGE is _wonderful_ for sharing 
+cachelines (which is why it was so useful for TLB performance testing: map 
+a huge area, and you know that there will be no cache effects, only TLB 
+effects).
 
-> >  static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
-> > @@ -631,7 +637,9 @@ static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
-> >  void * __init __alloc_bootmem(unsigned long size, unsigned long align,
-> >  			      unsigned long goal)
-> >  {
-> > -	return ___alloc_bootmem(size, align, goal, 0);
-> > +	void *ptr = ___alloc_bootmem(size, align, goal, 0);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> > +	return ptr;
+There are actually very few cases where TLB effects are the primary ones - 
+they tend to happen when you have truly random accesses that have no 
+locality even on a small case. That's pretty rare. Even things that depend 
+on sparse arrays etc tend to mainly _access_ the parts it works on (ie you 
+may have allocated hundreds of megs of memory to simplify your memory 
+management, but you work on only a small part of it).
 
-Same here.
+So it's not just "people actually use it". It really was a useful feature, 
+with valid uses. We got rid of it, but if we can re-introduce it cleanly, 
+we definitely should.
 
-> >  #ifdef CONFIG_SPARSEMEM
-> > @@ -707,14 +719,18 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
-> >  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
-> >  
-> >  	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size, align, goal, 0);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> >  	if (ptr)
-> >  		return ptr;
-> >  
-> >  	ptr = alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> >  	if (ptr)
-> >  		return ptr;
-> >  
-> > -	return __alloc_bootmem_nopanic(size, align, goal);
-> > +	ptr = __alloc_bootmem_nopanic(size, align, goal);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> > +	return ptr;
-> >  }
+I don't understand why you fight it. If we can do it well (read: without 
+having fork/exit cause endless amounts of cache ping-pongs due to touching 
+'struct page *'), there are no downsides that I can see. It's not like 
+it's a complicated feature.
 
-Can you use a central exit and goto?
-
-> >  #ifndef ARCH_LOW_ADDRESS_LIMIT
-> > @@ -737,7 +753,9 @@ void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
-> >  void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
-> >  				  unsigned long goal)
-> >  {
-> > -	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
-> > +	void *ptr =  ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-> > +	return ptr;
-> >  }
-
-Possible slab object.
-
-> > @@ -758,9 +776,13 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
-> >  void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
-> >  				       unsigned long align, unsigned long goal)
-> >  {
-> > +	void *ptr;
-> > +
-> >  	if (WARN_ON_ONCE(slab_is_available()))
-> >  		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
-> >  
-> > -	return ___alloc_bootmem_node(pgdat->bdata, size, align,
-> > -				goal, ARCH_LOW_ADDRESS_LIMIT);
-> > +	ptr = ___alloc_bootmem_node(pgdat->bdata, size, align,
-> > +				    goal, ARCH_LOW_ADDRESS_LIMIT);
-> > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
-
-These GFP_KERNEL startled me.  We know for sure that this code runs in
-earlylog mode only and gfp is unused, right?  Can you perhaps just
-pass 0 for gfp instead?
-
-	Hannes
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
