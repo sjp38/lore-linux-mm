@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2BA466B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 04:40:40 -0400 (EDT)
-Message-ID: <4A5314BF.5010607@redhat.com>
-Date: Tue, 07 Jul 2009 12:26:23 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 204CA6B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 04:57:06 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n679eWU8005063
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 7 Jul 2009 18:40:34 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A241445DE51
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 18:40:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CB9545DE4F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 18:40:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5601D1DB8038
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 18:40:32 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C5C31DB803C
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 18:40:32 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [RFC PATCH 0/2] fix unnecessary accidental OOM problem on concurrent reclaim
+Message-Id: <20090707182947.0C6D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>	<20090707084750.GX2714@wotan.suse.de>	<4A530FD4.7060606@redhat.com> <20090707181829.10d48272.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090707181829.10d48272.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  7 Jul 2009 18:40:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 07/07/2009 12:18 PM, KAMEZAWA Hiroyuki wrote:
->> For kvm live migration, I've thought of extending mincore() to report if
->> a page will be read as zeros.
->>
->>      
-> BTW, ksm can scale enough to combine all pages which just includes zero ?
-> No heavy cache ping-pong without zero-page ?
->    
+This patch series depent on "OOM analysis helper patches" series.
 
-ksm will increase cpu and cache load; it's oriented towards workloads 
-where reducing memory pressure is more important than cpu load.  For 
-cpu-intensive, low sharing workloads it will be disabled.  That's why I 
-want an alternative way to deal with zero pages; it can be ZERO_PAGE, 
-mincore(), or madvise(MADV_DROP_IFZERO).
+Current reclaim logic doesn't consider concurrent reclaim. Then it makes
+accidental OOM on many CPU systems.
 
--- 
-error compiling committee.c: too many arguments to function
+I think this patch series addresses its issue.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
