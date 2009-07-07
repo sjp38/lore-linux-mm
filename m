@@ -1,261 +1,387 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A91D6B005C
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:17:49 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 54D226B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:29:01 -0400 (EDT)
+Date: Tue, 7 Jul 2009 12:30:42 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
+Message-ID: <20090707163042.GA14947@infradead.org>
+References: <20090707144423.GC2714@wotan.suse.de> <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de>
 MIME-Version: 1.0
-Message-ID: <e6d4c2a1-65f1-4488-8ea7-e1ee0fe35a1d@default>
-Date: Tue, 7 Jul 2009 09:18:36 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [RFC PATCH 4/4] (Take 2): tmem: Build Xen interface under tmem layer
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20090707154809.GH2714@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tmem [PATCH 4/4] (Take 2): Build Xen interface under tmem layer.
+On Tue, Jul 07, 2009 at 05:48:09PM +0200, Nick Piggin wrote:
+> OK, so what do you suggest? If the filesystem defines
+> ->setsize then do not pass ATTR_SIZE changes into setattr?
+> But then do you also not pass in ATTR_TIME cchanges to setattr
+> iff they  are together with ATTR_SIZE change? It sees also like
+> quite a difficult calling convention.
 
-Interface kernel tmem API to a Xen hypercall implementation of tmem
-that conforms to the published Transcendent Memory API.
+Ok, I played around with these ideas and your patches a bit.  I think
+we're actually best of to return to one of the early ideas and just
+get rid of ->truncate without any replacement, e.g. let ->setattr
+handle all of it.
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Below is a patch ontop of you four patches that implements exactly that
+and it looks surprisingly nice.  The only gotcha I can see is that we
+need to audit for existing filesystems not implementing ->truncate
+getting a behaviour change due to the checks to decide if we want
+to call vmtruncate.  But most likely any existing filesystems without
+->truncate using the buffer.c helper or direct I/O is buggy anyway.
 
+Note that it doesn't touch i_alloc_mutex locking for now - if we go
+down this route I would do the lock shift in one patch at the end of
+the series.
 
- arch/x86/include/asm/xen/hypercall.h     |    8 +
- drivers/xen/Makefile                     |    1=20
- drivers/xen/tmem.c                       |   97 +++++++++++++++++++++
- include/xen/interface/tmem.h             |   43 +++++++++
- include/xen/interface/xen.h              |   22 ++++
- 5 files changed, 171 insertions(+)
+This patch passes xfsqa for ext2 and doing some randoms ops for shmem
+(it's mounted on /tmp on my test VM)
 
---- linux-2.6.30/arch/x86/include/asm/xen/hypercall.h=092009-06-09 21:05:27=
-.000000000 -0600
-+++ linux-2.6.30-tmem/arch/x86/include/asm/xen/hypercall.h=092009-06-19 13:=
-49:04.000000000 -0600
-@@ -45,6 +45,7 @@
- #include <xen/interface/xen.h>
- #include <xen/interface/sched.h>
- #include <xen/interface/physdev.h>
-+#include <xen/interface/tmem.h>
-=20
- /*
-  * The hypercall asms have to meet several constraints:
-@@ -417,6 +418,13 @@ HYPERVISOR_nmi_op(unsigned long op, unsi
- =09return _hypercall2(int, nmi_op, op, arg);
+Index: linux-2.6/fs/ext2/ext2.h
+===================================================================
+--- linux-2.6.orig/fs/ext2/ext2.h	2009-07-07 17:15:22.591389224 +0200
++++ linux-2.6/fs/ext2/ext2.h	2009-07-07 17:15:26.185252886 +0200
+@@ -122,7 +122,6 @@ extern int ext2_write_inode (struct inod
+ extern void ext2_delete_inode (struct inode *);
+ extern int ext2_sync_inode (struct inode *);
+ extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
+-extern int ext2_setsize(struct dentry *, loff_t, unsigned int, struct file *);
+ extern int ext2_setattr (struct dentry *, struct iattr *);
+ extern void ext2_set_inode_flags(struct inode *inode);
+ extern void ext2_get_inode_flags(struct ext2_inode_info *);
+Index: linux-2.6/fs/ext2/file.c
+===================================================================
+--- linux-2.6.orig/fs/ext2/file.c	2009-07-07 17:15:10.028363845 +0200
++++ linux-2.6/fs/ext2/file.c	2009-07-07 17:15:19.283479548 +0200
+@@ -77,7 +77,6 @@ const struct file_operations ext2_xip_fi
+ #endif
+ 
+ const struct inode_operations ext2_file_inode_operations = {
+-	.setsize	= ext2_setsize,
+ #ifdef CONFIG_EXT2_FS_XATTR
+ 	.setxattr	= generic_setxattr,
+ 	.getxattr	= generic_getxattr,
+Index: linux-2.6/fs/ext2/inode.c
+===================================================================
+--- linux-2.6.orig/fs/ext2/inode.c	2009-07-07 17:15:10.045364476 +0200
++++ linux-2.6/fs/ext2/inode.c	2009-07-07 17:53:01.633240795 +0200
+@@ -1145,55 +1145,6 @@ do_indirects:
+ 	mutex_unlock(&ei->truncate_mutex);
  }
-=20
-+static inline int
-+HYPERVISOR_tmem_op(
-+=09struct tmem_op *op)
-+{
-+=09return _hypercall1(int, tmem_op, op);
-+}
-+
- static inline void
- MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)
+ 
+-int ext2_setsize(struct dentry *dentry, loff_t newsize,
+-			unsigned int flags, struct file *file)
+-{
+-	struct inode *inode = dentry->d_inode;
+-	loff_t oldsize;
+-	int error;
+-
+-	error = inode_newsize_ok(inode, newsize);
+-	if (error)
+-		return error;
+-
+-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+-	    S_ISLNK(inode->i_mode)))
+-		return -EINVAL;
+-	if (ext2_inode_is_fast_symlink(inode))
+-		return -EINVAL;
+-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+-		return -EPERM;
+-
+-	if (mapping_is_xip(inode->i_mapping))
+-		error = xip_truncate_page(inode->i_mapping, newsize);
+-	else if (test_opt(inode->i_sb, NOBH))
+-		error = nobh_truncate_page(inode->i_mapping,
+-				newsize, ext2_get_block);
+-	else
+-		error = block_truncate_page(inode->i_mapping,
+-				newsize, ext2_get_block);
+-	if (error)
+-		return error;
+-
+-	oldsize = inode->i_size;
+-	i_size_write(inode, newsize);
+-	truncate_pagecache(inode, oldsize, newsize);
+-
+-	down_write(&inode->i_alloc_sem);
+-	ext2_truncate_blocks(inode, newsize);
+-	up_write(&inode->i_alloc_sem);
+-
+-	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+-	if (inode_needs_sync(inode)) {
+-		sync_mapping_buffers(inode->i_mapping);
+-		ext2_sync_inode (inode);
+-	} else {
+-		mark_inode_dirty(inode);
+-	}
+-
+-	return 0;
+-}
+-
+ static struct ext2_inode *ext2_get_inode(struct super_block *sb, ino_t ino,
+ 					struct buffer_head **p)
  {
---- linux-2.6.30/drivers/xen/Makefile=092009-06-09 21:05:27.000000000 -0600
-+++ linux-2.6.30-tmem/drivers/xen/Makefile=092009-06-19 09:33:59.000000000 =
--0600
-@@ -3,5 +3,6 @@ obj-y=09+=3D xenbus/
-=20
- obj-$(CONFIG_HOTPLUG_CPU)=09+=3D cpu_hotplug.o
- obj-$(CONFIG_XEN_XENCOMM)=09+=3D xencomm.o
-+obj-$(CONFIG_TMEM)=09=09+=3D tmem.o
- obj-$(CONFIG_XEN_BALLOON)=09+=3D balloon.o
- obj-$(CONFIG_XENFS)=09=09+=3D xenfs/
-\ No newline at end of file
---- linux-2.6.30/include/xen/interface/tmem.h=091969-12-31 17:00:00.0000000=
-00 -0700
-+++ linux-2.6.30-tmem/include/xen/interface/tmem.h=092009-06-19 11:21:24.00=
-0000000 -0600
-@@ -0,0 +1,43 @@
-+/*
-+ * include/xen/interface/tmem.h
-+ *
-+ * Interface to Xen implementation of transcendent memory
-+ *
-+ * Copyright (C) 2009 Dan Magenheimer, Oracle Corp.
-+ */
-+
-+#include <xen/interface/xen.h>
-+
-+#define TMEM_CONTROL               0
-+#define TMEM_NEW_POOL              1
-+#define TMEM_DESTROY_POOL          2
-+#define TMEM_NEW_PAGE              3
-+#define TMEM_PUT_PAGE              4
-+#define TMEM_GET_PAGE              5
-+#define TMEM_FLUSH_PAGE            6
-+#define TMEM_FLUSH_OBJECT          7
-+#define TMEM_READ                  8
-+#define TMEM_WRITE                 9
-+#define TMEM_XCHG                 10
-+
-+/* Subops for HYPERVISOR_tmem_op(TMEM_CONTROL) */
-+#define TMEMC_THAW                 0
-+#define TMEMC_FREEZE               1
-+#define TMEMC_FLUSH                2
-+#define TMEMC_DESTROY              3
-+#define TMEMC_LIST                 4
-+#define TMEMC_SET_WEIGHT           5
-+#define TMEMC_SET_CAP              6
-+#define TMEMC_SET_COMPRESS         7
-+
-+/* Bits for HYPERVISOR_tmem_op(TMEM_NEW_POOL) */
-+#define TMEM_POOL_PERSIST          1
-+#define TMEM_POOL_SHARED           2
-+#define TMEM_POOL_PAGESIZE_SHIFT   4
-+#define TMEM_POOL_PAGESIZE_MASK  0xf
-+#define TMEM_POOL_VERSION_SHIFT   24
-+#define TMEM_POOL_VERSION_MASK  0xff
-+
-+/* Special errno values */
-+#define EFROZEN                 1000
-+#define EEMPTY                  1001
---- linux-2.6.30/include/xen/interface/xen.h=092009-06-09 21:05:27.00000000=
-0 -0600
-+++ linux-2.6.30-tmem/include/xen/interface/xen.h=092009-07-06 15:47:24.000=
-000000 -0600
-@@ -58,6 +58,7 @@
- #define __HYPERVISOR_event_channel_op     32
- #define __HYPERVISOR_physdev_op           33
- #define __HYPERVISOR_hvm_op               34
-+#define __HYPERVISOR_tmem_op              38
-=20
- /* Architecture-specific hypercall definitions. */
- #define __HYPERVISOR_arch_0               48
-@@ -461,6 +462,27 @@ typedef uint8_t xen_domain_handle_t[16];
- #define __mk_unsigned_long(x) x ## UL
- #define mk_unsigned_long(x) __mk_unsigned_long(x)
-=20
-+struct tmem_op {
-+=09uint32_t cmd;
-+=09int32_t pool_id;
-+=09union {
-+=09=09struct {  /* for cmd =3D=3D TMEM_NEW_POOL */
-+=09=09=09uint64_t uuid[2];
-+=09=09=09uint32_t flags;
-+=09=09} new;
-+=09=09struct {
-+=09=09=09uint64_t object;
-+=09=09=09uint32_t index;
-+=09=09=09uint32_t tmem_offset;
-+=09=09=09uint32_t pfn_offset;
-+=09=09=09uint32_t len;
-+=09=09=09GUEST_HANDLE(void) gmfn; /* guest machine page frame */
-+=09=09} gen;
-+=09} u;
-+};
-+typedef struct tmem_op tmem_op_t;
-+DEFINE_GUEST_HANDLE_STRUCT(tmem_op_t);
-+
- #else /* __ASSEMBLY__ */
-=20
- /* In assembly code we cannot use C numeric constant suffixes. */
---- linux-2.6.30/drivers/xen/tmem.c=091969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.30-tmem/drivers/xen/tmem.c=092009-06-23 19:30:06.000000000 -0=
-600
-@@ -0,0 +1,97 @@
-+/*
-+ * Xen implementation for transcendent memory (tmem)
-+ *
-+ * Dan Magenheimer <dan.magenheimer@oracle.com> 2009
-+ */
-+
-+#include <linux/kernel.h>
-+#include <linux/types.h>
-+#include <linux/errno.h>
-+#include <linux/init.h>
-+#include <linux/tmem.h>
-+#include <xen/interface/xen.h>
-+#include <xen/interface/tmem.h>
-+#include <asm/xen/hypercall.h>
-+#include <asm/xen/page.h>
-+
-+static inline int xen_tmem_op(u32 tmem_cmd, u32 tmem_pool, u64 object,
-+=09u32 index, unsigned long gmfn, u32 tmem_offset, u32 pfn_offset, u32 len=
-)
+@@ -1510,11 +1461,62 @@ int ext2_sync_inode(struct inode *inode)
+ 	return sync_inode(inode, &wbc);
+ }
+ 
++static int ext2_setsize(struct inode *inode, loff_t newsize)
 +{
-+=09struct tmem_op op;
-+=09int rc =3D 0;
++	loff_t oldsize;
++	int error;
 +
-+=09op.cmd =3D tmem_cmd;
-+=09op.pool_id =3D tmem_pool;
-+=09op.u.gen.object =3D object;
-+=09op.u.gen.index =3D index;
-+=09op.u.gen.tmem_offset =3D tmem_offset;
-+=09op.u.gen.pfn_offset =3D pfn_offset;
-+=09op.u.gen.len =3D len;
-+=09set_xen_guest_handle(op.u.gen.gmfn, (void *)gmfn);
-+=09rc =3D HYPERVISOR_tmem_op(&op);
-+=09return rc;
++	error = inode_newsize_ok(inode, newsize);
++	if (error)
++		return error;
++
++	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
++	    S_ISLNK(inode->i_mode)))
++		return -EINVAL;
++	if (ext2_inode_is_fast_symlink(inode))
++		return -EINVAL;
++	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
++		return -EPERM;
++
++	if (mapping_is_xip(inode->i_mapping))
++		error = xip_truncate_page(inode->i_mapping, newsize);
++	else if (test_opt(inode->i_sb, NOBH))
++		error = nobh_truncate_page(inode->i_mapping,
++				newsize, ext2_get_block);
++	else
++		error = block_truncate_page(inode->i_mapping,
++				newsize, ext2_get_block);
++	if (error)
++		return error;
++
++	oldsize = inode->i_size;
++	i_size_write(inode, newsize);
++	truncate_pagecache(inode, oldsize, newsize);
++
++	ext2_truncate_blocks(inode, newsize);
++
++	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
++	if (inode_needs_sync(inode)) {
++		sync_mapping_buffers(inode->i_mapping);
++		ext2_sync_inode (inode);
++	} else {
++		mark_inode_dirty(inode);
++	}
++
++	return 0;
 +}
 +
-+static int xen_tmem_new_pool(struct tmem_pool_uuid uuid, u32 flags)
-+{
-+=09struct tmem_op op;
-+=09int rc =3D 0;
+ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
+ {
+ 	struct inode *inode = dentry->d_inode;
+ 	int error;
+ 
++	if (iattr->ia_valid & ATTR_SIZE) {
++		error = ext2_setsize(inode, iattr->ia_size);
++		if (error)
++			return error;
++	}
 +
-+=09flags |=3D (PAGE_SHIFT - 12) << TMEM_POOL_PAGESIZE_SHIFT;
-+=09op.cmd =3D TMEM_NEW_POOL;
-+=09op.u.new.uuid[0] =3D uuid.uuid_lo;
-+=09op.u.new.uuid[1] =3D uuid.uuid_hi;
-+=09op.u.new.flags =3D flags;
-+=09rc =3D HYPERVISOR_tmem_op(&op);
-+=09return rc;
-+}
+ 	error = inode_change_ok(inode, iattr);
+ 	if (error)
+ 		return error;
+Index: linux-2.6/fs/attr.c
+===================================================================
+--- linux-2.6.orig/fs/attr.c	2009-07-07 17:14:41.017394460 +0200
++++ linux-2.6/fs/attr.c	2009-07-07 17:23:06.618241423 +0200
+@@ -206,24 +206,8 @@ int notify_change(struct dentry * dentry
+ 	if (error)
+ 		return error;
+ 
+-	if (ia_valid & ATTR_SIZE) {
+-		if (inode->i_op && inode->i_op->setsize) {
+-			unsigned int flags = 0;
+-			struct file *file = NULL;
+-
+-			if (ia_valid & ATTR_FILE) {
+-				flags |= SETSIZE_FILE;
+-				file = attr->ia_file;
+-			}
+-			if (ia_valid & ATTR_OPEN)
+-				flags |= SETSIZE_OPEN;
+-			error = inode->i_op->setsize(dentry, attr->ia_size,
+-							flags, file);
+-			if (error)
+-				return error;
+-		} else
+-			down_write(&dentry->d_inode->i_alloc_sem);
+-	}
++	if (ia_valid & ATTR_SIZE)
++		down_write(&dentry->d_inode->i_alloc_sem);
+ 
+ 	if (inode->i_op && inode->i_op->setattr) {
+ 		error = inode->i_op->setattr(dentry, attr);
+@@ -239,7 +223,7 @@ int notify_change(struct dentry * dentry
+ 		}
+ 	}
+ 
+-	if (ia_valid & ATTR_SIZE && !(inode->i_op && inode->i_op->setsize))
++	if (ia_valid & ATTR_SIZE)
+ 		up_write(&dentry->d_inode->i_alloc_sem);
+ 
+ 	if (!error)
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c	2009-07-07 17:22:16.770364959 +0200
++++ linux-2.6/fs/buffer.c	2009-07-07 17:23:33.825268267 +0200
+@@ -1993,11 +1993,11 @@ int block_write_begin(struct file *file,
+ 			 * outside i_size.  Trim these off again. Don't need
+ 			 * i_size_read because we hold i_mutex.
+ 			 *
+-			 * Filesystems which define ->setsize must handle
++			 * Filesystems which do not define ->setsize must handle
+ 			 * this themselves.
+ 			 */
+ 			if (pos + len > inode->i_size)
+-				if (!inode->i_op->setsize)
++				if (inode->i_op->truncate)
+ 					vmtruncate(inode, inode->i_size);
+ 		}
+ 	}
+@@ -2599,7 +2599,7 @@ out_release:
+ 	*pagep = NULL;
+ 
+ 	if (pos + len > inode->i_size)
+-		if (!inode->i_op->setsize)
++		if (inode->i_op->truncate)
+ 			vmtruncate(inode, inode->i_size);
+ 
+ 	return ret;
+Index: linux-2.6/fs/direct-io.c
+===================================================================
+--- linux-2.6.orig/fs/direct-io.c	2009-07-07 17:22:16.710364362 +0200
++++ linux-2.6/fs/direct-io.c	2009-07-07 17:22:26.601241382 +0200
+@@ -1217,7 +1217,7 @@ __blockdev_direct_IO(int rw, struct kioc
+ 		loff_t isize = i_size_read(inode);
+ 
+ 		if (end > isize && dio_lock_type == DIO_LOCKING)
+-			if (!inode->i_op->setsize)
++			if (inode->i_op->truncate)
+ 				vmtruncate(inode, isize);
+ 	}
+ 
+Index: linux-2.6/fs/libfs.c
+===================================================================
+--- linux-2.6.orig/fs/libfs.c	2009-07-07 17:21:07.357268403 +0200
++++ linux-2.6/fs/libfs.c	2009-07-07 17:21:32.413241823 +0200
+@@ -329,10 +329,8 @@ int simple_rename(struct inode *old_dir,
+ 	return 0;
+ }
+ 
+-int simple_setsize(struct dentry *dentry, loff_t newsize,
+-			unsigned flags, struct file *file)
++int simple_setsize(struct inode *inode, loff_t newsize)
+ {
+-	struct inode *inode = dentry->d_inode;
+ 	loff_t oldsize;
+ 	int error;
+ 
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h	2009-07-07 17:21:35.255363657 +0200
++++ linux-2.6/include/linux/fs.h	2009-07-07 17:23:14.795241323 +0200
+@@ -431,12 +431,6 @@ typedef void (dio_iodone_t)(struct kiocb
+ #define ATTR_TIMES_SET	(1 << 16)
+ 
+ /*
+- * Setsize flags.
+- */
+-#define SETSIZE_FILE	(1 << 0) /* Trucating via an open file (eg ftruncate) */
+-#define SETSIZE_OPEN	(1 << 1) /* Truncating from open(O_TRUNC) */
+-
+-/*
+  * This is the Inode Attributes structure, used for notify_change().  It
+  * uses the above definitions as flags, to know which values have changed.
+  * Also, in this manner, a Filesystem can look at only the values it cares
+@@ -1533,7 +1527,6 @@ struct inode_operations {
+ 	void * (*follow_link) (struct dentry *, struct nameidata *);
+ 	void (*put_link) (struct dentry *, struct nameidata *, void *);
+ 	void (*truncate) (struct inode *);
+-	int (*setsize) (struct dentry *, loff_t, unsigned, struct file *);
+ 	int (*permission) (struct inode *, int);
+ 	int (*setattr) (struct dentry *, struct iattr *);
+ 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
+@@ -2339,8 +2332,7 @@ extern int simple_link(struct dentry *, 
+ extern int simple_unlink(struct inode *, struct dentry *);
+ extern int simple_rmdir(struct inode *, struct dentry *);
+ extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
+-extern int simple_setsize(struct dentry *dentry, loff_t newsize,
+-			unsigned flags, struct file *file);
++extern int simple_setsize(struct inode *inode, loff_t newsize);
+ extern int simple_sync_file(struct file *, struct dentry *, int);
+ extern int simple_empty(struct dentry *);
+ extern int simple_readpage(struct file *file, struct page *page);
+Index: linux-2.6/mm/shmem.c
+===================================================================
+--- linux-2.6.orig/mm/shmem.c	2009-07-07 17:19:51.972394381 +0200
++++ linux-2.6/mm/shmem.c	2009-07-07 17:53:20.961241413 +0200
+@@ -764,25 +764,19 @@ done2:
+ 	}
+ }
+ 
+-static int shmem_setsize(struct dentry *dentry, loff_t newsize,
+-			unsigned int flags, struct file *file)
+-{
+-	int error;
+-
+-	error = simple_setsize(dentry, newsize, flags, file);
+-	if (error)
+-		return error;
+-	shmem_truncate_range(dentry->d_inode, newsize, (loff_t)-1);
+-
+-	return error;
+-}
+-
+ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
+ {
+ 	struct inode *inode = dentry->d_inode;
+ 	struct page *page = NULL;
+ 	int error;
+ 
++	if (attr->ia_valid & ATTR_SIZE) {
++		error = simple_setsize(dentry->d_inode, attr->ia_size);
++		if (error)
++			return error;
++		shmem_truncate_range(dentry->d_inode, attr->ia_size, -1);
++	}
 +
-+static int xen_tmem_put_page(u32 pool_id, u64 object, u32 index,
-+=09unsigned long pfn)
-+{
-+=09unsigned long gmfn =3D pfn_to_mfn(pfn);
-+
-+=09return xen_tmem_op(TMEM_PUT_PAGE, pool_id, object, index,
-+=09=09gmfn, 0, 0, 0);
-+}
-+
-+static int xen_tmem_get_page(u32 pool_id, u64 object, u32 index,
-+=09unsigned long pfn)
-+{
-+=09unsigned long gmfn =3D pfn_to_mfn(pfn);
-+
-+=09return xen_tmem_op(TMEM_GET_PAGE, pool_id, object, index,
-+=09=09gmfn, 0, 0, 0);
-+}
-+
-+static int xen_tmem_flush_page(u32 pool_id, u64 object, u32 index)
-+{
-+=09return xen_tmem_op(TMEM_FLUSH_PAGE, pool_id, object, index,
-+=09=090, 0, 0, 0);
-+}
-+
-+static int xen_tmem_flush_object(u32 pool_id, u64 object)
-+{
-+=09return xen_tmem_op(TMEM_FLUSH_OBJECT, pool_id, object, 0, 0, 0, 0, 0);
-+}
-+
-+static int xen_tmem_destroy_pool(u32 pool_id)
-+{
-+=09return xen_tmem_op(TMEM_DESTROY_POOL, pool_id, 0, 0, 0, 0, 0, 0);
-+}
-+
-+static struct tmem_ops xen_tmem_ops =3D {
-+=09.new_pool =3D xen_tmem_new_pool,
-+=09.put_page =3D xen_tmem_put_page,
-+=09.get_page =3D xen_tmem_get_page,
-+=09.flush_page =3D xen_tmem_flush_page,
-+=09.flush_object =3D xen_tmem_flush_object,
-+=09.destroy_pool =3D xen_tmem_destroy_pool
-+};
-+
-+static int __init xen_tmem_init(void)
-+{
-+=09tmem_set_ops(&xen_tmem_ops);
-+=09return 0;
-+}
-+core_initcall(xen_tmem_init);
+ 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
+ 		if (attr->ia_size < inode->i_size) {
+ 			/*
+@@ -831,7 +825,7 @@ static void shmem_delete_inode(struct in
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 
+-	if (inode->i_op->setsize == shmem_setsize) {
++	if (inode->i_mapping->a_ops == &shmem_aops) {
+ 		truncate_inode_pages(inode->i_mapping, 0);
+ 		shmem_unacct_size(info->flags, inode->i_size);
+ 		inode->i_size = 0;
+@@ -2027,7 +2021,6 @@ static const struct inode_operations shm
+ };
+ 
+ static const struct inode_operations shmem_symlink_inode_operations = {
+-	.setsize	= shmem_setsize,
+ 	.readlink	= generic_readlink,
+ 	.follow_link	= shmem_follow_link,
+ 	.put_link	= shmem_put_link,
+@@ -2447,7 +2440,6 @@ static const struct file_operations shme
+ };
+ 
+ static const struct inode_operations shmem_inode_operations = {
+-	.setsize	= shmem_setsize,
+ 	.setattr	= shmem_notify_change,
+ 	.truncate_range	= shmem_truncate_range,
+ #ifdef CONFIG_TMPFS_POSIX_ACL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
