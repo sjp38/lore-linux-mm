@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CBDAE6B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:31:53 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 82AEE6B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:35:55 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 186E782C5FC
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:51:50 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8223082C551
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:55:57 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id gmbyozv1+YFJ for <linux-mm@kvack.org>;
-	Tue,  7 Jul 2009 12:51:50 -0400 (EDT)
+	with ESMTP id Ar-aeBjuJJdh for <linux-mm@kvack.org>;
+	Tue,  7 Jul 2009 12:55:57 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C2AC582C5FE
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:51:44 -0400 (EDT)
-Date: Tue, 7 Jul 2009 12:33:21 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id F075882C5FC
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:55:52 -0400 (EDT)
+Date: Tue, 7 Jul 2009 12:37:34 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/5] add per-zone statistics to show_free_areas()
-In-Reply-To: <20090705182259.08F6.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0907071231220.5124@gentwo.org>
-References: <20090705181400.08F1.A69D9226@jp.fujitsu.com> <20090705182259.08F6.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] Show kernel stack usage to /proc/meminfo and OOM
+ log
+In-Reply-To: <20090705182409.08FC.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907071234070.5124@gentwo.org>
+References: <20090705181400.08F1.A69D9226@jp.fujitsu.com> <20090705182409.08FC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,19 +28,24 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 5 Jul 2009, KOSAKI Motohiro wrote:
 
-> Subject: [PATCH] add per-zone statistics to show_free_areas()
+> Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
 >
-> Currently, show_free_area() mainly display system memory usage. but it
-> doesn't display per-zone memory usage information.
+> if the system have a lot of thread, kernel stack consume unignorable large size
+> memory. IOW, it make a lot of unaccountable memory.
+> Tons unaccountable memory bring to harder analyse memory related trouble.
+>
+> Then, kernel stack account is useful.
 
-An attempt to rewrite the description:
+The amount of memory allocated to kernel stacks can become significant and
+cause OOM conditions. However, we do not display the amount of memory
+consumed by stacks.'
 
-show_free_areas() displays only a limited amount of zone counters. This
-patch includes additional counters in the display to allow easier
-debugging. This may be especially useful if an OOM is due to running out
-of DMA memory.
+Add code to display the amount of memory used for stacks in /proc/meminfo.
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Reviewed-by: <cl@linux-foundation.org>
+
+(It may be useful to also include the stack sizes in the per zone
+information displayed when an OOM occurs).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
