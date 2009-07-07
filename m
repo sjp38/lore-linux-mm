@@ -1,55 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D04276B004D
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 19:28:58 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 476A082C5E2
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 19:51:17 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bYngExsIYL2q for <linux-mm@kvack.org>;
-	Tue,  7 Jul 2009 19:51:17 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0B26F82C5E6
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 19:51:11 -0400 (EDT)
-Date: Tue, 7 Jul 2009 19:32:41 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 4/5] add isolate pages vmstat
-In-Reply-To: <4A5384A4.7060108@redhat.com>
-Message-ID: <alpine.DEB.1.10.0907071931160.17422@gentwo.org>
-References: <20090707090120.1e71a060.minchan.kim@barrios-desktop> <20090707090509.0C60.A69D9226@jp.fujitsu.com> <20090707101855.0C63.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907071248560.5124@gentwo.org> <4A5384A4.7060108@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D38EC6B004D
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 19:35:04 -0400 (EDT)
+Received: by yxe38 with SMTP id 38so3310399yxe.12
+        for <linux-mm@kvack.org>; Tue, 07 Jul 2009 16:39:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20090707184034.0C70.A69D9226@jp.fujitsu.com>
+References: <20090707182947.0C6D.A69D9226@jp.fujitsu.com>
+	 <20090707184034.0C70.A69D9226@jp.fujitsu.com>
+Date: Wed, 8 Jul 2009 08:39:12 +0900
+Message-ID: <28c262360907071639g4877b2c2w59a8eae8559557f7@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/2] vmscan don't isolate too many pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Jul 2009, Rik van Riel wrote:
-
-> Christoph Lameter wrote:
-> > On Tue, 7 Jul 2009, KOSAKI Motohiro wrote:
-> >
-> > > +++ b/include/linux/mmzone.h
-> > > @@ -100,6 +100,8 @@ enum zone_stat_item {
-> > >  	NR_BOUNCE,
-> > >  	NR_VMSCAN_WRITE,
-> > >  	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
-> > > +	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
-> > > +	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
-> >
-> > LRU counters are rarer in use then the counters used for dirty pages etc.
-> >
-> > Could you move the counters for reclaim into a separate cacheline?
+On Tue, Jul 7, 2009 at 6:47 PM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Subject: [PATCH] vmscan don't isolate too many pages
 >
-> I don't get the point of that - these counters are
-> per-cpu anyway, so why would they need to be in a
-> separate cacheline?
+> If the system have plenty threads or processes, concurrent reclaim can
+> isolate very much pages.
+>
+> And if other processes isolate _all_ pages on lru, the reclaimer can't fi=
+nd
+> any reclaimable page and it makes accidental OOM.
+>
+> The solusion is, we should restrict maximum number of isolated pages.
+> (this patch use inactive_page/2)
+>
+>
+> FAQ
+> -------
+> Q: Why do you compared zone accumulate pages, not individual zone pages?
+> A: If we check individual zone, #-of-reclaimer is restricted by smallest =
+zone.
+> =C2=A0 it mean decreasing the performance of the system having small dma =
+zone.
+>
+>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+> =C2=A0mm/page_alloc.c | =C2=A0 27 +++++++++++++++++++++++++++
+> =C2=A01 file changed, 27 insertions(+)
+>
+> Index: b/mm/page_alloc.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1721,6 +1721,28 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return alloc_flags;
+> =C2=A0}
+>
+> +static bool too_many_isolated(struct zonelist *zonelist,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 enum zone_type high_zoneidx, nodemask_t *nodema=
+sk)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 unsigned long nr_inactive =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 unsigned long nr_isolated =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 struct zoneref *z;
+> + =C2=A0 =C2=A0 =C2=A0 struct zone *zone;
+> +
+> + =C2=A0 =C2=A0 =C2=A0 for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 high_zoneidx=
+, nodemask) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!populated_zone(zo=
+ne))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 continue;
+> +
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_inactive +=3D zone_=
+page_state(zone, NR_INACTIVE_ANON);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_inactive +=3D zone_=
+page_state(zone, NR_INACTIVE_FILE);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_isolated +=3D zone_=
+page_state(zone, NR_ISOLATED_ANON);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr_isolated +=3D zone_=
+page_state(zone, NR_ISOLATED_FILE);
+> + =C2=A0 =C2=A0 =C2=A0 }
+> +
+> + =C2=A0 =C2=A0 =C2=A0 return nr_isolated > nr_inactive;
+> +}
+> +
+> =C2=A0static inline struct page *
+> =C2=A0__alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zonelist *zonelist, enum zone_type high=
+_zoneidx,
+> @@ -1789,6 +1811,11 @@ rebalance:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (p->flags & PF_MEMALLOC)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto nopage;
+>
+> + =C2=A0 =C2=A0 =C2=A0 if (too_many_isolated(gfp_mask, zonelist, high_zon=
+eidx, nodemask)) {
 
-Because there are so many counters now that they spread multiple
-cachelines. PCP data is very performance sensitive. Putting them in a
-separate cacheline so that the most important counters are in the
-first one will reduce the cache footprint of many core VM functions.
+too_many_isolated(zonelist, high_zoneidx, nodemask)
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
