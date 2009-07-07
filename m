@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C2D506B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:50:45 -0400 (EDT)
-Date: Tue, 7 Jul 2009 21:51:26 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E12EF6B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:56:24 -0400 (EDT)
+Date: Tue, 7 Jul 2009 21:56:56 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/5] add isolate pages vmstat
-Message-ID: <20090707135125.GA9444@localhost>
-References: <20090707090120.1e71a060.minchan.kim@barrios-desktop> <20090707090509.0C60.A69D9226@jp.fujitsu.com> <20090707101855.0C63.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
+Message-ID: <20090707135656.GB9444@localhost>
+References: <20090705211739.091D.A69D9226@jp.fujitsu.com> <20090705130200.GA6585@localhost> <20090707102106.0C66.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090707101855.0C63.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090707102106.0C66.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 09:19:53AM +0800, KOSAKI Motohiro wrote:
-> > > > Index: b/mm/vmscan.c
-> > > > ===================================================================
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > > > @@ -1082,6 +1082,7 @@ static unsigned long shrink_inactive_lis
-> > > >  						-count[LRU_ACTIVE_ANON]);
-> > > >  		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
-> > > >  						-count[LRU_INACTIVE_ANON]);
-> > > > +		__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
-> > > 
-> > > Lumpy can reclaim file + anon anywhere.  
-> > > How about using count[NR_LRU_LISTS]?
-> > 
-> > Ah yes, good catch.
-> 
-> Fixed.
-> 
-> Subject: [PATCH] add isolate pages vmstat
-> 
-> If the system have plenty threads or processes, concurrent reclaim can
-> isolate very much pages.
-> Unfortunately, current /proc/meminfo and OOM log can't show it.
-> 
-> This patch provide the way of showing this information.
+On Tue, Jul 07, 2009 at 09:22:48AM +0800, KOSAKI Motohiro wrote:
+> > On Sun, Jul 05, 2009 at 08:21:20PM +0800, KOSAKI Motohiro wrote:
+> > > > On Sun, Jul 05, 2009 at 05:26:18PM +0800, KOSAKI Motohiro wrote:
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-
+> @@ -2118,9 +2118,9 @@ void show_free_areas(void)
 >  	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
-> -		" inactive_file:%lu"
-> -		" unevictable:%lu"
-> +		" inactive_file:%lu unevictable:%lu\n"
-> +		" isolated_anon:%lu isolated_file:%lu\n"
+>  		" inactive_file:%lu unevictable:%lu\n"
+>  		" isolated_anon:%lu isolated_file:%lu\n"
+> -		" dirty:%lu writeback:%lu buffer:%lu unstable:%lu\n"
+> +		" dirty:%lu writeback:%lu buffer:%lu shmem:%lu\n"
 
-How about 
-        active_anon inactive_anon isolated_anon
-        active_file inactive_file isolated_file
-?
+btw, nfs unstable pages are related to writeback pages, so it may be
+better to put "unstable" right after "writeback" (as it was)?
 
 Thanks,
 Fengguang
+
+
+>  		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+> -		" mapped:%lu pagetables:%lu bounce:%lu\n",
+> +		" mapped:%lu pagetables:%lu unstable:%lu bounce:%lu\n",
+>  		global_page_state(NR_ACTIVE_ANON),
+>  		global_page_state(NR_ACTIVE_FILE),
+>  		global_page_state(NR_INACTIVE_ANON),
+> @@ -2131,12 +2131,13 @@ void show_free_areas(void)
+>  		global_page_state(NR_FILE_DIRTY),
+>  		global_page_state(NR_WRITEBACK),
+>  		nr_blockdev_pages(),
+> -		global_page_state(NR_UNSTABLE_NFS),
+> +		global_page_state(NR_SHMEM),
+>  		global_page_state(NR_FREE_PAGES),
+>  		global_page_state(NR_SLAB_RECLAIMABLE),
+>  		global_page_state(NR_SLAB_UNRECLAIMABLE),
+>  		global_page_state(NR_FILE_MAPPED),
+>  		global_page_state(NR_PAGETABLE),
+> +		global_page_state(NR_UNSTABLE_NFS),
+>  		global_page_state(NR_BOUNCE));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
