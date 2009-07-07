@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D65A36B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:36:42 -0400 (EDT)
-Date: Tue, 7 Jul 2009 12:38:29 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rfc][patch 4/4] fs: tmpfs, ext2 use new truncate
-Message-ID: <20090707163829.GB14947@infradead.org>
-References: <20090707144423.GC2714@wotan.suse.de> <20090707144918.GF2714@wotan.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 445C56B005A
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 12:45:29 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id CE5AF82C5FC
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:05:34 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id TrrCxBconTJ1 for <linux-mm@kvack.org>;
+	Tue,  7 Jul 2009 13:05:34 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id A799D82C607
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:05:16 -0400 (EDT)
+Date: Tue, 7 Jul 2009 12:46:54 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 4/5] add isolate pages vmstat
+In-Reply-To: <20090705182451.08FF.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907071238570.5124@gentwo.org>
+References: <20090705181400.08F1.A69D9226@jp.fujitsu.com> <20090705182451.08FF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090707144918.GF2714@wotan.suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-I'd still prefer this to be split into one patch for shmem, and one for
-ext2 to make bisecting easier.
+On Sun, 5 Jul 2009, KOSAKI Motohiro wrote:
 
-> @@ -68,7 +70,7 @@ void ext2_delete_inode (struct inode * i
->  
->  	inode->i_size = 0;
->  	if (inode->i_blocks)
-> -		ext2_truncate (inode);
-> +		ext2_truncate_blocks(inode, 0);
->  	ext2_free_inode (inode);
->  
->  	return;
+>  mm/vmstat.c            |    2 +-
+>  6 files changed, 14 insertions(+), 3 deletions(-)
+>
+> Index: b/fs/proc/meminfo.c
+> ===================================================================
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -65,6 +65,7 @@ static int meminfo_proc_show(struct seq_
+>  		"Active(file):   %8lu kB\n"
+>  		"Inactive(file): %8lu kB\n"
+>  		"Unevictable:    %8lu kB\n"
+> +		"IsolatedPages:  %8lu kB\n"
 
-> -void ext2_truncate(struct inode *inode)
-> +static void ext2_truncate_blocks(struct inode *inode, loff_t offset)
->  {
->  	__le32 *i_data = EXT2_I(inode)->i_data;
->  	struct ext2_inode_info *ei = EXT2_I(inode);
-> @@ -1032,27 +1074,8 @@ void ext2_truncate(struct inode *inode)
->  	int n;
->  	long iblock;
->  	unsigned blocksize;
-> -
-> -	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-> -	    S_ISLNK(inode->i_mode)))
-> -		return;
-> -	if (ext2_inode_is_fast_symlink(inode))
-> -		return;
-> -	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-> -		return;
-> -
-
-We can't move this to the caller easily.  ext2_delete_inode gets
-called for all inodes, but we only want to go on truncating for the
-limited set that passes this check.
-
-
-
-> -	if (mapping_is_xip(inode->i_mapping))
-> -		xip_truncate_page(inode->i_mapping, inode->i_size);
-> -	else if (test_opt(inode->i_sb, NOBH))
-> -		nobh_truncate_page(inode->i_mapping,
-> -				inode->i_size, ext2_get_block);
-> -	else
-> -		block_truncate_page(inode->i_mapping,
-> -				inode->i_size, ext2_get_block);
-
-The patch header should have an explanation for why we don't need this
-anymore for the various existing callers.
+Why is it called isolatedpages when we display the amount of memory in
+kilobytes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
