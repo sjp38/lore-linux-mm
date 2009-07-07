@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 656766B005A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:26:14 -0400 (EDT)
-Message-ID: <4A5385AD.9000800@redhat.com>
-Date: Tue, 07 Jul 2009 13:28:13 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 477DB6B005A
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 13:45:26 -0400 (EDT)
+Message-ID: <4A538A34.7060101@redhat.com>
+Date: Tue, 07 Jul 2009 13:47:32 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <482d25af-01eb-4c2a-9b1d-bdaf4020ce88@default>
-In-Reply-To: <482d25af-01eb-4c2a-9b1d-bdaf4020ce88@default>
+Subject: Re: [RFC PATCH 1/4] (Take 2): tmem: Core API between kernel and tmem
+References: <e5a93cf7-c24c-4bfe-bc4c-c24eb8e0290d@default>
+In-Reply-To: <e5a93cf7-c24c-4bfe-bc4c-c24eb8e0290d@default>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,18 +17,14 @@ Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.or
 List-ID: <linux-mm.kvack.org>
 
 Dan Magenheimer wrote:
+> Tmem [PATCH 1/4] (Take 2): Core API between kernel and tmem
 
-> "Preswap" IS persistent, but for various reasons may not always be
-> available for use, again due to factors that may not be visible to the
-> kernel (but, briefly, if the kernel is being "good" and has shared its
-> resources nicely, then it will be able to use preswap, else it will not).
-> Once a page is put, a get on the page will always succeed. 
+I like the cleanup of your patch series.
 
-What happens when all of the free memory on a system
-has been consumed by preswap by a few guests?
+However, what remains is a fair bit of code.
 
-Will the system be unable to start another guest,
-or is there some way to free the preswap memory?
+It would be good to have performance numbers before
+deciding whether or not to merge all this code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
