@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DE65F6B005A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 16:05:38 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <8422d908-c9e9-4497-82b7-a8532a66fd22@default>
-Date: Tue, 7 Jul 2009 13:07:44 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC PATCH 1/4] (Take 2): tmem: Core API between kernel and tmem
-In-Reply-To: <4A538A34.7060101@redhat.com>
-Content-Type: text/plain; charset=Windows-1252
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E12F6B004D
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 18:06:30 -0400 (EDT)
+Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem
+	allocator
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <20090707165350.GA2782@cmpxchg.org>
+References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
+	 <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
+	 <1246950530.24285.7.camel@penberg-laptop>
+	 <20090707165350.GA2782@cmpxchg.org>
+Content-Type: text/plain
+Date: Tue, 07 Jul 2009 23:09:46 +0100
+Message-Id: <1247004586.5710.16.camel@pc1117.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> From: Rik van Riel [mailto:riel@redhat.com]
-> Subject: Re: [RFC PATCH 1/4] (Take 2): tmem: Core API between=20
->=20
-> Dan Magenheimer wrote:
-> > Tmem [PATCH 1/4] (Take 2): Core API between kernel and tmem
->=20
-> I like the cleanup of your patch series.
+On Tue, 2009-07-07 at 18:53 +0200, Johannes Weiner wrote:
+> On Tue, Jul 07, 2009 at 10:08:50AM +0300, Pekka Enberg wrote:
+> > On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
+> > > @@ -597,7 +601,9 @@ restart:
+> > >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+> > >  					unsigned long goal)
+> > >  {
+> > > -	return ___alloc_bootmem_nopanic(size, align, goal, 0);
+> > > +	void *ptr =  ___alloc_bootmem_nopanic(size, align, goal, 0);
+> > > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> > > +	return ptr;
+> 
+> You may get an object from kzalloc() here, I don't think you want to
+> track that (again), right?
 
-Thanks much, but credit goes to Jeremy for suggesting this
-very clean tmem_ops interface.
-=20
-> However, what remains is a fair bit of code.
+You are write, I missed the alloc_arch_preferred_bootmem() function
+which may call kzalloc().
 
-Yes, though much of the LOC is for clean layering and
-readability.  (Nearly half of the patch is now comments.)
+> Pekka already worked out all the central places to catch 'slab already
+> available' allocations, they can probably help you place the hooks.
 
-> It would be good to have performance numbers before
-> deciding whether or not to merge all this code.
+It seems that alloc_bootmem_core() is central to all the bootmem
+allocations. Is it OK to place the kmemleak_alloc hook only in this
+function?
 
-On one benchmark that I will be presenting at Linux Symposium
-(8 dual-VCPU guests with 384MB of initial memory and doing
-self-ballooning to constrain memory, each guest compiling
-Linux continually; quad-core-dual-thread Nehalem processor
-with 4GB physical RAM) I am seeing savings of ~300 IO/sec
-at an approximate cost of 0.1%-0.2% of one CPU.  But
-I admit much more benchmarking needs to be done.
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 5a649a0..74cbb34 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -520,6 +520,7 @@ find_block:
+ 		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
+ 				start_off);
+ 		memset(region, 0, size);
++		kmemleak_alloc(region, size, 1, 0);
+ 		return region;
+ 	}
+ 
 
-Thanks,
-Dan
+> > > +	kmemleak_alloc(ptr, size, 1, GFP_KERNEL);
+> 
+> These GFP_KERNEL startled me.  We know for sure that this code runs in
+> earlylog mode only and gfp is unused, right?  Can you perhaps just
+> pass 0 for gfp instead?
+
+Yes, indeed.
+
+Thanks for your comments.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
