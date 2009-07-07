@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F3616B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 07:44:58 -0400 (EDT)
-Message-ID: <4A53353F.3030904@panasas.com>
-Date: Tue, 07 Jul 2009 14:45:03 +0300
+	by kanga.kvack.org (Postfix) with SMTP id EB9A76B0055
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 07:45:22 -0400 (EDT)
+Message-ID: <4A533559.90303@panasas.com>
+Date: Tue, 07 Jul 2009 14:45:29 +0300
 From: Boaz Harrosh <bharrosh@panasas.com>
 MIME-Version: 1.0
-Subject: Re: [rfc][patch 1/3] fs: new truncate sequence
-References: <20090706165438.GQ2714@wotan.suse.de>
-In-Reply-To: <20090706165438.GQ2714@wotan.suse.de>
+Subject: Re: [rfc][patch 3/3] fs: convert ext2,tmpfs to new truncate
+References: <20090706165438.GQ2714@wotan.suse.de> <20090706165629.GS2714@wotan.suse.de>
+In-Reply-To: <20090706165629.GS2714@wotan.suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,573 +16,485 @@ To: Nick Piggin <npiggin@suse.de>
 Cc: linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/06/2009 07:54 PM, Nick Piggin wrote:
-> Hi,
-> 
-> Here is a next iteration of the truncate change. 1st patch introduces
-> all the mechanism. 2nd patch makes use of some new helper functions
-> but otherwise is uninteresting.  Last patch converts a couple of filesystems
-> just to see how it looks (more complete conversion may actually try to check
-> and handle errors when truncating blocks in the fs, but that's outside the
-> scope of this series).
-> 
-> I am also working on removing page lock requirement from extending i_size
-> during write(2) syscall as we discussed which could allow solution for
-> partial-page page_mkwrite problems. I've got some code here but it's got
-> some remaining fsx failure I'm tracking down... Anyway I think the truncate
-> reorganisation should be a good change regardless (I need it for fsblock
-> too).
-> 
-> --
-> 
-> Introduce a new truncate calling sequence into fs/mm subsystems.  Rather than
-> setattr > vmtruncate > truncate, add a new inode operation ->ftruncate, called
-> from inode_setattr when called with ATTR_SIZE.  The filesystem will be
-> responsible for updating i_size and truncating pagecache.
-> 
-> Generic code which previously called vmtruncate (in order to truncate blocks
-> that may have been instantiated past i_size) no longer calls vmtruncate in the
-> case that the inode has an ->ftruncate attribute. In that case it is the
-> responsibility of the caller to trim off blocks appropriately in case of
-> error.
-> 
-> New helper functions, inode_truncate_ok and truncate_pagecache are broken out
-> of vmtruncate, allowing the filesystem more flexibility in ordering of
-> operations. simple_ftruncate is implemented for filesystems which have no
-> need for a ->truncate operation under the old scheme.
-> 
-> Big problem with the previous calling sequence: the filesystem is not called
-> until i_size has already changed.  This means it is not allowed to fail the
-> call, and also it does not know what the previous i_size was. Also, generic
-> code calling vmtruncate to truncate allocated blocks in case of error had
-> no good way to return a meaningful error (or, for example, atomically handle
-> block deallocation).
-> 
+On 07/06/2009 07:56 PM, Nick Piggin wrote:
+> Convert filemap_xip.c, buffer.c, and some filesystems to the new truncate
+> convention. Converting generic helpers is using some ugly code (testing
+> for i_op->ftruncate) to distinguish new and old callers... better
+> alternative might be just define a new function for these guys.
 > ---
->  Documentation/filesystems/Locking |    7 +--
->  Documentation/vm/locking          |    2 -
->  fs/attr.c                         |   55 ++++++++++++++++++++++++---
->  fs/buffer.c                       |    9 +++-
->  fs/direct-io.c                    |    6 +--
->  fs/libfs.c                        |   18 +++++++++
->  include/linux/fs.h                |    4 ++
->  include/linux/mm.h                |    2 +
->  mm/filemap.c                      |    2 -
->  mm/memory.c                       |   62 +------------------------------
->  mm/mremap.c                       |    4 +-
->  mm/nommu.c                        |   40 --------------------
->  mm/truncate.c                     |   76 ++++++++++++++++++++++++++++++++++++++
->  13 files changed, 168 insertions(+), 119 deletions(-)
+>  fs/buffer.c      |   40 +++++++++++++++++--------
+>  fs/ext2/ext2.h   |    2 -
+>  fs/ext2/file.c   |    2 -
+>  fs/ext2/inode.c  |   85 ++++++++++++++++++++++++++++++++++++++++++-------------
+>  mm/filemap_xip.c |   15 +++++++--
+>  mm/shmem.c       |   40 ++++++++++++++++---------
+>  6 files changed, 133 insertions(+), 51 deletions(-)
 > 
-> Index: linux-2.6/fs/attr.c
+> Index: linux-2.6/fs/ext2/inode.c
 > ===================================================================
-> --- linux-2.6.orig/fs/attr.c
-> +++ linux-2.6/fs/attr.c
-> @@ -60,18 +60,61 @@ fine:
->  error:
->  	return retval;
->  }
-> -
->  EXPORT_SYMBOL(inode_change_ok);
+> --- linux-2.6.orig/fs/ext2/inode.c
+> +++ linux-2.6/fs/ext2/inode.c
+> @@ -68,7 +68,7 @@ void ext2_delete_inode (struct inode * i
 >  
-> +int inode_truncate_ok(struct inode *inode, loff_t offset)
-> +{
-> +	if (inode->i_size < offset) {
-> +		unsigned long limit;
+>  	inode->i_size = 0;
+>  	if (inode->i_blocks)
+> -		ext2_truncate (inode);
+> +		ext2_ftruncate(NULL, 0, inode, 0);
+>  	ext2_free_inode (inode);
+>  
+>  	return;
+> @@ -761,8 +761,31 @@ ext2_write_begin(struct file *file, stru
+>  		loff_t pos, unsigned len, unsigned flags,
+>  		struct page **pagep, void **fsdata)
+>  {
+> +	int ret;
 > +
-> +		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-> +		if (limit != RLIM_INFINITY && offset > limit)
-> +			goto out_sig;
-> +		if (offset > inode->i_sb->s_maxbytes)
-> +			goto out_big;
-> +	} else {
-> +		/*
-> +		 * truncation of in-use swapfiles is disallowed - it would
-> +		 * cause subsequent swapout to scribble on the now-freed
-> +		 * blocks.
-> +		 */
-> +		if (IS_SWAPFILE(inode))
-> +			return -ETXTBSY;
+>  	*pagep = NULL;
+> -	return __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
+> +	ret = __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
+> +	if (ret < 0) {
+> +		loff_t isize = inode->i_size;
+> +		if (pos + len > isize)
+> +			ext2_ftruncate(NULL, 0, inode, isize);
 > +	}
+> +	return ret;
+> +}
+> +
+> +static int ext2_write_end(struct file *file, struct address_space *mapping,
+> +			loff_t pos, unsigned len, unsigned copied,
+> +			struct page *page, void *fsdata)
+> +{
+> +	int ret;
+> +
+> +	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+> +	if (ret < len) {
+> +		loff_t isize = inode->i_size;
+> +		if (pos + len > isize)
+> +			ext2_ftruncate(NULL, 0, inode, isize);
+> +	}
+> +	return ret;
+>  }
+>  
+>  static int
+> @@ -770,13 +793,22 @@ ext2_nobh_write_begin(struct file *file,
+>  		loff_t pos, unsigned len, unsigned flags,
+>  		struct page **pagep, void **fsdata)
+>  {
+> +	int ret;
+> +
+>  	/*
+>  	 * Dir-in-pagecache still uses ext2_write_begin. Would have to rework
+>  	 * directory handling code to pass around offsets rather than struct
+>  	 * pages in order to make this work easily.
+>  	 */
+> -	return nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+> +	ret = nobh_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+>  							ext2_get_block);
+> +	if (ret < 0) {
+> +		loff_t isize;
+> +		isize = i_size_read(inode);
+
+Unlike the other places you use i_size_read() here, please explain what is the
+locking rules for this?
+
+Did your patchset change things in this regard?
+
+> +		if (pos + len > isize)
+> +			ext2_ftruncate(NULL, 0, inode, isize);
+> +	}
+> +	return ret;
+>  }
+>  
+>  static int ext2_nobh_writepage(struct page *page,
+> @@ -796,9 +828,15 @@ ext2_direct_IO(int rw, struct kiocb *ioc
+>  {
+>  	struct file *file = iocb->ki_filp;
+>  	struct inode *inode = file->f_mapping->host;
+> +	ssize_t ret;
+>  
+> -	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+> +	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+>  				offset, nr_segs, ext2_get_block, NULL);
+> +	if (ret < 0 && (rw & WRITE)) {
+> +		loff_t isize = i_size_read(inode);
+> +		ext2_ftruncate(NULL, 0, inode, isize);
+> +	}
+> +	return ret;
+>  }
+>  
+>  static int
+> @@ -813,7 +851,7 @@ const struct address_space_operations ex
+>  	.writepage		= ext2_writepage,
+>  	.sync_page		= block_sync_page,
+>  	.write_begin		= ext2_write_begin,
+> -	.write_end		= generic_write_end,
+> +	.write_end		= ext2_write_end,
+>  	.bmap			= ext2_bmap,
+>  	.direct_IO		= ext2_direct_IO,
+>  	.writepages		= ext2_writepages,
+> @@ -1020,7 +1058,8 @@ static void ext2_free_branches(struct in
+>  		ext2_free_data(inode, p, q);
+>  }
+>  
+> -void ext2_truncate(struct inode *inode)
+> +int ext2_ftruncate(struct file *file, int open,
+> +			struct inode *inode, loff_t offset)
+>  {
+>  	__le32 *i_data = EXT2_I(inode)->i_data;
+>  	struct ext2_inode_info *ei = EXT2_I(inode);
+> @@ -1032,31 +1071,37 @@ void ext2_truncate(struct inode *inode)
+>  	int n;
+>  	long iblock;
+>  	unsigned blocksize;
+> +	int error;
+> +
+> +	error = inode_truncate_ok(inode, offset);
+> +	if (error)
+> +		return error;
+>  
+>  	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+>  	    S_ISLNK(inode->i_mode)))
+> -		return;
+> +		return -EINVAL;
+>  	if (ext2_inode_is_fast_symlink(inode))
+> -		return;
+> +		return -EINVAL;
+>  	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+> -		return;
+> -
+> -	blocksize = inode->i_sb->s_blocksize;
+> -	iblock = (inode->i_size + blocksize-1)
+> -					>> EXT2_BLOCK_SIZE_BITS(inode->i_sb);
+> +		return -EPERM;
+>  
+>  	if (mapping_is_xip(inode->i_mapping))
+> -		xip_truncate_page(inode->i_mapping, inode->i_size);
+> +		error = xip_truncate_page(inode->i_mapping, offset);
+>  	else if (test_opt(inode->i_sb, NOBH))
+> -		nobh_truncate_page(inode->i_mapping,
+> -				inode->i_size, ext2_get_block);
+> +		error = nobh_truncate_page(inode->i_mapping,
+> +				offset, ext2_get_block);
+>  	else
+> -		block_truncate_page(inode->i_mapping,
+> -				inode->i_size, ext2_get_block);
+> +		error = block_truncate_page(inode->i_mapping,
+> +				offset, ext2_get_block);
+> +	if (error)
+> +		return error;
+> +
+> +	blocksize = inode->i_sb->s_blocksize;
+> +	iblock = (offset + blocksize-1) >> EXT2_BLOCK_SIZE_BITS(inode->i_sb);
+>  
+>  	n = ext2_block_to_path(inode, iblock, offsets, NULL);
+>  	if (n == 0)
+> -		return;
+> +		return 0;
+>  
+>  	/*
+>  	 * From here we block out all ext2_get_block() callers who want to
+> @@ -1127,6 +1172,8 @@ do_indirects:
+>  	} else {
+>  		mark_inode_dirty(inode);
+>  	}
 > +
 > +	return 0;
-> +out_sig:
-> +	send_sig(SIGXFSZ, current, 0);
-> +out_big:
-> +	return -EFBIG;
-> +}
-> +EXPORT_SYMBOL(inode_truncate_ok);
-> +
->  int inode_setattr(struct inode * inode, struct iattr * attr)
->  {
->  	unsigned int ia_valid = attr->ia_valid;
->  
-> -	if (ia_valid & ATTR_SIZE &&
-> -	    attr->ia_size != i_size_read(inode)) {
-> -		int error = vmtruncate(inode, attr->ia_size);
-> -		if (error)
-> -			return error;
-> +	if (ia_valid & ATTR_SIZE) {
-> +		loff_t offset = attr->ia_size;
-> +
-> +		if (offset != inode->i_size) {
-
-Deleted code used to i_size_read() here.
-Is there a good documentation of when / what gets locked
-in regarding to inode->i_size? And when can it be accessed
-directly and when through helpers?
-
-> +			int error;
-> +
-> +			if (inode->i_op->ftruncate) {
-> +				struct file *filp = NULL;
-> +				int open = 0;
-> +
-> +				if (ia_valid & ATTR_FILE)
-> +					filp = attr->ia_file;
-> +				if (ia_valid & ATTR_OPEN)
-> +					open = 1;
-> +				error = inode->i_op->ftruncate(filp, open,
-> +							inode, offset);
-> +			} else
-> +				error = vmtruncate(inode, offset);
-> +			if (error)
-> +				return error;
-> +		}
->  	}
->  
->  	if (ia_valid & ATTR_UID)
-> Index: linux-2.6/fs/libfs.c
-> ===================================================================
-> --- linux-2.6.orig/fs/libfs.c
-> +++ linux-2.6/fs/libfs.c
-> @@ -329,6 +329,23 @@ int simple_rename(struct inode *old_dir,
->  	return 0;
 >  }
 >  
-> +int simple_ftruncate(struct file *file, int open,
+>  static struct ext2_inode *ext2_get_inode(struct super_block *sb, ino_t ino,
+> Index: linux-2.6/mm/shmem.c
+> ===================================================================
+> --- linux-2.6.orig/mm/shmem.c
+> +++ linux-2.6/mm/shmem.c
+> @@ -730,10 +730,11 @@ done2:
+>  	if (inode->i_mapping->nrpages && (info->flags & SHMEM_PAGEIN)) {
+>  		/*
+>  		 * Call truncate_inode_pages again: racing shmem_unuse_inode
+> -		 * may have swizzled a page in from swap since vmtruncate or
+> -		 * generic_delete_inode did it, before we lowered next_index.
+> -		 * Also, though shmem_getpage checks i_size before adding to
+> -		 * cache, no recheck after: so fix the narrow window there too.
+> +		 * may have swizzled a page in from swap since
+> +		 * truncate_pagecache or generic_delete_inode did it, before we
+> +		 * lowered next_index.  Also, though shmem_getpage checks
+> +		 * i_size before adding to cache, no recheck after: so fix the
+> +		 * narrow window there too.
+>  		 *
+>  		 * Recalling truncate_inode_pages_range and unmap_mapping_range
+>  		 * every time for punch_hole (which never got a chance to clear
+> @@ -763,9 +764,21 @@ done2:
+>  	}
+>  }
+>  
+> -static void shmem_truncate(struct inode *inode)
+> +static int shmem_ftruncate(struct file *file, int open,
 > +			struct inode *inode, loff_t offset)
-> +{
+>  {
+> -	shmem_truncate_range(inode, inode->i_size, (loff_t)-1);
 > +	loff_t oldsize;
 > +	int error;
 > +
 > +	error = inode_truncate_ok(inode, offset);
 > +	if (error)
 > +		return error;
-> +
 > +	oldsize = inode->i_size;
 > +	i_size_write(inode, offset);
 > +	truncate_pagecache(inode, oldsize, offset);
+> +	shmem_truncate_range(inode, offset, (loff_t)-1);
 > +
 > +	return error;
-> +}
+>  }
+>  
+>  static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
+> @@ -822,11 +835,10 @@ static void shmem_delete_inode(struct in
+>  {
+>  	struct shmem_inode_info *info = SHMEM_I(inode);
+>  
+> -	if (inode->i_op->truncate == shmem_truncate) {
+> +	if (inode->i_op->ftruncate == shmem_ftruncate) {
+>  		truncate_inode_pages(inode->i_mapping, 0);
+>  		shmem_unacct_size(info->flags, inode->i_size);
+> -		inode->i_size = 0;
+> -		shmem_truncate(inode);
+> +		shmem_ftruncate(NULL, 0, inode, 0);
+>  		if (!list_empty(&info->swaplist)) {
+>  			mutex_lock(&shmem_swaplist_mutex);
+>  			list_del_init(&info->swaplist);
+> @@ -1627,13 +1639,13 @@ shmem_write_end(struct file *file, struc
+>  {
+>  	struct inode *inode = mapping->host;
+>  
+> -	if (pos + copied > inode->i_size)
+> -		i_size_write(inode, pos + copied);
+> -
+>  	unlock_page(page);
+>  	set_page_dirty(page);
+>  	page_cache_release(page);
+>  
+> +	if (pos + copied > inode->i_size)
+> +		i_size_write(inode, pos + copied);
 > +
->  int simple_readpage(struct file *file, struct page *page)
->  {
->  	clear_highpage(page);
-> @@ -840,6 +857,7 @@ EXPORT_SYMBOL(generic_read_dir);
->  EXPORT_SYMBOL(get_sb_pseudo);
->  EXPORT_SYMBOL(simple_write_begin);
->  EXPORT_SYMBOL(simple_write_end);
-> +EXPORT_SYMBOL(simple_ftruncate);
->  EXPORT_SYMBOL(simple_dir_inode_operations);
->  EXPORT_SYMBOL(simple_dir_operations);
->  EXPORT_SYMBOL(simple_empty);
-> Index: linux-2.6/include/linux/fs.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/fs.h
-> +++ linux-2.6/include/linux/fs.h
-> @@ -1527,6 +1527,7 @@ struct inode_operations {
->  	void * (*follow_link) (struct dentry *, struct nameidata *);
->  	void (*put_link) (struct dentry *, struct nameidata *, void *);
->  	void (*truncate) (struct inode *);
-> +	int (*ftruncate) (struct file *, int, struct inode *, loff_t);
->  	int (*permission) (struct inode *, int);
->  	int (*setattr) (struct dentry *, struct iattr *);
->  	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
-> @@ -2332,6 +2333,8 @@ extern int simple_link(struct dentry *,
->  extern int simple_unlink(struct inode *, struct dentry *);
->  extern int simple_rmdir(struct inode *, struct dentry *);
->  extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
-> +extern int simple_ftruncate(struct file *file, int open,
-> +			struct inode *inode, loff_t offset);
->  extern int simple_sync_file(struct file *, struct dentry *, int);
->  extern int simple_empty(struct dentry *);
->  extern int simple_readpage(struct file *file, struct page *page);
-> @@ -2367,6 +2370,7 @@ extern int buffer_migrate_page(struct ad
->  #endif
->  
->  extern int inode_change_ok(struct inode *, struct iattr *);
-> +extern int inode_truncate_ok(struct inode *, loff_t offset);
->  extern int __must_check inode_setattr(struct inode *, struct iattr *);
->  
->  extern void file_update_time(struct file *file);
-> Index: linux-2.6/include/linux/mm.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/mm.h
-> +++ linux-2.6/include/linux/mm.h
-> @@ -805,7 +805,9 @@ static inline void unmap_shared_mapping_
->  	unmap_mapping_range(mapping, holebegin, holelen, 0);
+>  	return copied;
 >  }
 >  
-> +extern void truncate_pagecache(struct inode * inode, loff_t old, loff_t new);
->  extern int vmtruncate(struct inode * inode, loff_t offset);
-> +extern int truncate_blocks(struct inode *inode, loff_t offset);
->  extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
->  
->  #ifdef CONFIG_MMU
-> Index: linux-2.6/mm/memory.c
-> ===================================================================
-> --- linux-2.6.orig/mm/memory.c
-> +++ linux-2.6/mm/memory.c
-> @@ -282,7 +282,8 @@ void free_pgtables(struct mmu_gather *tl
->  		unsigned long addr = vma->vm_start;
->  
->  		/*
-> -		 * Hide vma from rmap and vmtruncate before freeing pgtables
-> +		 * Hide vma from rmap and truncate_pagecache before freeing
-> +		 * pgtables
->  		 */
->  		anon_vma_unlink(vma);
->  		unlink_file_vma(vma);
-> @@ -2358,7 +2359,7 @@ restart:
->   * @mapping: the address space containing mmaps to be unmapped.
->   * @holebegin: byte in first page to unmap, relative to the start of
->   * the underlying file.  This will be rounded down to a PAGE_SIZE
-> - * boundary.  Note that this is different from vmtruncate(), which
-> + * boundary.  Note that this is different from truncate_pagecache(), which
->   * must keep the partial page.  In contrast, we must get rid of
->   * partial pages.
->   * @holelen: size of prospective hole in bytes.  This will be rounded
-> @@ -2409,63 +2410,6 @@ void unmap_mapping_range(struct address_
->  }
->  EXPORT_SYMBOL(unmap_mapping_range);
->  
-> -/**
-> - * vmtruncate - unmap mappings "freed" by truncate() syscall
-> - * @inode: inode of the file used
-> - * @offset: file offset to start truncating
-> - *
-> - * NOTE! We have to be ready to update the memory sharing
-> - * between the file and the memory map for a potential last
-> - * incomplete page.  Ugly, but necessary.
-> - */
-> -int vmtruncate(struct inode * inode, loff_t offset)
-> -{
-> -	if (inode->i_size < offset) {
-> -		unsigned long limit;
-> -
-> -		limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-> -		if (limit != RLIM_INFINITY && offset > limit)
-> -			goto out_sig;
-> -		if (offset > inode->i_sb->s_maxbytes)
-> -			goto out_big;
-> -		i_size_write(inode, offset);
-> -	} else {
-> -		struct address_space *mapping = inode->i_mapping;
-> -
-> -		/*
-> -		 * truncation of in-use swapfiles is disallowed - it would
-> -		 * cause subsequent swapout to scribble on the now-freed
-> -		 * blocks.
-> -		 */
-> -		if (IS_SWAPFILE(inode))
-> -			return -ETXTBSY;
-> -		i_size_write(inode, offset);
-> -
-> -		/*
-> -		 * unmap_mapping_range is called twice, first simply for
-> -		 * efficiency so that truncate_inode_pages does fewer
-> -		 * single-page unmaps.  However after this first call, and
-> -		 * before truncate_inode_pages finishes, it is possible for
-> -		 * private pages to be COWed, which remain after
-> -		 * truncate_inode_pages finishes, hence the second
-> -		 * unmap_mapping_range call must be made for correctness.
-> -		 */
-> -		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
-> -		truncate_inode_pages(mapping, offset);
-> -		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
-> -	}
-> -
-> -	if (inode->i_op->truncate)
-> -		inode->i_op->truncate(inode);
-> -	return 0;
-> -
-> -out_sig:
-> -	send_sig(SIGXFSZ, current, 0);
-> -out_big:
-> -	return -EFBIG;
-> -}
-> -EXPORT_SYMBOL(vmtruncate);
-> -
->  int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
->  {
->  	struct address_space *mapping = inode->i_mapping;
-> Index: linux-2.6/Documentation/filesystems/Locking
-> ===================================================================
-> --- linux-2.6.orig/Documentation/filesystems/Locking
-> +++ linux-2.6/Documentation/filesystems/Locking
-> @@ -78,10 +78,9 @@ removexattr:	yes
->  victim.
->  	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
->  	->truncate() is never called directly - it's a callback, not a
-> -method. It's called by vmtruncate() - library function normally used by
-> -->setattr(). Locking information above applies to that call (i.e. is
-> -inherited from ->setattr() - vmtruncate() is used when ATTR_SIZE had been
-> -passed).
-> +method. It's called by the default inode_setattr() library function normally
-> +used by ->setattr() when ATTR_SIZE has been passed. Locking information above
-> +applies to that call (i.e. is inherited from ->setattr()).
->  
->  See Documentation/filesystems/directory-locking for more detailed discussion
->  of the locking scheme for directory operations.
-> Index: linux-2.6/mm/nommu.c
-> ===================================================================
-> --- linux-2.6.orig/mm/nommu.c
-> +++ linux-2.6/mm/nommu.c
-> @@ -86,46 +86,6 @@ struct vm_operations_struct generic_file
+> @@ -2018,7 +2030,7 @@ static const struct inode_operations shm
 >  };
 >  
->  /*
-> - * Handle all mappings that got truncated by a "truncate()"
-> - * system call.
-> - *
-> - * NOTE! We have to be ready to update the memory sharing
-> - * between the file and the memory map for a potential last
-> - * incomplete page.  Ugly, but necessary.
-> - */
-> -int vmtruncate(struct inode *inode, loff_t offset)
-> -{
-> -	struct address_space *mapping = inode->i_mapping;
-> -	unsigned long limit;
-> -
-> -	if (inode->i_size < offset)
-> -		goto do_expand;
-> -	i_size_write(inode, offset);
-> -
-> -	truncate_inode_pages(mapping, offset);
-> -	goto out_truncate;
-> -
-> -do_expand:
-> -	limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
-> -	if (limit != RLIM_INFINITY && offset > limit)
-> -		goto out_sig;
-> -	if (offset > inode->i_sb->s_maxbytes)
-> -		goto out;
-> -	i_size_write(inode, offset);
-> -
-> -out_truncate:
-> -	if (inode->i_op->truncate)
-> -		inode->i_op->truncate(inode);
-> -	return 0;
-> -out_sig:
-> -	send_sig(SIGXFSZ, current, 0);
-> -out:
-> -	return -EFBIG;
-> -}
-> -
-> -EXPORT_SYMBOL(vmtruncate);
-> -
-> -/*
->   * Return the total memory allocated for this pointer, not
->   * just what the caller asked for.
->   *
-> Index: linux-2.6/Documentation/vm/locking
-> ===================================================================
-> --- linux-2.6.orig/Documentation/vm/locking
-> +++ linux-2.6/Documentation/vm/locking
-> @@ -80,7 +80,7 @@ Note: PTL can also be used to guarantee
->  mm start up ... this is a loose form of stability on mm_users. For
->  example, it is used in copy_mm to protect against a racing tlb_gather_mmu
->  single address space optimization, so that the zap_page_range (from
-> -vmtruncate) does not lose sending ipi's to cloned threads that might 
-> +truncate) does not lose sending ipi's to cloned threads that might
->  be spawned underneath it and go to user mode to drag in pte's into tlbs.
+>  static const struct inode_operations shmem_symlink_inode_operations = {
+> -	.truncate	= shmem_truncate,
+> +	.ftruncate	= shmem_ftruncate,
+>  	.readlink	= generic_readlink,
+>  	.follow_link	= shmem_follow_link,
+>  	.put_link	= shmem_put_link,
+> @@ -2438,7 +2450,7 @@ static const struct file_operations shme
+>  };
 >  
->  swap_lock
-> Index: linux-2.6/mm/filemap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap.c
-> +++ linux-2.6/mm/filemap.c
-> @@ -59,7 +59,7 @@
->  /*
->   * Lock ordering:
->   *
-> - *  ->i_mmap_lock		(vmtruncate)
-> + *  ->i_mmap_lock		(truncate_pagecache)
->   *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
->   *      ->swap_lock		(exclusive_swap_page, others)
->   *        ->mapping->tree_lock
-> Index: linux-2.6/mm/mremap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/mremap.c
-> +++ linux-2.6/mm/mremap.c
-> @@ -85,8 +85,8 @@ static void move_ptes(struct vm_area_str
->  	if (vma->vm_file) {
->  		/*
->  		 * Subtle point from Rajesh Venkatasubramanian: before
-> -		 * moving file-based ptes, we must lock vmtruncate out,
-> -		 * since it might clean the dst vma before the src vma,
-> +		 * moving file-based ptes, we must lock truncate_pagecache
-> +		 * out, since it might clean the dst vma before the src vma,
->  		 * and we propagate stale pages into the dst afterward.
->  		 */
->  		mapping = vma->vm_file->f_mapping;
-> Index: linux-2.6/mm/truncate.c
-> ===================================================================
-> --- linux-2.6.orig/mm/truncate.c
-> +++ linux-2.6/mm/truncate.c
-> @@ -465,3 +465,79 @@ int invalidate_inode_pages2(struct addre
->  	return invalidate_inode_pages2_range(mapping, 0, -1);
->  }
->  EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
-> +
-> +/**
-> + * truncate_pagecache - unmap mappings "freed" by truncate() syscall
-> + * @inode: inode
-> + * @old: old file offset
-> + * @new: new file offset
-> + *
-> + * inode's new i_size must already be written before truncate_pagecache
-> + * is called.
-> + */
-> +void truncate_pagecache(struct inode * inode, loff_t old, loff_t new)
-> +{
-> +	VM_BUG_ON(inode->i_size != new);
-> +
-> +	if (new < old) {
-> +		struct address_space *mapping = inode->i_mapping;
-> +
-> +#ifdef CONFIG_MMU
-> +		/*
-> +		 * unmap_mapping_range is called twice, first simply for
-> +		 * efficiency so that truncate_inode_pages does fewer
-> +		 * single-page unmaps.  However after this first call, and
-> +		 * before truncate_inode_pages finishes, it is possible for
-> +		 * private pages to be COWed, which remain after
-> +		 * truncate_inode_pages finishes, hence the second
-> +		 * unmap_mapping_range call must be made for correctness.
-> +		 */
-> +		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> +		truncate_inode_pages(mapping, new);
-> +		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> +#else
-> +		truncate_inode_pages(mapping, new);
-> +#endif
-> +	}
-> +}
-> +EXPORT_SYMBOL(truncate_pagecache);
-> +
-> +/**
-> + * vmtruncate - unmap mappings "freed" by truncate() syscall
-> + * @inode: inode of the file used
-> + * @offset: file offset to start truncating
-> + *
-> + * NOTE! We have to be ready to update the memory sharing
-> + * between the file and the memory map for a potential last
-> + * incomplete page.  Ugly, but necessary.
-> + *
-> + * This function is deprecated and truncate_pagecache should be
-> + * used instead.
-> + */
-> +int vmtruncate(struct inode * inode, loff_t offset)
-> +{
-> +	loff_t oldsize;
-> +	int error;
-> +
-> +	error = inode_truncate_ok(inode, offset);
-> +	if (error)
-> +		return error;
-> +	oldsize = inode->i_size;
-> +	i_size_write(inode, offset);
-> +	truncate_pagecache(inode, oldsize, offset);
-> +
-
-Here too it can be:
-
-+	error = simple_ftruncate(NULL, 0, inode, offset);
-+	if (error)
-+		return error;
-
-> +	if (inode->i_op->truncate)
-> +		inode->i_op->truncate(inode);
-> +
-> +	return error;
-> +}
-> +EXPORT_SYMBOL(vmtruncate);
-> +
-> +int truncate_blocks(struct inode *inode, loff_t offset)
-> +{
-> +	if (inode->i_op->ftruncate) /* these guys handle it themselves */
-> +		return 0;
-> +
-> +	return vmtruncate(inode, offset);
-> +}
-> +EXPORT_SYMBOL(truncate_blocks);
+>  static const struct inode_operations shmem_inode_operations = {
+> -	.truncate	= shmem_truncate,
+> +	.ftruncate	= shmem_ftruncate,
+>  	.setattr	= shmem_notify_change,
+>  	.truncate_range	= shmem_truncate_range,
+>  #ifdef CONFIG_TMPFS_POSIX_ACL
 > Index: linux-2.6/fs/buffer.c
 > ===================================================================
 > --- linux-2.6.orig/fs/buffer.c
 > +++ linux-2.6/fs/buffer.c
-> @@ -1992,9 +1992,12 @@ int block_write_begin(struct file *file,
->  			 * prepare_write() may have instantiated a few blocks
->  			 * outside i_size.  Trim these off again. Don't need
->  			 * i_size_read because we hold i_mutex.
-> +			 *
-> +			 * Filesystems which define ->ftruncate must handle
-> +			 * this themselves.
->  			 */
->  			if (pos + len > inode->i_size)
-> -				vmtruncate(inode, inode->i_size);
-> +				truncate_blocks(inode, inode->i_size);
->  		}
+> @@ -2702,22 +2702,23 @@ int nobh_truncate_page(struct address_sp
+>  	struct inode *inode = mapping->host;
+>  	struct page *page;
+>  	struct buffer_head map_bh;
+> -	int err;
+> +	int err = 0;
+>  
+>  	blocksize = 1 << inode->i_blkbits;
+>  	length = offset & (blocksize - 1);
+>  
+>  	/* Block boundary? Nothing to do */
+>  	if (!length)
+> -		return 0;
+> +		goto out;
+>  
+>  	length = blocksize - length;
+>  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+>  
+>  	page = grab_cache_page(mapping, index);
+> -	err = -ENOMEM;
+> -	if (!page)
+> +	if (!page) {
+> +		err = -ENOMEM;
+>  		goto out;
+> +	}
+>  
+>  	if (page_has_buffers(page)) {
+>  has_buffers:
+> @@ -2759,12 +2760,18 @@ has_buffers:
 >  	}
+>  	zero_user(page, offset, length);
+>  	set_page_dirty(page);
+> -	err = 0;
 >  
-> @@ -2377,7 +2380,7 @@ int block_commit_write(struct page *page
->   *
->   * We are not allowed to take the i_mutex here so we have to play games to
->   * protect against truncate races as the page could now be beyond EOF.  Because
-> - * vmtruncate() writes the inode size before removing pages, once we have the
-> + * truncate writes the inode size before removing pages, once we have the
->   * page lock we can determine safely if the page is beyond EOF. If it is not
->   * beyond EOF, then the page is guaranteed safe against truncation until we
->   * unlock the page.
-> @@ -2601,7 +2604,7 @@ out_release:
->  	*pagep = NULL;
->  
->  	if (pos + len > inode->i_size)
-> -		vmtruncate(inode, inode->i_size);
-> +		truncate_blocks(inode, inode->i_size);
->  
->  	return ret;
+>  unlock:
+>  	unlock_page(page);
+>  	page_cache_release(page);
+>  out:
+> +	if (!err && inode->i_op->ftruncate) {
+> +		loff_t oldsize = inode->i_size;
+> +
+> +		i_size_write(inode, from);
+> +		truncate_pagecache(inode, oldsize, from);
+> +	}
+> +
+>  	return err;
 >  }
-> Index: linux-2.6/fs/direct-io.c
-> ===================================================================
-> --- linux-2.6.orig/fs/direct-io.c
-> +++ linux-2.6/fs/direct-io.c
-> @@ -1210,14 +1210,14 @@ __blockdev_direct_IO(int rw, struct kioc
->  	/*
->  	 * In case of error extending write may have instantiated a few
->  	 * blocks outside i_size. Trim these off again for DIO_LOCKING.
-> -	 * NOTE: DIO_NO_LOCK/DIO_OWN_LOCK callers have to handle this by
-> -	 * it's own meaner.
-> +	 * NOTE: DIO_NO_LOCK/DIO_OWN_LOCK callers have to handle this in
-> +	 * their own manner.
->  	 */
->  	if (unlikely(retval < 0 && (rw & WRITE))) {
->  		loff_t isize = i_size_read(inode);
+>  EXPORT_SYMBOL(nobh_truncate_page);
+> @@ -2780,22 +2787,23 @@ int block_truncate_page(struct address_s
+>  	struct inode *inode = mapping->host;
+>  	struct page *page;
+>  	struct buffer_head *bh;
+> -	int err;
+> +	int err = 0;
 >  
->  		if (end > isize && dio_lock_type == DIO_LOCKING)
-> -			vmtruncate(inode, isize);
-> +			truncate_blocks(inode, isize);
+>  	blocksize = 1 << inode->i_blkbits;
+>  	length = offset & (blocksize - 1);
+>  
+>  	/* Block boundary? Nothing to do */
+>  	if (!length)
+> -		return 0;
+> +		goto out;
+>  
+>  	length = blocksize - length;
+>  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+>  	
+>  	page = grab_cache_page(mapping, index);
+> -	err = -ENOMEM;
+> -	if (!page)
+> +	if (!page) {
+> +		err = -ENOMEM;
+>  		goto out;
+> +	}
+>  
+>  	if (!page_has_buffers(page))
+>  		create_empty_buffers(page, blocksize, 0);
+> @@ -2809,7 +2817,6 @@ int block_truncate_page(struct address_s
+>  		pos += blocksize;
 >  	}
 >  
->  	if (rw == READ && dio_lock_type == DIO_LOCKING)
+> -	err = 0;
+>  	if (!buffer_mapped(bh)) {
+>  		WARN_ON(bh->b_size != blocksize);
+>  		err = get_block(inode, iblock, bh, 0);
+> @@ -2825,22 +2832,29 @@ int block_truncate_page(struct address_s
+>  		set_buffer_uptodate(bh);
+>  
+>  	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
+> -		err = -EIO;
+>  		ll_rw_block(READ, 1, &bh);
+>  		wait_on_buffer(bh);
+>  		/* Uhhuh. Read error. Complain and punt. */
+> -		if (!buffer_uptodate(bh))
+> +		if (!buffer_uptodate(bh)) {
+> +			err = -EIO;
+>  			goto unlock;
+> +		}
+>  	}
+>  
+>  	zero_user(page, offset, length);
+>  	mark_buffer_dirty(bh);
+> -	err = 0;
+>  
+>  unlock:
+>  	unlock_page(page);
+>  	page_cache_release(page);
+>  out:
+> +	if (!err && inode->i_op->ftruncate) {
+> +		loff_t oldsize = inode->i_size;
+> +
+> +		i_size_write(inode, from);
+> +		truncate_pagecache(inode, oldsize, from);
+> +	}
+> +
+>  	return err;
+>  }
+>  
+> Index: linux-2.6/fs/ext2/ext2.h
+> ===================================================================
+> --- linux-2.6.orig/fs/ext2/ext2.h
+> +++ linux-2.6/fs/ext2/ext2.h
+> @@ -122,7 +122,7 @@ extern int ext2_write_inode (struct inod
+>  extern void ext2_delete_inode (struct inode *);
+>  extern int ext2_sync_inode (struct inode *);
+>  extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
+> -extern void ext2_truncate (struct inode *);
+> +extern int ext2_ftruncate(struct file *, int, struct inode *, loff_t);
+>  extern int ext2_setattr (struct dentry *, struct iattr *);
+>  extern void ext2_set_inode_flags(struct inode *inode);
+>  extern void ext2_get_inode_flags(struct ext2_inode_info *);
+> Index: linux-2.6/mm/filemap_xip.c
+> ===================================================================
+> --- linux-2.6.orig/mm/filemap_xip.c
+> +++ linux-2.6/mm/filemap_xip.c
+> @@ -440,7 +440,9 @@ EXPORT_SYMBOL_GPL(xip_file_write);
+>  int
+>  xip_truncate_page(struct address_space *mapping, loff_t from)
+>  {
+> +	struct inode *inode = mapping->host;
+>  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+> +	loff_t oldsize;
+>  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+>  	unsigned blocksize;
+>  	unsigned length;
+> @@ -450,12 +452,12 @@ xip_truncate_page(struct address_space *
+>  
+>  	BUG_ON(!mapping->a_ops->get_xip_mem);
+>  
+> -	blocksize = 1 << mapping->host->i_blkbits;
+> +	blocksize = 1 << inode->i_blkbits;
+>  	length = offset & (blocksize - 1);
+>  
+>  	/* Block boundary? Nothing to do */
+>  	if (!length)
+> -		return 0;
+> +		goto out;
+>  
+>  	length = blocksize - length;
+>  
+> @@ -464,11 +466,18 @@ xip_truncate_page(struct address_space *
+>  	if (unlikely(err)) {
+>  		if (err == -ENODATA)
+>  			/* Hole? No need to truncate */
+> -			return 0;
+> +			goto out;
+>  		else
+>  			return err;
+>  	}
+>  	memset(xip_mem + offset, 0, length);
+> +out:
+> +	if (inode->i_op->ftruncate) {
+> +		oldsize = inode->i_size;
+> +		i_size_write(inode, from);
+> +		truncate_pagecache(inode, oldsize, from);
+> +	}
+> +
+>  	return 0;
+>  }
+>  EXPORT_SYMBOL_GPL(xip_truncate_page);
+> Index: linux-2.6/fs/ext2/file.c
+> ===================================================================
+> --- linux-2.6.orig/fs/ext2/file.c
+> +++ linux-2.6/fs/ext2/file.c
+> @@ -77,7 +77,7 @@ const struct file_operations ext2_xip_fi
+>  #endif
+>  
+>  const struct inode_operations ext2_file_inode_operations = {
+> -	.truncate	= ext2_truncate,
+> +	.ftruncate	= ext2_ftruncate,
+>  #ifdef CONFIG_EXT2_FS_XATTR
+>  	.setxattr	= generic_setxattr,
+>  	.getxattr	= generic_getxattr,
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
 > the body of a message to majordomo@vger.kernel.org
 > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
-Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
