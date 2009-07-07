@@ -1,42 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 161406B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 11:46:40 -0400 (EDT)
-Date: Tue, 7 Jul 2009 17:48:09 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
-Message-ID: <20090707154809.GH2714@wotan.suse.de>
-References: <20090707144423.GC2714@wotan.suse.de> <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090707150758.GA18075@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1D4C16B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 11:48:50 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n67FoKOK011818
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 8 Jul 2009 00:50:20 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1ED4D45DE53
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 00:50:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F0EFC45DE52
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 00:50:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BFBBF1DB803E
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 00:50:19 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AE90E08001
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 00:50:19 +0900 (JST)
+Message-ID: <f3d6b9b393ab831bce368903008fdc13.squirrel@webmail-b.css.fujitsu.com>
+Date: Wed, 8 Jul 2009 00:50:18 +0900 (JST)
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 11:07:58AM -0400, Christoph Hellwig wrote:
-> On Tue, Jul 07, 2009 at 05:02:57PM +0200, Nick Piggin wrote:
-> > That's kind of why I liked it in inode_setattr better.
-> > 
-> > But if the filesystem defines its own ->setattr, then it could simply
-> > not define a ->setsize and do the right thing in setattr. So this
-> > calling convention seems not too bad.
-> 
-> Or the filesystem could just call into it's own setattr method
-> internally.  For that we'd switch back to passing the iattr to
-> ->setsize.  For a filesystem that doesn't do anything special for
-> ATTR_SIZE ->setsize could point to the same function as ->setattr.
-> 
-> For filesystem where's it's really different they could be separate or
-> share helpers.
+Nick Piggin wrote:
+> On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
+>> 3. Considering save&restore application's data table, ZERO_PAGE is
+>> useful.
+>>    maybe.
+>
+> I just wouldn't like to re-add significant complexity back to
+> the vm without good and concrete examples. OK I agree that
+> just saying "rewrite your code" is not so good, but are there
+> real significant problems? Is it inside just a particuar linear
+> algebra library or something  that might be able to be updated?
+>
+As far as I can tell
 
-OK, so what do you suggest? If the filesystem defines
-->setsize then do not pass ATTR_SIZE changes into setattr?
-But then do you also not pass in ATTR_TIME cchanges to setattr
-iff they  are together with ATTR_SIZE change? It sees also like
-quite a difficult calling convention.
+I know 2 cases from my limited experience for user support.
+
+1. A middlware maps /dev/zero with PRIVATE mapping and use copy-on-write
+   intentionally. I think this is because their Solaris? apps required
+   /dev/zero to use ZERO_PAGE or anon.
+   I don't know much about solaris but
+   "mapping /dev/zero eats up tons of memory" sounds strange for me.
+
+2. A HPC middleware seems to make use of ZERO_PAGE to do checkpoint/restart
+   of his job. (Maybe they can rewrite programs as you say.)
+
+Maybe there are others. (I'm not afraid of famous OSS applications/library.
+There will be enough technical support for such apps.)
+
+To be honest, I'd like to support /dev/zero, at least.
+"mmap(/dev/zero, PROT_READ) caues OOM" sounds like a crazy behavior as OS.
+
+Is it ok to write fault handler for /dev/zero and use zero page even if
+this request is rejected ?
+
+It was a choice to advertise "ZERO PAGE is not available any more, plz
+check and rewrite you applications" to all my customers. But I'm being
+pessimistic about this issue. (So, trying this patch)
+Users will not understand what is the change and I'll see some of OOM
+report caused by this change.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
