@@ -1,75 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E79276B005A
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 03:59:23 -0400 (EDT)
-Subject: Re: [RFC PATCH 1/3] kmemleak: Allow partial freeing of memory blocks
-References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
-	<20090706105149.16051.99106.stgit@pc1117.cambridge.arm.com>
-	<1246950733.24285.10.camel@penberg-laptop>
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Tue, 07 Jul 2009 09:42:14 +0100
-In-Reply-To: <1246950733.24285.10.camel@penberg-laptop> (Pekka Enberg's message of "Tue\, 07 Jul 2009 10\:12\:13 +0300")
-Message-ID: <tnxtz1ovq8p.fsf@pc1117.cambridge.arm.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 57CE16B005C
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 04:04:41 -0400 (EDT)
+Date: Tue, 7 Jul 2009 10:47:50 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-ID: <20090707084750.GX2714@wotan.suse.de>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, akpm@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> On Mon, 2009-07-06 at 11:51 +0100, Catalin Marinas wrote:
->> @@ -552,8 +558,29 @@ static void delete_object(unsigned long ptr)
->>  	 */
->>  	spin_lock_irqsave(&object->lock, flags);
->>  	object->flags &= ~OBJECT_ALLOCATED;
->> +	start = object->pointer;
->> +	end = object->pointer + object->size;
->> +	min_count = object->min_count;
->>  	spin_unlock_irqrestore(&object->lock, flags);
->>  	put_object(object);
->> +
->> +	if (!size)
->> +		return;
->> +
->> +	/*
->> +	 * Partial freeing. Just create one or two objects that may result
->> +	 * from the memory block split.
->> +	 */
->> +	if (in_atomic())
->> +		gfp_flags = GFP_ATOMIC;
->> +	else
->> +		gfp_flags = GFP_KERNEL;
->
-> Are you sure we can do this? There's a big fat comment on top of
-> in_atomic() that suggest this is not safe.
+On Tue, Jul 07, 2009 at 04:51:01PM +0900, KAMEZAWA Hiroyuki wrote:
+> Hi, this is ZERO_PAGE mapping revival patch v2.
+> 
+> ZERO PAGE was removed in 2.6.24 (=> http://lkml.org/lkml/2007/10/9/112)
+> and I had no objections.
+> 
+> In these days, at user support jobs, I noticed a few of customers
+> are making use of ZERO_PAGE intentionally...brutal mmap and scan, etc. 
+> (For example, scanning big sparse table and save the contents.)
+> 
+> They are using RHEL4-5(before 2.6.18) then they don't notice that ZERO_PAGE
+> is gone, yet.
+> yes, I can say  "ZERO PAGE is gone" to them in next generation distro.
+> 
+> Recently, a question comes to lkml (http://lkml.org/lkml/2009/6/4/383
+> 
+> Maybe there are some users of ZERO_PAGE other than my customers.
+> So, can't we use ZERO_PAGE again ?
+> 
+> IIUC, the problem of ZERO_PAGE was
+>   - reference count cache ping-pong
+>   - complicated handling.
+>   - the behavior page-fault-twice can make applications slow.
+> 
+> This patch is a trial to de-refcounted ZERO_PAGE.
+> 
+> This includes 4 patches.
+> [1/4] introduce pte_zero() at el.
+> [2/4] use ZERO_PAGE for READ fault in anonymous mapping.
+> [3/4] corner cases, get_user_pages()
+> [4/4] introduce get_user_pages_nozero().
+> 
+> I feel these patches needs to be clearer but includes almost all
+> messes we have to handle at using ZERO_PAGE again.
+> 
+> What I feel now is
+>  a. technically, we can do because we did.
+>  b. Considering maintenance, code's beauty etc.. ZERO_PAGE adds messes.
+>  c. Very big benefits for some (a few?) users but no benefits to usual programs.
+>  
+>  There are trade-off between b. and c.
+>  
+> Any comments are welcome.
 
-It's not safe but I thought it's slightly better than not checking it.
-
-> Why do we need to create the
-> object here anyway and not in the _alloc_ paths where gfp flags are
-> explicitly passed?
-
-That's the free_bootmem case where Linux can only partially free a
-block previously allocated with alloc_bootmem (that's why I haven't
-tracked this from the beginning). So if it only frees some part in the
-middle of a block, I would have to create two separate
-kmemleak_objects (well, I can reuse one but I preferred fewer
-modifications as this is not on a fast path anyway).
-
-In the tests I did, free_bootmem is called before the slab allocator
-is initialised and therefore before kmemleak is initialised, which
-means that the requests are just logged and the kmemleak_* functions
-are called later from the kmemleak_init() function. All allocations
-via this function are fine to only use GFP_KERNEL.
-
-If my reasoning above is correct, I'll only pass GFP_KERNEL and add a
-comment in the code clarifying when the partial freeing happen.
-
-Thanks.
-
--- 
-Catalin
+Can we just try to wean them off it? Using zero page for huge sparse
+matricies is probably not ideal anyway because it needs to still be
+faulted in and it occupies TLB space. They might see better performance
+by using a better algorithm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
