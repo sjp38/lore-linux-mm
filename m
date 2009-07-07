@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 940186B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 14:56:59 -0400 (EDT)
-Message-ID: <4A539B11.5020803@redhat.com>
-Date: Tue, 07 Jul 2009 14:59:29 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ACF06B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 15:51:07 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/2] vmscan don't isolate too many pages
-References: <20090707182947.0C6D.A69D9226@jp.fujitsu.com> <20090707184034.0C70.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090707184034.0C70.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <92d23660-c8a3-4107-aee6-ec251ff65b99@default>
+Date: Tue, 7 Jul 2009 12:53:06 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
+In-Reply-To: <4A5385AD.9000800@redhat.com>
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
+> From: Rik van Riel [mailto:riel@redhat.com]
 
-> FAQ
-> -------
-> Q: Why do you compared zone accumulate pages, not individual zone pages?
-> A: If we check individual zone, #-of-reclaimer is restricted by smallest zone.
->    it mean decreasing the performance of the system having small dma zone.
+> Dan Magenheimer wrote:
+> > "Preswap" IS persistent, but for various reasons may not always be
+> > available for use, again due to factors that may not be=20
+> visible to the
+> > kernel (but, briefly, if the kernel is being "good" and has=20
+> shared its
+> > resources nicely, then it will be able to use preswap, else=20
+> it will not).
+> > Once a page is put, a get on the page will always succeed.=20
+>=20
+> What happens when all of the free memory on a system
+> has been consumed by preswap by a few guests?
+> Will the system be unable to start another guest,
 
-That is a clever solution!  I was playing around a bit with
-doing it on a per-zone basis.  Your idea is much nicer.
+The default policy (and only policy implemented as of now) is
+that no guest is allowed to use more than max_mem for the
+sum of directly-addressable memory (e.g. RAM) and persistent
+tmem (e.g. preswap).  So if a guest is using its default
+memory=3D=3Dmax_mem and is doing no ballooning, nothing can
+be put in preswap by that guest.
+=20
+> or is there some way to free the preswap memory?
 
-However, I can see one potential problem with your patch:
+Yes and no.  There is no way externally to free preswap
+memory, but an in-guest userland root service can write to sysfs
+to affect preswap size.  This essentially does a partial
+swapoff on preswap if there is sufficient (directly addressable)
+guest RAM available.  (I have this prototyped as part of
+the xenballoond self-ballooning service in xen-unstable.)
 
-+		nr_inactive += zone_page_state(zone, NR_INACTIVE_ANON);
-+		nr_inactive += zone_page_state(zone, NR_INACTIVE_FILE);
-+		nr_isolated += zone_page_state(zone, NR_ISOLATED_ANON);
-+		nr_isolated += zone_page_state(zone, NR_ISOLATED_FILE);
-+	}
-+
-+	return nr_isolated > nr_inactive;
-
-What if we ran out of swap space, or are not scanning the
-anon list at all for some reason?
-
-It is possible that there are no inactive_file pages left,
-with all file pages already isolated, and your function
-still letting reclaimers through.
-
-This means you could still get a spurious OOM.
-
-I guess I should mail out my (ugly) approach, so we can
-compare the two :)
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
