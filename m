@@ -1,58 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E12EF6B004F
-	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:56:24 -0400 (EDT)
-Date: Tue, 7 Jul 2009 21:56:56 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] add NR_ANON_PAGES to OOM log
-Message-ID: <20090707135656.GB9444@localhost>
-References: <20090705211739.091D.A69D9226@jp.fujitsu.com> <20090705130200.GA6585@localhost> <20090707102106.0C66.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4D36B004F
+	for <linux-mm@kvack.org>; Tue,  7 Jul 2009 09:59:42 -0400 (EDT)
+Date: Tue, 7 Jul 2009 16:00:33 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-ID: <20090707140033.GB2714@wotan.suse.de>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090707102106.0C66.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 09:22:48AM +0800, KOSAKI Motohiro wrote:
-> > On Sun, Jul 05, 2009 at 08:21:20PM +0800, KOSAKI Motohiro wrote:
-> > > > On Sun, Jul 05, 2009 at 05:26:18PM +0800, KOSAKI Motohiro wrote:
+On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 7 Jul 2009 10:47:50 +0200
+> Nick Piggin <npiggin@suse.de> wrote:
+> 
+> > On Tue, Jul 07, 2009 at 04:51:01PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > Hi, this is ZERO_PAGE mapping revival patch v2.
+> > > 
+> > > ZERO PAGE was removed in 2.6.24 (=> http://lkml.org/lkml/2007/10/9/112)
+> > > and I had no objections.
+> > > 
+> > > In these days, at user support jobs, I noticed a few of customers
+> > > are making use of ZERO_PAGE intentionally...brutal mmap and scan, etc. 
+> > > (For example, scanning big sparse table and save the contents.)
+> > > 
+> > > They are using RHEL4-5(before 2.6.18) then they don't notice that ZERO_PAGE
+> > > is gone, yet.
+> > > yes, I can say  "ZERO PAGE is gone" to them in next generation distro.
+> > > 
+> > > Recently, a question comes to lkml (http://lkml.org/lkml/2009/6/4/383
+> > > 
+> > > Maybe there are some users of ZERO_PAGE other than my customers.
+> > > So, can't we use ZERO_PAGE again ?
+> > > 
+> > > IIUC, the problem of ZERO_PAGE was
+> > >   - reference count cache ping-pong
+> > >   - complicated handling.
+> > >   - the behavior page-fault-twice can make applications slow.
+> > > 
+> > > This patch is a trial to de-refcounted ZERO_PAGE.
+> > > 
+> > > This includes 4 patches.
+> > > [1/4] introduce pte_zero() at el.
+> > > [2/4] use ZERO_PAGE for READ fault in anonymous mapping.
+> > > [3/4] corner cases, get_user_pages()
+> > > [4/4] introduce get_user_pages_nozero().
+> > > 
+> > > I feel these patches needs to be clearer but includes almost all
+> > > messes we have to handle at using ZERO_PAGE again.
+> > > 
+> > > What I feel now is
+> > >  a. technically, we can do because we did.
+> > >  b. Considering maintenance, code's beauty etc.. ZERO_PAGE adds messes.
+> > >  c. Very big benefits for some (a few?) users but no benefits to usual programs.
+> > >  
+> > >  There are trade-off between b. and c.
+> > >  
+> > > Any comments are welcome.
+> > 
+> > Can we just try to wean them off it? Using zero page for huge sparse
+> > matricies is probably not ideal anyway because it needs to still be
+> > faulted in and it occupies TLB space. They might see better performance
+> > by using a better algorithm.
+> > 
+> TLB usage is another problem I think...
+> 
+> I agreed removal of ZERO_PAGE in 2.6.24. But I'm now retrying this
+> because of following reasons.
+> 
+> 1.  From programmer's perspective, I almost agree to you. But considering users,
+> most of them are _not_ programmers, saying "please rewrite your program
+> because OS changed its implementation" is no help.
+> What they want is calclating something and not writing a program.
+> 
+> 2. This change is _very_ implicit and doesn't affect alomost all programs.
+> I think ZERO_PAGE() is used only when an apllication does some special jobs.
+> 
+> Then,  most of users will not notice that ZERO_PAGE is not available until
+> he(she) find OOM-Killer message. This is very terrible situation for me.
+> (and most of system admins.)
+> 
+> 3. Considering save&restore application's data table, ZERO_PAGE is useful.
+>    maybe.
 
-> @@ -2118,9 +2118,9 @@ void show_free_areas(void)
->  	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
->  		" inactive_file:%lu unevictable:%lu\n"
->  		" isolated_anon:%lu isolated_file:%lu\n"
-> -		" dirty:%lu writeback:%lu buffer:%lu unstable:%lu\n"
-> +		" dirty:%lu writeback:%lu buffer:%lu shmem:%lu\n"
-
-btw, nfs unstable pages are related to writeback pages, so it may be
-better to put "unstable" right after "writeback" (as it was)?
-
-Thanks,
-Fengguang
-
-
->  		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> -		" mapped:%lu pagetables:%lu bounce:%lu\n",
-> +		" mapped:%lu pagetables:%lu unstable:%lu bounce:%lu\n",
->  		global_page_state(NR_ACTIVE_ANON),
->  		global_page_state(NR_ACTIVE_FILE),
->  		global_page_state(NR_INACTIVE_ANON),
-> @@ -2131,12 +2131,13 @@ void show_free_areas(void)
->  		global_page_state(NR_FILE_DIRTY),
->  		global_page_state(NR_WRITEBACK),
->  		nr_blockdev_pages(),
-> -		global_page_state(NR_UNSTABLE_NFS),
-> +		global_page_state(NR_SHMEM),
->  		global_page_state(NR_FREE_PAGES),
->  		global_page_state(NR_SLAB_RECLAIMABLE),
->  		global_page_state(NR_SLAB_UNRECLAIMABLE),
->  		global_page_state(NR_FILE_MAPPED),
->  		global_page_state(NR_PAGETABLE),
-> +		global_page_state(NR_UNSTABLE_NFS),
->  		global_page_state(NR_BOUNCE));
+I just wouldn't like to re-add significant complexity back to
+the vm without good and concrete examples. OK I agree that
+just saying "rewrite your code" is not so good, but are there
+real significant problems? Is it inside just a particuar linear
+algebra library or something  that might be able to be updated?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
