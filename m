@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6BFA66B004D
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 10:44:41 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id CA98482C38A
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 11:12:18 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id ymiCjWhZxaeh for <linux-mm@kvack.org>;
-	Wed,  8 Jul 2009 11:12:18 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 40A9182C392
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 11:12:15 -0400 (EDT)
-Date: Wed, 8 Jul 2009 10:53:38 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: RE: Performance degradation seen after using one list for
- hot/coldpages.
-In-Reply-To: <98062A42B4E040F4861C78D172E2499B@sisodomain.com>
-Message-ID: <alpine.DEB.1.10.0907081051570.26162@gentwo.org>
-References: <20626261.51271245670323628.JavaMail.weblogic@epml20> <20090622165236.GE3981@csn.ul.ie> <20090623090630.f06b7b17.kamezawa.hiroyu@jp.fujitsu.com> <20090629091542.GC28597@csn.ul.ie> <98062A42B4E040F4861C78D172E2499B@sisodomain.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C6C616B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 11:18:32 -0400 (EDT)
+Date: Wed, 8 Jul 2009 16:27:55 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: Performance degradation seen after using one list for
+	hot/coldpages.
+Message-ID: <20090708152755.GC14601@csn.ul.ie>
+References: <20626261.51271245670323628.JavaMail.weblogic@epml20> <20090622165236.GE3981@csn.ul.ie> <20090623090630.f06b7b17.kamezawa.hiroyu@jp.fujitsu.com> <20090629091542.GC28597@csn.ul.ie> <98062A42B4E040F4861C78D172E2499B@sisodomain.com> <alpine.DEB.1.10.0907081051570.26162@gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0907081051570.26162@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: Narayanan Gopalakrishnan <narayanan.g@samsung.com>
-Cc: 'Mel Gorman' <mel@csn.ul.ie>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Narayanan Gopalakrishnan <narayanan.g@samsung.com>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Jul 2009, Narayanan Gopalakrishnan wrote:
+On Wed, Jul 08, 2009 at 10:53:38AM -0400, Christoph Lameter wrote:
+> On Wed, 8 Jul 2009, Narayanan Gopalakrishnan wrote:
+> 
+> > We have done some stress testing using fsstress (LTP).
+> > This patch seems to work fine with our OMAP based targets.
+> > Can we have this merged?
+> 
+> Please post the patch that you tested. I am a bit confused due to
+> topposting. There were several outstanding issues in the message you
+> included.
+> 
 
-> We have done some stress testing using fsstress (LTP).
-> This patch seems to work fine with our OMAP based targets.
-> Can we have this merged?
+I know which patch he is on about, it's entitled "page-allocator: Preserve
+PFN ordering when __GFP_COLD is set". There are a number of patches that
+I don't believe have made it upstream or into mmotm but I've lost track
+of what is in flight and what isn't. When an mmotm against 2.6.31-rc2 is
+out, I'll be going through it again to see what made it in and resending
+patches as appropriate.
 
-Please post the patch that you tested. I am a bit confused due to
-topposting. There were several outstanding issues in the message you
-included.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
