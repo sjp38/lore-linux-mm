@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BDEA06B004D
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 13:22:06 -0400 (EDT)
-Date: Wed, 8 Jul 2009 19:32:06 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-Message-ID: <20090708173206.GN356@random.random>
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
- <20090707084750.GX2714@wotan.suse.de>
- <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF616B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 15:13:49 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Wed, 08 Jul 2009 15:24:30 -0400
+Message-Id: <20090708192430.20687.30157.sendpatchset@lts-notebook>
+Subject: [PATCH 0/3] hugetlb: V2 constrain allocation/free based on task mempolicy
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> Then,  most of users will not notice that ZERO_PAGE is not available until
-> he(she) find OOM-Killer message. This is very terrible situation for me.
-> (and most of system admins.)
+PATCH 0/3 hugetlb: constrain allocation/free based on task mempolicy
 
-Can you try to teach them to use KSM and see if they gain a while lot
-more from it (surely they also do some memset(dst, 0) sometime not
-only memcpy(zerosrc, dst)). Not to tell when they init to non zero
-values their arrays/matrix which is a bit harder to optimize for with
-zero page...
+Against:  25jun09 mmotm atop the "hugetlb:  balance freeing..."
+series
 
-My only dislike is that zero page requires a flood of "if ()" new
-branches in fast paths that benefits nothing but badly written app,
-and that's the only reason I liked its removal.
+This is V2 of a series of patches to constrain the allocation and
+freeing of persistent huge pages using the task NUMA mempolicy of
+the task modifying "nr_hugepages".  This series is based on Mel
+Gorman's suggestion to use task mempolicy.
 
-For goodly (and badly) written scientific app there KSM that will do
-more than zeropage while dealing with matrix algorithms and such. If
-they try KSM and they don't gain a lot more free memory than with the
-zero page hack, then I agree in reintroducing it, but I guess when
-they try KSM they will ask you to patch kernel with it, instead of
-patch kernel with zeropage. If they don't gain anything more with KSM
-than with zeropage, and the kksmd overhead is too high, then it would
-make sense to use zeropage for them I agree even if it bites in the
-fast path of all apps that can't benefit from it. (not to tell the
-fact that reading zero and writing non zero back for normal apps is
-harmful as there's a double page fault generated instead of a single
-one, kksmd has a cost but zeropage isn't free either in term of page
-faults too)
+V2 addresses review comments from Mel Gorman and Andrew Morton.
+See the patch description of patch 2/3.
+
+I have some concerns about a subtle change in behavior [see patch
+2/3 and the updated documentation] and the fact that
+this mechanism ignores some of the semantics of the mempolicy
+mode [again, see the doc].   However, this method seems to work
+fairly well.  And, IMO, the resulting code doesn't look all that
+bad.
+
+A couple of limitations in this version:
+
+1) I haven't implemented a boot time parameter to constrain the
+   boot time allocation of huge pages.  This can be added if
+   anyone feels strongly that it is required.
+
+2) I have not implemented a per node nr_overcommit_hugepages as
+   David Rientjes and I discussed earlier.  Again, this can be
+   added and specific nodes can be addressed using the mempolicy
+   as this series does for allocation and free.  However, after
+   some experience with the libhugetlbfs test suite, specifically
+   attempting to run the test suite constrained by mempolicy and
+   a cpuset, I'm thinking that per node overcommit limits might
+   not be such a good idea.  This would require an application
+   [or the library] to sum the per node limits over the allowed
+   nodes and possibly compare to global limits to determine the
+   available resources.  Per cpuset limits might work better.
+   This are requires more investigation, but this patch series
+   doesn't seem to make things worse than they already are in
+   this regard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
