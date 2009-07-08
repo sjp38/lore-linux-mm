@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 50F116B0055
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 05:56:05 -0400 (EDT)
-Subject: Re: [RFC PATCH 2/3] kmemleak: Add callbacks to the bootmem
- allocator
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1247047355.6595.16.camel@pc1117.cambridge.arm.com>
-References: <20090706104654.16051.44029.stgit@pc1117.cambridge.arm.com>
-	 <20090706105155.16051.59597.stgit@pc1117.cambridge.arm.com>
-	 <1246950530.24285.7.camel@penberg-laptop>
-	 <20090707165350.GA2782@cmpxchg.org>
-	 <1247004586.5710.16.camel@pc1117.cambridge.arm.com>
-	 <20090708094643.GA1956@cmpxchg.org>
-	 <1247047355.6595.16.camel@pc1117.cambridge.arm.com>
-Date: Wed, 08 Jul 2009 13:03:38 +0300
-Message-Id: <1247047418.15919.70.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A636B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 06:39:14 -0400 (EDT)
+Date: Wed, 8 Jul 2009 06:47:01 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
+Message-ID: <20090708104701.GA31419@infradead.org>
+References: <20090707144423.GC2714@wotan.suse.de> <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090708063225.GL2714@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-07-08 at 11:02 +0100, Catalin Marinas wrote:
-> On Wed, 2009-07-08 at 11:46 +0200, Johannes Weiner wrote:
-> > On Tue, Jul 07, 2009 at 11:09:46PM +0100, Catalin Marinas wrote:
-> > 
-> > > It seems that alloc_bootmem_core() is central to all the bootmem
-> > > allocations. Is it OK to place the kmemleak_alloc hook only in this
-> > > function?
-> > > 
-> > > diff --git a/mm/bootmem.c b/mm/bootmem.c
-> > > index 5a649a0..74cbb34 100644
-> > > --- a/mm/bootmem.c
-> > > +++ b/mm/bootmem.c
-> > > @@ -520,6 +520,7 @@ find_block:
-> > >  		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
-> > >  				start_off);
-> > >  		memset(region, 0, size);
-> > > +		kmemleak_alloc(region, size, 1, 0);
-> > >  		return region;
-> > >  	}
-> > 
-> > Yes, that should work.
+On Wed, Jul 08, 2009 at 08:32:25AM +0200, Nick Piggin wrote:
+> Thanks for the patch, I think I will fold it in to the series. I
+> think we probably do need to call simple_setsize in inode_setattr
+> though (unless you propose to eventually convert every filesystem
+> to define a .setattr). This would also require eg. your ext2
+> conversion to strip ATTR_SIZE before passing through to inode_setattr.
+
+Yes, we should eventually make .setattr mandatory.  Doing a default
+action when a method lacks tends to cause more issues than it solves.
+
+I'm happy to help in doing that part of the conversion (and also other
+bits)
+
+> >  int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
+> >  {
+> >  	struct inode *inode = dentry->d_inode;
+> >  	int error;
+> >  
+> > +	if (iattr->ia_valid & ATTR_SIZE) {
+> > +		error = ext2_setsize(inode, iattr->ia_size);
+> > +		if (error)
+> > +			return error;
+> > +	}
+> > +
+> >  	error = inode_change_ok(inode, iattr);
+> >  	if (error)
+> >  		return error;
 > 
-> Thanks. May I add your Acked-by line to the final patch?
+> Probably want to call inode_change_ok first here.
 
-I guess you mean Johannes but while we're at it:
+Right now I tried to no reorder anything versus the previous patch.
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+But yes, we should do all the checks first.  Possibly we can even add
+a call to inode_newsize_ok to inode_change_ok, but I'd like to defer
+that until all conversions are done and we can easily audit it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
