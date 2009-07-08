@@ -1,28 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B8E26B004D
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 09:40:41 -0400 (EDT)
-Date: Wed, 8 Jul 2009 09:49:30 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rfc][patch 4/4] fs: tmpfs, ext2 use new truncate
-Message-ID: <20090708134930.GB26701@infradead.org>
-References: <20090707144423.GC2714@wotan.suse.de> <20090707144918.GF2714@wotan.suse.de> <20090707163829.GB14947@infradead.org> <20090708065327.GM2714@wotan.suse.de> <20090708111420.GB20924@duck.suse.cz> <20090708122250.GP2714@wotan.suse.de> <20090708123244.GA22722@infradead.org> <20090708123904.GR2714@wotan.suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D54BA6B004F
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 08:19:49 -0400 (EDT)
+Date: Wed, 8 Jul 2009 14:28:29 +0200 (CEST)
+From: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+Subject: Re: [BUG 2.6.30] Bad page map in process
+In-Reply-To: <20090708132308.12b25ac9@hcegtvedt.norway.atmel.com>
+Message-ID: <Pine.LNX.4.64.0907081326000.15633@axis700.grange>
+References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
+ <20090708132308.12b25ac9@hcegtvedt.norway.atmel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090708123904.GR2714@wotan.suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel@avr32linux.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 08, 2009 at 02:39:04PM +0200, Nick Piggin wrote:
-> Here is patch 4/4 after your parts folded in and other changes
-> I said in last mail. (yes I do agree to split it up, but I'll
-> just wait until we all agree on basics and then resend a new
-> patchset).
+On Wed, 8 Jul 2009, Hans-Christian Egtvedt wrote:
 
-Sure, that's fine.
+> On Wed, 8 Jul 2009 13:07:31 +0200 (CEST)
+> Guennadi Liakhovetski <g.liakhovetski@gmx.de> wrote:
+> 
+> Hi Guennadi,
+> 
+> > with a 2.6.30 kernel 
+> >
+> 
+> Could you give a short description of the rest of your setup as well?
+
+Sure, it is based on buildroot v2.3.0:
+
+> libc library and version number? Latest known to be good is uClibc
+> v0.9.30.1.
+
+It's v0.9.30.
+
+> binutils version? Latest known to be good is binutils version
+> 2.18.atmel.1.0.1.buildroot.1.
+
+Yep.
+
+> gcc version? Latest known to be good is gcc version
+> 4.2.2-atmel.1.1.3.buildroot.1.
+
+Yep.
+
+Thanks
+Guennadi
+---
+Guennadi Liakhovetski, Ph.D.
+Freelance Open-Source Software Developer
+http://www.open-technology.de/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
