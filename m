@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 880BA6B004D
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 07:06:22 -0400 (EDT)
-Date: Wed, 8 Jul 2009 13:14:20 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [rfc][patch 4/4] fs: tmpfs, ext2 use new truncate
-Message-ID: <20090708111420.GB20924@duck.suse.cz>
-References: <20090707144423.GC2714@wotan.suse.de> <20090707144918.GF2714@wotan.suse.de> <20090707163829.GB14947@infradead.org> <20090708065327.GM2714@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090708065327.GM2714@wotan.suse.de>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DA6F6B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 07:15:16 -0400 (EDT)
+Date: Wed, 8 Jul 2009 13:23:08 +0200
+From: Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
+Subject: Re: [BUG 2.6.30] Bad page map in process
+Message-ID: <20090708132308.12b25ac9@hcegtvedt.norway.atmel.com>
+In-Reply-To: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
+References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel@avr32linux.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 08-07-09 08:53:27, Nick Piggin wrote:
-> On Tue, Jul 07, 2009 at 12:38:29PM -0400, Christoph Hellwig wrote:
-> > > @@ -68,7 +70,7 @@ void ext2_delete_inode (struct inode * i
-> > >  
-> > >  	inode->i_size = 0;
-> > >  	if (inode->i_blocks)
-> > > -		ext2_truncate (inode);
-> > > +		ext2_truncate_blocks(inode, 0);
-> > >  	ext2_free_inode (inode);
-> > >  
-> > >  	return;
-> > 
-> > > -void ext2_truncate(struct inode *inode)
-> > > +static void ext2_truncate_blocks(struct inode *inode, loff_t offset)
-> > >  {
-> > >  	__le32 *i_data = EXT2_I(inode)->i_data;
-> > >  	struct ext2_inode_info *ei = EXT2_I(inode);
-> > > @@ -1032,27 +1074,8 @@ void ext2_truncate(struct inode *inode)
-> > >  	int n;
-> > >  	long iblock;
-> > >  	unsigned blocksize;
-> > > -
-> > > -	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-> > > -	    S_ISLNK(inode->i_mode)))
-> > > -		return;
-> > > -	if (ext2_inode_is_fast_symlink(inode))
-> > > -		return;
-> > > -	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-> > > -		return;
-> > > -
-> > 
-> > We can't move this to the caller easily.  ext2_delete_inode gets
-> > called for all inodes, but we only want to go on truncating for the
-> > limited set that passes this check.
-> 
-> Hmm, shouldn't they have no ->i_blocks in that case?
-  Not necessarily. Inode can have extended attributes set and those can
-be stored in a special block which is accounted in i_blocks.
+On Wed, 8 Jul 2009 13:07:31 +0200 (CEST)
+Guennadi Liakhovetski <g.liakhovetski@gmx.de> wrote:
 
-								Honza
+Hi Guennadi,
+
+> with a 2.6.30 kernel 
+>
+
+Could you give a short description of the rest of your setup as well?
+
+libc library and version number? Latest known to be good is uClibc
+v0.9.30.1.
+
+binutils version? Latest known to be good is binutils version
+2.18.atmel.1.0.1.buildroot.1.
+
+gcc version? Latest known to be good is gcc version
+4.2.2-atmel.1.1.3.buildroot.1.
+
+<snipp link to patch and BUG output>
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Best regards,
+Hans-Christian Egtvedt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
