@@ -1,68 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 944DA6B004D
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 08:39:54 -0400 (EDT)
-Date: Wed, 8 Jul 2009 14:48:24 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
-Message-ID: <20090708124824.GS2714@wotan.suse.de>
-References: <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de> <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <20090708124056.GA26701@infradead.org>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 6B8E26B004D
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 09:40:41 -0400 (EDT)
+Date: Wed, 8 Jul 2009 09:49:30 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [rfc][patch 4/4] fs: tmpfs, ext2 use new truncate
+Message-ID: <20090708134930.GB26701@infradead.org>
+References: <20090707144423.GC2714@wotan.suse.de> <20090707144918.GF2714@wotan.suse.de> <20090707163829.GB14947@infradead.org> <20090708065327.GM2714@wotan.suse.de> <20090708111420.GB20924@duck.suse.cz> <20090708122250.GP2714@wotan.suse.de> <20090708123244.GA22722@infradead.org> <20090708123904.GR2714@wotan.suse.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090708124056.GA26701@infradead.org>
+In-Reply-To: <20090708123904.GR2714@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 08, 2009 at 08:40:56AM -0400, Christoph Hellwig wrote:
-> On Wed, Jul 08, 2009 at 02:34:12PM +0200, Nick Piggin wrote:
-> > On Wed, Jul 08, 2009 at 06:47:01AM -0400, Christoph Hellwig wrote:
-> > > On Wed, Jul 08, 2009 at 08:32:25AM +0200, Nick Piggin wrote:
-> > > > Thanks for the patch, I think I will fold it in to the series. I
-> > > > think we probably do need to call simple_setsize in inode_setattr
-> > > > though (unless you propose to eventually convert every filesystem
-> > > > to define a .setattr). This would also require eg. your ext2
-> > > > conversion to strip ATTR_SIZE before passing through to inode_setattr.
-> > > 
-> > > Yes, we should eventually make .setattr mandatory.  Doing a default
-> > > action when a method lacks tends to cause more issues than it solves.
-> > > 
-> > > I'm happy to help in doing that part of the conversion (and also other
-> > > bits)
-> > 
-> > OK well here is what I have now for 3/4 and 4/4. Basically just
-> > folded your patch on top, changed ordering of some checks, have
-> > fs clear ATTR_SIZE before calling inode_setattr, add a .new_truncate
-> > field to check against rather than .truncate, and provide a default
-> > ATTR_SIZE handler in inode_setattr (simple_setsize).
-> 
-> Can we leave that last part out?  Converting those filesystems that do
-> not have a ->truncate method to a trivial ->setattr is easy, and I can
-> do it pretty soon (next week probably).
-> 
-> That allows us to get rid of all that ATTR_SIZE clearing which is pretty
-> ugly.
+On Wed, Jul 08, 2009 at 02:39:04PM +0200, Nick Piggin wrote:
+> Here is patch 4/4 after your parts folded in and other changes
+> I said in last mail. (yes I do agree to split it up, but I'll
+> just wait until we all agree on basics and then resend a new
+> patchset).
 
-Is it not common procedure to use when handling some attributes
-and passing others to inode_setattr?
-
-Anyway, no big deal either way. And it's using .new_truncate, so
-there is no rush to convert everything (and it will remain back
-compatible either way until we remove .new_truncate and all the
-vmtruncate calls).
-
-
-> 
-> > +			 *
-> > +			 * Filesystems which define i_op->new_truncate must
-> > +			 * handle this themselves. Eventually this will go
-> > +			 * away because everyone will be converted.
-> 
-> s/define/set/ ?
-
-Yes.
+Sure, that's fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
