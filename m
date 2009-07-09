@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C7FE46B005C
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:43:18 -0400 (EDT)
-Message-ID: <4A560605.50006@redhat.com>
-Date: Thu, 09 Jul 2009 11:00:21 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DC3EF6B005C
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:44:30 -0400 (EDT)
+Message-ID: <4A560651.3090708@redhat.com>
+Date: Thu, 09 Jul 2009 11:01:37 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
-References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171027.23C0.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090709171027.23C0.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5][resend] Show kernel stack usage to /proc/meminfo
+ and OOM log
+References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171122.23C3.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090709171122.23C3.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,25 +18,17 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> ChangeLog
->   Since v2
->    - Changed display order, now, "buffer" field display right after unstable
+> Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
 > 
->   Since v1
->    - Fixed showing the number with kilobyte unit issue
+> The amount of memory allocated to kernel stacks can become significant and
+> cause OOM conditions. However, we do not display the amount of memory
+> consumed by stacks.'
 > 
-> ================
-> Subject: [PATCH] add buffer cache information to show_free_areas()
-> 
-> When administrator analysis memory shortage reason from OOM log, They
-> often need to know rest number of cache like pages.
-> 
-> Then, show_free_areas() shouldn't only display page cache, but also it
-> should display buffer cache.
+> Add code to display the amount of memory used for stacks in /proc/meminfo.
 > 
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+> Reviewed-by: <cl@linux-foundation.org>
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 
