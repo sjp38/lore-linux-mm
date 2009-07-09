@@ -1,89 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 54DEB6B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 19:13:39 -0400 (EDT)
-Received: by qyk36 with SMTP id 36so519775qyk.12
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2009 16:33:18 -0700 (PDT)
-Message-ID: <4A567E3B.90609@codemonkey.ws>
-Date: Thu, 09 Jul 2009 18:33:15 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
+	by kanga.kvack.org (Postfix) with SMTP id 7ECCF6B0055
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 19:15:38 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n69NZiBW027047
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 10 Jul 2009 08:35:45 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB08D45DE52
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 70B6545DE4F
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 567EC1DB803A
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E7E1DB803F
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:43 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/5] OOM analysis helper patch series v2
+In-Reply-To: <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
+References: <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca> <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
+Message-Id: <20090710083407.17BE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <7cb22078-f200-45e3-a265-10cce2ae8224@default>
-In-Reply-To: <7cb22078-f200-45e3-a265-10cce2ae8224@default>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 10 Jul 2009 08:35:43 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: "Li, Ming Chun" <macli@brc.ubc.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dan Magenheimer wrote:
-> But this means that either the content of that page must have been
-> preserved somewhere or the discard fault handler has sufficient
-> information to go back and get the content from the source (e.g.
-> the filesystem).  Or am I misunderstanding?
->   
+> On Thu, 9 Jul 2009, Li, Ming Chun wrote:
+> 
+> I am applying the patch series to 2.6.31-rc2.
 
-As Rik said, it's the later.
+hm, maybe I worked on a bit old tree. I will check latest linus tree again
+today.
 
-> With tmem, the equivalent of the "failure to access a discarded page"
-> is inline and synchronous, so if the tmem access "fails", the
-> normal code immediately executes.
->   
+thanks.
 
-Yup.  This is the main difference AFAICT.  It's really just API 
-semantics within Linux.
 
-You could clearly use the volatile state of CMM2 to implement tmem as an 
-API in Linux.  The get/put functions would set a flag such that if the 
-discard handler was invoked as long as that operation happened, the 
-operation could safely fail.  That's why I claimed tmem is a subset of CMM2.
+> > ---------------
+> > /usr/src/linux-2.6# git checkout experimental
+> > Switched to branch "experimental"
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km1.patch
+> > Applying add per-zone statistics to show_free_areas()
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km2.patch
+> > Applying add buffer cache information to show_free_areas()
+> > error: patch failed: mm/page_alloc.c:2118
+> > error: mm/page_alloc.c: patch does not apply
+> > Patch failed at 0002.
+> > When you have resolved this problem run "git-am --resolved".
+> > If you would prefer to skip this patch, instead run "git-am --skip".
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km3.patch
+> > previous dotest directory .dotest still exists but mbox given.
+> > 
+> > /usr/src/linux-2.6# rm -rf .dotest/
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km3.patch
+> > Applying Show kernel stack usage to /proc/meminfo and OOM log
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km4.patch
+> > Applying add isolate pages vmstat
+> > error: patch failed: mm/page_alloc.c:2115
+> > error: mm/page_alloc.c: patch does not apply
+> > Patch failed at 0002.
+> > When you have resolved this problem run "git-am --resolved".
+> > If you would prefer to skip this patch, instead run "git-am --skip".
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km5.patch
+> > previous dotest directory .dotest still exists but mbox given.
+> > 
+> > /usr/src/linux-2.6# rm -rf .dotest/
+> > 
+> > /usr/src/linux-2.6# git am ./patches/km5.patch
+> > Applying add shmem vmstat
+> > error: patch failed: include/linux/mmzone.h:102
+> > error: include/linux/mmzone.h: patch does not apply
+> > error: patch failed: mm/vmstat.c:646
+> > error: mm/vmstat.c: patch does not apply
+> > error: patch failed: mm/page_alloc.c:2120
+> > error: mm/page_alloc.c: patch does not apply
+> > Patch failed at 0002.
+> > When you have resolved this problem run "git-am --resolved".
+> > If you would prefer to skip this patch, instead run "git-am --skip".
+> > ------------
+> > 
+> > Is there any better way that you could recommend to me to apply your 
+> > patches cleanly? Thanks.
+> > 
+> > 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-> I suppose changing Linux to utilize the two tmem services
-> as described above is a semantic change.  But to me it
-> seems no more of a semantic change than requiring a new
-> special page fault handler because a page of memory might
-> disappear behind the OS's back.
->
-> But IMHO this is a corollary of the fundamental difference.  CMM2's
-> is more the "VMware" approach which is that OS's should never have
-> to be modified to run in a virtual environment.  (Oh, but maybe
-> modified just slightly to make the hypervisor a little less
-> clueless about the OS's resource utilization.)
 
-While I always enjoy a good holy war, I'd like to avoid one here because 
-I want to stay on the topic at hand.
-
-If there was one change to tmem that would make it more palatable, for 
-me it would be changing the way pools are "allocated".  Instead of 
-getting an opaque handle from the hypervisor, I would force the guest to 
-allocate it's own memory and to tell the hypervisor that it's a tmem 
-pool.  You could then introduce semantics about whether the guest was 
-allowed to directly manipulate the memory as long as it was in the 
-pool.  It would be required to access the memory via get/put functions 
-that under Xen, would end up being a hypercall and a copy.  Presumably 
-you would do some tricks with ballooning to allocate empty memory in Xen 
-and then use those addresses as tmem pools.  On KVM, we could do 
-something more clever.
-
-The big advantage of keeping the tmem pool part of the normal set of 
-guest memory is that you don't introduce new challenges with respect to 
-memory accounting.  Whether or not tmem is directly accessible from the 
-guest, it is another memory resource.  I'm certain that you'll want to 
-do accounting of how much tmem is being consumed by each guest, and I 
-strongly suspect that you'll want to do tmem accounting on a per-process 
-basis.  I also suspect that doing tmem limiting for things like cgroups 
-would be desirable.
-
-That all points to making tmem normal memory so that all that 
-infrastructure can be reused.  I'm not sure how well this maps to Xen 
-guests, but it works out fine when the VMM is capable of presenting 
-memory to the guest without actually allocating it (via overcommit).
-
-Regards,
-
-Anthony Liguori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
