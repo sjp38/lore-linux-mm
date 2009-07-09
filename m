@@ -1,124 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C686B005A
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B82016B005C
 	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 12:57:11 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp09.in.ibm.com (8.13.1/8.13.1) with ESMTP id n69GP1O7026449
-	for <linux-mm@kvack.org>; Thu, 9 Jul 2009 21:55:01 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n69HF86U2638040
-	for <linux-mm@kvack.org>; Thu, 9 Jul 2009 22:45:08 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n69HF7l9007544
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:15:07 +1000
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n69HF2vJ022554
+	for <linux-mm@kvack.org>; Thu, 9 Jul 2009 22:45:02 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n69HEovT995530
+	for <linux-mm@kvack.org>; Thu, 9 Jul 2009 22:44:52 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n69HEoB1004865
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:14:50 +1000
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Thu, 09 Jul 2009 22:45:07 +0530
-Message-Id: <20090709171507.8080.62086.sendpatchset@balbir-laptop>
+Date: Thu, 09 Jul 2009 22:44:49 +0530
+Message-Id: <20090709171449.8080.40970.sendpatchset@balbir-laptop>
 In-Reply-To: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
 References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
-Subject: [RFC][PATCH 4/5] Memory controller soft limit refactor reclaim flags (v8)
+Subject: [RFC][PATCH 1/5] Memory controller soft limit documentation (v8)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Impact: Refactor mem_cgroup_hierarchical_reclaim()
+Feature: Add documentation for soft limits
 
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-
-This patch refactors the arguments passed to
-mem_cgroup_hierarchical_reclaim() into flags, so that new parameters don't
-have to be passed as we make the reclaim routine more flexible
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/memcontrol.c |   25 +++++++++++++++++++------
- 1 files changed, 19 insertions(+), 6 deletions(-)
+ Documentation/cgroups/memory.txt |   31 ++++++++++++++++++++++++++++++-
+ 1 files changed, 30 insertions(+), 1 deletions(-)
 
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 13a7696..ca9c257 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -240,6 +240,14 @@ enum charge_type {
- #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
- #define MEMFILE_ATTR(val)	((val) & 0xffff)
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index ab0a021..b47815c 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -379,7 +379,36 @@ cgroups created below it.
  
-+/*
-+ * Reclaim flags for mem_cgroup_hierarchical_reclaim
-+ */
-+#define MEM_CGROUP_RECLAIM_NOSWAP_BIT	0x0
-+#define MEM_CGROUP_RECLAIM_NOSWAP	(1 << MEM_CGROUP_RECLAIM_NOSWAP_BIT)
-+#define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
-+#define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
+ NOTE2: This feature can be enabled/disabled per subtree.
+ 
+-7. TODO
++7. Soft limits
 +
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-@@ -1030,11 +1038,14 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
-  * If shrink==true, for avoiding to free too much, this returns immedieately.
-  */
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
--				   gfp_t gfp_mask, bool noswap, bool shrink)
-+						gfp_t gfp_mask,
-+						unsigned long reclaim_options)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
- 	int loop = 0;
-+	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
-+	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
++Soft limits allow for greater sharing of memory. The idea behind soft limits
++is to allow control groups to use as much of the memory as needed, provided
++
++a. There is no memory contention
++b. They do not exceed their hard limit
++
++When the system detects memory contention or low memory control groups
++are pushed back to their soft limits. If the soft limit of each control
++group is very high, they are pushed back as much as possible to make
++sure that one control group does not starve the others of memory.
++
++7.1 Interface
++
++Soft limits can be setup by using the following commands (in this example we
++assume a soft limit of 256 megabytes)
++
++# echo 256M > memory.soft_limit_in_bytes
++
++If we want to change this to 1G, we can at any time use
++
++# echo 1G > memory.soft_limit_in_bytes
++
++NOTE1: Soft limits take effect over a long period of time, since they involve
++       reclaiming memory for balancing between memory cgroups
++NOTE2: It is recommended to set the soft limit always below the hard limit,
++       otherwise the hard limit will take precedence.
++
++8. TODO
  
- 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
- 	if (root_mem->memsw_is_minimum)
-@@ -1172,7 +1183,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 
- 	while (1) {
- 		int ret;
--		bool noswap = false;
-+		unsigned long flags = 0;
- 
- 		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res,
- 						&soft_fail_res);
-@@ -1185,7 +1196,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 				break;
- 			/* mem+swap counter fails */
- 			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
--			noswap = true;
-+			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
- 			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
- 									memsw);
- 		} else
-@@ -1197,7 +1208,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 			goto nomem;
- 
- 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
--							noswap, false);
-+							flags);
- 		if (ret)
- 			continue;
- 
-@@ -1992,7 +2003,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 			break;
- 
- 		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
--						   false, true);
-+						   MEM_CGROUP_RECLAIM_SHRINK);
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
-   		if (curusage >= oldusage)
-@@ -2044,7 +2055,9 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		if (!ret)
- 			break;
- 
--		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true);
-+		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
-+						MEM_CGROUP_RECLAIM_NOSWAP |
-+						MEM_CGROUP_RECLAIM_SHRINK);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
+ 1. Add support for accounting huge pages (as a separate controller)
+ 2. Make per-cgroup scanner reclaim not-shared pages first
 
 -- 
 	Balbir
