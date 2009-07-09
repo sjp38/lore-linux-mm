@@ -1,114 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EFC756B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:27:32 -0400 (EDT)
-Date: Thu, 9 Jul 2009 15:05:31 -0700 (PDT)
-From: "Li, Ming Chun" <macli@brc.ubc.ca>
-Subject: Re: [PATCH 0/5] OOM analysis helper patch series v2
-In-Reply-To: <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca>
-Message-ID: <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
-References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca>
+	by kanga.kvack.org (Postfix) with ESMTP id 6630A6B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:29:38 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <fa083462-f28d-4188-9006-a285141acc21@default>
+Date: Thu, 9 Jul 2009 14:48:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
+In-Reply-To: <4A5660CB.5080607@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Anthony Liguori <anthony@codemonkey.ws>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Jul 2009, Li, Ming Chun wrote:
+> > I'm not saying either one is bad or good -- and I'm sure
+> > each can be adapted to approximately deliver the value
+> > of the other -- they are just approaching the same problem
+> > from different perspectives.
+>=20
+> Indeed.  Tmem and auto-ballooning have a simple mechanism,
+> but the policy required to make it work right could well
+> be too complex to ever get right.
+>=20
+> CMM2 has a more complex mechanism, but the policy is
+> absolutely trivial.
 
-I am applying the patch series to 2.6.31-rc2.
+Could you elaborate a bit more on what policy you
+are referring to and what decisions the policies are
+trying to guide?  And are you looking at the policies
+in Linux or in the hypervisor or the sum of both?
 
-Vincent
+The Linux-side policies in the tmem patch seem trivial
+to me and the Xen-side implementation is certainly
+working correctly, though "working right" is a hard
+objective to measure.  But depending on how you define
+"working right", the pageframe replacement algorithm
+in Linux may also be "too complex to ever get right"
+but it's been working well enough for a long time.
 
-> On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
-> 
-> > 
-> > ChangeLog
-> >  Since v1
-> >    - Droped "[5/5] add NR_ANON_PAGES to OOM log" patch
-> >    - Instead, introduce "[5/5] add shmem vmstat" patch
-> >    - Fixed unit bug (Thanks Minchan)
-> >    - Separated isolated vmstat to two field (Thanks Minchan and Wu)
-> >    - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
-> >    - Rewrote some patch description (Thanks Christoph)
-> > 
-> > 
-> > Current OOM log doesn't provide sufficient memory usage information. it cause
-> > make confusion to lkml MM guys. 
-> > 
-> > this patch series add some memory usage information to OOM log.
-> > 
-> 
-> Hi Kosaki,
-> 
-> Sorry this is slightly off topic, I am newbie and want to test out your 
-> patch series. I am using alpine as email client to save your patches to
-> /usr/src/linux-2.6/patches:
-> 
-> #ls -l /usr/src/linux-2.6/patches/
-> 
-> -rw------- 1 root src  6682 2009-07-09 10:24 km1.patch
-> -rw------- 1 root src  6980 2009-07-09 10:24 km2.patch
-> -rw------- 1 root src  9871 2009-07-09 10:24 km3.patch
-> -rw------- 1 root src 12539 2009-07-09 10:24 km4.patch
-> -rw------- 1 root src 11499 2009-07-09 10:24 km5.patch
-> 
-> Then I apply your patches using git-am, I got:
-> 
-> ---------------
-> /usr/src/linux-2.6# git checkout experimental
-> Switched to branch "experimental"
-> 
-> /usr/src/linux-2.6# git am ./patches/km1.patch
-> Applying add per-zone statistics to show_free_areas()
-> 
-> /usr/src/linux-2.6# git am ./patches/km2.patch
-> Applying add buffer cache information to show_free_areas()
-> error: patch failed: mm/page_alloc.c:2118
-> error: mm/page_alloc.c: patch does not apply
-> Patch failed at 0002.
-> When you have resolved this problem run "git-am --resolved".
-> If you would prefer to skip this patch, instead run "git-am --skip".
-> 
-> /usr/src/linux-2.6# git am ./patches/km3.patch
-> previous dotest directory .dotest still exists but mbox given.
-> 
-> /usr/src/linux-2.6# rm -rf .dotest/
-> 
-> /usr/src/linux-2.6# git am ./patches/km3.patch
-> Applying Show kernel stack usage to /proc/meminfo and OOM log
-> 
-> /usr/src/linux-2.6# git am ./patches/km4.patch
-> Applying add isolate pages vmstat
-> error: patch failed: mm/page_alloc.c:2115
-> error: mm/page_alloc.c: patch does not apply
-> Patch failed at 0002.
-> When you have resolved this problem run "git-am --resolved".
-> If you would prefer to skip this patch, instead run "git-am --skip".
-> 
-> /usr/src/linux-2.6# git am ./patches/km5.patch
-> previous dotest directory .dotest still exists but mbox given.
-> 
-> /usr/src/linux-2.6# rm -rf .dotest/
-> 
-> /usr/src/linux-2.6# git am ./patches/km5.patch
-> Applying add shmem vmstat
-> error: patch failed: include/linux/mmzone.h:102
-> error: include/linux/mmzone.h: patch does not apply
-> error: patch failed: mm/vmstat.c:646
-> error: mm/vmstat.c: patch does not apply
-> error: patch failed: mm/page_alloc.c:2120
-> error: mm/page_alloc.c: patch does not apply
-> Patch failed at 0002.
-> When you have resolved this problem run "git-am --resolved".
-> If you would prefer to skip this patch, instead run "git-am --skip".
-> ------------
-> 
-> Is there any better way that you could recommend to me to apply your 
-> patches cleanly? Thanks.
-> 
-> 
+> CMM2 and auto-ballooning seem to give about similar
+> performance gains on zSystem.
+
+Tmem provides a huge advantage over my self-ballooning
+implementation, but maybe that's because it is more
+aggressive than the CMM auto-ballooning, resulting
+in more refaults that must be "fixed".
+
+> I suspect that for Xen and KVM, we'll want to choose
+> for the approach that has the simpler policy, because
+> relying on different versions of different operating
+> systems to all get the policy of auto-ballooning or
+> tmem right is likely to result in bad interactions
+> between guests and other intractable issues.
+
+Again, not sure what tmem policy in Linux you are referring
+to or what bad interactions you foresee.  Could you
+clarify?
+
+Auto-ballooning policy is certainly a challenge, but
+that's true whether CMM or tmem, right?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
