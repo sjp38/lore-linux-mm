@@ -1,175 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9A4436B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 16:44:14 -0400 (EDT)
-Received: from coyote.coyote.den ([72.65.71.44]) by vms173013.mailsrvcs.net
- (Sun Java(tm) System Messaging Server 6.3-7.04 (built Sep 26 2008; 32bit))
- with ESMTPA id <0KMJ00FAV9577N00@vms173013.mailsrvcs.net> for
- linux-mm@kvack.org; Thu, 09 Jul 2009 16:03:07 -0500 (CDT)
-From: Gene Heskett <gene.heskett@verizon.net>
-Subject: Re: OOM killer in 2.6.31-rc2
-Date: Thu, 09 Jul 2009 17:03:06 -0400
-References: <200907061056.00229.gene.heskett@verizon.net>
- <200907091042.38022.gene.heskett@verizon.net>
- <19030.22024.132029.196682@stoffel.org>
-In-reply-to: <19030.22024.132029.196682@stoffel.org>
-MIME-version: 1.0
-Content-type: Text/Plain; charset=iso-8859-1
-Content-transfer-encoding: quoted-printable
-Content-disposition: inline
-Message-id: <200907091703.06691.gene.heskett@verizon.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2B06B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 16:51:20 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <c0e57d57-3f36-4405-b3f1-1a8c48089394@default>
+Date: Thu, 9 Jul 2009 14:09:30 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
+In-Reply-To: <4A5545CC.9030909@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: John Stoffel <john@stoffel.org>
-Cc: Wu Fengguang <fengguang.wu@gmail.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, David Howells <dhowells@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Rik van Riel <riel@redhat.com>, Anthony Liguori <anthony@codemonkey.ws>
+Cc: linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 09 July 2009, John Stoffel wrote:
->>>>>> "Gene" =3D=3D Gene Heskett <gene.heskett@verizon.net> writes:
->
->Gene> On Wednesday 08 July 2009, Wu Fengguang wrote:
->>> On Wed, Jul 08, 2009 at 01:15:15PM +0800, Wu Fengguang wrote:
->>>> On Tue, Jul 07, 2009 at 11:42:07PM -0400, Gene Heskett wrote:
->
->Gene> [...]
->
->>>> I guess your near 800MB slab cache is somehow under scanned.
->>>
->>> Gene, can you run .31 with this patch? When OOM happens, it will tell
->>> us whether the majority slab pages are reclaimable. Another way to
->>> find things out is to run `slabtop` when your system is moderately
->>> loaded.
->
->Gene> Its been running continuously, and after 24 hours is now showing:
->
->Just wondering, is this your M2N-SLI Deluxe board?
-Yes.
->I've got the same
->board, with 4Gb of RAM and I haven't noticed any loss of RAM from my
->looking (quickly) at top output.
+> > I have trouble mapping this to a VMM capable of overcommit=20
+> without just=20
+> > coming back to CMM2.
+>=20
+> Same for me.  CMM2 has a more complex mechanism, but way
+> easier policy than anything else out there.
 
-I am short approximately 500 megs according to top:
-Mem:   3634228k total,  3522984k used,   111244k free,   308096k buffers
-Swap:  8385912k total,      568k used,  8385344k free,  2544716k cached
+Although tmem and CMS have similar conceptual objectives,
+let me try to describe what I see as a fundamental
+difference in approach.
 
-=46rom dmesg:
-[    0.000000] TOM2: 0000000120000000 aka 4608M  <what is this?
-[...]
-[    0.000000] 2694MB HIGHMEM available.
-[    0.000000] 887MB LOWMEM available.
+The primary objective of both is to utilize RAM more
+efficiently.  Both are ideally complemented with some
+longer term "memory shaping" mechanism such as automatic
+ballooning or hotplug.
 
-The bios signon does say 4092M IIRC.
+CMM2's focus is on increasing the number of VM's that
+can run on top of the hypervisor.  To do this, it
+depends on hints provided by Linux to surreptitiously
+steal memory away from Linux.  The stolen memory still
+"belongs" to Linux and if Linux goes to use it but the
+hypervisor has already given it to another Linux, the
+hypervisor must jump through hoops to give it back.
+If it guesses wrong and overcommits too aggressively,
+the hypervisor must swap some memory to a "hypervisor
+swap disk" (which btw has some policy challenges).
+IMHO this is more of a "mainframe" model.
 
->But I also haven't bothered to upgrade the BIOS on this board at all
->since I got it back in March of 2008.  No need in my book so far.
+Tmem's focus is on helping Linux to aggressively manage
+the amount of memory it uses (and thus reduce the amount
+of memory it would get "billed" for using).  To do this, it
+provides two "safety valve" services, one to reduce the
+cost of "refaults" (Rik's term) and the other to reduce
+the cost of swapping.  Both services are almost
+always available, but if the memory of the physical
+machine get overcommitted, the most aggressive Linux
+guests must fall back to using their disks (because the
+hypervisor does not have a "hypervisor swap disk").  But
+when physical memory is undercommitted, it is still being
+used usefully without compromising "memory liquidity".
+(I like this term Jeremy!) IMHO this is more of a "cloud"
+model.
 
-I had been running the original bios, #1502, because 1604 and 1701 had very=
-=20
-poor uptimes.  1502 caused an oops about 15 lines into the boot but that=20
-triggered a remap and it was bulletproof after that running a 32 bit 64G+PA=
-E=20
-kernel.  (I haven't quite made the jump to a 64 bit install, yet...)
+In other words, CMM2, despite its name, is more of a
+"subservient" memory management system (Linux is
+subservient to the hypervisor) and tmem is more
+collaborative (Linux and the hypervisor share the
+responsibilities and the benefits/costs).
 
->> uname -a
->
->Linux sail 2.6.31-rc1 #6 SMP PREEMPT Wed Jun 24 21:40:33 EDT 2009 x86_64
-> GNU/Linux
-
-Linux coyote.coyote.den 2.6.31-rc2 #4 SMP PREEMPT Wed Jul 8 09:37:15 EDT 20=
-09=20
-i686 athlon i386 GNU/Linux
->> cat /proc/meminfo
->
->MemTotal:        3987068 kB
->MemFree:          170608 kB
->Buffers:          355272 kB
->Cached:          2034416 kB
->SwapCached:            0 kB
->Active:          1836284 kB
->Inactive:        1482444 kB
->Active(anon):     857076 kB
->Inactive(anon):    86112 kB
->Active(file):     979208 kB
->Inactive(file):  1396332 kB
->Unevictable:        3972 kB
->Mlocked:            3972 kB
->SwapTotal:             0 kB
->SwapFree:              0 kB
->Dirty:                36 kB
->Writeback:             0 kB
->AnonPages:        933160 kB
->Mapped:           141188 kB
->Slab:             398124 kB
->SReclaimable:     348212 kB
->SUnreclaim:        49912 kB
->PageTables:        30916 kB
->NFS_Unstable:          0 kB
->Bounce:                0 kB
->WritebackTmp:          0 kB
->CommitLimit:     1993532 kB
->Committed_AS:    1570980 kB
->VmallocTotal:   34359738367 kB
->VmallocUsed:      116160 kB
->VmallocChunk:   34359584603 kB
->DirectMap4k:        4992 kB
->DirectMap2M:     4188160 kB
-
-MemTotal:        3634228 kB
-MemFree:          114312 kB
-Buffers:          309088 kB
-Cached:          2541864 kB
-SwapCached:           72 kB
-Active:          1584988 kB
-Inactive:        1739508 kB
-Active(anon):     354584 kB
-Inactive(anon):   120072 kB
-Active(file):    1230404 kB
-Inactive(file):  1619436 kB
-Unevictable:         100 kB
-Mlocked:             100 kB
-HighTotal:       2759560 kB
-HighFree:          13020 kB
-LowTotal:         874668 kB
-LowFree:          101292 kB
-SwapTotal:       8385912 kB
-SwapFree:        8385344 kB
-Dirty:                52 kB
-Writeback:             0 kB
-AnonPages:        473576 kB
-Mapped:           111332 kB
-Slab:             143624 kB
-SReclaimable:     127820 kB
-SUnreclaim:        15804 kB
-PageTables:         8776 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    10203024 kB
-Committed_AS:    1029032 kB
-VmallocTotal:     122880 kB
-VmallocUsed:       44180 kB
-VmallocChunk:      65924 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       4096 kB
-DirectMap4k:        8184 kB
-DirectMap4M:      901120 kB
-
-Huge diffs it appears. ??
-
-Thanks, John.
-
-=2D-=20
-Cheers, Gene
-"There are four boxes to be used in defense of liberty:
- soap, ballot, jury, and ammo. Please use in that order."
-=2DEd Howdershelt (Author)
-The NRA is offering FREE Associate memberships to anyone who wants them.
-<https://www.nrahq.org/nrabonus/accept-membership.asp>
-
-A Difficulty for Every Solution.
-		-- Motto of the Federal Civil Service
+I'm not saying either one is bad or good -- and I'm sure
+each can be adapted to approximately deliver the value
+of the other -- they are just approaching the same problem
+from different perspectives.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
