@@ -1,61 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AC6786B0082
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 20:15:21 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so2444338qwf.44
-        for <linux-mm@kvack.org>; Wed, 08 Jul 2009 17:27:46 -0700 (PDT)
-Message-ID: <4A55397F.8050207@codemonkey.ws>
-Date: Wed, 08 Jul 2009 19:27:43 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
-MIME-Version: 1.0
-Subject: Re: [Xen-devel] Re: [RFC PATCH 0/4] (Take 2): transcendent memory
- ("tmem") for Linux
-References: <ac5dec0d-e593-4a82-8c9d-8aa374e8c6ed@default> <4A553272.5050909@codemonkey.ws> <4A553707.5060107@goop.org>
-In-Reply-To: <4A553707.5060107@goop.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7918C6B0085
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 21:01:31 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n691E84O025482
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 9 Jul 2009 10:14:10 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5611D45DE6F
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:14:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 29DD045DE6E
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:14:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A2811DB8040
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:14:08 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 69FCD1DB8037
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:14:04 +0900 (JST)
+Date: Thu, 9 Jul 2009 10:12:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-Id: <20090709101219.17d8f8a3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090708173206.GN356@random.random>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090707084750.GX2714@wotan.suse.de>
+	<20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090708173206.GN356@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, npiggin@suse.de, akpm@osdl.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, linux-kernel@vger.kernel.org, dave.mccracken@oracle.com, linux-mm@kvack.org, chris.mason@oracle.com, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, Marcelo Tosatti <mtosatti@redhat.com>, alan@lxorguk.ukuu.org.uk, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> On 07/08/09 16:57, Anthony Liguori wrote:
->   
->> Why does tmem require a special store?
->>
->> A VMM can trap write operations pages can be stored on disk
->> transparently by the VMM if necessary.  I guess that's the bit I'm
->> missing.
->>     
->
-> tmem doesn't store anything to disk.  It's more about making sure that
-> free host memory can be quickly and efficiently be handed out to guests
-> as they need it; to increase "memory liquidity" as it were.  Guests need
-> to explicitly ask to use tmem, rather than having the host/hypervisor
-> try to intuit what to do based on access patterns and hints; typically
-> they'll use tmem as the first line storage for memory which they were
-> about to swap out anyway.
+On Wed, 8 Jul 2009 19:32:06 +0200
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-If the primary use of tmem is to avoid swapping when measure pressure 
-would have forced it, how is this different using ballooning along with 
-a shrinker callback?
+> On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
+> > Then,  most of users will not notice that ZERO_PAGE is not available until
+> > he(she) find OOM-Killer message. This is very terrible situation for me.
+> > (and most of system admins.)
+> 
+> Can you try to teach them to use KSM and see if they gain a while lot
+> more from it (surely they also do some memset(dst, 0) sometime not
+> only memcpy(zerosrc, dst)). Not to tell when they init to non zero
+> values their arrays/matrix which is a bit harder to optimize for with
+> zero page...
+> 
+Hmm, scan & take diff & merge user pages in the kernel ?
+IIUC, it can be only help if zero-page's life time are verrrry long.
 
-With virtio-balloon, a guest can touch any of the memory it's ballooned 
-to immediately reclaim that memory.  I think the main difference with 
-tmem is that you can also mark a page as being volatile.  The hypervisor 
-can then reclaim that page without swapping it (it can always reclaim 
-memory and swap it) and generate a special fault to the guest if it 
-attempts to access it.
+> My only dislike is that zero page requires a flood of "if ()" new
+> branches in fast paths that benefits nothing but badly written app,
+> and that's the only reason I liked its removal.
+> 
+I'll take Linus's suggestion "use pte_special() in vm_normal_page()".
+Then, "if()" will not increase so much as expected, flood.
 
-You can fail to put with tmem, right?  You can also fail to get?  In 
-both cases though, these failures can be handled because Linux is able 
-to recreate the page on it's on (by doing disk IO).  So why not just 
-generate a special fault instead of having to introduce special accessors?
+In usual apps which doen't use any zero-page, following path will be checked.
 
-Regards,
+ - "is this WRITE fault ?" in do_anonymous_page().
+ - vm_normal_page() never finds pte_special() then no more "if"s.
+ - get_user_pages() etc..will have more 2-3 if()s depends on passed flags.
 
-Anthony Liguori
+Anyway, I'll reduce overheads as much as possible. please see v3.
+pte_special() checks (which are already used) reduce "if()" to some extent.
+
+> For goodly (and badly) written scientific app there KSM that will do
+> more than zeropage while dealing with matrix algorithms and such. If
+> they try KSM and they don't gain a lot more free memory than with the
+> zero page hack, then I agree in reintroducing it, but I guess when
+> they try KSM they will ask you to patch kernel with it, instead of
+> patch kernel with zeropage. 
+
+Most of the difference between zeropage and KSM solution is that
+zeropage requires no refcnt/rmap handling, never pollutes caches, etc.
+This will be big advantage.
+
+> If they don't gain anything more with KSM
+> than with zeropage, and the kksmd overhead is too high, then it would
+> make sense to use zeropage for them I agree even if it bites in the
+> fast path of all apps that can't benefit from it. (not to tell the
+> fact that reading zero and writing non zero back for normal apps is
+> harmful as there's a double page fault generated instead of a single
+> one, kksmd has a cost but zeropage isn't free either in term of page
+> faults too)
+> 
+Sorry, my _all_ customers use RHEL5 and there are no ksm yet.
+
+BTW, I love concepts of KSM but I don't trust KSM so much as that I recommend
+it to my customers, yet. It's a bit young for production in my point of view.
+AFAIK, no bug reports of ksm has reached this mailing list, yet.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
