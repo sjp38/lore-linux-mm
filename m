@@ -1,112 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6FD6B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 13:14:39 -0400 (EDT)
-Date: Thu, 9 Jul 2009 10:51:11 -0700 (PDT)
-From: "Li, Ming Chun" <macli@brc.ubc.ca>
-Subject: Re: [PATCH 0/5] OOM analysis helper patch series v2
-In-Reply-To: <20090709165820.23B7.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca>
-References: <20090709165820.23B7.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 806986B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 13:35:57 -0400 (EDT)
+Date: Thu, 9 Jul 2009 10:54:02 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+In-Reply-To: <20090709074745.GT2714@wotan.suse.de>
+Message-ID: <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090707140033.GB2714@wotan.suse.de> <alpine.LFD.2.01.0907070952341.3210@localhost.localdomain>
+ <20090708062125.GJ2714@wotan.suse.de> <alpine.LFD.2.01.0907080906410.3210@localhost.localdomain> <20090709074745.GT2714@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
-
-> 
-> ChangeLog
->  Since v1
->    - Droped "[5/5] add NR_ANON_PAGES to OOM log" patch
->    - Instead, introduce "[5/5] add shmem vmstat" patch
->    - Fixed unit bug (Thanks Minchan)
->    - Separated isolated vmstat to two field (Thanks Minchan and Wu)
->    - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
->    - Rewrote some patch description (Thanks Christoph)
-> 
-> 
-> Current OOM log doesn't provide sufficient memory usage information. it cause
-> make confusion to lkml MM guys. 
-> 
-> this patch series add some memory usage information to OOM log.
-> 
-
-Hi Kosaki,
-
-Sorry this is slightly off topic, I am newbie and want to test out your 
-patch series. I am using alpine as email client to save your patches to
-/usr/src/linux-2.6/patches:
-
-#ls -l /usr/src/linux-2.6/patches/
-
--rw------- 1 root src  6682 2009-07-09 10:24 km1.patch
--rw------- 1 root src  6980 2009-07-09 10:24 km2.patch
--rw------- 1 root src  9871 2009-07-09 10:24 km3.patch
--rw------- 1 root src 12539 2009-07-09 10:24 km4.patch
--rw------- 1 root src 11499 2009-07-09 10:24 km5.patch
-
-Then I apply your patches using git-am, I got:
-
----------------
-/usr/src/linux-2.6# git checkout experimental
-Switched to branch "experimental"
-
-/usr/src/linux-2.6# git am ./patches/km1.patch
-Applying add per-zone statistics to show_free_areas()
-
-/usr/src/linux-2.6# git am ./patches/km2.patch
-Applying add buffer cache information to show_free_areas()
-error: patch failed: mm/page_alloc.c:2118
-error: mm/page_alloc.c: patch does not apply
-Patch failed at 0002.
-When you have resolved this problem run "git-am --resolved".
-If you would prefer to skip this patch, instead run "git-am --skip".
-
-/usr/src/linux-2.6# git am ./patches/km3.patch
-previous dotest directory .dotest still exists but mbox given.
-
-/usr/src/linux-2.6# rm -rf .dotest/
-
-/usr/src/linux-2.6# git am ./patches/km3.patch
-Applying Show kernel stack usage to /proc/meminfo and OOM log
-
-/usr/src/linux-2.6# git am ./patches/km4.patch
-Applying add isolate pages vmstat
-error: patch failed: mm/page_alloc.c:2115
-error: mm/page_alloc.c: patch does not apply
-Patch failed at 0002.
-When you have resolved this problem run "git-am --resolved".
-If you would prefer to skip this patch, instead run "git-am --skip".
-
-/usr/src/linux-2.6# git am ./patches/km5.patch
-previous dotest directory .dotest still exists but mbox given.
-
-/usr/src/linux-2.6# rm -rf .dotest/
-
-/usr/src/linux-2.6# git am ./patches/km5.patch
-Applying add shmem vmstat
-error: patch failed: include/linux/mmzone.h:102
-error: include/linux/mmzone.h: patch does not apply
-error: patch failed: mm/vmstat.c:646
-error: mm/vmstat.c: patch does not apply
-error: patch failed: mm/page_alloc.c:2120
-error: mm/page_alloc.c: patch does not apply
-Patch failed at 0002.
-When you have resolved this problem run "git-am --resolved".
-If you would prefer to skip this patch, instead run "git-am --skip".
-------------
-
-Is there any better way that you could recommend to me to apply your 
-patches cleanly? Thanks.
 
 
-Vincent Li
-Sr. Systems Administrator
-Biomedical Research Center
-University of British Columbia
+On Thu, 9 Jul 2009, Nick Piggin wrote:
+>
+> Having a ZERO_PAGE I'm not against, so I don't know why you claim
+> I am. Al I'm saying is that now we don't have one, we should have
+> some good reasons to introduce it again. Unreasonable?
+
+Umm. I had good reasons to introduce it in the _first_ place.
+
+And now you have reports of people who depend on the behaviour, and point 
+to the new behaviour as a *regression*.
+
+What the _hell_ more do you want?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
