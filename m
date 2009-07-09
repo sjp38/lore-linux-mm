@@ -1,36 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B12FE6B0055
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:09:46 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 1F41F82C2E6
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:47:44 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id nrByHh2DXlpy for <linux-mm@kvack.org>;
-	Thu,  9 Jul 2009 17:47:38 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 57E7982C50A
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:47:21 -0400 (EDT)
-Date: Thu, 9 Jul 2009 17:00:41 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 3/5] Show kernel stack usage to /proc/meminfo and OOM
- log
-In-Reply-To: <20090709110952.2389.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0907091700150.17835@gentwo.org>
-References: <20090705182409.08FC.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907071234070.5124@gentwo.org> <20090709110952.2389.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 207996B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:22:15 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so82343rvb.26
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2009 14:41:45 -0700 (PDT)
+Message-ID: <4A566414.7060805@codemonkey.ws>
+Date: Thu, 09 Jul 2009 16:41:40 -0500
+From: Anthony Liguori <anthony@codemonkey.ws>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
+References: <c0e57d57-3f36-4405-b3f1-1a8c48089394@default>
+In-Reply-To: <c0e57d57-3f36-4405-b3f1-1a8c48089394@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
+Dan Magenheimer wrote:
+> CMM2's focus is on increasing the number of VM's that
+> can run on top of the hypervisor.  To do this, it
+> depends on hints provided by Linux to surreptitiously
+> steal memory away from Linux.  The stolen memory still
+> "belongs" to Linux and if Linux goes to use it but the
+> hypervisor has already given it to another Linux, the
+> hypervisor must jump through hoops to give it back.
+>   
 
-> following code in this patch mean display per-zone stack size, no?
+It depends on how you define "jump through hoops".
 
-Right.
+> If it guesses wrong and overcommits too aggressively,
+> the hypervisor must swap some memory to a "hypervisor
+> swap disk" (which btw has some policy challenges).
+> IMHO this is more of a "mainframe" model.
+>   
+
+No, not at all.  A guest marks a page as being "volatile", which tells 
+the hypervisor it never needs to swap that page.  It can discard it 
+whenever it likes.
+
+If the guest later tries to access that page, it will get a special 
+"discard fault".  For a lot of types of memory, the discard fault 
+handler can then restore that page transparently to the code that 
+generated the discard fault.
+
+AFAICT, ephemeral tmem has the exact same characteristics as volatile 
+CMM2 pages.  The difference is that tmem introduces an API to explicitly 
+manage this memory behind a copy interface whereas CMM2 uses hinting and 
+a special fault handler to allow any piece of memory to be marked in 
+this way.
+
+> In other words, CMM2, despite its name, is more of a
+> "subservient" memory management system (Linux is
+> subservient to the hypervisor) and tmem is more
+> collaborative (Linux and the hypervisor share the
+> responsibilities and the benefits/costs).
+>   
+
+I don't really agree with your analysis of CMM2.  We can map CMM2 
+operations directly to ephemeral tmem interfaces so tmem is a subset of 
+CMM2, no?
+
+What's appealing to me about CMM2 is that it doesn't change the guest 
+semantically but rather just gives the VMM more information about how 
+the VMM is using it's memory.  This suggests that it allows greater 
+flexibility in the long term to the VMM and more importantly, provides 
+an easier implementation across a wide range of guests.
+
+Regards,
+
+Anthony Liguori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
