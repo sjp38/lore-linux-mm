@@ -1,95 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 68A2E6B0092
-	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 21:38:24 -0400 (EDT)
-Date: Wed, 8 Jul 2009 21:51:05 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [RFC PATCH 1/2] vmscan don't isolate too many pages in a zone
-Message-ID: <20090708215105.5016c929@bree.surriel.com>
-In-Reply-To: <20090708031901.GA9924@localhost>
-References: <20090707182947.0C6D.A69D9226@jp.fujitsu.com>
-	<20090707184034.0C70.A69D9226@jp.fujitsu.com>
-	<4A539B11.5020803@redhat.com>
-	<20090708031901.GA9924@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 71DD16B0093
+	for <linux-mm@kvack.org>; Wed,  8 Jul 2009 21:51:41 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6924bcv014820
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 9 Jul 2009 11:04:38 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B1B445DE4D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 11:04:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E9E745DD76
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 11:04:37 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 67C6C1DB8037
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 11:04:37 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 90EEAE08001
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 11:04:33 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] bump up nr_to_write in xfs_vm_writepage
+In-Reply-To: <20090707104440.GB21747@infradead.org>
+References: <20090707193015.7DCD.A69D9226@jp.fujitsu.com> <20090707104440.GB21747@infradead.org>
+Message-Id: <20090709110342.2386.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  9 Jul 2009 11:04:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Eric Sandeen <sandeen@redhat.com>, xfs mailing list <xfs@oss.sgi.com>, linux-mm@kvack.org, Olaf Weber <olaf@sgi.com>, "MASON, CHRISTOPHER" <CHRIS.MASON@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-When way too many processes go into direct reclaim, it is possible
-for all of the pages to be taken off the LRU.  One result of this
-is that the next process in the page reclaim code thinks there are
-no reclaimable pages left and triggers an out of memory kill.
-
-One solution to this problem is to never let so many processes into
-the page reclaim path that the entire LRU is emptied.  Limiting the
-system to only having half of each inactive list isolated for
-reclaim should be safe.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
-On Wed, 8 Jul 2009 11:19:01 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-
-> > I guess I should mail out my (ugly) approach, so we can
-> > compare the two :)
+> On Tue, Jul 07, 2009 at 07:33:04PM +0900, KOSAKI Motohiro wrote:
+> > At least, I agree with Olaf. if you got someone's NAK in past thread,
+> > Could you please tell me its url?
 > 
-> And it helps to be aware of all the alternatives, now and future :)
+> The previous thread was simply dead-ended and nothing happened.
+> 
 
-Here is the per-zone alternative to Kosaki's patch.
+Can you remember this thread subject? sorry, I haven't remember it.
 
-I believe Kosaki's patch will result in better performance
-and is more elegant overall, but here it is :)
 
- mm/vmscan.c |   25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
-
-Index: mmotm/mm/vmscan.c
-===================================================================
---- mmotm.orig/mm/vmscan.c	2009-07-08 21:37:01.000000000 -0400
-+++ mmotm/mm/vmscan.c	2009-07-08 21:39:02.000000000 -0400
-@@ -1035,6 +1035,27 @@ int isolate_lru_page(struct page *page)
- }
- 
- /*
-+ * Are there way too many processes in the direct reclaim path already?
-+ */
-+static int too_many_isolated(struct zone *zone, int file)
-+{
-+	unsigned long inactive, isolated;
-+
-+	if (current_is_kswapd())
-+		return 0;
-+
-+	if (file) {
-+		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
-+		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
-+	} else {
-+		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-+		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
-+	}
-+
-+	return isolated > inactive;
-+}
-+
-+/*
-  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-  * of reclaimed pages
-  */
-@@ -1049,6 +1070,10 @@ static unsigned long shrink_inactive_lis
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	int lumpy_reclaim = 0;
- 
-+	while (unlikely(too_many_isolated(zone, file))) {
-+		schedule_timeout_interruptible(HZ/10);
-+	}
-+
- 	/*
- 	 * If we need a large contiguous chunk of memory, or have
- 	 * trouble getting a small set of contiguous pages, we
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
