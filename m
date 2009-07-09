@@ -1,257 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 010F06B0082
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 03:59:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n698Etjp010662
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 010516B0085
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 04:03:02 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n698I3Co012108
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 9 Jul 2009 17:14:55 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EEAB45DE64
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:14:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D8C645DE4E
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:14:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C69AE1DB803F
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:14:53 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 35180E0800C
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:14:49 +0900 (JST)
+	Thu, 9 Jul 2009 17:18:03 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8795E45DE65
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:18:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 647DB45DE5D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:18:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4214F1DB803B
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:18:03 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C7EFA1DB8041
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:18:02 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 4/5] add isolate pages vmstat
+Subject: [PATCH 5/5] add shmem vmstat
 In-Reply-To: <20090709165820.23B7.A69D9226@jp.fujitsu.com>
 References: <20090709165820.23B7.A69D9226@jp.fujitsu.com>
-Message-Id: <20090709171247.23C6.A69D9226@jp.fujitsu.com>
+Message-Id: <20090709171452.23C9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu,  9 Jul 2009 17:14:48 +0900 (JST)
+Date: Thu,  9 Jul 2009 17:18:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
 ChangeLog
-  Since v4
-   - Changed displaing order in show_free_areas() (as Wu's suggested)
-  Since v3
-   - Fixed misaccount page bug when lumby reclaim occur
-  Since v2
-   - Separated IsolateLRU field to Isolated(anon) and Isolated(file)
   Since v1
-   - Renamed IsolatePages to IsolatedLRU
+   - Fixed misaccounting bug on page migration
 
-==================================
-Subject: [PATCH] add isolate pages vmstat
+========================
+Subject: [PATCH] add shmem vmstat
 
-If the system have plenty threads or processes, concurrent reclaim can
-isolate very much pages.
-Unfortunately, current /proc/meminfo and OOM log can't show it.
+Recently, We faced several OOM problem by plenty GEM cache. and generally,
+plenty Shmem/Tmpfs potentially makes memory shortage problem.
 
-This patch provide the way of showing this information.
+We often use following calculation to know shmem pages,
+  shmem = NR_ACTIVE_ANON + NR_INACTIVE_ANON - NR_ANON_PAGES
+but it is wrong expression. it doesn't consider isolated page and
+mlocked page.
 
-
-reproduce way
------------------------
-% ./hackbench 140 process 1000
-   => couse OOM
-
-active_anon:146 inactive_anon:0 isolated_anon:49245
- active_file:41 inactive_file:0 isolated_file:113
- unevictable:0
- dirty:0 writeback:0 buffer:49 unstable:0
- free:184 slab_reclaimable:276 slab_unreclaimable:5492
- mapped:87 pagetables:28239 bounce:0
+Then, This patch make explicit Shmem/Tmpfs vm-stat accounting.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- drivers/base/node.c    |    4 ++++
- fs/proc/meminfo.c      |    4 ++++
- include/linux/mmzone.h |    2 ++
- mm/page_alloc.c        |   14 ++++++++++----
- mm/vmscan.c            |   13 +++++++++++++
- mm/vmstat.c            |    3 ++-
- 6 files changed, 35 insertions(+), 5 deletions(-)
+ drivers/base/node.c    |    2 ++
+ fs/proc/meminfo.c      |    2 ++
+ include/linux/mmzone.h |    1 +
+ mm/filemap.c           |    4 ++++
+ mm/migrate.c           |    4 ++++
+ mm/page_alloc.c        |    5 ++++-
+ mm/vmstat.c            |    1 +
+ 7 files changed, 18 insertions(+), 1 deletion(-)
 
-Index: b/fs/proc/meminfo.c
-===================================================================
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -65,6 +65,8 @@ static int meminfo_proc_show(struct seq_
- 		"Active(file):   %8lu kB\n"
- 		"Inactive(file): %8lu kB\n"
- 		"Unevictable:    %8lu kB\n"
-+		"Isolated(anon): %8lu kB\n"
-+		"Isolated(file): %8lu kB\n"
- 		"Mlocked:        %8lu kB\n"
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
-@@ -109,6 +111,8 @@ static int meminfo_proc_show(struct seq_
- 		K(pages[LRU_ACTIVE_FILE]),
- 		K(pages[LRU_INACTIVE_FILE]),
- 		K(pages[LRU_UNEVICTABLE]),
-+		K(global_page_state(NR_ISOLATED_ANON)),
-+		K(global_page_state(NR_ISOLATED_FILE)),
- 		K(global_page_state(NR_MLOCK)),
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -100,6 +100,8 @@ enum zone_stat_item {
- 	NR_BOUNCE,
- 	NR_VMSCAN_WRITE,
- 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
-+	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
-+	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2115,16 +2115,18 @@ void show_free_areas(void)
- 		}
- 	}
- 
--	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
--		" inactive_file:%lu"
--		" unevictable:%lu"
-+	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
-+		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
-+		" unevictable:%lu\n"
- 		" dirty:%lu writeback:%lu unstable:%lu buffer:%lu\n"
- 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
- 		" mapped:%lu pagetables:%lu bounce:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
--		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_ANON),
-+		global_page_state(NR_ISOLATED_ANON),
-+		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_FILE),
-+		global_page_state(NR_ISOLATED_FILE),
- 		global_page_state(NR_UNEVICTABLE),
- 		global_page_state(NR_FILE_DIRTY),
- 		global_page_state(NR_WRITEBACK),
-@@ -2151,6 +2153,8 @@ void show_free_areas(void)
- 			" active_file:%lukB"
- 			" inactive_file:%lukB"
- 			" unevictable:%lukB"
-+			" isolated(anon):%lukB"
-+			" isolated(file):%lukB"
- 			" present:%lukB"
- 			" mlocked:%lukB"
- 			" dirty:%lukB"
-@@ -2176,6 +2180,8 @@ void show_free_areas(void)
- 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_UNEVICTABLE)),
-+			K(zone_page_state(zone, NR_ISOLATED_ANON)),
-+			K(zone_page_state(zone, NR_ISOLATED_FILE)),
- 			K(zone->present_pages),
- 			K(zone_page_state(zone, NR_MLOCK)),
- 			K(zone_page_state(zone, NR_FILE_DIRTY)),
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1067,6 +1067,8 @@ static unsigned long shrink_inactive_lis
- 		unsigned long nr_active;
- 		unsigned int count[NR_LRU_LISTS] = { 0, };
- 		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
-+		unsigned long nr_anon;
-+		unsigned long nr_file;
- 
- 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
- 			     &page_list, &nr_scan, sc->order, mode,
-@@ -1083,6 +1085,12 @@ static unsigned long shrink_inactive_lis
- 		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
- 						-count[LRU_INACTIVE_ANON]);
- 
-+		nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
-+		nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
-+
-+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
-+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
-+
- 		if (scanning_global_lru(sc))
- 			zone->pages_scanned += nr_scan;
- 
-@@ -1131,6 +1139,8 @@ static unsigned long shrink_inactive_lis
- 			goto done;
- 
- 		spin_lock(&zone->lru_lock);
-+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
-+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
- 		/*
- 		 * Put back any unfreeable pages.
- 		 */
-@@ -1205,6 +1215,7 @@ static void move_active_pages_to_lru(str
- 	unsigned long pgmoved = 0;
- 	struct pagevec pvec;
- 	struct page *page;
-+	int file = is_file_lru(lru);
- 
- 	pagevec_init(&pvec, 1);
- 
-@@ -1232,6 +1243,7 @@ static void move_active_pages_to_lru(str
- 		}
- 	}
- 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -pgmoved);
- 	if (!is_active_lru(lru))
- 		__count_vm_events(PGDEACTIVATE, pgmoved);
- }
-@@ -1267,6 +1279,7 @@ static void shrink_active_list(unsigned 
- 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -pgmoved);
- 	else
- 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, pgmoved);
- 	spin_unlock_irq(&zone->lru_lock);
- 
- 	pgmoved = 0;  /* count referenced (mapping) mapped pages */
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -644,7 +644,8 @@ static const char * const vmstat_text[] 
- 	"nr_bounce",
- 	"nr_vmscan_write",
- 	"nr_writeback_temp",
--
-+	"nr_isolated_anon",
-+	"nr_isolated_file",
- #ifdef CONFIG_NUMA
- 	"numa_hit",
- 	"numa_miss",
 Index: b/drivers/base/node.c
 ===================================================================
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -73,6 +73,8 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d Active(file):   %8lu kB\n"
- 		       "Node %d Inactive(file): %8lu kB\n"
- 		       "Node %d Unevictable:    %8lu kB\n"
-+		       "Node %d Isolated(anon): %8lu kB\n"
-+		       "Node %d Isolated(file): %8lu kB\n"
- 		       "Node %d Mlocked:        %8lu kB\n"
- #ifdef CONFIG_HIGHMEM
- 		       "Node %d HighTotal:      %8lu kB\n"
-@@ -105,6 +107,8 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
- 		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
- 		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
-+		       nid, K(node_page_state(nid, NR_ISOLATED_ANON)),
-+		       nid, K(node_page_state(nid, NR_ISOLATED_FILE)),
- 		       nid, K(node_page_state(nid, NR_MLOCK)),
- #ifdef CONFIG_HIGHMEM
- 		       nid, K(i.totalhigh),
+@@ -87,6 +87,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       "Node %d FilePages:      %8lu kB\n"
+ 		       "Node %d Mapped:         %8lu kB\n"
+ 		       "Node %d AnonPages:      %8lu kB\n"
++		       "Node %d Shmem:          %8lu kB\n"
+ 		       "Node %d KernelStack:    %8lu kB\n"
+ 		       "Node %d PageTables:     %8lu kB\n"
+ 		       "Node %d NFS_Unstable:   %8lu kB\n"
+@@ -121,6 +122,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+ 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
++		       nid, K(node_page_state(nid, NR_SHMEM)),
+ 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
+ 				THREAD_SIZE / 1024,
+ 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
+Index: b/fs/proc/meminfo.c
+===================================================================
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -83,6 +83,7 @@ static int meminfo_proc_show(struct seq_
+ 		"Writeback:      %8lu kB\n"
+ 		"AnonPages:      %8lu kB\n"
+ 		"Mapped:         %8lu kB\n"
++		"Shmem:          %8lu kB\n"
+ 		"Slab:           %8lu kB\n"
+ 		"SReclaimable:   %8lu kB\n"
+ 		"SUnreclaim:     %8lu kB\n"
+@@ -129,6 +130,7 @@ static int meminfo_proc_show(struct seq_
+ 		K(global_page_state(NR_WRITEBACK)),
+ 		K(global_page_state(NR_ANON_PAGES)),
+ 		K(global_page_state(NR_FILE_MAPPED)),
++		K(global_page_state(NR_SHMEM)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
+ 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -102,6 +102,7 @@ enum zone_stat_item {
+ 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
++	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
+Index: b/mm/filemap.c
+===================================================================
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -120,6 +120,8 @@ void __remove_from_page_cache(struct pag
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
++	if (PageSwapBacked(page))
++		__dec_zone_page_state(page, NR_SHMEM);
+ 	BUG_ON(page_mapped(page));
+ 
+ 	/*
+@@ -476,6 +478,8 @@ int add_to_page_cache_locked(struct page
+ 		if (likely(!error)) {
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
++			if (PageSwapBacked(page))
++				__inc_zone_page_state(page, NR_SHMEM);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 		} else {
+ 			page->mapping = NULL;
+Index: b/mm/vmstat.c
+===================================================================
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -646,6 +646,7 @@ static const char * const vmstat_text[] 
+ 	"nr_writeback_temp",
+ 	"nr_isolated_anon",
+ 	"nr_isolated_file",
++	"nr_shmem",
+ #ifdef CONFIG_NUMA
+ 	"numa_hit",
+ 	"numa_miss",
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2120,7 +2120,7 @@ void show_free_areas(void)
+ 		" unevictable:%lu\n"
+ 		" dirty:%lu writeback:%lu unstable:%lu buffer:%lu\n"
+ 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+-		" mapped:%lu pagetables:%lu bounce:%lu\n",
++		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+ 		global_page_state(NR_INACTIVE_ANON),
+ 		global_page_state(NR_ISOLATED_ANON),
+@@ -2136,6 +2136,7 @@ void show_free_areas(void)
+ 		global_page_state(NR_SLAB_RECLAIMABLE),
+ 		global_page_state(NR_SLAB_UNRECLAIMABLE),
+ 		global_page_state(NR_FILE_MAPPED),
++		global_page_state(NR_SHMEM),
+ 		global_page_state(NR_PAGETABLE),
+ 		global_page_state(NR_BOUNCE));
+ 
+@@ -2160,6 +2161,7 @@ void show_free_areas(void)
+ 			" dirty:%lukB"
+ 			" writeback:%lukB"
+ 			" mapped:%lukB"
++			" shmem:%lukB"
+ 			" slab_reclaimable:%lukB"
+ 			" slab_unreclaimable:%lukB"
+ 			" kernel_stack:%lukB"
+@@ -2187,6 +2189,7 @@ void show_free_areas(void)
+ 			K(zone_page_state(zone, NR_FILE_DIRTY)),
+ 			K(zone_page_state(zone, NR_WRITEBACK)),
+ 			K(zone_page_state(zone, NR_FILE_MAPPED)),
++			K(zone_page_state(zone, NR_SHMEM)),
+ 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
+ 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
+ 			zone_page_state(zone, NR_KERNEL_STACK) *
+Index: b/mm/migrate.c
+===================================================================
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -312,7 +312,11 @@ static int migrate_page_move_mapping(str
+ 	 */
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
++	if (PageSwapBacked(page)) {
++		__dec_zone_page_state(page, NR_SHMEM);
++		__inc_zone_page_state(newpage, NR_SHMEM);
+ 
++	}
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 
+ 	return 0;
 
 
 --
