@@ -1,76 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 207996B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:22:15 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so82343rvb.26
-        for <linux-mm@kvack.org>; Thu, 09 Jul 2009 14:41:45 -0700 (PDT)
-Message-ID: <4A566414.7060805@codemonkey.ws>
-Date: Thu, 09 Jul 2009 16:41:40 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EFC756B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:27:32 -0400 (EDT)
+Date: Thu, 9 Jul 2009 15:05:31 -0700 (PDT)
+From: "Li, Ming Chun" <macli@brc.ubc.ca>
+Subject: Re: [PATCH 0/5] OOM analysis helper patch series v2
+In-Reply-To: <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca>
+Message-ID: <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
+References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <c0e57d57-3f36-4405-b3f1-1a8c48089394@default>
-In-Reply-To: <c0e57d57-3f36-4405-b3f1-1a8c48089394@default>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dan Magenheimer wrote:
-> CMM2's focus is on increasing the number of VM's that
-> can run on top of the hypervisor.  To do this, it
-> depends on hints provided by Linux to surreptitiously
-> steal memory away from Linux.  The stolen memory still
-> "belongs" to Linux and if Linux goes to use it but the
-> hypervisor has already given it to another Linux, the
-> hypervisor must jump through hoops to give it back.
->   
+On Thu, 9 Jul 2009, Li, Ming Chun wrote:
 
-It depends on how you define "jump through hoops".
+I am applying the patch series to 2.6.31-rc2.
 
-> If it guesses wrong and overcommits too aggressively,
-> the hypervisor must swap some memory to a "hypervisor
-> swap disk" (which btw has some policy challenges).
-> IMHO this is more of a "mainframe" model.
->   
+Vincent
 
-No, not at all.  A guest marks a page as being "volatile", which tells 
-the hypervisor it never needs to swap that page.  It can discard it 
-whenever it likes.
-
-If the guest later tries to access that page, it will get a special 
-"discard fault".  For a lot of types of memory, the discard fault 
-handler can then restore that page transparently to the code that 
-generated the discard fault.
-
-AFAICT, ephemeral tmem has the exact same characteristics as volatile 
-CMM2 pages.  The difference is that tmem introduces an API to explicitly 
-manage this memory behind a copy interface whereas CMM2 uses hinting and 
-a special fault handler to allow any piece of memory to be marked in 
-this way.
-
-> In other words, CMM2, despite its name, is more of a
-> "subservient" memory management system (Linux is
-> subservient to the hypervisor) and tmem is more
-> collaborative (Linux and the hypervisor share the
-> responsibilities and the benefits/costs).
->   
-
-I don't really agree with your analysis of CMM2.  We can map CMM2 
-operations directly to ephemeral tmem interfaces so tmem is a subset of 
-CMM2, no?
-
-What's appealing to me about CMM2 is that it doesn't change the guest 
-semantically but rather just gives the VMM more information about how 
-the VMM is using it's memory.  This suggests that it allows greater 
-flexibility in the long term to the VMM and more importantly, provides 
-an easier implementation across a wide range of guests.
-
-Regards,
-
-Anthony Liguori
+> On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
+> 
+> > 
+> > ChangeLog
+> >  Since v1
+> >    - Droped "[5/5] add NR_ANON_PAGES to OOM log" patch
+> >    - Instead, introduce "[5/5] add shmem vmstat" patch
+> >    - Fixed unit bug (Thanks Minchan)
+> >    - Separated isolated vmstat to two field (Thanks Minchan and Wu)
+> >    - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
+> >    - Rewrote some patch description (Thanks Christoph)
+> > 
+> > 
+> > Current OOM log doesn't provide sufficient memory usage information. it cause
+> > make confusion to lkml MM guys. 
+> > 
+> > this patch series add some memory usage information to OOM log.
+> > 
+> 
+> Hi Kosaki,
+> 
+> Sorry this is slightly off topic, I am newbie and want to test out your 
+> patch series. I am using alpine as email client to save your patches to
+> /usr/src/linux-2.6/patches:
+> 
+> #ls -l /usr/src/linux-2.6/patches/
+> 
+> -rw------- 1 root src  6682 2009-07-09 10:24 km1.patch
+> -rw------- 1 root src  6980 2009-07-09 10:24 km2.patch
+> -rw------- 1 root src  9871 2009-07-09 10:24 km3.patch
+> -rw------- 1 root src 12539 2009-07-09 10:24 km4.patch
+> -rw------- 1 root src 11499 2009-07-09 10:24 km5.patch
+> 
+> Then I apply your patches using git-am, I got:
+> 
+> ---------------
+> /usr/src/linux-2.6# git checkout experimental
+> Switched to branch "experimental"
+> 
+> /usr/src/linux-2.6# git am ./patches/km1.patch
+> Applying add per-zone statistics to show_free_areas()
+> 
+> /usr/src/linux-2.6# git am ./patches/km2.patch
+> Applying add buffer cache information to show_free_areas()
+> error: patch failed: mm/page_alloc.c:2118
+> error: mm/page_alloc.c: patch does not apply
+> Patch failed at 0002.
+> When you have resolved this problem run "git-am --resolved".
+> If you would prefer to skip this patch, instead run "git-am --skip".
+> 
+> /usr/src/linux-2.6# git am ./patches/km3.patch
+> previous dotest directory .dotest still exists but mbox given.
+> 
+> /usr/src/linux-2.6# rm -rf .dotest/
+> 
+> /usr/src/linux-2.6# git am ./patches/km3.patch
+> Applying Show kernel stack usage to /proc/meminfo and OOM log
+> 
+> /usr/src/linux-2.6# git am ./patches/km4.patch
+> Applying add isolate pages vmstat
+> error: patch failed: mm/page_alloc.c:2115
+> error: mm/page_alloc.c: patch does not apply
+> Patch failed at 0002.
+> When you have resolved this problem run "git-am --resolved".
+> If you would prefer to skip this patch, instead run "git-am --skip".
+> 
+> /usr/src/linux-2.6# git am ./patches/km5.patch
+> previous dotest directory .dotest still exists but mbox given.
+> 
+> /usr/src/linux-2.6# rm -rf .dotest/
+> 
+> /usr/src/linux-2.6# git am ./patches/km5.patch
+> Applying add shmem vmstat
+> error: patch failed: include/linux/mmzone.h:102
+> error: include/linux/mmzone.h: patch does not apply
+> error: patch failed: mm/vmstat.c:646
+> error: mm/vmstat.c: patch does not apply
+> error: patch failed: mm/page_alloc.c:2120
+> error: mm/page_alloc.c: patch does not apply
+> Patch failed at 0002.
+> When you have resolved this problem run "git-am --resolved".
+> If you would prefer to skip this patch, instead run "git-am --skip".
+> ------------
+> 
+> Is there any better way that you could recommend to me to apply your 
+> patches cleanly? Thanks.
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
