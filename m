@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DC3EF6B005C
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:44:30 -0400 (EDT)
-Message-ID: <4A560651.3090708@redhat.com>
-Date: Thu, 09 Jul 2009 11:01:37 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 253206B005C
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 10:47:08 -0400 (EDT)
+Message-ID: <4A5606DB.7060503@redhat.com>
+Date: Thu, 09 Jul 2009 11:03:55 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5][resend] Show kernel stack usage to /proc/meminfo
- and OOM log
-References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171122.23C3.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090709171122.23C3.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 5/5] add shmem vmstat
+References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171452.23C9.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090709171452.23C9.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,20 +17,27 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> Subject: [PATCH] Show kernel stack usage to /proc/meminfo and OOM log
+> ChangeLog
+>   Since v1
+>    - Fixed misaccounting bug on page migration
 > 
-> The amount of memory allocated to kernel stacks can become significant and
-> cause OOM conditions. However, we do not display the amount of memory
-> consumed by stacks.'
+> ========================
+> Subject: [PATCH] add shmem vmstat
 > 
-> Add code to display the amount of memory used for stacks in /proc/meminfo.
+> Recently, We faced several OOM problem by plenty GEM cache. and generally,
+> plenty Shmem/Tmpfs potentially makes memory shortage problem.
+> 
+> We often use following calculation to know shmem pages,
+>   shmem = NR_ACTIVE_ANON + NR_INACTIVE_ANON - NR_ANON_PAGES
+> but it is wrong expression. it doesn't consider isolated page and
+> mlocked page.
+> 
+> Then, This patch make explicit Shmem/Tmpfs vm-stat accounting.
 > 
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: <cl@linux-foundation.org>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed.
