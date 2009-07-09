@@ -1,106 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7ECCF6B0055
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 19:15:38 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n69NZiBW027047
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4E6426B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 19:19:00 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n69Nd87l024548
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 10 Jul 2009 08:35:45 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB08D45DE52
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 70B6545DE4F
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 567EC1DB803A
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:44 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1E7E1DB803F
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:43 +0900 (JST)
+	Fri, 10 Jul 2009 08:39:08 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2047345DE57
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:08 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DB14945DE53
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BCADD1DB8062
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 53F971DB805F
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/5] OOM analysis helper patch series v2
-In-Reply-To: <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
-References: <alpine.DEB.1.00.0907091038380.22613@mail.selltech.ca> <alpine.DEB.1.00.0907091502450.25351@mail.selltech.ca>
-Message-Id: <20090710083407.17BE.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
+In-Reply-To: <alpine.DEB.1.10.0907091635070.17835@gentwo.org>
+References: <20090709171027.23C0.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907091635070.17835@gentwo.org>
+Message-Id: <20090710083741.17C1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 10 Jul 2009 08:35:43 +0900 (JST)
+Date: Fri, 10 Jul 2009 08:39:06 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Li, Ming Chun" <macli@brc.ubc.ca>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 9 Jul 2009, Li, Ming Chun wrote:
+> On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
 > 
-> I am applying the patch series to 2.6.31-rc2.
-
-hm, maybe I worked on a bit old tree. I will check latest linus tree again
-today.
-
-thanks.
-
-
-> > ---------------
-> > /usr/src/linux-2.6# git checkout experimental
-> > Switched to branch "experimental"
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km1.patch
-> > Applying add per-zone statistics to show_free_areas()
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km2.patch
-> > Applying add buffer cache information to show_free_areas()
-> > error: patch failed: mm/page_alloc.c:2118
-> > error: mm/page_alloc.c: patch does not apply
-> > Patch failed at 0002.
-> > When you have resolved this problem run "git-am --resolved".
-> > If you would prefer to skip this patch, instead run "git-am --skip".
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km3.patch
-> > previous dotest directory .dotest still exists but mbox given.
-> > 
-> > /usr/src/linux-2.6# rm -rf .dotest/
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km3.patch
-> > Applying Show kernel stack usage to /proc/meminfo and OOM log
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km4.patch
-> > Applying add isolate pages vmstat
-> > error: patch failed: mm/page_alloc.c:2115
-> > error: mm/page_alloc.c: patch does not apply
-> > Patch failed at 0002.
-> > When you have resolved this problem run "git-am --resolved".
-> > If you would prefer to skip this patch, instead run "git-am --skip".
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km5.patch
-> > previous dotest directory .dotest still exists but mbox given.
-> > 
-> > /usr/src/linux-2.6# rm -rf .dotest/
-> > 
-> > /usr/src/linux-2.6# git am ./patches/km5.patch
-> > Applying add shmem vmstat
-> > error: patch failed: include/linux/mmzone.h:102
-> > error: include/linux/mmzone.h: patch does not apply
-> > error: patch failed: mm/vmstat.c:646
-> > error: mm/vmstat.c: patch does not apply
-> > error: patch failed: mm/page_alloc.c:2120
-> > error: mm/page_alloc.c: patch does not apply
-> > Patch failed at 0002.
-> > When you have resolved this problem run "git-am --resolved".
-> > If you would prefer to skip this patch, instead run "git-am --skip".
-> > ------------
-> > 
-> > Is there any better way that you could recommend to me to apply your 
-> > patches cleanly? Thanks.
-> > 
-> > 
+> > Subject: [PATCH] add buffer cache information to show_free_areas()
+> >
+> > When administrator analysis memory shortage reason from OOM log, They
+> > often need to know rest number of cache like pages.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Maybe:
+> 
+> "
+> It is often useful to know the statistics for all pages that are handled
+> like page cache pages when looking at OOM log output.
+> 
+> Therefore show_free_areas() should also display buffer cache statistics.
+> "
+
+Thanks good description. Will fix.
 
 
 
