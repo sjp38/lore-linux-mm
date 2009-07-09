@@ -1,135 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2E9DC6B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 11:17:33 -0400 (EDT)
-Message-ID: <4A560ED7.2070403@redhat.com>
-Date: Thu, 09 Jul 2009 18:37:59 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: KSM: current madvise rollup
-References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils> <4A49E051.1080400@redhat.com> <Pine.LNX.4.64.0906301518370.967@sister.anvils> <4A4A5C56.5000109@redhat.com> <Pine.LNX.4.64.0907010057320.4255@sister.anvils> <4A4B317F.4050100@redhat.com> <Pine.LNX.4.64.0907082035400.10356@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0907082035400.10356@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDA96B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 12:56:48 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id n69HCpVA011028
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:12:51 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n69HEiMu1331336
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:14:44 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n69HEioZ026947
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:14:44 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Thu, 09 Jul 2009 22:44:41 +0530
+Message-Id: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
+Subject: [RFC][PATCH 0/5] Memory controller soft limit patches (v8)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> Hi Izik,
->
-> Sorry, I've not yet replied to your response of 1 July, nor shall I
-> right now.  Instead, more urgent to send you my current KSM rollup,
-> against 2.6.31-rc2, with which I'm now pretty happy - to the extent
-> that I've put my signoff to it below.
->
-> Though of course it's actually your and Andrea's and Chris's work,
-> just played around with by me; I don't know what the order of
-> signoffs should be in the end.
->
-> What it mainly lacks is a Documentation file, and more statistics in
-> sysfs: though we can already see how much is being merged, we don't
-> see any comparison against how much isn't.
->
-> But if you still like the patch below, let's advance to splitting
-> it up and getting it into mmotm: I have some opinions on the splitup,
-> I'll make some suggestions on that tomorrow.
->   
 
-I like it very much, you really ~cleaned / optimized / made better 
-interface~ it up i got to say, thanks you.
-(Very high standard you have)
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-> You asked for a full diff against -rc2, but may want some explanation
-> of differences from what I sent before.  The main changes are:-
->
-> A reliable PageKsm(), not dependent on the nature of the vma it's in:
-> it's like PageAnon, but with NULL anon_vma - needs a couple of slight
-> adjustments outside ksm.c.
->   
+New Feature: Soft limits for memory resource controller.
 
-Good change.
+Here is v8 of the new soft limit implementation. Soft limits is a new feature
+for the memory resource controller, something similar has existed in the
+group scheduler in the form of shares. The CPU controllers interpretation
+of shares is very different though. 
 
-> Consequently, no reason to go on prohibiting KSM on private anonymous
-> pages COWed from template file pages in file-backed vmas.
->   
+Soft limits are the most useful feature to have for environments where
+the administrator wants to overcommit the system, such that only on memory
+contention do the limits become active. The current soft limits implementation
+provides a soft_limit_in_bytes interface for the memory controller and not
+for memory+swap controller. The implementation maintains an RB-Tree of groups
+that exceed their soft limit and starts reclaiming from the group that
+exceeds this limit by the maximum amount.
 
-Agree.
+v8 has come out after a long duration, we were held back by bug fixes
+(most notably swap cache leak fix) and Kamezawa-San has his series of
+patches for soft limits. Kamezawa-San asked me to refactor these patches
+to make the data structure per-node-per-zone.
 
-> Most of what get_user_pages did for us was unhelpful: now rely on
-> find_vma and follow_page and handle_mm_fault directly, which allow
-> us to check VM_MERGEABLE and PageKsm ourselves where needed.
->
-> Which eliminates the separate is_present_pte checks, and spares us
-> from wasting rmap_items on absent ptes.
->   
+TODOs
 
-That is great, much better.
-(I actually searched where you have exported follow_page and 
-handle_mm_fault, and then realized that life are easier when you are not 
-a modules anymore)
+1. The current implementation maintains the delta from the soft limit
+   and pushes back groups to their soft limits, a ratio of delta/soft_limit
+   might be more useful
+2. Small optimizations that I intend to push in v9, if the v8 design looks
+   good and acceptable.
 
-> Which then drew attention to the hyperactive allocation and freeing
-> of tree_items, "slabinfo -AD" showing huge activity there, even when
-> idling.  It's not much of a problem really, but might cause concern.
->
-> And revealed that really those tree_items were a waste of space, can
-> be packed within the rmap_items that pointed to them, while still
-> keeping to the nice cache-friendly 64-byte or 32-byte rmap_item.
-> (If another field needed later, can make rmap_list singly linked.)
->   
+Tests
+-----
 
-That change together with the "is_stable_tree" embedded inside the 
-rmap_item address are my favorite changes.
+I've run two memory intensive workloads with differing soft limits and
+seen that they are pushed back to their soft limit on contention. Their usage
+was their soft limit plus additional memory that they were able to grab
+on the system. Soft limit can take a while before we see the expected
+results.
 
-> mremap move issue sorted, in simplest COW-breaking way.  My previous
-> code to unmerge according to rmap_item->stable was racy/buggy for
-> two reasons: ignore rmap_items there now, just scan the ptes.
->
-> ksmd used to be running at higher priority: now nice 0.
->   
+Please review, comment.
+
+Series
+------
+
+memcg-soft-limits-documentation.patch
+memcg-soft-limits-interface.patch
+memcg-soft-limits-organize.patch
+memcg-soft-limits-refactor-reclaim-bits
+memcg-soft-limits-reclaim-on-contention.patch
 
 
-That is indeed logical change, maybe we can even punish it in another 5 
-points in nice...
-
-> Moved mm_slot hash functions together; made hash table smaller
-> now it's used less frequently than it was in your design.
->
-> More cleanup, making similar things more alike.
->   
-
-Really quality work. (What i did was just walk from line 1 to the end of 
-ksm.c with my eyes, I still want to apply the patch and play with it)
-
-The only thing i was afraid is if the check inside the 
-stable_tree_search is safe:
-
-+			page2[0] = get_ksm_page(tree_rmap_item);
-+			if (page2[0])
-+				break;
-
-
-But i convinced myself that it is safe due to the fact that the page is 
-anonymous, so it wasnt be able to get remapped by the user (to try to 
-corrupt the stable tree) without the page will get breaked.
-
-So from my side I believe we can send it to mmotm I still want to run it 
-on my machine and play with it, to add some bug_ons (just for my own 
-testing) to see that everything
-going well, but I couldn't find one objection to any of your changes. 
-(And i did try hard to find at least one..., i thought maybe 
-module_init() can be replaced with something different, but i then i saw 
-it used in vmscan.c, so i gave up...)
-
-
-What you want to do now? send it to mmotm or do you want to play with it 
-more?
-
-
-Big thanks.
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
