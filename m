@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 481126B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 03:36:12 -0400 (EDT)
-Date: Thu, 9 Jul 2009 09:51:00 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
-Message-ID: <20090709075100.GU2714@wotan.suse.de>
-References: <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de> <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <4A54C435.1000503@panasas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A54C435.1000503@panasas.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3FA0A6B005A
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 03:50:23 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6985JHo014722
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 9 Jul 2009 17:05:19 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FBE345DE4C
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:05:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5197345DE4F
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:05:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 387AA1DB803F
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:05:19 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3023E08008
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 17:05:18 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 0/5] OOM analysis helper patch series v2
+Message-Id: <20090709165820.23B7.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu,  9 Jul 2009 17:05:18 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Boaz Harrosh <bharrosh@panasas.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 08, 2009 at 07:07:17PM +0300, Boaz Harrosh wrote:
-> On 07/08/2009 03:34 PM, Nick Piggin wrote:
-> > On Wed, Jul 08, 2009 at 06:47:01AM -0400, Christoph Hellwig wrote:
-> > Index: linux-2.6/fs/attr.c
-> > ===================================================================
-> > --- linux-2.6.orig/fs/attr.c
-> > +++ linux-2.6/fs/attr.c
-> > @@ -112,7 +112,12 @@ int inode_setattr(struct inode * inode,
-> >  
-> >  	if (ia_valid & ATTR_SIZE &&
-> >  	    attr->ia_size != i_size_read(inode)) {
-> > -		int error = vmtruncate(inode, attr->ia_size);
-> > +		int error;
-> > +
-> > +		if (inode->i_op->new_truncate)
-> > +			error = simple_setsize(inode, attr->ia_size);
-> 
-> I don't understand this branch.
-> If a filesystem has been converted to set "i_op->new_truncate=true"
-> then it must have been converted to intersect ->setattr and has set
-> the i_size (And needs to clear ATTR_SIZE, why?)
-> 
-> All other cases of systems not converted, or systems that do not have
-> ->truncate will fall to the "else" part.
-> 
-> before the removal of i_op->new_truncate you will need to do something
-> with the systems that do not have ->truncate which will be a 
-> .setattr = simple_setattr or something
-> 
-> So I don't understand this conditional
 
-inode_setattr *is* our "simple_setattr".
+ChangeLog
+ Since v1
+   - Droped "[5/5] add NR_ANON_PAGES to OOM log" patch
+   - Instead, introduce "[5/5] add shmem vmstat" patch
+   - Fixed unit bug (Thanks Minchan)
+   - Separated isolated vmstat to two field (Thanks Minchan and Wu)
+   - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
+   - Rewrote some patch description (Thanks Christoph)
+
+
+Current OOM log doesn't provide sufficient memory usage information. it cause
+make confusion to lkml MM guys. 
+
+this patch series add some memory usage information to OOM log.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
