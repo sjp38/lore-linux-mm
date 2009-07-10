@@ -1,166 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F3E26B0082
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 02:55:25 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6A7I6FX002550
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Jul 2009 16:18:06 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 563DE45DE52
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 16:18:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B60A45DE50
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 16:18:06 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 13D3EE0800A
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 16:18:06 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A650CE08007
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 16:18:05 +0900 (JST)
-Date: Fri, 10 Jul 2009 16:16:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/5] Memory controller soft limit organize cgroups
- (v8)
-Message-Id: <20090710161623.294bbd5f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090710064723.GA20129@balbir.in.ibm.com>
-References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
-	<20090709171501.8080.85138.sendpatchset@balbir-laptop>
-	<20090710142135.8079cd22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090710064723.GA20129@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3735E6B0083
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:01:45 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so1261409gxk.14
+        for <linux-mm@kvack.org>; Fri, 10 Jul 2009 00:24:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090608091044.880249722@intel.com>
+References: <20090608091044.880249722@intel.com>
+Date: Fri, 10 Jul 2009 15:24:29 +0800
+Message-ID: <ab418ea90907100024xe95ab44pb0809d262e616565@mail.gmail.com>
+Subject: Re: [PATCH 0/3] make mapped executable pages the first class citizen
+	(with test cases)
+From: Nai Xia <nai.xia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Jul 2009 12:17:23 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi,
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-10 14:21:35]:
-> 
-> > On Thu, 09 Jul 2009 22:45:01 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > Feature: Organize cgroups over soft limit in a RB-Tree
-> > > 
-> > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > > +	while (*p) {
-> > 
-> > I feel this *p should be loaded after taking spinlock(&stz->lock) rather than top
-> > of function. No?
-> 
-> No.. since the root remains constant once loaded. Am I missing
-> something?
-> 
-No, I just missed it.
+I was able to launch some tests with SPEC cpu2006.
+The benchmark was based on mmotm
+commit 0b7292956dbdfb212abf6e3c9cfb41e9471e1081 on a intel  Q6600 box with
+4G ram. The kernel cmdline mem=3D500M was used to see how good exec-prot ca=
+n
+be under memory stress.
+
+Following are the results:
+
+                                  Estimated
+                Base     Base       Base
+Benchmarks      Ref.   Run Time     Ratio
+
+mmotm with 500M
+400.perlbench    9770        671      14.6  *
+401.bzip2        9650       1011       9.55 *
+403.gcc          8050        774      10.4  *
+462.libquantum  20720       1213      17.1  *
 
 
-> 
-> > 
-> > > +		parent = *p;
-> > > +		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,
-> > > +					tree_node);
-> > > +		if (mz->usage_in_excess < mz_node->usage_in_excess)
-> > > +			p = &(*p)->rb_left;
-> > > +		/*
-> > > +		 * We can't avoid mem cgroups that are over their soft
-> > > +		 * limit by the same amount
-> > > +		 */
-> > > +		else if (mz->usage_in_excess >= mz_node->usage_in_excess)
-> > > +			p = &(*p)->rb_right;
-> > > +	}
-> > > +	rb_link_node(&mz->tree_node, parent, p);
-> > > +	rb_insert_color(&mz->tree_node, &stz->rb_root);
-> > > +	mz->last_tree_update = jiffies;
-> > > +	spin_unlock_irqrestore(&stz->lock, flags);
-> > > +}
-> > > +
-> > > +static void
-> > > +mem_cgroup_remove_exceeded(struct mem_cgroup *mem,
-> > > +				struct mem_cgroup_per_zone *mz,
-> > > +				struct mem_cgroup_soft_limit_tree_per_zone *stz)
-> > > +{
-> > > +	unsigned long flags;
-> > > +	spin_lock_irqsave(&stz->lock, flags);
-> > why IRQ save ? again.
-> >
-> 
-> Will remove
->  
-> > > +	rb_erase(&mz->tree_node, &stz->rb_root);
-> > > +	spin_unlock_irqrestore(&stz->lock, flags);
-> > > +}
-> > > +
-> > > +static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem,
-> > > +					bool over_soft_limit,
-> > > +					struct page *page)
-> > > +{
-> > > +	unsigned long next_update;
-> > > +	struct page_cgroup *pc;
-> > > +	struct mem_cgroup_per_zone *mz;
-> > > +
-> > > +	if (!over_soft_limit)
-> > > +		return false;
-> > > +
-> > > +	pc = lookup_page_cgroup(page);
-> > > +	if (unlikely(!pc))
-> > > +		return false;
-> > > +	mz = mem_cgroup_zoneinfo(mem, page_cgroup_nid(pc), page_cgroup_zid(pc));
-> > 
-> > mz = page_cgroup_zoneinfo(pc)
-> > or
-> > mz = mem_cgroup_zoneinfo(mem, page_to_nid(page), page_zid(page))
-> >
-> 
-> Will change it.
->  
-> > > +
-> > > +	next_update = mz->last_tree_update + MEM_CGROUP_TREE_UPDATE_INTERVAL;
-> > > +	if (time_after(jiffies, next_update))
-> > > +		return true;
-> > > +
-> > > +	return false;
-> > > +}
-> > > +
-> > > +static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
-> > > +{
-> > > +	unsigned long long prev_usage_in_excess, new_usage_in_excess;
-> > > +	bool updated_tree = false;
-> > > +	unsigned long flags;
-> > > +	struct page_cgroup *pc;
-> > > +	struct mem_cgroup_per_zone *mz;
-> > > +	struct mem_cgroup_soft_limit_tree_per_zone *stz;
-> > > +
-> > > +	/*
-> > > +	 * As long as the page is around, pc's are always
-> > > +	 * around and so is the mz, in the remove path
-> > > +	 * we are yet to do the css_put(). I don't think
-> > > +	 * we need to hold page cgroup lock.
-> > > +	 */
-> > IIUC, at updating tree,we grab this page which is near-to-be-mapped or
-> > near-to-be-in-radix-treee. If so, not necessary to be annoyied.
-> 
-> Not sure I understand your comment about annoyied (annoyed?)
-> 
-Ah, sorry, I wanted to say "pc is always valid here"
+mmot-prot with 500M
+400.perlbench    9770        658      14.8  *
+401.bzip2        9650       1007       9.58 *
+403.gcc          8050        749      10.8  *
+462.libquantum  20720       1116      18.6  *
 
-> > 
-> > > +	pc = lookup_page_cgroup(page);
-> > > +	if (unlikely(!pc))
-> > > +		return;
-> > 
-> > I bet this can be BUG_ON().
-> 
-> In the new version we will not need pc
-> 
-ok.
+mmotm with 4G ( allowing the full working sets)
+400.perlbench    9770        594      16.5  *
+401.bzip2        9650        828      11.7  *
+403.gcc          8050        523      15.4  *
+462.libquantum  20720       1121      18.5  *
 
-Thanks,
--Kame
+
+It's worth noting that SPEC documented "The CPU2006 benchmarks
+(code + workload) have been designed to fit within about 1GB of
+physical memory",
+and the exec vm sizes of these programs are as below:
+perlbench  956KB
+bzip2         56KB
+gcc          3008KB
+libquantum  36KB
+
+
+Are we expecting to see more good results for cpu-bound programs (e.g.
+scientific ones)
+with large number of exec pages ?
+
+
+Best Regards,
+
+Nai Xia
+
+On Mon, Jun 8, 2009 at 5:10 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> Andrew,
+>
+> I managed to back this patchset with two test cases :)
+>
+> They demonstrated that
+> - X desktop responsiveness can be *doubled* under high memory/swap pressu=
+re
+> - it can almost stop major faults when the active file list is slowly sca=
+nned
+> =A0because of undergoing partially cache hot streaming IO
+>
+> The details are included in the changelog.
+>
+> Thanks,
+> Fengguang
+> --
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
