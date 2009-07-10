@@ -1,65 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EC6E6B004D
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 09:57:59 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n6AEJk2h001560
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:19:46 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6AEMwmk101562
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:23:00 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6AEMwk9004239
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:22:58 -0600
-Date: Fri, 10 Jul 2009 19:52:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 5/5] Memory controller soft limit reclaim on
-	contention (v8)
-Message-ID: <20090710142256.GL20129@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090709171441.8080.85983.sendpatchset@balbir-laptop> <20090709171512.8080.8138.sendpatchset@balbir-laptop> <20090710143026.4de7d4b9.kamezawa.hiroyu@jp.fujitsu.com> <20090710065306.GC20129@balbir.in.ibm.com> <20090710163056.a9d552e2.kamezawa.hiroyu@jp.fujitsu.com> <20090710074906.GE20129@balbir.in.ibm.com> <20090710105620.GI20129@balbir.in.ibm.com> <fda5a0e71781c85d850573fd9166c895.squirrel@webmail-b.css.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 18A226B004D
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 10:50:55 -0400 (EDT)
+Date: Fri, 10 Jul 2009 17:16:10 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-ID: <20090710151610.GB356@random.random>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090707084750.GX2714@wotan.suse.de>
+ <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090708173206.GN356@random.random>
+ <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
+ <20090710134228.GX356@random.random>
+ <9f3ffbd617047982a7aed71548a34f13.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fda5a0e71781c85d850573fd9166c895.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <9f3ffbd617047982a7aed71548a34f13.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-10 23:15:20]:
+On Fri, Jul 10, 2009 at 11:12:38PM +0900, KAMEZAWA Hiroyuki wrote:
+> BTW, ksm has no refcnt pingpong problem ?
 
-> Balbir Singh wrote?$B!'
-> > * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-07-10 13:19:06]:
-> >>
-> >> Yes, worth experimenting with, I'll redo with the special code
-> >> removed.
-> >
-> >
-> > OK, so I experimented with it, I found the following behaviour
-> >
-> > 1. We try to reclaim, priority is high, scanned pages are low and
-> >    hence memory cgroup zone reclaim returns 0 (no pages could be
-> >    reclaimed).
-> > 2. Now regular reclaim from balance_pgdat() is called, it is able
-> >    to shrink from global LRU and hence some other mem cgroup, thus
-> >    breaking soft limit semantics.
-> >
-> IMO, "breaking soft limit" cannot be an excuse for delaying kswapd too much.
->
-
-Hmmm... I agree in principle, but if soft limits are turned on, we are
-overriding where we should be reclaiming from. The delay IMHO is not
-very high and I've run tests without setting any soft limits but with
-soft limits feature enabled. I don't see anything going bad or any
-overhead.
-
-I've just posted v9 without the changes. I'll do some runs with your
-suggestion and see what the complete impact is.
- 
-
--- 
-	Balbir
+Well sure it has, the refcount has to be increased when pages are
+shared, just like for regular fork() on anonymous memory, but the
+point is that you pay for it only when you're saving ram, so the
+probability that is just pure overhead is lower than for the zero
+page... it always depend on the app. I simply suggest in trying
+it... perhaps zero page is way to go for your users.. they should
+tell, not us...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
