@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3215F6B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 21:48:24 -0400 (EDT)
-Date: Fri, 10 Jul 2009 04:09:20 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-Message-ID: <20090710020920.GB15903@wotan.suse.de>
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090707140033.GB2714@wotan.suse.de> <alpine.LFD.2.01.0907070952341.3210@localhost.localdomain> <20090708062125.GJ2714@wotan.suse.de> <alpine.LFD.2.01.0907080906410.3210@localhost.localdomain> <20090709074745.GT2714@wotan.suse.de> <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5814F6B005A
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 21:50:28 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6A2BRb4001021
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 10 Jul 2009 11:11:27 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3534845DE59
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 11:11:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 102D945DE58
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 11:11:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EB1871DB803A
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 11:11:26 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A290C1DB8040
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 11:11:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/5] add isolate pages vmstat
+In-Reply-To: <alpine.DEB.1.10.0907091638330.17835@gentwo.org>
+References: <20090709171247.23C6.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907091638330.17835@gentwo.org>
+Message-Id: <20090710094934.17CA.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 10 Jul 2009 11:11:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 09, 2009 at 10:54:02AM -0700, Linus Torvalds wrote:
+> On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
 > 
-> 
-> On Thu, 9 Jul 2009, Nick Piggin wrote:
+> > Subject: [PATCH] add isolate pages vmstat
 > >
-> > Having a ZERO_PAGE I'm not against, so I don't know why you claim
-> > I am. Al I'm saying is that now we don't have one, we should have
-> > some good reasons to introduce it again. Unreasonable?
+> > If the system have plenty threads or processes, concurrent reclaim can
+> > isolate very much pages.
+> > Unfortunately, current /proc/meminfo and OOM log can't show it.
 > 
-> Umm. I had good reasons to introduce it in the _first_ place.
+> "
+> If the system is running a heavy load of processes then concurrent reclaim
+> can isolate a large numbe of pages from the LRU. /proc/meminfo and the
+> output generated for an OOM do not show how many pages were isolated.
+> "
 > 
-> And now you have reports of people who depend on the behaviour, and point 
-> to the new behaviour as a *regression*.
+> > This patch provide the way of showing this information.
 > 
-> What the _hell_ more do you want?
+> "
+> This patch shows the information about isolated pages.
+> "
+> 
+> 
+> Page migration can also isolate a large number of pages from the LRU. But
+> the new counters are not used there.
 
-Well there is obviously no way to test a representaive sample of
-workoads, and we pretty much knew that some people are going to
-prefer to have a ZERO_PAGE with their app.
+Correct. Will fix.
 
-So if you were going to re-add the zero page when a single regression
-is reported after a year or two, then it was wrong of you to remove
-the zero page to begin with.
+Plus, current reclaim logic depend on the system have enough much pages on LRU.
+Maybe we don't only need to limit #-of-reclaimer, but also need to limit #-of-migrator.
+I think we can use similar logic.
 
-So to answer your question, I guess I would like to know a bit
-more about the regression and what the app is doing.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
