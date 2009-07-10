@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 44E0B6B005C
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:53:43 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6A8Ghfr002976
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Jul 2009 17:16:43 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 918A245DE58
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 17:16:43 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E4B345DE56
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 17:16:43 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 295ED1DB8041
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 17:16:43 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C0DE18010
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 17:16:41 +0900 (JST)
-Date: Fri, 10 Jul 2009 17:14:57 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A84AD6B0082
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 03:57:11 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n6A89Ieo005819
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 04:09:18 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6A8KChF256704
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 04:20:12 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6A8He0O022194
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 04:17:41 -0400
+Date: Fri, 10 Jul 2009 13:50:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC][PATCH 3/5] Memory controller soft limit organize cgroups
- (v8)
-Message-Id: <20090710171457.e2e52319.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090710080557.GF20129@balbir.in.ibm.com>
-References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
-	<20090709171501.8080.85138.sendpatchset@balbir-laptop>
-	<20090710142135.8079cd22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090710080557.GF20129@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	(v8)
+Message-ID: <20090710082009.GH20129@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090709171441.8080.85983.sendpatchset@balbir-laptop> <20090709171501.8080.85138.sendpatchset@balbir-laptop> <20090710142135.8079cd22.kamezawa.hiroyu@jp.fujitsu.com> <20090710080557.GF20129@balbir.in.ibm.com> <20090710171457.e2e52319.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090710171457.e2e52319.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Jul 2009 13:35:57 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-10 17:14:57]:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-10 14:21:35]:
+> On Fri, 10 Jul 2009 13:35:57 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-10 14:21:35]:
 > > 
-> > As pointed out in several times, plz avoid using jiffies.
+> > > 
+> > > As pointed out in several times, plz avoid using jiffies.
+> > 
+> > Sorry, I forgot to respond to this part. Are you suggesting we avoid
+> > jiffies (use ktime_t) or the time based approach. I responded to the
+> > time base versus scanning approach to the mail earlier.
+> > 
+> > -
 > 
-> Sorry, I forgot to respond to this part. Are you suggesting we avoid
-> jiffies (use ktime_t) or the time based approach. I responded to the
-> time base versus scanning approach to the mail earlier.
-> 
-> -
+> IIUC, it was a comment to old patches "don't use jiffies, count event"
+> (by Andrew Morton ?) I fully agree with that.
+>
 
-IIUC, it was a comment to old patches "don't use jiffies, count event"
-(by Andrew Morton ?) I fully agree with that.
+OK, so I played around with it and found that per-cpu events did not
+give me good behaviour. Let me retry my approach and experiments and
+see if it works well.
 
-Thanks,
--Kame
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
