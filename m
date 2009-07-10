@@ -1,416 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A14CF6B009E
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 07:22:43 -0400 (EDT)
-Date: Fri, 10 Jul 2009 13:46:51 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [patch 2/3] fs: buffer_head writepage no zero
-Message-ID: <20090710114651.GJ17524@duck.suse.cz>
-References: <20090710073028.782561541@suse.de> <20090710093325.GG14666@wotan.suse.de> <20090710093403.GH14666@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090710093403.GH14666@wotan.suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 10AB16B004D
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:35:27 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n6ACvT3V020141
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:57:29 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6ACxx8S446816
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:59:59 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6ACxxID013951
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:59:59 +1000
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Fri, 10 Jul 2009 18:29:57 +0530
+Message-Id: <20090710125957.5610.56168.sendpatchset@balbir-laptop>
+In-Reply-To: <20090710125950.5610.99139.sendpatchset@balbir-laptop>
+References: <20090710125950.5610.99139.sendpatchset@balbir-laptop>
+Subject: [RFC][PATCH 1/5] Memory controller soft limit documentation (v9)
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, jack@suse.cz, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri 10-07-09 11:34:03, Nick Piggin wrote:
-> 
-> When writing a page to filesystem, buffer.c zeroes out parts of the page past
-> i_size in an attempt to get zeroes into those blocks on disk, so as to honour
-> the requirement that an expanding truncate should zero-fill the file.
-> 
-> Unfortunately, this is racy. The reason we can get something other than
-> zeroes here is via an mmaped write to the block beyond i_size. Zeroing it
-> out before writepage narrows the window, but it is still possible to store
-> junk beyond i_size on disk, by storing into the page after writepage zeroes,
-> but before DMA (or copy) completes. This allows process A to break posix
-> semantics for process B (or even inadvertently for itsef).
-> 
-> It could also be possible that the filesystem has written data into the
-> block but not yet expanded the inode size when the system crashes for
-> some reason. Unless its journal reply / fsck process etc checks for this
-> condition, it could also cause subsequent breakage in semantics.
-  Actually, it should be possible to fix the posix semantics by zeroing out
-the page when i_size is going to be extended - hmm, I see you're trying to
-do something like that in ext2 code. Ugh. Since we have to lock the
-old last page to make mkwrite work anyway, I think we should do it in a
-generic code (probably in a separate patch and just note it here...).
-  I can include it in my mkwrite fixes when I port them on top of your
-patches.
+Feature: Add documentation for soft limits
 
-> ---
->  fs/buffer.c      |   94 +++++++++++++++++++++++++------------------------------
->  fs/ext2/inode.c  |   30 ++++++++++++++++-
->  fs/mpage.c       |   13 +------
->  mm/filemap_xip.c |   15 ++++----
->  mm/truncate.c    |    1 
->  5 files changed, 82 insertions(+), 71 deletions(-)
-> 
-> Index: linux-2.6/fs/buffer.c
-> ===================================================================
-> --- linux-2.6.orig/fs/buffer.c
-> +++ linux-2.6/fs/buffer.c
-> @@ -2656,26 +2656,14 @@ int nobh_writepage(struct page *page, ge
->  	unsigned offset;
->  	int ret;
->  
-> -	/* Is the page fully inside i_size? */
-> -	if (page->index < end_index)
-> -		goto out;
-> -
->  	/* Is the page fully outside i_size? (truncate in progress) */
->  	offset = i_size & (PAGE_CACHE_SIZE-1);
-> -	if (page->index >= end_index+1 || !offset) {
-> +	if (page->index >= end_index &&
-> +			(page->index >= end_index+1 || !offset)) {
->  		unlock_page(page);
->  		return 0;
->  	}
->  
-> -	/*
-> -	 * The page straddles i_size.  It must be zeroed out on each and every
-> -	 * writepage invocation because it may be mmapped.  "A file is mapped
-> -	 * in multiples of the page size.  For a file that is not a multiple of
-> -	 * the  page size, the remaining memory is zeroed when mapped, and
-> -	 * writes to that region are not written out to the file."
-> -	 */
-> -	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
-> -out:
->  	ret = mpage_writepage(page, get_block, wbc);
->  	if (ret == -EAGAIN)
->  		ret = __block_write_full_page(inode, page, get_block, wbc,
-> @@ -2695,22 +2683,23 @@ int nobh_truncate_page(struct address_sp
->  	struct inode *inode = mapping->host;
->  	struct page *page;
->  	struct buffer_head map_bh;
-> -	int err;
-> +	int err = 0;
->  
->  	blocksize = 1 << inode->i_blkbits;
->  	length = offset & (blocksize - 1);
->  
->  	/* Block boundary? Nothing to do */
->  	if (!length)
-> -		return 0;
-> +		goto out;
->  
->  	length = blocksize - length;
->  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
->  
->  	page = grab_cache_page(mapping, index);
-> -	err = -ENOMEM;
-> -	if (!page)
-> +	if (!page) {
-> +		err = -ENOMEM;
->  		goto out;
-> +	}
->  
->  	if (page_has_buffers(page)) {
->  has_buffers:
-> @@ -2752,7 +2741,6 @@ has_buffers:
->  	}
->  	zero_user(page, offset, length);
->  	set_page_dirty(page);
-> -	err = 0;
->  
->  unlock:
->  	unlock_page(page);
-  Above two chunks are just style cleanup, aren't they? Could you maybe separate
-it from the logical changes?
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-> @@ -2762,8 +2750,8 @@ out:
->  }
->  EXPORT_SYMBOL(nobh_truncate_page);
->  
-> -int block_truncate_page(struct address_space *mapping,
-> -			loff_t from, get_block_t *get_block)
-> +int __block_truncate_page(struct address_space *mapping,
-> +			loff_t from, loff_t to, get_block_t *get_block)
->  {
->  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
->  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-> @@ -2773,22 +2761,22 @@ int block_truncate_page(struct address_s
->  	struct inode *inode = mapping->host;
->  	struct page *page;
->  	struct buffer_head *bh;
-> -	int err;
-> +	int err = 0;
->  
-> -	blocksize = 1 << inode->i_blkbits;
-> -	length = offset & (blocksize - 1);
-> +	/* Page boundary? Nothing to do */
-> +	if (!offset)
-> +		goto out;
->  
-> -	/* Block boundary? Nothing to do */
-> -	if (!length)
-> -		return 0;
-> +	blocksize = 1 << inode->i_blkbits;
->  
-> -	length = blocksize - length;
-> +	length = (unsigned)min_t(loff_t, to - from, PAGE_CACHE_SIZE - offset);
->  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
->  	page = grab_cache_page(mapping, index);
-> -	err = -ENOMEM;
-> -	if (!page)
-> +	if (!page) {
-> +		err = -ENOMEM;
->  		goto out;
-> +	}
->  
->  	if (!page_has_buffers(page))
->  		create_empty_buffers(page, blocksize, 0);
-> @@ -2802,15 +2790,20 @@ int block_truncate_page(struct address_s
->  		pos += blocksize;
->  	}
->  
-> -	err = 0;
->  	if (!buffer_mapped(bh)) {
->  		WARN_ON(bh->b_size != blocksize);
->  		err = get_block(inode, iblock, bh, 0);
->  		if (err)
->  			goto unlock;
-> -		/* unmapped? It's a hole - nothing to do */
-> -		if (!buffer_mapped(bh))
-> +		/*
-> +		 * unmapped? It's a hole - must zero out partial
-> +		 * in the case of an extending truncate where mmap has
-> +		 * previously written past i_size of the page
-> +		 */
-> +		if (!buffer_mapped(bh)) {
-> +			zero_user(page, offset, length);
->  			goto unlock;
-  Hmm, but who was zeroing out the page previously? Because the end of the
-page gets zeroed already now...
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-> +		}
->  	}
->  
->  	/* Ok, it's mapped. Make sure it's up-to-date */
-> @@ -2818,17 +2811,17 @@ int block_truncate_page(struct address_s
->  		set_buffer_uptodate(bh);
->  
->  	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
-> -		err = -EIO;
->  		ll_rw_block(READ, 1, &bh);
->  		wait_on_buffer(bh);
->  		/* Uhhuh. Read error. Complain and punt. */
-> -		if (!buffer_uptodate(bh))
-> +		if (!buffer_uptodate(bh)) {
-> +			err = -EIO;
->  			goto unlock;
-> +		}
->  	}
->  
->  	zero_user(page, offset, length);
->  	mark_buffer_dirty(bh);
-> -	err = 0;
->  
->  unlock:
->  	unlock_page(page);
-> @@ -2836,6 +2829,19 @@ unlock:
->  out:
->  	return err;
->  }
-> +EXPORT_SYMBOL(__block_truncate_page);
-> +
-> +int block_truncate_page(struct address_space *mapping,
-> +			loff_t from, get_block_t *get_block)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	int err = 0;
-> +
-> +	if (from > inode->i_size)
-> +		err = __block_truncate_page(mapping, inode->i_size, from, get_block);
-> +
-> +	return err;
-> +}
->  
->  /*
->   * The generic ->writepage function for buffer-backed address_spaces
-> @@ -2849,26 +2855,14 @@ int block_write_full_page_endio(struct p
->  	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
->  	unsigned offset;
->  
-> -	/* Is the page fully inside i_size? */
-> -	if (page->index < end_index)
-> -		return __block_write_full_page(inode, page, get_block, wbc,
-> -					       handler);
-> -
->  	/* Is the page fully outside i_size? (truncate in progress) */
->  	offset = i_size & (PAGE_CACHE_SIZE-1);
-> -	if (page->index >= end_index+1 || !offset) {
-> +	if (page->index >= end_index &&
-> +			(page->index >= end_index+1 || !offset)) {
->  		unlock_page(page);
->  		return 0;
->  	}
->  
-> -	/*
-> -	 * The page straddles i_size.  It must be zeroed out on each and every
-> -	 * writepage invokation because it may be mmapped.  "A file is mapped
-> -	 * in multiples of the page size.  For a file that is not a multiple of
-> -	 * the  page size, the remaining memory is zeroed when mapped, and
-> -	 * writes to that region are not written out to the file."
-> -	 */
-> -	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
->  	return __block_write_full_page(inode, page, get_block, wbc, handler);
->  }
-  I suppose you should also update __block_write_full_page() - there's
-comment about zeroing. Also I'm not sure that marking buffer as uptodate
-there is a good idea when the buffer isn't zeroed.
+ Documentation/cgroups/memory.txt |   37 ++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 36 insertions(+), 1 deletions(-)
 
-> Index: linux-2.6/mm/filemap_xip.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap_xip.c
-> +++ linux-2.6/mm/filemap_xip.c
-> @@ -440,22 +440,23 @@ EXPORT_SYMBOL_GPL(xip_file_write);
->  int
->  xip_truncate_page(struct address_space *mapping, loff_t from)
->  {
-> +	struct inode *inode = mapping->host;
->  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
->  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
->  	unsigned blocksize;
->  	unsigned length;
->  	void *xip_mem;
->  	unsigned long xip_pfn;
-> -	int err;
-> +	int err = 0;
->  
->  	BUG_ON(!mapping->a_ops->get_xip_mem);
->  
-> -	blocksize = 1 << mapping->host->i_blkbits;
-> +	blocksize = 1 << inode->i_blkbits;
->  	length = offset & (blocksize - 1);
->  
->  	/* Block boundary? Nothing to do */
->  	if (!length)
-> -		return 0;
-> +		goto out;
->  
->  	length = blocksize - length;
->  
-> @@ -464,11 +465,11 @@ xip_truncate_page(struct address_space *
->  	if (unlikely(err)) {
->  		if (err == -ENODATA)
->  			/* Hole? No need to truncate */
-> -			return 0;
-> -		else
-> -			return err;
-> +			err = 0;
-> +		goto out;
->  	}
->  	memset(xip_mem + offset, 0, length);
-> -	return 0;
-> +out:
-> +	return err;
->  }
->  EXPORT_SYMBOL_GPL(xip_truncate_page);
-  Again, only a style change, right?
 
-> Index: linux-2.6/fs/mpage.c
-> ===================================================================
-> --- linux-2.6.orig/fs/mpage.c
-> +++ linux-2.6/fs/mpage.c
-> @@ -559,19 +559,10 @@ static int __mpage_writepage(struct page
->  page_is_mapped:
->  	end_index = i_size >> PAGE_CACHE_SHIFT;
->  	if (page->index >= end_index) {
-> -		/*
-> -		 * The page straddles i_size.  It must be zeroed out on each
-> -		 * and every writepage invokation because it may be mmapped.
-> -		 * "A file is mapped in multiples of the page size.  For a file
-> -		 * that is not a multiple of the page size, the remaining memory
-> -		 * is zeroed when mapped, and writes to that region are not
-> -		 * written out to the file."
-> -		 */
->  		unsigned offset = i_size & (PAGE_CACHE_SIZE - 1);
->  
-> -		if (page->index > end_index || !offset)
-> -			goto confused;
-> -		zero_user_segment(page, offset, PAGE_CACHE_SIZE);
-> +		if (page->index >= end_index+1 || !offset)
-> +			goto confused; /* page fully outside i_size */
->  	}
->  
->  	/*
-> Index: linux-2.6/fs/ext2/inode.c
-> ===================================================================
-> --- linux-2.6.orig/fs/ext2/inode.c
-> +++ linux-2.6/fs/ext2/inode.c
-> @@ -777,14 +777,40 @@ ext2_write_begin(struct file *file, stru
->  	return ret;
->  }
->  
-> +int __block_truncate_page(struct address_space *mapping,
-> +			loff_t from, loff_t to, get_block_t *get_block);
-  Uf, that's ugly... Shouldn't it be in some header?
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index ab0a021..b871f25 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -379,7 +379,42 @@ cgroups created below it.
+ 
+ NOTE2: This feature can be enabled/disabled per subtree.
+ 
+-7. TODO
++7. Soft limits
++
++Soft limits allow for greater sharing of memory. The idea behind soft limits
++is to allow control groups to use as much of the memory as needed, provided
++
++a. There is no memory contention
++b. They do not exceed their hard limit
++
++When the system detects memory contention or low memory control groups
++are pushed back to their soft limits. If the soft limit of each control
++group is very high, they are pushed back as much as possible to make
++sure that one control group does not starve the others of memory.
++
++Please note that soft limits is a best effort feature, it comes with
++no guarantees, but it does its best to make sure that when memory is
++heavily contended for, memory is allocated based on the soft limit
++hints/setup. Currently soft limit based reclaim is setup such that
++it gets invoked from balance_pgdat (kswapd).
++
++7.1 Interface
++
++Soft limits can be setup by using the following commands (in this example we
++assume a soft limit of 256 megabytes)
++
++# echo 256M > memory.soft_limit_in_bytes
++
++If we want to change this to 1G, we can at any time use
++
++# echo 1G > memory.soft_limit_in_bytes
++
++NOTE1: Soft limits take effect over a long period of time, since they involve
++       reclaiming memory for balancing between memory cgroups
++NOTE2: It is recommended to set the soft limit always below the hard limit,
++       otherwise the hard limit will take precedence.
++
++8. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+ 2. Make per-cgroup scanner reclaim not-shared pages first
 
->  static int ext2_write_end(struct file *file, struct address_space *mapping,
->  			loff_t pos, unsigned len, unsigned copied,
->  			struct page *page, void *fsdata)
->  {
-> +	struct inode *inode = mapping->host;
->  	int ret;
->  
-> -	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
-> -	if (ret < len) {
-> +	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-> +	unlock_page(page);
-> +	page_cache_release(page);
-> +        if (pos+copied > inode->i_size) {
-> +		int err;
-> +                if (pos > inode->i_size) {
-> +                        /* expanding a hole */
-> +			err = __block_truncate_page(mapping, inode->i_size,
-> +						pos, ext2_get_block);
-> +			if (err) {
-> +				ret = err;
-> +				goto out;
-> +			}
-> +			err = __block_truncate_page(mapping, pos+copied,
-> +						LLONG_MAX, ext2_get_block);
-> +			if (err) {
-> +				ret = err;
-> +				goto out;
-> +			}
-> +                }
-> +                i_size_write(inode, pos+copied);
-> +                mark_inode_dirty(inode);
-> +        }
-> +out:
-> +	if (ret < 0 || ret < len) {
->  		struct inode *inode = mapping->host;
->  		loff_t isize = inode->i_size;
->  		if (pos + len > isize)
-  There are whitespace problems above... Also calling __block_truncate_page()
-on old i_size looks strange - we just want to zero-out the page if it
-exists (this way we'd unnecessarily read it from disk). Also I think
-block_write_end() should do this.
-  Finally, zeroing after pos+copied does not make sence to be conditioned
-by pos > inode->i_size and again I don't think it's needed...
-
-> Index: linux-2.6/mm/truncate.c
-> ===================================================================
-> --- linux-2.6.orig/mm/truncate.c
-> +++ linux-2.6/mm/truncate.c
-> @@ -49,7 +49,6 @@ void do_invalidatepage(struct page *page
->  
->  static inline void truncate_partial_page(struct page *page, unsigned partial)
->  {
-> -	zero_user_segment(page, partial, PAGE_CACHE_SIZE);
->  	if (page_has_private(page))
->  		do_invalidatepage(page, partial);
->  }
-
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
