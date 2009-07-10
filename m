@@ -1,80 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 414456B005A
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:36:23 -0400 (EDT)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id n6ACw4Eb014890
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:58:04 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6ACxqmW1208434
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:59:57 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6ACxqfm030593
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 22:59:52 +1000
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Fri, 10 Jul 2009 18:29:50 +0530
-Message-Id: <20090710125950.5610.99139.sendpatchset@balbir-laptop>
-Subject: [RFC][PATCH 0/5] Memory controller soft limit patches (v9)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 48D5D6B004D
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:45:23 -0400 (EDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <19031.15772.404288.544946@stoffel.org>
+Date: Fri, 10 Jul 2009 09:09:48 -0400
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: OOM killer in 2.6.31-rc2
+In-Reply-To: <200907091703.06691.gene.heskett@verizon.net>
+References: <200907061056.00229.gene.heskett@verizon.net>
+	<200907091042.38022.gene.heskett@verizon.net>
+	<19030.22024.132029.196682@stoffel.org>
+	<200907091703.06691.gene.heskett@verizon.net>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Gene Heskett <gene.heskett@verizon.net>
+Cc: John Stoffel <john@stoffel.org>, Wu Fengguang <fengguang.wu@gmail.com>, Linux Kernel list <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Kernel Testers List <kernel-testers@vger.kernel.org>, David Howells <dhowells@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+>>>>> "Gene" == Gene Heskett <gene.heskett@verizon.net> writes:
 
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Gene> On Thursday 09 July 2009, John Stoffel wrote:
+>>>>>>> "Gene" == Gene Heskett <gene.heskett@verizon.net> writes:
+>> 
+Gene> On Wednesday 08 July 2009, Wu Fengguang wrote:
+>>>> On Wed, Jul 08, 2009 at 01:15:15PM +0800, Wu Fengguang wrote:
+>>>>> On Tue, Jul 07, 2009 at 11:42:07PM -0400, Gene Heskett wrote:
+>> 
+Gene> [...]
+>> 
+>>>>> I guess your near 800MB slab cache is somehow under scanned.
+>>>> 
+>>>> Gene, can you run .31 with this patch? When OOM happens, it will tell
+>>>> us whether the majority slab pages are reclaimable. Another way to
+>>>> find things out is to run `slabtop` when your system is moderately
+>>>> loaded.
+>> 
+Gene> Its been running continuously, and after 24 hours is now showing:
+>> 
+>> Just wondering, is this your M2N-SLI Deluxe board?
+Gene> Yes.
+>> I've got the same
+>> board, with 4Gb of RAM and I haven't noticed any loss of RAM from my
+>> looking (quickly) at top output.
 
-New Feature: Soft limits for memory resource controller.
+Gene> I am short approximately 500 megs according to top:
+Gene> Mem:   3634228k total,  3522984k used,   111244k free,   308096k buffers
+Gene> Swap:  8385912k total,      568k used,  8385344k free,  2544716k cached
 
-Here is v9 of the new soft limit implementation. Soft limits is a new feature
-for the memory resource controller, something similar has existed in the
-group scheduler in the form of shares. The CPU controllers interpretation
-of shares is very different though. 
+Gene> From dmesg:
+Gene> [    0.000000] TOM2: 0000000120000000 aka 4608M  <what is this?
+Gene> [...]
+Gene> [    0.000000] 2694MB HIGHMEM available.
+Gene> [    0.000000] 887MB LOWMEM available.
 
-Soft limits are the most useful feature to have for environments where
-the administrator wants to overcommit the system, such that only on memory
-contention do the limits become active. The current soft limits implementation
-provides a soft_limit_in_bytes interface for the memory controller and not
-for memory+swap controller. The implementation maintains an RB-Tree of groups
-that exceed their soft limit and starts reclaiming from the group that
-exceeds this limit by the maximum amount.
+Gene> The bios signon does say 4092M IIRC.
 
-v9 attempts to address several review comments for v8 by Kamezawa, including
-moving over to an event based approach for soft limit rb tree management,
-simplification of data structure names and many others. Comments not
-addressed have been answered via email or I've added comments in the code.
+>> But I also haven't bothered to upgrade the BIOS on this board at all
+>> since I got it back in March of 2008.  No need in my book so far.
 
-TODOs
+Gene> I had been running the original bios, #1502, because 1604 and
+Gene> 1701 had very poor uptimes.  1502 caused an oops about 15 lines
+Gene> into the boot but that triggered a remap and it was bulletproof
+Gene> after that running a 32 bit 64G+PAE kernel.  (I haven't quite
+Gene> made the jump to a 64 bit install, yet...)
 
-1. The current implementation maintains the delta from the soft limit
-   and pushes back groups to their soft limits, a ratio of delta/soft_limit
-   might be more useful
+Why haven't you made the laep to 64bit yet?  To me, that seems to be
+the real solution here, not hacks like the HIGHMEM4G and HIGHMEM64G,
+esp when your hardware is 64Bit by default.  
 
-Tests
------
+I've made the leap and I've never looked back.  Haven't missed any
+32bit only apps, and if I really needed them, I'd just load the 32bit
+libraries if need be.
 
-I've run two memory intensive workloads with differing soft limits and
-seen that they are pushed back to their soft limit on contention. Their usage
-was their soft limit plus additional memory that they were able to grab
-on the system. Soft limit can take a while before we see the expected
-results.
-
-I ran overhead tests (reaim) and found no significant overhead as a result
-of these patches.
-
-Please review, comment.
-
-Series
-------
-
-memcg-soft-limits-documentation.patch
-memcg-soft-limits-interface.patch
-memcg-soft-limits-organize.patch
-memcg-soft-limits-refactor-reclaim-bits
-memcg-soft-limits-reclaim-on-contention.patch
-
-
--- 
-	Balbir
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
