@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4E6426B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 19:19:00 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n69Nd87l024548
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 10 Jul 2009 08:39:08 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2047345DE57
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:08 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DB14945DE53
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BCADD1DB8062
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 53F971DB805F
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 08:39:07 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] add buffer cache information to show_free_areas()
-In-Reply-To: <alpine.DEB.1.10.0907091635070.17835@gentwo.org>
-References: <20090709171027.23C0.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907091635070.17835@gentwo.org>
-Message-Id: <20090710083741.17C1.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A48A16B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 21:03:24 -0400 (EDT)
+Date: Fri, 10 Jul 2009 09:23:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/5] add shmem vmstat
+Message-ID: <20090710012356.GA6809@localhost>
+References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171452.23C9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 10 Jul 2009 08:39:06 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090709171452.23C9.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 9 Jul 2009, KOSAKI Motohiro wrote:
+On Thu, Jul 09, 2009 at 04:18:01PM +0800, KOSAKI Motohiro wrote:
+> ChangeLog
+>   Since v1
+>    - Fixed misaccounting bug on page migration
 > 
-> > Subject: [PATCH] add buffer cache information to show_free_areas()
-> >
-> > When administrator analysis memory shortage reason from OOM log, They
-> > often need to know rest number of cache like pages.
+> ========================
+> Subject: [PATCH] add shmem vmstat
 > 
-> Maybe:
+> Recently, We faced several OOM problem by plenty GEM cache. and generally,
+> plenty Shmem/Tmpfs potentially makes memory shortage problem.
 > 
-> "
-> It is often useful to know the statistics for all pages that are handled
-> like page cache pages when looking at OOM log output.
+> We often use following calculation to know shmem pages,
+>   shmem = NR_ACTIVE_ANON + NR_INACTIVE_ANON - NR_ANON_PAGES
+> but it is wrong expression. it doesn't consider isolated page and
+> mlocked page.
 > 
-> Therefore show_free_areas() should also display buffer cache statistics.
-> "
+> Then, This patch make explicit Shmem/Tmpfs vm-stat accounting.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Thanks good description. Will fix.
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 
-
+Thanks for the nice work!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
