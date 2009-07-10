@@ -1,91 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0056B009B
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 06:44:18 -0400 (EDT)
-Date: Fri, 10 Jul 2009 13:08:15 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [patch 1/3] fs: buffer_head writepage no invalidate
-Message-ID: <20090710110815.GI17524@duck.suse.cz>
-References: <20090710073028.782561541@suse.de> <20090710093325.GG14666@wotan.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9F7F36B009B
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 06:54:41 -0400 (EDT)
+Date: Fri, 10 Jul 2009 12:18:07 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+In-Reply-To: <20090708173206.GN356@random.random>
+Message-ID: <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090708173206.GN356@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090710093325.GG14666@wotan.suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 10-07-09 11:33:25, Nick Piggin wrote:
-> After the previous patchset, this is my progress on the page_mkwrite
-> thing... These patches are RFC only and have some bugs.
-> --
-> invalidate should not be required in the writeout path. The truncate
-> sequence will first reduce i_size, then clean and discard any existing
-> pagecache (and no new dirty pagecache can be added because i_size was
-> reduced and i_mutex is being held), then filesystem data structures
-> are updated.
+On Wed, 8 Jul 2009, Andrea Arcangeli wrote:
+> On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
+> > Then,  most of users will not notice that ZERO_PAGE is not available until
+> > he(she) find OOM-Killer message. This is very terrible situation for me.
+> > (and most of system admins.)
 > 
-> Filesystem needs to be able to handle writeout at any point before
-> the last step, and once the 2nd step completes, there should be no
-> unfreeable dirty buffers anyway (truncate performs the do_invalidatepage).
+> Can you try to teach them to use KSM and see if they gain a while lot
+> more from it (surely they also do some memset(dst, 0) sometime not
+> only memcpy(zerosrc, dst)). Not to tell when they init to non zero
+> values their arrays/matrix which is a bit harder to optimize for with
+> zero page...
 > 
-> Having filesystem changes depend on reading i_size without holding
-> i_mutex is confusing at least. There is still a case in writepage
-> paths in buffer.c uses i_size (testing which block to write out), but
-> this is a small improvement.
-  This looks good.
-Acked-by: Jan Kara <jack@suse.cz>
+> My only dislike is that zero page requires a flood of "if ()" new
+> branches in fast paths that benefits nothing but badly written app,
+> and that's the only reason I liked its removal.
+> 
+> For goodly (and badly) written scientific app there KSM that will do
+> more than zeropage while dealing with matrix algorithms and such. If
+> they try KSM and they don't gain a lot more free memory than with the
+> zero page hack, then I agree in reintroducing it, but I guess when
+> they try KSM they will ask you to patch kernel with it, instead of
+> patch kernel with zeropage. If they don't gain anything more with KSM
+> than with zeropage, and the kksmd overhead is too high, then it would
+> make sense to use zeropage for them I agree even if it bites in the
+> fast path of all apps that can't benefit from it. (not to tell the
+> fact that reading zero and writing non zero back for normal apps is
+> harmful as there's a double page fault generated instead of a single
+> one, kksmd has a cost but zeropage isn't free either in term of page
+> faults too)
 
-								Honza
+Much as I like KSM, I have to agree with Avi, that if people are
+wanting the ZERO_PAGE back in compute-intensive loads, then relying
+on ksmd to put Humpty Dumpty together again is much too expensive a
+way to go about it: ZERO_PAGE saves him from falling off the wall
+in the first place, and that's much the better way to deal with it.
 
-> ---
->  fs/buffer.c |   20 ++------------------
->  1 file changed, 2 insertions(+), 18 deletions(-)
-> 
-> Index: linux-2.6/fs/buffer.c
-> ===================================================================
-> --- linux-2.6.orig/fs/buffer.c
-> +++ linux-2.6/fs/buffer.c
-> @@ -2663,18 +2663,8 @@ int nobh_writepage(struct page *page, ge
->  	/* Is the page fully outside i_size? (truncate in progress) */
->  	offset = i_size & (PAGE_CACHE_SIZE-1);
->  	if (page->index >= end_index+1 || !offset) {
-> -		/*
-> -		 * The page may have dirty, unmapped buffers.  For example,
-> -		 * they may have been added in ext3_writepage().  Make them
-> -		 * freeable here, so the page does not leak.
-> -		 */
-> -#if 0
-> -		/* Not really sure about this  - do we need this ? */
-> -		if (page->mapping->a_ops->invalidatepage)
-> -			page->mapping->a_ops->invalidatepage(page, offset);
-> -#endif
->  		unlock_page(page);
-> -		return 0; /* don't care */
-> +		return 0;
->  	}
->  
->  	/*
-> @@ -2867,14 +2857,8 @@ int block_write_full_page_endio(struct p
->  	/* Is the page fully outside i_size? (truncate in progress) */
->  	offset = i_size & (PAGE_CACHE_SIZE-1);
->  	if (page->index >= end_index+1 || !offset) {
-> -		/*
-> -		 * The page may have dirty, unmapped buffers.  For example,
-> -		 * they may have been added in ext3_writepage().  Make them
-> -		 * freeable here, so the page does not leak.
-> -		 */
-> -		do_invalidatepage(page, 0);
->  		unlock_page(page);
-> -		return 0; /* don't care */
-> +		return 0;
->  	}
->  
->  	/*
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+It might turn out in the end to be convenient to treat the ZERO_PAGE
+as an "automatic" KSM page, I don't know; or we'll need to teach KSM
+not to waste its time remerging instances of the ZERO_PAGE to a
+zeroed KSM page.  We'll worry about that once both sets in mmotm.
+ 
+I didn't care for Kamezawa-san's original patchsets, seemed messy
+and branchy, but it looks to be heading the right way now using
+vm_normal_page (pity about arches without pte_special, oh well).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
