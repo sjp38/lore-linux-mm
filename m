@@ -1,68 +1,416 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F7F36B009B
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 06:54:41 -0400 (EDT)
-Date: Fri, 10 Jul 2009 12:18:07 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-In-Reply-To: <20090708173206.GN356@random.random>
-Message-ID: <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
- <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
- <20090708173206.GN356@random.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A14CF6B009E
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 07:22:43 -0400 (EDT)
+Date: Fri, 10 Jul 2009 13:46:51 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [patch 2/3] fs: buffer_head writepage no zero
+Message-ID: <20090710114651.GJ17524@duck.suse.cz>
+References: <20090710073028.782561541@suse.de> <20090710093325.GG14666@wotan.suse.de> <20090710093403.GH14666@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090710093403.GH14666@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-fsdevel@vger.kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, jack@suse.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Jul 2009, Andrea Arcangeli wrote:
-> On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> > Then,  most of users will not notice that ZERO_PAGE is not available until
-> > he(she) find OOM-Killer message. This is very terrible situation for me.
-> > (and most of system admins.)
+On Fri 10-07-09 11:34:03, Nick Piggin wrote:
 > 
-> Can you try to teach them to use KSM and see if they gain a while lot
-> more from it (surely they also do some memset(dst, 0) sometime not
-> only memcpy(zerosrc, dst)). Not to tell when they init to non zero
-> values their arrays/matrix which is a bit harder to optimize for with
-> zero page...
+> When writing a page to filesystem, buffer.c zeroes out parts of the page past
+> i_size in an attempt to get zeroes into those blocks on disk, so as to honour
+> the requirement that an expanding truncate should zero-fill the file.
 > 
-> My only dislike is that zero page requires a flood of "if ()" new
-> branches in fast paths that benefits nothing but badly written app,
-> and that's the only reason I liked its removal.
+> Unfortunately, this is racy. The reason we can get something other than
+> zeroes here is via an mmaped write to the block beyond i_size. Zeroing it
+> out before writepage narrows the window, but it is still possible to store
+> junk beyond i_size on disk, by storing into the page after writepage zeroes,
+> but before DMA (or copy) completes. This allows process A to break posix
+> semantics for process B (or even inadvertently for itsef).
 > 
-> For goodly (and badly) written scientific app there KSM that will do
-> more than zeropage while dealing with matrix algorithms and such. If
-> they try KSM and they don't gain a lot more free memory than with the
-> zero page hack, then I agree in reintroducing it, but I guess when
-> they try KSM they will ask you to patch kernel with it, instead of
-> patch kernel with zeropage. If they don't gain anything more with KSM
-> than with zeropage, and the kksmd overhead is too high, then it would
-> make sense to use zeropage for them I agree even if it bites in the
-> fast path of all apps that can't benefit from it. (not to tell the
-> fact that reading zero and writing non zero back for normal apps is
-> harmful as there's a double page fault generated instead of a single
-> one, kksmd has a cost but zeropage isn't free either in term of page
-> faults too)
+> It could also be possible that the filesystem has written data into the
+> block but not yet expanded the inode size when the system crashes for
+> some reason. Unless its journal reply / fsck process etc checks for this
+> condition, it could also cause subsequent breakage in semantics.
+  Actually, it should be possible to fix the posix semantics by zeroing out
+the page when i_size is going to be extended - hmm, I see you're trying to
+do something like that in ext2 code. Ugh. Since we have to lock the
+old last page to make mkwrite work anyway, I think we should do it in a
+generic code (probably in a separate patch and just note it here...).
+  I can include it in my mkwrite fixes when I port them on top of your
+patches.
 
-Much as I like KSM, I have to agree with Avi, that if people are
-wanting the ZERO_PAGE back in compute-intensive loads, then relying
-on ksmd to put Humpty Dumpty together again is much too expensive a
-way to go about it: ZERO_PAGE saves him from falling off the wall
-in the first place, and that's much the better way to deal with it.
+> ---
+>  fs/buffer.c      |   94 +++++++++++++++++++++++++------------------------------
+>  fs/ext2/inode.c  |   30 ++++++++++++++++-
+>  fs/mpage.c       |   13 +------
+>  mm/filemap_xip.c |   15 ++++----
+>  mm/truncate.c    |    1 
+>  5 files changed, 82 insertions(+), 71 deletions(-)
+> 
+> Index: linux-2.6/fs/buffer.c
+> ===================================================================
+> --- linux-2.6.orig/fs/buffer.c
+> +++ linux-2.6/fs/buffer.c
+> @@ -2656,26 +2656,14 @@ int nobh_writepage(struct page *page, ge
+>  	unsigned offset;
+>  	int ret;
+>  
+> -	/* Is the page fully inside i_size? */
+> -	if (page->index < end_index)
+> -		goto out;
+> -
+>  	/* Is the page fully outside i_size? (truncate in progress) */
+>  	offset = i_size & (PAGE_CACHE_SIZE-1);
+> -	if (page->index >= end_index+1 || !offset) {
+> +	if (page->index >= end_index &&
+> +			(page->index >= end_index+1 || !offset)) {
+>  		unlock_page(page);
+>  		return 0;
+>  	}
+>  
+> -	/*
+> -	 * The page straddles i_size.  It must be zeroed out on each and every
+> -	 * writepage invocation because it may be mmapped.  "A file is mapped
+> -	 * in multiples of the page size.  For a file that is not a multiple of
+> -	 * the  page size, the remaining memory is zeroed when mapped, and
+> -	 * writes to that region are not written out to the file."
+> -	 */
+> -	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+> -out:
+>  	ret = mpage_writepage(page, get_block, wbc);
+>  	if (ret == -EAGAIN)
+>  		ret = __block_write_full_page(inode, page, get_block, wbc,
+> @@ -2695,22 +2683,23 @@ int nobh_truncate_page(struct address_sp
+>  	struct inode *inode = mapping->host;
+>  	struct page *page;
+>  	struct buffer_head map_bh;
+> -	int err;
+> +	int err = 0;
+>  
+>  	blocksize = 1 << inode->i_blkbits;
+>  	length = offset & (blocksize - 1);
+>  
+>  	/* Block boundary? Nothing to do */
+>  	if (!length)
+> -		return 0;
+> +		goto out;
+>  
+>  	length = blocksize - length;
+>  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+>  
+>  	page = grab_cache_page(mapping, index);
+> -	err = -ENOMEM;
+> -	if (!page)
+> +	if (!page) {
+> +		err = -ENOMEM;
+>  		goto out;
+> +	}
+>  
+>  	if (page_has_buffers(page)) {
+>  has_buffers:
+> @@ -2752,7 +2741,6 @@ has_buffers:
+>  	}
+>  	zero_user(page, offset, length);
+>  	set_page_dirty(page);
+> -	err = 0;
+>  
+>  unlock:
+>  	unlock_page(page);
+  Above two chunks are just style cleanup, aren't they? Could you maybe separate
+it from the logical changes?
 
-It might turn out in the end to be convenient to treat the ZERO_PAGE
-as an "automatic" KSM page, I don't know; or we'll need to teach KSM
-not to waste its time remerging instances of the ZERO_PAGE to a
-zeroed KSM page.  We'll worry about that once both sets in mmotm.
- 
-I didn't care for Kamezawa-san's original patchsets, seemed messy
-and branchy, but it looks to be heading the right way now using
-vm_normal_page (pity about arches without pte_special, oh well).
+> @@ -2762,8 +2750,8 @@ out:
+>  }
+>  EXPORT_SYMBOL(nobh_truncate_page);
+>  
+> -int block_truncate_page(struct address_space *mapping,
+> -			loff_t from, get_block_t *get_block)
+> +int __block_truncate_page(struct address_space *mapping,
+> +			loff_t from, loff_t to, get_block_t *get_block)
+>  {
+>  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+>  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+> @@ -2773,22 +2761,22 @@ int block_truncate_page(struct address_s
+>  	struct inode *inode = mapping->host;
+>  	struct page *page;
+>  	struct buffer_head *bh;
+> -	int err;
+> +	int err = 0;
+>  
+> -	blocksize = 1 << inode->i_blkbits;
+> -	length = offset & (blocksize - 1);
+> +	/* Page boundary? Nothing to do */
+> +	if (!offset)
+> +		goto out;
+>  
+> -	/* Block boundary? Nothing to do */
+> -	if (!length)
+> -		return 0;
+> +	blocksize = 1 << inode->i_blkbits;
+>  
+> -	length = blocksize - length;
+> +	length = (unsigned)min_t(loff_t, to - from, PAGE_CACHE_SIZE - offset);
+>  	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+>  	page = grab_cache_page(mapping, index);
+> -	err = -ENOMEM;
+> -	if (!page)
+> +	if (!page) {
+> +		err = -ENOMEM;
+>  		goto out;
+> +	}
+>  
+>  	if (!page_has_buffers(page))
+>  		create_empty_buffers(page, blocksize, 0);
+> @@ -2802,15 +2790,20 @@ int block_truncate_page(struct address_s
+>  		pos += blocksize;
+>  	}
+>  
+> -	err = 0;
+>  	if (!buffer_mapped(bh)) {
+>  		WARN_ON(bh->b_size != blocksize);
+>  		err = get_block(inode, iblock, bh, 0);
+>  		if (err)
+>  			goto unlock;
+> -		/* unmapped? It's a hole - nothing to do */
+> -		if (!buffer_mapped(bh))
+> +		/*
+> +		 * unmapped? It's a hole - must zero out partial
+> +		 * in the case of an extending truncate where mmap has
+> +		 * previously written past i_size of the page
+> +		 */
+> +		if (!buffer_mapped(bh)) {
+> +			zero_user(page, offset, length);
+>  			goto unlock;
+  Hmm, but who was zeroing out the page previously? Because the end of the
+page gets zeroed already now...
 
-Hugh
+> +		}
+>  	}
+>  
+>  	/* Ok, it's mapped. Make sure it's up-to-date */
+> @@ -2818,17 +2811,17 @@ int block_truncate_page(struct address_s
+>  		set_buffer_uptodate(bh);
+>  
+>  	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
+> -		err = -EIO;
+>  		ll_rw_block(READ, 1, &bh);
+>  		wait_on_buffer(bh);
+>  		/* Uhhuh. Read error. Complain and punt. */
+> -		if (!buffer_uptodate(bh))
+> +		if (!buffer_uptodate(bh)) {
+> +			err = -EIO;
+>  			goto unlock;
+> +		}
+>  	}
+>  
+>  	zero_user(page, offset, length);
+>  	mark_buffer_dirty(bh);
+> -	err = 0;
+>  
+>  unlock:
+>  	unlock_page(page);
+> @@ -2836,6 +2829,19 @@ unlock:
+>  out:
+>  	return err;
+>  }
+> +EXPORT_SYMBOL(__block_truncate_page);
+> +
+> +int block_truncate_page(struct address_space *mapping,
+> +			loff_t from, get_block_t *get_block)
+> +{
+> +	struct inode *inode = mapping->host;
+> +	int err = 0;
+> +
+> +	if (from > inode->i_size)
+> +		err = __block_truncate_page(mapping, inode->i_size, from, get_block);
+> +
+> +	return err;
+> +}
+>  
+>  /*
+>   * The generic ->writepage function for buffer-backed address_spaces
+> @@ -2849,26 +2855,14 @@ int block_write_full_page_endio(struct p
+>  	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+>  	unsigned offset;
+>  
+> -	/* Is the page fully inside i_size? */
+> -	if (page->index < end_index)
+> -		return __block_write_full_page(inode, page, get_block, wbc,
+> -					       handler);
+> -
+>  	/* Is the page fully outside i_size? (truncate in progress) */
+>  	offset = i_size & (PAGE_CACHE_SIZE-1);
+> -	if (page->index >= end_index+1 || !offset) {
+> +	if (page->index >= end_index &&
+> +			(page->index >= end_index+1 || !offset)) {
+>  		unlock_page(page);
+>  		return 0;
+>  	}
+>  
+> -	/*
+> -	 * The page straddles i_size.  It must be zeroed out on each and every
+> -	 * writepage invokation because it may be mmapped.  "A file is mapped
+> -	 * in multiples of the page size.  For a file that is not a multiple of
+> -	 * the  page size, the remaining memory is zeroed when mapped, and
+> -	 * writes to that region are not written out to the file."
+> -	 */
+> -	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+>  	return __block_write_full_page(inode, page, get_block, wbc, handler);
+>  }
+  I suppose you should also update __block_write_full_page() - there's
+comment about zeroing. Also I'm not sure that marking buffer as uptodate
+there is a good idea when the buffer isn't zeroed.
+
+> Index: linux-2.6/mm/filemap_xip.c
+> ===================================================================
+> --- linux-2.6.orig/mm/filemap_xip.c
+> +++ linux-2.6/mm/filemap_xip.c
+> @@ -440,22 +440,23 @@ EXPORT_SYMBOL_GPL(xip_file_write);
+>  int
+>  xip_truncate_page(struct address_space *mapping, loff_t from)
+>  {
+> +	struct inode *inode = mapping->host;
+>  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+>  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+>  	unsigned blocksize;
+>  	unsigned length;
+>  	void *xip_mem;
+>  	unsigned long xip_pfn;
+> -	int err;
+> +	int err = 0;
+>  
+>  	BUG_ON(!mapping->a_ops->get_xip_mem);
+>  
+> -	blocksize = 1 << mapping->host->i_blkbits;
+> +	blocksize = 1 << inode->i_blkbits;
+>  	length = offset & (blocksize - 1);
+>  
+>  	/* Block boundary? Nothing to do */
+>  	if (!length)
+> -		return 0;
+> +		goto out;
+>  
+>  	length = blocksize - length;
+>  
+> @@ -464,11 +465,11 @@ xip_truncate_page(struct address_space *
+>  	if (unlikely(err)) {
+>  		if (err == -ENODATA)
+>  			/* Hole? No need to truncate */
+> -			return 0;
+> -		else
+> -			return err;
+> +			err = 0;
+> +		goto out;
+>  	}
+>  	memset(xip_mem + offset, 0, length);
+> -	return 0;
+> +out:
+> +	return err;
+>  }
+>  EXPORT_SYMBOL_GPL(xip_truncate_page);
+  Again, only a style change, right?
+
+> Index: linux-2.6/fs/mpage.c
+> ===================================================================
+> --- linux-2.6.orig/fs/mpage.c
+> +++ linux-2.6/fs/mpage.c
+> @@ -559,19 +559,10 @@ static int __mpage_writepage(struct page
+>  page_is_mapped:
+>  	end_index = i_size >> PAGE_CACHE_SHIFT;
+>  	if (page->index >= end_index) {
+> -		/*
+> -		 * The page straddles i_size.  It must be zeroed out on each
+> -		 * and every writepage invokation because it may be mmapped.
+> -		 * "A file is mapped in multiples of the page size.  For a file
+> -		 * that is not a multiple of the page size, the remaining memory
+> -		 * is zeroed when mapped, and writes to that region are not
+> -		 * written out to the file."
+> -		 */
+>  		unsigned offset = i_size & (PAGE_CACHE_SIZE - 1);
+>  
+> -		if (page->index > end_index || !offset)
+> -			goto confused;
+> -		zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+> +		if (page->index >= end_index+1 || !offset)
+> +			goto confused; /* page fully outside i_size */
+>  	}
+>  
+>  	/*
+> Index: linux-2.6/fs/ext2/inode.c
+> ===================================================================
+> --- linux-2.6.orig/fs/ext2/inode.c
+> +++ linux-2.6/fs/ext2/inode.c
+> @@ -777,14 +777,40 @@ ext2_write_begin(struct file *file, stru
+>  	return ret;
+>  }
+>  
+> +int __block_truncate_page(struct address_space *mapping,
+> +			loff_t from, loff_t to, get_block_t *get_block);
+  Uf, that's ugly... Shouldn't it be in some header?
+
+>  static int ext2_write_end(struct file *file, struct address_space *mapping,
+>  			loff_t pos, unsigned len, unsigned copied,
+>  			struct page *page, void *fsdata)
+>  {
+> +	struct inode *inode = mapping->host;
+>  	int ret;
+>  
+> -	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+> -	if (ret < len) {
+> +	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+> +	unlock_page(page);
+> +	page_cache_release(page);
+> +        if (pos+copied > inode->i_size) {
+> +		int err;
+> +                if (pos > inode->i_size) {
+> +                        /* expanding a hole */
+> +			err = __block_truncate_page(mapping, inode->i_size,
+> +						pos, ext2_get_block);
+> +			if (err) {
+> +				ret = err;
+> +				goto out;
+> +			}
+> +			err = __block_truncate_page(mapping, pos+copied,
+> +						LLONG_MAX, ext2_get_block);
+> +			if (err) {
+> +				ret = err;
+> +				goto out;
+> +			}
+> +                }
+> +                i_size_write(inode, pos+copied);
+> +                mark_inode_dirty(inode);
+> +        }
+> +out:
+> +	if (ret < 0 || ret < len) {
+>  		struct inode *inode = mapping->host;
+>  		loff_t isize = inode->i_size;
+>  		if (pos + len > isize)
+  There are whitespace problems above... Also calling __block_truncate_page()
+on old i_size looks strange - we just want to zero-out the page if it
+exists (this way we'd unnecessarily read it from disk). Also I think
+block_write_end() should do this.
+  Finally, zeroing after pos+copied does not make sence to be conditioned
+by pos > inode->i_size and again I don't think it's needed...
+
+> Index: linux-2.6/mm/truncate.c
+> ===================================================================
+> --- linux-2.6.orig/mm/truncate.c
+> +++ linux-2.6/mm/truncate.c
+> @@ -49,7 +49,6 @@ void do_invalidatepage(struct page *page
+>  
+>  static inline void truncate_partial_page(struct page *page, unsigned partial)
+>  {
+> -	zero_user_segment(page, partial, PAGE_CACHE_SIZE);
+>  	if (page_has_private(page))
+>  		do_invalidatepage(page, partial);
+>  }
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
