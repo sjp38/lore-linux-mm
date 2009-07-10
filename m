@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A48A16B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 21:03:24 -0400 (EDT)
-Date: Fri, 10 Jul 2009 09:23:56 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] add shmem vmstat
-Message-ID: <20090710012356.GA6809@localhost>
-References: <20090709165820.23B7.A69D9226@jp.fujitsu.com> <20090709171452.23C9.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3215F6B004D
+	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 21:48:24 -0400 (EDT)
+Date: Fri, 10 Jul 2009 04:09:20 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-ID: <20090710020920.GB15903@wotan.suse.de>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090707140033.GB2714@wotan.suse.de> <alpine.LFD.2.01.0907070952341.3210@localhost.localdomain> <20090708062125.GJ2714@wotan.suse.de> <alpine.LFD.2.01.0907080906410.3210@localhost.localdomain> <20090709074745.GT2714@wotan.suse.de> <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090709171452.23C9.A69D9226@jp.fujitsu.com>
+In-Reply-To: <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 09, 2009 at 04:18:01PM +0800, KOSAKI Motohiro wrote:
-> ChangeLog
->   Since v1
->    - Fixed misaccounting bug on page migration
-> 
-> ========================
-> Subject: [PATCH] add shmem vmstat
-> 
-> Recently, We faced several OOM problem by plenty GEM cache. and generally,
-> plenty Shmem/Tmpfs potentially makes memory shortage problem.
-> 
-> We often use following calculation to know shmem pages,
->   shmem = NR_ACTIVE_ANON + NR_INACTIVE_ANON - NR_ANON_PAGES
-> but it is wrong expression. it doesn't consider isolated page and
-> mlocked page.
-> 
-> Then, This patch make explicit Shmem/Tmpfs vm-stat accounting.
+On Thu, Jul 09, 2009 at 10:54:02AM -0700, Linus Torvalds wrote:
 > 
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> On Thu, 9 Jul 2009, Nick Piggin wrote:
+> >
+> > Having a ZERO_PAGE I'm not against, so I don't know why you claim
+> > I am. Al I'm saying is that now we don't have one, we should have
+> > some good reasons to introduce it again. Unreasonable?
+> 
+> Umm. I had good reasons to introduce it in the _first_ place.
+> 
+> And now you have reports of people who depend on the behaviour, and point 
+> to the new behaviour as a *regression*.
+> 
+> What the _hell_ more do you want?
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Well there is obviously no way to test a representaive sample of
+workoads, and we pretty much knew that some people are going to
+prefer to have a ZERO_PAGE with their app.
 
-Thanks for the nice work!
+So if you were going to re-add the zero page when a single regression
+is reported after a year or two, then it was wrong of you to remove
+the zero page to begin with.
+
+So to answer your question, I guess I would like to know a bit
+more about the regression and what the app is doing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
