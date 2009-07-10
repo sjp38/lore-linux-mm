@@ -1,58 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 84C1C6B004D
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 09:47:41 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 541CA6B0055
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 09:50:22 -0400 (EDT)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6AECeO7024904
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6AEFM65029424
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Jul 2009 23:12:41 +0900
+	Fri, 10 Jul 2009 23:15:22 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5387A45DE50
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:12:40 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9467045DE4F
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:15:22 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3036645DE4F
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:12:40 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A37145DE4E
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:15:22 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EA6331DB803F
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:12:39 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A2DCC1DB803E
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:12:39 +0900 (JST)
-Message-ID: <9f3ffbd617047982a7aed71548a34f13.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090710134228.GX356@random.random>
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090707084750.GX2714@wotan.suse.de>
-    <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090708173206.GN356@random.random>
-    <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
-    <20090710134228.GX356@random.random>
-Date: Fri, 10 Jul 2009 23:12:38 +0900 (JST)
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 517051DB8043
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:15:22 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CCD771DB803E
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 23:15:21 +0900 (JST)
+Message-ID: <fda5a0e71781c85d850573fd9166c895.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090710105620.GI20129@balbir.in.ibm.com>
+References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
+    <20090709171512.8080.8138.sendpatchset@balbir-laptop>
+    <20090710143026.4de7d4b9.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090710065306.GC20129@balbir.in.ibm.com>
+    <20090710163056.a9d552e2.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090710074906.GE20129@balbir.in.ibm.com>
+    <20090710105620.GI20129@balbir.in.ibm.com>
+Date: Fri, 10 Jul 2009 23:15:20 +0900 (JST)
+Subject: Re: [RFC][PATCH 5/5] Memory controller soft limit reclaim on
+ contention (v8)
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli さんは書きました：
-> On Fri, Jul 10, 2009 at 12:18:07PM +0100, Hugh Dickins wrote:
->> as an "automatic" KSM page, I don't know; or we'll need to teach KSM
->> not to waste its time remerging instances of the ZERO_PAGE to a
->> zeroed KSM page.  We'll worry about that once both sets in mmotm.
+Balbir Singh wrote：
+> * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-07-10 13:19:06]:
+>>
+>> Yes, worth experimenting with, I'll redo with the special code
+>> removed.
 >
-> There is no risk of collision, zero page is not anonymous so...
 >
-> I think it's a mistake for them not to try ksm first regardless of the
-> new zeropage patches being floating around, because my whole point is
-> that those kind of apps will save more than just zero page with
-> ksm. Sure not guaranteed... but possible and worth checking.
+> OK, so I experimented with it, I found the following behaviour
 >
-How many mercyless teachers who know waht is correct there are...
+> 1. We try to reclaim, priority is high, scanned pages are low and
+>    hence memory cgroup zone reclaim returns 0 (no pages could be
+>    reclaimed).
+> 2. Now regular reclaim from balance_pgdat() is called, it is able
+>    to shrink from global LRU and hence some other mem cgroup, thus
+>    breaking soft limit semantics.
+>
+IMO, "breaking soft limit" cannot be an excuse for delaying kswapd too much.
 
-BTW, ksm has no refcnt pingpong problem ?
 
 Thanks,
 -Kame
