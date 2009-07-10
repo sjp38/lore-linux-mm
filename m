@@ -1,59 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EB0B36B004D
-	for <linux-mm@kvack.org>; Thu,  9 Jul 2009 23:30:08 -0400 (EDT)
-Date: Fri, 10 Jul 2009 05:51:38 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-Message-ID: <20090710035138.GA14666@wotan.suse.de>
-References: <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090707140033.GB2714@wotan.suse.de> <alpine.LFD.2.01.0907070952341.3210@localhost.localdomain> <20090708062125.GJ2714@wotan.suse.de> <alpine.LFD.2.01.0907080906410.3210@localhost.localdomain> <20090709074745.GT2714@wotan.suse.de> <alpine.LFD.2.01.0907091053100.3352@localhost.localdomain> <20090710020920.GB15903@wotan.suse.de> <alpine.LFD.2.01.0907092034360.3352@localhost.localdomain>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EBB976B004D
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 00:33:33 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6A4tRaC009156
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 10 Jul 2009 13:55:27 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FD9845DE50
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 13:55:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0717645DE52
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 13:55:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CEB2A1DB8038
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 13:55:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 82E671DB803C
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 13:55:23 +0900 (JST)
+Date: Fri, 10 Jul 2009 13:53:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/5] Memory controller soft limit patches (v8)
+Message-Id: <20090710135340.97b82f17.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
+References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.01.0907092034360.3352@localhost.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 09, 2009 at 08:38:41PM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Fri, 10 Jul 2009, Nick Piggin wrote:
-> > 
-> > So if you were going to re-add the zero page when a single regression
-> > is reported after a year or two, then it was wrong of you to remove
-> > the zero page to begin with.
-> 
-> Oh, I argued against it. And I told people we can always revert it.
-> 
-> But even better than reverting it is to just fix it cleanly in the new 
-> world order, wouldn't you say?
+On Thu, 09 Jul 2009 22:44:41 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-If it is put back in without being refcounted, that should be
-fine. That's what I first proposed for it (although you didn't
-think my actua implementation was clean and preferred to remove
-it completely).
-
-I would like to see support for architectures which don't define
-a pte_special bit too, however.
-
-
-> > So to answer your question, I guess I would like to know a bit
-> > more about the regression and what the app is doing.
 > 
-> Ok, go ahead and try to figure it out. But please don't cc me on it any 
-> more. I'm not interested in your hang-ups with ZERO_PAGE.
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-> Because I just don't care. I think ZERO_PAGE was great to begin with, I 
-> put it to use muyself historically at Transmeta, and I didn't like your 
-> crusade against it.
+> New Feature: Soft limits for memory resource controller.
 > 
-> People (including me) have told you why it's useful. Whatever. If you 
-> still want more information, go bother somebody else.
+> Here is v8 of the new soft limit implementation. Soft limits is a new feature
+> for the memory resource controller, something similar has existed in the
+> group scheduler in the form of shares. The CPU controllers interpretation
+> of shares is very different though. 
+> 
+> Soft limits are the most useful feature to have for environments where
+> the administrator wants to overcommit the system, such that only on memory
+> contention do the limits become active. The current soft limits implementation
+> provides a soft_limit_in_bytes interface for the memory controller and not
+> for memory+swap controller. The implementation maintains an RB-Tree of groups
+> that exceed their soft limit and starts reclaiming from the group that
+> exceeds this limit by the maximum amount.
+> 
+> v8 has come out after a long duration, we were held back by bug fixes
+> (most notably swap cache leak fix) and Kamezawa-San has his series of
+> patches for soft limits. Kamezawa-San asked me to refactor these patches
+> to make the data structure per-node-per-zone.
+> 
+> TODOs
+> 
+> 1. The current implementation maintains the delta from the soft limit
+>    and pushes back groups to their soft limits, a ratio of delta/soft_limit
+>    might be more useful
+> 2. Small optimizations that I intend to push in v9, if the v8 design looks
+>    good and acceptable.
+> 
+> Tests
+> -----
+> 
+> I've run two memory intensive workloads with differing soft limits and
+> seen that they are pushed back to their soft limit on contention. Their usage
+> was their soft limit plus additional memory that they were able to grab
+> on the system. Soft limit can take a while before we see the expected
+> results.
+> 
 
-You're apparently not reading what I write when I do cc you, so
-I don't think there would be much difference.
+Before pointing out nitpicks, here are my impressions.
+ 
+ 1. seems good in general.
+
+ 2. Documentation is not enough. I think it's necessary to write "excuse" as
+    "soft-limit is built on complex memory management system's behavior, then,
+     this may not work as you expect. But in many case, this works well.
+     please take this as best-effort service" or some.
+
+ 3. Using "jiffies" again is not good. plz use other check or event counter.
+
+ 4. I think it's better to limit soltlimit only against root of hierarcy node.
+    (use_hierarchy=1) I can't explain how the system works if several soft limits
+    are set to root and its children under a hierarchy.
+
+ 5. I'm glad if you extract patch 4/5 as an independent clean up patch.
+
+ 6. no overheads ?
+
+other comments to each patch.
+
+Thanks,
+-Kame
+
+
+> Please review, comment.
+> 
+> Series
+> ------
+> 
+> memcg-soft-limits-documentation.patch
+> memcg-soft-limits-interface.patch
+> memcg-soft-limits-organize.patch
+> memcg-soft-limits-refactor-reclaim-bits
+> memcg-soft-limits-reclaim-on-contention.patch
+> 
+> 
+> -- 
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
