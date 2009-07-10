@@ -1,112 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 767E86B004D
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 01:11:52 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6A5XwSZ020322
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Jul 2009 14:33:58 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6886D45DE52
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 14:33:58 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CF4C45DE4D
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 14:33:58 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 29FA3E1800D
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 14:33:58 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CF7C11DB803C
-	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 14:33:57 +0900 (JST)
-Date: Fri, 10 Jul 2009 14:32:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/5] Memory controller soft limit documentation
- (v8)
-Message-Id: <20090710143216.7f5dc6b8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090709171449.8080.40970.sendpatchset@balbir-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 116C76B005A
+	for <linux-mm@kvack.org>; Fri, 10 Jul 2009 01:30:57 -0400 (EDT)
+Received: by fxm5 with SMTP id 5so6900fxm.38
+        for <linux-mm@kvack.org>; Thu, 09 Jul 2009 22:53:11 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090710135340.97b82f17.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090709171441.8080.85983.sendpatchset@balbir-laptop>
-	<20090709171449.8080.40970.sendpatchset@balbir-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20090710135340.97b82f17.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 10 Jul 2009 11:23:11 +0530
+Message-ID: <661de9470907092253r8bbe353kbcbf96559ced021c@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/5] Memory controller soft limit patches (v8)
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 09 Jul 2009 22:44:49 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Fri, Jul 10, 2009 at 10:23 AM, KAMEZAWA
+Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 09 Jul 2009 22:44:41 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+>>
+>> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+>>
+>> New Feature: Soft limits for memory resource controller.
+>>
+>> Here is v8 of the new soft limit implementation. Soft limits is a new fe=
+ature
+>> for the memory resource controller, something similar has existed in the
+>> group scheduler in the form of shares. The CPU controllers interpretatio=
+n
+>> of shares is very different though.
+>>
+>> Soft limits are the most useful feature to have for environments where
+>> the administrator wants to overcommit the system, such that only on memo=
+ry
+>> contention do the limits become active. The current soft limits implemen=
+tation
+>> provides a soft_limit_in_bytes interface for the memory controller and n=
+ot
+>> for memory+swap controller. The implementation maintains an RB-Tree of g=
+roups
+>> that exceed their soft limit and starts reclaiming from the group that
+>> exceeds this limit by the maximum amount.
+>>
+>> v8 has come out after a long duration, we were held back by bug fixes
+>> (most notably swap cache leak fix) and Kamezawa-San has his series of
+>> patches for soft limits. Kamezawa-San asked me to refactor these patches
+>> to make the data structure per-node-per-zone.
+>>
+>> TODOs
+>>
+>> 1. The current implementation maintains the delta from the soft limit
+>> =A0 =A0and pushes back groups to their soft limits, a ratio of delta/sof=
+t_limit
+>> =A0 =A0might be more useful
+>> 2. Small optimizations that I intend to push in v9, if the v8 design loo=
+ks
+>> =A0 =A0good and acceptable.
+>>
+>> Tests
+>> -----
+>>
+>> I've run two memory intensive workloads with differing soft limits and
+>> seen that they are pushed back to their soft limit on contention. Their =
+usage
+>> was their soft limit plus additional memory that they were able to grab
+>> on the system. Soft limit can take a while before we see the expected
+>> results.
+>>
+>
+> Before pointing out nitpicks, here are my impressions.
+>
+> =A01. seems good in general.
+>
 
-> Feature: Add documentation for soft limits
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  Documentation/cgroups/memory.txt |   31 ++++++++++++++++++++++++++++++-
->  1 files changed, 30 insertions(+), 1 deletions(-)
-> 
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index ab0a021..b47815c 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -379,7 +379,36 @@ cgroups created below it.
->  
->  NOTE2: This feature can be enabled/disabled per subtree.
->  
-> -7. TODO
-> +7. Soft limits
-> +
-> +Soft limits allow for greater sharing of memory. The idea behind soft limits
-> +is to allow control groups to use as much of the memory as needed, provided
-> +
-> +a. There is no memory contention
-> +b. They do not exceed their hard limit
-> +
-> +When the system detects memory contention or low memory control groups
-> +are pushed back to their soft limits. If the soft limit of each control
-> +group is very high, they are pushed back as much as possible to make
-> +sure that one control group does not starve the others of memory.
-> +
+Thanks
 
-It's better to write "this is best-effort service". We add hook only to kswapd.
-And hou successfull this work depends on ZONE.
+> =A02. Documentation is not enough. I think it's necessary to write "excus=
+e" as
+> =A0 =A0"soft-limit is built on complex memory management system's behavio=
+r, then,
+> =A0 =A0 this may not work as you expect. But in many case, this works wel=
+l.
+> =A0 =A0 please take this as best-effort service" or some.
+>
+
+Sure, I'll revisit it and update.
+
+> =A03. Using "jiffies" again is not good. plz use other check or event cou=
+nter.
+>
+
+Yes, I considered event based sampling and update. I wrote the code,
+but then realized that it works really well if I keep the sampling per
+cpu, otherwise it does not scale well. My problem with per-cpu
+sampling is that the view we get could vary drastically if we migrated
+or the task migrated to a different node and allocated memory.
+
+> =A04. I think it's better to limit soltlimit only against root of hierarc=
+y node.
+> =A0 =A0(use_hierarchy=3D1) I can't explain how the system works if severa=
+l soft limits
+> =A0 =A0are set to root and its children under a hierarchy.
+>
+
+The idea is that if we add a node and it has children and that node
+goes above the soft limit, we'll do hierarchical reclaim from the
+children underneath almost like a normal reclaim, where the unused
+pages would be reclaimed/ Having said that I am open to your
+suggestion, my concern is that semantics can get a bit confusing as to
+when the administrator can setup soft limits. We can come up with
+guidelines and recommend your suggestion.
+
+> =A05. I'm glad if you extract patch 4/5 as an independent clean up patch.
+>
 
 Thanks,
--Kame
 
-> +7.1 Interface
-> +
-> +Soft limits can be setup by using the following commands (in this example we
-> +assume a soft limit of 256 megabytes)
-> +
-> +# echo 256M > memory.soft_limit_in_bytes
-> +
-> +If we want to change this to 1G, we can at any time use
-> +
-> +# echo 1G > memory.soft_limit_in_bytes
-> +
-> +NOTE1: Soft limits take effect over a long period of time, since they involve
-> +       reclaiming memory for balancing between memory cgroups
-> +NOTE2: It is recommended to set the soft limit always below the hard limit,
-> +       otherwise the hard limit will take precedence.
-> +
-> +8. TODO
->  
->  1. Add support for accounting huge pages (as a separate controller)
->  2. Make per-cgroup scanner reclaim not-shared pages first
-> 
-> -- 
-> 	Balbir
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> =A06. no overheads ?
+>
+
+I ran some tests and saw no additional overheads, I'll test some more
+and post results. There are some cleanups pending like the ones you
+pointed, where we can use page_to_* instead of pc_* routines. I did
+not clean them up as I wanted to get out the RFC soon with working
+functionality and post v9 with those cleaned up.
+
+Thanks for the review.
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
