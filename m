@@ -1,41 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0AE6B004F
-	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 03:44:17 -0400 (EDT)
-Date: Sun, 12 Jul 2009 09:57:31 +0200
-From: Haavard Skinnemoen <haavard.skinnemoen@atmel.com>
-Subject: Re: [BUG 2.6.30] Bad page map in process
-Message-ID: <20090712095731.3090ef56@siona>
-In-Reply-To: <Pine.LNX.4.64.0907101900570.27223@sister.anvils>
-References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
-	<Pine.LNX.4.64.0907101900570.27223@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id C080F6B004F
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 04:42:16 -0400 (EDT)
+Message-ID: <4A59A517.1080605@panasas.com>
+Date: Sun, 12 Jul 2009 11:55:51 +0300
+From: Boaz Harrosh <bharrosh@panasas.com>
+MIME-Version: 1.0
+Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
+References: <20090707144823.GE2714@wotan.suse.de> <20090707145820.GA9976@infradead.org> <20090707150257.GG2714@wotan.suse.de> <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de> <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <4A54C435.1000503@panasas.com> <20090709075100.GU2714@wotan.suse.de>
+In-Reply-To: <20090709075100.GU2714@wotan.suse.de>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Guennadi Liakhovetski <g.liakhovetski@gmx.de>, linux-mm@kvack.org, kernel@avr32linux.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Jul 2009 19:34:06 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+On 07/09/2009 10:51 AM, Nick Piggin wrote:
+> On Wed, Jul 08, 2009 at 07:07:17PM +0300, Boaz Harrosh wrote:
+>> On 07/08/2009 03:34 PM, Nick Piggin wrote:
+>>> On Wed, Jul 08, 2009 at 06:47:01AM -0400, Christoph Hellwig wrote:
+>>> Index: linux-2.6/fs/attr.c
+>>> ===================================================================
+>>> --- linux-2.6.orig/fs/attr.c
+>>> +++ linux-2.6/fs/attr.c
+>>> @@ -112,7 +112,12 @@ int inode_setattr(struct inode * inode,
+>>>  
+>>>  	if (ia_valid & ATTR_SIZE &&
+>>>  	    attr->ia_size != i_size_read(inode)) {
+>>> -		int error = vmtruncate(inode, attr->ia_size);
+>>> +		int error;
+>>> +
+>>> +		if (inode->i_op->new_truncate)
+>>> +			error = simple_setsize(inode, attr->ia_size);
+>> I don't understand this branch.
+>> If a filesystem has been converted to set "i_op->new_truncate=true"
+>> then it must have been converted to intersect ->setattr and has set
+>> the i_size (And needs to clear ATTR_SIZE, why?)
+>>
+>> All other cases of systems not converted, or systems that do not have
+>> ->truncate will fall to the "else" part.
+>>
+>> before the removal of i_op->new_truncate you will need to do something
+>> with the systems that do not have ->truncate which will be a 
+>> .setattr = simple_setattr or something
+>>
+>> So I don't understand this conditional
+> 
+> inode_setattr *is* our "simple_setattr".
+> 
 
-> I've not looked up avr32 pte layout, is 13f26ed4 good or bad?
-> I hope avr32 people can tell more about the likely cause.
+I wish you would split it.
 
-It looks OK for a user mapping, assuming you have at least 64MB of
-SDRAM (the SDRAM starts at 0x10000000) -- all the normal userspace flags
-are set and all the kernel-only flags are unset. It's marked as
-executable, so it could be that the segfault was caused by the CPU
-executing the wrong code.
+one - helper to be called by converted file systems
+      (Which just ignores the ATTR_SIZE)
+second - to be set into .setattr which does the simple_setsize + above.
 
-The virtual address 0x4377f876 is a bit higher than what you normally
-see on avr32 systems, but there's not necessarily anything wrong with
-it -- userspace goes up to 0x80000000.
+More clear for FS users like me (and that ugly unmask of ATTR_SIZE)
 
-Btw, is preempt enabled when you see this?
+or it's just me?
 
-Haavard
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
