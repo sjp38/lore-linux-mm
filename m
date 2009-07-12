@@ -1,94 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7A5B66B004F
-	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 09:13:20 -0400 (EDT)
-Received: by yxe39 with SMTP id 39so2467427yxe.12
-        for <linux-mm@kvack.org>; Sun, 12 Jul 2009 06:28:38 -0700 (PDT)
-Message-ID: <4A59E502.1020008@codemonkey.ws>
-Date: Sun, 12 Jul 2009 08:28:34 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
+	by kanga.kvack.org (Postfix) with SMTP id E8B056B004F
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 10:29:30 -0400 (EDT)
+Date: Sun, 12 Jul 2009 15:44:33 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: KSM: current madvise rollup
+In-Reply-To: <20090712002219.502540d2@woof.woof>
+Message-ID: <Pine.LNX.4.64.0907121459150.7417@sister.anvils>
+References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils>
+ <4A49E051.1080400@redhat.com> <Pine.LNX.4.64.0906301518370.967@sister.anvils>
+ <4A4A5C56.5000109@redhat.com> <Pine.LNX.4.64.0907010057320.4255@sister.anvils>
+ <4A4B317F.4050100@redhat.com> <Pine.LNX.4.64.0907082035400.10356@sister.anvils>
+ <4A57C3D1.7000407@redhat.com> <Pine.LNX.4.64.0907111916001.30651@sister.anvils>
+ <20090712002219.502540d2@woof.woof>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <d693761e-2f2b-4d8c-ae4f-7f22479f6c0f@default>
-In-Reply-To: <d693761e-2f2b-4d8c-ae4f-7f22479f6c0f@default>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Avi Kivity <avi@redhat.com>, Schwidefsky <schwidefsky@de.ibm.com>, chris.mason@oracle.com, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Magenheimer wrote:
-> Oops, sorry, I guess that was a bit inflammatory.  What I meant to
-> say is that inferring resource utilization efficiency is a very
-> hard problem and VMware (and I'm sure IBM too) has done a fine job
-> with it; CMM2 explicitly provides some very useful information from
-> within the OS to the hypervisor so that it doesn't have to infer
-> that information; but tmem is trying to go a step further by making
-> the cooperation between the OS and hypervisor more explicit
-> and directly beneficial to the OS.
->   
+On Sun, 12 Jul 2009, Izik Eidus wrote:
+> On Sat, 11 Jul 2009 20:22:11 +0100 (BST)
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> > 
+> > We may want to do that anyway.  It concerned me a lot when I was
+> > first testing (and often saw kernel_pages_allocated greater than
+> > pages_shared - probably because of the original KSM's eagerness to
+> > merge forked pages, though I think there may have been more to it
+> > than that).  But seems much less of an issue now (that ratio is much
+> > healthier), and even less of an issue once KSM pages can be swapped.
+> > So I'm not bothering about it at the moment, but it may make sense.
 
-KVM definitely falls into the camp of trying to minimize modification to 
-the guest.
+I realized since writing that with the current statistics you really
+cannot tell how big an issue the orphaned (count 1) KSM pages are -
+good sharing of a few will completely hide non-sharing of many.
 
->> If there was one change to tmem that would make it more 
->> palatable, for 
->> me it would be changing the way pools are "allocated".  Instead of 
->> getting an opaque handle from the hypervisor, I would force 
->> the guest to 
->> allocate it's own memory and to tell the hypervisor that it's a tmem 
->> pool.
->>     
->
-> An interesting idea but one of the nice advantages of tmem being
-> completely external to the OS is that the tmem pool may be much
-> larger than the total memory available to the OS.  As an extreme
-> example, assume you have one 1GB guest on a physical machine that
-> has 64GB physical RAM.  The guest now has 1GB of directly-addressable
-> memory and 63GB of indirectly-addressable memory through tmem.
-> That 63GB requires no page structs or other data structures in the
-> guest.  And in the current (external) implementation, the size
-> of each pool is constantly changing, sometimes dramatically so
-> the guest would have to be prepared to handle this.  I also wonder
-> if this would make shared-tmem-pools more difficult.
->
-> I can see how it might be useful for KVM though.  Once the
-> core API and all the hooks are in place, a KVM implementation of
-> tmem could attempt something like this.
->   
+But I've hacked in more stats (not something I'd care to share yet!),
+and those confirm that for my loads at least, the orphaned KSM pages
+are few compared with the shared ones.
 
-It's the core API that is really the issue.  The semantics of tmem 
-(external memory pool with copy interface) is really what is problematic.
+> 
+> We could add patch like the below, but I think we should leave it as it
+> is now,
 
-The basic concept, notifying the VMM about memory that can be recreated 
-by the guest to avoid the VMM having to swap before reclaim, is great 
-and I'd love to see Linux support it in some way.
+I agree we should leave it as is for now.  My guess is that we'll
+prefer to leave them around, until approaching max_kernel_pages_alloc,
+pruning them only at that stage (rather as we free swap more aggressively
+when it's 50% full).  There may be benefit in not removing them too soon,
+there may be benefit in holding on to stable pages for longer (holding a
+reference in the stable tree for a while).  Or maybe not, just an idea.
 
->> The big advantage of keeping the tmem pool part of the normal set of 
->> guest memory is that you don't introduce new challenges with 
->> respect to memory accounting.  Whether or not tmem is directly 
->> accessible from the guest, it is another memory resource.  I'm
->> certain that you'll want to do accounting of how much tmem is being
->> consumed by each guest
->>     
->
-> Yes, the Xen implementation of tmem does accounting on a per-pool
-> and a per-guest basis and exposes the data via a privileged
-> "tmem control" hypercall.
->   
+> and solve it all (like you have said) with the ksm pages
+> swapping support in next kernel release.
+> (Right now ksm can limit itself with max_kernel_pages_alloc)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index a0fbdb2..ee80861 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1261,8 +1261,13 @@ static void ksm_do_scan(unsigned int scan_npages)
+>  		rmap_item = scan_get_next_rmap_item(&page);
+>  		if (!rmap_item)
+>  			return;
+> -		if (!PageKsm(page) || !in_stable_tree(rmap_item))
+> +		if (!PageKsm(page) || !in_stable_tree(rmap_item)) {
+>  			cmp_and_merge_page(page, rmap_item);
+> +		} else if (page_mapcount(page) == 0) {
 
-I was talking about accounting within the guest.  It's not just a matter 
-of accounting within the mm, it's also about accounting in userspace.  A 
-lot of software out there depends on getting detailed statistics from 
-Linux about how much memory is in use in order to determine things like 
-memory pressure.  If you introduce a new class of memory, you need a new 
-class of statistics to expose to userspace and all those tools need 
-updating.
+If we did that (but we agree not for now), shouldn't it be
+			   page_mapcount(page) == 1
+?  The mapcount 0 ones already got freed by the zap/unmap code.
 
-Regards,
+> +			break_cow(rmap_item->mm,
+> +				  rmap_item->address & PAGE_MASK);
 
-Anthony Liguori
+Just a note on that " & PAGE_MASK": it's unnecessary there and
+almost everywhere else.  One of the pleasures of putting flags into
+the bottom bits of the address, in code concerned with faulting, is
+that the faulting address can be anywhere within the page, so we
+don't have to bother to mask off the flags.
+
+> +			remove_rmap_item_from_tree(rmap_item);
+> +		}
+>  		put_page(page);
+>  	}
+>  }
+> 
+> > Oh, something that might be making it higher, that I didn't highlight
+> > (and can revert if you like, it was just more straightforward this
+> > way): with scan_get_next_rmap skipping the non-present ptes,
+> > pages_to_scan is currently a limit on the _present_ pages scanned in
+> > one batch.
+> 
+> You mean that now when you say: pages_to_scan = 512, it wont count the
+> none present ptes as part of the counter, so if we have 500 not present
+> ptes in the begining and then 512 ptes later, before it used to call
+> cmp_and_merge_page() only for 12 pages while now it will get called on
+> 512 pages?
+
+If I understand you right, yes, before it would do those 500 absent then
+512 present in two batches, first 512 (of which only 12 present) then 500;
+whereas now it'll skip the 500 absent without counting them, and handle
+the 512 present in that same one batch.
+
+> 
+> If yes, then I liked this change, it is more logical from cpu
+> consumption point of view,
+
+Yes, although it does spend a little time on the absent ones, it should
+be much less time than it spends comparing or checksumming on present ones.
+
+> and in addition we have that cond_reched()
+> so I dont see a problem with this.
+
+Right, that cond_resched() is vital in this case.
+
+By the way, something else I didn't highlight, a significant benefit
+from avoiding get_user_pages(): that was doing a mark_page_accessed()
+on every present pte that it found, interfering with pageout decisions.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
