@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 082326B004F
-	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 15:42:20 -0400 (EDT)
-Date: Sun, 12 Jul 2009 21:59:47 +0200 (CEST)
-From: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-Subject: Re: [BUG 2.6.30] Bad page map in process
-In-Reply-To: <20090712095731.3090ef56@siona>
-Message-ID: <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
-References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
- <Pine.LNX.4.64.0907101900570.27223@sister.anvils> <20090712095731.3090ef56@siona>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 311E06B004F
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 16:22:31 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <e60ab548-f0be-4a75-a10b-1f2eb89247a7@default>
+Date: Sun, 12 Jul 2009 13:39:07 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [Xen-devel] Re: [RFC PATCH 0/4] (Take 2): transcendent memory
+ ("tmem") for Linux
+In-Reply-To: <4A5A1A51.2080301@redhat.com>
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Haavard Skinnemoen <haavard.skinnemoen@atmel.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org, kernel@avr32linux.org, linux-kernel@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: npiggin@suse.de, akpm@osdl.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, jeremy@goop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sunil.mushran@oracle.com, chris.mason@oracle.com, Anthony Liguori <anthony@codemonkey.ws>, Schwidefsky <schwidefsky@de.ibm.com>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, alan@lxorguk.ukuu.org.uk, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 12 Jul 2009, Haavard Skinnemoen wrote:
+> CMM2 and tmem are not any different in this regard; both require OS=20
+> modification, and both make information available to the=20
+> hypervisor.  In=20
+> fact CMM2 is much more intrusive (but on the other hand provides much=20
+> more information).
+>
+> > For those that believe it will be pervasive in the
+> > future, finding the right balance is a critical step
+> > in operating system evolution.
+>=20
+> You're arguing for CMM2 here IMO.
 
-> On Fri, 10 Jul 2009 19:34:06 +0100 (BST)
-> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-> 
-> > I've not looked up avr32 pte layout, is 13f26ed4 good or bad?
-> > I hope avr32 people can tell more about the likely cause.
-> 
-> It looks OK for a user mapping, assuming you have at least 64MB of
-> SDRAM (the SDRAM starts at 0x10000000) -- all the normal userspace flags
-> are set and all the kernel-only flags are unset. It's marked as
-> executable, so it could be that the segfault was caused by the CPU
-> executing the wrong code.
-> 
-> The virtual address 0x4377f876 is a bit higher than what you normally
-> see on avr32 systems, but there's not necessarily anything wrong with
-> it -- userspace goes up to 0x80000000.
-> 
-> Btw, is preempt enabled when you see this?
+I'm arguing that both are a good thing and a step in
+the right direction.  In some ways, tmem is a bigger
+step and in some ways CMM2 is a bigger step.
 
-No, preempt was off.
+> My take on this is that precache (predecache?) / preswap can be=20
+> implemented even without tmem by using write-through backing for the=20
+> virtual disk.  For swap this is actually slight;y more efficient than=20
+> tmem preswap, for preuncache slightly less efficient (since=20
+> there will=20
+> be some double caching).  So I'm more interested in other use=20
+> cases of tmem/CMM2.
+>=20
+> Right, the transient uses of tmem when applied to disk objects=20
+> (swap/pagecache) are very similar to disk caches.  Which is=20
+> why you can=20
+> get a very similar effect when caching your virtual disks;=20
+> this can be=20
+> done without any guest modification.
 
-I can give a couple more details to the problem:
-
-1. it might well be hardware-related.
-
-2. the specific BUG that I posted originally wasn't very interesting, 
-because it wasn't the first one. Having read a few posts I wasn't quite 
-sure how really severe this BUG was, i.e., whether or not it requiret a 
-reboot. There used to be a message like "reboot is required" around this 
-sort of exceptions, but then it has been removed, so, I thought, it wasn't 
-required any more. But the fact is, that once one such BUG has occurred, 
-new ones will come from various applications and eventually the system 
-will become unusable.
-
-3. What makes it a kind of hard to believe that it's a hardware problem, 
-is that up to now we have only been able to produce the _first_ such 
-segfault and BUG with just one specific user-space application. In 
-principle the application doesn't do anything critical. It just uses Qt ta 
-draw on the framebuffer. And we have been able to reproduce the problem by 
-running just a truncated version of the app - just the Qt and local class 
-initialisation. Running such an application repeatedly eventually produces 
-a segfault, and at some point also the "bad page map" BUG.
-
-We're currently trying to investigate and fix the hardware, will post our 
-results.
-
-Thanks
-Guennadi
----
-Guennadi Liakhovetski, Ph.D.
-Freelance Open-Source Software Developer
-http://www.open-technology.de/
+Write-through backing and virtual disk cacheing offer a
+similar effect, but it is far from the same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
