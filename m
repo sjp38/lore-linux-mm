@@ -1,115 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 45C1B6B004F
-	for <linux-mm@kvack.org>; Sat, 11 Jul 2009 17:09:34 -0400 (EDT)
-Date: Sun, 12 Jul 2009 00:22:19 +0300
-From: Izik Eidus <ieidus@redhat.com>
-Subject: Re: KSM: current madvise rollup
-Message-ID: <20090712002219.502540d2@woof.woof>
-In-Reply-To: <Pine.LNX.4.64.0907111916001.30651@sister.anvils>
-References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils>
-	<4A49E051.1080400@redhat.com>
-	<Pine.LNX.4.64.0906301518370.967@sister.anvils>
-	<4A4A5C56.5000109@redhat.com>
-	<Pine.LNX.4.64.0907010057320.4255@sister.anvils>
-	<4A4B317F.4050100@redhat.com>
-	<Pine.LNX.4.64.0907082035400.10356@sister.anvils>
-	<4A57C3D1.7000407@redhat.com>
-	<Pine.LNX.4.64.0907111916001.30651@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BDCC96B004F
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 01:02:13 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so353046rvb.26
+        for <linux-mm@kvack.org>; Sat, 11 Jul 2009 22:14:46 -0700 (PDT)
+Date: Sun, 12 Jul 2009 13:14:42 +0800
+From: Wu Fengguang <fengguang.wu@gmail.com>
+Subject: Re: OOM killer in 2.6.31-rc2
+Message-ID: <20090712051441.GA7903@localhost>
+References: <200907061056.00229.gene.heskett@verizon.net> <200907101100.58110.gene.heskett@verizon.net> <20090711083551.GA6209@localhost> <200907110819.30337.gene.heskett@verizon.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200907110819.30337.gene.heskett@verizon.net>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gene Heskett <gene.heskett@verizon.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 11 Jul 2009 20:22:11 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+On Sat, Jul 11, 2009 at 08:19:30AM -0400, Gene Heskett wrote:
+> On Saturday 11 July 2009, Wu Fengguang wrote:
+> >On Fri, Jul 10, 2009 at 11:00:58AM -0400, Gene Heskett wrote:
+> >> On Friday 10 July 2009, Wu Fengguang wrote:
+> >> >> From dmesg:
+> >> >> [    0.000000] TOM2: 0000000120000000 aka 4608M  <what is this?
+> >> >
+> >> >That 4608M includes memory hole I guess.
+> >>
+> >> Is this hole size not a known value?
+> >>
+> >> [...]
+> >>
+> >> >Most relevant ones:
+> >> >
+> >> >- 300+MB >4G memory is not reachable by kernel and user space
+> >> >- 2.7GB high memory is not usable for slab caches and some other
+> >> >  kernel users
+> >>
+> >> Can you expand on this, teach a dummy in other words?  I was under the
+> >> impression that slab caches were placed in this high memory if
+> >> either the 4G or 64G flags were set...
+> >
+> >No, slab pages are allocated from Normal, DMA, DMA32 zones, but not
+> >HighMem zone. The kernel cannot access HighMem directly. The 4G/64G
+> >flags only mean up to 4G/64G memory can be visited. But the kernel
+> >only build page tables to visit the first 1G memory _directly_. The
+> >other 3G address space is reserved for user space. When kernel want
+> >to visit the HighMem memory, it must setup temporary page table
+> >entries to point to the page it want to access.
+> 
+> So there can be an oom that exists only for SLAB et all while the system 
+> itself has available memory.  Hummm.  Is this a hardware limitation of running 
+> in 32 bit mode, one that goes away for 64 bit builds?
 
-
-> I think it becomes quite a big subject, and you may be able to
-> excite other people with it.
-
-Yea, I agree, I dropped this patch, I think i have idea how to mange
-it from userspace in a much better way for the kvm case.
+In theory the SLAB pages can mostly be reclaimed when memory is tight.
+So your OOM happens either because the SLAB pages are not reclaimable,
+or the reclaim algorithm didn't reclaim them as much as it should.
 
 > 
-> > 
-> > To make the second method thing work as much as reaible as we can
-> > we would want to break KsmPages that have just one mapping into
-> > them...
+> >> Is this a good excuse to revisit either SLUB or SLQB use?
+> >
+> >SLUB/SLQB/SLAB is equal in this aspect.
+> >
+> >> I did run SLUB for a while, but it did seem slower, so I switched
+> >> back to SLAB a few months back.
+> >
+> >SLUB uses high order pages, the allocation of which is harder
+> >than normal 1-page allocations, especially when you are already
+> >tight in memory.
+> >
+> >Thanks,
+> >Fengguang
 > 
-> We may want to do that anyway.  It concerned me a lot when I was
-> first testing (and often saw kernel_pages_allocated greater than
-> pages_shared - probably because of the original KSM's eagerness to
-> merge forked pages, though I think there may have been more to it
-> than that).  But seems much less of an issue now (that ratio is much
-> healthier), and even less of an issue once KSM pages can be swapped.
-> So I'm not bothering about it at the moment, but it may make sense.
+> Now at 18 hours of uptime, things still look and feel normal. 18 megs into 
+> swap, 321 processes, 625 megs of memory used according to htop.  The top 
+> section of slabtop:
+> Active / Total Objects (% used)    : 509209 / 782668 (65.1%)
+>  Active / Total Slabs (% used)      : 34397 / 34397 (100.0%)
+>  Active / Total Caches (% used)     : 104 / 163 (63.8%)
+>  Active / Total Size (% used)       : 108602.20K / 130401.10K (83.3%)
+>  Minimum / Average / Maximum Object : 0.01K / 0.17K / 4096.00K
 > 
+> But I had to restart it with a -d 15 to get a good copy to paste, the refresh 
+> rate was wiping my copy.  The -o or --once gives an empty return, and total 
 
-We could add patch like the below, but I think we should leave it as it
-is now, and solve it all (like you have said) with the ksm pages
-swapping support in next kernel release.
-(Right now ksm can limit itself with max_kernel_pages_alloc)
+slabtop does output something, and then the screen get cleared
+immediately. It seems related to the alternate screen concept,
+xterm has a resource 'titeInhibit' for it. Though I'm not sure
+how the slabtop code can be fixed in a trivial way.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index a0fbdb2..ee80861 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1261,8 +1261,13 @@ static void ksm_do_scan(unsigned int scan_npages)
- 		rmap_item = scan_get_next_rmap_item(&page);
- 		if (!rmap_item)
- 			return;
--		if (!PageKsm(page) || !in_stable_tree(rmap_item))
-+		if (!PageKsm(page) || !in_stable_tree(rmap_item)) {
- 			cmp_and_merge_page(page, rmap_item);
-+		} else if (page_mapcount(page) == 0) {
-+			break_cow(rmap_item->mm,
-+				  rmap_item->address & PAGE_MASK);
-+			remove_rmap_item_from_tree(rmap_item);
-+		}
- 		put_page(page);
- 	}
- }
-
-
+> slabs varies from 99% to 100%.
 > 
-> I think you've resolved that as a non-issue, but is cpu still looking
-> too high to you?  It looks high to me, but then I realize that I've
-> tuned it to be high anyway.  Do you have any comparison against the
-> /dev/ksm KSM, or your first madvise version?
+> Just to complete the environmental info, there is one other item I changed, 
+> not kernel related. Looking at my amanda.conf yesterday, I found I was telling 
+> it it could use about 3G as buffers and reduced that to about 1G, which didn't 
+> seem to effect it.  But I wonder if that was what was dirtying up the works as 
+> the last crash was about 3 hours after the end of the amanda run.
 
-I think I made myself to think it is to high, i ran it for 250 pages
-scan each 10 millisecond, cpu usage was most of the time 1-4%, (beside
-when it merged pages) - then the walking on the tree is longer, and if
-it is the first page, we have addition memcpy of the page (into new
-allocated page) - we can solve this issue, together with a big list of
-optimizations that can come into ksm stable/unstable
-algorithm/implemantion, in later releases of the kernel.
+Hmm not likely caused by amanda. It can use the HighMem pages so you
+didn't see OOM when amanda uses up to 3G buffers.
 
-> 
-> Oh, something that might be making it higher, that I didn't highlight
-> (and can revert if you like, it was just more straightforward this
-> way): with scan_get_next_rmap skipping the non-present ptes,
-> pages_to_scan is currently a limit on the _present_ pages scanned in
-> one batch.
+> This 18 hours of uptime is a record by at least 3x what I've ever gotten from 
+> this bios before.  On the one hand I am pleased, on the other the lack of 
+> results so far has to be somewhat disappointing.
 
-You mean that now when you say: pages_to_scan = 512, it wont count the
-none present ptes as part of the counter, so if we have 500 not present
-ptes in the begining and then 512 ptes later, before it used to call
-cmp_and_merge_page() only for 12 pages while now it will get called on
-512 pages?
+Don't be in a hurry. Just enjoy the current good state until OOM revisits :)
 
-If yes, then I liked this change, it is more logical from cpu
-consumption point of view, and in addition we have that cond_reched()
-so I dont see a problem with this.
-
-Thanks.
-
-> 
-> Hugh
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
