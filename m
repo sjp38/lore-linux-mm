@@ -1,50 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 06E226B004F
-	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 21:31:06 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D1oUO6015987
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 13 Jul 2009 10:50:30 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9891545DE5F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 10:50:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E41C45DE56
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 10:50:24 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A53C1DB8052
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 10:50:23 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 871E41DB804B
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 10:50:17 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/5] add isolate pages vmstat
-In-Reply-To: <alpine.DEB.1.10.0907101447370.14152@gentwo.org>
-References: <20090710094934.17CA.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907101447370.14152@gentwo.org>
-Message-Id: <20090713104954.624C.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2395A6B004F
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 22:10:54 -0400 (EDT)
+Date: Mon, 13 Jul 2009 10:30:30 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: [PATCH] switch free memory back to MIGRATE_MOVABLE
+Message-ID: <20090713023030.GA27269@sli10-desk.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 13 Jul 2009 10:50:16 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mel@csn.ul.ie, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 10 Jul 2009, KOSAKI Motohiro wrote:
-> 
-> > Plus, current reclaim logic depend on the system have enough much pages on LRU.
-> > Maybe we don't only need to limit #-of-reclaimer, but also need to limit #-of-migrator.
-> > I think we can use similar logic.
-> 
-> I think your isolate pages counters can be used in both locations.
-> 
+When page is back to buddy and its order is bigger than pageblock_order, we can
+switch its type to MIGRATE_MOVABLE. This can reduce fragmentation. The patch
+has obvious effect when read a block device and then drop caches.
 
-I totally agree this :)
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+---
+ mm/page_alloc.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-
-
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c	2009-07-10 11:36:07.000000000 +0800
++++ linux/mm/page_alloc.c	2009-07-13 09:25:21.000000000 +0800
+@@ -475,6 +475,15 @@ static inline void __free_one_page(struc
+ 		order++;
+ 	}
+ 	set_page_order(page, order);
++
++	if (order >= pageblock_order && migratetype != MIGRATE_MOVABLE) {
++		int i;
++
++		migratetype = MIGRATE_MOVABLE;
++		for (i = 0; i < (1 << (order - pageblock_order)); i++)
++			set_pageblock_migratetype(page +
++				i * pageblock_nr_pages, MIGRATE_MOVABLE);
++	}
+ 	list_add(&page->lru,
+ 		&zone->free_area[order].free_list[migratetype]);
+ 	zone->free_area[order].nr_free++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
