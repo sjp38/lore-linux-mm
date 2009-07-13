@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 325EA6B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 01:36:46 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D5vURA022818
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 243F66B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 01:39:23 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D60AMm017031
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 13 Jul 2009 14:57:32 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2465345DE6E
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:57:30 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A2E4D45DE70
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:57:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC886E0800E
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:57:26 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D13651DB8043
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:57:25 +0900 (JST)
+	Mon, 13 Jul 2009 15:00:10 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A916945DE53
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:00:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 82B3B45DE54
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:00:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 29A6A1DB8046
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:00:09 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FAB1E3800C
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:00:08 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 0/4] OOM analysis helper patch series v3
-Message-Id: <20090713144924.6257.A69D9226@jp.fujitsu.com>
+Subject: [PATCH 1/4][resend] add per-zone statistics to show_free_areas()
+In-Reply-To: <20090713144924.6257.A69D9226@jp.fujitsu.com>
+References: <20090713144924.6257.A69D9226@jp.fujitsu.com>
+Message-Id: <20090713145732.625A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 13 Jul 2009 14:57:25 +0900 (JST)
+Date: Mon, 13 Jul 2009 15:00:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-ChangeLog
- Since v2
-   - Dropped "[4/5] add isolate pages vmstat" temporary because it become
-     slightly big. Then, I plan to submit it as another patchset.
-   - Rewrote many patch description (Thanks! Christoph)
- Since v1
-   - Dropped "[5/5] add NR_ANON_PAGES to OOM log" patch
-   - Instead, introduce "[5/5] add shmem vmstat" patch
-   - Fixed unit bug (Thanks Minchan)
-   - Separated isolated vmstat to two field (Thanks Minchan and Wu)
-   - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
-   - Rewrote some patch description (Thanks Christoph)
+Subject: [PATCH] add per-zone statistics to show_free_areas()
 
-This patch series are tested on 2.6.31-rc2 + mm-show_free_areas-display-slab-pages-in-two-separate-fields.patch
-==========================
+show_free_areas() displays only a limited amount of zone counters. This
+patch includes additional counters in the display to allow easier
+debugging. This may be especially useful if an OOM is due to running out
+of DMA memory.
 
-Current OOM log doesn't provide sufficient memory usage information. it cause
-make confusion to lkml MM guys. 
 
-this patch series add some memory usage information to OOM log output.
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/page_alloc.c |   20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2151,6 +2151,16 @@ void show_free_areas(void)
+ 			" inactive_file:%lukB"
+ 			" unevictable:%lukB"
+ 			" present:%lukB"
++			" mlocked:%lukB"
++			" dirty:%lukB"
++			" writeback:%lukB"
++			" mapped:%lukB"
++			" slab_reclaimable:%lukB"
++			" slab_unreclaimable:%lukB"
++			" pagetables:%lukB"
++			" unstable:%lukB"
++			" bounce:%lukB"
++			" writeback_tmp:%lukB"
+ 			" pages_scanned:%lu"
+ 			" all_unreclaimable? %s"
+ 			"\n",
+@@ -2165,6 +2175,16 @@ void show_free_areas(void)
+ 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
+ 			K(zone_page_state(zone, NR_UNEVICTABLE)),
+ 			K(zone->present_pages),
++			K(zone_page_state(zone, NR_MLOCK)),
++			K(zone_page_state(zone, NR_FILE_DIRTY)),
++			K(zone_page_state(zone, NR_WRITEBACK)),
++			K(zone_page_state(zone, NR_FILE_MAPPED)),
++			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
++			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
++			K(zone_page_state(zone, NR_PAGETABLE)),
++			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
++			K(zone_page_state(zone, NR_BOUNCE)),
++			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+ 			zone->pages_scanned,
+ 			(zone_is_all_unreclaimable(zone) ? "yes" : "no")
+ 			);
 
 
 --
