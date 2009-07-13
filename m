@@ -1,215 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 144C16B0062
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 01:44:22 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D65Ben019280
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 13 Jul 2009 15:05:11 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D268F45DE53
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:05:10 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A03A45DE52
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:05:10 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 34337E1800C
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:05:10 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A3198E18006
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:05:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 4/4][resend]  add shmem vmstat
-In-Reply-To: <20090713144924.6257.A69D9226@jp.fujitsu.com>
-References: <20090713144924.6257.A69D9226@jp.fujitsu.com>
-Message-Id: <20090713150226.6263.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 13 Jul 2009 15:05:08 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 611756B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 02:25:40 -0400 (EDT)
+Date: Mon, 13 Jul 2009 08:46:41 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
+Message-ID: <20090713064641.GL14666@wotan.suse.de>
+References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090708173206.GN356@random.random> <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0907101201280.2456@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-ChangeLog
-  Since v2
-   - Rewrote the description
+On Fri, Jul 10, 2009 at 12:18:07PM +0100, Hugh Dickins wrote:
+> On Wed, 8 Jul 2009, Andrea Arcangeli wrote:
+> > On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
+> > harmful as there's a double page fault generated instead of a single
+> > one, kksmd has a cost but zeropage isn't free either in term of page
+> > faults too)
+> 
+> Much as I like KSM, I have to agree with Avi, that if people are
+> wanting the ZERO_PAGE back in compute-intensive loads, then relying
 
-  Since v1
-   - Fixed misaccounting bug on page migration
-
-========================
-Subject: [PATCH] add shmem vmstat
-
-Recently we encountered OOM problems due to memory use of the GEM cache.
-Generally a large amuont of Shmem/Tmpfs pages tend to create a memory
-shortage problem.
-
-We often use the following calculation to determine the amount of shmem
-pages:
-
-shmem = NR_ACTIVE_ANON + NR_INACTIVE_ANON - NR_ANON_PAGES
-
-however the expression does not consider isoalted and mlocked pages.
-
-This patch adds explicit accounting for pages used by shmem and tmpfs.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
----
- drivers/base/node.c    |    2 ++
- fs/proc/meminfo.c      |    2 ++
- include/linux/mmzone.h |    1 +
- mm/filemap.c           |    4 ++++
- mm/migrate.c           |    5 ++++-
- mm/page_alloc.c        |    5 ++++-
- mm/vmstat.c            |    2 +-
- 7 files changed, 18 insertions(+), 3 deletions(-)
-
-Index: b/drivers/base/node.c
-===================================================================
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -85,6 +85,7 @@ static ssize_t node_read_meminfo(struct 
- 		       "Node %d FilePages:      %8lu kB\n"
- 		       "Node %d Mapped:         %8lu kB\n"
- 		       "Node %d AnonPages:      %8lu kB\n"
-+		       "Node %d Shmem:          %8lu kB\n"
- 		       "Node %d KernelStack:    %8lu kB\n"
- 		       "Node %d PageTables:     %8lu kB\n"
- 		       "Node %d NFS_Unstable:   %8lu kB\n"
-@@ -117,6 +118,7 @@ static ssize_t node_read_meminfo(struct 
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(nid, NR_SHMEM)),
- 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
- 				THREAD_SIZE / 1024,
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
-Index: b/fs/proc/meminfo.c
-===================================================================
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -81,6 +81,7 @@ static int meminfo_proc_show(struct seq_
- 		"Writeback:      %8lu kB\n"
- 		"AnonPages:      %8lu kB\n"
- 		"Mapped:         %8lu kB\n"
-+		"Shmem:          %8lu kB\n"
- 		"Slab:           %8lu kB\n"
- 		"SReclaimable:   %8lu kB\n"
- 		"SUnreclaim:     %8lu kB\n"
-@@ -125,6 +126,7 @@ static int meminfo_proc_show(struct seq_
- 		K(global_page_state(NR_WRITEBACK)),
- 		K(global_page_state(NR_ANON_PAGES)),
- 		K(global_page_state(NR_FILE_MAPPED)),
-+		K(global_page_state(NR_SHMEM)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -100,6 +100,7 @@ enum zone_stat_item {
- 	NR_BOUNCE,
- 	NR_VMSCAN_WRITE,
- 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
-+	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
-Index: b/mm/filemap.c
-===================================================================
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -120,6 +120,8 @@ void __remove_from_page_cache(struct pag
- 	page->mapping = NULL;
- 	mapping->nrpages--;
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
-+	if (PageSwapBacked(page))
-+		__dec_zone_page_state(page, NR_SHMEM);
- 	BUG_ON(page_mapped(page));
- 
- 	/*
-@@ -476,6 +478,8 @@ int add_to_page_cache_locked(struct page
- 		if (likely(!error)) {
- 			mapping->nrpages++;
- 			__inc_zone_page_state(page, NR_FILE_PAGES);
-+			if (PageSwapBacked(page))
-+				__inc_zone_page_state(page, NR_SHMEM);
- 			spin_unlock_irq(&mapping->tree_lock);
- 		} else {
- 			page->mapping = NULL;
-Index: b/mm/vmstat.c
-===================================================================
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -644,7 +644,7 @@ static const char * const vmstat_text[] 
- 	"nr_bounce",
- 	"nr_vmscan_write",
- 	"nr_writeback_temp",
--
-+	"nr_shmem",
- #ifdef CONFIG_NUMA
- 	"numa_hit",
- 	"numa_miss",
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2120,7 +2120,7 @@ void show_free_areas(void)
- 		" unevictable:%lu"
- 		" dirty:%lu writeback:%lu unstable:%lu buffer:%lu\n"
- 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
--		" mapped:%lu pagetables:%lu bounce:%lu\n",
-+		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n",
- 		global_page_state(NR_ACTIVE_ANON),
- 		global_page_state(NR_ACTIVE_FILE),
- 		global_page_state(NR_INACTIVE_ANON),
-@@ -2134,6 +2134,7 @@ void show_free_areas(void)
- 		global_page_state(NR_SLAB_RECLAIMABLE),
- 		global_page_state(NR_SLAB_UNRECLAIMABLE),
- 		global_page_state(NR_FILE_MAPPED),
-+		global_page_state(NR_SHMEM),
- 		global_page_state(NR_PAGETABLE),
- 		global_page_state(NR_BOUNCE));
- 
-@@ -2156,6 +2157,7 @@ void show_free_areas(void)
- 			" dirty:%lukB"
- 			" writeback:%lukB"
- 			" mapped:%lukB"
-+			" shmem:%lukB"
- 			" slab_reclaimable:%lukB"
- 			" slab_unreclaimable:%lukB"
- 			" kernel_stack:%lukB"
-@@ -2181,6 +2183,7 @@ void show_free_areas(void)
- 			K(zone_page_state(zone, NR_FILE_DIRTY)),
- 			K(zone_page_state(zone, NR_WRITEBACK)),
- 			K(zone_page_state(zone, NR_FILE_MAPPED)),
-+			K(zone_page_state(zone, NR_SHMEM)),
- 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
- 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
- 			zone_page_state(zone, NR_KERNEL_STACK) *
-Index: b/mm/migrate.c
-===================================================================
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -312,7 +312,10 @@ static int migrate_page_move_mapping(str
- 	 */
- 	__dec_zone_page_state(page, NR_FILE_PAGES);
- 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
--
-+	if (PageSwapBacked(page)) {
-+		__dec_zone_page_state(page, NR_SHMEM);
-+		__inc_zone_page_state(newpage, NR_SHMEM);
-+	}
- 	spin_unlock_irq(&mapping->tree_lock);
- 
- 	return 0;
+I can't imagine ZERO_PAGE would be too widely used in compute-intensive
+loads. At least, not serious stuff. Nobody wants to spend 4K of cache
+and one TLB entry for one or two non-zero floating point numbers in a
+big sparse matrix. Not to mention the cache and memory overhead of just
+scanning through lots of zeros.
 
 
 --
