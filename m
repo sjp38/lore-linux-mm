@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E30F6B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 15:52:24 -0400 (EDT)
-Date: Mon, 13 Jul 2009 16:17:45 -0400
-From: Chris Mason <chris.mason@oracle.com>
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for
-	Linux
-Message-ID: <20090713201745.GA3783@think>
-References: <a09e4489-a755-46e7-a569-a0751e0fc39f@default> <4A5A1A51.2080301@redhat.com> <4A5A3AC1.5080800@codemonkey.ws>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7C1CB6B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 16:13:07 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so886372qwf.44
+        for <linux-mm@kvack.org>; Mon, 13 Jul 2009 13:38:49 -0700 (PDT)
+Message-ID: <4A5B9B55.6000404@codemonkey.ws>
+Date: Mon, 13 Jul 2009 15:38:45 -0500
+From: Anthony Liguori <anthony@codemonkey.ws>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A5A3AC1.5080800@codemonkey.ws>
+Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
+References: <a09e4489-a755-46e7-a569-a0751e0fc39f@default> <4A5A1A51.2080301@redhat.com> <4A5A3AC1.5080800@codemonkey.ws> <20090713201745.GA3783@think>
+In-Reply-To: <20090713201745.GA3783@think>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Anthony Liguori <anthony@codemonkey.ws>
-Cc: Avi Kivity <avi@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Chris Mason <chris.mason@oracle.com>, Avi Kivity <avi@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 12, 2009 at 02:34:25PM -0500, Anthony Liguori wrote:
-> Avi Kivity wrote:
->>
->> In fact CMM2 is much more intrusive (but on the other hand provides  
->> much more information).
-> I don't think this will remain true long term.  CMM2 touches a lot of  
-> core mm code and certainly qualifies as intrusive.  However the result  
-> is that the VMM has a tremendous amount of insight into how the guest is  
-> using it's memory and can implement all sorts of fancy policy for  
-> reclaim.  Since the reclaim policy can evolve without any additional  
-> assistance from the guest, the guest doesn't have to change as policy  
-> evolves.
->
-> Since tmem requires that reclaim policy is implemented within the guest,  
-> I think in the long term, tmem will have to touch a broad number of  
-> places within Linux.  Beside the core mm, the first round of patches  
-> already touch filesystems (just ext3 to start out with).  To truly be  
-> effective, tmem would have to be a first class kernel citizen and I  
-> suspect a lot of code would have to be aware of it.
+Chris Mason wrote:
+> This depends on the extent to which tmem is integrated into the VM.  For
+> filesystem usage, the hooks are relatively simple because we already
+> have a lot of code sharing in this area.  Basically tmem is concerned
+> with when we free a clean page and when the contents of a particular
+> offset in the file are no longer valid.
+>   
 
-This depends on the extent to which tmem is integrated into the VM.  For
-filesystem usage, the hooks are relatively simple because we already
-have a lot of code sharing in this area.  Basically tmem is concerned
-with when we free a clean page and when the contents of a particular
-offset in the file are no longer valid.
+But filesystem usage is perhaps the least interesting part of tmem.
 
-The nice part about tmem is that any time a given corner case gets
-tricky, you can just invalidate that offset in tmem and move on.
+The VMM already knows which pages in the guest are the result of disk IO 
+(it's the one that put it there, afterall).  It also knows when those 
+pages have been invalidated (or it can tell based on write-faulting).
 
--chris
+The VMM also knows when the disk IO has been rerequested by tracking 
+previous requests.  It can keep the old IO requests cached in memory and 
+use that to satisfy re-reads as long as the memory isn't needed for 
+something else.  Basically, we have tmem today with kvm and we use it by 
+default by using the host page cache to do I/O caching (via 
+cache=writethrough).
+
+The difference between our "tmem" is that instead of providing an 
+interface where the guest explicitly says, "I'm throwing away this 
+memory, I may need it later", and then asking again for it, the guest 
+throws away the page and then we can later satisfy the disk I/O request 
+that results from re-requesting the page instantaneously.
+
+This transparent approach is far superior too because it enables 
+transparent sharing across multiple guests.  This works well for CoW 
+images and would work really well if we had a file system capable of 
+block-level deduplification... :-)
+
+Regards,
+
+Anthony Liguori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
