@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9566B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 03:03:24 -0400 (EDT)
-Date: Mon, 13 Jul 2009 09:24:38 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC][PATCH 0/4] ZERO PAGE again v2
-Message-ID: <20090713072438.GP14666@wotan.suse.de>
-References: <20090707165101.8c14b5ac.kamezawa.hiroyu@jp.fujitsu.com> <20090707084750.GX2714@wotan.suse.de> <20090707180629.cd3ac4b6.kamezawa.hiroyu@jp.fujitsu.com> <20090708173206.GN356@random.random> <Pine.LNX.4.64.0907101201280.2456@sister.anvils> <20090713064641.GL14666@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090713064641.GL14666@wotan.suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 317DF6B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 04:32:32 -0400 (EDT)
+Message-ID: <4A5AF637.3090405@panasas.com>
+Date: Mon, 13 Jul 2009 11:54:15 +0300
+From: Boaz Harrosh <bharrosh@panasas.com>
+MIME-Version: 1.0
+Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
+References: <20090707150758.GA18075@infradead.org> <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de> <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <4A54C435.1000503@panasas.com> <20090709075100.GU2714@wotan.suse.de> <4A59A517.1080605@panasas.com> <20090712144717.GA18163@infradead.org> <20090713065917.GO14666@wotan.suse.de>
+In-Reply-To: <20090713065917.GO14666@wotan.suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, avi@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 13, 2009 at 08:46:41AM +0200, Nick Piggin wrote:
-> On Fri, Jul 10, 2009 at 12:18:07PM +0100, Hugh Dickins wrote:
-> > On Wed, 8 Jul 2009, Andrea Arcangeli wrote:
-> > > On Tue, Jul 07, 2009 at 06:06:29PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > harmful as there's a double page fault generated instead of a single
-> > > one, kksmd has a cost but zeropage isn't free either in term of page
-> > > faults too)
-> > 
-> > Much as I like KSM, I have to agree with Avi, that if people are
-> > wanting the ZERO_PAGE back in compute-intensive loads, then relying
+On 07/13/2009 09:59 AM, Nick Piggin wrote:
+> On Sun, Jul 12, 2009 at 10:47:18AM -0400, Christoph Hellwig wrote:
+>> On Sun, Jul 12, 2009 at 11:55:51AM +0300, Boaz Harrosh wrote:
+>>> I wish you would split it.
+>>>
+>>> one - helper to be called by converted file systems
+>>>       (Which just ignores the ATTR_SIZE)
+>>> second - to be set into .setattr which does the simple_setsize + above.
+>>>
+>>> More clear for FS users like me (and that ugly unmask of ATTR_SIZE)
+>>>
+>>> or it's just me?
+>> Yeah, that seems be a lot cleaner.  But let's wait until we got
+>> rid of ->truncate for all filesystems to have the bigger picture.
 > 
-> I can't imagine ZERO_PAGE would be too widely used in compute-intensive
-> loads. At least, not serious stuff. Nobody wants to spend 4K of cache
-> and one TLB entry for one or two non-zero floating point numbers in a
-> big sparse matrix. Not to mention the cache and memory overhead of just
-> scanning through lots of zeros.
+> Agreed, if it is a common sequence / requirement for filesystems
+> then of course I will not object to a helper to make things clearer
+> or share code.
+> 
+> I would like to see inode_setattr renamed into simple_setattr, and
+> then also .setattr made mandatory, so I don't like to cut code out
+> of inode_setattr which makes it unable to be the simple_setattr
+> after the old truncate code is removed.
+> 
 
-Heh, oops: before anyone thinks it will be fun to make some
-personal insults, there won't be much memory overhead from
-zero page of course! Cache and *TLB* overhead is going to be
-involved.
+I thought you meant inode_setattr will go away. There will
+only be simple_setattr() and inode_setattr_nosize()
+
+For the time been simple_setattr() will also take care
+of old ->truncate FSs. And in the absence of .setattr
+simple_setattr() is called. Have I miss-understood?
+
+again please tell me when all this is in effect I want
+to do the conversion in exofs.
+
+[BTW these changes are a life saver for me in regard to
+the kind of things I need to do for pNFS-exports]
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
