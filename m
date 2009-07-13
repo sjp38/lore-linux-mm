@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4BDE66B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 16:51:16 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so557518rvb.26
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:17:10 -0700 (PDT)
-Message-ID: <4A5BA451.5070604@codemonkey.ws>
-Date: Mon, 13 Jul 2009 16:17:05 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D9E416B0055
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 16:55:30 -0400 (EDT)
+Message-ID: <4A5BA54C.8070600@embeddedalley.com>
+Date: Mon, 13 Jul 2009 14:21:16 -0700
+From: "Vladislav D. Buzov" <vbuzov@embeddedalley.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <a09e4489-a755-46e7-a569-a0751e0fc39f@default> <4A5A1A51.2080301@redhat.com> <4A5A3AC1.5080800@codemonkey.ws> <20090713201745.GA3783@think> <4A5B9B55.6000404@codemonkey.ws> <20090713210112.GC3783@think>
-In-Reply-To: <20090713210112.GC3783@think>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/1] Memory usage limit notification addition to memcg
+References: <1239660512-25468-1-git-send-email-dan@embeddedalley.com>	<1246998310-16764-1-git-send-email-vbuzov@embeddedalley.com>	<1246998310-16764-2-git-send-email-vbuzov@embeddedalley.com>	<20090708095616.cdfe8c7c.kamezawa.hiroyu@jp.fujitsu.com>	<4A554B54.3080903@embeddedalley.com> <20090713095209.d8b6e566.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090713095209.d8b6e566.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Avi Kivity <avi@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers Mailing List <containers@lists.linux-foundation.org>, Dan Malek <dan@embeddedalley.com>, Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chris Mason wrote:
-> On Mon, Jul 13, 2009 at 03:38:45PM -0500, Anthony Liguori wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 08 Jul 2009 18:43:48 -0700
+> "Vladislav D. Buzov" <vbuzov@embeddedalley.com> wrote:
+>
 >   
-> I'll definitely grant that caching with writethough adds more caching,
-> but it does need trim support before it is similar to tmem.
-
-I think trim is somewhat orthogonal but even if you do need it, the nice 
-thing about implementing ATA trim support verses a paravirtualization is 
-that it works with a wide variety of guests.
-
- From the perspective of the VMM, it seems like a good thing.
-
->   The caching
-> is transparent to the guest, but it is also transparent to qemu, and so
-> it is harder to manage and size (or even get a stat for how big it
-> currently is).
->   
-
-That's certainly a fixable problem though.  We could expose statistics 
-to userspace and then further expose those to guests.  I think the first 
-question to answer though is what you would use those statistics for.
-
->> The difference between our "tmem" is that instead of providing an  
->> interface where the guest explicitly says, "I'm throwing away this  
->> memory, I may need it later", and then asking again for it, the guest  
->> throws away the page and then we can later satisfy the disk I/O request  
->> that results from re-requesting the page instantaneously.
->>
->> This transparent approach is far superior too because it enables  
->> transparent sharing across multiple guests.  This works well for CoW  
->> images and would work really well if we had a file system capable of  
->> block-level deduplification... :-)
+>> KAMEZAWA Hiroyuki wrote:
 >>     
->
-> Grin, I'm afraid that even if someone were to jump in and write the
-> perfect cow based filesystem and then find a willing contributor to code
-> up a dedup implementation, each cow image would be a different file
-> and so it would have its own address space.
->
-> Dedup and COW are an easy way to have hints about which pages are
-> supposed to be have the same contents, but they would have to go with
-> some other duplicate page sharing scheme.
+>>> 2 points.
+>>>  - Do we have to check this always we account ?
+>>>   
+>>>       
+>> What are the options? Every N pages? How to select N?
+>>
+>>     
+> I think you can reuse Balbir's softlimit event counter. (see v9.)
 >   
+It still does not answer the question how to select the number of events
+before/between sending the notification.
 
-Yes.  We have the information we need to dedup this memory though.  We 
-just need a way to track non-dirty pages that result from DMA, map the 
-host page cache directly into the guest, and then CoW when the guest 
-tries to dirty that memory.
+The idea behind the notification feature is to let user applications
+know immediately when a low memory condition occurs (the threshold is
+exceeded). So that they can take action to free unused memory before the
+OS is involved to handle that (OOM-kill, reclaiming pages).
 
-We don't quite have the right infrastructure in Linux yet to do this 
-effectively, but this is entirely an issue with the host.  The guest 
-doesn't need any changes here.
+As far as I understand the reason why you would like to add a delay
+between sending notifications is to let user applications some time to
+free memory. This is not required by design of the notification feature
+because the notification is sent only if someone listening for it.
+Typical application will subscribe for low-memory notification, receive
+it, handle and then subscribe again. So, even if low memory conditions
+keep occurring in mean time, the notification will not be fired. If it
+happens again after the user application freed some memory the
+application will be immediately notified.
 
-Regards,
+>   
+>>> If this is true, "set limit" should be checked to guarantee this.
+>>> plz allow minus this for avoiding mess.
+>>>       
+>> Setting the memory controller cgroup limit and the notification
+>> threshold are two separate operations. There isn't any "mess," just some
+>> validation testing for reporting back to the source of the request. When
+>> changing the memory controller limit, we ensure the threshold limit is
+>> never allowed "negative." At most, the threshold limit will be equal the
+>> memory controller cgroup limit. Otherwise, the arithmetic and
+>> conditional tests during the operational part of the software becomes
+>> more complex, which we don't want.
+>>
+>>     
+> Hmm, then, plz this interface put under "set_limit_mutex".
+>   
+I'm going to send another patch soon where I added threshold feature to
+the Resource Counter. It's going to address all concerns about data
+protection.
 
-Anthony Liguori
-> -chris
+Thanks,
+Vlad.
+> Thanks,
+> -Kame
 >
 >   
 
