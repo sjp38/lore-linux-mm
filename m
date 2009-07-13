@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C10FE6B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 07:34:10 -0400 (EDT)
-Date: Mon, 13 Jul 2009 12:56:17 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [BUG 2.6.30] Bad page map in process
-In-Reply-To: <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
-Message-ID: <Pine.LNX.4.64.0907131236320.20647@sister.anvils>
-References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
- <Pine.LNX.4.64.0907101900570.27223@sister.anvils> <20090712095731.3090ef56@siona>
- <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9966B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 09:30:05 -0400 (EDT)
+Date: Mon, 13 Jul 2009 09:53:24 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
+Message-ID: <20090713135324.GB3685@infradead.org>
+References: <20090707154809.GH2714@wotan.suse.de> <20090707163042.GA14947@infradead.org> <20090708063225.GL2714@wotan.suse.de> <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <4A54C435.1000503@panasas.com> <20090709075100.GU2714@wotan.suse.de> <4A59A517.1080605@panasas.com> <20090712144717.GA18163@infradead.org> <20090713065917.GO14666@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090713065917.GO14666@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-Cc: Haavard Skinnemoen <haavard.skinnemoen@atmel.com>, linux-mm@kvack.org, kernel@avr32linux.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <bharrosh@panasas.com>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 12 Jul 2009, Guennadi Liakhovetski wrote:
+On Mon, Jul 13, 2009 at 08:59:17AM +0200, Nick Piggin wrote:
+> Agreed, if it is a common sequence / requirement for filesystems
+> then of course I will not object to a helper to make things clearer
+> or share code.
 > 
-> 2. the specific BUG that I posted originally wasn't very interesting, 
-> because it wasn't the first one. Having read a few posts I wasn't quite 
-> sure how really severe this BUG was, i.e., whether or not it requiret a 
-> reboot. There used to be a message like "reboot is required" around this 
-> sort of exceptions, but then it has been removed, so, I thought, it wasn't 
-> required any more. But the fact is, that once one such BUG has occurred, 
-> new ones will come from various applications and eventually the system 
-> will become unusable.
+> I would like to see inode_setattr renamed into simple_setattr, and
+> then also .setattr made mandatory, so I don't like to cut code out
+> of inode_setattr which makes it unable to be the simple_setattr
+> after the old truncate code is removed.
 
-I replaced Bad page state's reboot is needed message by just the BUG
-prefix: partly because the bad page handling _is_ now more resilient;
-but more because I don't like wasting screenlines which could hold
-vital info, and because I didn't see how this BUG differs from others
-in whether or not you need a reboot.
+But inode_setattr isn't anything like simple_setattr.  Except for
+the truncate special case it's really just a helper to copy values
+into the inode.  It doesn't even even have the same prototype as
+->setattr.
 
-A BUG means the kernel is in unknown territory: if you're brave and
-want to gather more info, you try to keep on running after a BUG;
-if you're cautious, you reboot as soon as possible.
+A simple_setattr would look like the following:
 
-(Hmm, but perhaps I should wire these in to panic_on_oops??)
+int simple_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
 
-You did the right thing: kept on running, then decided it wasn't
-worth it.  (But you've only sent the one pair of messages gathered:
-okay, let's forget the rest until you've sorted the hardware angle.)
+	error = inode_change_ok(inode, iattr);
+        if (error)
+                return error;
 
-Hugh
+	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
+	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
+		if (vfs_dq_transfer(inode, iattr))
+			return -EDQUOT;
+	}
+
+	if (iattr->ia_valid & ATTR_ATTR_SIZE &&
+	    iattr->ia_size !== i_size_read(inode) &&
+	    inode->i_op->new_truncate) {
+		error = simple_setsize(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	return inode_setattr(inode, attr);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
