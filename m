@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 146CB6B0062
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 07:09:28 -0400 (EDT)
-Date: Mon, 13 Jul 2009 13:32:06 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 3/4] fs: new truncate sequence
-Message-ID: <20090713113206.GB3452@wotan.suse.de>
-References: <20090708104701.GA31419@infradead.org> <20090708123412.GQ2714@wotan.suse.de> <4A54C435.1000503@panasas.com> <20090709075100.GU2714@wotan.suse.de> <4A59A517.1080605@panasas.com> <20090712144717.GA18163@infradead.org> <20090713065917.GO14666@wotan.suse.de> <4A5AF637.3090405@panasas.com> <20090713090056.GA3452@wotan.suse.de> <4A5B17E3.3070908@panasas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A5B17E3.3070908@panasas.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C10FE6B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 07:34:10 -0400 (EDT)
+Date: Mon, 13 Jul 2009 12:56:17 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [BUG 2.6.30] Bad page map in process
+In-Reply-To: <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
+Message-ID: <Pine.LNX.4.64.0907131236320.20647@sister.anvils>
+References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange>
+ <Pine.LNX.4.64.0907101900570.27223@sister.anvils> <20090712095731.3090ef56@siona>
+ <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Boaz Harrosh <bharrosh@panasas.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+Cc: Haavard Skinnemoen <haavard.skinnemoen@atmel.com>, linux-mm@kvack.org, kernel@avr32linux.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 13, 2009 at 02:17:55PM +0300, Boaz Harrosh wrote:
-> On 07/13/2009 12:00 PM, Nick Piggin wrote:
-> > AFAIKS inode_setattr basically is simple_setattr, so I think at some
-> > point it should just get renamed to simple_setattr. Adding
-> > simple_setattr_nosize or similar helper would be fine too. I don't
-> > care much about the exact details... But anyway these things are not
-> > so important to this truncate patchset at the moment.
-> > 
+On Sun, 12 Jul 2009, Guennadi Liakhovetski wrote:
 > 
-> I see. So what is the schedule? when are we to convert all FSs?
+> 2. the specific BUG that I posted originally wasn't very interesting, 
+> because it wasn't the first one. Having read a few posts I wasn't quite 
+> sure how really severe this BUG was, i.e., whether or not it requiret a 
+> reboot. There used to be a message like "reboot is required" around this 
+> sort of exceptions, but then it has been removed, so, I thought, it wasn't 
+> required any more. But the fact is, that once one such BUG has occurred, 
+> new ones will come from various applications and eventually the system 
+> will become unusable.
 
-Well the changes can be back compatible, and there is not too
-much complexity to support the current system, so I guess it
-will just be done as soon as somebody writes the patches.
+I replaced Bad page state's reboot is needed message by just the BUG
+prefix: partly because the bad page handling _is_ now more resilient;
+but more because I don't like wasting screenlines which could hold
+vital info, and because I didn't see how this BUG differs from others
+in whether or not you need a reboot.
 
-But probably it is a good idea to convert any filesystem using
-->truncate to the new sequence at the same time (ie. don't
-just simply add .setattr = simple_setattr, and rely on its calling
-vmtruncate, but actually DTRT and remove .truncate at the
-same time).
+A BUG means the kernel is in unknown territory: if you're brave and
+want to gather more info, you try to keep on running after a BUG;
+if you're cautious, you reboot as soon as possible.
 
-Any patches would be welcome, for any filesystem. Probably it
-won't exactly be a rapid process, judging by past experience.
+(Hmm, but perhaps I should wire these in to panic_on_oops??)
 
+You did the right thing: kept on running, then decided it wasn't
+worth it.  (But you've only sent the one pair of messages gathered:
+okay, let's forget the rest until you've sorted the hardware angle.)
 
-> >> [BTW these changes are a life saver for me in regard to
-> >> the kind of things I need to do for pNFS-exports]
-> > 
-> > You mean the truncate patches? Well that's nice to know. I
-> > guess it has always been possible just to redefine your own
-> > setattr, but now it should be a bit nicer with the truncate
-> > helpers...
-> > 
-> 
-> OK, yes redefine .setattr, do the right thing in write_begin/end
-> and the helpers do help a lot, to the point that it was not safe to
-> open-code all this work. The situation is much better after your
-> patchset.
-
-OK good.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
