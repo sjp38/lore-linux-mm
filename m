@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D312C6B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 05:33:57 -0400 (EDT)
-Date: Mon, 13 Jul 2009 10:56:03 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] switch free memory back to MIGRATE_MOVABLE
-Message-ID: <20090713095602.GA996@csn.ul.ie>
-References: <20090713023030.GA27269@sli10-desk.sh.intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2289F6B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 06:51:53 -0400 (EDT)
+Date: Mon, 13 Jul 2009 13:14:34 +0200 (CEST)
+From: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+Subject: Re: SV: [BUG 2.6.30] Bad page map in process
+In-Reply-To: <1DC0FF5051B91B4D88A15F21F1A27F417ABDE6@dware1013.doorway.loc>
+Message-ID: <Pine.LNX.4.64.0907131312160.4212@axis700.grange>
+References: <Pine.LNX.4.64.0907081250110.15633@axis700.grange><Pine.LNX.4.64.0907101900570.27223@sister.anvils><20090712095731.3090ef56@siona>
+ <Pine.LNX.4.64.0907122151010.13280@axis700.grange>
+ <1DC0FF5051B91B4D88A15F21F1A27F417ABDE6@dware1013.doorway.loc>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090713023030.GA27269@sli10-desk.sh.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Eirik Aanonsen <eaa@wprmedical.com>
+Cc: Haavard Skinnemoen <haavard.skinnemoen@atmel.com>, linux-mm@kvack.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, kernel@avr32linux.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 13, 2009 at 10:30:30AM +0800, Shaohua Li wrote:
-> When page is back to buddy and its order is bigger than pageblock_order, we can
-> switch its type to MIGRATE_MOVABLE. This can reduce fragmentation. The patch
-> has obvious effect when read a block device and then drop caches.
+On Mon, 13 Jul 2009, Eirik Aanonsen wrote:
+
 > 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-
-NAK.
-
-There is no point making this check in the free path, it can be left at
-whatever type it is. rmqueue fallback will already find blocks like this and
-switch the type again if necessary. The only time you might care is memory
-off-lining and at that point, you can check if a free page spans the
-pageblock and if so, ignore the existing migrate type.
-
+> 
+> >We're currently trying to investigate and fix the hardware, will post our 
+> >results.
+> >
+> >Thanks
+> >Guennadi
+> 
 > ---
->  mm/page_alloc.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
 > 
-> Index: linux/mm/page_alloc.c
-> ===================================================================
-> --- linux.orig/mm/page_alloc.c	2009-07-10 11:36:07.000000000 +0800
-> +++ linux/mm/page_alloc.c	2009-07-13 09:25:21.000000000 +0800
-> @@ -475,6 +475,15 @@ static inline void __free_one_page(struc
->  		order++;
->  	}
->  	set_page_order(page, order);
-> +
-> +	if (order >= pageblock_order && migratetype != MIGRATE_MOVABLE) {
-> +		int i;
-> +
-> +		migratetype = MIGRATE_MOVABLE;
-> +		for (i = 0; i < (1 << (order - pageblock_order)); i++)
-> +			set_pageblock_migratetype(page +
-> +				i * pageblock_nr_pages, MIGRATE_MOVABLE);
-> +	}
->  	list_add(&page->lru,
->  		&zone->free_area[order].free_list[migratetype]);
->  	zone->free_area[order].nr_free++;
-> 
+> Are you sure this is not a compiler bug related to using version
+> gcc version 4.2.2-atmel.1.0.8
+> instead of using:
+> gcc version 4.2.2.atmel.1.1.3
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+The kernel and the application are compiled with 1.1.3, the rest of the 
+system should be too, not 100% sure though. I really think it is, would 
+have to double check.
+
+Thanks
+Guennadi
+---
+Guennadi Liakhovetski, Ph.D.
+Freelance Open-Source Software Developer
+http://www.open-technology.de/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
