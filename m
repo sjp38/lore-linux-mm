@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1D17E6B004F
-	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 22:48:26 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D38F2s010303
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 13 Jul 2009 12:08:15 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B3B145DE50
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:08:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CBB745DE4F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:08:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 329B2E08001
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:08:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E0FF41DB8040
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:08:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 283276B0055
+	for <linux-mm@kvack.org>; Sun, 12 Jul 2009 22:49:12 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6D3920w009772
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 13 Jul 2009 12:09:03 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BD74345DD75
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:09:02 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9F045DE5D
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:09:02 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 78FF2E38002
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:09:02 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F1032E38004
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 12:09:01 +0900 (JST)
+Date: Mon, 13 Jul 2009 12:07:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] switch free memory back to MIGRATE_MOVABLE
+Message-Id: <20090713120716.cd58a9f7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090713030444.GA2582@sli10-desk.sh.intel.com>
-References: <20090713115803.b78a4f4f.kamezawa.hiroyu@jp.fujitsu.com> <20090713030444.GA2582@sli10-desk.sh.intel.com>
-Message-Id: <20090713120549.6252.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+References: <20090713023030.GA27269@sli10-desk.sh.intel.com>
+	<20090713113326.624F.A69D9226@jp.fujitsu.com>
+	<20090713115803.b78a4f4f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090713030444.GA2582@sli10-desk.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Mon, 13 Jul 2009 12:08:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Shaohua Li <shaohua.li@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
+
+On Mon, 13 Jul 2009 11:04:44 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
 > On Mon, Jul 13, 2009 at 10:58:03AM +0800, KAMEZAWA Hiroyuki wrote:
 > > On Mon, 13 Jul 2009 11:47:46 +0900 (JST)
@@ -51,13 +57,12 @@ List-ID: <linux-mm.kvack.org>
 > something else when fallback occurs, but its type remains even the page gets
 > freed. When the page gets freed, its type actually can be switch back to movable,
 > this is what the patch does.
+> 
+Then, what is the benefits ? Changing this Movable here is better than fallback and
+find this chunk again in lazy way ?
 
-This answer is not actual answer.
-Why do you think __rmqueue_fallback() doesn't works well? Do you have
-any test-case or found a bug by review?
-
-
-
+Thanks,
+-Kame
 
 
 --
