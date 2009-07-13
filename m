@@ -1,155 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 437F96B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:00:08 -0400 (EDT)
-Message-ID: <4A5B7CC5.4030908@redhat.com>
-Date: Mon, 13 Jul 2009 21:28:21 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: KSM: current madvise rollup
-References: <Pine.LNX.4.64.0906291419440.5078@sister.anvils> <4A49E051.1080400@redhat.com> <Pine.LNX.4.64.0906301518370.967@sister.anvils> <4A4A5C56.5000109@redhat.com> <Pine.LNX.4.64.0907010057320.4255@sister.anvils> <4A4B317F.4050100@redhat.com> <Pine.LNX.4.64.0907082035400.10356@sister.anvils> <4A57C3D1.7000407@redhat.com> <Pine.LNX.4.64.0907111916001.30651@sister.anvils> <20090712002219.502540d2@woof.woof> <Pine.LNX.4.64.0907121459150.7417@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0907121459150.7417@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A7F756B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 14:52:26 -0400 (EDT)
+Date: Mon, 13 Jul 2009 12:16:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/13] Choose pages from the per cpu list-based on
+ migration type
+Message-Id: <20090713121628.bde62c65.akpm@linux-foundation.org>
+In-Reply-To: <20070910112151.3097.54726.sendpatchset@skynet.skynet.ie>
+References: <20070910112011.3097.8438.sendpatchset@skynet.skynet.ie>
+	<20070910112151.3097.54726.sendpatchset@skynet.skynet.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Sun, 12 Jul 2009, Izik Eidus wrote:
->   
->> On Sat, 11 Jul 2009 20:22:11 +0100 (BST)
->> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
->>     
->>> We may want to do that anyway.  It concerned me a lot when I was
->>> first testing (and often saw kernel_pages_allocated greater than
->>> pages_shared - probably because of the original KSM's eagerness to
->>> merge forked pages, though I think there may have been more to it
->>> than that).  But seems much less of an issue now (that ratio is much
->>> healthier), and even less of an issue once KSM pages can be swapped.
->>> So I'm not bothering about it at the moment, but it may make sense.
->>>       
+On Mon, 10 Sep 2007 12:21:51 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 >
-> I realized since writing that with the current statistics you really
-> cannot tell how big an issue the orphaned (count 1) KSM pages are -
-> good sharing of a few will completely hide non-sharing of many.
->
-> But I've hacked in more stats (not something I'd care to share yet!),
-> and those confirm that for my loads at least, the orphaned KSM pages
-> are few compared with the shared ones.
->
->   
->> We could add patch like the below, but I think we should leave it as it
->> is now,
->>     
->
-> I agree we should leave it as is for now.  My guess is that we'll
-> prefer to leave them around, until approaching max_kernel_pages_alloc,
-> pruning them only at that stage (rather as we free swap more aggressively
-> when it's 50% full).  There may be benefit in not removing them too soon,
-> there may be benefit in holding on to stable pages for longer (holding a
-> reference in the stable tree for a while).  Or maybe not, just an idea.
->   
 
-Well, I personaly dont see any real soultion to this problem without 
-real swapping support,
-So for now I dont mind not to deal with it at all (as long as the admin 
-can decide how many unswappable pages he allow)
-But, If you have a stronger opnion than me for that case, I really dont 
-care to change it.
+A somewhat belated review comment.
 
->   
->> and solve it all (like you have said) with the ksm pages
->> swapping support in next kernel release.
->> (Right now ksm can limit itself with max_kernel_pages_alloc)
->>
->> diff --git a/mm/ksm.c b/mm/ksm.c
->> index a0fbdb2..ee80861 100644
->> --- a/mm/ksm.c
->> +++ b/mm/ksm.c
->> @@ -1261,8 +1261,13 @@ static void ksm_do_scan(unsigned int scan_npages)
->>  		rmap_item = scan_get_next_rmap_item(&page);
->>  		if (!rmap_item)
->>  			return;
->> -		if (!PageKsm(page) || !in_stable_tree(rmap_item))
->> +		if (!PageKsm(page) || !in_stable_tree(rmap_item)) {
->>  			cmp_and_merge_page(page, rmap_item);
->> +		} else if (page_mapcount(page) == 0) {
->>     
+> The freelists for each migrate type can slowly become polluted due to the
+> per-cpu list.  Consider what happens when the following happens
+> 
+> 1. A 2^pageblock_order list is reserved for __GFP_MOVABLE pages
+> 2. An order-0 page is allocated from the newly reserved block
+> 3. The page is freed and placed on the per-cpu list
+> 4. alloc_page() is called with GFP_KERNEL as the gfp_mask
+> 5. The per-cpu list is used to satisfy the allocation
+> 
+> This results in a kernel page is in the middle of a migratable region. This
+> patch prevents this leak occuring by storing the MIGRATE_ type of the page in
+> page->private. On allocate, a page will only be returned of the desired type,
+> else more pages will be allocated. This may temporarily allow a per-cpu list
+> to go over the pcp->high limit but it'll be corrected on the next free. Care
+> is taken to preserve the hotness of pages recently freed.
 >
-> If we did that (but we agree not for now), shouldn't it be
-> 			   page_mapcount(page) == 1
-> ?  The mapcount 0 ones already got freed by the zap/unmap code.
->   
+> The additional code is not measurably slower for the workloads we've tested.
 
-Yea, I dont know what i thought when i compare it to zero..., 1 is the 
-right value here indeed.
+It sure looks slower.
 
->   
->> +			break_cow(rmap_item->mm,
->> +				  rmap_item->address & PAGE_MASK);
->>     
->
-> Just a note on that " & PAGE_MASK": it's unnecessary there and
-> almost everywhere else.  One of the pleasures of putting flags into
-> the bottom bits of the address, in code concerned with faulting, is
-> that the faulting address can be anywhere within the page, so we
-> don't have to bother to mask off the flags.
->
->   
->> +			remove_rmap_item_from_tree(rmap_item);
->> +		}
->>  		put_page(page);
->>  	}
->>  }
->>
->>     
->>> Oh, something that might be making it higher, that I didn't highlight
->>> (and can revert if you like, it was just more straightforward this
->>> way): with scan_get_next_rmap skipping the non-present ptes,
->>> pages_to_scan is currently a limit on the _present_ pages scanned in
->>> one batch.
->>>       
->> You mean that now when you say: pages_to_scan = 512, it wont count the
->> none present ptes as part of the counter, so if we have 500 not present
->> ptes in the begining and then 512 ptes later, before it used to call
->> cmp_and_merge_page() only for 12 pages while now it will get called on
->> 512 pages?
->>     
->
-> If I understand you right, yes, before it would do those 500 absent then
-> 512 present in two batches, first 512 (of which only 12 present) then 500;
-> whereas now it'll skip the 500 absent without counting them, and handle
-> the 512 present in that same one batch.
->
->   
->> If yes, then I liked this change, it is more logical from cpu
->> consumption point of view,
->>     
->
-> Yes, although it does spend a little time on the absent ones, it should
-> be much less time than it spends comparing or checksumming on present ones.
->   
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/page_alloc.c |   18 ++++++++++++++++--
+>  1 file changed, 16 insertions(+), 2 deletions(-)
+> 
+> diff -rup -X /usr/src/patchset-0.6/bin//dontdiff linux-2.6.23-rc5-004-split-the-free-lists-for-movable-and-unmovable-allocations/mm/page_alloc.c linux-2.6.23-rc5-005-choose-pages-from-the-per-cpu-list-based-on-migration-type/mm/page_alloc.c
+> --- linux-2.6.23-rc5-004-split-the-free-lists-for-movable-and-unmovable-allocations/mm/page_alloc.c	2007-09-02 16:19:34.000000000 +0100
+> +++ linux-2.6.23-rc5-005-choose-pages-from-the-per-cpu-list-based-on-migration-type/mm/page_alloc.c	2007-09-02 16:20:09.000000000 +0100
+> @@ -757,7 +757,8 @@ static int rmqueue_bulk(struct zone *zon
+>  		struct page *page = __rmqueue(zone, order, migratetype);
+>  		if (unlikely(page == NULL))
+>  			break;
+> -		list_add_tail(&page->lru, list);
+> +		list_add(&page->lru, list);
+> +		set_page_private(page, migratetype);
+>  	}
+>  	spin_unlock(&zone->lock);
+>  	return i;
+> @@ -884,6 +885,7 @@ static void fastcall free_hot_cold_page(
+>  	local_irq_save(flags);
+>  	__count_vm_event(PGFREE);
+>  	list_add(&page->lru, &pcp->list);
+> +	set_page_private(page, get_pageblock_migratetype(page));
+>  	pcp->count++;
+>  	if (pcp->count >= pcp->high) {
+>  		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+> @@ -948,7 +950,19 @@ again:
+>  			if (unlikely(!pcp->count))
+>  				goto failed;
+>  		}
+> -		page = list_entry(pcp->list.next, struct page, lru);
+> +
+> +		/* Find a page of the appropriate migrate type */
+> +		list_for_each_entry(page, &pcp->list, lru)
+> +			if (page_private(page) == migratetype)
+> +				break;
 
-Yea, compare to the other stuff it is minor...
+We're doing a linear search through the per-cpu magaznines right there
+in the page allocator hot path.  Even if the search matches the first
+element, the setup costs will matter.
 
->   
->> and in addition we have that cond_reched()
->> so I dont see a problem with this.
->>     
->
-> Right, that cond_resched() is vital in this case.
->
-> By the way, something else I didn't highlight, a significant benefit
-> from avoiding get_user_pages(): that was doing a mark_page_accessed()
-> on every present pte that it found, interfering with pageout decisions.
->   
+Surely we can make this search go away with a better choice of data
+structures?
 
-That is a great value, i didn't even thought about that...
 
-> Hugh
->   
+> +		/* Allocate more to the pcp list if necessary */
+> +		if (unlikely(&page->lru == &pcp->list)) {
+> +			pcp->count += rmqueue_bulk(zone, 0,
+> +					pcp->batch, &pcp->list, migratetype);
+> +			page = list_entry(pcp->list.next, struct page, lru);
+> +		}
+> +
+>  		list_del(&page->lru);
+>  		pcp->count--;
+>  	} else {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
