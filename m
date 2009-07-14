@@ -1,127 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C635B6B004F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 06:24:38 -0400 (EDT)
-Date: Tue, 14 Jul 2009 13:57:11 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@mail.by>
-Subject: Re: kmemleak hexdump proposal
-Message-ID: <20090714105709.GB2929@localdomain.by>
-References: <20090629201014.GA5414@localdomain.by>
- <1247566033.28240.46.camel@pc1117.cambridge.arm.com>
- <20090714103356.GA2929@localdomain.by>
- <1247567641.28240.51.camel@pc1117.cambridge.arm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D13886B004F
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 07:21:13 -0400 (EDT)
+Received: by pxi13 with SMTP id 13so1534218pxi.12
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 04:51:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="i9LlY+UWpKt15+FH"
-Content-Disposition: inline
-In-Reply-To: <1247567641.28240.51.camel@pc1117.cambridge.arm.com>
+In-Reply-To: <20090714093718.GB28569@csn.ul.ie>
+References: <alpine.LFD.2.00.0907140244220.25576@casper.infradead.org>
+	 <20090714093718.GB28569@csn.ul.ie>
+Date: Tue, 14 Jul 2009 23:51:59 +1200
+Message-ID: <202cde0e0907140451h14ecb494xe7a8e7d9c235d538@mail.gmail.com>
+Subject: Re: [RFC][PATCH 1/2] HugeTLB mapping for drivers (Alloc/free for
+	drivers, hstate_nores)
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
---i9LlY+UWpKt15+FH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On (07/14/09 11:34), Catalin Marinas wrote:
-> On Tue, 2009-07-14 at 13:33 +0300, Sergey Senozhatsky wrote:
-> > On (07/14/09 11:07), Catalin Marinas wrote:
-> > Am I understand correct that no way for user to on/off hexdump?
-> > /* no need for atomic_t kmemleak_hex_dump */
->=20
-> Yes. Two lines aren't really too much so we can always have them
-> displayed.
+> Ok, this makes me raise an eyebrow immediately. Things to watch out for
+> are
 >
-Agree.
+> o allocations made by the driver that are not faulted immediately can
+> =C2=A0potentially fail at fault time if reservations are not made
+> o allocations that ignore the userspace reservations and allocate huge
+> =C2=A0pages from the pool potentially cause application failure later
 
+Indeed.
+>
+> You deal with the latter but the former will depend on how the driver is
+> implemented.
+>
+>> This is different to prototype. Why it is implemented? HugetlbFs and
+>> drivers reservations has completely different sources of reservations.
+>> In hugetlbfs case it is dictated by users. So it is necessary to bother
+>> about restrictions/ quotas etc.
+>
+> The reservations in the hugetlbfs case are about stability. If hugepages
+> were not reserved or allocated at mmap() time, a failure to allocate a
+> page at fault time will force-kill the application. Be careful that
+> drivers really are immune from the same problem.
+>
+Dirvers must care about cases when there is no memory. For example failure
+to allocate DMA buffer in device driver usually means inaccessible
+device. It is
+normal to expect module insert failure (or failure of all further
+requests) in this case.
+Usually applications have information about size of DMA buffer.
+If an application requested memory which is out of range it will be
+fine to terminate the application, but kernel mustn't fall to panic.
+(Oneof test case - will check around it)
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 5aabd41..f7b74ac 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -161,6 +161,15 @@ struct kmemleak_object {
- /* flag set on newly allocated objects */
- #define OBJECT_NEW		(1 << 3)
-=20
-+/* number of bytes to print per line; must be 16 or 32 */
-+#define HEX_ROW_SIZE		16
-+/* number of bytes to print at a time (1, 2, 4, 8) */
-+#define HEX_GROUP_SIZE		1
-+/* include ASCII after the hex output */
-+#define HEX_ASCII		1
-+/* max number of lines to be printed */
-+#define HEX_MAX_LINES		2
-+
- /* the list of all allocated objects */
- static LIST_HEAD(object_list);
- /* the list of gray-colored objects (see color_gray comment below) */
-@@ -254,6 +263,35 @@ static void kmemleak_disable(void);
- 	kmemleak_disable();		\
- } while (0)
-=20
-+
-+/*
-+ * Printing of the objects hex dump to the seq file. The number on lines
-+ * to be printed is limited to HEX_MAX_LINES to prevent seq file spamming.
-+ * The actual number of printed bytes depends on HEX_ROW_SIZE.
-+ * It must be called with the object->lock held.
-+ */
-+static void hex_dump_object(struct seq_file *seq,
-+				struct kmemleak_object *object)
-+{
-+	const u8 *ptr =3D (const u8 *)object->pointer;
-+	/* Limit the number of lines to HEX_MAX_LINES. */
-+	int len =3D min(object->size, (size_t)(HEX_MAX_LINES * HEX_ROW_SIZE));
-+	int i, remaining =3D len;
-+	unsigned char linebuf[200];
-+
-+	seq_printf(seq, "  hex dump (first %d bytes):\n", len);
-+
-+	for (i =3D 0; i < len; i +=3D HEX_ROW_SIZE) {
-+		int linelen =3D min(remaining, HEX_ROW_SIZE);
-+		remaining -=3D HEX_ROW_SIZE;
-+		hex_dump_to_buffer(ptr + i, linelen, HEX_ROW_SIZE,
-+						   HEX_GROUP_SIZE, linebuf,
-+						   sizeof(linebuf), HEX_ASCII);
-+
-+		seq_printf(seq, "    %s\n", linebuf);
-+	}
-+}
-+
- /*
-  * Object colors, encoded with count and min_count:
-  * - white - orphan object, not enough references to it (count < min_count)
-@@ -304,6 +342,9 @@ static void print_unreferenced(struct seq_file *seq,
- 		   object->pointer, object->size);
- 	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
- 		   object->comm, object->pid, object->jiffies);
-+
-+	hex_dump_object(seq, object);
-+
- 	seq_printf(seq, "  backtrace:\n");
-=20
- 	for (i =3D 0; i < object->trace_len; i++) {
+>> In driver case it is dictated by HW. In thius case it is necessary invol=
+ve user
+>> in tuning process as less as possible.
+>> If we would use HugeTlbFs reservations - we would need to force user to
+>> supply how much huge pages needs to be reserved for drivers.
+>> To protect drivers to interract with htlbfs reservations the state hstat=
+e_nores was
+>> introduced.
+>
+> What does nores mean?
+>
+nores means no reservation. I.e. if we are in this stage it tells
+hugetlb.c functions to
+behave as VM_NORESERVE flag is specified.
+Initially name was hstate_drv. (but it sounds not so good as well )
 
+>> Reservations with a state hstate_nores should not touch htlb
+>> pools.
+>>
+>
+> Ok, that's good, but you still need to be careful in the event you setup
+> a mapping that doesn't have associated hugepages allocated.
+>
+Who setup mapping driver or application?
+If driver - it will be rather hard to said what we should do in this
+case. I would
+prefer to see panic because it means driver did something nasty.
 
---i9LlY+UWpKt15+FH
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
+>> +void hugetlb_free_pages(struct page *page)
+>> +{
+>
+> This name is too general. There is nothing to indicate that it is only
+> used by drivers.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
+Acked.
+Need to think more about good naming. I will discuss it with
+colleagues. It is hard to
+choose something good now.
 
-iJwEAQECAAYFAkpcZIUACgkQfKHnntdSXjQqDwP+OLAZ3uj0XluD6A5BUFoKSSS+
-xNNMsNNKlS2cwxVlAdVGmBoUBUOmD2Sq+FksMDyZdRnG2TL5LcUokfcL//LbSo8h
-hOIssNyv9URqV4PaMIR45E40DBk/rOrz9w6CNCVi8PxeGc5nZjponrwZJq2PCzUg
-06KxkqiQ9W215baNQDg=
-=PwYQ
------END PGP SIGNATURE-----
+>
+>> + =C2=A0 =C2=A0 int i;
+>> + =C2=A0 =C2=A0 struct hstate *h =3D &hstate_nores;
+>> +
+>> + =C2=A0 =C2=A0 VM_BUG_ON(h->order >=3D MAX_ORDER);
+>> +
+>
+> This is a perfectly possible condition for you unfortunately in the curre=
+nt
+> initialisation of hstate_nores. Nothing stops the default hugepage size b=
+eing
+> set to 1G or 16G on machines that wanted that pagesize used for shared me=
+mory
+> segments. On such configurations, you should either be failing the alloca=
+tion
+> or having hstate_nores use a smaller hugepage size.
+>
+Ahhhh! I did not expect this. So it is necessary to be very accurate
+when choosing parameters
+of hstate_nores. Thanks a lot for pointing to this.
 
---i9LlY+UWpKt15+FH--
+>> + =C2=A0 =C2=A0 for (i =3D 0; i < pages_per_huge_page(h); i++) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page[i].flags &=3D ~(1 << PG=
+_locked | 1 << PG_error |
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+1 << PG_referenced | 1 << PG_dirty | 1 << PG_active |
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+1 << PG_reserved | 1 << PG_private | 1 << PG_writeback);
+>> + =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 set_compound_page_dtor(page, NULL);
+>> + =C2=A0 =C2=A0 set_page_refcounted(page);
+>> + =C2=A0 =C2=A0 arch_release_hugepage(page);
+>> + =C2=A0 =C2=A0 __free_pages(page, huge_page_order(h));
+>> +}
+>> +EXPORT_SYMBOL(hugetlb_free_pages);
+>
+> You need to reuse update_and_free_page() somehow here by splitting the
+> accounting portion from the page free portion. I know this is a
+> prototype but at least comment that it's copied from
+> update_and_free_page() for anyone else looking to review this that is
+> not familiar with hugetlbfs.
+>
+Acked. Thanks. Will be updated.
+>> +
+>> =C2=A0/* Put bootmem huge pages into the standard lists after mem_map is=
+ up */
+>> =C2=A0static void __init gather_bootmem_prealloc(void)
+>> =C2=A0{
+>> @@ -1078,7 +1123,13 @@ static void __init hugetlb_init_hstates(
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (h->order < MAX_ORDE=
+R)
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 hugetlb_hstate_alloc_pages(h);
+>> =C2=A0 =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 /* Special hstate for use of drivers, allocations are no=
+t
+>> + =C2=A0 =C2=A0 =C2=A0* tracked by hugetlbfs */
+>
+> The term "tracked" doesn't really say anything. How about something
+> like;
+>
+> /*
+> =C2=A0* hstate_nores is used by drivers. Allocations are immediate,
+> =C2=A0* there is no hugepage pool and there are no reservations made
+> =C2=A0*/
+>
+Immediate sounds better. Seems naming needs to be tuned more. I'll ask
+colleagues
+to help here.
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
