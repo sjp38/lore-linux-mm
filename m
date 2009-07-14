@@ -1,157 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2C3D36B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 21:20:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6E1lX73006427
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 14 Jul 2009 10:47:33 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DEA1845DE61
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 10:47:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B16DE45DE4F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 10:47:32 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 905481DB803C
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 10:47:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B1E61DB8040
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 10:47:32 +0900 (JST)
-Date: Tue, 14 Jul 2009 10:45:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Resource usage threshold notification addition to
- res_counter (v3)
-Message-Id: <20090714104543.c7e7fe32.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4A5BDF5D.8090306@embeddedalley.com>
-References: <1246998310-16764-1-git-send-email-vbuzov@embeddedalley.com>
-	<1247530581-31416-1-git-send-email-vbuzov@embeddedalley.com>
-	<1247530581-31416-2-git-send-email-vbuzov@embeddedalley.com>
-	<20090714093022.6e8c1cc0.kamezawa.hiroyu@jp.fujitsu.com>
-	<4A5BDF5D.8090306@embeddedalley.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA0E6B0055
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 21:20:36 -0400 (EDT)
+Date: Tue, 14 Jul 2009 02:47:57 +0100 (BST)
+From: Alexey Korolev <akorolev@infradead.org>
+Subject: [RFC][PATCH 1/2] HugeTLB mapping for drivers (Alloc/free for drivers,
+ hstate_nores)
+Message-ID: <alpine.LFD.2.00.0907140244220.25576@casper.infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Vladislav D. Buzov" <vbuzov@embeddedalley.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Containers Mailing List <containers@lists.linux-foundation.org>, Linux memory management list <linux-mm@kvack.org>, Dan Malek <dan@embeddedalley.com>, Andrew Morton <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: mel@csn.ul.ie, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Jul 2009 18:29:01 -0700
-"Vladislav D. Buzov" <vbuzov@embeddedalley.com> wrote:
+This patch provides interface  functions for allocating/dealocating of
+hugepages for use of device drivers. The main difference from
+alloc_buddy_huge_page is related to using of special hstate which does not
+interact with hugetlbfs reservations.
+This is different to prototype. Why it is implemented? HugetlbFs and
+drivers reservations has completely different sources of reservations. 
+In hugetlbfs case it is dictated by users. So it is necessary to bother
+about restrictions/ quotas etc.
+In driver case it is dictated by HW. In thius case it is necessary involve user 
+in tuning process as less as possible. 
+If we would use HugeTlbFs reservations - we would need to force user to
+supply how much huge pages needs to be reserved for drivers.
+To protect drivers to interract with htlbfs reservations the state hstate_nores was 
+introduced. Reservations with a state hstate_nores should not touch htlb
+pools.
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Mon, 13 Jul 2009 17:16:20 -0700
-> > Vladislav Buzov <vbuzov@embeddedalley.com> wrote:
-> >
-> >   
-> >> This patch updates the Resource Counter to add a configurable resource usage
-> >> threshold notification mechanism.
-> >>
-> >> Signed-off-by: Vladislav Buzov <vbuzov@embeddedalley.com>
-> >> Signed-off-by: Dan Malek <dan@embeddedalley.com>
-> >> ---
-> >>  Documentation/cgroups/resource_counter.txt |   21 ++++++++-
-> >>  include/linux/res_counter.h                |   69 ++++++++++++++++++++++++++++
-> >>  kernel/res_counter.c                       |    7 +++
-> >>  3 files changed, 95 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
-> >> index 95b24d7..1369dff 100644
-> >> --- a/Documentation/cgroups/resource_counter.txt
-> >> +++ b/Documentation/cgroups/resource_counter.txt
-> >> @@ -39,7 +39,20 @@ to work with it.
-> >>   	The failcnt stands for "failures counter". This is the number of
-> >>  	resource allocation attempts that failed.
-> >>  
-> >> - c. spinlock_t lock
-> >> + e. unsigned long long threshold
-> >> +
-> >> + 	The resource usage threshold to notify the resouce controller. This is
-> >> +	the minimal difference between the resource limit and current usage
-> >> +	to fire a notification.
-> >> +
-> >> + f. void (*threshold_notifier)(struct res_counter *counter)
-> >> +
-> >> +	The threshold notification callback installed by the resource
-> >> +	controller. Called when the usage reaches or exceeds the threshold.
-> >> +	Should be fast and not sleep because called when interrupts are
-> >> +	disabled.
-> >> +
-> >>     
-> >
-> > This interface isn't very useful..hard to use..can't you just return the result as
-> > "exceeds threshold" to the callers ?
-> >
-> > If I was you, I'll add following state to res_counter
-> >
-> > enum {
-> > 	RES_BELOW_THRESH,
-> > 	RES_OVER_THRESH,
-> > } res_state;
-> >
-> > struct res_counter {
-> > 	.....
-> > 	enum	res_state	state;
-> > }
-> >
-> > Then, caller does
-> > example)
-> > 	prev_state = res->state;
-> > 	res_counter_charge(res....)
-> > 	if (prev_state != res->state)
-> > 		do_xxxxx..
-> >
-> > notifier under spinlock is not usual interface. And if this is "notifier",
-> > something generic, notifier_call_chain should be used rather than original
-> > one, IIUC.
-> >
-> > So, avoiding to use "callback" is a way to go, I think.
-> >
-> >   
-> The reason of having this callback is to support the hierarchy, which
-> was the problem in previous implementation you pointed out.
-> 
-> When a new page charged we want to walk up the hierarchy and find all
-> the ancestors exceeding their thresholds and notify them. To avoid
-> walking up the hierarchy twice, I've expanded res_counter with "notifier
-> callback" called by res_counter_charge() for each res_counter in the
-> tree which exceeds the limit.
-> 
-> In the example above, the hierarchy is not supported. We know only state
-> of the res_counter/memcg which current thread belongs to.
-> 
-How heavy res_coutner can be ? ;) plz don't check at "every charge", use some
-filter.
+Note: Introduced interface functions have some elements of common code.
+I did not bother about duplications as it is an early revision. 
 
-plz discuss with Balbir. His softlimit adds something similar. And I don't think
-both are elegant.
+P/S: In patch description I forgot to mention where it make sence to have
+htlb mapping for drivers:
+HD video capture/frame buffer (LFB)
+Plenty of different data acquisition systems(logic analyzers, DSO, packet capture)
+Probably RDMA (Infiniband)
 
-I'll consider more (of course, I may not be able to find any..) and rewrite the
-whole thing if I have a chance.
+hugetlb.c |   53 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+1 file changed, 52 insertions(+), 1 deletion(-)
 
-Briefly thinking, it's not very bad to have following interface.
-
-==
-/*
- * This function is for checking all ancestors's state. Each ancestors are
- * pased to check_function() ony be one until res->parent is not NULL.
- */
-void res_counter_callback(struct res_counter *res, int (*check_function)())
-{
-	do {
-		if ((*check_function)(res))
-			break;
-		res = res->parent;
-	} while (res);
-}
-==
-Calling this once per 1000 charges or once per sec will not be very bad. And we can
-keep res_counter simple. If you want some trigger, you can add something as
-you like.
-
-Thanks,
--Kame
+Signed-off-by: Alexey Korolev <akorolev@infradead.org>
+---
+diff -aurp ORIG/mm/hugetlb.c NEW/mm/hugetlb.c
+--- ORIG/mm/hugetlb.c	2009-07-05 05:58:48.000000000 +1200
++++ NEW/mm/hugetlb.c	2009-07-13 18:38:45.000000000 +1200
+@@ -33,6 +33,7 @@ unsigned long hugepages_treat_as_movable
+ static int max_hstate;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
++struct hstate hstate_nores;
+ 
+ __initdata LIST_HEAD(huge_boot_pages);
+ 
+@@ -1040,6 +1041,50 @@ static void prep_compound_huge_page(stru
+ 		prep_compound_page(page, order);
+ }
+ 
++/*
++ * hugetlb_alloc_pages_node - Allocate a single huge page for use with a driver
++ * @nid: The node to allocate memory on
++ * @gfp_mask: GFP flags for the allocation
++ * This function is intended for use by device drivers that want to
++ * back regions of memory with huge pages that will be later mapped to
++ * userspace. This is done outside of hugetlbfs and pages are allocated
++ * directly from the buddy allocator. It doesn't interact with hugetlbfs
++ * reservations.
++ */
++struct page *hugetlb_alloc_pages_node(int nid, gfp_t gfp_mask)
++{
++	struct page *page;
++	struct hstate *h = &hstate_nores;
++
++	page = alloc_pages_exact_node(nid, gfp_mask|__GFP_COMP,
++					huge_page_order(h));
++	if (page && arch_prepare_hugepage(page)) {
++		__free_pages(page, huge_page_order(h));
++		return NULL;
++	}
++	return page;
++}
++EXPORT_SYMBOL(hugetlb_alloc_pages_node);
++
++void hugetlb_free_pages(struct page *page)
++{
++	int i;
++	struct hstate *h = &hstate_nores;
++
++	VM_BUG_ON(h->order >= MAX_ORDER);
++
++	for (i = 0; i < pages_per_huge_page(h); i++) {
++		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
++			1 << PG_referenced | 1 << PG_dirty | 1 << PG_active |
++			1 << PG_reserved | 1 << PG_private | 1 << PG_writeback);
++	}
++	set_compound_page_dtor(page, NULL);
++	set_page_refcounted(page);
++	arch_release_hugepage(page);
++	__free_pages(page, huge_page_order(h));
++}
++EXPORT_SYMBOL(hugetlb_free_pages);
++
+ /* Put bootmem huge pages into the standard lists after mem_map is up */
+ static void __init gather_bootmem_prealloc(void)
+ {
+@@ -1078,7 +1123,13 @@ static void __init hugetlb_init_hstates(
+ 		if (h->order < MAX_ORDER)
+ 			hugetlb_hstate_alloc_pages(h);
+ 	}
++	/* Special hstate for use of drivers, allocations are not
++	 * tracked by hugetlbfs */
++	hstate_nores.order = default_hstate.order;
++	hstate_nores.mask = default_hstate.mask;
++
+ }
++EXPORT_SYMBOL(hstate_nores);
+ 
+ static char * __init memfmt(char *buf, unsigned long n)
+ {
+@@ -2309,7 +2360,7 @@ int hugetlb_reserve_pages(struct inode *
+ 	 * attempt will be made for VM_NORESERVE to allocate a page
+ 	 * and filesystem quota without using reserves
+ 	 */
+-	if (acctflag & VM_NORESERVE)
++	if ((acctflag & VM_NORESERVE) || (h == &hstate_nores))
+ 		return 0;
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
