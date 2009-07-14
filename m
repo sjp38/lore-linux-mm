@@ -1,185 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AA2EB6B005D
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 21:40:18 -0400 (EDT)
-Date: Tue, 14 Jul 2009 03:07:47 +0100 (BST)
-From: Alexey Korolev <akorolev@infradead.org>
-Subject: HugeTLB mapping for drivers (sample driver)
-Message-ID: <alpine.LFD.2.00.0907140258100.25576@casper.infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C5E286B004F
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 23:42:24 -0400 (EDT)
+Received: from coyote.coyote.den ([72.65.71.44]) by vms173011.mailsrvcs.net
+ (Sun Java(tm) System Messaging Server 6.3-7.04 (built Sep 26 2008; 32bit))
+ with ESMTPA id <0KMR002LX7LE6020@vms173011.mailsrvcs.net> for
+ linux-mm@kvack.org; Mon, 13 Jul 2009 23:10:26 -0500 (CDT)
+From: Gene Heskett <gene.heskett@verizon.net>
+Subject: Re: OOM killer in 2.6.31-rc2
+Date: Tue, 14 Jul 2009 00:10:25 -0400
+References: <200907061056.00229.gene.heskett@verizon.net>
+ <200907110819.30337.gene.heskett@verizon.net> <20090712051441.GA7903@localhost>
+In-reply-to: <20090712051441.GA7903@localhost>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=iso-8859-1
+Content-transfer-encoding: 7bit
+Content-disposition: inline
+Message-id: <200907140010.25643.gene.heskett@verizon.net>
 Sender: owner-linux-mm@kvack.org
-To: mel@csn.ul.ie, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sunday 12 July 2009, Wu Fengguang wrote:
 
-This is a sample driver which provides huge page mapping to user space.
-It might be useful for understanding purposes.
+>> This 18 hours of uptime is a record by at least 3x what I've ever gotten
+>> from this bios before.  On the one hand I am pleased, on the other the
+>> lack of results so far has to be somewhat disappointing.
+>
+>Don't be in a hurry. Just enjoy the current good state until OOM revisits :)
 
-Here we defined file operations for device driver.
+Its been about 3d 10h of uptime now, and its been boringly stable.  Darn it.
 
-We must call htlbfs get_unmapped_area and hugetlbfs_file_mmap functions to
- done some HTLB mapping preparations. (If proposed approach is more 
-or less Ok, it will be more accurate to avoid hugetlbfs calls at all - and 
-substitute them with htlb functions). 
-Allocated page get assiciated with mapping via add_to_page_cache call in
-file->open.
+Memory usage ack to htop has about doubled (to 828 megs from 385 or so 
+originally), and its 24MB into swap, so I'd assume there is a small leak 
+somewhere.  At this rate it will take weeks to trigger this again.
 
----
-diff -Naurp empty/hpage_map.c hpage_map/hpage_map.c
---- empty/hpage_map.c	1970-01-01 12:00:00.000000000 +1200
-+++ hpage_map/hpage_map.c	2009-07-13 18:40:28.000000000 +1200
-@@ -0,0 +1,137 @@
-+#include <linux/module.h>
-+#include <linux/mm.h>
-+#include <linux/file.h>
-+#include <linux/pagemap.h>
-+#include <linux/hugetlb.h>
-+#include <linux/pagevec.h>
-+#include <linux/miscdevice.h>
-+
-+static void make_file_empty(struct file *file)
-+{
-+    struct address_space *mapping = file->f_mapping;
-+    struct pagevec pvec;
-+    pgoff_t next = 0;
-+    int i;
-+
-+    pagevec_init(&pvec, 0);
-+    while (1) {
-+	if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-+	    if (!next)
-+		break;
-+	    next = 0;
-+	    continue;
-+	}
-+
-+	for (i = 0; i < pagevec_count(&pvec); ++i) {
-+	    struct page *page = pvec.pages[i];
-+
-+	    lock_page(page);
-+	    if (page->index > next)
-+		next = page->index;
-+	    ++next;
-+	    remove_from_page_cache(page);
-+	    unlock_page(page);
-+	    hugetlb_free_pages(page);
-+	}
-+    }
-+    BUG_ON(mapping->nrpages);
-+}
-+
-+
-+static int hpage_map_mmap(struct file *file, struct vm_area_struct
-*vma)
-+{
-+	unsigned long idx;
-+	struct address_space *mapping;
-+	int ret = VM_FAULT_SIGBUS;
-+
-+	idx = vma->vm_pgoff >> huge_page_order(h);
-+	mapping = file->f_mapping;
-+	ret = hugetlbfs_file_mmap(file, vma);
-+
-+	return ret;
-+}
-+
-+
-+static unsigned long hpage_map_get_unmapped_area(struct file *file,
-+	unsigned long addr, unsigned long len, unsigned long pgoff,
-+	unsigned long flags)
-+{
-+	return hugetlb_get_unmapped_area(file, addr, len, pgoff, flags);
-+}
-+
-+static int hpage_map_open(struct inode * inode, struct file * file)
-+{
-+    struct page *page;
-+    int num_hpages = 10, cnt = 0;
-+    int ret = 0;
-+    
-+    /* Announce  hugetlb file mapping */
-+    mapping_set_hugetlb(file->f_mapping);
-+    
-+    for (cnt = 0; cnt < num_hpages; cnt++ ) {
-+	page = hugetlb_alloc_pages_node(0,GFP_KERNEL);
-+	if (IS_ERR(page)) {
-+	    ret = -PTR_ERR(page);
-+	    goto out_err;	
-+	}	
-+	ret = add_to_page_cache(page, file->f_mapping, cnt, GFP_KERNEL);
-+	if (ret) {
-+	    hugetlb_free_pages(page);
-+	    goto out_err;
-+	}
-+	SetPageUptodate(page);
-+	unlock_page(page);
-+    }
-+    return 0;
-+out_err:
-+    printk(KERN_ERR"%s : Error %d \n",__func__, ret);
-+    make_file_empty(file);
-+    return ret;
-+}
-+
-+
-+static int hpage_map_release(struct inode * inode, struct file * file)
-+{
-+    make_file_empty(file);
-+    return 0;
-+}
-+/*
-+ * The file operations for /dev/hpage_map
-+ */
-+static const struct file_operations hpage_map_fops = {
-+	.owner		= THIS_MODULE,
-+	.mmap		= hpage_map_mmap,
-+	.open 		= hpage_map_open,
-+	.release	= hpage_map_release,
-+	.get_unmapped_area	= hpage_map_get_unmapped_area,
-+};
-+
-+static struct miscdevice hpage_map_dev = {
-+	MISC_DYNAMIC_MINOR,
-+	"hpage_map",
-+	&hpage_map_fops
-+};
-+
-+static int __init
-+hpage_map_init(void)
-+{
-+	/* Create the device in the /sys/class/misc directory. */
-+	if (misc_register(&hpage_map_dev))
-+		return -EIO;
-+	return 0;
-+}
-+
-+module_init(hpage_map_init);
-+
-+static void __exit
-+hpage_map_exit(void)
-+{
-+	misc_deregister(&hpage_map_dev);
-+}
-+
-+module_exit(hpage_map_exit);
-+
-+MODULE_LICENSE("GPL");
-+MODULE_AUTHOR("Alexey Korolev");
-+MODULE_DESCRIPTION("Example of driver with hugetlb mapping");
-+MODULE_VERSION("1.0");
-diff -Naurp empty/Makefile hpage_map/Makefile
---- empty/Makefile	1970-01-01 12:00:00.000000000 +1200
-+++ hpage_map/Makefile	2009-07-13 18:31:27.000000000 +1200
-@@ -0,0 +1,7 @@
-+obj-m := hpage_map.o 
-+
-+KDIR  := /lib/modules/$(shell uname -r)/build
-+PWD   := $(shell pwd)
-+
-+default:
-+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+I've now built 2.6.31-rc3 with pretty much the same options re: memory, and 
+will probably reboot to it in the morning as its approaching the witching hour 
+here.  Any objections?
+
+>Thanks,
+>Fengguang
+
+-- 
+Cheers, Gene
+"There are four boxes to be used in defense of liberty:
+ soap, ballot, jury, and ammo. Please use in that order."
+-Ed Howdershelt (Author)
+The NRA is offering FREE Associate memberships to anyone who wants them.
+<https://www.nrahq.org/nrabonus/accept-membership.asp>
+
+Q:	Why haven't you graduated yet?
+A:	Well, Dad, I could have finished years ago, but I wanted
+	my dissertation to rhyme.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
