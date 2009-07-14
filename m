@@ -1,133 +1,278 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BA0E6B0055
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 21:20:36 -0400 (EDT)
-Date: Tue, 14 Jul 2009 02:47:57 +0100 (BST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A19E6B005D
+	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 21:22:50 -0400 (EDT)
+Date: Tue, 14 Jul 2009 02:50:13 +0100 (BST)
 From: Alexey Korolev <akorolev@infradead.org>
-Subject: [RFC][PATCH 1/2] HugeTLB mapping for drivers (Alloc/free for drivers,
- hstate_nores)
-Message-ID: <alpine.LFD.2.00.0907140244220.25576@casper.infradead.org>
+Subject: [RFC][PATCH 2/2] HugeTLB mapping for drivers (export functions/identification
+ of htlb mappings)
+Message-ID: <alpine.LFD.2.00.0907140249240.25576@casper.infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: mel@csn.ul.ie, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch provides interface  functions for allocating/dealocating of
-hugepages for use of device drivers. The main difference from
-alloc_buddy_huge_page is related to using of special hstate which does not
-interact with hugetlbfs reservations.
-This is different to prototype. Why it is implemented? HugetlbFs and
-drivers reservations has completely different sources of reservations. 
-In hugetlbfs case it is dictated by users. So it is necessary to bother
-about restrictions/ quotas etc.
-In driver case it is dictated by HW. In thius case it is necessary involve user 
-in tuning process as less as possible. 
-If we would use HugeTlbFs reservations - we would need to force user to
-supply how much huge pages needs to be reserved for drivers.
-To protect drivers to interract with htlbfs reservations the state hstate_nores was 
-introduced. Reservations with a state hstate_nores should not touch htlb
-pools.
+This patch changes the procedures of htlb file identification. 
+Since we can have non htlbfs files with htlb mapping we need to have
+another approach for identification if mapping is hugetlb or not. 
+This part is rather doubtful. Just checking of file operations seems
+to be a bad approach as drivers (as well as ipc/shm) need have own
+file_operations. The best place for identification of hugetlb mappings could be 
+maping->flags. But I'm still not sure if it is the best place. 
 
-Note: Introduced interface functions have some elements of common code.
-I did not bother about duplications as it is an early revision. 
+This patch slightly modifies the procedure of getting hstate from inode.
+If inode correspond to hugetlbfs - the hugetlbfs hstate will be
+returned, otherwise hstate_nores.
 
-P/S: In patch description I forgot to mention where it make sence to have
-htlb mapping for drivers:
-HD video capture/frame buffer (LFB)
-Plenty of different data acquisition systems(logic analyzers, DSO, packet capture)
-Probably RDMA (Infiniband)
+Also this patch exports/declares some hugetlb/htlbfs functions for use of drivers.
 
-hugetlb.c |   53 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
-1 file changed, 52 insertions(+), 1 deletion(-)
-
-Signed-off-by: Alexey Korolev <akorolev@infradead.org>
+ fs/hugetlbfs/inode.c    |    9 +++++----
+ include/linux/hugetlb.h |   45 +++++++++++++++++++++++++++------------------
+ include/linux/pagemap.h |   13 +++++++++++++
+ include/linux/shm.h     |    5 -----
+ ipc/shm.c               |   12 ------------
+ mm/filemap.c            |    1 +
+ 6 files changed, 46 insertions(+), 39 deletions(-)
 ---
-diff -aurp ORIG/mm/hugetlb.c NEW/mm/hugetlb.c
---- ORIG/mm/hugetlb.c	2009-07-05 05:58:48.000000000 +1200
-+++ NEW/mm/hugetlb.c	2009-07-13 18:38:45.000000000 +1200
-@@ -33,6 +33,7 @@ unsigned long hugepages_treat_as_movable
- static int max_hstate;
- unsigned int default_hstate_idx;
- struct hstate hstates[HUGE_MAX_HSTATE];
-+struct hstate hstate_nores;
+Signed-off-by: Alexey Korolev <akorolev@infradead.org>
+
+diff -aurp ORIG/fs/hugetlbfs/inode.c NEW/fs/hugetlbfs/inode.c
+--- ORIG/fs/hugetlbfs/inode.c	2009-07-05 05:58:48.000000000 +1200
++++ NEW/fs/hugetlbfs/inode.c	2009-07-11 10:23:00.000000000 +1200
+@@ -34,9 +34,6 @@
  
- __initdata LIST_HEAD(huge_boot_pages);
+ #include <asm/uaccess.h>
  
-@@ -1040,6 +1041,50 @@ static void prep_compound_huge_page(stru
- 		prep_compound_page(page, order);
+-/* some random number */
+-#define HUGETLBFS_MAGIC	0x958458f6
+-
+ static const struct super_operations hugetlbfs_ops;
+ static const struct address_space_operations hugetlbfs_aops;
+ const struct file_operations hugetlbfs_file_operations;
+@@ -77,7 +74,7 @@ static void huge_pagevec_release(struct 
+ 	pagevec_reinit(pvec);
  }
  
-+/*
-+ * hugetlb_alloc_pages_node - Allocate a single huge page for use with a driver
-+ * @nid: The node to allocate memory on
-+ * @gfp_mask: GFP flags for the allocation
-+ * This function is intended for use by device drivers that want to
-+ * back regions of memory with huge pages that will be later mapped to
-+ * userspace. This is done outside of hugetlbfs and pages are allocated
-+ * directly from the buddy allocator. It doesn't interact with hugetlbfs
-+ * reservations.
-+ */
-+struct page *hugetlb_alloc_pages_node(int nid, gfp_t gfp_mask)
-+{
-+	struct page *page;
-+	struct hstate *h = &hstate_nores;
-+
-+	page = alloc_pages_exact_node(nid, gfp_mask|__GFP_COMP,
-+					huge_page_order(h));
-+	if (page && arch_prepare_hugepage(page)) {
-+		__free_pages(page, huge_page_order(h));
-+		return NULL;
-+	}
-+	return page;
-+}
-+EXPORT_SYMBOL(hugetlb_alloc_pages_node);
-+
-+void hugetlb_free_pages(struct page *page)
-+{
-+	int i;
-+	struct hstate *h = &hstate_nores;
-+
-+	VM_BUG_ON(h->order >= MAX_ORDER);
-+
-+	for (i = 0; i < pages_per_huge_page(h); i++) {
-+		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
-+			1 << PG_referenced | 1 << PG_dirty | 1 << PG_active |
-+			1 << PG_reserved | 1 << PG_private | 1 << PG_writeback);
-+	}
-+	set_compound_page_dtor(page, NULL);
-+	set_page_refcounted(page);
-+	arch_release_hugepage(page);
-+	__free_pages(page, huge_page_order(h));
-+}
-+EXPORT_SYMBOL(hugetlb_free_pages);
-+
- /* Put bootmem huge pages into the standard lists after mem_map is up */
- static void __init gather_bootmem_prealloc(void)
+-static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
++int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
  {
-@@ -1078,7 +1123,13 @@ static void __init hugetlb_init_hstates(
- 		if (h->order < MAX_ORDER)
- 			hugetlb_hstate_alloc_pages(h);
+ 	struct inode *inode = file->f_path.dentry->d_inode;
+ 	loff_t len, vma_len;
+@@ -121,6 +118,7 @@ out:
+ 
+ 	return ret;
+ }
++EXPORT_SYMBOL(hugetlbfs_file_mmap);
+ 
+ /*
+  * Called under down_write(mmap_sem).
+@@ -183,6 +181,7 @@ full_search:
  	}
-+	/* Special hstate for use of drivers, allocations are not
-+	 * tracked by hugetlbfs */
-+	hstate_nores.order = default_hstate.order;
-+	hstate_nores.mask = default_hstate.mask;
-+
  }
-+EXPORT_SYMBOL(hstate_nores);
+ #endif
++EXPORT_SYMBOL(hugetlb_get_unmapped_area);
  
- static char * __init memfmt(char *buf, unsigned long n)
+ static int
+ hugetlbfs_read_actor(struct page *page, unsigned long offset,
+@@ -512,6 +511,7 @@ static struct inode *hugetlbfs_get_inode
+ 			init_special_inode(inode, mode, dev);
+ 			break;
+ 		case S_IFREG:
++			mapping_set_hugetlb(inode->i_mapping);
+ 			inode->i_op = &hugetlbfs_inode_operations;
+ 			inode->i_fop = &hugetlbfs_file_operations;
+ 			break;
+@@ -988,6 +988,7 @@ struct file *hugetlb_file_setup(const ch
+ 	if (!file)
+ 		goto out_dentry; /* inode is already attached */
+ 	ima_counts_get(file);
++	mapping_set_hugetlb(file->f_mapping);
+ 
+ 	return file;
+ 
+diff -aurp ORIG/include/linux/hugetlb.h NEW/include/linux/hugetlb.h
+--- ORIG/include/linux/hugetlb.h	2009-07-05 05:58:48.000000000 +1200
++++ NEW/include/linux/hugetlb.h	2009-07-13 06:58:00.000000000 +1200
+@@ -5,6 +5,9 @@
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+ 
++/* some random number */
++#define HUGETLBFS_MAGIC	0x958458f6
++
+ #include <linux/mempolicy.h>
+ #include <linux/shm.h>
+ #include <asm/tlbflush.h>
+@@ -61,6 +64,9 @@ int pud_huge(pud_t pmd);
+ void hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot);
+ 
++struct page *hugetlb_alloc_pages_node(int nid, gfp_t gfp_mask);
++void hugetlb_free_pages(struct page *page);
++
+ #else /* !CONFIG_HUGETLB_PAGE */
+ 
+ static inline int PageHuge(struct page *page)
+@@ -102,6 +108,10 @@ static inline void hugetlb_report_meminf
+ 
+ #define hugetlb_change_protection(vma, address, end, newprot)
+ 
++#define hugetlb_alloc_pages_node(nid, gfp_mask) 0
++#define hugetlb_free_pages(page) BUG();
++
++
+ #ifndef HPAGE_MASK
+ #define HPAGE_MASK	PAGE_MASK		/* Keep the compiler happy */
+ #define HPAGE_SIZE	PAGE_SIZE
+@@ -152,31 +162,26 @@ void hugetlb_put_quota(struct address_sp
+ 
+ static inline int is_file_hugepages(struct file *file)
  {
-@@ -2309,7 +2360,7 @@ int hugetlb_reserve_pages(struct inode *
- 	 * attempt will be made for VM_NORESERVE to allocate a page
- 	 * and filesystem quota without using reserves
- 	 */
--	if (acctflag & VM_NORESERVE)
-+	if ((acctflag & VM_NORESERVE) || (h == &hstate_nores))
- 		return 0;
+-	if (file->f_op == &hugetlbfs_file_operations)
+-		return 1;
+-	if (is_file_shm_hugepages(file))
+-		return 1;
+-
+-	return 0;
++	return mapping_hugetlb(file->f_mapping);
+ }
  
- 	/*
+-static inline void set_file_hugepages(struct file *file)
+-{
+-	file->f_op = &hugetlbfs_file_operations;
+-}
++int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma);
++
++unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
++			unsigned long len, unsigned long pgoff,
++			unsigned long flags);
++
+ #else /* !CONFIG_HUGETLBFS */
+ 
+ #define is_file_hugepages(file)			0
+-#define set_file_hugepages(file)		BUG()
+ #define hugetlb_file_setup(name,size,acctflag)	ERR_PTR(-ENOSYS)
+ 
++#define hugetlbfs_file_mmap(file, vma) (-ENOSYS)
++#define hugetlb_get_unmapped_area(file, addr, len, \
++		pgoff, flags) (-ENOSYS)
++
+ #endif /* !CONFIG_HUGETLBFS */
+ 
+-#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+-					unsigned long len, unsigned long pgoff,
+-					unsigned long flags);
+-#endif /* HAVE_ARCH_HUGETLB_UNMAPPED_AREA */
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+ 
+@@ -216,14 +221,18 @@ struct hstate *size_to_hstate(unsigned l
+ 
+ extern struct hstate hstates[HUGE_MAX_HSTATE];
+ extern unsigned int default_hstate_idx;
++extern struct hstate hstate_nores;
+ 
+ #define default_hstate (hstates[default_hstate_idx])
+ 
+ static inline struct hstate *hstate_inode(struct inode *i)
+ {
+ 	struct hugetlbfs_sb_info *hsb;
+-	hsb = HUGETLBFS_SB(i->i_sb);
+-	return hsb->hstate;
++	if (i->i_sb->s_magic == HUGETLBFS_MAGIC) {
++		hsb = HUGETLBFS_SB(i->i_sb);
++		return hsb->hstate;
++	}
++	return &hstate_nores;
+ }
+ 
+ static inline struct hstate *hstate_file(struct file *f)
+diff -aurp ORIG/include/linux/pagemap.h NEW/include/linux/pagemap.h
+--- ORIG/include/linux/pagemap.h	2009-07-05 05:58:48.000000000 +1200
++++ NEW/include/linux/pagemap.h	2009-07-11 08:29:00.000000000 +1200
+@@ -23,6 +23,7 @@ enum mapping_flags {
+ 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
+ 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
++	AS_HUGETLB	= __GFP_BITS_SHIFT + 4,	/* under HUGE TLB */
+ };
+ 
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+@@ -52,6 +53,18 @@ static inline int mapping_unevictable(st
+ 	return !!mapping;
+ }
+ 
++static inline void mapping_set_hugetlb(struct address_space *mapping)
++{
++	set_bit(AS_HUGETLB, &mapping->flags);
++}
++
++static inline int mapping_hugetlb(struct address_space *mapping)
++{
++	if (likely(mapping))
++		return test_bit(AS_HUGETLB, &mapping->flags);
++	return !!mapping;
++}
++
+ static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
+ {
+ 	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
+diff -aurp ORIG/include/linux/shm.h NEW/include/linux/shm.h
+--- ORIG/include/linux/shm.h	2009-07-05 05:58:48.000000000 +1200
++++ NEW/include/linux/shm.h	2009-07-11 08:29:00.000000000 +1200
+@@ -105,17 +105,12 @@ struct shmid_kernel /* private to the ke
+ 
+ #ifdef CONFIG_SYSVIPC
+ long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr);
+-extern int is_file_shm_hugepages(struct file *file);
+ #else
+ static inline long do_shmat(int shmid, char __user *shmaddr,
+ 				int shmflg, unsigned long *addr)
+ {
+ 	return -ENOSYS;
+ }
+-static inline int is_file_shm_hugepages(struct file *file)
+-{
+-	return 0;
+-}
+ #endif
+ 
+ #endif /* __KERNEL__ */
+diff -aurp ORIG/ipc/shm.c NEW/ipc/shm.c
+--- ORIG/ipc/shm.c	2009-07-05 05:58:48.000000000 +1200
++++ NEW/ipc/shm.c	2009-07-11 08:29:00.000000000 +1200
+@@ -293,18 +293,6 @@ static unsigned long shm_get_unmapped_ar
+ 	return get_unmapped_area(sfd->file, addr, len, pgoff, flags);
+ }
+ 
+-int is_file_shm_hugepages(struct file *file)
+-{
+-	int ret = 0;
+-
+-	if (file->f_op == &shm_file_operations) {
+-		struct shm_file_data *sfd;
+-		sfd = shm_file_data(file);
+-		ret = is_file_hugepages(sfd->file);
+-	}
+-	return ret;
+-}
+-
+ static const struct file_operations shm_file_operations = {
+ 	.mmap		= shm_mmap,
+ 	.fsync		= shm_fsync,
+diff -aurp ORIG/mm/filemap.c NEW/mm/filemap.c
+--- ORIG/mm/filemap.c	2009-07-05 05:58:48.000000000 +1200
++++ NEW/mm/filemap.c	2009-07-11 08:29:00.000000000 +1200
+@@ -146,6 +146,7 @@ void remove_from_page_cache(struct page 
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	mem_cgroup_uncharge_cache_page(page);
+ }
++EXPORT_SYMBOL(remove_from_page_cache);
+ 
+ static int sync_page(void *word)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
