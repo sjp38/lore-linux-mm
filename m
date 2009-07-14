@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D13886B004F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 07:21:13 -0400 (EDT)
-Received: by pxi13 with SMTP id 13so1534218pxi.12
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 04:51:59 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C19E96B004F
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 08:25:48 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id m16so456576waf.22
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 05:56:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090714093718.GB28569@csn.ul.ie>
-References: <alpine.LFD.2.00.0907140244220.25576@casper.infradead.org>
-	 <20090714093718.GB28569@csn.ul.ie>
-Date: Tue, 14 Jul 2009 23:51:59 +1200
-Message-ID: <202cde0e0907140451h14ecb494xe7a8e7d9c235d538@mail.gmail.com>
-Subject: Re: [RFC][PATCH 1/2] HugeTLB mapping for drivers (Alloc/free for
-	drivers, hstate_nores)
+In-Reply-To: <20090714100157.GC28569@csn.ul.ie>
+References: <alpine.LFD.2.00.0907140249240.25576@casper.infradead.org>
+	 <20090714100157.GC28569@csn.ul.ie>
+Date: Wed, 15 Jul 2009 00:56:56 +1200
+Message-ID: <202cde0e0907140556w4175039x5c01f812459c81c6@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/2] HugeTLB mapping for drivers (export
+	functions/identification of htlb mappings)
 From: Alexey Korolev <akorolex@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
@@ -20,149 +20,138 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> This needs to be explained better. What non-hugetlbfs file can have a
+> hugepage mapping? You might mean drivers but they don't exist at this
+> point so someone looking at the changelog in isolation might get
+> confused.
+>
+Right. I'll add more text explanations. We need to provide hugepage maping =
+for
+device nodes which are not the elements of hugetlbfs.
 
-> Ok, this makes me raise an eyebrow immediately. Things to watch out for
-> are
->
-> o allocations made by the driver that are not faulted immediately can
-> =C2=A0potentially fail at fault time if reservations are not made
-> o allocations that ignore the userspace reservations and allocate huge
-> =C2=A0pages from the pool potentially cause application failure later
-
-Indeed.
->
-> You deal with the latter but the former will depend on how the driver is
-> implemented.
->
->> This is different to prototype. Why it is implemented? HugetlbFs and
->> drivers reservations has completely different sources of reservations.
->> In hugetlbfs case it is dictated by users. So it is necessary to bother
->> about restrictions/ quotas etc.
->
-> The reservations in the hugetlbfs case are about stability. If hugepages
-> were not reserved or allocated at mmap() time, a failure to allocate a
-> page at fault time will force-kill the application. Be careful that
-> drivers really are immune from the same problem.
->
-Dirvers must care about cases when there is no memory. For example failure
-to allocate DMA buffer in device driver usually means inaccessible
-device. It is
-normal to expect module insert failure (or failure of all further
-requests) in this case.
-Usually applications have information about size of DMA buffer.
-If an application requested memory which is out of range it will be
-fine to terminate the application, but kernel mustn't fall to panic.
-(Oneof test case - will check around it)
-
->> In driver case it is dictated by HW. In thius case it is necessary invol=
-ve user
->> in tuning process as less as possible.
->> If we would use HugeTlbFs reservations - we would need to force user to
->> supply how much huge pages needs to be reserved for drivers.
->> To protect drivers to interract with htlbfs reservations the state hstat=
-e_nores was
->> introduced.
->
-> What does nores mean?
->
-nores means no reservation. I.e. if we are in this stage it tells
-hugetlb.c functions to
-behave as VM_NORESERVE flag is specified.
-Initially name was hstate_drv. (but it sounds not so good as well )
-
->> Reservations with a state hstate_nores should not touch htlb
->> pools.
+>> +EXPORT_SYMBOL(hugetlb_get_unmapped_area);
 >>
 >
-> Ok, that's good, but you still need to be careful in the event you setup
-> a mapping that doesn't have associated hugepages allocated.
->
-Who setup mapping driver or application?
-If driver - it will be rather hard to said what we should do in this
-case. I would
-prefer to see panic because it means driver did something nasty.
+> I think the patch that exports symbols from hugetlbfs needs to be a
+> separate patch explaining why they need to be exported for drivers to
+> take advantage of.
+Agree. It will be splited.
 
->> +void hugetlb_free_pages(struct page *page)
->> +{
->
-> This name is too general. There is nothing to indicate that it is only
-> used by drivers.
+>> =C2=A0 =C2=A0 =C2=A0 ima_counts_get(file);
+>> + =C2=A0 =C2=A0 mapping_set_hugetlb(file->f_mapping);
 
+> At a first reading, I was not getting why there needs to be a new way
+> of identifying if a mapping is hugetlbfs-backed or not. =C2=A0I get that =
+it's
+> because drivers will have file_operations that we cannot possibly know ab=
+out
+> in advance, particularly if they are loaded as modules but this really ne=
+eds
+> it's own patch and changelog spelling it out.
+
+Right! Indeed this should be a place of attention. We must identify that fi=
+le
+is hugepage to identify unaccunable_mapping before vma got created. Current=
+ly
+it is done for all files in hugetlbfs and there is a very special
+workaround for
+ipc/shm.c. If we have different drivers we workaround will not work
+for us. So we
+must find another approach to identify that file has very special
+(huge page) mapping.
+Currently I still in doubts if it is Ok to involve mapping flags or
+not, but I did not find any other
+option/marker to idenify that file has htlb mapping.
+
+> It also again raises the
+> question of why drivers would not use the internal hugetlbfs mount like
+> shm does.
+It is possible to use either ways. Unfortunately it is unclear which is bet=
+ter.
+If make something like shm does - driver code get much complicated and
+hardreadible.
+We need to export file operations structure. We need to do hack
+looking tricks with substitution of file->f_mapping.
+If make something like done in this patch - driver code get simplier.
+We need to export two file operations functions.
+Involving of which also looks inconsistent.
+Probably the best way would be - moving some functionality of
+hugetlb_get_unmapped_area and hugetlbfs_file_mmap out of hugetlbfs.
+And represent it as interface functions of hugetlb.c. In fact
+hugetlb_get_unmapped_area never need file argument. It only needs
+hstate to make addresses aligned and set up some architecture specific
+registers. For drivers we need very small part of hugetlbfs_file_mmap
+function as well.
+In this case we will have interfaces for drivers which are completely
+isolated from hugetlbfs.
+
+>> +struct page *hugetlb_alloc_pages_node(int nid, gfp_t gfp_mask);
+>> +void hugetlb_free_pages(struct page *page);
+>
+> This looks like it belongs in the previous patch.
+>
+>> +#define hugetlb_alloc_pages_node(nid, gfp_mask) 0
+>> +#define hugetlb_free_pages(page) BUG();
+>> +
+>> +
+>
+> Ditto and some unnecessary whitespace there.
+>
+Yep. Sorry. I had to split it up and clean.
+
+>
+> Having the new exports and the new method for identifying if a file or
+> mapping is hugetlbfs in the same patch does make this harder. I see
+> nothing wrong with the above changes as such but I'm hard-wired into
+> thinking that everything in a patch is directly related.
+>
 Acked.
-Need to think more about good naming. I will discuss it with
-colleagues. It is hard to
-choose something good now.
-
->
->> + =C2=A0 =C2=A0 int i;
->> + =C2=A0 =C2=A0 struct hstate *h =3D &hstate_nores;
->> +
->> + =C2=A0 =C2=A0 VM_BUG_ON(h->order >=3D MAX_ORDER);
->> +
->
-> This is a perfectly possible condition for you unfortunately in the curre=
-nt
-> initialisation of hstate_nores. Nothing stops the default hugepage size b=
-eing
-> set to 1G or 16G on machines that wanted that pagesize used for shared me=
-mory
-> segments. On such configurations, you should either be failing the alloca=
-tion
-> or having hstate_nores use a smaller hugepage size.
->
-Ahhhh! I did not expect this. So it is necessary to be very accurate
-when choosing parameters
-of hstate_nores. Thanks a lot for pointing to this.
-
->> + =C2=A0 =C2=A0 for (i =3D 0; i < pages_per_huge_page(h); i++) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page[i].flags &=3D ~(1 << PG=
-_locked | 1 << PG_error |
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-1 << PG_referenced | 1 << PG_dirty | 1 << PG_active |
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-1 << PG_reserved | 1 << PG_private | 1 << PG_writeback);
->> + =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0 set_compound_page_dtor(page, NULL);
->> + =C2=A0 =C2=A0 set_page_refcounted(page);
->> + =C2=A0 =C2=A0 arch_release_hugepage(page);
->> + =C2=A0 =C2=A0 __free_pages(page, huge_page_order(h));
->> +}
->> +EXPORT_SYMBOL(hugetlb_free_pages);
->
-> You need to reuse update_and_free_page() somehow here by splitting the
-> accounting portion from the page free portion. I know this is a
-> prototype but at least comment that it's copied from
-> update_and_free_page() for anyone else looking to review this that is
-> not familiar with hugetlbfs.
->
-Acked. Thanks. Will be updated.
->> +
->> =C2=A0/* Put bootmem huge pages into the standard lists after mem_map is=
- up */
->> =C2=A0static void __init gather_bootmem_prealloc(void)
+>> =C2=A0static inline struct hstate *hstate_inode(struct inode *i)
 >> =C2=A0{
->> @@ -1078,7 +1123,13 @@ static void __init hugetlb_init_hstates(
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (h->order < MAX_ORDE=
-R)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 hugetlb_hstate_alloc_pages(h);
->> =C2=A0 =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0 /* Special hstate for use of drivers, allocations are no=
-t
->> + =C2=A0 =C2=A0 =C2=A0* tracked by hugetlbfs */
+>> =C2=A0 =C2=A0 =C2=A0 struct hugetlbfs_sb_info *hsb;
+>> - =C2=A0 =C2=A0 hsb =3D HUGETLBFS_SB(i->i_sb);
+>> - =C2=A0 =C2=A0 return hsb->hstate;
+>> + =C2=A0 =C2=A0 if (i->i_sb->s_magic =3D=3D HUGETLBFS_MAGIC) {
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 hsb =3D HUGETLBFS_SB(i->i_sb=
+);
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return hsb->hstate;
+>> + =C2=A0 =C2=A0 }
+>> + =C2=A0 =C2=A0 return &hstate_nores;
 >
-> The term "tracked" doesn't really say anything. How about something
-> like;
+> This needs a comment and the changelog needs to spell out better that you=
+ are
+> expanding what hugetlbfs is. This chunk is basically saying that it's pos=
+sible
+> to have an inode that is backed by hugepages but that is not a hugetlbfs
+> file. Your changelog needs to explain why hugetlbfs files were not create=
+d
+> in the same way they are created for shared memory mappings on the intern=
+al
+> hugetlbfs mount. Maybe we discussed this before but I forget the reasonin=
+g.
+
+Yes. You are right. We did not discuss it before. It was one of the
+problem being
+faced during enbling Huge pages mapping for drivers. I've just
+explained in the beginning of
+this message.
+
+>> +static inline int mapping_hugetlb(struct address_space *mapping)
+>> +{
+>> + =C2=A0 =C2=A0 if (likely(mapping))
+>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return test_bit(AS_HUGETLB, =
+&mapping->flags);
+>> + =C2=A0 =C2=A0 return !!mapping;
+>> +}
 >
-> /*
-> =C2=A0* hstate_nores is used by drivers. Allocations are immediate,
-> =C2=A0* there is no hugepage pool and there are no reservations made
-> =C2=A0*/
->
-Immediate sounds better. Seems naming needs to be tuned more. I'll ask
-colleagues
-to help here.
+> That !!mapping looks a bit unnecessary. =C2=A0Why is !!NULL always going =
+to
+> evaluate to 0? =C2=A0I know it's copying from mapping_unevictable(), but =
+that
+> doesn't help me figure out why it looks like that.
+This construction stunned me for a while also :). The only reason why this
+construction could be used here is converting NULL to integer 0. IMHO
+the best is "return 0"
 
 Thanks,
 Alexey
