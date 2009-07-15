@@ -1,41 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C50B26B006A
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 15:55:47 -0400 (EDT)
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id n6FJtnSg024273
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 12:55:50 -0700
-Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
-	by zps35.corp.google.com with ESMTP id n6FJtk9C024383
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 12:55:47 -0700
-Received: by pxi6 with SMTP id 6so1218025pxi.29
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 12:55:45 -0700 (PDT)
-Date: Wed, 15 Jul 2009 12:55:42 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AA6206B004D
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 16:22:53 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id n6FKMuSg019367
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:22:57 -0700
+Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
+	by wpaz1.hot.corp.google.com with ESMTP id n6FKMsD9013954
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:22:54 -0700
+Received: by pzk2 with SMTP id 2so2964620pzk.23
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:22:54 -0700 (PDT)
+Date: Wed, 15 Jul 2009 13:22:51 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] page-allocator: Allow too high-order warning messages
- to be suppressed with __GFP_NOWARN
-In-Reply-To: <1247656992-19846-2-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.0907151255290.20452@chino.kir.corp.google.com>
-References: <1247656992-19846-1-git-send-email-mel@csn.ul.ie> <1247656992-19846-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: What to do with this message (2.6.30.1) ?
+In-Reply-To: <20090715114605.42a354c0.skraw@ithnet.com>
+Message-ID: <alpine.DEB.2.00.0907151321030.22582@chino.kir.corp.google.com>
+References: <20090713134621.124aa18e.skraw@ithnet.com> <4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com> <alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com> <20090715084754.36ff73bf.skraw@ithnet.com> <alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
+ <20090715114605.42a354c0.skraw@ithnet.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Heinz Diehl <htd@fancy-poultry.org>, David Miller <davem@davemloft.net>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Stephan von Krawczynski <skraw@ithnet.com>
+Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Jul 2009, Mel Gorman wrote:
+On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
 
-> The page allocator warns once when an order >= MAX_ORDER is specified.
-> This is to catch callers of the allocator that are always falling back
-> to their worst-case when it was not expected. However, there are cases
-> where the caller is behaving correctly but cannot suppress the warning.
-> This patch allows the warning to be suppressed by the callers by
-> specifying __GFP_NOWARN.
+> Ok, so I just found out that slabtop -o outputs a lot of ANSI code by
+> redirecting it, that output is merely unreadable. Can some kind soul please
+> tell the author that formatting ANSI output in -o option makes no sense at
+> all. top btw does not do this (top -b -n 1).
+> I will produce your logs, but you will have a hard time reading that trash ...
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Acked-by: David Rientjes <rientjes@google.com>
+This is fixed in the latest release of procps[*], so maybe you could 
+upgrade before generating the output?  If not, simply sending 
+/proc/slabinfo would be better.
+
+ [*] https://rhn.redhat.com/errata/RHBA-2009-0950.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
