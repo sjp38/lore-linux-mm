@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 266D66B0055
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 09:18:52 -0400 (EDT)
-Date: Wed, 15 Jul 2009 15:56:20 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC/PATCH] mm: Pass virtual address to [__]p{te,ud,md}_free_tlb()
-Message-ID: <20090715135620.GD7298@wotan.suse.de>
-References: <20090715074952.A36C7DDDB2@ozlabs.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090715074952.A36C7DDDB2@ozlabs.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 04CBE6B004F
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 09:52:44 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4668282C75E
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 10:51:32 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id RYU5VJMOPCHd for <linux-mm@kvack.org>;
+	Wed, 15 Jul 2009 10:51:32 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DFC0582C763
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 10:51:25 -0400 (EDT)
+Date: Wed, 15 Jul 2009 10:31:54 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set
+ V2
+In-Reply-To: <20090715125822.GB29749@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0907151027410.23643@gentwo.org>
+References: <20090715125822.GB29749@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 15, 2009 at 05:49:47PM +1000, Benjamin Herrenschmidt wrote:
-> Upcoming paches to support the new 64-bit "BookE" powerpc architecture
-> will need to have the virtual address corresponding to PTE page when
-> freeing it, due to the way the HW table walker works.
-> 
-> Basically, the TLB can be loaded with "large" pages that cover the whole
-> virtual space (well, sort-of, half of it actually) represented by a PTE
-> page, and which contain an "indirect" bit indicating that this TLB entry
-> RPN points to an array of PTEs from which the TLB can then create direct
-> entries.
+On Wed, 15 Jul 2009, Mel Gorman wrote:
 
-RPN is PFN in ppc speak, right?
+> -static inline int free_pages_check(struct page *page)
+> +static inline int free_pages_check(struct page *page, int wasMlocked)
+>  {
+> +	WARN_ONCE(wasMlocked, KERN_WARNING
+> +		"Page flag mlocked set for process %s at pfn:%05lx\n"
+> +		"page:%p flags:0x%lX\n",
+> +		current->comm, page_to_pfn(page),
+> +		page, page->flags|__PG_MLOCKED);
+> +
+>  	if (unlikely(page_mapcount(page) |
 
+There is already a free_page_mlocked() that is only called if the mlock
+bit is set. Move it into there to avoid having to run two checks in the
+hot codee path?
 
-> Thus, in order to invalidate those when PTE pages are deleted,
-> we need the virtual address to pass to tlbilx or tlbivax instructions.
-
-Interesting arrangement. So are these last level ptes modifieable
-from userspace or something? If not, I wonder if you could manage
-them as another level of pointers with the existing pagetable
-functions?
- 
-
-> The old trick of sticking it somewhere in the PTE page struct page sucks
-> too much, the address is almost readily available in all call sites and
-> almost everybody implemets these as macros, so we may as well add the
-> argument everywhere. I added it to the pmd and pud variants for consistency.
-> 
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> ---
-> 
-> I would like to merge the new support that depends on this in 2.6.32,
-> so unless there's major objections, I'd like this to go in early during
-> the merge window. We can sort out separately how to carry the patch
-> around in -next until then since the powerpc tree will have a dependency
-> on it.
-
-Can't see any problem with that.
+Also __free_pages_ok() now has a TestClearMlocked in the hot code path.
+Would it be possible to get rid of the unconditional use of an atomic
+operation? Just check the bit and clear it later in free_page_mlocked()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
