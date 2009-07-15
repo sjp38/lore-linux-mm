@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9AC086B004F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 19:04:00 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6ENcfEg031518
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 15 Jul 2009 08:38:41 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3190F45DE52
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 08:38:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 159EE45DE51
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 08:38:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EED1E1DB803A
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 08:38:40 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AA04E1DB803E
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 08:38:40 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] OOM analysis helper patch series v3
-In-Reply-To: <alpine.DEB.1.00.0907141141100.1598@mail.selltech.ca>
-References: <20090713144924.6257.A69D9226@jp.fujitsu.com> <alpine.DEB.1.00.0907141141100.1598@mail.selltech.ca>
-Message-Id: <20090715083815.252D.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 301D96B004F
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 19:28:00 -0400 (EDT)
+Received: by ey-out-1920.google.com with SMTP id 13so713450eye.44
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 17:02:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Tue, 14 Jul 2009 19:02:49 -0500
+Message-ID: <983c694e0907141702t39bebefdr4024720f0a6dc4e1@mail.gmail.com>
+Subject: __get_free_pages page count increment
+From: omar ramirez <or.rmz1@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Wed, 15 Jul 2009 08:38:39 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Li, Ming Chun" <macli@brc.ubc.ca>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 13 Jul 2009, KOSAKI Motohiro wrote:
-> 
-> > ChangeLog
-> >  Since v2
-> >    - Dropped "[4/5] add isolate pages vmstat" temporary because it become
-> >      slightly big. Then, I plan to submit it as another patchset.
-> >    - Rewrote many patch description (Thanks! Christoph)
-> >  Since v1
-> >    - Dropped "[5/5] add NR_ANON_PAGES to OOM log" patch
-> >    - Instead, introduce "[5/5] add shmem vmstat" patch
-> >    - Fixed unit bug (Thanks Minchan)
-> >    - Separated isolated vmstat to two field (Thanks Minchan and Wu)
-> >    - Fixed isolated page and lumpy reclaim issue (Thanks Minchan)
-> >    - Rewrote some patch description (Thanks Christoph)
-> > 
-> > This patch series are tested on 2.6.31-rc2 + mm-show_free_areas-display-slab-pages-in-two-separate-fields.patch
-> 
-> For your information, I tested the patches on 2.6.31-rc3 + 
-> mm-show_free_areas-display-slab-pages-in-two-separate-fields.patch. It is 
-> fine.
+Hi,
 
-Cute. thanks!
+I have been digging about __get_free_pages function, and wanted to now
+why only the first page reserved with this function increments the
+page count and for the other they are marked as 0.
 
+So here it is what I'm doing, I'm reserving a chunk of pages (using
+__get_free_pages) in a display driver, then I pass that through
+userspace to a dsp driver to decode a video file and return the buffer
+to display.
 
+The buffer is mapped in the dsp, which also follows the get_page
+approach but it goes page-by-page on the buffer, incrementing the page
+count for all of the pages (so now first page count from the buffer
+will be 2 <display, dsp>, but for the rest it will be 1 <dsp>).
+
+The issue comes once those pages are unmapped from the dsp driver,
+because it will do a page_cache_release on all the reserved pages
+(which leave the count as it was before, first page 1 <display> and
+the rest as 0).
+
+This will throw the BUG: bad page state error because the count is
+being marked as 0 for the process using that buffer.
+
+So my question is, is it ok that the page count is NOT incremented for
+all but first page of __get_free_pages?
+
+Thanks in advance,
+
+omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
