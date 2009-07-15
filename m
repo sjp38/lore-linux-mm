@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FD1B6B0062
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 06:44:40 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/3] net-dccp: Suppress warning about large allocations from DCCP
-Date: Wed, 15 Jul 2009 12:23:12 +0100
-Message-Id: <1247656992-19846-4-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1247656992-19846-1-git-send-email-mel@csn.ul.ie>
-References: <1247656992-19846-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 244256B004F
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 08:07:06 -0400 (EDT)
+Date: Wed, 15 Jul 2009 14:45:09 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set (resend)
+Message-ID: <20090715124509.GA1854@cmpxchg.org>
+References: <20090715104833.GB9267@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090715104833.GB9267@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Heinz Diehl <htd@fancy-poultry.org>, David Miller <davem@davemloft.net>, Arnaldo Carvalho de Melo <acme@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-The DCCP protocol tries to allocate some large hash tables during
-initialisation using the largest size possible.  This can be larger than
-what the page allocator can provide so it prints a warning. However, the
-caller is able to handle the situation so this patch suppresses the warning.
+Hello Mel,
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- net/dccp/proto.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+On Wed, Jul 15, 2009 at 11:48:34AM +0100, Mel Gorman wrote:
+> When a page is freed with the PG_mlocked set, it is considered an unexpected
+> but recoverable situation. A counter records how often this event happens
+> but it is easy to miss that this event has occured at all. This patch warns
+> once when PG_mlocked is set to prompt debuggers to check the counter to
+> see how often it is happening.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+>  mm/page_alloc.c |   16 ++++++++++++----
+>  1 file changed, 12 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index caa9268..f8902e7 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -495,8 +495,16 @@ static inline void free_page_mlock(struct page *page)
+>  static void free_page_mlock(struct page *page) { }
+>  #endif
+>  
+> -static inline int free_pages_check(struct page *page)
+> -{
+> +static inline int free_pages_check(struct page *page, int wasMlocked)
+> +{
+> +	if (unlikely(wasMlocked)) {
+> +		WARN_ONCE(1, KERN_WARNING
+> +			"Page flag mlocked set for process %s at pfn:%05lx\n"
+> +			"page:%p flags:0x%lX\n",
+> +			current->comm, page_to_pfn(page),
+> +			page, page->flags|__PG_MLOCKED);
 
-diff --git a/net/dccp/proto.c b/net/dccp/proto.c
-index 94ca8ea..3281013 100644
---- a/net/dccp/proto.c
-+++ b/net/dccp/proto.c
-@@ -1066,7 +1066,7 @@ static int __init dccp_init(void)
- 		       (dccp_hashinfo.ehash_size - 1))
- 			dccp_hashinfo.ehash_size--;
- 		dccp_hashinfo.ehash = (struct inet_ehash_bucket *)
--			__get_free_pages(GFP_ATOMIC, ehash_order);
-+			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, ehash_order);
- 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
- 
- 	if (!dccp_hashinfo.ehash) {
-@@ -1091,7 +1091,7 @@ static int __init dccp_init(void)
- 		    bhash_order > 0)
- 			continue;
- 		dccp_hashinfo.bhash = (struct inet_bind_hashbucket *)
--			__get_free_pages(GFP_ATOMIC, bhash_order);
-+			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, bhash_order);
- 	} while (!dccp_hashinfo.bhash && --bhash_order >= 0);
- 
- 	if (!dccp_hashinfo.bhash) {
--- 
-1.5.6.5
+Since the warning is the only action in this branch, wouldn't
+WARN_ONCE(wasMlocked, KERN_WARNING ...) be better?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
