@@ -1,78 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 234B66B004F
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 00:48:58 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n6F5D1VP015976
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 01:13:01 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n6F5PSW7257818
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 01:25:28 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6F5PR5G032043
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 01:25:28 -0400
-Date: Wed, 15 Jul 2009 10:55:25 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C11906B004F
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 00:51:43 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6F5SLpC016159
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 15 Jul 2009 14:28:21 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5369045DE51
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 14:28:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 304D845DE4F
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 14:28:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 08190E08003
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 14:28:21 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B56C41DB803B
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 14:28:20 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 0/5] Memory controller soft limit patches (v9)
-Message-ID: <20090715052525.GG24034@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090710125950.5610.99139.sendpatchset@balbir-laptop> <20090715040811.GF24034@balbir.in.ibm.com> <20090715133324.e4683ef2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090715040811.GF24034@balbir.in.ibm.com>
+References: <20090710125950.5610.99139.sendpatchset@balbir-laptop> <20090715040811.GF24034@balbir.in.ibm.com>
+Message-Id: <20090715142736.39AA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090715133324.e4683ef2.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 15 Jul 2009 14:28:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-07-15 13:33:24]:
-
-> On Wed, 15 Jul 2009 09:38:11 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-07-10 18:29:50]:
 > 
-> > * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-07-10 18:29:50]:
 > > 
-> > > 
-> > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > 
-> > > New Feature: Soft limits for memory resource controller.
-> > > 
-> > > Here is v9 of the new soft limit implementation. Soft limits is a new feature
-> > > for the memory resource controller, something similar has existed in the
-> > > group scheduler in the form of shares. The CPU controllers interpretation
-> > > of shares is very different though. 
-> > >
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > > 
-> > If there are no objections to these patches, could we pick them up for
-> > testing in mmotm. 
+> > New Feature: Soft limits for memory resource controller.
 > > 
+> > Here is v9 of the new soft limit implementation. Soft limits is a new feature
+> > for the memory resource controller, something similar has existed in the
+> > group scheduler in the form of shares. The CPU controllers interpretation
+> > of shares is very different though. 
+> >
 > 
-> If any, will be fixed up in mmotm. About behavior, I don't have more things
-> than I've said. (dealying kswapd is not very good.)
-> 
-> But plz discuss with Vladislav Buzov about implementation details of [2..3/5].
-> ==
-> [PATCH 1/2] Resource usage threshold notification addition to res_counter (v3)
-> 
-> It seems there are multiple functionalities you can shere with them.
-> 
->  - hierarchical threshold check
->  - callback or notify agaisnt threshold.
->  etc..
-> 
-> I'm very happy if all messy things around res_counter+hierarchy are sorted out
-> before diving into melting pot. I hope both of you have nice interfaces and
-> keep res_counter neat.
->
+> If there are no objections to these patches, could we pick them up for
+> testing in mmotm. 
 
-I do see scope for reuse, but I've not yet gotten to reviewing v3 of
-the patches. I will, I could potentially get him to base his patches
-on top of this. One of the interesting things that Paul pointed out
-was of global state.
+Sorry, I haven't review this patch series. please give me few days.
 
--- 
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
