@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 397136B004F
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 16:24:12 -0400 (EDT)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id n6FKODaQ020162
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:24:15 -0700
-Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
-	by spaceape11.eur.corp.google.com with ESMTP id n6FKOACW026828
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:24:11 -0700
-Received: by pxi2 with SMTP id 2so1749401pxi.8
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:24:10 -0700 (PDT)
-Date: Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-In-Reply-To: <20090715113740.334309dd.skraw@ithnet.com>
-Message-ID: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-References: <20090713134621.124aa18e.skraw@ithnet.com> <4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com> <alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com> <20090715084754.36ff73bf.skraw@ithnet.com> <alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
- <20090715113740.334309dd.skraw@ithnet.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 52E0A6B004D
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 16:26:25 -0400 (EDT)
+Received: by ewy11 with SMTP id 11so1884558ewy.38
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 13:26:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <202cde0e0907141930j6b59e8fdn84e2c21c43e7b12f@mail.gmail.com>
+References: <983c694e0907141702t39bebefdr4024720f0a6dc4e1@mail.gmail.com>
+	 <202cde0e0907141930j6b59e8fdn84e2c21c43e7b12f@mail.gmail.com>
+Date: Wed, 15 Jul 2009 15:26:30 -0500
+Message-ID: <983c694e0907151326q55390aa6of73e08c69fe297f0@mail.gmail.com>
+Subject: Re: __get_free_pages page count increment
+From: omar ramirez <or.rmz1@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Stephan von Krawczynski <skraw@ithnet.com>
-Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
+To: Alexey Korolev <akorolex@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
+Hi,
 
-> > If you have some additional time, it would also be helpful to get a 
-> > bisection of when the problem started occurring (it appears to be sometime 
-> > between 2.6.29 and 2.6.30).
-> 
-> Do you know what version should definitely be not affected? I can check one
-> kernel version per day, can you name a list which versions to check out? 
-> 
+On Tue, Jul 14, 2009 at 9:30 PM, Alexey Korolev<akorolex@gmail.com> wrote:
+> Hi,
+>
+> About two months ago I faced pretty much the same issue.
+> Yes it is a proper behaviour. Please see thread
+> http://marc.info/?l=3Dlinux-mm&m=3D124348722701100&w=3D2
+>
+> The best solution for your case =A0would be involving split_page() functi=
+on.
+>
 
-To my knowledge, this issue was never reported on 2.6.29, so that should 
-be a sane starting point.
+Thanks for the quick reply it really helped a lot!
+
+-omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
