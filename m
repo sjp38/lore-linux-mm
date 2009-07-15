@@ -1,244 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6F3C26B004F
-	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 19:33:35 -0400 (EDT)
-Received: by pxi13 with SMTP id 13so1804118pxi.12
-        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 17:08:27 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 704E86B004F
+	for <linux-mm@kvack.org>; Tue, 14 Jul 2009 21:54:39 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id c3so1741356ana.26
+        for <linux-mm@kvack.org>; Tue, 14 Jul 2009 19:30:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090714102735.GD28569@csn.ul.ie>
-References: <alpine.LFD.2.00.0907140258100.25576@casper.infradead.org>
-	 <20090714102735.GD28569@csn.ul.ie>
-Date: Wed, 15 Jul 2009 12:08:26 +1200
-Message-ID: <202cde0e0907141708g51294247i7a201c34e97f5b66@mail.gmail.com>
-Subject: Re: HugeTLB mapping for drivers (sample driver)
+In-Reply-To: <983c694e0907141702t39bebefdr4024720f0a6dc4e1@mail.gmail.com>
+References: <983c694e0907141702t39bebefdr4024720f0a6dc4e1@mail.gmail.com>
+Date: Wed, 15 Jul 2009 14:30:18 +1200
+Message-ID: <202cde0e0907141930j6b59e8fdn84e2c21c43e7b12f@mail.gmail.com>
+Subject: Re: __get_free_pages page count increment
 From: Alexey Korolev <akorolex@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org
+To: omar ramirez <or.rmz1@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel,
+Hi,
 
-Thank you for review.
-I'm about to renovate this sample driver in order to handle set of
-different scenarios.
-Please tell me if you have additional error scenarios. I'll try to
-handle them as well.
-After that there will be more or less clear picture about should we
-involve hugetlbfs or not.
+About two months ago I faced pretty much the same issue.
+Yes it is a proper behaviour. Please see thread
+http://marc.info/?l=3Dlinux-mm&m=3D124348722701100&w=3D2
 
-On Tue, Jul 14, 2009 at 10:27 PM, Mel Gorman<mel@csn.ul.ie> wrote:
-> On Tue, Jul 14, 2009 at 03:07:47AM +0100, Alexey Korolev wrote:
->> Hi,
->>
->> This is a sample driver which provides huge page mapping to user space.
->> It might be useful for understanding purposes.
->>
->> Here we defined file operations for device driver.
->>
->> We must call htlbfs get_unmapped_area and hugetlbfs_file_mmap functions =
-to
->> =C2=A0done some HTLB mapping preparations. (If proposed approach is more
->> or less Ok, it will be more accurate to avoid hugetlbfs calls at all - a=
-nd
->> substitute them with htlb functions).
->> Allocated page get assiciated with mapping via add_to_page_cache call in
->> file->open.
->>
+The best solution for your case  would be involving split_page() function.
+
+Thanks
+Alexey
+
+On Wed, Jul 15, 2009 at 12:02 PM, omar ramirez<or.rmz1@gmail.com> wrote:
+> Hi,
 >
-> I ran out of time to review this properly, but glancing through I would b=
-e
-> concerned with what happens on fork() and COW. At a short read, it would
-> appear that pages get allocated from alloc_buddy_huge_page() instead of y=
-our
-> normal function altering the counters for hstate_nores.
+> I have been digging about __get_free_pages function, and wanted to now
+> why only the first page reserved with this function increments the
+> page count and for the other they are marked as 0.
 >
->> ---
->> diff -Naurp empty/hpage_map.c hpage_map/hpage_map.c
->> --- empty/hpage_map.c 1970-01-01 12:00:00.000000000 +1200
->> +++ hpage_map/hpage_map.c =C2=A0 =C2=A0 2009-07-13 18:40:28.000000000 +1=
-200
->> @@ -0,0 +1,137 @@
->> +#include <linux/module.h>
->> +#include <linux/mm.h>
->> +#include <linux/file.h>
->> +#include <linux/pagemap.h>
->> +#include <linux/hugetlb.h>
->> +#include <linux/pagevec.h>
->> +#include <linux/miscdevice.h>
->> +
->> +static void make_file_empty(struct file *file)
->> +{
->> + =C2=A0 =C2=A0struct address_space *mapping =3D file->f_mapping;
->> + =C2=A0 =C2=A0struct pagevec pvec;
->> + =C2=A0 =C2=A0pgoff_t next =3D 0;
->> + =C2=A0 =C2=A0int i;
->> +
->> + =C2=A0 =C2=A0pagevec_init(&pvec, 0);
->> + =C2=A0 =C2=A0while (1) {
->> + =C2=A0 =C2=A0 if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))=
- {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!next)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 break;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 next =3D 0;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 continue;
->> + =C2=A0 =C2=A0 }
->> +
->> + =C2=A0 =C2=A0 for (i =3D 0; i < pagevec_count(&pvec); ++i) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page *page =3D pvec.pages[i];
->> +
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 lock_page(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (page->index > next)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 next =3D page->index;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 ++next;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 remove_from_page_cache(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 unlock_page(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 hugetlb_free_pages(page);
->> + =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0}
->> + =C2=A0 =C2=A0BUG_ON(mapping->nrpages);
->> +}
->> +
->> +
->> +static int hpage_map_mmap(struct file *file, struct vm_area_struct
->> *vma)
->> +{
->> + =C2=A0 =C2=A0 unsigned long idx;
->> + =C2=A0 =C2=A0 struct address_space *mapping;
->> + =C2=A0 =C2=A0 int ret =3D VM_FAULT_SIGBUS;
->> +
->> + =C2=A0 =C2=A0 idx =3D vma->vm_pgoff >> huge_page_order(h);
->> + =C2=A0 =C2=A0 mapping =3D file->f_mapping;
->> + =C2=A0 =C2=A0 ret =3D hugetlbfs_file_mmap(file, vma);
->> +
->> + =C2=A0 =C2=A0 return ret;
->> +}
->> +
->> +
->> +static unsigned long hpage_map_get_unmapped_area(struct file *file,
->> + =C2=A0 =C2=A0 unsigned long addr, unsigned long len, unsigned long pgo=
-ff,
->> + =C2=A0 =C2=A0 unsigned long flags)
->> +{
->> + =C2=A0 =C2=A0 return hugetlb_get_unmapped_area(file, addr, len, pgoff,=
- flags);
->> +}
->> +
->> +static int hpage_map_open(struct inode * inode, struct file * file)
->> +{
->> + =C2=A0 =C2=A0struct page *page;
->> + =C2=A0 =C2=A0int num_hpages =3D 10, cnt =3D 0;
+> So here it is what I'm doing, I'm reserving a chunk of pages (using
+> __get_free_pages) in a display driver, then I pass that through
+> userspace to a dsp driver to decode a video file and return the buffer
+> to display.
 >
-> What happens if the mmap() call is more than 10 pages? What if the proces=
-s
-> fork()s, the mapping is MAP_PRIVATE and the child is long lived causing
-> a COW fault on the parent process when it next writes the mapping and the
-> subsequent allocation fails?
+> The buffer is mapped in the dsp, which also follows the get_page
+> approach but it goes page-by-page on the buffer, incrementing the page
+> count for all of the pages (so now first page count from the buffer
+> will be 2 <display, dsp>, but for the rest it will be 1 <dsp>).
 >
-> Again, I'm worried that by avoiding hugetlbfs, your drivers end up
-> trying to solve all the same problems.
+> The issue comes once those pages are unmapped from the dsp driver,
+> because it will do a page_cache_release on all the reserved pages
+> (which leave the count as it was before, first page 1 <display> and
+> the rest as 0).
 >
->> + =C2=A0 =C2=A0int ret =3D 0;
->> +
->> + =C2=A0 =C2=A0/* Announce =C2=A0hugetlb file mapping */
->> + =C2=A0 =C2=A0mapping_set_hugetlb(file->f_mapping);
->> +
->> + =C2=A0 =C2=A0for (cnt =3D 0; cnt < num_hpages; cnt++ ) {
->> + =C2=A0 =C2=A0 page =3D hugetlb_alloc_pages_node(0,GFP_KERNEL);
->> + =C2=A0 =C2=A0 if (IS_ERR(page)) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 ret =3D -PTR_ERR(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_err;
->> + =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0 ret =3D add_to_page_cache(page, file->f_mapping, cnt, GF=
-P_KERNEL);
->> + =C2=A0 =C2=A0 if (ret) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 hugetlb_free_pages(page);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out_err;
->> + =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0 SetPageUptodate(page);
->> + =C2=A0 =C2=A0 unlock_page(page);
->> + =C2=A0 =C2=A0}
->> + =C2=A0 =C2=A0return 0;
->> +out_err:
->> + =C2=A0 =C2=A0printk(KERN_ERR"%s : Error %d \n",__func__, ret);
->> + =C2=A0 =C2=A0make_file_empty(file);
->> + =C2=A0 =C2=A0return ret;
->> +}
->> +
->> +
->> +static int hpage_map_release(struct inode * inode, struct file * file)
->> +{
->> + =C2=A0 =C2=A0make_file_empty(file);
->> + =C2=A0 =C2=A0return 0;
->> +}
->> +/*
->> + * The file operations for /dev/hpage_map
->> + */
->> +static const struct file_operations hpage_map_fops =3D {
->> + =C2=A0 =C2=A0 .owner =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=3D THIS_MODULE=
-,
->> + =C2=A0 =C2=A0 .mmap =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =3D hpage_map_m=
-map,
->> + =C2=A0 =C2=A0 .open =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =3D hpage_map_o=
-pen,
->> + =C2=A0 =C2=A0 .release =C2=A0 =C2=A0 =C2=A0 =C2=A0=3D hpage_map_releas=
-e,
->> + =C2=A0 =C2=A0 .get_unmapped_area =C2=A0 =C2=A0 =C2=A0=3D hpage_map_get=
-_unmapped_area,
->> +};
->> +
->> +static struct miscdevice hpage_map_dev =3D {
->> + =C2=A0 =C2=A0 MISC_DYNAMIC_MINOR,
->> + =C2=A0 =C2=A0 "hpage_map",
->> + =C2=A0 =C2=A0 &hpage_map_fops
->> +};
->> +
->> +static int __init
->> +hpage_map_init(void)
->> +{
->> + =C2=A0 =C2=A0 /* Create the device in the /sys/class/misc directory. *=
-/
->> + =C2=A0 =C2=A0 if (misc_register(&hpage_map_dev))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EIO;
->> + =C2=A0 =C2=A0 return 0;
->> +}
->> +
->> +module_init(hpage_map_init);
->> +
->> +static void __exit
->> +hpage_map_exit(void)
->> +{
->> + =C2=A0 =C2=A0 misc_deregister(&hpage_map_dev);
->> +}
->> +
->> +module_exit(hpage_map_exit);
->> +
->> +MODULE_LICENSE("GPL");
->> +MODULE_AUTHOR("Alexey Korolev");
->> +MODULE_DESCRIPTION("Example of driver with hugetlb mapping");
->> +MODULE_VERSION("1.0");
->> diff -Naurp empty/Makefile hpage_map/Makefile
->> --- empty/Makefile =C2=A0 =C2=A01970-01-01 12:00:00.000000000 +1200
->> +++ hpage_map/Makefile =C2=A0 =C2=A0 =C2=A0 =C2=A02009-07-13 18:31:27.00=
-0000000 +1200
->> @@ -0,0 +1,7 @@
->> +obj-m :=3D hpage_map.o
->> +
->> +KDIR =C2=A0:=3D /lib/modules/$(shell uname -r)/build
->> +PWD =C2=A0 :=3D $(shell pwd)
->> +
->> +default:
->> + =C2=A0 =C2=A0 $(MAKE) -C $(KDIR) M=3D$(PWD) modules
->>
+> This will throw the BUG: bad page state error because the count is
+> being marked as 0 for the process using that buffer.
 >
-> --
-> Mel Gorman
-> Part-time Phd Student =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linux Technology Center
-> University of Limerick =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 IBM Dublin Software Lab
+> So my question is, is it ok that the page count is NOT incremented for
+> all but first page of __get_free_pages?
+>
+> Thanks in advance,
+>
+> omar
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
