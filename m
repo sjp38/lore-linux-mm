@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0D8886B0096
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 22:08:16 -0400 (EDT)
-Message-ID: <4A5E8B84.4040401@redhat.com>
-Date: Wed, 15 Jul 2009 22:08:04 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 880DA6B0083
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 22:10:24 -0400 (EDT)
+Message-ID: <4A5E8C09.1030406@redhat.com>
+Date: Wed, 15 Jul 2009 22:10:17 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] Rename pgmoved variable in shrink_active_list()
-References: <20090716094619.9D07.A69D9226@jp.fujitsu.com> <20090716095119.9D0A.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090716095119.9D0A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] mm: shrink_inactive_lis() nr_scan accounting fix
+ fix
+References: <20090716094619.9D07.A69D9226@jp.fujitsu.com> <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,12 +18,24 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> Subject: [PATCH] Rename pgmoved variable in shrink_active_list()
+> Subject: [PATCH] mm: shrink_inactive_lis() nr_scan accounting fix fix
 > 
-> Currently, pgmoved variable have two meanings. it cause harder reviewing a bit.
-> This patch separate it.
+> If sc->isolate_pages() return 0, we don't need to call shrink_page_list().
+> In past days, shrink_inactive_list() handled it properly.
+> 
+> But commit fb8d14e1 (three years ago commit!) breaked it. current shrink_inactive_list()
+> always call shrink_page_list() although isolate_pages() return 0.
+> 
+> This patch restore proper return value check.
 > 
 > 
+> Requirements:
+>   o "nr_taken == 0" condition should stay before calling shrink_page_list().
+>   o "nr_taken == 0" condition should stay after nr_scan related statistics
+>      modification.
+> 
+> 
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
