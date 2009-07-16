@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C9E316B009C
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:21:25 -0400 (EDT)
-Date: Thu, 16 Jul 2009 09:21:29 -0700
-From: Jesse Barnes <jesse.barnes@intel.com>
-Subject: Re: [PATCH] mm: count only reclaimable lru pages
-Message-ID: <20090716092129.1dbb0138@jbarnes-g45>
-In-Reply-To: <20090716133454.GA20550@localhost>
-References: <20090716133454.GA20550@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EBC386B00A0
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:22:11 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id ACF3382C6AF
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:41:26 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id G7fUSNSwfYyf for <linux-mm@kvack.org>;
+	Thu, 16 Jul 2009 12:41:26 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D58CA82C753
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:41:04 -0400 (EDT)
+Date: Thu, 16 Jul 2009 12:21:34 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mm: count only reclaimable lru pages v2
+In-Reply-To: <20090716150901.GA31204@localhost>
+Message-ID: <alpine.DEB.1.10.0907161220270.29771@gentwo.org>
+References: <20090716133454.GA20550@localhost> <alpine.DEB.1.10.0907160959260.32382@gentwo.org> <20090716142533.GA27165@localhost> <1247754491.6586.23.camel@laptop> <alpine.DEB.1.10.0907161037590.7930@gentwo.org> <4A5F3C70.7010001@redhat.com>
+ <20090716150901.GA31204@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Jul 2009 06:34:55 -0700
-"Wu, Fengguang" <fengguang.wu@intel.com> wrote:
+On Thu, 16 Jul 2009, Wu Fengguang wrote:
 
-> global_lru_pages() / zone_lru_pages() can be used in two ways:
-> - to estimate max reclaimable pages in determine_dirtyable_memory()  
-> - to calculate the slab scan ratio
-> 
-> When swap is full or not present, the anon lru lists are not
-> reclaimable and thus won't be scanned. So the anon pages shall not be
-> counted. Also rename the function names to reflect the new meaning.
-> 
-> It can greatly (and correctly) increase the slab scan rate under high
-> memory pressure (when most file pages have been reclaimed and swap is
-> full/absent), thus avoid possible false OOM kills.
-> 
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/vmstat.h |   11 +--------
->  mm/page-writeback.c    |    5 ++--
->  mm/vmscan.c            |   44 +++++++++++++++++++++++++++++----------
->  3 files changed, 38 insertions(+), 22 deletions(-)
-> 
+> /*
+>  * The reclaimable count would be mostly accurate.
+>  * The less reclaimable pages may be
+>  * - mlocked pages, which will be moved to unevictable list when encountered
+>  * - mapped pages, which may require several travels to be reclaimed
+>  * - dirty pages, which is not "instantly" reclaimable
+>  */
 
-Looks nice to me, including the naming.  FWIW (given that it's been
-years since I did any serious VM work):
-
-Reviewed-by: Jesse Barnes <jbarnes@virtuousgeek.org>
-
--- 
-Jesse Barnes, Intel Open Source Technology Center
+ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
