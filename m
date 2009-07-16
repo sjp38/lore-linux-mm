@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id DFE0C6B005D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:01:41 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so6942337gxk.14
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:01:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090715201654.550cb640.akpm@linux-foundation.org>
-References: <20090716094619.9D07.A69D9226@jp.fujitsu.com>
-	 <20090716095119.9D0A.A69D9226@jp.fujitsu.com>
-	 <20090715201654.550cb640.akpm@linux-foundation.org>
-Date: Thu, 16 Jul 2009 13:01:37 +0900
-Message-ID: <28c262360907152101y15d7edc6m3e3cf4d3473b0008@mail.gmail.com>
-Subject: Re: [PATCH 1/3] Rename pgmoved variable in shrink_active_list()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CDA26B0062
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:02:59 -0400 (EDT)
+Date: Wed, 15 Jul 2009 21:02:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are
+ isolated already (v3)
+Message-Id: <20090715210253.bc137b2d.akpm@linux-foundation.org>
+In-Reply-To: <20090715235318.6d2f5247@bree.surriel.com>
+References: <20090715223854.7548740a@bree.surriel.com>
+	<20090715194820.237a4d77.akpm@linux-foundation.org>
+	<4A5E9A33.3030704@redhat.com>
+	<20090715202114.789d36f7.akpm@linux-foundation.org>
+	<4A5E9E4E.5000308@redhat.com>
+	<20090715203854.336de2d5.akpm@linux-foundation.org>
+	<20090715235318.6d2f5247@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 16, 2009 at 12:16 PM, Andrew
-Morton<akpm@linux-foundation.org> wrote:
-> On Thu, 16 Jul 2009 09:52:34 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro=
-@jp.fujitsu.com> wrote:
->
->> =C2=A0 =C2=A0 =C2=A0 if (file)
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, =
-NR_ACTIVE_FILE, -pgmoved);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, =
-NR_ACTIVE_FILE, -nr_taken);
->> =C2=A0 =C2=A0 =C2=A0 else
->> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, =
-NR_ACTIVE_ANON, -pgmoved);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 __mod_zone_page_state(zone, =
-NR_ACTIVE_ANON, -nr_taken);
->
-> we could have used __sub_zone_page_state() there.
+On Wed, 15 Jul 2009 23:53:18 -0400 Rik van Riel <riel@redhat.com> wrote:
 
-Yes. It can be changed all at once by separate patches. :)
+> @@ -1049,6 +1074,14 @@ static unsigned long shrink_inactive_lis
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+>  	int lumpy_reclaim = 0;
+>  
+> +	while (unlikely(too_many_isolated(zone, file, sc))) {
+> +		congestion_wait(WRITE, HZ/10);
+> +
+> +		/* We are about to die and free our memory. Return now. */
+> +		if (fatal_signal_pending(current))
+> +			return SWAP_CLUSTER_MAX;
+> +	}
+
+mutter.
+
+While I agree that handling fatal signals on the direct reclaim path
+is probably a good thing, this seems like a fairly random place at
+which to start the enhancement.
+
+If we were to step back and approach this in a broader fashion, perhaps
+we would find some commonality with the existing TIF_MEMDIE handling,
+dunno.
 
 
-
---=20
-Kind regards,
-Minchan Kim
+And I question the testedness of v3 :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
