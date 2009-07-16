@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 676326B008A
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:36:22 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D16846B008C
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:54:14 -0400 (EDT)
 Subject: Re: [RFC/PATCH] mm: Pass virtual address to
  [__]p{te,ud,md}_free_tlb()
-From: Michael Ellerman <michael@ellerman.id.au>
-Reply-To: michael@ellerman.id.au
-In-Reply-To: <20090715074952.A36C7DDDB2@ozlabs.org>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090715135620.GD7298@wotan.suse.de>
 References: <20090715074952.A36C7DDDB2@ozlabs.org>
-Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature"; boundary="=-3sW64rSI2yIG/UuMyqDm"
-Date: Thu, 16 Jul 2009 11:36:17 +1000
-Message-Id: <1247708177.9851.4.camel@concordia>
+	 <20090715135620.GD7298@wotan.suse.de>
+Content-Type: text/plain
+Date: Thu, 16 Jul 2009 11:54:15 +1000
+Message-Id: <1247709255.27937.5.camel@pasglop>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@tiscali.co.uk>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2009-07-15 at 15:56 +0200, Nick Piggin wrote:
+> On Wed, Jul 15, 2009 at 05:49:47PM +1000, Benjamin Herrenschmidt wrote:
+> > Upcoming paches to support the new 64-bit "BookE" powerpc architecture
+> > will need to have the virtual address corresponding to PTE page when
+> > freeing it, due to the way the HW table walker works.
+> > 
+> > Basically, the TLB can be loaded with "large" pages that cover the whole
+> > virtual space (well, sort-of, half of it actually) represented by a PTE
+> > page, and which contain an "indirect" bit indicating that this TLB entry
+> > RPN points to an array of PTEs from which the TLB can then create direct
+> > entries.
+> 
+> RPN is PFN in ppc speak, right?
 
---=-3sW64rSI2yIG/UuMyqDm
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Ah right, real page number in ppc slang :-)
 
-On Wed, 2009-07-15 at 17:49 +1000, Benjamin Herrenschmidt wrote:
-> Upcoming paches to support the new 64-bit "BookE" powerpc architecture
-> will need to have the virtual address corresponding to PTE page when
-> freeing it, due to the way the HW table walker works.
+> > Thus, in order to invalidate those when PTE pages are deleted,
+> > we need the virtual address to pass to tlbilx or tlbivax instructions.
+> 
+> Interesting arrangement. So are these last level ptes modifieable
+> from userspace or something? If not, I wonder if you could manage
+> them as another level of pointers with the existing pagetable
+> functions?
 
-> I haven't had a chance to test or even build on most architectures, the
-> patch is reasonably trivial but I may have screwed up regardless, I
-> appologize in advance, let me know if something is wrong.
+I don't understand what you mean. Basically, the TLB contains PMD's.
+There's nothing to change to the existing page table layout :-) But
+because they appear as large page TLB entries that cover the virtual
+space covered by a PMD, they need to be invalidated using virtual
+addresses when PMDs are removed.
 
-Builds for the important architectures, powerpc, ia64, arm, sparc,
-sparc64, oh and x86:
+> > The old trick of sticking it somewhere in the PTE page struct page sucks
+> > too much, the address is almost readily available in all call sites and
+> > almost everybody implemets these as macros, so we may as well add the
+> > argument everywhere. I added it to the pmd and pud variants for consistency.
+> > 
+> > Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > ---
+> > 
+> > I would like to merge the new support that depends on this in 2.6.32,
+> > so unless there's major objections, I'd like this to go in early during
+> > the merge window. We can sort out separately how to carry the patch
+> > around in -next until then since the powerpc tree will have a dependency
+> > on it.
+> 
+> Can't see any problem with that.
 
-http://kisskb.ellerman.id.au/kisskb/head/1976/
+Thanks, can I get an Ack then ? :-)
 
-(based on your test branch 34f25476)
+Cheers,
+Ben.
 
-cheers
-
---=-3sW64rSI2yIG/UuMyqDm
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEABECAAYFAkpehAQACgkQdSjSd0sB4dIe4QCgsEWUeUUCjt33SGp2XpLqD/1W
-/QsAn37UyeAeK5Msl22yj/kzj0VYowyT
-=Lbt0
------END PGP SIGNATURE-----
-
---=-3sW64rSI2yIG/UuMyqDm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
