@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 700FE6B004D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 09:41:02 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 921E46B004D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 09:49:34 -0400 (EDT)
+Message-ID: <4A5F2FDA.2060309@redhat.com>
+Date: Thu, 16 Jul 2009 09:49:14 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm: count only reclaimable lru pages
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090716133454.GA20550@localhost>
 References: <20090716133454.GA20550@localhost>
-Content-Type: text/plain
-Date: Thu, 16 Jul 2009 15:40:51 +0200
-Message-Id: <1247751651.6586.17.camel@laptop>
-Mime-Version: 1.0
+In-Reply-To: <20090716133454.GA20550@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-07-16 at 21:34 +0800, Wu Fengguang wrote:
+Wu Fengguang wrote:
 > global_lru_pages() / zone_lru_pages() can be used in two ways:
 > - to estimate max reclaimable pages in determine_dirtyable_memory()  
 > - to calculate the slab scan ratio
@@ -33,10 +33,10 @@ On Thu, 2009-07-16 at 21:34 +0800, Wu Fengguang wrote:
 > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Makes sense.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
