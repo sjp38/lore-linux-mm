@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 880DA6B0083
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 22:10:24 -0400 (EDT)
-Message-ID: <4A5E8C09.1030406@redhat.com>
-Date: Wed, 15 Jul 2009 22:10:17 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3996C6B009C
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 22:39:03 -0400 (EDT)
+Date: Wed, 15 Jul 2009 22:38:53 -0400
 From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] mm: shrink_inactive_lis() nr_scan accounting fix
- fix
-References: <20090716094619.9D07.A69D9226@jp.fujitsu.com> <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: [PATCH -mm] throttle direct reclaim when too many pages are
+ isolated already
+Message-ID: <20090715223854.7548740a@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
-> Subject: [PATCH] mm: shrink_inactive_lis() nr_scan accounting fix fix
-> 
-> If sc->isolate_pages() return 0, we don't need to call shrink_page_list().
-> In past days, shrink_inactive_list() handled it properly.
-> 
-> But commit fb8d14e1 (three years ago commit!) breaked it. current shrink_inactive_list()
-> always call shrink_page_list() although isolate_pages() return 0.
-> 
-> This patch restore proper return value check.
-> 
-> 
-> Requirements:
->   o "nr_taken == 0" condition should stay before calling shrink_page_list().
->   o "nr_taken == 0" condition should stay after nr_scan related statistics
->      modification.
-> 
-> 
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+When way too many processes go into direct reclaim, it is possible
+for all of the pages to be taken off the LRU.  One result of this
+is that the next process in the page reclaim code thinks there are
+no reclaimable pages left and triggers an out of memory kill.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+One solution to this problem is to never let so many processes into
+the page reclaim path that the entire LRU is emptied.  Limiting the
+system to only having half of each inactive list isolated for
+reclaim should be safe.
 
--- 
-All rights reversed.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+---
+This patch goes on top of Kosaki's "Account the number of isolated pages"
+patch series.
+
+ mm/vmscan.c |   25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+Index: mmotm/mm/vmscan.c
+===================================================================
+--- mmotm.orig/mm/vmscan.c	2009-07-08 21:37:01.000000000 -0400
++++ mmotm/mm/vmscan.c	2009-07-08 21:39:02.000000000 -0400
+@@ -1035,6 +1035,27 @@ int isolate_lru_page(struct page *page)
+ }
+ 
+ /*
++ * Are there way too many processes in the direct reclaim path already?
++ */
++static int too_many_isolated(struct zone *zone, int file)
++{
++	unsigned long inactive, isolated;
++
++	if (current_is_kswapd())
++		return 0;
++
++	if (file) {
++		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
++		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
++	} else {
++		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
++		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
++	}
++
++	return isolated > inactive;
++}
++
++/*
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+  */
+@@ -1049,6 +1070,10 @@ static unsigned long shrink_inactive_lis
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	int lumpy_reclaim = 0;
+ 
++	while (unlikely(too_many_isolated(zone, file))) {
++		schedule_timeout_interruptible(HZ/10);
++	}
++
+ 	/*
+ 	 * If we need a large contiguous chunk of memory, or have
+ 	 * trouble getting a small set of contiguous pages, we
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
