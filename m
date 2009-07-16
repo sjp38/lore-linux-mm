@@ -1,72 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2D6696B004D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 06:49:16 -0400 (EDT)
-Received: by pzk41 with SMTP id 41so21014pzk.12
-        for <linux-mm@kvack.org>; Thu, 16 Jul 2009 03:49:20 -0700 (PDT)
-Date: Thu, 16 Jul 2009 19:49:10 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] [mmotm] don't attempt to reclaim anon page in lumpy reclaim
- when no swap space is avilable
-Message-Id: <20090716194910.602446a4.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 64EA56B005A
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 07:03:30 -0400 (EDT)
+Date: Thu, 16 Jul 2009 12:03:29 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] page-allocator: Ensure that processes that have been
+	OOM killed exit the page allocator (resend)
+Message-ID: <20090716110328.GB22499@csn.ul.ie>
+References: <20090715104944.GC9267@csn.ul.ie> <alpine.DEB.2.00.0907151326350.22582@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.0907151326350.22582@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jul 15, 2009 at 01:29:33PM -0700, David Rientjes wrote:
+> On Wed, 15 Jul 2009, Mel Gorman wrote:
+> 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index f8902e7..5c98d02 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1547,6 +1547,14 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
+> >  	if (gfp_mask & __GFP_NORETRY)
+> >  		return 0;
+> >  
+> > +	/* Do not loop if OOM-killed unless __GFP_NOFAIL is specified */
+> > +	if (test_thread_flag(TIF_MEMDIE)) {
+> > +		if (gfp_mask & __GFP_NOFAIL)
+> > +			WARN(1, "Potential infinite loop with __GFP_NOFAIL");
+> > +		else
+> > +			return 0;
+> > +	}
+> > +
+> >  	/*
+> >  	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+> >  	 * means __GFP_NOFAIL, but that may not be true in other
+> > 
+> 
+> This only works for GFP_ATOMIC since the next iteration of the page 
+> allocator will (probably) fail reclaim and simply invoke the oom killer 
+> again,
 
-This patch is based on mmotm 2009-07-15-20-57
+GFP_ATOMIC should not be calling the OOM killer. It has already
+exited. Immeditely after an OOM kill, I would expect the allocation to
+succeed. However, in the event that the task selected for OOM killing is
+the current one and no other task exits, it could loop.
 
-This version is better than old one.
-That's because enough swap space check is done in case of only lumpy reclaim.
-so it can't degrade performance in normal case.
+> which will notice current has TIF_MEMDIE set and choose to do 
+> nothing, at which time the allocator simply loops again.
+> 
 
-== CUT HERE ==
+So, we should unconditionally check if we should loop again whether we
+have OOM killed or not which the following should do.
 
-VM already avoids attempting to reclaim anon pages in various places, But
-it doesn't avoid it for lumpy reclaim.
+==== CUT HERE ====
+page-allocator: Check after an OOM kill if the allocator should loop
 
-It shuffles lru list unnecessary so that it is pointless.
+Currently, the allocator loops unconditionally after an OOM kill on the
+assumption that the allocation will succeed. However, if the task
+selected for OOM-kill is the current task, it could in theory loop
+forever and always entering the OOM killer. This patch checks as normal
+after an OOM kill if the allocator should loop again.
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/vmscan.c |    9 +++++++++
- 1 files changed, 9 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 543596e..8b1132f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -930,6 +930,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			/* Check that we have not crossed a zone boundary. */
- 			if (unlikely(page_zone_id(cursor_page) != zone_id))
- 				continue;
-+
-+			/*
-+			 * If we don't have enough swap space, reclaiming of anon page
-+			 * which don't already have a swap slot is pointless.
-+			 */
-+			if (nr_swap_pages <= 0 && (PageAnon(cursor_page) &&
-+									!PageSwapCache(cursor_page)))
-+				continue;
-+
- 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
- 				list_move(&cursor_page->lru, dst);
- 				mem_cgroup_del_lru(cursor_page);
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 -- 
-1.5.4.3
+ mm/page_alloc.c |    2 --
+ 1 file changed, 2 deletions(-)
 
-
--- 
-Kind regards,
-Minchan Kim
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4b8552e..b381a6b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1830,8 +1830,6 @@ rebalance:
+ 			if (order > PAGE_ALLOC_COSTLY_ORDER &&
+ 						!(gfp_mask & __GFP_NOFAIL))
+ 				goto nopage;
+-
+-			goto restart;
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
