@@ -1,282 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BA6E16B004D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 01:57:21 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G5vQsH019790
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 16 Jul 2009 14:57:26 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4954F45DE5D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 14:57:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BC0C45DE63
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 14:57:21 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A8361DB803C
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 14:57:21 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AE4D1E38008
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 14:57:20 +0900 (JST)
-Date: Thu, 16 Jul 2009 14:55:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] cgroup avoid permanent sleep at rmdir v7
-Message-Id: <20090716145534.07511d67.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090703093154.5f6e910a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090703093154.5f6e910a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D484B6B004D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 03:38:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G7c3Mm023289
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Jul 2009 16:38:03 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EB62B45DE51
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 16:38:02 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B972845DE55
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 16:38:02 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5603CE38005
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 16:38:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EA6FAE08001
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 16:37:58 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set V2
+In-Reply-To: <20090715220445.GA1823@cmpxchg.org>
+References: <alpine.DEB.1.10.0907151027410.23643@gentwo.org> <20090715220445.GA1823@cmpxchg.org>
+Message-Id: <20090716163537.9D3D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 16 Jul 2009 16:37:57 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Rebased onto mm-of-the-moment snapshot 2009-07-15-20-57.
-passed fundamental tests.
-Thanks,
--Kame
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> From eee677ddea61b1331a3bd8e402a0d02437fe872a Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Wed, 15 Jul 2009 23:40:28 +0200
+> Subject: [patch] mm: non-atomic test-clear of PG_mlocked on free
+> 
+> By the time PG_mlocked is cleared in the page freeing path, nobody
+> else is looking at our page->flags anymore.
+> 
+> It is thus safe to make the test-and-clear non-atomic and thereby
+> removing an unnecessary and expensive operation from a hotpath.
 
-After commit: cgroup: fix frequent -EBUSY at rmdir
-	      ec64f51545fffbc4cb968f0cea56341a4b07e85a
-cgroup's rmdir (especially against memcg) doesn't return -EBUSY
-by temporal ref counts. That commit expects all refs after pre_destroy()
-is temporary but...it wasn't. Then, rmdir can wait permanently.
-This patch tries to fix that and change followings.
+I like this patch. but can you please separate two following patches?
+  - introduce __TESTCLEARFLAG()
+  - non-atomic test-clear of PG_mlocked on free
 
- - set CGRP_WAIT_ON_RMDIR flag before pre_destroy().
- - clear CGRP_WAIT_ON_RMDIR flag when the subsys finds racy case.
-   if there are sleeping ones, wakes them up.
- - rmdir() sleeps only when CGRP_WAIT_ON_RMDIR flag is set.
 
-Changelog v7
-  - rebased to mmotm.
 
-Changelog v5->v6
-  - renamed cgroup_release_rmdir() as cgroup_release_and_wakeup_rmdir()
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/page-flags.h |   12 +++++++++---
+>  mm/page_alloc.c            |    4 ++--
+>  2 files changed, 11 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index e2e5ce5..10e6011 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -158,6 +158,9 @@ static inline int TestSetPage##uname(struct page *page)			\
+>  static inline int TestClearPage##uname(struct page *page)		\
+>  		{ return test_and_clear_bit(PG_##lname, &page->flags); }
+>  
+> +#define __TESTCLEARFLAG(uname, lname)					\
+> +static inline int __TestClearPage##uname(struct page *page)		\
+> +		{ return __test_and_clear_bit(PG_##lname, &page->flags); }
+>  
+>  #define PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
+>  	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)
+> @@ -184,6 +187,9 @@ static inline void __ClearPage##uname(struct page *page) {  }
+>  #define TESTCLEARFLAG_FALSE(uname)					\
+>  static inline int TestClearPage##uname(struct page *page) { return 0; }
+>  
+> +#define __TESTCLEARFLAG_FALSE(uname)					\
+> +static inline int __TestClearPage##uname(struct page *page) { return 0; }
+> +
+>  struct page;	/* forward declaration */
+>  
+>  TESTPAGEFLAG(Locked, locked) TESTSETFLAG(Locked, locked)
+> @@ -250,11 +256,11 @@ PAGEFLAG(Unevictable, unevictable) __CLEARPAGEFLAG(Unevictable, unevictable)
+>  #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
+>  #define MLOCK_PAGES 1
+>  PAGEFLAG(Mlocked, mlocked) __CLEARPAGEFLAG(Mlocked, mlocked)
+> -	TESTSCFLAG(Mlocked, mlocked)
+> +	TESTSCFLAG(Mlocked, mlocked) __TESTCLEARFLAG(Mlocked, mlocked)
+>  #else
+>  #define MLOCK_PAGES 0
+> -PAGEFLAG_FALSE(Mlocked)
+> -	SETPAGEFLAG_NOOP(Mlocked) TESTCLEARFLAG_FALSE(Mlocked)
+> +PAGEFLAG_FALSE(Mlocked) SETPAGEFLAG_NOOP(Mlocked)
+> +	TESTCLEARFLAG_FALSE(Mlocked) __TESTCLEARFLAG_FALSE(Mlocked)
+>  #endif
+>  
+>  #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index caa9268..b0c8758 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -557,7 +557,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>  	unsigned long flags;
+>  	int i;
+>  	int bad = 0;
+> -	int wasMlocked = TestClearPageMlocked(page);
+> +	int wasMlocked = __TestClearPageMlocked(page);
+>  
+>  	kmemcheck_free_shadow(page, order);
+>  
+> @@ -1021,7 +1021,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+>  	struct zone *zone = page_zone(page);
+>  	struct per_cpu_pages *pcp;
+>  	unsigned long flags;
+> -	int wasMlocked = TestClearPageMlocked(page);
+> +	int wasMlocked = __TestClearPageMlocked(page);
+>  
+>  	kmemcheck_free_shadow(page, 0);
+>  
+> -- 
+> 1.6.3
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Changelog v4->v5:
-  - added cgroup_exclude_rmdir(), cgroup_release_rmdir().
 
-Changelog v3->v4:
-  - rewrite/add comments.
-  - remane cgroup_wakeup_rmdir_waiters() to cgroup_wakeup_rmdir_waiter().
-Changelog v2->v3:
-  - removed retry_rmdir() callback.
-  - make use of CGRP_WAIT_ON_RMDIR flag more.
-
-Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Reviewed-by: Paul Menage <menage@google.com>
-Acked-by: Balbir Sigh <balbir@linux.vnet.ibm.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/cgroup.h |   17 +++++++++++++++
- kernel/cgroup.c        |   55 +++++++++++++++++++++++++++++++++----------------
- mm/memcontrol.c        |   23 +++++++++++++++++---
- 3 files changed, 75 insertions(+), 20 deletions(-)
-
-Index: mmotm-2.6.31-Jul15/include/linux/cgroup.h
-===================================================================
---- mmotm-2.6.31-Jul15.orig/include/linux/cgroup.h
-+++ mmotm-2.6.31-Jul15/include/linux/cgroup.h
-@@ -363,6 +363,23 @@ int cgroup_task_count(const struct cgrou
- int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
- 
- /*
-+ * When the subsys has to access css and may add permanent refcnt to css,
-+ * it should take care of racy conditions with rmdir(). Following set of
-+ * functions, is for stop/restart rmdir if necessary.
-+ * Because these will call css_get/put, "css" should be alive css.
-+ *
-+ *  cgroup_exclude_rmdir();
-+ *  ...do some jobs which may access arbitrary empty cgroup
-+ *  cgroup_release_and_wakeup_rmdir();
-+ *
-+ *  When someone removes a cgroup while cgroup_exclude_rmdir() holds it,
-+ *  it sleeps and cgroup_release_and_wakeup_rmdir() will wake him up.
-+ */
-+
-+void cgroup_exclude_rmdir(struct cgroup_subsys_state *css);
-+void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css);
-+
-+/*
-  * Control Group subsystem type.
-  * See Documentation/cgroups/cgroups.txt for details
-  */
-Index: mmotm-2.6.31-Jul15/kernel/cgroup.c
-===================================================================
---- mmotm-2.6.31-Jul15.orig/kernel/cgroup.c
-+++ mmotm-2.6.31-Jul15/kernel/cgroup.c
-@@ -736,16 +736,28 @@ static void cgroup_d_remove_dir(struct d
-  * reference to css->refcnt. In general, this refcnt is expected to goes down
-  * to zero, soon.
-  *
-- * CGRP_WAIT_ON_RMDIR flag is modified under cgroup's inode->i_mutex;
-+ * CGRP_WAIT_ON_RMDIR flag is set under cgroup's inode->i_mutex;
-  */
- DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
- 
--static void cgroup_wakeup_rmdir_waiters(const struct cgroup *cgrp)
-+static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
- {
--	if (unlikely(test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-+	if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
- 		wake_up_all(&cgroup_rmdir_waitq);
- }
- 
-+void cgroup_exclude_rmdir(struct cgroup_subsys_state *css)
-+{
-+	css_get(css);
-+}
-+
-+void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css)
-+{
-+	cgroup_wakeup_rmdir_waiter(css->cgroup);
-+	css_put(css);
-+}
-+
-+
- static int rebind_subsystems(struct cgroupfs_root *root,
- 			      unsigned long final_bits)
- {
-@@ -1360,7 +1372,7 @@ int cgroup_attach_task(struct cgroup *cg
- 	 * wake up rmdir() waiter. the rmdir should fail since the cgroup
- 	 * is no longer empty.
- 	 */
--	cgroup_wakeup_rmdir_waiters(cgrp);
-+	cgroup_wakeup_rmdir_waiter(cgrp);
- 	return 0;
- }
- 
-@@ -2745,33 +2757,42 @@ again:
- 	mutex_unlock(&cgroup_mutex);
- 
- 	/*
-+	 * In general, subsystem has no css->refcnt after pre_destroy(). But
-+	 * in racy cases, subsystem may have to get css->refcnt after
-+	 * pre_destroy() and it makes rmdir return with -EBUSY. This sometimes
-+	 * make rmdir return -EBUSY too often. To avoid that, we use waitqueue
-+	 * for cgroup's rmdir. CGRP_WAIT_ON_RMDIR is for synchronizing rmdir
-+	 * and subsystem's reference count handling. Please see css_get/put
-+	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
-+	 */
-+	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-+
-+	/*
- 	 * Call pre_destroy handlers of subsys. Notify subsystems
- 	 * that rmdir() request comes.
- 	 */
- 	ret = cgroup_call_pre_destroy(cgrp);
--	if (ret)
-+	if (ret) {
-+		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		return ret;
-+	}
- 
- 	mutex_lock(&cgroup_mutex);
- 	parent = cgrp->parent;
- 	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-+		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		mutex_unlock(&cgroup_mutex);
- 		return -EBUSY;
- 	}
--	/*
--	 * css_put/get is provided for subsys to grab refcnt to css. In typical
--	 * case, subsystem has no reference after pre_destroy(). But, under
--	 * hierarchy management, some *temporal* refcnt can be hold.
--	 * To avoid returning -EBUSY to a user, waitqueue is used. If subsys
--	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
--	 * is called when css_put() is called and refcnt goes down to 0.
--	 */
--	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
--
- 	if (!cgroup_clear_css_refs(cgrp)) {
- 		mutex_unlock(&cgroup_mutex);
--		schedule();
-+		/*
-+		 * Because someone may call cgroup_wakeup_rmdir_waiter() before
-+		 * prepare_to_wait(), we need to check this flag.
-+		 */
-+		if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
-+			schedule();
- 		finish_wait(&cgroup_rmdir_waitq, &wait);
- 		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
- 		if (signal_pending(current))
-@@ -3343,7 +3364,7 @@ void __css_put(struct cgroup_subsys_stat
- 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
- 			check_for_release(cgrp);
- 		}
--		cgroup_wakeup_rmdir_waiters(cgrp);
-+		cgroup_wakeup_rmdir_waiter(cgrp);
- 	}
- 	rcu_read_unlock();
- }
-Index: mmotm-2.6.31-Jul15/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.31-Jul15.orig/mm/memcontrol.c
-+++ mmotm-2.6.31-Jul15/mm/memcontrol.c
-@@ -1234,6 +1234,12 @@ static int mem_cgroup_move_account(struc
- 	ret = 0;
- out:
- 	unlock_page_cgroup(pc);
-+	/*
-+	 * We charges against "to" which may not have any tasks. Then, "to"
-+	 * can be under rmdir(). But in current implementation, caller of
-+	 * this function is just force_empty() and it's garanteed that
-+	 * "to" is never removed. So, we don't check rmdir status here.
-+	 */
- 	return ret;
- }
- 
-@@ -1455,6 +1461,7 @@ __mem_cgroup_commit_charge_swapin(struct
- 		return;
- 	if (!ptr)
- 		return;
-+	cgroup_exclude_rmdir(&ptr->css);
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
- 	__mem_cgroup_commit_charge(ptr, pc, ctype);
-@@ -1484,8 +1491,12 @@ __mem_cgroup_commit_charge_swapin(struct
- 		}
- 		rcu_read_unlock();
- 	}
--	/* add this page(page_cgroup) to the LRU we want. */
--
-+	/*
-+	 * At swapin, we may charge account against cgroup which has no tasks.
-+	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-+	 * In that case, we need to call pre_destroy() again. check it here.
-+	 */
-+	cgroup_release_and_wakeup_rmdir(&ptr->css);
- }
- 
- void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-@@ -1691,7 +1702,7 @@ void mem_cgroup_end_migration(struct mem
- 
- 	if (!mem)
- 		return;
--
-+	cgroup_exclude_rmdir(&mem->css);
- 	/* at migration success, oldpage->mapping is NULL. */
- 	if (oldpage->mapping) {
- 		target = oldpage;
-@@ -1731,6 +1742,12 @@ void mem_cgroup_end_migration(struct mem
- 	 */
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
- 		mem_cgroup_uncharge_page(target);
-+	/*
-+	 * At migration, we may charge account against cgroup which has no tasks
-+	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-+	 * In that case, we need to call pre_destroy() again. check it here.
-+	 */
-+	cgroup_release_and_wakeup_rmdir(&mem->css);
- }
- 
- /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
