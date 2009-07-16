@@ -1,177 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EF1CF6B0085
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:22:26 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so6958408gxk.14
-        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:22:32 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 344AD6B0087
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:22:29 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G4MWYI009788
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Jul 2009 13:22:32 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E5C445DE54
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 13:22:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 93C9045DE51
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 13:22:31 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 815A11DB803C
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 13:22:31 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 38D9AE1800D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 13:22:31 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/3] Rename pgmoved variable in shrink_active_list()
+In-Reply-To: <20090715201654.550cb640.akpm@linux-foundation.org>
+References: <20090716095119.9D0A.A69D9226@jp.fujitsu.com> <20090715201654.550cb640.akpm@linux-foundation.org>
+Message-Id: <20090716131928.9D25.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090715201657.b01edccd.akpm@linux-foundation.org>
-References: <20090716094619.9D07.A69D9226@jp.fujitsu.com>
-	 <20090716095344.9D10.A69D9226@jp.fujitsu.com>
-	 <20090715201657.b01edccd.akpm@linux-foundation.org>
-Date: Thu, 16 Jul 2009 13:22:32 +0900
-Message-ID: <28c262360907152122v4f30594cr677b744df3aaefcc@mail.gmail.com>
-Subject: Re: [PATCH 3/3] add isolate pages vmstat
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 16 Jul 2009 13:22:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCBKdWwgMTYsIDIwMDkgYXQgMTI6MTYgUE0sIEFuZHJldwpNb3J0b248YWtwbUBsaW51
-eC1mb3VuZGF0aW9uLm9yZz4gd3JvdGU6Cj4gT24gVGh1LCAxNiBKdWwgMjAwOSAwOTo1NTo0NyAr
-MDkwMCAoSlNUKSBLT1NBS0kgTW90b2hpcm8gPGtvc2FraS5tb3RvaGlyb0BqcC5mdWppdHN1LmNv
-bT4gd3JvdGU6Cj4KPj4gQ2hhbmdlTG9nCj4+IMKgIFNpbmNlIHY1Cj4+IMKgIMKgLSBSZXdyb3Rl
-IHRoZSBkZXNjcmlwdGlvbgo+PiDCoCDCoC0gVHJlYXQgcGFnZSBtaWdyYXRpb24KPj4gwqAgU2lu
-Y2UgdjQKPj4gwqAgwqAtIENoYW5nZWQgZGlzcGxhaW5nIG9yZGVyIGluIHNob3dfZnJlZV9hcmVh
-cygpIChhcyBXdSdzIHN1Z2dlc3RlZCkKPj4gwqAgU2luY2UgdjMKPj4gwqAgwqAtIEZpeGVkIG1p
-c2FjY291bnQgcGFnZSBidWcgd2hlbiBsdW1ieSByZWNsYWltIG9jY3VyCj4+IMKgIFNpbmNlIHYy
-Cj4+IMKgIMKgLSBTZXBhcmF0ZWQgSXNvbGF0ZUxSVSBmaWVsZCB0byBJc29sYXRlZChhbm9uKSBh
-bmQgSXNvbGF0ZWQoZmlsZSkKPj4gwqAgU2luY2UgdjEKPj4gwqAgwqAtIFJlbmFtZWQgSXNvbGF0
-ZVBhZ2VzIHRvIElzb2xhdGVkTFJVCj4+Cj4+ID09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT0KPj4gU3ViamVjdDogW1BBVENIXSBhZGQgaXNvbGF0ZSBwYWdlcyB2bXN0YXQKPj4KPj4g
-SWYgdGhlIHN5c3RlbSBpcyBydW5uaW5nIGEgaGVhdnkgbG9hZCBvZiBwcm9jZXNzZXMgdGhlbiBj
-b25jdXJyZW50IHJlY2xhaW0KPj4gY2FuIGlzb2xhdGUgYSBsYXJnZSBudW1iZSBvZiBwYWdlcyBm
-cm9tIHRoZSBMUlUuIC9wcm9jL21lbWluZm8gYW5kIHRoZQo+PiBvdXRwdXQgZ2VuZXJhdGVkIGZv
-ciBhbiBPT00gZG8gbm90IHNob3cgaG93IG1hbnkgcGFnZXMgd2VyZSBpc29sYXRlZC4KPj4KPj4g
-VGhpcyBwYXRjaCBzaG93cyB0aGUgaW5mb3JtYXRpb24gYWJvdXQgaXNvbGF0ZWQgcGFnZXMuCj4+
-Cj4+Cj4+IHJlcHJvZHVjZSB3YXkKPj4gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KPj4gJSAuL2hh
-Y2tiZW5jaCAxNDAgcHJvY2VzcyAxMDAwCj4+IMKgIMKgPT4gT09NIG9jY3VyCj4+Cj4+IGFjdGl2
-ZV9hbm9uOjE0NiBpbmFjdGl2ZV9hbm9uOjAgaXNvbGF0ZWRfYW5vbjo0OTI0NQo+PiDCoGFjdGl2
-ZV9maWxlOjc5IGluYWN0aXZlX2ZpbGU6MTggaXNvbGF0ZWRfZmlsZToxMTMKPj4gwqB1bmV2aWN0
-YWJsZTowIGRpcnR5OjAgd3JpdGViYWNrOjAgdW5zdGFibGU6MCBidWZmZXI6MzkKPj4gwqBmcmVl
-OjM3MCBzbGFiX3JlY2xhaW1hYmxlOjMwOSBzbGFiX3VucmVjbGFpbWFibGU6NTQ5Mgo+PiDCoG1h
-cHBlZDo1MyBzaG1lbToxNSBwYWdldGFibGVzOjI4MTQwIGJvdW5jZTowCj4+Cj4+Cj4+IFNpZ25l
-ZC1vZmYtYnk6IEtPU0FLSSBNb3RvaGlybyA8a29zYWtpLm1vdG9oaXJvQGpwLmZ1aml0c3UuY29t
-Pgo+PiBBY2tlZC1ieTogUmlrIHZhbiBSaWVsIDxyaWVsQHJlZGhhdC5jb20+Cj4+IEFja2VkLWJ5
-OiBXdSBGZW5nZ3VhbmcgPGZlbmdndWFuZy53dUBpbnRlbC5jb20+Cj4+IFJldmlld2VkLWJ5OiBN
-aW5jaGFuIEtpbSA8bWluY2hhbi5raW1AZ21haWwuY29tPgo+PiAtLS0KPj4gwqBkcml2ZXJzL2Jh
-c2Uvbm9kZS5jIMKgIMKgfCDCoCDCoDQgKysrKwo+PiDCoGZzL3Byb2MvbWVtaW5mby5jIMKgIMKg
-IMKgfCDCoCDCoDQgKysrKwo+PiDCoGluY2x1ZGUvbGludXgvbW16b25lLmggfCDCoCDCoDIgKysK
-Pj4gwqBtbS9taWdyYXRlLmMgwqAgwqAgwqAgwqAgwqAgfCDCoCAxMSArKysrKysrKysrKwo+PiDC
-oG1tL3BhZ2VfYWxsb2MuYyDCoCDCoCDCoCDCoHwgwqAgMTIgKysrKysrKysrLS0tCj4+IMKgbW0v
-dm1zY2FuLmMgwqAgwqAgwqAgwqAgwqAgwqB8IMKgIDEyICsrKysrKysrKysrLQo+PiDCoG1tL3Zt
-c3RhdC5jIMKgIMKgIMKgIMKgIMKgIMKgfCDCoCDCoDIgKysKPj4gwqA3IGZpbGVzIGNoYW5nZWQs
-IDQzIGluc2VydGlvbnMoKyksIDQgZGVsZXRpb25zKC0pCj4+Cj4+IEluZGV4OiBiL2ZzL3Byb2Mv
-bWVtaW5mby5jCj4+ID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT0KPj4gLS0tIGEvZnMvcHJvYy9tZW1pbmZvLmMKPj4gKysr
-IGIvZnMvcHJvYy9tZW1pbmZvLmMKPj4gQEAgLTY1LDYgKzY1LDggQEAgc3RhdGljIGludCBtZW1p
-bmZvX3Byb2Nfc2hvdyhzdHJ1Y3Qgc2VxXwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCAiQWN0aXZl
-KGZpbGUpOiDCoCAlOGx1IGtCXG4iCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgICJJbmFjdGl2ZShm
-aWxlKTogJThsdSBrQlxuIgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCAiVW5ldmljdGFibGU6IMKg
-IMKgJThsdSBrQlxuIgo+PiArIMKgIMKgIMKgIMKgIMKgIMKgICJJc29sYXRlZChhbm9uKTogJThs
-dSBrQlxuIgo+PiArIMKgIMKgIMKgIMKgIMKgIMKgICJJc29sYXRlZChmaWxlKTogJThsdSBrQlxu
-Igo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCAiTWxvY2tlZDogwqAgwqAgwqAgwqAlOGx1IGtCXG4i
-Cj4KPiBBcmUgdGhlc2UgY291bnRlcnMgcmVhbGx5IGltcG9ydGFudCBlbm91Z2ggdG8ganVzdGlm
-eSBiZWluZyBwcmVzZW50IGluCj4gL3Byb2MvbWVtaW5mbz8gwqBUaGV5IHNlZW0gZmFpcmx5IGxv
-dy1sZXZlbCBkZXZlbG9wZXItb25seSBkZXRhaWxzLgo+IFBlcmhhcHMgcmVsZWdhdGUgdGhlbSB0
-byAvcHJvYy92bXN0YXQ/Cj4KPj4gwqAjaWZkZWYgQ09ORklHX0hJR0hNRU0KPj4gwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgIkhpZ2hUb3RhbDogwqAgwqAgwqAlOGx1IGtCXG4iCj4+IEBAIC0xMTAsNiAr
-MTEyLDggQEAgc3RhdGljIGludCBtZW1pbmZvX3Byb2Nfc2hvdyhzdHJ1Y3Qgc2VxXwo+PiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCBLKHBhZ2VzW0xSVV9BQ1RJVkVfRklMRV0pLAo+PiDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCBLKHBhZ2VzW0xSVV9JTkFDVElWRV9GSUxFXSksCj4+IMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIEsocGFnZXNbTFJVX1VORVZJQ1RBQkxFXSksCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAg
-SyhnbG9iYWxfcGFnZV9zdGF0ZShOUl9JU09MQVRFRF9BTk9OKSksCj4+ICsgwqAgwqAgwqAgwqAg
-wqAgwqAgSyhnbG9iYWxfcGFnZV9zdGF0ZShOUl9JU09MQVRFRF9GSUxFKSksCj4+IMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIEsoZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfTUxPQ0spKSwKPj4gwqAjaWZkZWYg
-Q09ORklHX0hJR0hNRU0KPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgSyhpLnRvdGFsaGlnaCksCj4+
-IEluZGV4OiBiL2luY2x1ZGUvbGludXgvbW16b25lLmgKPj4gPT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQo+PiAtLS0gYS9p
-bmNsdWRlL2xpbnV4L21tem9uZS5oCj4+ICsrKyBiL2luY2x1ZGUvbGludXgvbW16b25lLmgKPj4g
-QEAgLTEwMCw2ICsxMDAsOCBAQCBlbnVtIHpvbmVfc3RhdF9pdGVtIHsKPj4gwqAgwqAgwqAgTlJf
-Qk9VTkNFLAo+PiDCoCDCoCDCoCBOUl9WTVNDQU5fV1JJVEUsCj4+IMKgIMKgIMKgIE5SX1dSSVRF
-QkFDS19URU1QLCDCoCDCoCDCoC8qIFdyaXRlYmFjayB1c2luZyB0ZW1wb3JhcnkgYnVmZmVycyAq
-Lwo+PiArIMKgIMKgIE5SX0lTT0xBVEVEX0FOT04sIMKgIMKgIMKgIC8qIFRlbXBvcmFyeSBpc29s
-YXRlZCBwYWdlcyBmcm9tIGFub24gbHJ1ICovCj4+ICsgwqAgwqAgTlJfSVNPTEFURURfRklMRSwg
-wqAgwqAgwqAgLyogVGVtcG9yYXJ5IGlzb2xhdGVkIHBhZ2VzIGZyb20gZmlsZSBscnUgKi8KPj4g
-wqAgwqAgwqAgTlJfU0hNRU0sIMKgIMKgIMKgIMKgIMKgIMKgIMKgIC8qIHNobWVtIHBhZ2VzIChp
-bmNsdWRlZCB0bXBmcy9HRU0gcGFnZXMpICovCj4+IMKgI2lmZGVmIENPTkZJR19OVU1BCj4+IMKg
-IMKgIMKgIE5VTUFfSElULCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAvKiBhbGxvY2F0ZWQgaW4gaW50
-ZW5kZWQgbm9kZSAqLwo+PiBJbmRleDogYi9tbS9wYWdlX2FsbG9jLmMKPj4gPT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQo+
-PiAtLS0gYS9tbS9wYWdlX2FsbG9jLmMKPj4gKysrIGIvbW0vcGFnZV9hbGxvYy5jCj4+IEBAIC0y
-MTE1LDE2ICsyMTE1LDE4IEBAIHZvaWQgc2hvd19mcmVlX2FyZWFzKHZvaWQpCj4+IMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIH0KPj4gwqAgwqAgwqAgfQo+Pgo+PiAtIMKgIMKgIHByaW50aygiQWN0aXZl
-X2Fub246JWx1IGFjdGl2ZV9maWxlOiVsdSBpbmFjdGl2ZV9hbm9uOiVsdVxuIgo+PiAtIMKgIMKg
-IMKgIMKgIMKgIMKgICIgaW5hY3RpdmVfZmlsZTolbHUiCj4+ICsgwqAgwqAgcHJpbnRrKCJhY3Rp
-dmVfYW5vbjolbHUgaW5hY3RpdmVfYW5vbjolbHUgaXNvbGF0ZWRfYW5vbjolbHVcbiIKPj4gKyDC
-oCDCoCDCoCDCoCDCoCDCoCAiIGFjdGl2ZV9maWxlOiVsdSBpbmFjdGl2ZV9maWxlOiVsdSBpc29s
-YXRlZF9maWxlOiVsdVxuIgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCAiIHVuZXZpY3RhYmxlOiVs
-dSIKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgIiBkaXJ0eTolbHUgd3JpdGViYWNrOiVsdSB1bnN0
-YWJsZTolbHUgYnVmZmVyOiVsdVxuIgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCAiIGZyZWU6JWx1
-IHNsYWJfcmVjbGFpbWFibGU6JWx1IHNsYWJfdW5yZWNsYWltYWJsZTolbHVcbiIKPj4gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgIiBtYXBwZWQ6JWx1IHNobWVtOiVsdSBwYWdldGFibGVzOiVsdSBib3Vu
-Y2U6JWx1XG4iLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBnbG9iYWxfcGFnZV9zdGF0ZShOUl9B
-Q1RJVkVfQU5PTiksCj4+IC0gwqAgwqAgwqAgwqAgwqAgwqAgZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJf
-QUNUSVZFX0ZJTEUpLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBnbG9iYWxfcGFnZV9zdGF0ZShO
-Ul9JTkFDVElWRV9BTk9OKSwKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCBnbG9iYWxfcGFnZV9zdGF0
-ZShOUl9JU09MQVRFRF9BTk9OKSwKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCBnbG9iYWxfcGFnZV9z
-dGF0ZShOUl9BQ1RJVkVfRklMRSksCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIGdsb2JhbF9wYWdl
-X3N0YXRlKE5SX0lOQUNUSVZFX0ZJTEUpLAo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIGdsb2JhbF9w
-YWdlX3N0YXRlKE5SX0lTT0xBVEVEX0ZJTEUpLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBnbG9i
-YWxfcGFnZV9zdGF0ZShOUl9VTkVWSUNUQUJMRSksCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIGds
-b2JhbF9wYWdlX3N0YXRlKE5SX0ZJTEVfRElSVFkpLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBn
-bG9iYWxfcGFnZV9zdGF0ZShOUl9XUklURUJBQ0spLAo+PiBAQCAtMjE1Miw2ICsyMTU0LDggQEAg
-dm9pZCBzaG93X2ZyZWVfYXJlYXModm9pZCkKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgIiBhY3RpdmVfZmlsZTolbHVrQiIKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgIiBpbmFjdGl2ZV9maWxlOiVsdWtCIgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCAiIHVuZXZpY3RhYmxlOiVsdWtCIgo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgICIgaXNvbGF0ZWQoYW5vbik6JWx1a0IiCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgIiBpc29sYXRlZChmaWxlKTolbHVrQiIKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgIiBwcmVzZW50OiVsdWtCIgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCAiIG1sb2NrZWQ6JWx1a0IiCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgICIgZGlydHk6JWx1a0IiCj4+IEBAIC0yMTc4LDYgKzIxODIsOCBAQCB2b2lkIHNob3dfZnJl
-ZV9hcmVhcyh2b2lkKQo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBLKHpvbmVf
-cGFnZV9zdGF0ZSh6b25lLCBOUl9BQ1RJVkVfRklMRSkpLAo+PiDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCBLKHpvbmVfcGFnZV9zdGF0ZSh6b25lLCBOUl9JTkFDVElWRV9GSUxFKSks
-Cj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIEsoem9uZV9wYWdlX3N0YXRlKHpv
-bmUsIE5SX1VORVZJQ1RBQkxFKSksCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-Syh6b25lX3BhZ2Vfc3RhdGUoem9uZSwgTlJfSVNPTEFURURfQU5PTikpLAo+PiArIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIEsoem9uZV9wYWdlX3N0YXRlKHpvbmUsIE5SX0lTT0xBVEVE
-X0ZJTEUpKSwKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgSyh6b25lLT5wcmVz
-ZW50X3BhZ2VzKSwKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgSyh6b25lX3Bh
-Z2Vfc3RhdGUoem9uZSwgTlJfTUxPQ0spKSwKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgSyh6b25lX3BhZ2Vfc3RhdGUoem9uZSwgTlJfRklMRV9ESVJUWSkpLAo+PiBJbmRleDog
-Yi9tbS92bXNjYW4uYwo+PiA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09Cj4+IC0tLSBhL21tL3Ztc2Nhbi5jCj4+ICsrKyBi
-L21tL3Ztc2Nhbi5jCj4+IEBAIC0xMDY3LDYgKzEwNjcsOCBAQCBzdGF0aWMgdW5zaWduZWQgbG9u
-ZyBzaHJpbmtfaW5hY3RpdmVfbGlzCj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIHVuc2lnbmVkIGxv
-bmcgbnJfYWN0aXZlOwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCB1bnNpZ25lZCBpbnQgY291bnRb
-TlJfTFJVX0xJU1RTXSA9IHsgMCwgfTsKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgaW50IG1vZGUg
-PSBsdW1weV9yZWNsYWltID8gSVNPTEFURV9CT1RIIDogSVNPTEFURV9JTkFDVElWRTsKPj4gKyDC
-oCDCoCDCoCDCoCDCoCDCoCB1bnNpZ25lZCBsb25nIG5yX2Fub247Cj4+ICsgwqAgwqAgwqAgwqAg
-wqAgwqAgdW5zaWduZWQgbG9uZyBucl9maWxlOwo+Pgo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBu
-cl90YWtlbiA9IHNjLT5pc29sYXRlX3BhZ2VzKHNjLT5zd2FwX2NsdXN0ZXJfbWF4LAo+PiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCZwYWdlX2xpc3QsICZucl9zY2Fu
-LCBzYy0+b3JkZXIsIG1vZGUsCj4+IEBAIC0xMDk3LDYgKzEwOTksMTAgQEAgc3RhdGljIHVuc2ln
-bmVkIGxvbmcgc2hyaW5rX2luYWN0aXZlX2xpcwo+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCBfX21v
-ZF96b25lX3BhZ2Vfc3RhdGUoem9uZSwgTlJfSU5BQ1RJVkVfQU5PTiwKPj4gwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-LWNvdW50W0xSVV9JTkFDVElWRV9BTk9OXSk7Cj4+Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgbnJf
-YW5vbiA9IGNvdW50W0xSVV9BQ1RJVkVfQU5PTl0gKyBjb3VudFtMUlVfSU5BQ1RJVkVfQU5PTl07
-Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgbnJfZmlsZSA9IGNvdW50W0xSVV9BQ1RJVkVfRklMRV0g
-KyBjb3VudFtMUlVfSU5BQ1RJVkVfRklMRV07Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgX19tb2Rf
-em9uZV9wYWdlX3N0YXRlKHpvbmUsIE5SX0lTT0xBVEVEX0FOT04sIG5yX2Fub24pOwo+PiArIMKg
-IMKgIMKgIMKgIMKgIMKgIF9fbW9kX3pvbmVfcGFnZV9zdGF0ZSh6b25lLCBOUl9JU09MQVRFRF9G
-SUxFLCBucl9maWxlKTsKPj4KPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmVjbGFpbV9zdGF0LT5y
-ZWNlbnRfc2Nhbm5lZFswXSArPSBjb3VudFtMUlVfSU5BQ1RJVkVfQU5PTl07Cj4+IMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIHJlY2xhaW1fc3RhdC0+cmVjZW50X3NjYW5uZWRbMF0gKz0gY291bnRbTFJV
-X0FDVElWRV9BTk9OXTsKPj4gQEAgLTExNjQsNiArMTE3MCw5IEBAIHN0YXRpYyB1bnNpZ25lZCBs
-b25nIHNocmlua19pbmFjdGl2ZV9saXMKPj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgc3Bpbl9sb2NrX2lycSgmem9uZS0+bHJ1X2xvY2spOwo+PiDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9Cj4+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIH0KPj4g
-KyDCoCDCoCDCoCDCoCDCoCDCoCBfX21vZF96b25lX3BhZ2Vfc3RhdGUoem9uZSwgTlJfSVNPTEFU
-RURfQU5PTiwgLW5yX2Fub24pOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIF9fbW9kX3pvbmVfcGFn
-ZV9zdGF0ZSh6b25lLCBOUl9JU09MQVRFRF9GSUxFLCAtbnJfZmlsZSk7Cj4+ICsKPj4gwqAgwqAg
-wqAgfSB3aGlsZSAobnJfc2Nhbm5lZCA8IG1heF9zY2FuKTsKPgo+IFRoaXMgaXMgYSBub24tdHJp
-dmlhbCBhbW91bnQgb2YgZXh0cmEgc3R1ZmYuIMKgRG8gd2UgcmVhbGx5IG5lZWQgaXQ/Cj4KCkkg
-dGhvdWdodCBzby4KVGhpcyBwYXRjaCByZXN1bHRzIGZvcm0gcHJvY2VzcyBmb3JrIGJvbWIoZXgs
-IG1zdGN0bDExIGluIExUUCkuClRvbyBtYW55IGlzb2xhdGVkIHBhdGNoZXMgYXJlIGJhc2VkIG9u
-IGlzb2xhdGlvbiBjb3VudGVyLgoKU28sIEkgdGhpbmsgd2UgbmVlZCB0aGlzIHVudGlsIG5vdy4K
-SWYgd2UgY2FuIHNvbHZlIHRoZSBwcm9ibGVtIHdpdGggZGlmZmVyZW50IG1ldGhvZCwgdGhlbiB3
-ZSBjYW4gZHJvcCB0aGlzLgoKLS0gCktpbmQgcmVnYXJkcywKTWluY2hhbiBLaW0K
+> On Thu, 16 Jul 2009 09:52:34 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+> >  	if (file)
+> > -		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -pgmoved);
+> > +		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
+> >  	else
+> > -		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
+> > +		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
+> 
+> we could have used __sub_zone_page_state() there.
+
+__add_zone_page_state() and __sub_zone_page_state() are no user.
+
+Instead, we can remove it?
+
+
+==============================================
+Subject: Kill __{add,sub}_zone_page_state()
+
+Currently, __add_zone_page_state() and __sub_zone_page_state() are unused.
+This patch remove it.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/vmstat.h |    5 -----
+ 1 file changed, 5 deletions(-)
+
+Index: b/include/linux/vmstat.h
+===================================================================
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -210,11 +210,6 @@ extern void zone_statistics(struct zone 
+ 
+ #endif /* CONFIG_NUMA */
+ 
+-#define __add_zone_page_state(__z, __i, __d)	\
+-		__mod_zone_page_state(__z, __i, __d)
+-#define __sub_zone_page_state(__z, __i, __d)	\
+-		__mod_zone_page_state(__z, __i,-(__d))
+-
+ #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
+ #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
+ 
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
