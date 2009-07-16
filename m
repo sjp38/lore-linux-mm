@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EBC386B00A0
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:22:11 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id ACF3382C6AF
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:41:26 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id G7fUSNSwfYyf for <linux-mm@kvack.org>;
-	Thu, 16 Jul 2009 12:41:26 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D58CA82C753
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:41:04 -0400 (EDT)
-Date: Thu, 16 Jul 2009 12:21:34 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] mm: count only reclaimable lru pages v2
-In-Reply-To: <20090716150901.GA31204@localhost>
-Message-ID: <alpine.DEB.1.10.0907161220270.29771@gentwo.org>
-References: <20090716133454.GA20550@localhost> <alpine.DEB.1.10.0907160959260.32382@gentwo.org> <20090716142533.GA27165@localhost> <1247754491.6586.23.camel@laptop> <alpine.DEB.1.10.0907161037590.7930@gentwo.org> <4A5F3C70.7010001@redhat.com>
- <20090716150901.GA31204@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 462FB6B00A3
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:25:03 -0400 (EDT)
+Message-ID: <4A5F5454.8070300@redhat.com>
+Date: Thu, 16 Jul 2009 12:24:52 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: count only reclaimable lru pages
+References: <20090716133454.GA20550@localhost> <4987.1247760908@redhat.com>
+In-Reply-To: <4987.1247760908@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: David Howells <dhowells@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Jul 2009, Wu Fengguang wrote:
+David Howells wrote:
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+>> It can greatly (and correctly) increase the slab scan rate under high memory
+>> pressure (when most file pages have been reclaimed and swap is full/absent),
+>> thus avoid possible false OOM kills.
+> 
+> I applied this to my test machine's kernel and rebooted.  It hit the OOM
+> killer a few seconds after starting msgctl11 .  Furthermore, it was not then
+> responsive to SysRq+b or anything else and had to have the magic button
+> pushed.
 
-> /*
->  * The reclaimable count would be mostly accurate.
->  * The less reclaimable pages may be
->  * - mlocked pages, which will be moved to unevictable list when encountered
->  * - mapped pages, which may require several travels to be reclaimed
->  * - dirty pages, which is not "instantly" reclaimable
->  */
+It's part of a series of patches, including the three
+posted by Kosaki-san last night (to track the number
+of isolated pages) and the patch I posted last night
+(to throttle reclaim when too many pages are isolated).
 
-ok.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
