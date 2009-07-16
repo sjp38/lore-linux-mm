@@ -1,91 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EAB836B004D
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 23:37:05 -0400 (EDT)
-Date: Wed, 15 Jul 2009 23:36:59 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm] throttle direct reclaim when too many pages are
- isolated already (v2)
-Message-ID: <20090715233659.50fe1c4c@bree.surriel.com>
-In-Reply-To: <20090715194820.237a4d77.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id DE95C6B004D
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 23:39:26 -0400 (EDT)
+Date: Wed, 15 Jul 2009 20:38:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are
+ isolated already
+Message-Id: <20090715203854.336de2d5.akpm@linux-foundation.org>
+In-Reply-To: <4A5E9E4E.5000308@redhat.com>
 References: <20090715223854.7548740a@bree.surriel.com>
 	<20090715194820.237a4d77.akpm@linux-foundation.org>
+	<4A5E9A33.3030704@redhat.com>
+	<20090715202114.789d36f7.akpm@linux-foundation.org>
+	<4A5E9E4E.5000308@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 15 Jul 2009 23:28:14 -0400 Rik van Riel <riel@redhat.com> wrote:
 
-When way too many processes go into direct reclaim, it is possible
-for all of the pages to be taken off the LRU.  One result of this
-is that the next process in the page reclaim code thinks there are
-no reclaimable pages left and triggers an out of memory kill.
+> Andrew Morton wrote:
+> > On Wed, 15 Jul 2009 23:10:43 -0400 Rik van Riel <riel@redhat.com> wrote:
+> > 
+> >> Andrew Morton wrote:
+> >>> On Wed, 15 Jul 2009 22:38:53 -0400 Rik van Riel <riel@redhat.com> wrote:
+> >>>
+> >>>> When way too many processes go into direct reclaim, it is possible
+> >>>> for all of the pages to be taken off the LRU.  One result of this
+> >>>> is that the next process in the page reclaim code thinks there are
+> >>>> no reclaimable pages left and triggers an out of memory kill.
+> >>>>
+> >>>> One solution to this problem is to never let so many processes into
+> >>>> the page reclaim path that the entire LRU is emptied.  Limiting the
+> >>>> system to only having half of each inactive list isolated for
+> >>>> reclaim should be safe.
+> >>>>
+> >>> Since when?  Linux page reclaim has a bilion machine years testing and
+> >>> now stuff like this turns up.  Did we break it or is this a
+> >>> never-before-discovered workload?
+> >> It's been there for years, in various forms.  It hardly ever
+> >> shows up, but Kosaki's patch series give us a nice chance to
+> >> fix it for good.
+> > 
+> > OK.
+> > 
+> >>>> @@ -1049,6 +1070,10 @@ static unsigned long shrink_inactive_lis
+> >>>>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+> >>>>  	int lumpy_reclaim = 0;
+> >>>>  
+> >>>> +	while (unlikely(too_many_isolated(zone, file))) {
+> >>>> +		schedule_timeout_interruptible(HZ/10);
+> >>>> +	}
+> >>> This (incorrectly-laid-out) code is a no-op if signal_pending().
+> >> Good point, I should add some code to break out of page reclaim
+> >> if a fatal signal is pending,
+> > 
+> > We can't just return NULL from __alloc_pages(), and if we can't
+> > get a page from the freelists then we're just going to have to keep
+> > reclaiming.  So I'm not sure how we can do this.
+> 
+> If we are stuck at this point in the page reclaim code,
+> it is because too many other tasks are reclaiming pages.
+> 
+> That makes it fairly safe to just return SWAP_CLUSTER_MAX
+> here and hope that __alloc_pages() can get a page.
+> 
+> After all, if __alloc_pages() thinks it made progress,
+> but still cannot make the allocation, it will call the
+> pageout code again.
 
-One solution to this problem is to never let so many processes into
-the page reclaim path that the entire LRU is emptied.  Limiting the
-system to only having half of each inactive list isolated for
-reclaim should be safe.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
-v2: fix the bugs pointed out by Andrew Morton
-
-This patch goes on top of Kosaki's "Account the number of isolated pages"
-patch series.
-
- mm/vmscan.c |   29 +++++++++++++++++++++++++++++
- 1 file changed, 29 insertions(+)
-
-Index: mmotm/mm/vmscan.c
-===================================================================
---- mmotm.orig/mm/vmscan.c	2009-07-15 22:32:35.000000000 -0400
-+++ mmotm/mm/vmscan.c	2009-07-15 23:26:37.000000000 -0400
-@@ -1035,6 +1035,27 @@ int isolate_lru_page(struct page *page)
- }
- 
- /*
-+ * Are there way too many processes in the direct reclaim path already?
-+ */
-+static int too_many_isolated(struct zone *zone, int file)
-+{
-+	unsigned long inactive, isolated;
-+
-+	if (current_is_kswapd())
-+		return 0;
-+
-+	if (file) {
-+		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
-+		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
-+	} else {
-+		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-+		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
-+	}
-+
-+	return isolated > inactive;
-+}
-+
-+/*
-  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-  * of reclaimed pages
-  */
-@@ -1049,6 +1070,14 @@ static unsigned long shrink_inactive_lis
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	int lumpy_reclaim = 0;
- 
-+	while (unlikely(too_many_isolated(zone, file))) {
-+		/* We are about to die and free our memory. Return now. */
-+		if (fatal_signal_pending(current))
-+			return SWAP_CLUSTER_MAX;
-+
-+		congestion_wait(WRITE, HZ/10);
-+	}
-+
- 	/*
- 	 * If we need a large contiguous chunk of memory, or have
- 	 * trouble getting a small set of contiguous pages, we
+Which will immediately return because the caller still has
+fatal_signal_pending()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
