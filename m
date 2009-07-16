@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3626C6B0062
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:09:09 -0400 (EDT)
-Message-ID: <4A5EA7E1.7030403@redhat.com>
-Date: Thu, 16 Jul 2009 00:09:05 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 94DC96B0082
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 00:10:21 -0400 (EDT)
+Received: by yxe35 with SMTP id 35so2754333yxe.12
+        for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:10:23 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are isolated
- already (v3)
-References: <20090715223854.7548740a@bree.surriel.com>	<20090715194820.237a4d77.akpm@linux-foundation.org>	<4A5E9A33.3030704@redhat.com>	<20090715202114.789d36f7.akpm@linux-foundation.org>	<4A5E9E4E.5000308@redhat.com>	<20090715203854.336de2d5.akpm@linux-foundation.org>	<20090715235318.6d2f5247@bree.surriel.com> <20090715210253.bc137b2d.akpm@linux-foundation.org>
-In-Reply-To: <20090715210253.bc137b2d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
+References: <20090716094619.9D07.A69D9226@jp.fujitsu.com>
+	 <20090716095241.9D0D.A69D9226@jp.fujitsu.com>
+Date: Thu, 16 Jul 2009 13:10:23 +0900
+Message-ID: <28c262360907152110k23e1aebk9fbf7853c29991e@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: shrink_inactive_lis() nr_scan accounting fix fix
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+Good.
+I decided making patch like this since I knew this problem.
+You are too diligent :)
 
-> While I agree that handling fatal signals on the direct reclaim path
-> is probably a good thing, this seems like a fairly random place at
-> which to start the enhancement.
+Thanks for good attitude.
 
-You are right, the direct reclaim path has one other
-place where congestion_wait is called in a loop,
-do_try_to_free_pages itself - we'll probably want to
-break out of that loop too, if the task is about to
-die and free all its memory.
+On Thu, Jul 16, 2009 at 9:53 AM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Subject: [PATCH] mm: shrink_inactive_lis() nr_scan accounting fix fix
+>
+> If sc->isolate_pages() return 0, we don't need to call shrink_page_list()=
+.
+> In past days, shrink_inactive_list() handled it properly.
+>
+> But commit fb8d14e1 (three years ago commit!) breaked it. current shrink_=
+inactive_list()
+> always call shrink_page_list() although isolate_pages() return 0.
+>
+> This patch restore proper return value check.
+>
+>
+> Requirements:
+> =C2=A0o "nr_taken =3D=3D 0" condition should stay before calling shrink_p=
+age_list().
+> =C2=A0o "nr_taken =3D=3D 0" condition should stay after nr_scan related s=
+tatistics
+> =C2=A0 =C2=A0 modification.
+>
+>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-> If we were to step back and approach this in a broader fashion, perhaps
-> we would find some commonality with the existing TIF_MEMDIE handling,
-> dunno.
-
-Good point - what is it that makes TIF_MEMDIE special
-wrt. other fatal signals, anyway?
-
-I wonder if we should not simply "help along" any task
-with fatal signals pending, anywhere in the VM (and maybe
-other places in the kernel, too).
-
-The faster we get rid of a killed process, the sooner its
-resources become available to the other processes.
-
-> And I question the testedness of v3 :)
-
-No question about that :)
-
--- 
-All rights reversed.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
