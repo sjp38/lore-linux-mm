@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 921E46B004D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 09:49:34 -0400 (EDT)
-Message-ID: <4A5F2FDA.2060309@redhat.com>
-Date: Thu, 16 Jul 2009 09:49:14 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 111FA6B004D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 09:55:05 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4D2E982C7A1
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:14:26 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id nBcKDoj9Md1b for <linux-mm@kvack.org>;
+	Thu, 16 Jul 2009 10:14:26 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 325DB82C7A8
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:14:20 -0400 (EDT)
+Date: Thu, 16 Jul 2009 09:54:49 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set
+ V2
+In-Reply-To: <20090716163537.9D3D.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907160949470.32382@gentwo.org>
+References: <alpine.DEB.1.10.0907151027410.23643@gentwo.org> <20090715220445.GA1823@cmpxchg.org> <20090716163537.9D3D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: count only reclaimable lru pages
-References: <20090716133454.GA20550@localhost>
-In-Reply-To: <20090716133454.GA20550@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Maxim Levitsky <maximlevitsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> global_lru_pages() / zone_lru_pages() can be used in two ways:
-> - to estimate max reclaimable pages in determine_dirtyable_memory()  
-> - to calculate the slab scan ratio
-> 
-> When swap is full or not present, the anon lru lists are not reclaimable
-> and thus won't be scanned. So the anon pages shall not be counted. Also
-> rename the function names to reflect the new meaning.
-> 
-> It can greatly (and correctly) increase the slab scan rate under high memory
-> pressure (when most file pages have been reclaimed and swap is full/absent),
-> thus avoid possible false OOM kills.
-> 
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+On Thu, 16 Jul 2009, KOSAKI Motohiro wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> I like this patch. but can you please separate two following patches?
+>   - introduce __TESTCLEARFLAG()
+>   - non-atomic test-clear of PG_mlocked on free
 
--- 
-All rights reversed.
+That would mean introducing the macro without any use case? It is fine the
+way it is I think.
+
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
