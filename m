@@ -1,92 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5A34A6B0087
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:12:25 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G1CMDf022733
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Jul 2009 10:12:23 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 88FF445DE53
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54D8145DE4D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E737E0800C
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B816C1DB803C
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:21 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] profile: Suppress warning about large allocations when profile=1 is specified
-In-Reply-To: <1247656992-19846-3-git-send-email-mel@csn.ul.ie>
-References: <1247656992-19846-1-git-send-email-mel@csn.ul.ie> <1247656992-19846-3-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090716100305.9D16.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Jul 2009 10:12:20 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 676326B008A
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:36:22 -0400 (EDT)
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+From: Michael Ellerman <michael@ellerman.id.au>
+Reply-To: michael@ellerman.id.au
+In-Reply-To: <20090715074952.A36C7DDDB2@ozlabs.org>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature"; boundary="=-3sW64rSI2yIG/UuMyqDm"
+Date: Thu, 16 Jul 2009 11:36:17 +1000
+Message-Id: <1247708177.9851.4.camel@concordia>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Heinz Diehl <htd@fancy-poultry.org>, David Miller <davem@davemloft.net>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-> When profile= is used, a large buffer is allocated early at boot. This
-> can be larger than what the page allocator can provide so it prints a
-> warning. However, the caller is able to handle the situation so this patch
-> suppresses the warning.
 
-I'm confused.
+--=-3sW64rSI2yIG/UuMyqDm
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Currently caller doesn't handle error return.
+On Wed, 2009-07-15 at 17:49 +1000, Benjamin Herrenschmidt wrote:
+> Upcoming paches to support the new 64-bit "BookE" powerpc architecture
+> will need to have the virtual address corresponding to PTE page when
+> freeing it, due to the way the HW table walker works.
 
-----------------------------------------------------------
-asmlinkage void __init start_kernel(void)
-{
-(snip)
-        init_timers();
-        hrtimers_init();
-        softirq_init();
-        timekeeping_init();
-        time_init();
-        sched_clock_init();
-        profile_init();           <-- ignore return value
-------------------------------------------------------------
+> I haven't had a chance to test or even build on most architectures, the
+> patch is reasonably trivial but I may have screwed up regardless, I
+> appologize in advance, let me know if something is wrong.
 
-and, if user want to use linus profiler, the user should choice select
-proper bucket size by boot parameter.
-Currently, allocation failure message tell user about specified bucket size
-is wrong.
-I think this patch hide it.
+Builds for the important architectures, powerpc, ia64, arm, sparc,
+sparc64, oh and x86:
 
+http://kisskb.ellerman.id.au/kisskb/head/1976/
 
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  kernel/profile.c |    5 +++--
->  1 files changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/profile.c b/kernel/profile.c
-> index 69911b5..419250e 100644
-> --- a/kernel/profile.c
-> +++ b/kernel/profile.c
-> @@ -117,11 +117,12 @@ int __ref profile_init(void)
->  
->  	cpumask_copy(prof_cpu_mask, cpu_possible_mask);
->  
-> -	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
-> +	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL|__GFP_NOWARN);
->  	if (prof_buffer)
->  		return 0;
->  
-> -	prof_buffer = alloc_pages_exact(buffer_bytes, GFP_KERNEL|__GFP_ZERO);
-> +	prof_buffer = alloc_pages_exact(buffer_bytes,
-> +					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
->  	if (prof_buffer)
->  		return 0;
+(based on your test branch 34f25476)
 
+cheers
 
+--=-3sW64rSI2yIG/UuMyqDm
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+
+iEYEABECAAYFAkpehAQACgkQdSjSd0sB4dIe4QCgsEWUeUUCjt33SGp2XpLqD/1W
+/QsAn37UyeAeK5Msl22yj/kzj0VYowyT
+=Lbt0
+-----END PGP SIGNATURE-----
+
+--=-3sW64rSI2yIG/UuMyqDm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
