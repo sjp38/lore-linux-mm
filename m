@@ -1,50 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2970D6B0093
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 11:14:13 -0400 (EDT)
-Date: Thu, 16 Jul 2009 11:14:15 -0400 (EDT)
-From: Justin Piszcz <jpiszcz@lucidpixels.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-In-Reply-To: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.0907161113440.1116@p34.internal.lan>
-References: <20090713134621.124aa18e.skraw@ithnet.com> <4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com> <alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com> <20090715084754.36ff73bf.skraw@ithnet.com> <alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
- <20090715113740.334309dd.skraw@ithnet.com> <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2F56B0095
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:01:28 -0400 (EDT)
+Date: Thu, 16 Jul 2009 17:59:54 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: count only reclaimable lru pages v2
+Message-ID: <20090716155954.GA1883@cmpxchg.org>
+References: <20090716133454.GA20550@localhost> <alpine.DEB.1.10.0907160959260.32382@gentwo.org> <20090716142533.GA27165@localhost> <1247754491.6586.23.camel@laptop> <alpine.DEB.1.10.0907161037590.7930@gentwo.org> <4A5F3C70.7010001@redhat.com> <20090716150901.GA31204@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090716150901.GA31204@localhost>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Stephan von Krawczynski <skraw@ithnet.com>, Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jul 16, 2009 at 11:09:01PM +0800, Wu Fengguang wrote:
 
+> mm: count only reclaimable lru pages 
+> 
+> global_lru_pages() / zone_lru_pages() can be used in two ways:
+> - to estimate max reclaimable pages in determine_dirtyable_memory()  
+> - to calculate the slab scan ratio
+> 
+> When swap is full or not present, the anon lru lists are not reclaimable
+> and also won't be scanned. So the anon pages shall not be counted in both
+> usage scenarios. Also rename to _reclaimable_pages: now they are counting
+> the possibly reclaimable lru pages.
+> 
+> It can greatly (and correctly) increase the slab scan rate under high memory
+> pressure (when most file pages have been reclaimed and swap is full/absent),
+> thus reduce false OOM kills.
+> 
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-On Wed, 15 Jul 2009, David Rientjes wrote:
-
-> On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
->
->>> If you have some additional time, it would also be helpful to get a
->>> bisection of when the problem started occurring (it appears to be sometime
->>> between 2.6.29 and 2.6.30).
->>
->> Do you know what version should definitely be not affected? I can check one
->> kernel version per day, can you name a list which versions to check out?
->>
->
-> To my knowledge, this issue was never reported on 2.6.29, so that should
-> be a sane starting point.
->
-
-After talking to Stephan offline--
-
-I am also using the Intel e1000e for my primary network interface to the
-LAN, I suppose this is the culprit?  I have both options compiled in e1000
-and e1000e as I have Intel 1Gbps PCI nics as well.. I am thinking back now
-and before the introduction of e1000e I do not recall seeing any issues,
-perhaps this is it?
-
-Justin.
-
-
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
