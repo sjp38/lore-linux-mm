@@ -1,91 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFB16B004D
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 06:37:22 -0400 (EDT)
-Date: Thu, 16 Jul 2009 11:37:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] profile: Suppress warning about large allocations
-	when profile=1 is specified
-Message-ID: <20090716103719.GA22499@csn.ul.ie>
-References: <1247656992-19846-1-git-send-email-mel@csn.ul.ie> <1247656992-19846-3-git-send-email-mel@csn.ul.ie> <20090716100305.9D16.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090716100305.9D16.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2D6696B004D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 06:49:16 -0400 (EDT)
+Received: by pzk41 with SMTP id 41so21014pzk.12
+        for <linux-mm@kvack.org>; Thu, 16 Jul 2009 03:49:20 -0700 (PDT)
+Date: Thu, 16 Jul 2009 19:49:10 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] [mmotm] don't attempt to reclaim anon page in lumpy reclaim
+ when no swap space is avilable
+Message-Id: <20090716194910.602446a4.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Heinz Diehl <htd@fancy-poultry.org>, David Miller <davem@davemloft.net>, Arnaldo Carvalho de Melo <acme@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 16, 2009 at 10:12:20AM +0900, KOSAKI Motohiro wrote:
-> > When profile= is used, a large buffer is allocated early at boot. This
-> > can be larger than what the page allocator can provide so it prints a
-> > warning. However, the caller is able to handle the situation so this patch
-> > suppresses the warning.
-> 
-> I'm confused.
-> 
-> Currently caller doesn't handle error return.
-> 
-> ----------------------------------------------------------
-> asmlinkage void __init start_kernel(void)
-> {
-> (snip)
->         init_timers();
->         hrtimers_init();
->         softirq_init();
->         timekeeping_init();
->         time_init();
->         sched_clock_init();
->         profile_init();           <-- ignore return value
-> ------------------------------------------------------------
-> 
-> and, if user want to use linus profiler, the user should choice select
-> proper bucket size by boot parameter.
-> Currently, allocation failure message tell user about specified bucket size
-> is wrong.
-> I think this patch hide it.
-> 
 
-Look at what profile_init() itself is doing. You can't see it from the
-patch context but when alloc_pages_exact() fails, it calls vmalloc(). If
-that fails, profiling is just disabled. There isn't really anything the
-caller of profile_init() can do about it and the page allocator doesn't
-need to scream about it.
+This patch is based on mmotm 2009-07-15-20-57
 
-> 
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  kernel/profile.c |    5 +++--
-> >  1 files changed, 3 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/kernel/profile.c b/kernel/profile.c
-> > index 69911b5..419250e 100644
-> > --- a/kernel/profile.c
-> > +++ b/kernel/profile.c
-> > @@ -117,11 +117,12 @@ int __ref profile_init(void)
-> >  
-> >  	cpumask_copy(prof_cpu_mask, cpu_possible_mask);
-> >  
-> > -	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
-> > +	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL|__GFP_NOWARN);
-> >  	if (prof_buffer)
-> >  		return 0;
-> >  
-> > -	prof_buffer = alloc_pages_exact(buffer_bytes, GFP_KERNEL|__GFP_ZERO);
-> > +	prof_buffer = alloc_pages_exact(buffer_bytes,
-> > +					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
-> >  	if (prof_buffer)
-> >  		return 0;
-> 
-> 
-> 
+This version is better than old one.
+That's because enough swap space check is done in case of only lumpy reclaim.
+so it can't degrade performance in normal case.
+
+== CUT HERE ==
+
+VM already avoids attempting to reclaim anon pages in various places, But
+it doesn't avoid it for lumpy reclaim.
+
+It shuffles lru list unnecessary so that it is pointless.
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/vmscan.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 543596e..8b1132f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -930,6 +930,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			/* Check that we have not crossed a zone boundary. */
+ 			if (unlikely(page_zone_id(cursor_page) != zone_id))
+ 				continue;
++
++			/*
++			 * If we don't have enough swap space, reclaiming of anon page
++			 * which don't already have a swap slot is pointless.
++			 */
++			if (nr_swap_pages <= 0 && (PageAnon(cursor_page) &&
++									!PageSwapCache(cursor_page)))
++				continue;
++
+ 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
+ 				list_move(&cursor_page->lru, dst);
+ 				mem_cgroup_del_lru(cursor_page);
+-- 
+1.5.4.3
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
