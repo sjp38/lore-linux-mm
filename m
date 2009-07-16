@@ -1,44 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5D2156B004D
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 23:42:34 -0400 (EDT)
-Message-ID: <4A5EA1A4.1080502@redhat.com>
-Date: Wed, 15 Jul 2009 23:42:28 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are isolated
- already
-References: <20090715223854.7548740a@bree.surriel.com>	<20090715194820.237a4d77.akpm@linux-foundation.org>	<4A5E9A33.3030704@redhat.com>	<20090715202114.789d36f7.akpm@linux-foundation.org>	<4A5E9E4E.5000308@redhat.com> <20090715203854.336de2d5.akpm@linux-foundation.org>
-In-Reply-To: <20090715203854.336de2d5.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+	by kanga.kvack.org (Postfix) with SMTP id DF3E16B004D
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 23:44:38 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G3igd8026085
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Jul 2009 12:44:42 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF60045DE70
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:44:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CE3745DE6E
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:44:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 736F31DB8042
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:44:41 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E5F631DB8043
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 12:44:40 +0900 (JST)
+Date: Thu, 16 Jul 2009 12:42:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are
+ isolated already
+Message-Id: <20090716124255.3d601efb.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4A5E9F3D.1040600@redhat.com>
+References: <20090715223854.7548740a@bree.surriel.com>
+	<20090716121956.fc50949f.kamezawa.hiroyu@jp.fujitsu.com>
+	<4A5E9F3D.1040600@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Wed, 15 Jul 2009 23:28:14 -0400 Rik van Riel <riel@redhat.com> wrote:
+On Wed, 15 Jul 2009 23:32:13 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
->> If we are stuck at this point in the page reclaim code,
->> it is because too many other tasks are reclaiming pages.
->>
->> That makes it fairly safe to just return SWAP_CLUSTER_MAX
->> here and hope that __alloc_pages() can get a page.
->>
->> After all, if __alloc_pages() thinks it made progress,
->> but still cannot make the allocation, it will call the
->> pageout code again.
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 15 Jul 2009 22:38:53 -0400
+> > Rik van Riel <riel@redhat.com> wrote:
+> > 
+> >> When way too many processes go into direct reclaim, it is possible
+> >> for all of the pages to be taken off the LRU.  One result of this
+> >> is that the next process in the page reclaim code thinks there are
+> >> no reclaimable pages left and triggers an out of memory kill.
+> >>
+> >> One solution to this problem is to never let so many processes into
+> >> the page reclaim path that the entire LRU is emptied.  Limiting the
+> >> system to only having half of each inactive list isolated for
+> >> reclaim should be safe.
+> >>
+> >> Signed-off-by: Rik van Riel <riel@redhat.com>
+> >> ---
+> >> This patch goes on top of Kosaki's "Account the number of isolated pages"
+> >> patch series.
+> >>
+> >>  mm/vmscan.c |   25 +++++++++++++++++++++++++
+> >>  1 file changed, 25 insertions(+)
+> >>
+> >> Index: mmotm/mm/vmscan.c
+> >> ===================================================================
+> >> --- mmotm.orig/mm/vmscan.c	2009-07-08 21:37:01.000000000 -0400
+> >> +++ mmotm/mm/vmscan.c	2009-07-08 21:39:02.000000000 -0400
+> >> @@ -1035,6 +1035,27 @@ int isolate_lru_page(struct page *page)
+> >>  }
+> >>  
+> >>  /*
+> >> + * Are there way too many processes in the direct reclaim path already?
+> >> + */
+> >> +static int too_many_isolated(struct zone *zone, int file)
+> >> +{
+> >> +	unsigned long inactive, isolated;
+> >> +
+> >> +	if (current_is_kswapd())
+> >> +		return 0;
+> >> +
+> >> +	if (file) {
+> >> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+> >> +		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+> >> +	} else {
+> >> +		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
+> >> +		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
+> >> +	}
+> >> +
+> >> +	return isolated > inactive;
+> >> +}
+> > 
+> > Why this means "too much" ?
 > 
-> Which will immediately return because the caller still has
-> fatal_signal_pending()?
+> This triggers when most of the pages in the zone (in the
+> category we are trying to reclaim) have already been
+> isolated by other tasks, to be reclaimed.  There is really
+> no need to reclaim all of the pages in a zone all at once,
+> plus it can cause false OOM kills.
+> 
+> Setting the threshold at isolated > inactive gives us
+> enough of a safety margin that we can do this comparison
+> lockless.
+> 
+> > And, could you put this check under scanning_global_lru(sc) ?
+> 
+> When most of the pages in a zone have been isolated from
+> the LRU already by page reclaim, chances are that cgroup
+> reclaim will suffer from the same problem.
+> 
+> Am I overlooking something?
+> 
+Reclaim from cgorup doesn't come from memory shortage but from
+"it hits limit". Then, it doen't necessary to reclaim pages from
+this zone. fallback to other zone is always ok.
+This will trigger unnecessary wait, I think.
 
-Other processes are in the middle of freeing pages at
-this point, so we should succeed in __alloc_pages()
-fairly quickly (and then die and free all our memory).
+Thanks,
+-Kame
 
--- 
-All rights reversed.
+
+
+> -- 
+> All rights reversed.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
