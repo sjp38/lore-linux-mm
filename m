@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 58B4F6B0082
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:31:13 -0400 (EDT)
-Subject: [PATCH] hugetlb:  restore interleaving of bootmem huge pages
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Thu, 16 Jul 2009 10:31:02 -0400
-Message-Id: <1247754662.4382.51.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 78DF56B0085
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:39:41 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id C11FA82C5BD
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:58:56 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id KwHHx2WDmI2Y for <linux-mm@kvack.org>;
+	Thu, 16 Jul 2009 10:58:56 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id AE6B582C658
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:58:46 -0400 (EDT)
+Date: Thu, 16 Jul 2009 10:39:17 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] mm: count only reclaimable lru pages
+In-Reply-To: <1247754491.6586.23.camel@laptop>
+Message-ID: <alpine.DEB.1.10.0907161037590.7930@gentwo.org>
+References: <20090716133454.GA20550@localhost>  <alpine.DEB.1.10.0907160959260.32382@gentwo.org>  <20090716142533.GA27165@localhost> <1247754491.6586.23.camel@laptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, linux-numa <linux-numa@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-PATCH restore interleaving of bootmem huge pages
+On Thu, 16 Jul 2009, Peter Zijlstra wrote:
 
-Against: 2.6.31-rc1-mmotm-090625-1549
-atop the "hugetlb-balance-freeing-of-huge-pages-across-node" series
+> > What would you suggest?  In fact I'm not totally comfortable with it.
+> > Maybe it would be safer to simply stick with the old _lru_pages
+> > naming?
+>
+> Nah, I like the reclaimable name, these pages are at least potentially
+> reclaimable.
+>
+> lru_pages() is definately not correct anymore since you exclude the
+> unevictable and possibly the anon pages.
 
-I noticed that alloc_bootmem_huge_page() will only advance to the
-next node on failure to allocate a huge page, potentially filling 
-nodes with huge-pages.  I asked about this on linux-mm and linux-numa,
-cc'ing the usual huge page suspects.
-
-Mel Gorman responded:
-
-	I strongly suspect that the same node being used until allocation
-	failure instead of round-robin is an oversight and not deliberate
-	at all. It appears to be a side-effect of a fix made way back in
-	commit 63b4613c3f0d4b724ba259dc6c201bb68b884e1a ["hugetlb: fix
-	hugepage allocation with memoryless nodes"]. Prior to that patch
-	it looked like allocations would always round-robin even when
-	allocation was successful.
-
-This patch--factored out of my "hugetlb mempolicy" series--moves the
-advance of the hstate next node from which to allocate up before the
-test for success of the attempted allocation.
-
-Note that alloc_bootmem_huge_page() is only used for order > MAX_ORDER
-huge pages.
-
-I'll post a separate patch for mainline/stable, as the above mentioned
-"balance freeing" series renamed the next node to alloc function.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/hugetlb.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c
-===================================================================
---- linux-2.6.31-rc1-mmotm-090625-1549.orig/mm/hugetlb.c	2009-07-13 09:05:22.000000000 -0400
-+++ linux-2.6.31-rc1-mmotm-090625-1549/mm/hugetlb.c	2009-07-13 09:06:22.000000000 -0400
-@@ -1030,6 +1030,7 @@ int __weak alloc_bootmem_huge_page(struc
- 				NODE_DATA(h->next_nid_to_alloc),
- 				huge_page_size(h), huge_page_size(h), 0);
- 
-+		hstate_next_node_to_alloc(h);
- 		if (addr) {
- 			/*
- 			 * Use the beginning of the huge page to store the
-@@ -1039,7 +1040,6 @@ int __weak alloc_bootmem_huge_page(struc
- 			m = addr;
- 			goto found;
- 		}
--		hstate_next_node_to_alloc(h);
- 		nr_nodes--;
- 	}
- 	return 0;
-
+Well lets at least add a comment at the beginning of the functions
+explaining that these are potentially reclaimable and list some of the
+types of pages that may not be reclaimable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
