@@ -1,87 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 249BD6B0085
-	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:05:24 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G10JNN016570
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5A34A6B0087
+	for <linux-mm@kvack.org>; Wed, 15 Jul 2009 21:12:25 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6G1CMDf022733
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Jul 2009 10:00:19 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6883345DE53
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:00:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4687045DE52
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:00:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26D601DB8041
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:00:19 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D9AC91DB803C
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:00:18 +0900 (JST)
+	Thu, 16 Jul 2009 10:12:23 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 88FF445DE53
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54D8145DE4D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E737E0800C
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:22 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B816C1DB803C
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:12:21 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [BUG] set_mempolicy(MPOL_INTERLEAV) cause kernel panic
-In-Reply-To: <1247679064.4089.26.camel@useless.americas.hpqcorp.net>
-References: <20090715182320.39B5.A69D9226@jp.fujitsu.com> <1247679064.4089.26.camel@useless.americas.hpqcorp.net>
-Message-Id: <20090716093508.9D05.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] profile: Suppress warning about large allocations when profile=1 is specified
+In-Reply-To: <1247656992-19846-3-git-send-email-mel@csn.ul.ie>
+References: <1247656992-19846-1-git-send-email-mel@csn.ul.ie> <1247656992-19846-3-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090716100305.9D16.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Jul 2009 10:00:17 +0900 (JST)
+Date: Thu, 16 Jul 2009 10:12:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Miao Xie <miaox@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Heinz Diehl <htd@fancy-poultry.org>, David Miller <davem@davemloft.net>, Arnaldo Carvalho de Melo <acme@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2009-07-15 at 18:48 +0900, KOSAKI Motohiro wrote:
-> > Hi
-> > 
-> > On 2.6.31-rc3, following test makes kernel panic immediately.
-> > 
-> >   numactl --interleave=all echo
-> > 
-> > Panic message is below. I don't think commit 58568d2a8 is correct patch.
-> > 
-> > old behavior:
-> >   do_set_mempolicy
-> >     mpol_new
-> >       cpuset_update_task_memory_state
-> >         guarantee_online_mems
-> >           nodes_and(cs->mems_allowed, node_states[N_HIGH_MEMORY]);
-> > 
-> > but new code doesn't consider N_HIGH_MEMORY. Then, the userland program
-> > passing non-online node bit makes crash, I guess.
-> > 
-> > Miao, What do you think?
+> When profile= is used, a large buffer is allocated early at boot. This
+> can be larger than what the page allocator can provide so it prints a
+> warning. However, the caller is able to handle the situation so this patch
+> suppresses the warning.
+
+I'm confused.
+
+Currently caller doesn't handle error return.
+
+----------------------------------------------------------
+asmlinkage void __init start_kernel(void)
+{
+(snip)
+        init_timers();
+        hrtimers_init();
+        softirq_init();
+        timekeeping_init();
+        time_init();
+        sched_clock_init();
+        profile_init();           <-- ignore return value
+------------------------------------------------------------
+
+and, if user want to use linus profiler, the user should choice select
+proper bucket size by boot parameter.
+Currently, allocation failure message tell user about specified bucket size
+is wrong.
+I think this patch hide it.
+
+
 > 
-> This looks similar to the problem I tried to fix in:
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  kernel/profile.c |    5 +++--
+>  1 files changed, 3 insertions(+), 2 deletions(-)
 > 
-> 	http://marc.info/?l=linux-mm&m=124140637722309&w=4
-> 
-> Miao pointed out that the patch needs more work to track hot plug of
-> nodes.  I've not had time to get back to this.
-> 
-> Interestingly, on ia64, the top cpuset mems_allowed gets set to all
-> possible nodes, while on x86_64, it gets set to on-line nodes [or nodes
-> with memory].  Maybe this is a to support hot-plug?
-
-Maybe.
-
-task->mems_allowed of the init process is initialized by node_possible_map.
-if the system doesn't have memory hot-plug capability, node_possible_map
-is equal to node_online_map.
-
-
--------------------------------------------------
-@@ -867,6 +866,11 @@ static noinline int init_post(void)
- static int __init kernel_init(void * unused)
- {
-        lock_kernel();
-+
-+       /*
-+        * init can allocate pages on any node
-+        */
-+       set_mems_allowed(node_possible_map);
-
+> diff --git a/kernel/profile.c b/kernel/profile.c
+> index 69911b5..419250e 100644
+> --- a/kernel/profile.c
+> +++ b/kernel/profile.c
+> @@ -117,11 +117,12 @@ int __ref profile_init(void)
+>  
+>  	cpumask_copy(prof_cpu_mask, cpu_possible_mask);
+>  
+> -	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
+> +	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL|__GFP_NOWARN);
+>  	if (prof_buffer)
+>  		return 0;
+>  
+> -	prof_buffer = alloc_pages_exact(buffer_bytes, GFP_KERNEL|__GFP_ZERO);
+> +	prof_buffer = alloc_pages_exact(buffer_bytes,
+> +					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
+>  	if (prof_buffer)
+>  		return 0;
 
 
 
