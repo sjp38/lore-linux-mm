@@ -1,45 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0B70F6B004F
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:25:42 -0400 (EDT)
-Date: Thu, 16 Jul 2009 22:25:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: count only reclaimable lru pages
-Message-ID: <20090716142533.GA27165@localhost>
-References: <20090716133454.GA20550@localhost> <alpine.DEB.1.10.0907160959260.32382@gentwo.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0D3EF6B005D
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:26:26 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 769BD82C3F8
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:45:47 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id zunJ+AVa+GEl for <linux-mm@kvack.org>;
+	Thu, 16 Jul 2009 10:45:47 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 531F882C400
+	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 10:45:39 -0400 (EDT)
+Date: Thu, 16 Jul 2009 10:26:25 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 3/3] add isolate pages vmstat
+In-Reply-To: <20090716095344.9D10.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907161024120.32382@gentwo.org>
+References: <20090716094619.9D07.A69D9226@jp.fujitsu.com> <20090716095344.9D10.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0907160959260.32382@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Howells <dhowells@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 16, 2009 at 10:00:51PM +0800, Christoph Lameter wrote:
-> On Thu, 16 Jul 2009, Wu Fengguang wrote:
-> 
-> > When swap is full or not present, the anon lru lists are not reclaimable
-> > and thus won't be scanned. So the anon pages shall not be counted. Also
-> > rename the function names to reflect the new meaning.
-> >
-> > It can greatly (and correctly) increase the slab scan rate under high memory
-> > pressure (when most file pages have been reclaimed and swap is full/absent),
-> > thus avoid possible false OOM kills.
-> 
-> Reclaimable? Are all pages on the LRUs truly reclaimable?
+On Thu, 16 Jul 2009, KOSAKI Motohiro wrote:
 
-No, only possibly reclaimable :)
+> Index: b/mm/migrate.c
+> ===================================================================
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -67,6 +67,8 @@ int putback_lru_pages(struct list_head *
+>
+>  	list_for_each_entry_safe(page, page2, l, lru) {
+>  		list_del(&page->lru);
+> +		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> +				    !!page_is_file_cache(page));
+>  		putback_lru_page(page);
+>  		count++;
+>  	}
 
-What would you suggest?  In fact I'm not totally comfortable with it.
-Maybe it would be safer to simply stick with the old _lru_pages naming?
+ok.
 
-Thanks,
-Fengguang
+> @@ -696,6 +698,8 @@ unlock:
+>   		 * restored.
+>   		 */
+>   		list_del(&page->lru);
+> +		dec_zone_page_state(page, NR_ISOLATED_ANON +
+> +				    !!page_is_file_cache(page));
+>  		putback_lru_page(page);
+>  	}
+>
 
-> Aside from that nit.
-> 
-> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+ok.
+
+> @@ -740,6 +744,13 @@ int migrate_pages(struct list_head *from
+>  	struct page *page2;
+>  	int swapwrite = current->flags & PF_SWAPWRITE;
+>  	int rc;
+> +	int flags;
+> +
+> +	local_irq_save(flags);
+> +	list_for_each_entry(page, from, lru)
+> +		__inc_zone_page_state(page, NR_ISOLATED_ANON +
+> +				      !!page_is_file_cache(page));
+> +	local_irq_restore(flags);
+>
+
+Why do a separate pass over all the migrates pages? Can you add the
+_inc_xx  somewhere after the page was isolated from the lru by calling
+try_to_unmap()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
