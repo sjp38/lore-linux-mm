@@ -1,111 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 955176B005C
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:27:21 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 311FF6B005D
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:27:24 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 05/10] ksm: no debug in page_dup_rmap()
-Date: Fri, 17 Jul 2009 20:30:45 +0300
-Message-Id: <1247851850-4298-6-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-5-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 03/10] ksm: define MADV_MERGEABLE and MADV_UNMERGEABLE
+Date: Fri, 17 Jul 2009 20:30:43 +0300
+Message-Id: <1247851850-4298-4-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1247851850-4298-3-git-send-email-ieidus@redhat.com>
 References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
  <1247851850-4298-2-git-send-email-ieidus@redhat.com>
  <1247851850-4298-3-git-send-email-ieidus@redhat.com>
- <1247851850-4298-4-git-send-email-ieidus@redhat.com>
- <1247851850-4298-5-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
-Cc: hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ieidus@redhat.com, Nick Piggin <npiggin@suse.de>
+Cc: hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, ieidus@redhat.com, Michael Kerrisk <mtk.manpages@gmail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, Helge Deller <deller@gmx.de>, Chris Zankel <chris@zankel.net>
 List-ID: <linux-mm.kvack.org>
 
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-page_dup_rmap(), used on each mapped page when forking,  was originally
-just an inline atomic_inc of mapcount.  2.6.22 added CONFIG_DEBUG_VM
-out-of-line checks to it, which would need to be ever-so-slightly
-complicated to allow for the PageKsm() we're about to define.
+The out-of-tree KSM used ioctls on fds cloned from /dev/ksm to register
+a memory area for merging: we prefer now to use an madvise(2) interface.
 
-But I think these checks never caught anything.  And if it's coding
-errors we're worried about, such checks should be in page_remove_rmap()
-too, not just when forking; whereas if it's pagetable corruption we're
-worried about, then they shouldn't be limited to CONFIG_DEBUG_VM.
+This patch just defines MADV_MERGEABLE (to tell KSM it may merge pages
+in this area found identical to pages in other mergeable areas) and
+MADV_UNMERGEABLE (to undo that).
 
-Oh, just revert page_dup_rmap() to an inline atomic_inc of mapcount.
+Most architectures use asm-generic, but alpha, mips, parisc, xtensa
+need their own definitions: included here for mmotm convenience, but
+we'll probably want to split this and feed pieces to arch maintainers.
+
+Based upon earlier patches by Chris Wright and Izik Eidus.
 
 Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Signed-off-by: Chris Wright <chrisw@redhat.com>
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: Kyle McMartin <kyle@mcmartin.ca>
+Cc: Helge Deller <deller@gmx.de>
+Cc: Chris Zankel <chris@zankel.net>
 ---
- include/linux/rmap.h |    6 +-----
- mm/memory.c          |    2 +-
- mm/rmap.c            |   21 ---------------------
- 3 files changed, 2 insertions(+), 27 deletions(-)
+ arch/alpha/include/asm/mman.h     |    3 +++
+ arch/mips/include/asm/mman.h      |    3 +++
+ arch/parisc/include/asm/mman.h    |    3 +++
+ arch/xtensa/include/asm/mman.h    |    3 +++
+ include/asm-generic/mman-common.h |    3 +++
+ 5 files changed, 15 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index bf116d0..477841d 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -71,14 +71,10 @@ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned lon
- void page_add_file_rmap(struct page *);
- void page_remove_rmap(struct page *);
+diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
+index 90d7c35..c77c557 100644
+--- a/arch/alpha/include/asm/mman.h
++++ b/arch/alpha/include/asm/mman.h
+@@ -48,6 +48,9 @@
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
  
--#ifdef CONFIG_DEBUG_VM
--void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address);
--#else
--static inline void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address)
-+static inline void page_dup_rmap(struct page *page)
- {
- 	atomic_inc(&page->_mapcount);
- }
--#endif
++#define MADV_MERGEABLE   12		/* KSM may merge identical pages */
++#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
  
- /*
-  * Called from mm/vmscan.c to handle paging out
-diff --git a/mm/memory.c b/mm/memory.c
-index 8159a62..8b1922c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -595,7 +595,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	page = vm_normal_page(vma, addr, pte);
- 	if (page) {
- 		get_page(page);
--		page_dup_rmap(page, vma, addr);
-+		page_dup_rmap(page);
- 		rss[!!PageAnon(page)]++;
- 	}
+diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
+index e4d6f1f..f15554d 100644
+--- a/arch/mips/include/asm/mman.h
++++ b/arch/mips/include/asm/mman.h
+@@ -71,6 +71,9 @@
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
  
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 836c6c6..ab84e45 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -709,27 +709,6 @@ void page_add_file_rmap(struct page *page)
- 	}
- }
++#define MADV_MERGEABLE   12		/* KSM may merge identical pages */
++#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
  
--#ifdef CONFIG_DEBUG_VM
--/**
-- * page_dup_rmap - duplicate pte mapping to a page
-- * @page:	the page to add the mapping to
-- * @vma:	the vm area being duplicated
-- * @address:	the user virtual address mapped
-- *
-- * For copy_page_range only: minimal extract from page_add_file_rmap /
-- * page_add_anon_rmap, avoiding unnecessary tests (already checked) so it's
-- * quicker.
-- *
-- * The caller needs to hold the pte lock.
-- */
--void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address)
--{
--	if (PageAnon(page))
--		__page_check_anon_rmap(page, vma, address);
--	atomic_inc(&page->_mapcount);
--}
--#endif
--
- /**
-  * page_remove_rmap - take down pte mapping from a page
-  * @page: page to remove mapping from
+diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
+index defe752..a12d9d4 100644
+--- a/arch/parisc/include/asm/mman.h
++++ b/arch/parisc/include/asm/mman.h
+@@ -54,6 +54,9 @@
+ #define MADV_16M_PAGES  24              /* Use 16 Megabyte pages */
+ #define MADV_64M_PAGES  26              /* Use 64 Megabyte pages */
+ 
++#define MADV_MERGEABLE   65		/* KSM may merge identical pages */
++#define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ #define MAP_VARIABLE	0
+diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
+index 9b92620..6e55b4d 100644
+--- a/arch/xtensa/include/asm/mman.h
++++ b/arch/xtensa/include/asm/mman.h
+@@ -78,6 +78,9 @@
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
+ 
++#define MADV_MERGEABLE   12		/* KSM may merge identical pages */
++#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+index 3b69ad3..dd63bd3 100644
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -35,6 +35,9 @@
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
+ 
++#define MADV_MERGEABLE   12		/* KSM may merge identical pages */
++#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
 -- 
 1.5.6.5
 
