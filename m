@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id ECFE96B004F
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 06:30:08 -0400 (EDT)
-Received: from spaceape23.eur.corp.google.com (spaceape23.eur.corp.google.com [172.28.16.75])
-	by smtp-out.google.com with ESMTP id n6HAU3p9007940
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 11:30:04 +0100
-Received: from pxi28 (pxi28.prod.google.com [10.243.27.28])
-	by spaceape23.eur.corp.google.com with ESMTP id n6HATxl4006994
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 03:30:00 -0700
-Received: by pxi28 with SMTP id 28so354412pxi.30
-        for <linux-mm@kvack.org>; Fri, 17 Jul 2009 03:29:59 -0700 (PDT)
-Date: Fri, 17 Jul 2009 03:29:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] page-allocator: Ensure that processes that have been
- OOM killed exit the page allocator (resend)
-In-Reply-To: <20090717092157.GA9835@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.0907170326400.18608@chino.kir.corp.google.com>
-References: <20090715104944.GC9267@csn.ul.ie> <alpine.DEB.2.00.0907151326350.22582@chino.kir.corp.google.com> <20090716110328.GB22499@csn.ul.ie> <alpine.DEB.2.00.0907161202500.27201@chino.kir.corp.google.com> <20090717092157.GA9835@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 42B746B004F
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 07:08:41 -0400 (EDT)
+From: Xiaotian Feng <dfeng@redhat.com>
+Subject: [RFC PATCH] slub: release kobject if sysfs_create_group failed in sysfs_slab_add
+Date: Fri, 17 Jul 2009 19:08:28 +0800
+Message-Id: <1247828908-13921-1-git-send-email-dfeng@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Xiaotian Feng <dfeng@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Jul 2009, Mel Gorman wrote:
+In sysfs_slab_add, after kobject_init_and_add, kobject is inited and added.
+Later, if sysfs_create_group fails, just simply return an error. This may
+cause a memory leak. unlink and put the kobject if sysfs_create_group failed.
 
-> Ok, lets go with this patch then. Thanks
-> 
-
-Ok, thanks, I'll add that as your acked-by and I'll write a formal patch 
-description for it.
-
-
-mm: avoid endless looping for oom killed tasks
-
-If a task is oom killed and still cannot find memory when trying with no 
-watermarks, it's better to fail the allocation attempt than to loop 
-endlessly.  Direct reclaim has already failed and the oom killer will be a 
-no-op since current has yet to die, so there is no other alternative for 
-allocations that are not __GFP_NOFAIL.
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
 ---
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1789,6 +1789,10 @@ rebalance:
- 	if (p->flags & PF_MEMALLOC)
- 		goto nopage;
+ mm/slub.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index b9f1491..f910964 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4543,8 +4543,11 @@ static int sysfs_slab_add(struct kmem_cache *s)
+ 	}
  
-+	/* Avoid allocations with no watermarks from looping endlessly */
-+	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-+		goto nopage;
-+
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
- 					zonelist, high_zoneidx,
+ 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
+-	if (err)
++	if (err) {
++		kobject_del(&s->kobj);
++		kobject_put(&s->kobj);
+ 		return err;
++	}
+ 	kobject_uevent(&s->kobj, KOBJ_ADD);
+ 	if (!unmergeable) {
+ 		/* Setup first alias */
+-- 
+1.6.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
