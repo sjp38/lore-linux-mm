@@ -1,135 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5926B004F
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 01:43:43 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6H5hhuC003180
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 17 Jul 2009 14:43:43 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A5B245DE4F
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 14:43:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 616BB45DE4E
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 14:43:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C2881DB8038
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 14:43:43 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BF4D91DB805B
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 14:43:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] Rename pgmoved variable in shrink_active_list()
-In-Reply-To: <20090716173249.GB2267@cmpxchg.org>
-References: <20090716095119.9D0A.A69D9226@jp.fujitsu.com> <20090716173249.GB2267@cmpxchg.org>
-Message-Id: <20090717091920.A90C.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AECCF6B004F
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 02:13:20 -0400 (EDT)
+Date: Thu, 16 Jul 2009 23:32:33 -0700 (PDT)
+From: "Li, Ming Chun" <macli@brc.ubc.ca>
+Subject: Re: [PATCH] mm: count only reclaimable lru pages
+In-Reply-To: <20090717135632.A91A.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.00.0907162315450.17021@mail.selltech.ca>
+References: <23396.1247764286@redhat.com> <alpine.DEB.1.00.0907161130120.16004@mail.selltech.ca> <20090717135632.A91A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 17 Jul 2009 14:43:37 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, Jul 16, 2009 at 09:52:34AM +0900, KOSAKI Motohiro wrote:
-> > Subject: [PATCH] Rename pgmoved variable in shrink_active_list()
+On Fri, 17 Jul 2009, KOSAKI Motohiro wrote:
+
+> > On Thu, 16 Jul 2009, David Howells wrote:
 > > 
-> > Currently, pgmoved variable have two meanings. it cause harder reviewing a bit.
-> > This patch separate it.
+> > > Rik van Riel <riel@redhat.com> wrote:
+> > > 
+> > > > It's part of a series of patches, including the three posted by Kosaki-san
+> > > > last night (to track the number of isolated pages) and the patch I posted
+> > > > last night (to throttle reclaim when too many pages are isolated).
+> > > 
+> > > Okay; Rik gave me a tarball of those patches, which I applied and re-ran the
+> > > test.  The first run of msgctl11 produced lots of:
+> > > 
+> > > 	[root@andromeda ltp]# while ./testcases/bin/msgctl11; do :; done
 > > 
+> > I applied the series of patches on 2.6.31-rc3 and run 
 > > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
-> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Below are just minor suggestions regarding the changed code.
-> 
+> > while ./testcases/bin/msgctl11; do :; done 
+> > 
+> > four times, only got one OOM kill in the first round and the system is 
+> > quite responsive all the time.
+> > 
+> > # while ./testcases/bin/msgctl11; do :; done
+> > 
 > > ---
-> >  mm/vmscan.c |   16 ++++++++--------
-> >  1 file changed, 8 insertions(+), 8 deletions(-)
-> > 
-> > Index: b/mm/vmscan.c
-> > ===================================================================
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1239,7 +1239,7 @@ static void move_active_pages_to_lru(str
-> >  static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> >  			struct scan_control *sc, int priority, int file)
-> >  {
-> > -	unsigned long pgmoved;
-> > +	unsigned long nr_taken;
-> >  	unsigned long pgscanned;
-> >  	unsigned long vm_flags;
-> >  	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-> > @@ -1247,10 +1247,11 @@ static void shrink_active_list(unsigned 
-> >  	LIST_HEAD(l_inactive);
-> >  	struct page *page;
-> >  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> > +	unsigned long nr_rotated = 0;
-> >  
-> >  	lru_add_drain();
-> >  	spin_lock_irq(&zone->lru_lock);
-> > -	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
-> > +	nr_taken = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
-> >  					ISOLATE_ACTIVE, zone,
-> >  					sc->mem_cgroup, 1, file);
-> >  	/*
-> > @@ -1260,16 +1261,15 @@ static void shrink_active_list(unsigned 
-> >  	if (scanning_global_lru(sc)) {
-> >  		zone->pages_scanned += pgscanned;
-> >  	}
-> > -	reclaim_stat->recent_scanned[!!file] += pgmoved;
-> > +	reclaim_stat->recent_scanned[!!file] += nr_taken;
+> >  kernel: [  735.507878] msgctl11 invoked oom-killer: gfp_mask=0x84d0, order=0, oom_adj=0
 > 
-> Hm, file is a boolean already, the double negation can probably be
-> dropped.
+> GFP_KERNEL | __GFP_REPEAT __GFP_ZERO
+
+ah, ./scripts/gfp-translate 0x84d0 __GFP_WAIT | __GFP_IO | __GFP_FS | 
+__GFP_REPEAT | __GFP_ZERO
+ 
 > 
-> >  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-> >  	if (file)
-> > -		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -pgmoved);
-> > +		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
-> >  	else
-> > -		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
-> > +		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
+> >  kernel: [  735.507884] msgctl11 cpuset=/ mems_allowed=0
+> >  kernel: [  735.507888] Pid: 20631, comm: msgctl11 Not tainted 2.6.31-rc3-custom #1
+> >  kernel: [  735.507891] Call Trace:
+> >  kernel: [  735.507900]  [<c01ad781>] oom_kill_process+0x161/0x280
+> >  kernel: [  735.507905]  [<c01adcd3>] ? select_bad_process+0x63/0xd0
+> >  kernel: [  735.507909]  [<c01add8e>] __out_of_memory+0x4e/0xb0
+> >  kernel: [  735.507913]  [<c01ade42>] out_of_memory+0x52/0xa0
+> >  kernel: [  735.507917]  [<c01b0b07>] __alloc_pages_nodemask+0x4d7/0x4f0
+> >  kernel: [  735.507922]  [<c01b0b77>] __get_free_pages+0x17/0x30
+> >  kernel: [  735.507927]  [<c012baa6>] pgd_alloc+0x36/0x250
+> >  kernel: [  735.507932]  [<c01f4ad3>] ? dup_fd+0x23/0x340
+> >  kernel: [  735.507936]  [<c01422f7>] ? dup_mm+0x47/0x350
+> >  kernel: [  735.507939]  [<c0141dd9>] mm_init+0xa9/0xe0
+> >  kernel: [  735.507943]  [<c0142329>] dup_mm+0x79/0x350
+> >  kernel: [  735.507947]  [<c01ffe22>] ? copy_fs_struct+0x22/0x90
+> >  kernel: [  735.507951]  [<c01432d5>] ? copy_process+0xc75/0x1070
+> >  kernel: [  735.507955]  [<c0143090>] copy_process+0xa30/0x1070
+> >  kernel: [  735.507959]  [<c054b204>] ? schedule+0x494/0xa80
+> >  kernel: [  735.507963]  [<c014373f>] do_fork+0x6f/0x330
+> >  kernel: [  735.507968]  [<c014fdce>] ? recalc_sigpending+0xe/0x40
+> >  kernel: [  735.507972]  [<c0107716>] sys_clone+0x36/0x40
+> >  kernel: [  735.507976]  [<c0108dd4>] sysenter_do_call+0x12/0x28
+> >  kernel: [  735.507979] Mem-Info:
+> >  kernel: [  735.507981] DMA per-cpu:
+> >  kernel: [  735.507983] CPU    0: hi:    0, btch:   1 usd:   0
+> >  kernel: [  735.507986] CPU    1: hi:    0, btch:   1 usd:   0
+> >  kernel: [  735.507988] Normal per-cpu:
+> >  kernel: [  735.507990] CPU    0: hi:  186, btch:  31 usd:  17
+> >  kernel: [  735.507993] CPU    1: hi:  186, btch:  31 usd: 180
+> >  kernel: [  735.507994] HighMem per-cpu:
+> >  kernel: [  735.507997] CPU    0: hi:   42, btch:   7 usd:  22
+> >  kernel: [  735.507999] CPU    1: hi:   42, btch:   7 usd:   0
+> >  kernel: [  735.508008] active_anon:82389 inactive_anon:2043 isolated_anon:32
+> >  kernel: [  735.508009]  active_file:2201 inactive_file:5773 isolated_file:31
+> >  kernel: [  735.508010]  unevictable:0 dirty:4 writeback:0 unstable:0 buffer:19
+> >  kernel: [  735.508011]  free:1825 slab_reclaimable:655 slab_unreclaimable:19679
+> >  kernel: [  735.508012]  mapped:1309 shmem:113 pagetables:66757 bounce:0
 > 
-> Should perhaps be in another patch, but we could use
+> a lot free pages. but...
 > 
-> 	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE);
+> >  kernel: [  735.508020] DMA free:3520kB min:64kB low:80kB high:96kB active_anon:2240kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15832kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:132kB kernel_stack:120kB pagetables:2436kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> >  kernel: [  735.508026] lowmem_reserve[]: 0 867 998 998
+> >  kernel: [  735.508035] Normal free:3632kB min:3732kB low:4664kB high:5596kB active_anon:269136kB inactive_anon:0kB active_file:56kB inactive_file:20kB unevictable:0kB isolated(anon):128kB isolated(file):124kB present:887976kB mlocked:0kB dirty:0kB writeback:0kB mapped:4kB shmem:0kB slab_reclaimable:2620kB slab_unreclaimable:78584kB kernel_stack:77328kB pagetables:227972kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:222 all_unreclaimable? no
+> >  kernel: [  735.508042] lowmem_reserve[]: 0 0 1052 1052
 > 
-> like in the call to move_active_pages_to_lru().
+> DMA and Normal zone doesn't have enough free pages.
+ 
+Caculate this way?  
+DMA: 3520K < 64K + 998 * 4K
+Normal: 3632k < 3732k + 1052 * 4k 
+
 >
-> >  	spin_unlock_irq(&zone->lru_lock);
-> >  
-> > -	pgmoved = 0;  /* count referenced (mapping) mapped pages */
-> >  	while (!list_empty(&l_hold)) {
-> >  		cond_resched();
-> >  		page = lru_to_page(&l_hold);
-> > @@ -1283,7 +1283,7 @@ static void shrink_active_list(unsigned 
-> >  		/* page_referenced clears PageReferenced */
-> >  		if (page_mapping_inuse(page) &&
-> >  		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
-> > -			pgmoved++;
-> > +			nr_rotated++;
-> >  			/*
-> >  			 * Identify referenced, file-backed active pages and
-> >  			 * give them one more trip around the active list. So
-> > @@ -1312,7 +1312,7 @@ static void shrink_active_list(unsigned 
-> >  	 * helps balance scan pressure between file and anonymous pages in
-> >  	 * get_scan_ratio.
-> >  	 */
-> > -	reclaim_stat->recent_rotated[!!file] += pgmoved;
-> > +	reclaim_stat->recent_rotated[!!file] += nr_rotated;
+> >  kernel: [  735.508051] HighMem free:148kB min:128kB low:268kB high:408kB active_anon:58180kB inactive_anon:8172kB active_file:8748kB inactive_file:23072kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:134688kB mlocked:0kB dirty:16kB writeback:0kB mapped:5232kB shmem:452kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:36620kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> >  kernel: [  735.508057] lowmem_reserve[]: 0 0 0 0
 > 
-> file is boolean.
+> HighMem zone only have enough free pages and reclaimable file cache pages.
 > 
-> There is one more double negation in isolate_pages_global() that can
-> be dropped as well.  If you agree, I can submit all those changes in
-> separate patches.
+GFP_KERNEL | GFP_REPEAT | GFP_ZERO could not access HighMem free pages?
 
-Yeah, thanks please. 
-
-
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
