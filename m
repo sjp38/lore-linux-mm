@@ -1,113 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 69BD96B004F
-	for <linux-mm@kvack.org>; Thu, 16 Jul 2009 22:41:02 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6H2f22K022194
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 17 Jul 2009 11:41:02 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A24BA45DE51
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 11:41:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 39E4B45DE57
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 11:41:01 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FFC1E78003
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 11:41:01 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A8F211DB8040
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 11:41:00 +0900 (JST)
-Date: Fri, 17 Jul 2009 11:39:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUG] set_mempolicy(MPOL_INTERLEAV) cause kernel panic
-Message-Id: <20090717113911.c49395ae.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090717104512.A914.A69D9226@jp.fujitsu.com>
-References: <20090717090003.A903.A69D9226@jp.fujitsu.com>
-	<20090717095745.1d3039b1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090717104512.A914.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 35E9D6B004F
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 00:57:13 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6H4vHss016990
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 17 Jul 2009 13:57:17 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1046545DE5B
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:57:16 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 92BCB45DE52
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:57:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 866791DB8049
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:57:09 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BA4A2E0801A
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 13:57:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: count only reclaimable lru pages
+In-Reply-To: <alpine.DEB.1.00.0907161130120.16004@mail.selltech.ca>
+References: <23396.1247764286@redhat.com> <alpine.DEB.1.00.0907161130120.16004@mail.selltech.ca>
+Message-Id: <20090717135632.A91A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 17 Jul 2009 13:57:00 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Miao Xie <miaox@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Li, Ming Chun" <macli@brc.ubc.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Howells <dhowells@redhat.com>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "elladan@eskimo.com" <elladan@eskimo.com>, "npiggin@suse.de" <npiggin@suse.de>, "Barnes, Jesse" <jesse.barnes@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Jul 2009 11:07:09 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > On Fri, 17 Jul 2009 09:04:46 +0900 (JST)
-> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > 
-> > > > On Wed, 15 Jul 2009, Lee Schermerhorn wrote:
-> > > > 
-> > > > > Interestingly, on ia64, the top cpuset mems_allowed gets set to all
-> > > > > possible nodes, while on x86_64, it gets set to on-line nodes [or nodes
-> > > > > with memory].  Maybe this is a to support hot-plug?
-> > > > > 
-> > > > 
-> > > > numactl --interleave=all simply passes a nodemask with all bits set, so if 
-> > > > cpuset_current_mems_allowed includes offline nodes from node_possible_map, 
-> > > > then mpol_set_nodemask() doesn't mask them off.
-> > > > 
-> > > > Seems like we could handle this strictly in mempolicies without worrying 
-> > > > about top_cpuset like in the following?
-> > > 
-> > > This patch seems band-aid patch. it will change memory-hotplug behavior.
-> > > Please imazine following scenario:
-> > > 
-> > > 1. numactl interleave=all process-A
-> > > 2. memory hot-add
-> > > 
-> > > before 2.6.30:
-> > > 		-> process-A can use hot-added memory
-> > > 
-> > > your proposal patch:
-> > > 		-> process-A can't use hot-added memory
-> > > 
-> > 
-> > IMHO, the application itseld should be notifed to change its mempolicy by
-> > hot-plug script on the host. While an application uses interleave, a new node
-> > hot-added is just a noise. I think "How pages are interleaved" should not be
-> > changed implicitly. Then, checking at set_mempolicy() seems sane. If notified,
-> > application can do page migration and rebuild his mapping in ideal way.
+> On Thu, 16 Jul 2009, David Howells wrote:
 > 
-> Do you really want ABI change?
+> > Rik van Riel <riel@redhat.com> wrote:
+> > 
+> > > It's part of a series of patches, including the three posted by Kosaki-san
+> > > last night (to track the number of isolated pages) and the patch I posted
+> > > last night (to throttle reclaim when too many pages are isolated).
+> > 
+> > Okay; Rik gave me a tarball of those patches, which I applied and re-ran the
+> > test.  The first run of msgctl11 produced lots of:
+> > 
+> > 	[root@andromeda ltp]# while ./testcases/bin/msgctl11; do :; done
 > 
-No ;_
+> I applied the series of patches on 2.6.31-rc3 and run 
+> 
+> while ./testcases/bin/msgctl11; do :; done 
+> 
+> four times, only got one OOM kill in the first round and the system is 
+> quite responsive all the time.
+> 
+> # while ./testcases/bin/msgctl11; do :; done
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1587
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1586
+> ..snip...........
+> msgctl11    1  FAIL  :  Child exit status = 4
+> 
+> # while ./testcases/bin/msgctl11; do :; done
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1573
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1524
+> ...............snip.....
+> msgctl11    1  FAIL  :  Child exit status = 4
+> 
+> # while ./testcases/bin/msgctl11; do :; done
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1050
+> msgctl11    0  WARN  :  Fork failure in first child of child group 795
+> msgctl11    1  FAIL  :  Child exit status = 4
+> 
+> # while ./testcases/bin/msgctl11; do :; done
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16303 pids
+> msgctl11    1  PASS  :  msgctl11 ran successfully!
+> msgctl11    0  INFO  :  Using upto 16301 pids
+> msgctl11    0  WARN  :  Fork failure in first child of child group 1346
+> msgctl11    0  WARN  :  Fork failure in first child of child group 924
+> ...........snip........
+> msgctl11    1  FAIL  :  Child exit status = 4
+> 
+> 
+> Vincent Li
+> Biomedical Research Center
+> University of British Columbia
+> 
+> ---
+>  kernel: [  735.507878] msgctl11 invoked oom-killer: gfp_mask=0x84d0, order=0, oom_adj=0
 
-Hmm, IIUC, current handling of nodemask of mempolicy is below.
-There should be 3 masks.
-  - systems's N_HIGH_MEMORY
-  - the mask user specified via mempolicy() (remembered only when MPOL_F_RELATIVE
-  - cpusets's one
-
-And pol->v.nodes is just a _cache_ of logical-and of aboves.
-Synchronization with cpusets is guaranteed by cpuset's generation.
-Synchronization with N_HIGH_MEMORY should be guaranteed by memory hotplug
-notifier, but this is not implemented yet.
-
-Then, what I can tell here is...
- - remember what's user requested. (only when MPOL_F_RELATIVE_NODES ?)
- - add notifiers for memory hot-add. (only when MPOL_F_RELATIVE_NODES ?)
- - add notifiers for memory hot-remove (both MPOL_F_STATIC/RELATIVE_NODES ?)
-
-IMHO, for cpusets, don't calculate v.nodes again if MPOL_F_STATIC is good.
-But for N_HIGH_MEMORY, v.nodes should be caluculated even if MPOL_F_STATIC is set.
-
-Then, I think the mask user passed should be remembered even if MPOL_F_STATIC is
-set and v.nodes should work as cache and should be updated in appropriate way.
-
-Thanks,
--Kame
+GFP_KERNEL | __GFP_REPEAT __GFP_ZERO
 
 
+>  kernel: [  735.507884] msgctl11 cpuset=/ mems_allowed=0
+>  kernel: [  735.507888] Pid: 20631, comm: msgctl11 Not tainted 2.6.31-rc3-custom #1
+>  kernel: [  735.507891] Call Trace:
+>  kernel: [  735.507900]  [<c01ad781>] oom_kill_process+0x161/0x280
+>  kernel: [  735.507905]  [<c01adcd3>] ? select_bad_process+0x63/0xd0
+>  kernel: [  735.507909]  [<c01add8e>] __out_of_memory+0x4e/0xb0
+>  kernel: [  735.507913]  [<c01ade42>] out_of_memory+0x52/0xa0
+>  kernel: [  735.507917]  [<c01b0b07>] __alloc_pages_nodemask+0x4d7/0x4f0
+>  kernel: [  735.507922]  [<c01b0b77>] __get_free_pages+0x17/0x30
+>  kernel: [  735.507927]  [<c012baa6>] pgd_alloc+0x36/0x250
+>  kernel: [  735.507932]  [<c01f4ad3>] ? dup_fd+0x23/0x340
+>  kernel: [  735.507936]  [<c01422f7>] ? dup_mm+0x47/0x350
+>  kernel: [  735.507939]  [<c0141dd9>] mm_init+0xa9/0xe0
+>  kernel: [  735.507943]  [<c0142329>] dup_mm+0x79/0x350
+>  kernel: [  735.507947]  [<c01ffe22>] ? copy_fs_struct+0x22/0x90
+>  kernel: [  735.507951]  [<c01432d5>] ? copy_process+0xc75/0x1070
+>  kernel: [  735.507955]  [<c0143090>] copy_process+0xa30/0x1070
+>  kernel: [  735.507959]  [<c054b204>] ? schedule+0x494/0xa80
+>  kernel: [  735.507963]  [<c014373f>] do_fork+0x6f/0x330
+>  kernel: [  735.507968]  [<c014fdce>] ? recalc_sigpending+0xe/0x40
+>  kernel: [  735.507972]  [<c0107716>] sys_clone+0x36/0x40
+>  kernel: [  735.507976]  [<c0108dd4>] sysenter_do_call+0x12/0x28
+>  kernel: [  735.507979] Mem-Info:
+>  kernel: [  735.507981] DMA per-cpu:
+>  kernel: [  735.507983] CPU    0: hi:    0, btch:   1 usd:   0
+>  kernel: [  735.507986] CPU    1: hi:    0, btch:   1 usd:   0
+>  kernel: [  735.507988] Normal per-cpu:
+>  kernel: [  735.507990] CPU    0: hi:  186, btch:  31 usd:  17
+>  kernel: [  735.507993] CPU    1: hi:  186, btch:  31 usd: 180
+>  kernel: [  735.507994] HighMem per-cpu:
+>  kernel: [  735.507997] CPU    0: hi:   42, btch:   7 usd:  22
+>  kernel: [  735.507999] CPU    1: hi:   42, btch:   7 usd:   0
+>  kernel: [  735.508008] active_anon:82389 inactive_anon:2043 isolated_anon:32
+>  kernel: [  735.508009]  active_file:2201 inactive_file:5773 isolated_file:31
+>  kernel: [  735.508010]  unevictable:0 dirty:4 writeback:0 unstable:0 buffer:19
+>  kernel: [  735.508011]  free:1825 slab_reclaimable:655 slab_unreclaimable:19679
+>  kernel: [  735.508012]  mapped:1309 shmem:113 pagetables:66757 bounce:0
+
+a lot free pages. but...
+
+>  kernel: [  735.508020] DMA free:3520kB min:64kB low:80kB high:96kB active_anon:2240kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15832kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:132kB kernel_stack:120kB pagetables:2436kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+>  kernel: [  735.508026] lowmem_reserve[]: 0 867 998 998
+>  kernel: [  735.508035] Normal free:3632kB min:3732kB low:4664kB high:5596kB active_anon:269136kB inactive_anon:0kB active_file:56kB inactive_file:20kB unevictable:0kB isolated(anon):128kB isolated(file):124kB present:887976kB mlocked:0kB dirty:0kB writeback:0kB mapped:4kB shmem:0kB slab_reclaimable:2620kB slab_unreclaimable:78584kB kernel_stack:77328kB pagetables:227972kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:222 all_unreclaimable? no
+>  kernel: [  735.508042] lowmem_reserve[]: 0 0 1052 1052
+
+DMA and Normal zone doesn't have enough free pages.
+
+>  kernel: [  735.508051] HighMem free:148kB min:128kB low:268kB high:408kB active_anon:58180kB inactive_anon:8172kB active_file:8748kB inactive_file:23072kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:134688kB mlocked:0kB dirty:16kB writeback:0kB mapped:5232kB shmem:452kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:36620kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+>  kernel: [  735.508057] lowmem_reserve[]: 0 0 0 0
+
+HighMem zone only have enough free pages and reclaimable file cache pages.
 
 
-
-
-
+>  kernel: [  735.508061] DMA: 8*4kB 2*8kB 2*16kB 2*32kB 1*64kB 0*128kB 1*256kB 2*512kB 0*1024kB 1*2048kB 0*4096kB = 3536kB
+>  kernel: [  735.508073] Normal: 142*4kB 1*8kB 1*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 1*1024kB 1*2048kB 0*4096kB = 3664kB
+>  kernel: [  735.508084] HighMem: 2*4kB 10*8kB 2*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 120kB
+>  kernel: [  735.508095] 8102 total pagecache pages
+>  kernel: [  735.508097] 0 pages in swap cache
+>  kernel: [  735.508099] Swap cache stats: add 0, delete 0, find 0/0
+>  kernel: [  735.508101] Free swap  = 0kB
+>  kernel: [  735.508103] Total swap = 0kB
+>  kernel: [  735.510778] 261775 pages RAM
+>  kernel: [  735.510780] 33938 pages HighMem
+>  kernel: [  735.510782] 21851 pages reserved
+>  kernel: [  735.510784] 279954 pages shared
+>  kernel: [  735.510786] 216034 pages non-shared
+>  kernel: [  735.510789] Out of memory: kill process 14702 (msgctl11) score 96635 or a child
+>  kernel: [  735.510793] Killed process 17847 (msgctl11)
 
 
 
