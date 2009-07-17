@@ -1,67 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CFEAC6B004F
-	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 08:18:46 -0400 (EDT)
-Subject: Re: [PATCH 4/5] Use add_page_to_lru_list() helper function
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090716173921.9D54.A69D9226@jp.fujitsu.com>
-References: <20090716173449.9D4B.A69D9226@jp.fujitsu.com>
-	 <20090716173921.9D54.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Fri, 17 Jul 2009 14:18:48 +0200
-Message-Id: <1247833128.15751.41.camel@twins>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 38AD06B004F
+	for <linux-mm@kvack.org>; Fri, 17 Jul 2009 08:41:05 -0400 (EDT)
+Date: Fri, 17 Jul 2009 13:41:04 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] page-allocator: Ensure that processes that have been
+ OOM killed exit the page allocator (resend)
+In-Reply-To: <alpine.DEB.2.00.0907170326400.18608@chino.kir.corp.google.com>
+Message-ID: <Pine.LNX.4.64.0907171337290.3925@sister.anvils>
+References: <20090715104944.GC9267@csn.ul.ie>
+ <alpine.DEB.2.00.0907151326350.22582@chino.kir.corp.google.com>
+ <20090716110328.GB22499@csn.ul.ie> <alpine.DEB.2.00.0907161202500.27201@chino.kir.corp.google.com>
+ <20090717092157.GA9835@csn.ul.ie> <alpine.DEB.2.00.0907170326400.18608@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-07-16 at 17:40 +0900, KOSAKI Motohiro wrote:
-> Subject: Use add_page_to_lru_list() helper function
+On Fri, 17 Jul 2009, David Rientjes wrote:
+> On Fri, 17 Jul 2009, Mel Gorman wrote:
 > 
-> add_page_to_lru_list() is equivalent to
->   - add lru list (global)
->   - add lru list (mem-cgroup)
->   - modify zone stat
+> > Ok, lets go with this patch then. Thanks
+> > 
 > 
-> We can use it.
+> Ok, thanks, I'll add that as your acked-by and I'll write a formal patch 
+> description for it.
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/vmscan.c |    5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> Index: b/mm/vmscan.c
-> ===================================================================
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1225,12 +1225,12 @@ static void move_active_pages_to_lru(str
->  
->  	while (!list_empty(list)) {
->  		page = lru_to_page(list);
-> +		list_del(&page->lru);
->  
->  		VM_BUG_ON(PageLRU(page));
->  		SetPageLRU(page);
->  
-> -		list_move(&page->lru, &zone->lru[lru].list);
-> -		mem_cgroup_add_lru_list(page, lru);
-> +		add_page_to_lru_list(zone, page, lru);
->  		pgmoved++;
->  
->  		if (!pagevec_add(&pvec, page) || list_empty(list)) {
-> @@ -1241,7 +1241,6 @@ static void move_active_pages_to_lru(str
->  			spin_lock_irq(&zone->lru_lock);
->  		}
->  	}
-> -	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
->  	if (!is_active_lru(lru))
->  		__count_vm_events(PGDEACTIVATE, pgmoved);
->  }
+> mm: avoid endless looping for oom killed tasks
+> 
+> If a task is oom killed and still cannot find memory when trying with no 
+> watermarks, it's better to fail the allocation attempt than to loop 
+> endlessly.  Direct reclaim has already failed and the oom killer will be a 
+> no-op since current has yet to die, so there is no other alternative for 
+> allocations that are not __GFP_NOFAIL.
+> 
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-This is a net loss, you introduce pgmoved calls to __inc_zone_state,
-instead of the one __mod_zone_page_state() call.
+This works much better for me than earlier variants (I'm needing to worry
+about OOM when KSM has a lot of pages to break COW on; but a large mlock
+is a good test) - thanks.
+
+Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+
+> ---
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1789,6 +1789,10 @@ rebalance:
+>  	if (p->flags & PF_MEMALLOC)
+>  		goto nopage;
+>  
+> +	/* Avoid allocations with no watermarks from looping endlessly */
+> +	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> +		goto nopage;
+> +
+>  	/* Try direct reclaim and then allocating */
+>  	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+>  					zonelist, high_zoneidx,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
