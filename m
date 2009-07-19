@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 05B266B004F
-	for <linux-mm@kvack.org>; Sun, 19 Jul 2009 09:22:07 -0400 (EDT)
-Date: Sun, 19 Jul 2009 15:22:10 +0200
-From: Stephan von Krawczynski <skraw@ithnet.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-Message-Id: <20090719152210.b0ec33d7.skraw@ithnet.com>
-In-Reply-To: <20090718122311.9955e912.skraw@ithnet.com>
-References: <20090713134621.124aa18e.skraw@ithnet.com>
-	<4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com>
-	<alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com>
-	<20090715084754.36ff73bf.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
-	<20090715113740.334309dd.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-	<20090718122311.9955e912.skraw@ithnet.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E28026B005A
+	for <linux-mm@kvack.org>; Sun, 19 Jul 2009 09:39:28 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id c3so901335ana.26
+        for <linux-mm@kvack.org>; Sun, 19 Jul 2009 06:39:30 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <202cde0e0907141708g51294247i7a201c34e97f5b66@mail.gmail.com>
+References: <alpine.LFD.2.00.0907140258100.25576@casper.infradead.org>
+	 <20090714102735.GD28569@csn.ul.ie>
+	 <202cde0e0907141708g51294247i7a201c34e97f5b66@mail.gmail.com>
+Date: Mon, 20 Jul 2009 01:39:30 +1200
+Message-ID: <202cde0e0907190639k7bbebc63k143734ad696f90f5@mail.gmail.com>
+Subject: Re: HugeTLB mapping for drivers (sample driver)
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 18 Jul 2009 12:23:11 +0200
-Stephan von Krawczynski <skraw@ithnet.com> wrote:
+Mel,
 
-> On Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
-> 
-> > On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
-> > 
-> > > > If you have some additional time, it would also be helpful to get a 
-> > > > bisection of when the problem started occurring (it appears to be sometime 
-> > > > between 2.6.29 and 2.6.30).
-> > > 
-> > > Do you know what version should definitely be not affected? I can check one
-> > > kernel version per day, can you name a list which versions to check out? 
-> > > 
-> > 
-> > To my knowledge, this issue was never reported on 2.6.29, so that should 
-> > be a sane starting point.
-> 
-> Todays' news is that 2.6.29.4 has exactly the same problem. I was able to
-> reproduce it. Tonight I will check out 2.6.28.10.
-> 
-> -- 
-> Regards,
-> Stephan
+>>
+>> I ran out of time to review this properly, but glancing through I would be
+>> concerned with what happens on fork() and COW. At a short read, it would
+>> appear that pages get allocated from alloc_buddy_huge_page() instead of your
+>> normal function altering the counters for hstate_nores.
+>>
 
-I can reproduce the problem with 2.6.28.10.
-Next in line is 2.6.27.26.
-In the meantime I do believe that the problem really lies inside the e1000e
-driver and not the surrounding kernel code.
-Any other driver shows this behaviour in the same environment, escpecially
-neither e1000 nor tg3.
+I've done some more investigations. You are right it is necessary to
+track cases with private mappings some how if we are going to provide
+hugetlb remap for drivers. OOM killer starts to work on COW caused by
+private hugetlb mapping. (In case of non huge tlb mapping memory just
+copied)
 
--- 
-Regards,
-Stephan
+In fact there should be quite few cases when private mapping makes
+sense for drivers and mapping DMA buffers. I thought about possible
+solutions. The question is what to choose.
+
+1. Forbid private mappings for drivers in case of hugetlb. (But this
+limits functionality - it is not so good)
+2. Allow private mapping. Use hugetlbfs hstates. (But it forces user
+to know how much hugetlb memory it is necessary to reserve for
+drivers)
+3. Allow private mapping. Use special hstate for driver and driver
+should tell how much memory needs to be reserved for it. (Not clear
+yet how to behave if we are out of reserved space)
+
+Could you please suggest what is the best solution? May be some other options?
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
