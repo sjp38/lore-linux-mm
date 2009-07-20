@@ -1,49 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 475F06B0062
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 08:15:32 -0400 (EDT)
-Date: Mon, 20 Jul 2009 14:15:32 +0200
-From: Stephan von Krawczynski <skraw@ithnet.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-Message-Id: <20090720141532.bb733562.skraw@ithnet.com>
-In-Reply-To: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-References: <20090713134621.124aa18e.skraw@ithnet.com>
-	<4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com>
-	<alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com>
-	<20090715084754.36ff73bf.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
-	<20090715113740.334309dd.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5D33D6B006A
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 08:46:05 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20090715074952.A36C7DDDB2@ozlabs.org>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to [__]p{te,ud,md}_free_tlb()
+Date: Mon, 20 Jul 2009 13:46:03 +0100
+Message-ID: <13548.1248093963@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: dhowells@redhat.com, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 
-> On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
+> Upcoming paches to support the new 64-bit "BookE" powerpc architecture
+> will need to have the virtual address corresponding to PTE page when
+> freeing it, due to the way the HW table walker works.
 > 
-> > > If you have some additional time, it would also be helpful to get a 
-> > > bisection of when the problem started occurring (it appears to be sometime 
-> > > between 2.6.29 and 2.6.30).
-> > 
-> > Do you know what version should definitely be not affected? I can check one
-> > kernel version per day, can you name a list which versions to check out? 
-> > 
+> Basically, the TLB can be loaded with "large" pages that cover the whole
+> virtual space (well, sort-of, half of it actually) represented by a PTE
+> page, and which contain an "indirect" bit indicating that this TLB entry
+> RPN points to an array of PTEs from which the TLB can then create direct
+> entries. Thus, in order to invalidate those when PTE pages are deleted,
+> we need the virtual address to pass to tlbilx or tlbivax instructions.
+>
+> The old trick of sticking it somewhere in the PTE page struct page sucks
+> too much, the address is almost readily available in all call sites and
+> almost everybody implemets these as macros, so we may as well add the
+> argument everywhere. I added it to the pmd and pud variants for consistency.
 > 
-> To my knowledge, this issue was never reported on 2.6.29, so that should 
-> be a sane starting point.
+> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-It looks like 2.6.27.26 does not show the problem. We will re-check tonight
-and keep you informed.
-
--- 
-Regards,
-Stephan
+Acked-by: David Howells <dhowells@redhat.com> [MN10300 & FRV]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
