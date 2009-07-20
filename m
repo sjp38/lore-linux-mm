@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5D33D6B006A
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 08:46:05 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <20090715074952.A36C7DDDB2@ozlabs.org>
-References: <20090715074952.A36C7DDDB2@ozlabs.org>
-Subject: Re: [RFC/PATCH] mm: Pass virtual address to [__]p{te,ud,md}_free_tlb()
-Date: Mon, 20 Jul 2009 13:46:03 +0100
-Message-ID: <13548.1248093963@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 5AB336B0055
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 10:31:00 -0400 (EDT)
+Date: Mon, 20 Jul 2009 23:30:48 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/5] Use add_page_to_lru_list() helper function
+In-Reply-To: <1248074911.15751.8023.camel@twins>
+References: <20090720143352.747E.A69D9226@jp.fujitsu.com> <1248074911.15751.8023.camel@twins>
+Message-Id: <20090720231618.AF69.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: dhowells@redhat.com, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-
-> Upcoming paches to support the new 64-bit "BookE" powerpc architecture
-> will need to have the virtual address corresponding to PTE page when
-> freeing it, due to the way the HW table walker works.
+> On Mon, 2009-07-20 at 14:37 +0900, KOSAKI Motohiro wrote:
+> > > > @@ -1241,7 +1241,6 @@ static void move_active_pages_to_lru(str
+> > > >  			spin_lock_irq(&zone->lru_lock);
+> > > >  		}
+> > > >  	}
+> > > > -	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+> > > >  	if (!is_active_lru(lru))
+> > > >  		__count_vm_events(PGDEACTIVATE, pgmoved);
+> > > >  }
+> > > 
+> > > This is a net loss, you introduce pgmoved calls to __inc_zone_state,
+> > > instead of the one __mod_zone_page_state() call.
+> > 
+> > max pgmoved is 32. 32 times __inc_zone_state() make 0 or 1 time
+> > atomic operation (not much than two).
+> > I don't think it reduce performance.
 > 
-> Basically, the TLB can be loaded with "large" pages that cover the whole
-> virtual space (well, sort-of, half of it actually) represented by a PTE
-> page, and which contain an "indirect" bit indicating that this TLB entry
-> RPN points to an array of PTEs from which the TLB can then create direct
-> entries. Thus, in order to invalidate those when PTE pages are deleted,
-> we need the virtual address to pass to tlbilx or tlbivax instructions.
->
-> The old trick of sticking it somewhere in the PTE page struct page sucks
-> too much, the address is almost readily available in all call sites and
-> almost everybody implemets these as macros, so we may as well add the
-> argument everywhere. I added it to the pmd and pud variants for consistency.
-> 
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> its not just atomics, count calls and branches too. It simply adds a ton
+> of code for no particular reason.
 
-Acked-by: David Howells <dhowells@redhat.com> [MN10300 & FRV]
+hm, I don't think it's tons penalty. I mean vmscan makes tons cache miss
+and function calling penalty is hidden by it.
+But, I agreed this patch doesn't have strong motivation. I can drop this.
+
+Andrew, Can you please drop this patch?
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
