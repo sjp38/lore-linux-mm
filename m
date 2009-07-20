@@ -1,45 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 55D5A6B005D
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:09:40 -0400 (EDT)
-Message-ID: <4A6488A1.4050800@redhat.com>
-Date: Mon, 20 Jul 2009 11:09:21 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 06D9E6B004D
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:20:37 -0400 (EDT)
+Date: Tue, 21 Jul 2009 00:20:38 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 5/5] Memory controller soft limit reclaim on contention (v9)
+In-Reply-To: <20090710130021.5610.74850.sendpatchset@balbir-laptop>
+References: <20090710125950.5610.99139.sendpatchset@balbir-laptop> <20090710130021.5610.74850.sendpatchset@balbir-laptop>
+Message-Id: <20090721001923.AF72.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/10] ksm: define MADV_MERGEABLE and MADV_UNMERGEABLE
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-4-git-send-email-ieidus@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Michael Kerrisk <mtk.manpages@gmail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, Helge Deller <deller@gmx.de>, Chris Zankel <chris@zankel.net>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Izik Eidus wrote:
-> From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> 
-> The out-of-tree KSM used ioctls on fds cloned from /dev/ksm to register
-> a memory area for merging: we prefer now to use an madvise(2) interface.
-> 
-> This patch just defines MADV_MERGEABLE (to tell KSM it may merge pages
-> in this area found identical to pages in other mergeable areas) and
-> MADV_UNMERGEABLE (to undo that).
-> 
-> Most architectures use asm-generic, but alpha, mips, parisc, xtensa
-> need their own definitions: included here for mmotm convenience, but
-> we'll probably want to split this and feed pieces to arch maintainers.
-> 
-> Based upon earlier patches by Chris Wright and Izik Eidus.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Signed-off-by: Chris Wright <chrisw@redhat.com>
-> Signed-off-by: Izik Eidus <ieidus@redhat.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+very sorry for the delaying.
 
--- 
-All rights reversed.
+
+> @@ -1918,6 +1951,7 @@ loop_again:
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+>  			int nr_slab;
+> +			int nid, zid;
+>  
+>  			if (!populated_zone(zone))
+>  				continue;
+> @@ -1932,6 +1966,15 @@ loop_again:
+>  			temp_priority[i] = priority;
+>  			sc.nr_scanned = 0;
+>  			note_zone_scanning_priority(zone, priority);
+> +
+> +			nid = pgdat->node_id;
+> +			zid = zone_idx(zone);
+> +			/*
+> +			 * Call soft limit reclaim before calling shrink_zone.
+> +			 * For now we ignore the return value
+> +			 */
+> +			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask,
+> +							nid, zid);
+>  			/*
+>  			 * We put equal pressure on every zone, unless one
+>  			 * zone has way too many pages free already.
+
+
+In this part:
+	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
