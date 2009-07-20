@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2556B0062
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:38:22 -0400 (EDT)
-Message-ID: <4A64B99B.3060400@redhat.com>
-Date: Mon, 20 Jul 2009 14:38:19 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5D1FA6B005D
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 18:33:58 -0400 (EDT)
+Received: from mail (unknown [137.82.2.7])
+	by sparc.brc.ubc.ca (Postfix) with ESMTP id 0A5A7526C1DE
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 15:40:31 -0700 (PDT)
+Date: Mon, 20 Jul 2009 15:53:32 -0700 (PDT)
+From: "Li, Ming Chun" <macli@brc.ubc.ca>
+Subject: Replacing 0x% with %# ?
+Message-ID: <alpine.DEB.1.00.0907201543230.22052@mail.selltech.ca>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/10] ksm: change ksm nice level to be 5
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com> <1247851850-4298-9-git-send-email-ieidus@redhat.com> <1247851850-4298-10-git-send-email-ieidus@redhat.com> <1247851850-4298-11-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-11-git-send-email-ieidus@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Izik Eidus wrote:
-> From: Izik Eidus <ieidus@redhat.com>
-> 
-> ksm should try not to disturb other tasks as much as possible.
-> 
-> Signed-off-by: Izik Eidus <ieidus@redhat.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Hi MM list:
 
--- 
-All rights reversed.
+I am newbie and wish to contribute tiny bit. Before I submit a 
+trivial patch, I would ask if it is worth replacing  '0x%' with '%#' in printk in mm/*.c? 
+If it is going to be noise for you guys, I would drop it and keep silent 
+:).  
+
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
