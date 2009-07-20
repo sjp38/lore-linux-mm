@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 06D9E6B004D
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:20:37 -0400 (EDT)
-Date: Tue, 21 Jul 2009 00:20:38 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 5/5] Memory controller soft limit reclaim on contention (v9)
-In-Reply-To: <20090710130021.5610.74850.sendpatchset@balbir-laptop>
-References: <20090710125950.5610.99139.sendpatchset@balbir-laptop> <20090710130021.5610.74850.sendpatchset@balbir-laptop>
-Message-Id: <20090721001923.AF72.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C066D6B006A
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:27:13 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4559582C41F
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:46:59 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id ohrswIIMsLxm for <linux-mm@kvack.org>;
+	Mon, 20 Jul 2009 11:46:59 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 381FF82C437
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 11:46:48 -0400 (EDT)
+Date: Mon, 20 Jul 2009 11:27:08 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 3/3] add isolate pages vmstat
+In-Reply-To: <20090720143838.7481.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0907201126390.20389@gentwo.org>
+References: <20090717085821.A900.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907171234130.11303@gentwo.org> <20090720143838.7481.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 20 Jul 2009, KOSAKI Motohiro wrote:
 
-very sorry for the delaying.
+> > On Fri, 17 Jul 2009, KOSAKI Motohiro wrote:
+> >
+> > > > Why do a separate pass over all the migrates pages? Can you add the
+> > > > _inc_xx  somewhere after the page was isolated from the lru by calling
+> > > > try_to_unmap()?
+> > >
+> > > calling try_to_unmap()? the pages are isolated before calling migrate_pages().
+> > > migrate_pages() have multiple caller. then I put this __inc_xx into top of
+> > > migrate_pages().
+> >
+> > Then put the inc_xxx's where the pages are isolated.
+>
+> Is there any benefit? Why do we need sprinkle __inc_xx to many place?
 
-
-> @@ -1918,6 +1951,7 @@ loop_again:
->  		for (i = 0; i <= end_zone; i++) {
->  			struct zone *zone = pgdat->node_zones + i;
->  			int nr_slab;
-> +			int nid, zid;
->  
->  			if (!populated_zone(zone))
->  				continue;
-> @@ -1932,6 +1966,15 @@ loop_again:
->  			temp_priority[i] = priority;
->  			sc.nr_scanned = 0;
->  			note_zone_scanning_priority(zone, priority);
-> +
-> +			nid = pgdat->node_id;
-> +			zid = zone_idx(zone);
-> +			/*
-> +			 * Call soft limit reclaim before calling shrink_zone.
-> +			 * For now we ignore the return value
-> +			 */
-> +			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask,
-> +							nid, zid);
->  			/*
->  			 * We put equal pressure on every zone, unless one
->  			 * zone has way too many pages free already.
-
-
-In this part:
-	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
+Its only needed in one place where the pages are isolated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
