@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DEC106B0055
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 01:39:48 -0400 (EDT)
-Date: Mon, 20 Jul 2009 14:39:45 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] add isolate pages vmstat
-In-Reply-To: <alpine.DEB.1.10.0907171234130.11303@gentwo.org>
-References: <20090717085821.A900.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907171234130.11303@gentwo.org>
-Message-Id: <20090720143838.7481.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 128526B0055
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 03:11:17 -0400 (EDT)
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090715135620.GD7298@wotan.suse.de>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>
+	 <20090715135620.GD7298@wotan.suse.de>
+Content-Type: text/plain
+Date: Mon, 20 Jul 2009 17:11:13 +1000
+Message-Id: <1248073873.13067.31.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 17 Jul 2009, KOSAKI Motohiro wrote:
+On Wed, 2009-07-15 at 15:56 +0200, Nick Piggin wrote:
+> > I would like to merge the new support that depends on this in 2.6.32,
+> > so unless there's major objections, I'd like this to go in early during
+> > the merge window. We can sort out separately how to carry the patch
+> > around in -next until then since the powerpc tree will have a dependency
+> > on it.
 > 
-> > > Why do a separate pass over all the migrates pages? Can you add the
-> > > _inc_xx  somewhere after the page was isolated from the lru by calling
-> > > try_to_unmap()?
-> >
-> > calling try_to_unmap()? the pages are isolated before calling migrate_pages().
-> > migrate_pages() have multiple caller. then I put this __inc_xx into top of
-> > migrate_pages().
-> 
-> Then put the inc_xxx's where the pages are isolated.
+> Can't see any problem with that.
 
-Is there any benefit? Why do we need sprinkle __inc_xx to many place?
+CC'ing Linus here. How do you want to proceed with that merge ? (IE. so
+far nobody objected to the patch itself)
 
+IE. The patch affects all archs, though it's a trivial change every
+time, but I'll have stuff in powerpc-next that depends on it, and so I'm
+not sure what the right approach is here. Should I put it in the powerpc
+tree ?
+
+I also didn't have any formal Ack from anybody, neither mm folks nor
+arch maintainers :-)
+
+Cheers,
+Ben.
 
 
 --
