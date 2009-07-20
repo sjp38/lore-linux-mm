@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C0CFE6B0062
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:37:53 -0400 (EDT)
-Message-ID: <4A64B97F.1020406@redhat.com>
-Date: Mon, 20 Jul 2009 14:37:51 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6D2556B0062
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:38:22 -0400 (EDT)
+Message-ID: <4A64B99B.3060400@redhat.com>
+Date: Mon, 20 Jul 2009 14:38:19 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/10] ksm: change copyright message
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com> <1247851850-4298-9-git-send-email-ieidus@redhat.com> <1247851850-4298-10-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-10-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 10/10] ksm: change ksm nice level to be 5
+References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com> <1247851850-4298-9-git-send-email-ieidus@redhat.com> <1247851850-4298-10-git-send-email-ieidus@redhat.com> <1247851850-4298-11-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1247851850-4298-11-git-send-email-ieidus@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,7 @@ List-ID: <linux-mm.kvack.org>
 Izik Eidus wrote:
 > From: Izik Eidus <ieidus@redhat.com>
 > 
-> Adding Hugh Dickins into the authors list.
+> ksm should try not to disturb other tasks as much as possible.
 > 
 > Signed-off-by: Izik Eidus <ieidus@redhat.com>
 
