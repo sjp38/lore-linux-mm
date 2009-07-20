@@ -1,37 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BEB606B0055
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 01:37:28 -0400 (EDT)
-Date: Mon, 20 Jul 2009 14:37:09 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DEC106B0055
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 01:39:48 -0400 (EDT)
+Date: Mon, 20 Jul 2009 14:39:45 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/5] Use add_page_to_lru_list() helper function
-In-Reply-To: <1247833128.15751.41.camel@twins>
-References: <20090716173921.9D54.A69D9226@jp.fujitsu.com> <1247833128.15751.41.camel@twins>
-Message-Id: <20090720143352.747E.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3] add isolate pages vmstat
+In-Reply-To: <alpine.DEB.1.10.0907171234130.11303@gentwo.org>
+References: <20090717085821.A900.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0907171234130.11303@gentwo.org>
+Message-Id: <20090720143838.7481.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -1241,7 +1241,6 @@ static void move_active_pages_to_lru(str
-> >  			spin_lock_irq(&zone->lru_lock);
-> >  		}
-> >  	}
-> > -	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-> >  	if (!is_active_lru(lru))
-> >  		__count_vm_events(PGDEACTIVATE, pgmoved);
-> >  }
+> On Fri, 17 Jul 2009, KOSAKI Motohiro wrote:
 > 
-> This is a net loss, you introduce pgmoved calls to __inc_zone_state,
-> instead of the one __mod_zone_page_state() call.
+> > > Why do a separate pass over all the migrates pages? Can you add the
+> > > _inc_xx  somewhere after the page was isolated from the lru by calling
+> > > try_to_unmap()?
+> >
+> > calling try_to_unmap()? the pages are isolated before calling migrate_pages().
+> > migrate_pages() have multiple caller. then I put this __inc_xx into top of
+> > migrate_pages().
+> 
+> Then put the inc_xxx's where the pages are isolated.
 
-max pgmoved is 32. 32 times __inc_zone_state() make 0 or 1 time
-atomic operation (not much than two).
-I don't think it reduce performance.
-
+Is there any benefit? Why do we need sprinkle __inc_xx to many place?
 
 
 
