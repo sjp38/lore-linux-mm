@@ -1,33 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F1E0D6B005A
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:32:10 -0400 (EDT)
-Message-ID: <4A64B820.3090009@redhat.com>
-Date: Mon, 20 Jul 2009 14:32:00 -0400
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A95E46B005D
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:36:01 -0400 (EDT)
+Message-ID: <4A64B90E.2090509@redhat.com>
+Date: Mon, 20 Jul 2009 14:35:58 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-7-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 07/10] ksm: Kernel SamePage Merging
+References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1247851850-4298-8-git-send-email-ieidus@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Izik Eidus <ieidus@redhat.com>
-Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
+Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
 Izik Eidus wrote:
-> From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> From: Izik Eidus <ieidus@redhat.com>
 > 
-> KSM will need to identify its kernel merged pages unambiguously,
-> and /proc/kpageflags will probably like to do so too.
+> Ksm is code that allows merging of identical pages between one or
+> more applications, in a way invisible to the applications that use it.
+> Pages that are merged are marked as read-only, then COWed when any
+> application tries to change them.
 > 
-> Since KSM will only be substituting anonymous pages, statistics are
-> best preserved by making a PageKsm page a special PageAnon page:
-> one with no anon_vma.
-> 
-> But KSM then needs its own page_add_ksm_rmap() - keep it in ksm.h near
-> PageKsm; and do_wp_page() must COW them, unlike singly mapped PageAnons.
+> Whereas fork() allows sharing anonymous pages between parent and child,
+> ksm can share anonymous pages between unrelated processes.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
