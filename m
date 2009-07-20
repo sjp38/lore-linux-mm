@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A95E46B005D
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:36:01 -0400 (EDT)
-Message-ID: <4A64B90E.2090509@redhat.com>
-Date: Mon, 20 Jul 2009 14:35:58 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C563B6B005D
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 14:37:27 -0400 (EDT)
+Message-ID: <4A64B964.2080307@redhat.com>
+Date: Mon, 20 Jul 2009 14:37:24 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/10] ksm: Kernel SamePage Merging
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1247851850-4298-8-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 08/10] ksm: prevent mremap move poisoning
+References: <1247851850-4298-1-git-send-email-ieidus@redhat.com> <1247851850-4298-2-git-send-email-ieidus@redhat.com> <1247851850-4298-3-git-send-email-ieidus@redhat.com> <1247851850-4298-4-git-send-email-ieidus@redhat.com> <1247851850-4298-5-git-send-email-ieidus@redhat.com> <1247851850-4298-6-git-send-email-ieidus@redhat.com> <1247851850-4298-7-git-send-email-ieidus@redhat.com> <1247851850-4298-8-git-send-email-ieidus@redhat.com> <1247851850-4298-9-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1247851850-4298-9-git-send-email-ieidus@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,15 +17,12 @@ Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, 
 List-ID: <linux-mm.kvack.org>
 
 Izik Eidus wrote:
-> From: Izik Eidus <ieidus@redhat.com>
+> From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > 
-> Ksm is code that allows merging of identical pages between one or
-> more applications, in a way invisible to the applications that use it.
-> Pages that are merged are marked as read-only, then COWed when any
-> application tries to change them.
-> 
-> Whereas fork() allows sharing anonymous pages between parent and child,
-> ksm can share anonymous pages between unrelated processes.
+> KSM's scan allows for user pages to be COWed or unmapped at any time,
+> without requiring any notification.  But its stable tree does assume
+> that when it finds a KSM page where it placed a KSM page, then it is
+> the same KSM page that it placed there.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
