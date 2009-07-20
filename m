@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C916B0055
-	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 03:27:44 -0400 (EDT)
-Subject: Re: [PATCH 4/5] Use add_page_to_lru_list() helper function
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090720143352.747E.A69D9226@jp.fujitsu.com>
-References: <20090716173921.9D54.A69D9226@jp.fujitsu.com>
-	 <1247833128.15751.41.camel@twins>
-	 <20090720143352.747E.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Mon, 20 Jul 2009 09:28:31 +0200
-Message-Id: <1248074911.15751.8023.camel@twins>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9673D6B0055
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 03:48:23 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.14.3/8.13.8) with ESMTP id n6K7mLkQ110008
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 07:48:21 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6K7mLew2514962
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 09:48:21 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6K7mK4n006521
+	for <linux-mm@kvack.org>; Mon, 20 Jul 2009 09:48:20 +0200
+Date: Mon, 20 Jul 2009 09:48:18 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+Message-ID: <20090720094818.641e6375@skybase>
+In-Reply-To: <1248073873.13067.31.camel@pasglop>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>
+	<20090715135620.GD7298@wotan.suse.de>
+	<1248073873.13067.31.camel@pasglop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-07-20 at 14:37 +0900, KOSAKI Motohiro wrote:
-> > > @@ -1241,7 +1241,6 @@ static void move_active_pages_to_lru(str
-> > >  			spin_lock_irq(&zone->lru_lock);
-> > >  		}
-> > >  	}
-> > > -	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-> > >  	if (!is_active_lru(lru))
-> > >  		__count_vm_events(PGDEACTIVATE, pgmoved);
-> > >  }
-> > 
-> > This is a net loss, you introduce pgmoved calls to __inc_zone_state,
-> > instead of the one __mod_zone_page_state() call.
-> 
-> max pgmoved is 32. 32 times __inc_zone_state() make 0 or 1 time
-> atomic operation (not much than two).
-> I don't think it reduce performance.
+On Mon, 20 Jul 2009 17:11:13 +1000
+Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 
-its not just atomics, count calls and branches too. It simply adds a ton
-of code for no particular reason.
+> On Wed, 2009-07-15 at 15:56 +0200, Nick Piggin wrote:
+> > > I would like to merge the new support that depends on this in 2.6.32,
+> > > so unless there's major objections, I'd like this to go in early during
+> > > the merge window. We can sort out separately how to carry the patch
+> > > around in -next until then since the powerpc tree will have a dependency
+> > > on it.
+> > 
+> > Can't see any problem with that.
+> 
+> CC'ing Linus here. How do you want to proceed with that merge ? (IE. so
+> far nobody objected to the patch itself)
+> 
+> IE. The patch affects all archs, though it's a trivial change every
+> time, but I'll have stuff in powerpc-next that depends on it, and so I'm
+> not sure what the right approach is here. Should I put it in the powerpc
+> tree ?
+> 
+> I also didn't have any formal Ack from anybody, neither mm folks nor
+> arch maintainers :-)
+
+Well the change is trivial, it just adds another unused argument to the
+macros. For the records: it still compiles on s390.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
