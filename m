@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 02AFB6B005A
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 04:57:37 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B52CB6B005D
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 04:57:38 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/4] mm: return boolean from page_has_private()
-Date: Tue, 21 Jul 2009 10:56:34 +0200
-Message-Id: <1248166594-8859-4-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/4] mm: introduce page_lru_type()
+Date: Tue, 21 Jul 2009 10:56:32 +0200
+Message-Id: <1248166594-8859-2-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org>
 References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,70 +13,113 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Make page_has_private() return a true boolean value and remove the
-double negations from the two callsites using it for arithmetic.
+Instead of abusing page_is_file_cache() for LRU list index arithmetic,
+add another helper with a more appropriate name and convert the
+non-boolean users of page_is_file_cache() accordingly.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/page-flags.h |   11 ++++++-----
- mm/migrate.c               |    2 +-
- mm/vmscan.c                |    2 +-
- 3 files changed, 8 insertions(+), 7 deletions(-)
+ include/linux/mm_inline.h |   19 +++++++++++++++++--
+ mm/swap.c                 |    4 ++--
+ mm/vmscan.c               |    6 +++---
+ 3 files changed, 22 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index e2e5ce5..17119bd 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -396,8 +396,6 @@ static inline void __ClearPageTail(struct page *page)
-  */
- #define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
- 
--#endif /* !__GENERATING_BOUNDS_H */
--
- /**
-  * page_has_private - Determine if page has private stuff
-  * @page: The page to be checked
-@@ -405,8 +403,11 @@ static inline void __ClearPageTail(struct page *page)
-  * Determine if a page has private stuff, indicating that release routines
-  * should be invoked upon it.
-  */
--#define page_has_private(page)			\
--	((page)->flags & ((1 << PG_private) |	\
--			  (1 << PG_private_2)))
-+static inline int page_has_private(struct page *page)
-+{
-+	return !!(page->flags & ((1 << PG_private) | (1 << PG_private_2)));
-+}
-+
-+#endif /* !__GENERATING_BOUNDS_H */
- 
- #endif	/* PAGE_FLAGS_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index e97e513..16052e8 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -272,7 +272,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-  					page_index(page));
- 
--	expected_count = 2 + !!page_has_private(page);
-+	expected_count = 2 + page_has_private(page);
- 	if (page_count(page) != expected_count ||
- 			(struct page *)radix_tree_deref_slot(pslot) != page) {
- 		spin_unlock_irq(&mapping->tree_lock);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6b368d3..67e2824 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -286,7 +286,7 @@ static inline int page_mapping_inuse(struct page *page)
- 
- static inline int is_page_cache_freeable(struct page *page)
- {
--	return page_count(page) - !!page_has_private(page) == 2;
-+	return page_count(page) - page_has_private(page) == 2;
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index 7fbb972..ec975f2 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -60,6 +60,21 @@ del_page_from_lru(struct zone *zone, struct page *page)
  }
  
- static int may_write_to_queue(struct backing_dev_info *bdi)
+ /**
++ * page_lru_type - which LRU list type should a page be on?
++ * @page: the page to test
++ *
++ * Used for LRU list index arithmetic.
++ *
++ * Returns the base LRU type - file or anon - @page should be on.
++ */
++static enum lru_list page_lru_type(struct page *page)
++{
++	if (page_is_file_cache(page))
++		return LRU_INACTIVE_FILE;
++	return LRU_INACTIVE_ANON;
++}
++
++/**
+  * page_lru - which LRU list should a page be on?
+  * @page: the page to test
+  *
+@@ -68,14 +83,14 @@ del_page_from_lru(struct zone *zone, struct page *page)
+  */
+ static inline enum lru_list page_lru(struct page *page)
+ {
+-	enum lru_list lru = LRU_BASE;
++	enum lru_list lru;
+ 
+ 	if (PageUnevictable(page))
+ 		lru = LRU_UNEVICTABLE;
+ 	else {
++		lru = page_lru_type(page);
+ 		if (PageActive(page))
+ 			lru += LRU_ACTIVE;
+-		lru += page_is_file_cache(page);
+ 	}
+ 
+ 	return lru;
+diff --git a/mm/swap.c b/mm/swap.c
+index cb29ae5..8f84638 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -118,7 +118,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
+ 			spin_lock(&zone->lru_lock);
+ 		}
+ 		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+-			int lru = page_is_file_cache(page);
++			int lru = page_lru_type(page);
+ 			list_move_tail(&page->lru, &zone->lru[lru].list);
+ 			pgmoved++;
+ 		}
+@@ -181,7 +181,7 @@ void activate_page(struct page *page)
+ 	spin_lock_irq(&zone->lru_lock);
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		int file = page_is_file_cache(page);
+-		int lru = LRU_BASE + file;
++		int lru = page_lru_type(page);
+ 		del_page_from_lru_list(zone, page, lru);
+ 
+ 		SetPageActive(page);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 46ec6a5..758f628 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -531,7 +531,7 @@ redo:
+ 		 * unevictable page on [in]active list.
+ 		 * We know how to handle that.
+ 		 */
+-		lru = active + page_is_file_cache(page);
++		lru = active + page_lru_type(page);
+ 		lru_cache_add_lru(page, lru);
+ 	} else {
+ 		/*
+@@ -981,7 +981,7 @@ static unsigned long clear_active_flags(struct list_head *page_list,
+ 	struct page *page;
+ 
+ 	list_for_each_entry(page, page_list, lru) {
+-		lru = page_is_file_cache(page);
++		lru = page_lru_type(page);
+ 		if (PageActive(page)) {
+ 			lru += LRU_ACTIVE;
+ 			ClearPageActive(page);
+@@ -2645,7 +2645,7 @@ static void check_move_unevictable_page(struct page *page, struct zone *zone)
+ retry:
+ 	ClearPageUnevictable(page);
+ 	if (page_evictable(page, NULL)) {
+-		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
++		enum lru_list l = page_lru_type(page);
+ 
+ 		__dec_zone_state(zone, NR_UNEVICTABLE);
+ 		list_move(&page->lru, &zone->lru[l].list);
 -- 
 1.6.3
 
