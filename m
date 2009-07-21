@@ -1,22 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B9DEC6B004F
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 03:20:58 -0400 (EDT)
-Date: Tue, 21 Jul 2009 09:21:01 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] hibernate / memory hotplug: always use for_each_populated_zone()
-Message-ID: <20090721072101.GC7816@wotan.suse.de>
-References: <1248103551.23961.0.camel@localhost.localdomain> <4A64E1D6.8090102@crca.org.au> <20090721071508.GB12734@osiris.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A90DF6B004F
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 03:40:42 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6L7eiAW019866
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Jul 2009 16:40:44 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D5C845DE56
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 16:40:44 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B7E7345DE4F
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 16:40:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B74A1DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 16:40:42 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F495E0800C
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 16:40:41 +0900 (JST)
+Date: Tue, 21 Jul 2009 16:38:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] hibernate / memory hotplug: always use
+ for_each_populated_zone()
+Message-Id: <20090721163846.2a8001c1.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090721071508.GB12734@osiris.boeblingen.de.ibm.com>
+References: <1248103551.23961.0.camel@localhost.localdomain>
+	<4A64E1D6.8090102@crca.org.au>
+	<20090721071508.GB12734@osiris.boeblingen.de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 21, 2009 at 09:15:08AM +0200, Heiko Carstens wrote:
+On Tue, 21 Jul 2009 09:15:08 +0200
+Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
+
 > On Tue, Jul 21, 2009 at 07:29:58AM +1000, Nigel Cunningham wrote:
 > > Hi.
 > > 
@@ -48,17 +69,46 @@ On Tue, Jul 21, 2009 at 09:15:08AM +0200, Heiko Carstens wrote:
 > At least for sparsemem it means nothing but "the memmap for the section
 > this page belongs to exists". So it just means the struct page for the
 > pfn exists.
+
+Historically, pfn_valid() just means "there is a memmap." no other meanings
+in any configs/archs.
+
+
 > We still have pfn_present() for CONFIG_SPARSEMEM. But that just means
 > "some pages in the section this pfn belongs to are present."
+
+It just exists for sparsemem internal purpose IIUC.
+
+
 > So it looks like checking for pfn_valid() and afterwards checking
 > for PG_Reserved (?) might give what one would expect.
+I think so, too. If memory is offline, PG_reserved is always set.
+
+In general, it's expected that "page is contiguous in MAX_ORDER range"
+and no memory holes in MAX_ORDER. In most case, PG_reserved is checked
+for skipping not-existing memory.
+
+
 > Looks all a bit confusing to me.
 > Or maybe it's just me who is confused? :)
+> 
+IIRC, there are no generic interface to know whether there is a physical page.
 
-It would be nice to remove PG_reserved (most architectures also set
-it I think for kernel text and IIRC bootmem), it could then be used
-as a PG_arch_2 bit, and we could ask architectures to impement
-pfn_is_ram (or whatever's going to be most useful).
+pfn_valid() is only for memmap and people have used
+	if (pfn_valid(pfn) && !PageReserved(page))
+check.
+But, hmm, If hibernation have to save PG_reserved memory, general solution is
+use copy_user_page() and handle fault.
+
+Alternative is making use of walk_memory_resource() as memory hotplug does.
+It checks resource information registered.
+
+Thanks,
+-Kame
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
