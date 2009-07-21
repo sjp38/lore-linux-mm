@@ -1,131 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 032A06B0055
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 05:33:14 -0400 (EDT)
-Date: Tue, 21 Jul 2009 10:33:13 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 95B786B005A
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 05:40:00 -0400 (EDT)
+Date: Tue, 21 Jul 2009 10:40:00 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch 1/4] mm: drop unneeded double negations
-Message-ID: <20090721093312.GA25383@csn.ul.ie>
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: HugeTLB mapping for drivers (sample driver)
+Message-ID: <20090721094000.GB25383@csn.ul.ie>
+References: <alpine.LFD.2.00.0907140258100.25576@casper.infradead.org> <20090714102735.GD28569@csn.ul.ie> <202cde0e0907141708g51294247i7a201c34e97f5b66@mail.gmail.com> <202cde0e0907190639k7bbebc63k143734ad696f90f5@mail.gmail.com> <20090720081130.GA7989@csn.ul.ie> <202cde0e0907210232gc8a6119jc7f2ba522d22a80d@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <202cde0e0907210232gc8a6119jc7f2ba522d22a80d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Alexey Korolev <akorolex@gmail.com>
+Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 21, 2009 at 10:56:31AM +0200, Johannes Weiner wrote:
-> Remove double negations where the operand is already boolean.
+On Tue, Jul 21, 2009 at 09:32:34PM +1200, Alexey Korolev wrote:
+> Hi,
+> >
+> > Did the OOM killer really trigger and select a process for killing or
+> > did the process itself just get killed with an out-of-memory message? I
+> > would have expected the latter.
+> >
+>
+> OMM killer triggered in case of private mapping on attempt to access a
+> page under private mapping. It was because code did not check the pages
+> availability at mmap time. Will be fixed.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c |    2 +-
->  mm/memory.c     |    2 +-
->  mm/vmscan.c     |   10 +++++-----
->  3 files changed, 7 insertions(+), 7 deletions(-)
+
+That's a surprise. I should check out why the OOM killer fired instead
+of just killing the application that failed to fault the page.
+
+> >> In fact there should be quite few cases when private mapping makes
+> >> sense for drivers and mapping DMA buffers. I thought about possible
+> >> solutions. The question is what to choose.
+> >>
+> >> 1. Forbid private mappings for drivers in case of hugetlb. (But this
+> >> limits functionality - it is not so good)
+> >
+> > For a long time, this was the "solution" for hugetlbfs.
+> >
+> >> 2. Allow private mapping. Use hugetlbfs hstates. (But it forces user
+> >> to know how much hugetlb memory it is necessary to reserve for
+> >> drivers)
+> >
+> > You can defer working out the reservations until mmap() time,
+> > particularly if you are using dynamic hugepage pool resizing instead of
+> > static allocation.
+> >
+> >> 3. Allow private mapping. Use special hstate for driver and driver
+> >> should tell how much memory needs to be reserved for it. (Not clear
+> >> yet how to behave if we are out of reserved space)
+> >>
+> >> Could you please suggest what is the best solution? May be some other options?
+> >>
+> >
+> > The only solution that springs to mind is the same one used by hugetlbfs
+> > and that is that reservations are taken at mmap() time for the size of the
+> > mapping. In your case, you prefault but either way, the hugepages exist.
+> >
+> Yes, that looks sane. I'll follow this way. In a particular case if
+> driver do not
+> need a private mapping mmap will return error. Thanks for the advice.
+> I'm about
+> to modify the patches. I'll try to involve  hugetlb reservation
+> functions as much  as
+> possible and track reservations by special hstate for drivers.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 38ad840..8ad148a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -655,7 +655,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  	int nid = z->zone_pgdat->node_id;
->  	int zid = zone_idx(z);
->  	struct mem_cgroup_per_zone *mz;
-> -	int lru = LRU_FILE * !!file + !!active;
-> +	int lru = LRU_FILE * file + active;
->  	int ret;
->  
 
-Ok, this should be ok as file and active appear to be 1 and 0.
+Ok but bear in mind you are now going far down the road of
+re-implementing hugetlbfs and you should re-examine why you cannot use
+the hidden internal hugetlbfs mount similar to what shared memory does.
 
->  	BUG_ON(!mem_cont);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6521619..dd8eb26 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -596,7 +596,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  	if (page) {
->  		get_page(page);
->  		page_dup_rmap(page, vma, addr);
-> -		rss[!!PageAnon(page)]++;
-> +		rss[PageAnon(page)]++;
->  	}
-
-Similarly, seems ok.
-
->  
->  out_set_pte:
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 07fd8aa..46ec6a5 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -516,7 +516,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
->  void putback_lru_page(struct page *page)
->  {
->  	int lru;
-> -	int active = !!TestClearPageActive(page);
-> +	int active = TestClearPageActive(page);
->  	int was_unevictable = PageUnevictable(page);
->  
-
-But are you *sure* about this change?
-
-active it used as an array offset later in this function for evictable pages
-so it needs to be 1 or 0 but IIRC, the TestClear functions are not guaranteed
-to return 0 or 1 on all architectures. They return 0 or non-zero. I'm 99.999%
-certain I've been bitten before by test_bit returning the word with the one
-bit set instead of 1. Maybe things have changed since or it's my
-imagination but can you double check please?
-
->  	VM_BUG_ON(PageLRU(page));
-> @@ -966,7 +966,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
->  	if (file)
->  		lru += LRU_FILE;
->  	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
-> -								mode, !!file);
-> +								mode, file);
->  }
->  
->  /*
-> @@ -1204,7 +1204,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
->  			lru = page_lru(page);
->  			add_page_to_lru_list(zone, page, lru);
->  			if (is_active_lru(lru)) {
-> -				int file = !!is_file_lru(lru);
-> +				int file = is_file_lru(lru);
->  				reclaim_stat->recent_rotated[file]++;
->  			}
->  			if (!pagevec_add(&pvec, page)) {
-> @@ -1310,7 +1310,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  	if (scanning_global_lru(sc)) {
->  		zone->pages_scanned += pgscanned;
->  	}
-> -	reclaim_stat->recent_scanned[!!file] += nr_taken;
-> +	reclaim_stat->recent_scanned[file] += nr_taken;
->  
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
->  	if (file)
-> @@ -1364,7 +1364,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  	 * helps balance scan pressure between file and anonymous pages in
->  	 * get_scan_ratio.
->  	 */
-> -	reclaim_stat->recent_rotated[!!file] += nr_rotated;
-> +	reclaim_stat->recent_rotated[file] += nr_rotated;
->  	__count_vm_events(PGDEACTIVATE, nr_deactivate);
->  
->  	move_active_pages_to_lru(zone, &l_active,
-> -- 
-> 1.6.3
+> > What then happens for hugetlbfs is that only the process that called mmap()
+> > is guaranteed their faults will succeed. If a child process incurs a COW
+> > and the hugepages are not available, the child process gets killed. If
+> > the parent process performs COW and the huge pages are not available, it
+> > unmaps the pages from the child process so that COW becomes unnecessary. If
+> > the child process then faults, it gets killed.  This is implemented in
+> > mm/hugetlb.c#unmap_ref_private().
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> So on out of memory COW hugetlb code prefer applications to be killed by
+> SIGSEGV (SIGBUS?) instead of OOM. Okk.
 > 
+
+It prefers to kill the children with SIGKILL than have the parent
+application randomly fail. This happens when the pool is insufficient for
+any part of the application to continue. What it was intended to address
+was hugepage-aware-applications-using-MAP_PRIVATE that fork() and exec()
+helper applications/monitors which appears to be fairly common. There was
+a sizable window between fork() and exec() where the parent process could
+get killed accessing its MAP_PRIVATE area and taking a COW even though the
+child would never need it. Guaranteeing that the process that called mmap()
+would always succeed fault was better than it being a random choice between
+parents and children.
+
+The impact is that applications that use MAP_PRIVATE that expect
+children to get a full private copy of hugetlb-backed areas are going to
+have a bad time but the expectation is that these applications are very
+rare and they'll be told "don't do that".
 
 -- 
 Mel Gorman
