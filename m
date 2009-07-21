@@ -1,66 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 093356B005A
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 07:19:34 -0400 (EDT)
-Date: Tue, 21 Jul 2009 13:18:02 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/4] mm: drop unneeded double negations
-Message-ID: <20090721111802.GA9050@cmpxchg.org>
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <20090721093312.GA25383@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 602616B004F
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 09:38:15 -0400 (EDT)
+Date: Tue, 21 Jul 2009 15:38:12 +0200
+From: Stephan von Krawczynski <skraw@ithnet.com>
+Subject: Re: What to do with this message (2.6.30.1) ?
+Message-Id: <20090721153812.a0e0c96a.skraw@ithnet.com>
+In-Reply-To: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
+References: <20090713134621.124aa18e.skraw@ithnet.com>
+	<4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com>
+	<alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com>
+	<20090715084754.36ff73bf.skraw@ithnet.com>
+	<alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
+	<20090715113740.334309dd.skraw@ithnet.com>
+	<alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090721093312.GA25383@csn.ul.ie>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 21, 2009 at 10:33:13AM +0100, Mel Gorman wrote:
-> On Tue, Jul 21, 2009 at 10:56:31AM +0200, Johannes Weiner wrote:
+On Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> >  out_set_pte:
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 07fd8aa..46ec6a5 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -516,7 +516,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
-> >  void putback_lru_page(struct page *page)
-> >  {
-> >  	int lru;
-> > -	int active = !!TestClearPageActive(page);
-> > +	int active = TestClearPageActive(page);
-> >  	int was_unevictable = PageUnevictable(page);
-> >  
+> On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
 > 
-> But are you *sure* about this change?
+> > > If you have some additional time, it would also be helpful to get a 
+> > > bisection of when the problem started occurring (it appears to be sometime 
+> > > between 2.6.29 and 2.6.30).
+> > 
+> > Do you know what version should definitely be not affected? I can check one
+> > kernel version per day, can you name a list which versions to check out? 
+> > 
 > 
-> active it used as an array offset later in this function for evictable pages
-> so it needs to be 1 or 0 but IIRC, the TestClear functions are not guaranteed
-> to return 0 or 1 on all architectures. They return 0 or non-zero. I'm 99.999%
-> certain I've been bitten before by test_bit returning the word with the one
-> bit set instead of 1. Maybe things have changed since or it's my
-> imagination but can you double check please?
+> To my knowledge, this issue was never reported on 2.6.29, so that should 
+> be a sane starting point.
 
-You are correct.  I was a bit naive there and relied on the
-documentation of the generic versions of test_and_clear_bit().
-However,
+Since we cannot see the problem in 2.6.27.26, we now try 2.6.30.2.
 
-	- arm returns something non-zero for the atomic versions but
-          uses the true boolean generic unlocked versions
-
-	- ia64 seems to returns true boolean for everything but
-          __test_and_clear_bit
-
-Everyone else returns true booleans, so I think these two should
-adjusted.
-
-Andrew, please ignore this patch for now, I will resend it once I
-fixed arm and ia64.
-
-Thanks for pointing it out, Mel.
-
-	Hannes
+-- 
+Regards,
+Stephan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
