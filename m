@@ -1,48 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 602616B004F
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 09:38:15 -0400 (EDT)
-Date: Tue, 21 Jul 2009 15:38:12 +0200
-From: Stephan von Krawczynski <skraw@ithnet.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-Message-Id: <20090721153812.a0e0c96a.skraw@ithnet.com>
-In-Reply-To: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-References: <20090713134621.124aa18e.skraw@ithnet.com>
-	<4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com>
-	<alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com>
-	<20090715084754.36ff73bf.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
-	<20090715113740.334309dd.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0F40C6B004F
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 10:11:05 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] hibernate / memory hotplug: always use for_each_populated_zone()
+Date: Tue, 21 Jul 2009 16:11:08 +0200
+References: <1248103551.23961.0.camel@localhost.localdomain> <20090721071508.GB12734@osiris.boeblingen.de.ibm.com> <20090721163846.2a8001c1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090721163846.2a8001c1.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200907211611.09525.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
+On Tuesday 21 July 2009, KAMEZAWA Hiroyuki wrote:
+> On Tue, 21 Jul 2009 09:15:08 +0200
+> Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
 > 
-> > > If you have some additional time, it would also be helpful to get a 
-> > > bisection of when the problem started occurring (it appears to be sometime 
-> > > between 2.6.29 and 2.6.30).
+> > On Tue, Jul 21, 2009 at 07:29:58AM +1000, Nigel Cunningham wrote:
+> > > Hi.
+> > > 
+> > > Gerald Schaefer wrote:
+> > > > From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> > > > 
+> > > > Use for_each_populated_zone() instead of for_each_zone() in hibernation
+> > > > code. This fixes a bug on s390, where we allow both config options
+> > > > HIBERNATION and MEMORY_HOTPLUG, so that we also have a ZONE_MOVABLE
+> > > > here. We only allow hibernation if no memory hotplug operation was
+> > > > performed, so in fact both features can only be used exclusively, but
+> > > > this way we don't need 2 differently configured (distribution) kernels.
+> > > > 
+> > > > If we have an unpopulated ZONE_MOVABLE, we allow hibernation but run
+> > > > into a BUG_ON() in memory_bm_test/set/clear_bit() because hibernation
+> > > > code iterates through all zones, not only the populated zones, in
+> > > > several places. For example, swsusp_free() does for_each_zone() and
+> > > > then checks for pfn_valid(), which is true even if the zone is not
+> > > > populated, resulting in a BUG_ON() later because the pfn cannot be
+> > > > found in the memory bitmap.
+> > > 
+> > > I agree with your logic and patch, but doesn't this also imply that the
+> > > s390 implementation pfn_valid should be changed to return false for
+> > > those pages?
 > > 
-> > Do you know what version should definitely be not affected? I can check one
-> > kernel version per day, can you name a list which versions to check out? 
-> > 
+> > For CONFIG_SPARSEMEM, which s390 uses, there is no architecture specific
+> > pfn_valid() implementation.
+> > Also it looks like the semantics of pfn_valid() aren't clear.
+> > At least for sparsemem it means nothing but "the memmap for the section
+> > this page belongs to exists". So it just means the struct page for the
+> > pfn exists.
 > 
-> To my knowledge, this issue was never reported on 2.6.29, so that should 
-> be a sane starting point.
+> Historically, pfn_valid() just means "there is a memmap." no other meanings
+> in any configs/archs.
 
-Since we cannot see the problem in 2.6.27.26, we now try 2.6.30.2.
+Is this documented anywhere actually?
 
--- 
-Regards,
-Stephan
+> > We still have pfn_present() for CONFIG_SPARSEMEM. But that just means
+> > "some pages in the section this pfn belongs to are present."
+> 
+> It just exists for sparsemem internal purpose IIUC.
+> 
+> 
+> > So it looks like checking for pfn_valid() and afterwards checking
+> > for PG_Reserved (?) might give what one would expect.
+> I think so, too. If memory is offline, PG_reserved is always set.
+> 
+> In general, it's expected that "page is contiguous in MAX_ORDER range"
+> and no memory holes in MAX_ORDER. In most case, PG_reserved is checked
+> for skipping not-existing memory.
+
+PG_reserved is also set for kernel text, at least on some architectures, and
+for some other areas that we want to save.
+
+> > Looks all a bit confusing to me.
+> > Or maybe it's just me who is confused? :)
+> > 
+> IIRC, there are no generic interface to know whether there is a physical page.
+
+We need to know that for hibernation, though.
+
+Well, there is a mechanism for marking making address ranges that are never
+to be saved, but they need to be known during initialisation already.
+
+> pfn_valid() is only for memmap and people have used
+> 	if (pfn_valid(pfn) && !PageReserved(page))
+> check.
+> But, hmm, If hibernation have to save PG_reserved memory, general solution is
+> use copy_user_page() and handle fault.
+
+That's not exactly straightforward IMHO.
+
+> Alternative is making use of walk_memory_resource() as memory hotplug does.
+> It checks resource information registered.
+
+I'd be fine with any _simple_ mechanism allowing us to check whether there's
+a physical page frame for given page (or given PFN).
+
+Best,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
