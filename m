@@ -1,378 +1,480 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 32BE06B00A1
+	by kanga.kvack.org (Postfix) with ESMTP id 4E01A6B00A9
 	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:10:19 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [RFC v17][PATCH 48/60] c/r (ipc): allow allocation of a desired ipc identifier
-Date: Wed, 22 Jul 2009 06:00:10 -0400
-Message-Id: <1248256822-23416-49-git-send-email-orenl@librato.com>
+Subject: [RFC v17][PATCH 55/60] c/r: define s390-specific checkpoint-restart code
+Date: Wed, 22 Jul 2009 06:00:17 -0400
+Message-Id: <1248256822-23416-56-git-send-email-orenl@librato.com>
 In-Reply-To: <1248256822-23416-1-git-send-email-orenl@librato.com>
 References: <1248256822-23416-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Dan Smith <danms@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-During restart, we need to allocate ipc objects that with the same
-identifiers as recorded during checkpoint. Modify the allocation
-code allow an in-kernel caller to request a specific ipc identifier.
-The system call interface remains unchanged.
+From: Dan Smith <danms@us.ibm.com>
 
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Implement the s390 arch-specific checkpoint/restart helpers.  This
+is on top of Oren Laadan's c/r code.
+
+With these, I am able to checkpoint and restart simple programs as per
+Oren's patch intro.  While on x86 I never had to freeze a single task
+to checkpoint it, on s390 I do need to.  That is a prereq for consistent
+snapshots (esp with multiple processes) anyway so I don't see that as
+a problem.
+
+Changelog:
+    Jun 15:
+            . Fix checkpoint and restart compat wrappers
+    May 28:
+            . Export asm/checkpoint_hdr.h to userspace
+            . Define CKPT_ARCH_ID for S390
+    Apr 11:
+            . Introduce ckpt_arch_vdso()
+    Feb 27:
+            . Add checkpoint_s390.h
+            . Fixed up save and restore of PSW, with the non-address bits
+              properly masked out
+    Feb 25:
+            . Make checkpoint_hdr.h safe for inclusion in userspace
+            . Replace comment about vsdo code
+            . Add comment about restoring access registers
+            . Write and read an empty ckpt_hdr_head_arch record to appease
+              code (mktree) that expects it to be there
+            . Utilize NUM_CKPT_WORDS in checkpoint_hdr.h
+    Feb 24:
+            . Use CKPT_COPY() to unify the un/loading of cpu and mm state
+            . Fix fprs definition in ckpt_hdr_cpu
+            . Remove debug WARN_ON() from checkpoint.c
+    Feb 23:
+            . Macro-ize the un/packing of trace flags
+            . Fix the crash when externally-linked
+            . Break out the restart functions into restart.c
+            . Remove unneeded s390_enable_sie() call
+    Jan 30:
+            . Switched types in ckpt_hdr_cpu to __u64 etc.
+              (Per Oren suggestion)
+            . Replaced direct inclusion of structs in
+              ckpt_hdr_cpu with the struct members.
+              (Per Oren suggestion)
+            . Also ended up adding a bunch of new things
+              into restart (mm_segment, ksp, etc) in vain
+              attempt to get code using fpu to not segfault
+              after restart.
+
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Signed-off-by: Dan Smith <danms@us.ibm.com>
 ---
- ipc/msg.c  |   17 ++++++++++++-----
- ipc/sem.c  |   17 ++++++++++++-----
- ipc/shm.c  |   19 +++++++++++++------
- ipc/util.c |   42 +++++++++++++++++++++++++++++-------------
- ipc/util.h |    9 +++++----
- 5 files changed, 71 insertions(+), 33 deletions(-)
+ arch/s390/include/asm/Kbuild           |    1 +
+ arch/s390/include/asm/checkpoint_hdr.h |   89 +++++++++++++++
+ arch/s390/include/asm/unistd.h         |    4 +-
+ arch/s390/kernel/compat_wrapper.S      |   14 +++
+ arch/s390/kernel/syscalls.S            |    2 +
+ arch/s390/mm/Makefile                  |    1 +
+ arch/s390/mm/checkpoint.c              |  183 ++++++++++++++++++++++++++++++++
+ arch/s390/mm/checkpoint_s390.h         |   23 ++++
+ include/linux/checkpoint_hdr.h         |    2 +
+ 9 files changed, 318 insertions(+), 1 deletions(-)
+ create mode 100644 arch/s390/include/asm/checkpoint_hdr.h
+ create mode 100644 arch/s390/mm/checkpoint.c
+ create mode 100644 arch/s390/mm/checkpoint_s390.h
 
-diff --git a/ipc/msg.c b/ipc/msg.c
-index 2ceab7f..1db7c45 100644
---- a/ipc/msg.c
-+++ b/ipc/msg.c
-@@ -73,7 +73,7 @@ struct msg_sender {
- #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
+diff --git a/arch/s390/include/asm/Kbuild b/arch/s390/include/asm/Kbuild
+index 63a2341..3282a6e 100644
+--- a/arch/s390/include/asm/Kbuild
++++ b/arch/s390/include/asm/Kbuild
+@@ -8,6 +8,7 @@ header-y += ucontext.h
+ header-y += vtoc.h
+ header-y += zcrypt.h
+ header-y += chsc.h
++header-y += checkpoint_hdr.h
  
- static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
--static int newque(struct ipc_namespace *, struct ipc_params *);
-+static int newque(struct ipc_namespace *, struct ipc_params *, int);
- #ifdef CONFIG_PROC_FS
- static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
- #endif
-@@ -174,10 +174,12 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
-  * newque - Create a new msg queue
-  * @ns: namespace
-  * @params: ptr to the structure that contains the key and msgflg
-+ * @req_id: request desired id if available (-1 if don't care)
-  *
-  * Called with msg_ids.rw_mutex held (writer)
-  */
--static int newque(struct ipc_namespace *ns, struct ipc_params *params)
-+static int
-+newque(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
- {
- 	struct msg_queue *msq;
- 	int id, retval;
-@@ -201,7 +203,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
- 	/*
- 	 * ipc_addid() locks msq
- 	 */
--	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
-+	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni, req_id);
- 	if (id < 0) {
- 		security_msg_queue_free(msq);
- 		ipc_rcu_putref(msq);
-@@ -309,7 +311,7 @@ static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
- 	return security_msg_queue_associate(msq, msgflg);
- }
- 
--SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
-+int do_msgget(key_t key, int msgflg, int req_id)
- {
- 	struct ipc_namespace *ns;
- 	struct ipc_ops msg_ops;
-@@ -324,7 +326,12 @@ SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
- 	msg_params.key = key;
- 	msg_params.flg = msgflg;
- 
--	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params);
-+	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params, req_id);
-+}
+ unifdef-y += cmb.h
+ unifdef-y += debug.h
+diff --git a/arch/s390/include/asm/checkpoint_hdr.h b/arch/s390/include/asm/checkpoint_hdr.h
+new file mode 100644
+index 0000000..ad9449e
+--- /dev/null
++++ b/arch/s390/include/asm/checkpoint_hdr.h
+@@ -0,0 +1,89 @@
++#ifndef __ASM_S390_CKPT_HDR_H
++#define __ASM_S390_CKPT_HDR_H
++/*
++ *  Checkpoint/restart - architecture specific headers s/390
++ *
++ *  Copyright IBM Corp. 2009
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
 +
-+SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
++#ifndef _CHECKPOINT_CKPT_HDR_H_
++#error asm/checkpoint_hdr.h included directly
++#endif
++
++#include <linux/types.h>
++#include <asm/ptrace.h>
++
++#ifdef __KERNEL__
++#include <asm/processor.h>
++#else
++#include <sys/user.h>
++#endif
++
++#ifdef CONFIG_64BIT
++#define CKPT_ARCH_ID	CKPT_ARCH_S390X
++/* else - if we ever support 32bit - CKPT_ARCH_S390 */
++#endif
++
++/*
++ * Notes
++ * NUM_GPRS defined in <asm/ptrace.h> to be 16
++ * NUM_FPRS defined in <asm/ptrace.h> to be 16
++ * NUM_APRS defined in <asm/ptrace.h> to be 16
++ * NUM_CR_WORDS defined in <asm/ptrace.h> to be 3
++ */
++struct ckpt_hdr_cpu {
++	struct ckpt_hdr h;
++	__u64 args[1];
++	__u64 gprs[NUM_GPRS];
++	__u64 orig_gpr2;
++	__u16 svcnr;
++	__u16 ilc;
++	__u32 acrs[NUM_ACRS];
++	__u64 ieee_instruction_pointer;
++
++	/* psw_t */
++	__u64 psw_t_mask;
++	__u64 psw_t_addr;
++
++	/* s390_fp_regs_t */
++	__u32 fpc;
++	union {
++		float f;
++		double d;
++		__u64 ui;
++		struct {
++			__u32 fp_hi;
++			__u32 fp_lo;
++		} fp;
++	} fprs[NUM_FPRS];
++
++	/* per_struct */
++	__u64 per_control_regs[NUM_CR_WORDS];
++	__u64 starting_addr;
++	__u64 ending_addr;
++	__u64 address;
++	__u16 perc_atmid;
++	__u8 access_id;
++	__u8 single_step;
++	__u8 instruction_fetch;
++};
++
++struct ckpt_hdr_mm_context {
++	struct ckpt_hdr h;
++	unsigned long vdso_base;
++	int noexec;
++	int has_pgste;
++	int alloc_pgste;
++	unsigned long asce_bits;
++	unsigned long asce_limit;
++};
++
++struct ckpt_hdr_header_arch {
++	struct ckpt_hdr h;
++};
++
++#endif /* __ASM_S390_CKPT_HDR__H */
+diff --git a/arch/s390/include/asm/unistd.h b/arch/s390/include/asm/unistd.h
+index c80602d..5d1678a 100644
+--- a/arch/s390/include/asm/unistd.h
++++ b/arch/s390/include/asm/unistd.h
+@@ -269,7 +269,9 @@
+ #define	__NR_pwritev		329
+ #define __NR_rt_tgsigqueueinfo	330
+ #define __NR_perf_counter_open	331
+-#define NR_syscalls 332
++#define __NR_checkpoint		332
++#define __NR_restart		333
++#define NR_syscalls 334
+ 
+ /* 
+  * There are some system calls that are not present on 64 bit, some
+diff --git a/arch/s390/kernel/compat_wrapper.S b/arch/s390/kernel/compat_wrapper.S
+index 88a8336..e882f99 100644
+--- a/arch/s390/kernel/compat_wrapper.S
++++ b/arch/s390/kernel/compat_wrapper.S
+@@ -1840,3 +1840,17 @@ sys_perf_counter_open_wrapper:
+ 	lgfr	%r5,%r5			# int
+ 	llgfr	%r6,%r6			# unsigned long
+ 	jg	sys_perf_counter_open	# branch to system call
++
++	.globl sys_checkpoint_wrapper
++sys_checkpoint_wrapper:
++	lgfr	%r2,%r2			# pid_t
++	lgfr	%r3,%r3			# int
++	llgfr	%r4,%r4			# unsigned long
++	jg	compat_sys_checkpoint
++
++	.globl sys_restore_wrapper
++sys_restore_wrapper:
++	lgfr	%r2,%r2			# int
++	lgfr	%r3,%r3			# int
++	llgfr	%r4,%r4			# unsigned long
++	jg	compat_sys_restore
+diff --git a/arch/s390/kernel/syscalls.S b/arch/s390/kernel/syscalls.S
+index ad1acd2..67518e2 100644
+--- a/arch/s390/kernel/syscalls.S
++++ b/arch/s390/kernel/syscalls.S
+@@ -340,3 +340,5 @@ SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv_wrapper)
+ SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev_wrapper)
+ SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo_wrapper) /* 330 */
+ SYSCALL(sys_perf_counter_open,sys_perf_counter_open,sys_perf_counter_open_wrapper)
++SYSCALL(sys_checkpoint,sys_checkpoint,sys_checkpoint_wrapper)
++SYSCALL(sys_restart,sys_restart,sys_restore_wrapper)
+diff --git a/arch/s390/mm/Makefile b/arch/s390/mm/Makefile
+index db05661..e3d356d 100644
+--- a/arch/s390/mm/Makefile
++++ b/arch/s390/mm/Makefile
+@@ -6,3 +6,4 @@ obj-y	 := init.o fault.o extmem.o mmap.o vmem.o pgtable.o maccess.o
+ obj-$(CONFIG_CMM) += cmm.o
+ obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
+ obj-$(CONFIG_PAGE_STATES) += page-states.o
++obj-$(CONFIG_CHECKPOINT) += checkpoint.o
+diff --git a/arch/s390/mm/checkpoint.c b/arch/s390/mm/checkpoint.c
+new file mode 100644
+index 0000000..a4a5da9
+--- /dev/null
++++ b/arch/s390/mm/checkpoint.c
+@@ -0,0 +1,183 @@
++/*
++ *  Checkpoint/restart - architecture specific support for s390
++ *
++ *  Copyright IBM Corp. 2009
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/kernel.h>
++#include <asm/system.h>
++#include <asm/pgtable.h>
++#include <asm/elf.h>
++
++#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
++
++/**************************************************************************
++ * Checkpoint
++ */
++
++static void s390_copy_regs(int op, struct ckpt_hdr_cpu *h,
++			   struct task_struct *t)
 +{
-+	return do_msgget(key, msgflg, -1);
- }
- 
- static inline unsigned long
-diff --git a/ipc/sem.c b/ipc/sem.c
-index 87c2b64..a2b2135 100644
---- a/ipc/sem.c
-+++ b/ipc/sem.c
-@@ -92,7 +92,7 @@
- #define sem_unlock(sma)		ipc_unlock(&(sma)->sem_perm)
- #define sem_checkid(sma, semid)	ipc_checkid(&sma->sem_perm, semid)
- 
--static int newary(struct ipc_namespace *, struct ipc_params *);
-+static int newary(struct ipc_namespace *, struct ipc_params *, int);
- static void freeary(struct ipc_namespace *, struct kern_ipc_perm *);
- #ifdef CONFIG_PROC_FS
- static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
-@@ -227,11 +227,13 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
-  * newary - Create a new semaphore set
-  * @ns: namespace
-  * @params: ptr to the structure that contains key, semflg and nsems
-+ * @req_id: request desired id if available (-1 if don't care)
-  *
-  * Called with sem_ids.rw_mutex held (as a writer)
-  */
- 
--static int newary(struct ipc_namespace *ns, struct ipc_params *params)
-+static int
-+newary(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
- {
- 	int id;
- 	int retval;
-@@ -263,7 +265,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
- 		return retval;
- 	}
- 
--	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
-+	id = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni, req_id);
- 	if (id < 0) {
- 		security_sem_free(sma);
- 		ipc_rcu_putref(sma);
-@@ -308,7 +310,7 @@ static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
- 	return 0;
- }
- 
--SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
-+int do_semget(key_t key, int nsems, int semflg, int req_id)
- {
- 	struct ipc_namespace *ns;
- 	struct ipc_ops sem_ops;
-@@ -327,7 +329,12 @@ SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
- 	sem_params.flg = semflg;
- 	sem_params.u.nsems = nsems;
- 
--	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params);
-+	return ipcget(ns, &sem_ids(ns), &sem_ops, &sem_params, req_id);
-+}
++	struct pt_regs *regs = task_pt_regs(t);
++	struct thread_struct *thr = &t->thread;
 +
-+SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
-+{
-+	return do_semget(key, nsems, semflg, -1);
- }
- 
- /*
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 15dd238..0ee2c35 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -62,7 +62,7 @@ static struct vm_operations_struct shm_vm_ops;
- #define shm_unlock(shp)			\
- 	ipc_unlock(&(shp)->shm_perm)
- 
--static int newseg(struct ipc_namespace *, struct ipc_params *);
-+static int newseg(struct ipc_namespace *, struct ipc_params *, int);
- static void shm_open(struct vm_area_struct *vma);
- static void shm_close(struct vm_area_struct *vma);
- static void shm_destroy (struct ipc_namespace *ns, struct shmid_kernel *shp);
-@@ -83,7 +83,7 @@ void shm_init_ns(struct ipc_namespace *ns)
-  * Called with shm_ids.rw_mutex (writer) and the shp structure locked.
-  * Only shm_ids.rw_mutex remains locked on exit.
-  */
--static void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
-+void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
- {
- 	struct shmid_kernel *shp;
- 	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
-@@ -326,11 +326,13 @@ static struct vm_operations_struct shm_vm_ops = {
-  * newseg - Create a new shared memory segment
-  * @ns: namespace
-  * @params: ptr to the structure that contains key, size and shmflg
-+ * @req_id: request desired id if available (-1 if don't care)
-  *
-  * Called with shm_ids.rw_mutex held as a writer.
-  */
- 
--static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
-+static int
-+newseg(struct ipc_namespace *ns, struct ipc_params *params, int req_id)
- {
- 	key_t key = params->key;
- 	int shmflg = params->flg;
-@@ -385,7 +387,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
- 	if (IS_ERR(file))
- 		goto no_file;
- 
--	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
-+	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni, req_id);
- 	if (id < 0) {
- 		error = id;
- 		goto no_id;
-@@ -443,7 +445,7 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
- 	return 0;
- }
- 
--SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
-+int do_shmget(key_t key, size_t size, int shmflg, int req_id)
- {
- 	struct ipc_namespace *ns;
- 	struct ipc_ops shm_ops;
-@@ -459,7 +461,12 @@ SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
- 	shm_params.flg = shmflg;
- 	shm_params.u.size = size;
- 
--	return ipcget(ns, &shm_ids(ns), &shm_ops, &shm_params);
-+	return ipcget(ns, &shm_ids(ns), &shm_ops, &shm_params, req_id);
-+}
-+
-+SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
-+{
-+	return do_shmget(key, size, shmflg, -1);
- }
- 
- static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_ds *in, int version)
-diff --git a/ipc/util.c b/ipc/util.c
-index b8e4ba9..ca248ec 100644
---- a/ipc/util.c
-+++ b/ipc/util.c
-@@ -247,10 +247,12 @@ int ipc_get_maxid(struct ipc_ids *ids)
-  *	Called with ipc_ids.rw_mutex held as a writer.
-  */
-  
--int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
-+int
-+ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size, int req_id)
- {
- 	uid_t euid;
- 	gid_t egid;
-+	int lid = 0;
- 	int id, err;
- 
- 	if (size > IPCMNI)
-@@ -259,28 +261,41 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
- 	if (ids->in_use >= size)
- 		return -ENOSPC;
- 
-+	if (req_id >= 0)
-+		lid = ipcid_to_idx(req_id);
-+
- 	spin_lock_init(&new->lock);
- 	new->deleted = 0;
- 	rcu_read_lock();
- 	spin_lock(&new->lock);
- 
--	err = idr_get_new(&ids->ipcs_idr, new, &id);
-+	err = idr_get_new_above(&ids->ipcs_idr, new, lid, &id);
- 	if (err) {
- 		spin_unlock(&new->lock);
- 		rcu_read_unlock();
- 		return err;
- 	}
- 
-+	if (req_id >= 0) {
-+		if (id != lid) {
-+			idr_remove(&ids->ipcs_idr, id);
-+			spin_unlock(&new->lock);
-+			rcu_read_unlock();
-+			return -EBUSY;
-+		}
-+		new->seq = req_id / SEQ_MULTIPLIER;
++	/* Save the whole PSW to facilitate forensic debugging, but only
++	 * restore the address portion to avoid letting userspace do
++	 * bad things by manipulating its value.
++	 */
++	if (op == CKPT_CPT) {
++		CKPT_COPY(op, h->psw_t_addr, regs->psw.addr);
 +	} else {
-+		new->seq = ids->seq++;
-+		if (ids->seq > ids->seq_max)
-+			ids->seq = 0;
++		regs->psw.addr &= ~PSW_ADDR_INSN;
++		regs->psw.addr |= h->psw_t_addr;
 +	}
 +
- 	ids->in_use++;
- 
- 	current_euid_egid(&euid, &egid);
- 	new->cuid = new->uid = euid;
- 	new->gid = new->cgid = egid;
- 
--	new->seq = ids->seq++;
--	if(ids->seq > ids->seq_max)
--		ids->seq = 0;
--
- 	new->id = ipc_buildid(id, new->seq);
- 	return id;
- }
-@@ -296,7 +311,7 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
-  *	when the key is IPC_PRIVATE.
-  */
- static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
--		struct ipc_ops *ops, struct ipc_params *params)
-+		struct ipc_ops *ops, struct ipc_params *params, int req_id)
- {
- 	int err;
- retry:
-@@ -306,7 +321,7 @@ retry:
- 		return -ENOMEM;
- 
- 	down_write(&ids->rw_mutex);
--	err = ops->getnew(ns, params);
-+	err = ops->getnew(ns, params, req_id);
- 	up_write(&ids->rw_mutex);
- 
- 	if (err == -EAGAIN)
-@@ -351,6 +366,7 @@ static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
-  *	@ids: IPC identifer set
-  *	@ops: the actual creation routine to call
-  *	@params: its parameters
-+ *	@req_id: request desired id if available (-1 if don't care)
-  *
-  *	This routine is called by sys_msgget, sys_semget() and sys_shmget()
-  *	when the key is not IPC_PRIVATE.
-@@ -360,7 +376,7 @@ static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
-  *	On success, the ipc id is returned.
-  */
- static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
--		struct ipc_ops *ops, struct ipc_params *params)
-+		struct ipc_ops *ops, struct ipc_params *params, int req_id)
- {
- 	struct kern_ipc_perm *ipcp;
- 	int flg = params->flg;
-@@ -381,7 +397,7 @@ retry:
- 		else if (!err)
- 			err = -ENOMEM;
- 		else
--			err = ops->getnew(ns, params);
-+			err = ops->getnew(ns, params, req_id);
- 	} else {
- 		/* ipc object has been locked by ipc_findkey() */
- 
-@@ -742,12 +758,12 @@ struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id)
-  * Common routine called by sys_msgget(), sys_semget() and sys_shmget().
-  */
- int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
--			struct ipc_ops *ops, struct ipc_params *params)
-+		struct ipc_ops *ops, struct ipc_params *params, int req_id)
- {
- 	if (params->key == IPC_PRIVATE)
--		return ipcget_new(ns, ids, ops, params);
-+		return ipcget_new(ns, ids, ops, params, req_id);
- 	else
--		return ipcget_public(ns, ids, ops, params);
-+		return ipcget_public(ns, ids, ops, params, req_id);
- }
- 
- /**
-diff --git a/ipc/util.h b/ipc/util.h
-index 764b51a..159a73c 100644
---- a/ipc/util.h
-+++ b/ipc/util.h
-@@ -71,7 +71,7 @@ struct ipc_params {
-  *      . routine to call for an extra check if needed
-  */
- struct ipc_ops {
--	int (*getnew) (struct ipc_namespace *, struct ipc_params *);
-+	int (*getnew) (struct ipc_namespace *, struct ipc_params *, int);
- 	int (*associate) (struct kern_ipc_perm *, int);
- 	int (*more_checks) (struct kern_ipc_perm *, struct ipc_params *);
- };
-@@ -94,7 +94,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
- #define ipcid_to_idx(id) ((id) % SEQ_MULTIPLIER)
- 
- /* must be called with ids->rw_mutex acquired for writing */
--int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
-+int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int, int);
- 
- /* must be called with ids->rw_mutex acquired for reading */
- int ipc_get_maxid(struct ipc_ids *);
-@@ -171,7 +171,8 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
- 
- struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
- int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
--			struct ipc_ops *ops, struct ipc_params *params);
-+	   struct ipc_ops *ops, struct ipc_params *params, int req_id);
- void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
--		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
-+	       void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
++	CKPT_COPY(op, h->args[0], regs->args[0]);
++	CKPT_COPY(op, h->orig_gpr2, regs->orig_gpr2);
++	CKPT_COPY(op, h->svcnr, regs->svcnr);
++	CKPT_COPY(op, h->ilc, regs->ilc);
++	CKPT_COPY(op, h->ieee_instruction_pointer,
++		thr->ieee_instruction_pointer);
++	CKPT_COPY(op, h->psw_t_mask, regs->psw.mask);
++	CKPT_COPY(op, h->fpc, thr->fp_regs.fpc);
++	CKPT_COPY(op, h->starting_addr, thr->per_info.starting_addr);
++	CKPT_COPY(op, h->ending_addr, thr->per_info.ending_addr);
++	CKPT_COPY(op, h->address, thr->per_info.lowcore.words.address);
++	CKPT_COPY(op, h->perc_atmid, thr->per_info.lowcore.words.perc_atmid);
++	CKPT_COPY(op, h->access_id, thr->per_info.lowcore.words.access_id);
++	CKPT_COPY(op, h->single_step, thr->per_info.single_step);
++	CKPT_COPY(op, h->instruction_fetch, thr->per_info.instruction_fetch);
 +
- #endif
++	CKPT_COPY_ARRAY(op, h->gprs, regs->gprs, NUM_GPRS);
++	CKPT_COPY_ARRAY(op, h->fprs, thr->fp_regs.fprs, NUM_FPRS);
++	CKPT_COPY_ARRAY(op, h->acrs, thr->acrs, NUM_ACRS);
++	CKPT_COPY_ARRAY(op, h->per_control_regs,
++		      thr->per_info.control_regs.words.cr, NUM_CR_WORDS);
++}
++
++static void s390_mm(int op, struct ckpt_hdr_mm_context *h,
++		    struct mm_struct *mm)
++{
++	CKPT_COPY(op, h->noexec, mm->context.noexec);
++	CKPT_COPY(op, h->has_pgste, mm->context.has_pgste);
++	CKPT_COPY(op, h->alloc_pgste, mm->context.alloc_pgste);
++	CKPT_COPY(op, h->asce_bits, mm->context.asce_bits);
++	CKPT_COPY(op, h->asce_limit, mm->context.asce_limit);
++}
++
++int checkpoint_thread(struct ckpt_ctx *ctx, struct task_struct *t)
++{
++	return 0;
++}
++
++/* dump the cpu state and registers of a given task */
++int checkpoint_cpu(struct ckpt_ctx *ctx, struct task_struct *t)
++{
++	struct ckpt_hdr_cpu *h;
++	int ret;
++
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_CPU);
++	if (!h)
++		return -ENOMEM;
++
++	s390_copy_regs(CKPT_CPT, h, t);
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++/* Write an empty header since it is assumed to be there */
++int checkpoint_write_header_arch(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_header_arch *h;
++	int ret;
++
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_HEADER_ARCH);
++	if (!h)
++		return -ENOMEM;
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++int checkpoint_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
++{
++	struct ckpt_hdr_mm_context *h;
++	int ret;
++
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_MM_CONTEXT);
++	if (!h)
++		return -ENOMEM;
++
++	s390_mm(CKPT_CPT, h, mm);
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++/**************************************************************************
++ * Restart
++ */
++
++int restore_thread(struct ckpt_ctx *ctx)
++{
++	return 0;
++}
++
++int restore_cpu(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_cpu *h;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_CPU);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
++
++	s390_copy_regs(CKPT_RST, h, current);
++
++	/* s390 does not restore the access registers after a syscall,
++	 * but does on a task switch.  Since we're switching tasks (in
++	 * a way), we need to replicate that behavior here.
++	 */
++	restore_access_regs(h->acrs);
++
++	ckpt_hdr_put(ctx, h);
++	return 0;
++}
++
++int restore_read_header_arch(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_header_arch *h;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_HEADER_ARCH);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
++
++	ckpt_hdr_put(ctx, h);
++	return 0;
++}
++
++
++int restore_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
++{
++	struct ckpt_hdr_mm_context *h;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_MM_CONTEXT);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
++
++	s390_mm(CKPT_RST, h, mm);
++
++	ckpt_hdr_put(ctx, h);
++	return 0;
++}
+diff --git a/arch/s390/mm/checkpoint_s390.h b/arch/s390/mm/checkpoint_s390.h
+new file mode 100644
+index 0000000..c3bf24d
+--- /dev/null
++++ b/arch/s390/mm/checkpoint_s390.h
+@@ -0,0 +1,23 @@
++/*
++ *  Checkpoint/restart - architecture specific support for s390
++ *
++ *  Copyright IBM Corp. 2009
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#ifndef _S390_CHECKPOINT_H
++#define _S390_CHECKPOINT_H
++
++#include <linux/checkpoint_hdr.h>
++#include <linux/sched.h>
++#include <linux/mm_types.h>
++
++extern void checkpoint_s390_regs(int op, struct ckpt_hdr_cpu *h,
++				 struct task_struct *t);
++extern void checkpoint_s390_mm(int op, struct ckpt_hdr_mm_context *h,
++			       struct mm_struct *mm);
++
++#endif /* _S390_CHECKPOINT_H */
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 2364a6f..3671e72 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -87,7 +87,9 @@ enum {
+ 
+ /* architecture */
+ enum {
++	/* do not change order (will break ABI) */
+ 	CKPT_ARCH_X86_32 = 1,
++	CKPT_ARCH_S390X,
+ };
+ 
+ /* shared objrects (objref) */
 -- 
 1.6.0.4
 
