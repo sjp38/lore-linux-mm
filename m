@@ -1,62 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 463786B011B
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:49:45 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH] hibernate / memory hotplug: always use for_each_populated_zone()
-Date: Wed, 22 Jul 2009 19:49:55 +0200
-References: <1248103551.23961.0.camel@localhost.localdomain> <200907211611.09525.rjw@sisk.pl> <20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id C03236B011C
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:51:46 -0400 (EDT)
+Date: Wed, 22 Jul 2009 19:50:31 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 4/4] mm: return boolean from page_has_private()
+Message-ID: <20090722175031.GA3484@cmpxchg.org>
+References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200907221949.56211.rjw@sisk.pl>
+In-Reply-To: <alpine.DEB.1.10.0907221220350.3588@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 22 July 2009, KAMEZAWA Hiroyuki wrote:
-> On Tue, 21 Jul 2009 16:11:08 +0200
-> "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
-[...]
-> Adding function like this is not very hard.
+On Wed, Jul 22, 2009 at 12:49:44PM -0400, Christoph Lameter wrote:
+> On Tue, 21 Jul 2009, Johannes Weiner wrote:
 > 
-> bool can_access_physmem(unsigned long pfn)
-> {
-> 	 char byte;
-> 	 char *pg = __va(pfn << PAGE_SHIFT);
-> 	 return (__get_user(byte, pg) == 0)
-> }
-
-Unfortunately we can't use __get_user() for hibernation, because it may sleep.
-Some other mechanism would be necessary, it seems.
-
-> and enough simple. But this may allow you to access remapped device's memory...
-> Then, some range check will be required anyway.
-> Can we detect io-remapped range from memmap or any ?
-> (I think we'll have to skip PG_reserved page...)
+> > Make page_has_private() return a true boolean value and remove the
+> > double negations from the two callsites using it for arithmetic.
 > 
-> > > Alternative is making use of walk_memory_resource() as memory hotplug does.
-> > > It checks resource information registered.
-> > 
-> > I'd be fine with any _simple_ mechanism allowing us to check whether there's
-> > a physical page frame for given page (or given PFN).
-> > 
+> page_has_private_data()?
+
+I am not so fond of changing that, because then we should probably
+also rename page_private() and that is moot for slightly improved
+source code English.
+
+> Also note that you are adding unecessary double negation to the other
+> callers. Does the compiler catch that?
+
+Yes, callsites using it in a conditionals do not change here with gcc
+4.3.3.
+
+> > +static inline int page_has_private(struct page *page)
+> > +{
+> > +	return !!(page->flags & ((1 << PG_private) | (1 << PG_private_2)));
+> > +}
 > 
-> walk_memory_resource() is enough _simple_,  IMHO.
-> Now, I'm removing #ifdef CONFIG_MEMORY_HOTPLUG for walk_memory_resource() to
-> rewrite /proc/kcore. 
+> Two private bits? How did that happen?
 
-Hmm.  Which architectures set CONFIG_ARCH_HAS_WALK_MEMORY ?
+fscache :)
 
-Best,
-Rafael
+> Could we define a PAGE_FLAGS_PRIVATE in page-flags.h?
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+It would certainly look nicer, I will add that.
+
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 6b368d3..67e2824 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -286,7 +286,7 @@ static inline int page_mapping_inuse(struct page *page)
+> >
+> >  static inline int is_page_cache_freeable(struct page *page)
+> >  {
+> > -	return page_count(page) - !!page_has_private(page) == 2;
+> > +	return page_count(page) - page_has_private(page) == 2;
+> 
+> That looks funky and in need of comments.
+
+Agreed, I will add one in a different patch.
+
+	Hannes
+
+---
