@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F8E6B0114
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 12:32:01 -0400 (EDT)
-Date: Wed, 22 Jul 2009 09:31:54 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC/PATCH] mm: Pass virtual address to
- [__]p{te,ud,md}_free_tlb()
-In-Reply-To: <1248073873.13067.31.camel@pasglop>
-Message-ID: <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain>
-References: <20090715074952.A36C7DDDB2@ozlabs.org>  <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DF03B6B0116
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 12:50:02 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8FF6E82C5D2
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:09:58 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id YaxgJWnPXBQv for <linux-mm@kvack.org>;
+	Wed, 22 Jul 2009 13:09:58 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2ED2482C5D6
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:09:46 -0400 (EDT)
+Date: Wed, 22 Jul 2009 12:49:44 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch 4/4] mm: return boolean from page_has_private()
+In-Reply-To: <1248166594-8859-4-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.1.10.0907221220350.3588@gentwo.org>
+References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 21 Jul 2009, Johannes Weiner wrote:
 
+> Make page_has_private() return a true boolean value and remove the
+> double negations from the two callsites using it for arithmetic.
 
-On Mon, 20 Jul 2009, Benjamin Herrenschmidt wrote:
+page_has_private_data()?
 
-> On Wed, 2009-07-15 at 15:56 +0200, Nick Piggin wrote:
-> > > I would like to merge the new support that depends on this in 2.6.32,
-> > > so unless there's major objections, I'd like this to go in early during
-> > > the merge window. We can sort out separately how to carry the patch
-> > > around in -next until then since the powerpc tree will have a dependency
-> > > on it.
-> > 
-> > Can't see any problem with that.
-> 
-> CC'ing Linus here. How do you want to proceed with that merge ? (IE. so
-> far nobody objected to the patch itself)
+Also note that you are adding unecessary double negation to the other
+callers. Does the compiler catch that?
 
-Maybe you can put it as a separate branch in -next, and have it merged 
-before the stuff that depends on it, and then just sending it to me (as a 
-git branch or patch or whatever) in the first day of the merge window?
+> +static inline int page_has_private(struct page *page)
+> +{
+> +	return !!(page->flags & ((1 << PG_private) | (1 << PG_private_2)));
+> +}
 
-		Linus
+Two private bits? How did that happen?
+
+Could we define a PAGE_FLAGS_PRIVATE in page-flags.h?
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 6b368d3..67e2824 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -286,7 +286,7 @@ static inline int page_mapping_inuse(struct page *page)
+>
+>  static inline int is_page_cache_freeable(struct page *page)
+>  {
+> -	return page_count(page) - !!page_has_private(page) == 2;
+> +	return page_count(page) - page_has_private(page) == 2;
+
+That looks funky and in need of comments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
