@@ -1,67 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 542A06B004D
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 20:40:33 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6M0eYnS020637
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 22 Jul 2009 09:40:34 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5854045DE6E
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 09:40:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3412345DE60
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 09:40:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1839D1DB803B
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 09:40:34 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C5C1B1DB803A
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 09:40:33 +0900 (JST)
-Date: Wed, 22 Jul 2009 09:38:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] hibernate / memory hotplug: always use
- for_each_populated_zone()
-Message-Id: <20090722093847.61f0e4ee.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1248103551.23961.0.camel@localhost.localdomain>
-	<20090721071508.GB12734@osiris.boeblingen.de.ibm.com>
-	<20090721163846.2a8001c1.kamezawa.hiroyu@jp.fujitsu.com>
-	<200907211611.09525.rjw@sisk.pl>
-	<20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D54C26B004D
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2009 21:52:16 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so5710502gxk.14
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2009 18:52:23 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1248166594-8859-2-git-send-email-hannes@cmpxchg.org>
+References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org>
+	 <1248166594-8859-2-git-send-email-hannes@cmpxchg.org>
+Date: Wed, 22 Jul 2009 10:52:21 +0900
+Message-ID: <28c262360907211852m7aa0fd6eic69e4ce29f09e5b8@mail.gmail.com>
+Subject: Re: [patch 2/4] mm: introduce page_lru_type()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Jul 2009 09:25:35 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Hi.
 
-> See ia64's ia64_pfn_valid(). It uses get_user() very effectively.
-> (I think this cost cost is small in any arch...)
-> 
->  523 ia64_pfn_valid (unsigned long pfn)
->  524 {
->  525         char byte;
->  526         struct page *pg = pfn_to_page(pfn);
->  527 
->  528         return     (__get_user(byte, (char __user *) pg) == 0)
->  529                 && ((((u64)pg & PAGE_MASK) == (((u64)(pg + 1) - 1) & PAGE_MASK))
->  530                         || (__get_user(byte, (char __user *) (pg + 1) - 1) == 0));
->  531 }
-> 
-Just an explanation. This code is for checking "there is memmap or not" for 
-CONFIG_VIRTUAL_MEMMAP+CONFIG_DISCONTIGMEM, which allocates memmap in virtually
-contiguous area. Because ia64 tends to have very sparse memory map,
-memmap cannot be allocated in continuous area and memmap has holes.
+On Tue, Jul 21, 2009 at 5:56 PM, Johannes Weiner<hannes@cmpxchg.org> wrote:
+> Instead of abusing page_is_file_cache() for LRU list index arithmetic,
+> add another helper with a more appropriate name and convert the
+> non-boolean users of page_is_file_cache() accordingly.
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+> =C2=A0include/linux/mm_inline.h | =C2=A0 19 +++++++++++++++++--
+> =C2=A0mm/swap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 |=
+ =C2=A0 =C2=A04 ++--
+> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 | =C2=
+=A0 =C2=A06 +++---
+> =C2=A03 files changed, 22 insertions(+), 7 deletions(-)
+>
+> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+> index 7fbb972..ec975f2 100644
+> --- a/include/linux/mm_inline.h
+> +++ b/include/linux/mm_inline.h
+> @@ -60,6 +60,21 @@ del_page_from_lru(struct zone *zone, struct page *page=
+)
+> =C2=A0}
+>
+> =C2=A0/**
+> + * page_lru_type - which LRU list type should a page be on?
+> + * @page: the page to test
+> + *
+> + * Used for LRU list index arithmetic.
+> + *
+> + * Returns the base LRU type - file or anon - @page should be on.
+> + */
+> +static enum lru_list page_lru_type(struct page *page)
+> +{
+> + =C2=A0 =C2=A0 =C2=A0 if (page_is_file_cache(page))
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return LRU_INACTIVE_FI=
+LE;
+> + =C2=A0 =C2=A0 =C2=A0 return LRU_INACTIVE_ANON;
+> +}
 
-This code checkes first byte and last byte of "struct page" is valid.
+page_lru_type function's semantics is general but this function only
+considers INACTIVE case.
+So we always have to check PageActive to know exact lru type.
 
-Thanks,
--Kame
+Why do we need double check(ex, page_lru_type and PageActive) to know
+exact lru type ?
+
+It wouldn't be better to check it all at once ?
+
+
+> +
+> +/**
+> =C2=A0* page_lru - which LRU list should a page be on?
+> =C2=A0* @page: the page to test
+> =C2=A0*
+> @@ -68,14 +83,14 @@ del_page_from_lru(struct zone *zone, struct page *pag=
+e)
+> =C2=A0*/
+> =C2=A0static inline enum lru_list page_lru(struct page *page)
+> =C2=A0{
+> - =C2=A0 =C2=A0 =C2=A0 enum lru_list lru =3D LRU_BASE;
+> + =C2=A0 =C2=A0 =C2=A0 enum lru_list lru;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageUnevictable(page))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lru =3D LRU_UNEVIC=
+TABLE;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0else {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru =3D page_lru_type(=
+page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageActive(pag=
+e))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0lru +=3D LRU_ACTIVE;
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru +=3D page_is_file_=
+cache(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return lru;
+> diff --git a/mm/swap.c b/mm/swap.c
+> index cb29ae5..8f84638 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -118,7 +118,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0spin_lock(&zone->lru_lock);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageLRU(page) =
+&& !PageActive(page) && !PageUnevictable(page)) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 int lru =3D page_is_file_cache(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 int lru =3D page_lru_type(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0list_move_tail(&page->lru, &zone->lru[lru].list);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0pgmoved++;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> @@ -181,7 +181,7 @@ void activate_page(struct page *page)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_lock_irq(&zone->lru_lock);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageLRU(page) && !PageActive(page) && !Pag=
+eUnevictable(page)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0int file =3D page_=
+is_file_cache(page);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int lru =3D LRU_BASE +=
+ file;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 int lru =3D page_lru_t=
+ype(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0del_page_from_lru_=
+list(zone, page, lru);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0SetPageActive(page=
+);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 46ec6a5..758f628 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -531,7 +531,7 @@ redo:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * unevictable pag=
+e on [in]active list.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * We know how to =
+handle that.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru =3D active + page_=
+is_file_cache(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru =3D active + page_=
+lru_type(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0lru_cache_add_lru(=
+page, lru);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0} else {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> @@ -981,7 +981,7 @@ static unsigned long clear_active_flags(struct list_h=
+ead *page_list,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page *page;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0list_for_each_entry(page, page_list, lru) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru =3D page_is_file_c=
+ache(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 lru =3D page_lru_type(=
+page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (PageActive(pag=
+e)) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0lru +=3D LRU_ACTIVE;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0ClearPageActive(page);
+> @@ -2645,7 +2645,7 @@ static void check_move_unevictable_page(struct page=
+ *page, struct zone *zone)
+> =C2=A0retry:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0ClearPageUnevictable(page);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (page_evictable(page, NULL)) {
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 enum lru_list l =3D LR=
+U_INACTIVE_ANON + page_is_file_cache(page);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 enum lru_list l =3D pa=
+ge_lru_type(page);
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__dec_zone_state(z=
+one, NR_UNEVICTABLE);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0list_move(&page->l=
+ru, &zone->lru[l].list);
+> --
+> 1.6.3
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
