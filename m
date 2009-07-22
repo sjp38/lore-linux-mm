@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1AE636B010E
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 08:54:15 -0400 (EDT)
-Date: Wed, 22 Jul 2009 13:54:06 +0100 (BST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3B3506B0110
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 09:06:23 -0400 (EDT)
+Date: Wed, 22 Jul 2009 14:05:55 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
-In-Reply-To: <4A660101.3000307@redhat.com>
-Message-ID: <Pine.LNX.4.64.0907221346040.529@sister.anvils>
+Subject: Re: [PATCH 00/10] ksm resend
+In-Reply-To: <20090721175909.GF2239@random.random>
+Message-ID: <Pine.LNX.4.64.0907221359010.2482@sister.anvils>
 References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
- <1247851850-4298-2-git-send-email-ieidus@redhat.com>
- <1247851850-4298-3-git-send-email-ieidus@redhat.com>
- <1247851850-4298-4-git-send-email-ieidus@redhat.com>
- <1247851850-4298-5-git-send-email-ieidus@redhat.com>
- <1247851850-4298-6-git-send-email-ieidus@redhat.com>
- <1247851850-4298-7-git-send-email-ieidus@redhat.com> <20090721175139.GE2239@random.random>
- <4A660101.3000307@redhat.com>
+ <20090721175909.GF2239@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Jul 2009, Rik van Riel wrote:
-> Andrea Arcangeli wrote:
-> > > -	if (PageAnon(old_page)) {
-> > > +	if (PageAnon(old_page) && !PageKsm(old_page)) {
-> > >    if (!trylock_page(old_page)) {
-> > >     page_cache_get(old_page);
-> > >     pte_unmap_unlock(page_table, ptl);
-> > 
-> > What exactly does it buy to have PageAnon return 1 on ksm pages,
-> > besides requiring the above additional check (that if we stick to the
-> > above code, I would find safer to move inside reuse_swap_page).
+On Tue, 21 Jul 2009, Andrea Arcangeli wrote:
+> On Fri, Jul 17, 2009 at 08:30:40PM +0300, Izik Eidus wrote:
+> > The code still need to get Andrea Arcangeli acks.
+> > (he was busy and will ack it later).
 > 
-> I guess that if they are to remain unswappable, they
-> should go onto the unevictable list.
+> Ack it all except that detail in 6/10
 
-The KSM pages are not put on any LRU, so wouldn't be slowing vmscan
-down with futile scans: isn't the unevictable list for pages which
-belong to another LRU once they become evictable again?
+Thanks a lot, Andrea.
 
-(At this instant I've forgotten why there's an unevictable list at
-all - somewhere in vmscan.c which is accustomed to dealing with
-pages on lists, so easier to have them on a list than not?)
+> as I'm unconvinced about ksm
+> pages having to return 1 on PageAnon check. I believe they deserve a
+> different bitflag in the mapping pointer. The smallest possible
+> alignment for mapping pointer is 4 on 32bit archs so there is space
+> for it
 
-> 
-> Then again, I'm guessing this is all about to change
-> in not too much time :)
+Yes, I believe they'll deserve that too, but set in addition to
+PAGE_MAPPING_ANON.  And perhaps you or someone else will then have
+another use for the new bit when PAGE_MAPPING_ANON is not set.
 
-Yes, I'd much rather put the effort into making them swappable,
-than fiddling with counts here and there to highlight their
-current unswappability.
+> and later it can be renamed EXTERNAL to generalize. We shall
+> make good use of that bitflag as it's quite precious to introduce
+> non-linearity in linear vmas, and not wire it to KSM only.
+
+You have something in mind here...
+
+> But in
+> meantime we'll get better testing coverage by not having that PageKsm
+> == PageAnon invariant I think that I doubt we're going to retain (at
+> least with this implementation of PageKsm).
+
+PageKsm subset of PageAnon: I expect to retain that.
 
 Hugh
 
