@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 936836B0128
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 18:12:14 -0400 (EDT)
-Date: Thu, 23 Jul 2009 00:10:23 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 5/4] mm: document is_page_cache_freeable()
-Message-ID: <20090722221022.GA8667@cmpxchg.org>
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org> <20090722175031.GA3484@cmpxchg.org> <20090722175417.GA7059@cmpxchg.org> <alpine.DEB.1.10.0907221500440.29748@gentwo.org> <alpine.DEB.1.00.0907221447190.24706@mail.selltech.ca>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBC46B012A
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:08:04 -0400 (EDT)
+Date: Wed, 22 Jul 2009 16:06:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set
+ V2
+Message-Id: <20090722160649.61176c61.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.1.10.0907151027410.23643@gentwo.org>
+References: <20090715125822.GB29749@csn.ul.ie>
+	<alpine.DEB.1.10.0907151027410.23643@gentwo.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0907221447190.24706@mail.selltech.ca>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Li, Ming Chun" <macli@brc.ubc.ca>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: mel@csn.ul.ie, kosaki.motohiro@jp.fujitsu.com, maximlevitsky@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, penberg@cs.helsinki.fi, hannes@cmpxchg.org, jirislaby@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 22, 2009 at 02:55:12PM -0700, Li, Ming Chun wrote:
-> On Wed, 22 Jul 2009, Christoph Lameter wrote:
+On Wed, 15 Jul 2009 10:31:54 -0400 (EDT)
+Christoph Lameter <cl@linux-foundation.org> wrote:
+
+> On Wed, 15 Jul 2009, Mel Gorman wrote:
 > 
-> > 
-> > >  static inline int is_page_cache_freeable(struct page *page)
-> > >  {
-> > > +	/*
-> > > +	 * A freeable page cache page is referenced only by the caller
-> > > +	 * that isolated the page, the page cache itself and
-> > 
-> > The page cache "itself"? This is the radix tree reference right?
-> > 
+> > -static inline int free_pages_check(struct page *page)
+> > +static inline int free_pages_check(struct page *page, int wasMlocked)
+> >  {
+> > +	WARN_ONCE(wasMlocked, KERN_WARNING
+> > +		"Page flag mlocked set for process %s at pfn:%05lx\n"
+> > +		"page:%p flags:0x%lX\n",
+> > +		current->comm, page_to_pfn(page),
+> > +		page, page->flags|__PG_MLOCKED);
+> > +
+> >  	if (unlikely(page_mapcount(page) |
 > 
-> I think you are right. I had trouble understanding this function, So I 
-> looked into it and found out the call path:
-> 
->  add_to_page_cache_locked 
->    -> page_cache_get
->     -> atomic_inc(&page->_count) 
-> 
-> Please correct me if I am wrong.
+> There is already a free_page_mlocked() that is only called if the mlock
+> bit is set. Move it into there to avoid having to run two checks in the
+> hot codee path?
 
-This is correct.  But this is the purpose of reference counters - you
-increase it when you reference the object so that it doesn't get freed
-under you.
+Agreed.
 
-That's why everybody holding a reference to the page must have its
-usage counter increased.  And this includes the page/swap cache, the
-LRU lists, the page tables etc.
+This patch gratuitously adds hotpath overhead.  Moving the change to be
+inside those preexisting wasMlocked tests will reduce its overhead a lot.
 
-And I think in that context my comment should be obvious.  Do you need
-to know that the page cache is actually managed with radix trees at
-this point?
+As it stands, I'm really doubting that the patch's utility is worth its
+cost.
 
-You need to know that the page cache is something holding a reference
-to the page so you can meet the requirements that are written above
-remove_from_page_cache() - which you are about to call.
-
-I added the comment to document that magic `compare with 2' in there.
-If more is needed, I am glad to help - but right now I don't really
-think I know what the issue is with this patch?
+Also, it's a bit of a figleaf, but please consider making more use of
+CONFIG_DEBUG_VM (see VM_BUG_ON()).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
