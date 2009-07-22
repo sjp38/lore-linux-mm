@@ -1,36 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C8FD6B012C
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:25:51 -0400 (EDT)
-Message-ID: <4A679FC5.6020206@zytor.com>
-Date: Wed, 22 Jul 2009 16:24:53 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1E90C6B012D
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:31:20 -0400 (EDT)
+Date: Wed, 22 Jul 2009 16:51:04 -0700 (PDT)
+From: "Li, Ming Chun" <macli@brc.ubc.ca>
+Subject: Re: [patch 5/4] mm: document is_page_cache_freeable()
+In-Reply-To: <20090722221022.GA8667@cmpxchg.org>
+Message-ID: <alpine.DEB.1.00.0907221639510.24793@mail.selltech.ca>
+References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org> <20090722175031.GA3484@cmpxchg.org> <20090722175417.GA7059@cmpxchg.org>
+ <alpine.DEB.1.10.0907221500440.29748@gentwo.org> <alpine.DEB.1.00.0907221447190.24706@mail.selltech.ca> <20090722221022.GA8667@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: Replacing 0x% with %# ?
-References: <alpine.DEB.1.00.0907201543230.22052@mail.selltech.ca> <20090721154756.2AB7.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090721154756.2AB7.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "Li, Ming Chun" <macli@brc.ubc.ca>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Li, Ming Chun" <macli@brc.ubc.ca>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
->> Hi MM list:
->>
->> I am newbie and wish to contribute tiny bit. Before I submit a 
->> trivial patch, I would ask if it is worth replacing  '0x%' with '%#' in printk in mm/*.c? 
->> If it is going to be noise for you guys, I would drop it and keep silent 
->> :).  
-> 
-> Never mind. we already post many trivial cleanup patches.
-> 
+On Thu, 23 Jul 2009, Johannes Weiner wrote:
 
-The other thing is that we reallly should make %p include the 0x prefix, 
-as it does in userspace.
+> On Wed, Jul 22, 2009 at 02:55:12PM -0700, Li, Ming Chun wrote:
+> > On Wed, 22 Jul 2009, Christoph Lameter wrote:
+> > 
+> > > 
+> > > >  static inline int is_page_cache_freeable(struct page *page)
+> > > >  {
+> > > > +	/*
+> > > > +	 * A freeable page cache page is referenced only by the caller
+> > > > +	 * that isolated the page, the page cache itself and
+> > > 
+> > > The page cache "itself"? This is the radix tree reference right?
+> > > 
+> > 
+> > I think you are right. I had trouble understanding this function, So I 
+> > looked into it and found out the call path:
+> > 
+> >  add_to_page_cache_locked 
+> >    -> page_cache_get
+> >     -> atomic_inc(&page->_count) 
+> > 
+> > Please correct me if I am wrong.
+> 
+> This is correct.  But this is the purpose of reference counters - you
+> increase it when you reference the object so that it doesn't get freed
+> under you.
+> 
+> That's why everybody holding a reference to the page must have its
+> usage counter increased.  And this includes the page/swap cache, the
+> LRU lists, the page tables etc.
+> 
+> And I think in that context my comment should be obvious.  Do you need
+> to know that the page cache is actually managed with radix trees at
+> this point?
+> 
+> You need to know that the page cache is something holding a reference
+> to the page so you can meet the requirements that are written above
+> remove_from_page_cache() - which you are about to call.
+> 
+> I added the comment to document that magic `compare with 2' in there.
+> If more is needed, I am glad to help - but right now I don't really
+> think I know what the issue is with this patch?
+> 
+> 
+No issue at all for me :), I should clarify that I had problem 
+understanding it before you post your comment patch, Your comment acutally 
+helped me to undertand it better and thanks for the comments. I am just learning from you  by 
+lurking in mailing list and reading the code to understand what you comments.
 
-	-hpa
+
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
