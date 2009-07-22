@@ -1,78 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 614756B012E
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:48:46 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E6F656B0130
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:53:18 -0400 (EDT)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6MNmmpb013405
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6MNrPGj015527
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Jul 2009 08:48:48 +0900
+	Thu, 23 Jul 2009 08:53:25 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F6EB45DE53
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:48 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AB79445DE57
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E8D2C45DE4F
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8882845DE55
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D0DF71DB8042
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 837121DB8040
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
-Date: Thu, 23 Jul 2009 08:46:54 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 65B58E08003
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 017441DB803E
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
+Date: Thu, 23 Jul 2009 08:51:37 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] hibernate / memory hotplug: always use
- for_each_populated_zone()
-Message-Id: <20090723084654.3076d3c5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <200907221949.56211.rjw@sisk.pl>
-References: <1248103551.23961.0.camel@localhost.localdomain>
-	<200907211611.09525.rjw@sisk.pl>
-	<20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
-	<200907221949.56211.rjw@sisk.pl>
+Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
+Message-Id: <20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, npiggin@suse.de, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Jul 2009 19:49:55 +0200
-"Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+On Thu, 16 Jul 2009 18:01:34 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> > and enough simple. But this may allow you to access remapped device's memory...
-> > Then, some range check will be required anyway.
-> > Can we detect io-remapped range from memmap or any ?
-> > (I think we'll have to skip PG_reserved page...)
-> > 
-> > > > Alternative is making use of walk_memory_resource() as memory hotplug does.
-> > > > It checks resource information registered.
-> > > 
-> > > I'd be fine with any _simple_ mechanism allowing us to check whether there's
-> > > a physical page frame for given page (or given PFN).
-> > > 
-> > 
-> > walk_memory_resource() is enough _simple_,  IMHO.
-> > Now, I'm removing #ifdef CONFIG_MEMORY_HOTPLUG for walk_memory_resource() to
-> > rewrite /proc/kcore. 
 > 
-> Hmm.  Which architectures set CONFIG_ARCH_HAS_WALK_MEMORY ?
+> Rebased onto  mm-of-the-moment snapshot 2009-07-15-20-57.
+> And modifeied to make vm_normal_page() eat FOLL_NOZERO, directly.
+> 
+> Any comments ?
 > 
 
-ppc only. It has its own.
-
-I'm now prepareing a patch to remove #ifdef CONFIG_MEMORY_HOTPLUG for /proc/kcore
-and rename it to walk_system_ram_range(). plz see "kcore:...." patches currently
-posted to lkml if you are interested in.
+A week passed since I posted this. It's no problem to keep updating this
+and post again. But if anyone have concerns, please notify me.
+I'll reduce CC: list in the next post.
 
 Thanks,
 -Kame
-
-Thanks,
--Kame
-
-
-> Best,
-> Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
