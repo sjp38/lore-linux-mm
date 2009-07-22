@@ -1,54 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E6F656B0130
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:53:18 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6MNrPGj015527
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Jul 2009 08:53:25 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AB79445DE57
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8882845DE55
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 65B58E08003
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 017441DB803E
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:53:24 +0900 (JST)
-Date: Thu, 23 Jul 2009 08:51:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
-Message-Id: <20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E39D86B0133
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:58:42 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3BF8D82C5B7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:18:43 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id LkccVd8jF3n1 for <linux-mm@kvack.org>;
+	Wed, 22 Jul 2009 20:18:43 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 74BFF82C5BB
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:18:38 -0400 (EDT)
+Date: Wed, 22 Jul 2009 19:58:34 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch 5/4] mm: document is_page_cache_freeable()
+In-Reply-To: <20090722221022.GA8667@cmpxchg.org>
+Message-ID: <alpine.DEB.1.10.0907221957190.23591@gentwo.org>
+References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org> <20090722175031.GA3484@cmpxchg.org> <20090722175417.GA7059@cmpxchg.org>
+ <alpine.DEB.1.10.0907221500440.29748@gentwo.org> <alpine.DEB.1.00.0907221447190.24706@mail.selltech.ca> <20090722221022.GA8667@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, npiggin@suse.de, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, avi@redhat.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org, aarcange@redhat.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Li, Ming Chun" <macli@brc.ubc.ca>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Jul 2009 18:01:34 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 23 Jul 2009, Johannes Weiner wrote:
 
-> 
-> Rebased onto  mm-of-the-moment snapshot 2009-07-15-20-57.
-> And modifeied to make vm_normal_page() eat FOLL_NOZERO, directly.
-> 
-> Any comments ?
-> 
+> And I think in that context my comment should be obvious.  Do you need
+> to know that the page cache is actually managed with radix trees at
+> this point?
 
-A week passed since I posted this. It's no problem to keep updating this
-and post again. But if anyone have concerns, please notify me.
-I'll reduce CC: list in the next post.
-
-Thanks,
--Kame
+Its good to know where the pointer is that accounts for the
+refcount. "pagecache" is a nebulous term.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
