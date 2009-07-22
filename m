@@ -1,50 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 602D86B0100
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 07:53:31 -0400 (EDT)
-Date: Wed, 22 Jul 2009 13:53:33 +0200
-From: Stephan von Krawczynski <skraw@ithnet.com>
-Subject: Re: What to do with this message (2.6.30.1) ?
-Message-Id: <20090722135333.56286536.skraw@ithnet.com>
-In-Reply-To: <alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-References: <20090713134621.124aa18e.skraw@ithnet.com>
-	<4807377b0907132240g6f74c9cbnf1302d354a0e0a72@mail.gmail.com>
-	<alpine.DEB.2.00.0907132247001.8784@chino.kir.corp.google.com>
-	<20090715084754.36ff73bf.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907150115190.14393@chino.kir.corp.google.com>
-	<20090715113740.334309dd.skraw@ithnet.com>
-	<alpine.DEB.2.00.0907151323170.22582@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8CEEA6B0105
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 08:24:36 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DB97082C5B4
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 08:44:32 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id hfsNT3X4GxBy for <linux-mm@kvack.org>;
+	Wed, 22 Jul 2009 08:44:28 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B493D82C5BA
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 08:44:18 -0400 (EDT)
+Date: Wed, 22 Jul 2009 08:24:16 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] slub: sysfs_slab_remove should free kmem_cache when
+ debug is enabled
+In-Reply-To: <1248253437-23313-1-git-send-email-dfeng@redhat.com>
+Message-ID: <alpine.DEB.1.10.0907220823580.7568@gentwo.org>
+References: <1248253437-23313-1-git-send-email-dfeng@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Jesse Brandeburg <jesse.brandeburg@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>, Justin Piszcz <jpiszcz@lucidpixels.com>
+To: Xiaotian Feng <dfeng@redhat.com>
+Cc: penberg@cs.helsinki.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Jul 2009 13:24:08 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
 
-> On Wed, 15 Jul 2009, Stephan von Krawczynski wrote:
-> 
-> > > If you have some additional time, it would also be helpful to get a 
-> > > bisection of when the problem started occurring (it appears to be sometime 
-> > > between 2.6.29 and 2.6.30).
-> > 
-> > Do you know what version should definitely be not affected? I can check one
-> > kernel version per day, can you name a list which versions to check out? 
-> > 
-> 
-> To my knowledge, this issue was never reported on 2.6.29, so that should 
-> be a sane starting point.
-
-Last result: 2.6.30.2 has the same problem.
-Can I help you in any way to solve the issue?
-I can check patches or other ideas if needed.
-
--- 
-Regards,
-Stephan
+Acked-by: Christoph Lameer <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
