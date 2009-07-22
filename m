@@ -1,77 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB776B00D6
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E64656B00D9
 	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:10:30 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [RFC v17][PATCH 59/60] c/r: restore file->f_cred
-Date: Wed, 22 Jul 2009 06:00:21 -0400
-Message-Id: <1248256822-23416-60-git-send-email-orenl@librato.com>
+Subject: [RFC v17][PATCH 54/60] c/r: add CKPT_COPY() macro
+Date: Wed, 22 Jul 2009 06:00:16 -0400
+Message-Id: <1248256822-23416-55-git-send-email-orenl@librato.com>
 In-Reply-To: <1248256822-23416-1-git-send-email-orenl@librato.com>
 References: <1248256822-23416-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Dan Smith <danms@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Serge E. Hallyn <serue@us.ibm.com>
+From: Dan Smith <danms@us.ibm.com>
 
-Restore a file's f_cred.  This is set to the cred of the task doing
-the open, so often it will be the same as that of the restarted task.
+As suggested by Dave[1], this provides us a way to make the copy-in and
+copy-out processes symmetric.  CKPT_COPY_ARRAY() provides us a way to do
+the same thing but for arrays.  It's not critical, but it helps us unify
+the checkpoint and restart paths for some things.
 
-Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Changelog:
+    Mar 04:
+            . Removed semicolons
+            . Added build-time check for __must_be_array in CKPT_COPY_ARRAY
+    Feb 27:
+            . Changed CKPT_COPY() to use assignment, eliminating the need
+              for the CKPT_COPY_BIT() macro
+            . Add CKPT_COPY_ARRAY() macro to help copying register arrays,
+              etc
+            . Move the macro definitions inside the CR #ifdef
+    Feb 25:
+            . Changed WARN_ON() to BUILD_BUG_ON()
+
+Signed-off-by: Dan Smith <danms@us.ibm.com>
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+
+1: https://lists.linux-foundation.org/pipermail/containers/2009-February/015821.html (all the way at the bottom)
 ---
- checkpoint/files.c             |   16 ++++++++++++++--
- include/linux/checkpoint_hdr.h |    2 +-
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ include/linux/checkpoint.h |   29 +++++++++++++++++++++++++++++
+ 1 files changed, 29 insertions(+), 0 deletions(-)
 
-diff --git a/checkpoint/files.c b/checkpoint/files.c
-index c247d44..bcdc774 100644
---- a/checkpoint/files.c
-+++ b/checkpoint/files.c
-@@ -150,7 +150,11 @@ int checkpoint_file_common(struct ckpt_ctx *ctx, struct file *file,
- 	h->f_pos = file->f_pos;
- 	h->f_version = file->f_version;
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index aeae2fa..2ee1bc2 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -211,6 +211,34 @@ extern int restore_memory_contents(struct ckpt_ctx *ctx, struct inode *inode);
+ 	 VM_MAPPED_COPY | VM_INSERTPAGE | VM_MIXEDMAP | VM_SAO)
  
--	/* FIX: need also file->uid, file->gid, file->f_owner, etc */
-+	h->f_credref = checkpoint_obj(ctx, file->f_cred, CKPT_OBJ_CRED);
-+	if (h->f_credref < 0)
-+		return h->f_credref;
+ 
++/* useful macros to copy fields and buffers to/from ckpt_hdr_xxx structures */
++#define CKPT_CPT 1
++#define CKPT_RST 2
 +
-+	/* FIX: need also file->f_owner, etc */
- 
- 	return 0;
- }
-@@ -454,8 +458,16 @@ int restore_file_common(struct ckpt_ctx *ctx, struct file *file,
- 	fmode_t new_mode = (__force fmode_t) file->f_mode;
- 	fmode_t saved_mode = (__force fmode_t) h->f_mode;
- 	int ret;
-+	struct cred *cred;
++#define CKPT_COPY(op, SAVE, LIVE)				        \
++	do {							\
++		if (op == CKPT_CPT)				\
++			SAVE = LIVE;				\
++		else						\
++			LIVE = SAVE;				\
++	} while (0)
 +
-+	/* FIX: need to restore owner etc */
++/*
++ * Copy @count items from @LIVE to @SAVE if op is CKPT_CPT (otherwise,
++ * copy in the reverse direction)
++ */
++#define CKPT_COPY_ARRAY(op, SAVE, LIVE, count)				\
++	do {								\
++		(void)__must_be_array(SAVE);				\
++		(void)__must_be_array(LIVE);				\
++		BUILD_BUG_ON(sizeof(*SAVE) != sizeof(*LIVE));		\
++		if (op == CKPT_CPT)					\
++			memcpy(SAVE, LIVE, count * sizeof(*SAVE));	\
++		else							\
++			memcpy(LIVE, SAVE, count * sizeof(*SAVE));	\
++	} while (0)
++
++
+ /* debugging flags */
+ #define CKPT_DBASE	0x1		/* anything */
+ #define CKPT_DSYS	0x2		/* generic (system) */
+@@ -243,6 +271,7 @@ extern unsigned long ckpt_debug_level;
+  * CKPT_DBASE is the base flags, doesn't change
+  * CKPT_DFLAG is to be redfined in each source file
+  */
++
+ #define ckpt_debug(fmt, args...)  \
+ 	_ckpt_debug(CKPT_DBASE | CKPT_DFLAG, fmt, ## args)
  
--	/* FIX: need to restore uid, gid, owner etc */
-+	/* restore the cred */
-+	cred = ckpt_obj_fetch(ctx, h->f_credref, CKPT_OBJ_CRED);
-+	if (IS_ERR(cred))
-+		return PTR_ERR(cred);
-+	put_cred(file->f_cred);
-+	file->f_cred = get_cred(cred);
- 
- 	/* safe to set 1st arg (fd) to 0, as command is F_SETFL */
- 	ret = vfs_fcntl(0, F_SETFL, h->f_flags & CKPT_SETFL_MASK, file);
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index ca02d9d..0863a07 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -329,7 +329,7 @@ struct ckpt_hdr_file {
- 	__u32 f_type;
- 	__u32 f_mode;
- 	__u32 f_flags;
--	__u32 _padding;
-+	__s32 f_credref;
- 	__u64 f_pos;
- 	__u64 f_version;
- } __attribute__((aligned(8)));
 -- 
 1.6.0.4
 
