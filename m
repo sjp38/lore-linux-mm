@@ -1,75 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1E90C6B012D
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:31:20 -0400 (EDT)
-Date: Wed, 22 Jul 2009 16:51:04 -0700 (PDT)
-From: "Li, Ming Chun" <macli@brc.ubc.ca>
-Subject: Re: [patch 5/4] mm: document is_page_cache_freeable()
-In-Reply-To: <20090722221022.GA8667@cmpxchg.org>
-Message-ID: <alpine.DEB.1.00.0907221639510.24793@mail.selltech.ca>
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org> <20090722175031.GA3484@cmpxchg.org> <20090722175417.GA7059@cmpxchg.org>
- <alpine.DEB.1.10.0907221500440.29748@gentwo.org> <alpine.DEB.1.00.0907221447190.24706@mail.selltech.ca> <20090722221022.GA8667@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 614756B012E
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 19:48:46 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6MNmmpb013405
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 23 Jul 2009 08:48:48 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F6EB45DE53
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E8D2C45DE4F
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D0DF71DB8042
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 837121DB8040
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 08:48:47 +0900 (JST)
+Date: Thu, 23 Jul 2009 08:46:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] hibernate / memory hotplug: always use
+ for_each_populated_zone()
+Message-Id: <20090723084654.3076d3c5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <200907221949.56211.rjw@sisk.pl>
+References: <1248103551.23961.0.camel@localhost.localdomain>
+	<200907211611.09525.rjw@sisk.pl>
+	<20090722092535.5eac1ff6.kamezawa.hiroyu@jp.fujitsu.com>
+	<200907221949.56211.rjw@sisk.pl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Li, Ming Chun" <macli@brc.ubc.ca>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Jul 2009, Johannes Weiner wrote:
+On Wed, 22 Jul 2009 19:49:55 +0200
+"Rafael J. Wysocki" <rjw@sisk.pl> wrote:
 
-> On Wed, Jul 22, 2009 at 02:55:12PM -0700, Li, Ming Chun wrote:
-> > On Wed, 22 Jul 2009, Christoph Lameter wrote:
+> > and enough simple. But this may allow you to access remapped device's memory...
+> > Then, some range check will be required anyway.
+> > Can we detect io-remapped range from memmap or any ?
+> > (I think we'll have to skip PG_reserved page...)
 > > 
+> > > > Alternative is making use of walk_memory_resource() as memory hotplug does.
+> > > > It checks resource information registered.
 > > > 
-> > > >  static inline int is_page_cache_freeable(struct page *page)
-> > > >  {
-> > > > +	/*
-> > > > +	 * A freeable page cache page is referenced only by the caller
-> > > > +	 * that isolated the page, the page cache itself and
-> > > 
-> > > The page cache "itself"? This is the radix tree reference right?
+> > > I'd be fine with any _simple_ mechanism allowing us to check whether there's
+> > > a physical page frame for given page (or given PFN).
 > > > 
 > > 
-> > I think you are right. I had trouble understanding this function, So I 
-> > looked into it and found out the call path:
-> > 
-> >  add_to_page_cache_locked 
-> >    -> page_cache_get
-> >     -> atomic_inc(&page->_count) 
-> > 
-> > Please correct me if I am wrong.
+> > walk_memory_resource() is enough _simple_,  IMHO.
+> > Now, I'm removing #ifdef CONFIG_MEMORY_HOTPLUG for walk_memory_resource() to
+> > rewrite /proc/kcore. 
 > 
-> This is correct.  But this is the purpose of reference counters - you
-> increase it when you reference the object so that it doesn't get freed
-> under you.
+> Hmm.  Which architectures set CONFIG_ARCH_HAS_WALK_MEMORY ?
 > 
-> That's why everybody holding a reference to the page must have its
-> usage counter increased.  And this includes the page/swap cache, the
-> LRU lists, the page tables etc.
-> 
-> And I think in that context my comment should be obvious.  Do you need
-> to know that the page cache is actually managed with radix trees at
-> this point?
-> 
-> You need to know that the page cache is something holding a reference
-> to the page so you can meet the requirements that are written above
-> remove_from_page_cache() - which you are about to call.
-> 
-> I added the comment to document that magic `compare with 2' in there.
-> If more is needed, I am glad to help - but right now I don't really
-> think I know what the issue is with this patch?
-> 
-> 
-No issue at all for me :), I should clarify that I had problem 
-understanding it before you post your comment patch, Your comment acutally 
-helped me to undertand it better and thanks for the comments. I am just learning from you  by 
-lurking in mailing list and reading the code to understand what you comments.
+
+ppc only. It has its own.
+
+I'm now prepareing a patch to remove #ifdef CONFIG_MEMORY_HOTPLUG for /proc/kcore
+and rename it to walk_system_ram_range(). plz see "kcore:...." patches currently
+posted to lkml if you are interested in.
+
+Thanks,
+-Kame
+
+Thanks,
+-Kame
 
 
-Vincent Li
-Biomedical Research Center
-University of British Columbia
+> Best,
+> Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
