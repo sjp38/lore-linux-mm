@@ -1,289 +1,336 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5EA6B00B0
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:10:20 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A91096B00AF
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:10:21 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [RFC v17][PATCH 47/60] deferqueue: generic queue to defer work
-Date: Wed, 22 Jul 2009 06:00:09 -0400
-Message-Id: <1248256822-23416-48-git-send-email-orenl@librato.com>
+Subject: [RFC v17][PATCH 57/60] c/r: capabilities: define checkpoint and restore fns
+Date: Wed, 22 Jul 2009 06:00:19 -0400
+Message-Id: <1248256822-23416-58-git-send-email-orenl@librato.com>
 In-Reply-To: <1248256822-23416-1-git-send-email-orenl@librato.com>
 References: <1248256822-23416-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Add a interface to postpone an action until the end of the entire
-checkpoint or restart operation. This is useful when during the
-scan of tasks an operation cannot be performed in place, to avoid
-the need for a second scan.
+From: Serge E. Hallyn <serue@us.ibm.com>
 
-One use case is when restoring an ipc shared memory region that has
-been deleted (but is still attached), during restart it needs to be
-create, attached and then deleted. However, creation and attachment
-are performed in distinct locations, so deletion can not be performed
-on the spot. Instead, this work (delete) is deferred until later.
-(This example is in one of the following patches).
+[ Andrew: I am punting on dealing with the subsystem cooperation
+issues in this version, in favor of trying to get LSM issues
+straightened out ]
 
-This interface allows chronic procrastination in the kernel:
+An application checkpoint image will store capability sets
+(and the bounding set) as __u64s.  Define checkpoint and
+restart functions to translate between those and kernel_cap_t's.
 
-deferqueue_create(void):
-    Allocates and returns a new deferqueue.
+Define a common function do_capset_tocred() which applies capability
+set changes to a passed-in struct cred.
 
-deferqueue_run(deferqueue):
-    Executes all the pending works in the queue. Returns the number
-    of works executed, or an error upon the first error reported by
-    a deferred work.
+The restore function uses do_capset_tocred() to apply the restored
+capabilities to the struct cred being crafted, subject to the
+current task's (task executing sys_restart()) permissions.
 
-deferqueue_add(deferqueue, data, size, func, dtor):
-    Enqueue a deferred work. @function is the callback function to
-    do the work, which will be called with @data as an argument.
-    @size tells the size of data. @dtor is a destructor callback
-    that is invoked for deferred works remaining in the queue when
-    the queue is destroyed. NOTE: for a given deferred work, @dtor
-    is _not_ called if @func was already called (regardless of the
-    return value of the latter).
+Changelog:
+	Jun 09: Can't choose securebits or drop bounding set if
+		file capabilities aren't compiled into the kernel.
+		Also just store caps in __u32s (looks cleaner).
+	Jun 01: Made the checkpoint and restore functions and the
+		ckpt_hdr_capabilities struct more opaque to the
+		rest of the c/r code, as suggested by Andrew Morgan,
+		and using naming suggested by Oren.
+	Jun 01: Add commented BUILD_BUG_ON() to point out that the
+		current implementation depends on 64-bit capabilities.
+		(Andrew Morgan and Alexey Dobriyan).
+	May 28: add helpers to c/r securebits
 
-deferqueue_destroy(deferqueue):
-    Free the deferqueue and any queued items while invoking the
-    @dtor callback for each queued item.
-
-Why aren't we using the existing kernel workqueue mechanism?  We need
-to defer to work until the end of the operation: not earlier, since we
-need other things to be in place; not later, to not block waiting for
-it. However, the workqueue schedules the work for 'some time later'.
-Also, the kernel workqueue may run in any task context, but we require
-many times that an operation be run in the context of some specific
-restarting task (e.g., restoring IPC state of a certain ipc_ns).
-
-Instead, this mechanism is a simple way for the c/r operation as a
-whole, and later a task in particular, to defer some action until
-later (but not arbitrarily later) _in the restore_ operation.
-
-Changelog[v17]
-  - Fix deferqueue_add() function
-
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
 ---
- checkpoint/Kconfig         |    5 ++
- include/linux/deferqueue.h |   58 +++++++++++++++++++++++
- kernel/Makefile            |    1 +
- kernel/deferqueue.c        |  109 ++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 173 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/deferqueue.h
- create mode 100644 kernel/deferqueue.c
+ include/linux/capability.h     |    6 ++
+ include/linux/checkpoint_hdr.h |   11 +++
+ kernel/capability.c            |  164 +++++++++++++++++++++++++++++++++++++---
+ security/commoncap.c           |   19 +----
+ 4 files changed, 172 insertions(+), 28 deletions(-)
 
-diff --git a/checkpoint/Kconfig b/checkpoint/Kconfig
-index 21fc86b..4a2c845 100644
---- a/checkpoint/Kconfig
-+++ b/checkpoint/Kconfig
-@@ -2,10 +2,15 @@
- # implemented the hooks for processor state etc. needed by the
- # core checkpoint/restart code.
+diff --git a/include/linux/capability.h b/include/linux/capability.h
+index c302110..3a74655 100644
+--- a/include/linux/capability.h
++++ b/include/linux/capability.h
+@@ -568,6 +568,12 @@ extern int capable(int cap);
+ struct dentry;
+ extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
  
-+config DEFERQUEUE
-+	bool
-+	default n
++struct cred;
++int apply_securebits(unsigned securebits, struct cred *new);
++struct ckpt_capabilities;
++int restore_capabilities(struct ckpt_capabilities *h, struct cred *new);
++void checkpoint_capabilities(struct ckpt_capabilities *h, struct cred * cred);
 +
- config CHECKPOINT
- 	bool "Checkpoint/restart (EXPERIMENTAL)"
- 	depends on CHECKPOINT_SUPPORT && EXPERIMENTAL
- 	depends on CGROUP_FREEZER
-+	select DEFERQUEUE
- 	help
- 	  Application checkpoint/restart is the ability to save the
- 	  state of a running application so that it can later resume
-diff --git a/include/linux/deferqueue.h b/include/linux/deferqueue.h
-new file mode 100644
-index 0000000..2eb58cf
---- /dev/null
-+++ b/include/linux/deferqueue.h
-@@ -0,0 +1,58 @@
-+/*
-+ * deferqueue.h --- deferred work queue handling for Linux.
-+ */
-+
-+#ifndef _LINUX_DEFERQUEUE_H
-+#define _LINUX_DEFERQUEUE_H
-+
-+#include <linux/list.h>
-+#include <linux/slab.h>
-+#include <linux/spinlock.h>
-+
-+/*
-+ * This interface allows chronic procrastination in the kernel:
-+ *
-+ * deferqueue_create(void):
-+ *     Allocates and returns a new deferqueue.
-+ *
-+ * deferqueue_run(deferqueue):
-+ *     Executes all the pending works in the queue. Returns the number
-+ *     of works executed, or an error upon the first error reported by
-+ *     a deferred work.
-+ *
-+ * deferqueue_add(deferqueue, data, size, func, dtor):
-+ * 	Enqueue a deferred work. @function is the callback function to
-+ *      do the work, which will be called with @data as an argument.
-+ *      @size tells the size of data. @dtor is a destructor callback
-+ *      that is invoked for deferred works remaining in the queue when
-+ *      the queue is destroyed. NOTE: for a given deferred work, @dtor
-+ *      is _not_ called if @func was already called (regardless of the
-+ *      return value of the latter).
-+ *
-+ * deferqueue_destroy(deferqueue):
-+ *      Free the deferqueue and any queued items while invoking the
-+ *      @dtor callback for each queued item.
-+ */
-+
-+
-+typedef int (*deferqueue_func_t)(void *);
-+
-+struct deferqueue_entry {
-+	deferqueue_func_t function;
-+	deferqueue_func_t destructor;
-+	struct list_head list;
-+	char data[0];
-+};
-+
-+struct deferqueue_head {
-+	spinlock_t lock;
-+	struct list_head list;
-+};
-+
-+struct deferqueue_head *deferqueue_create(void);
-+void deferqueue_destroy(struct deferqueue_head *head);
-+int deferqueue_add(struct deferqueue_head *head, void *data, int size,
-+		   deferqueue_func_t func, deferqueue_func_t dtor);
-+int deferqueue_run(struct deferqueue_head *head);
-+
-+#endif
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 2093a69..ef229da 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -23,6 +23,7 @@ CFLAGS_REMOVE_cgroup-debug.o = -pg
- CFLAGS_REMOVE_sched_clock.o = -pg
- endif
+ #endif /* __KERNEL__ */
  
-+obj-$(CONFIG_DEFERQUEUE) += deferqueue.o
- obj-$(CONFIG_FREEZER) += freezer.o
- obj-$(CONFIG_PROFILING) += profile.o
- obj-$(CONFIG_SYSCTL_SYSCALL_CHECK) += sysctl_check.o
-diff --git a/kernel/deferqueue.c b/kernel/deferqueue.c
-new file mode 100644
-index 0000000..3fb388b
---- /dev/null
-+++ b/kernel/deferqueue.c
-@@ -0,0 +1,109 @@
-+/*
-+ *  Infrastructure to manage deferred work
-+ *
-+ *  This differs from a workqueue in that the work must be deferred
-+ *  until specifically run by the caller.
-+ *
-+ *  As the only user currently is checkpoint/restart, which has
-+ *  very simple usage, the locking is kept simple.  Adding rules
-+ *  is protected by the head->lock.  But deferqueue_run() is only
-+ *  called once, after all entries have been added.  So it is not
-+ *  protected.  Similarly, _destroy is only called once when the
-+ *  ckpt_ctx is releeased, so it is not locked or refcounted.  These
-+ *  can of course be added if needed by other users.
-+ *
-+ *  Why not use workqueue ?  We need to defer work until the end of an
-+ *  operation: not earlier, since we need other things to be in place;
-+ *  not later, to not block waiting for it. However, the workqueue
-+ *  schedules the work for 'some time later'. Also, workqueue may run
-+ *  in any task context, but we require many times that an operation
-+ *  be run in the context of some specific restarting task (e.g.,
-+ *  restoring IPC state of a certain ipc_ns).
-+ *
-+ *  Instead, this mechanism is a simple way for the c/r operation as a
-+ *  whole, and later a task in particular, to defer some action until
-+ *  later (but not arbitrarily later) _in the restore_ operation.
-+ *
-+ *  Copyright (C) 2009 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ *
-+ */
+ #endif /* !_LINUX_CAPABILITY_H */
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 3671e72..1f6a33d 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -60,6 +60,7 @@ enum {
+ 	CKPT_HDR_NS,
+ 	CKPT_HDR_UTS_NS,
+ 	CKPT_HDR_IPC_NS,
++	CKPT_HDR_CAPABILITIES,
+ 
+ 	/* 201-299: reserved for arch-dependent */
+ 
+@@ -191,6 +192,16 @@ struct ckpt_hdr_task {
+ 	__u64 robust_futex_list; /* a __user ptr */
+ } __attribute__((aligned(8)));
+ 
++/* Posix capabilities */
++struct ckpt_capabilities {
++	__u32 cap_i_0, cap_i_1; /* inheritable set */
++	__u32 cap_p_0, cap_p_1; /* permitted set */
++	__u32 cap_e_0, cap_e_1; /* effective set */
++	__u32 cap_b_0, cap_b_1; /* bounding set */
++	__u32 securebits;
++	__u32 padding;
++} __attribute__((aligned(8)));
 +
-+#include <linux/module.h>
-+#include <linux/kernel.h>
-+#include <linux/deferqueue.h>
-+
-+struct deferqueue_head *deferqueue_create(void)
+ /* namespaces */
+ struct ckpt_hdr_task_ns {
+ 	struct ckpt_hdr h;
+diff --git a/kernel/capability.c b/kernel/capability.c
+index 4e17041..4f58454 100644
+--- a/kernel/capability.c
++++ b/kernel/capability.c
+@@ -14,6 +14,8 @@
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+ #include <linux/pid_namespace.h>
++#include <linux/securebits.h>
++#include <linux/checkpoint.h>
+ #include <asm/uaccess.h>
+ #include "cred-internals.h"
+ 
+@@ -217,6 +219,45 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
+ 	return ret;
+ }
+ 
++static int do_capset_tocred(kernel_cap_t *effective, kernel_cap_t *inheritable,
++			kernel_cap_t *permitted, struct cred *new)
 +{
-+	struct deferqueue_head *h = kmalloc(sizeof(*h), GFP_KERNEL);
-+	if (h) {
-+		spin_lock_init(&h->lock);
-+		INIT_LIST_HEAD(&h->list);
-+	}
-+	return h;
-+}
++	int ret;
 +
-+void deferqueue_destroy(struct deferqueue_head *h)
-+{
-+	if (!list_empty(&h->list)) {
-+		struct deferqueue_entry *dq, *n;
++	ret = security_capset(new, current_cred(),
++			      effective, inheritable, permitted);
++	if (ret < 0)
++		return ret;
 +
-+		pr_debug("%s: freeing non-empty queue\n", __func__);
-+		list_for_each_entry_safe(dq, n, &h->list, list) {
-+			dq->destructor(dq->data);
-+			list_del(&dq->list);
-+			kfree(dq);
-+		}
-+	}
-+	kfree(h);
-+}
++	/*
++	 * for checkpoint-restart, do we want to wait until end of restart?
++	 * not sure we care */
++	audit_log_capset(current->pid, new, current_cred());
 +
-+int deferqueue_add(struct deferqueue_head *head, void *data, int size,
-+		   deferqueue_func_t func, deferqueue_func_t dtor)
-+{
-+	struct deferqueue_entry *dq;
-+
-+	dq = kmalloc(sizeof(*dq) + size, GFP_KERNEL);
-+	if (!dq)
-+		return -ENOMEM;
-+
-+	dq->function = func;
-+	dq->destructor = dtor;
-+	memcpy(dq->data, data, size);
-+
-+	pr_debug("%s: adding work %p func %p dtor %p\n",
-+		 __func__, dq, func, dtor);
-+	spin_lock(&head->lock);
-+	list_add_tail(&dq->list, &head->list);
-+	spin_unlock(&head->lock);
 +	return 0;
 +}
 +
-+/*
-+ * deferqueue_run - perform all work in the work queue
-+ * @head: deferqueue_head from which to run
-+ *
-+ * returns: number of works performed, or < 0 on error
-+ */
-+int deferqueue_run(struct deferqueue_head *head)
++static int do_capset(kernel_cap_t *effective, kernel_cap_t *inheritable,
++			kernel_cap_t *permitted)
 +{
-+	struct deferqueue_entry *dq, *n;
-+	int nr = 0;
++	struct cred *new;
 +	int ret;
 +
-+	list_for_each_entry_safe(dq, n, &head->list, list) {
-+		pr_debug("doing work %p function %p\n", dq, dq->function);
-+		/* don't call destructor - function callback should do it */
-+		ret = dq->function(dq->data);
-+		if (ret < 0)
-+			pr_debug("wq function failed %d\n", ret);
-+		list_del(&dq->list);
-+		kfree(dq);
-+		nr++;
++	new = prepare_creds();
++	if (!new)
++		return -ENOMEM;
++
++	ret = do_capset_tocred(effective, inheritable, permitted, new);
++	if (ret < 0)
++		goto error;
++
++	return commit_creds(new);
++
++error:
++	abort_creds(new);
++	return ret;
++}
++
+ /**
+  * sys_capset - set capabilities for a process or (*) a group of processes
+  * @header: pointer to struct that contains capability version and
+@@ -240,7 +281,6 @@ SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
+ 	struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
+ 	unsigned i, tocopy;
+ 	kernel_cap_t inheritable, permitted, effective;
+-	struct cred *new;
+ 	int ret;
+ 	pid_t pid;
+ 
+@@ -271,23 +311,125 @@ SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
+ 		i++;
+ 	}
+ 
+-	new = prepare_creds();
+-	if (!new)
+-		return -ENOMEM;
++	return do_capset(&effective, &inheritable, &permitted);
+ 
+-	ret = security_capset(new, current_cred(),
+-			      &effective, &inheritable, &permitted);
++}
++
++#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
++int apply_securebits(unsigned securebits, struct cred *new)
++{
++	if ((((new->securebits & SECURE_ALL_LOCKS) >> 1)
++	     & (new->securebits ^ securebits))				/*[1]*/
++	    || ((new->securebits & SECURE_ALL_LOCKS & ~securebits))	/*[2]*/
++	    || (securebits & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
++	    || (cap_capable(current, current_cred(), CAP_SETPCAP,
++			    SECURITY_CAP_AUDIT) != 0)			/*[4]*/
++		/*
++		 * [1] no changing of bits that are locked
++		 * [2] no unlocking of locks
++		 * [3] no setting of unsupported bits
++		 * [4] doing anything requires privilege (go read about
++		 *     the "sendmail capabilities bug")
++		 */
++	    )
++		/* cannot change a locked bit */
++		return -EPERM;
++	new->securebits = securebits;
++	return 0;
++}
++
++static void do_capbset_drop(struct cred *cred, int cap)
++{
++	cap_lower(cred->cap_bset, cap);
++}
++
++static inline int restore_cap_bset(kernel_cap_t bset, struct cred *cred)
++{
++	int i, may_dropbcap = capable(CAP_SETPCAP);
++
++	for (i = 0; i < CAP_LAST_CAP; i++) {
++		if (cap_raised(bset, i))
++			continue;
++		if (!cap_raised(current_cred()->cap_bset, i))
++			continue;
++		if (!may_dropbcap)
++			return -EPERM;
++		do_capbset_drop(cred, i);
 +	}
 +
-+	return nr;
++	return 0;
 +}
++
++#else /* CONFIG_SECURITY_FILE_CAPABILITIES */
++
++int apply_securebits(unsigned securebits, struct cred *new)
++{
++	/* settable securebits not supported */
++	return 0;
++}
++
++static inline int restore_cap_bset(kernel_cap_t bset, struct cred *cred)
++{
++	/* bounding sets not supported */
++	return 0;
++}
++#endif /* CONFIG_SECURITY_FILE_CAPABILITIES */
++
++#ifdef CONFIG_CHECKPOINT
++static int do_restore_caps(struct ckpt_capabilities *h, struct cred *cred)
++{
++	kernel_cap_t effective, inheritable, permitted, bset;
++	int ret;
++
++	effective.cap[0] = h->cap_e_0;
++	effective.cap[1] = h->cap_e_1;
++	inheritable.cap[0] = h->cap_i_0;
++	inheritable.cap[1] = h->cap_i_1;
++	permitted.cap[0] = h->cap_p_0;
++	permitted.cap[1] = h->cap_p_1;
++	bset.cap[0] = h->cap_b_0;
++	bset.cap[1] = h->cap_b_1;
++
++	ret = do_capset_tocred(&effective, &inheritable, &permitted, cred);
+ 	if (ret < 0)
+-		goto error;
++		return ret;
++
++	ret = restore_cap_bset(bset, cred);
++	return ret;
++}
+ 
+-	audit_log_capset(pid, new, current_cred());
++void checkpoint_capabilities(struct ckpt_capabilities *h, struct cred * cred)
++{
++	BUILD_BUG_ON(CAP_LAST_CAP >= 64);
++	h->securebits = cred->securebits;
++	h->cap_i_0 = cred->cap_inheritable.cap[0];
++	h->cap_i_1 = cred->cap_inheritable.cap[1];
++	h->cap_p_0 = cred->cap_permitted.cap[0];
++	h->cap_p_1 = cred->cap_permitted.cap[1];
++	h->cap_e_0 = cred->cap_effective.cap[0];
++	h->cap_e_1 = cred->cap_effective.cap[1];
++	h->cap_b_0 = cred->cap_bset.cap[0];
++	h->cap_b_1 = cred->cap_bset.cap[1];
++}
+ 
+-	return commit_creds(new);
++/*
++ * restore_capabilities: called by restore_creds() to set the
++ * restored capabilities (if permitted) in a new struct cred which
++ * will be attached at the end of the sys_restart().
++ * struct cred *new is prepared by caller (using prepare_creds())
++ * (and aborted by caller on error)
++ * return 0 on success, < 0 on error
++ */
++int restore_capabilities(struct ckpt_capabilities *h, struct cred *new)
++{
++	int ret = do_restore_caps(h, new);
++
++	if (!ret)
++		ret = apply_securebits(h->securebits, new);
+ 
+-error:
+-	abort_creds(new);
+ 	return ret;
+ }
++#endif /* CONFIG_CHECKPOINT */
+ 
+ /**
+  * capable - Determine if the current task has a superior capability in effect
+diff --git a/security/commoncap.c b/security/commoncap.c
+index 48b7e02..2456b46 100644
+--- a/security/commoncap.c
++++ b/security/commoncap.c
+@@ -893,24 +893,9 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	 * capability-based-privilege environment.
+ 	 */
+ 	case PR_SET_SECUREBITS:
+-		error = -EPERM;
+-		if ((((new->securebits & SECURE_ALL_LOCKS) >> 1)
+-		     & (new->securebits ^ arg2))			/*[1]*/
+-		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
+-		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
+-		    || (cap_capable(current, current_cred(), CAP_SETPCAP,
+-				    SECURITY_CAP_AUDIT) != 0)		/*[4]*/
+-			/*
+-			 * [1] no changing of bits that are locked
+-			 * [2] no unlocking of locks
+-			 * [3] no setting of unsupported bits
+-			 * [4] doing anything requires privilege (go read about
+-			 *     the "sendmail capabilities bug")
+-			 */
+-		    )
+-			/* cannot change a locked bit */
++		error = apply_securebits(arg2, new);
++		if (error)
+ 			goto error;
+-		new->securebits = arg2;
+ 		goto changed;
+ 
+ 	case PR_GET_SECUREBITS:
 -- 
 1.6.0.4
 
