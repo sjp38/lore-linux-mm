@@ -1,32 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9A5F26B0111
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 12:01:40 -0400 (EDT)
-Message-ID: <4A6737D7.5070909@redhat.com>
-Date: Wed, 22 Jul 2009 12:01:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F8E6B0114
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 12:32:01 -0400 (EDT)
+Date: Wed, 22 Jul 2009 09:31:54 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+In-Reply-To: <1248073873.13067.31.camel@pasglop>
+Message-ID: <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>  <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [patch 2/4] mm: introduce page_lru_type()
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1248166594-8859-2-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner wrote:
-> Instead of abusing page_is_file_cache() for LRU list index arithmetic,
-> add another helper with a more appropriate name and convert the
-> non-boolean users of page_is_file_cache() accordingly.
+
+
+On Mon, 20 Jul 2009, Benjamin Herrenschmidt wrote:
+
+> On Wed, 2009-07-15 at 15:56 +0200, Nick Piggin wrote:
+> > > I would like to merge the new support that depends on this in 2.6.32,
+> > > so unless there's major objections, I'd like this to go in early during
+> > > the merge window. We can sort out separately how to carry the patch
+> > > around in -next until then since the powerpc tree will have a dependency
+> > > on it.
+> > 
+> > Can't see any problem with that.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> CC'ing Linus here. How do you want to proceed with that merge ? (IE. so
+> far nobody objected to the patch itself)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Maybe you can put it as a separate branch in -next, and have it merged 
+before the stuff that depends on it, and then just sending it to me (as a 
+git branch or patch or whatever) in the first day of the merge window?
 
--- 
-All rights reversed.
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
