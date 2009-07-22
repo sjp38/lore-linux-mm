@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C03236B011C
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:51:46 -0400 (EDT)
-Date: Wed, 22 Jul 2009 19:50:31 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 4/4] mm: return boolean from page_has_private()
-Message-ID: <20090722175031.GA3484@cmpxchg.org>
-References: <1248166594-8859-1-git-send-email-hannes@cmpxchg.org> <1248166594-8859-4-git-send-email-hannes@cmpxchg.org> <alpine.DEB.1.10.0907221220350.3588@gentwo.org>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BB056B011C
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:52:34 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n6MHnCc8018921
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 11:49:12 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6MHqTGp218274
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 11:52:30 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6MHqSkp023760
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 11:52:29 -0600
+Date: Wed, 22 Jul 2009 12:52:23 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v17][PATCH 22/60] c/r: external checkpoint of a task
+	other than ourself
+Message-ID: <20090722175223.GA19389@us.ibm.com>
+References: <1248256822-23416-1-git-send-email-orenl@librato.com> <1248256822-23416-23-git-send-email-orenl@librato.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0907221220350.3588@gentwo.org>
+In-Reply-To: <1248256822-23416-23-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Oren Laadan <orenl@librato.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 22, 2009 at 12:49:44PM -0400, Christoph Lameter wrote:
-> On Tue, 21 Jul 2009, Johannes Weiner wrote:
+Quoting Oren Laadan (orenl@librato.com):
+> Now we can do "external" checkpoint, i.e. act on another task.
+
+...
+
+>  long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid)
+>  {
+>  	long ret;
 > 
-> > Make page_has_private() return a true boolean value and remove the
-> > double negations from the two callsites using it for arithmetic.
-> 
-> page_has_private_data()?
+> +	ret = init_checkpoint_ctx(ctx, pid);
+> +	if (ret < 0)
+> +		return ret;
+> +
+> +	if (ctx->root_freezer) {
+> +		ret = cgroup_freezer_begin_checkpoint(ctx->root_freezer);
+> +		if (ret < 0)
+> +			return ret;
+> +	}
 
-I am not so fond of changing that, because then we should probably
-also rename page_private() and that is moot for slightly improved
-source code English.
+Self-checkpoint of a task in root freezer is now denied, though.
 
-> Also note that you are adding unecessary double negation to the other
-> callers. Does the compiler catch that?
+Was that intentional?
 
-Yes, callsites using it in a conditionals do not change here with gcc
-4.3.3.
+-serge
 
-> > +static inline int page_has_private(struct page *page)
-> > +{
-> > +	return !!(page->flags & ((1 << PG_private) | (1 << PG_private_2)));
-> > +}
-> 
-> Two private bits? How did that happen?
-
-fscache :)
-
-> Could we define a PAGE_FLAGS_PRIVATE in page-flags.h?
-
-It would certainly look nicer, I will add that.
-
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 6b368d3..67e2824 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -286,7 +286,7 @@ static inline int page_mapping_inuse(struct page *page)
-> >
-> >  static inline int is_page_cache_freeable(struct page *page)
-> >  {
-> > -	return page_count(page) - !!page_has_private(page) == 2;
-> > +	return page_count(page) - page_has_private(page) == 2;
-> 
-> That looks funky and in need of comments.
-
-Agreed, I will add one in a different patch.
-
-	Hannes
-
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
