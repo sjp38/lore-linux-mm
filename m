@@ -1,111 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 53B256B0118
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 12:52:04 -0400 (EDT)
-Date: Wed, 22 Jul 2009 18:52:03 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
-Message-ID: <20090722165202.GA8937@random.random>
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
- <1247851850-4298-2-git-send-email-ieidus@redhat.com>
- <1247851850-4298-3-git-send-email-ieidus@redhat.com>
- <1247851850-4298-4-git-send-email-ieidus@redhat.com>
- <1247851850-4298-5-git-send-email-ieidus@redhat.com>
- <1247851850-4298-6-git-send-email-ieidus@redhat.com>
- <1247851850-4298-7-git-send-email-ieidus@redhat.com>
- <20090721175139.GE2239@random.random>
- <Pine.LNX.4.64.0907221313370.529@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 671196B011A
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 13:24:58 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id l26so104373fgb.4
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2009 10:25:04 -0700 (PDT)
+Date: Wed, 22 Jul 2009 21:25:02 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [RFC v17][PATCH 52/60] c/r: support semaphore sysv-ipc
+Message-ID: <20090722172502.GA15805@lenovo>
+References: <1248256822-23416-1-git-send-email-orenl@librato.com> <1248256822-23416-53-git-send-email-orenl@librato.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0907221313370.529@sister.anvils>
+In-Reply-To: <1248256822-23416-53-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
+To: Oren Laadan <orenl@librato.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 22, 2009 at 01:45:15PM +0100, Hugh Dickins wrote:
-> If they're to be vm_normal_page pages (I think we'll agree they are),
-> then for now they have to be counted either as file pages or as anon
-> pages.  We could trawl through mm/ adding the third category for KSM
-> pages, but I don't think that would be sensible - KSM is mostly
-> keeping out of everybody's way, and I want to preserve that.
+[Oren Laadan - Wed, Jul 22, 2009 at 06:00:14AM -0400]
+...
+| +static struct sem *restore_sem_array(struct ckpt_ctx *ctx, int nsems)
+| +{
+| +	struct sem *sma;
+| +	int i, ret;
+| +
+| +	sma = kmalloc(nsems * sizeof(*sma), GFP_KERNEL);
 
-That was basically the idea, keeping out of everybody's way. This was
-more true in the past than today, I mean back when CONFIG_KSM=m was
-allowed.. Today instead KSM is more like CONFIG_SWAP, which is surely
-nice from the standpoint that it should be always available and I like
-that.
+Forgot to
 
-> swapping these pages we will use a PAGE_MAPPING_KSM bit 2 (set in
-> addition to PAGE_MAPPING_ANON), so that the pointer in page->mapping
+	if (!sma)
+		return -ENOMEM;
 
-Ok if it was my choice I wouldn't make them Anon pages.
+right?
 
-My background is that in theory, and from a madvise API standpoint,
-Ksm could work on more than Anon pages in the future.
+| +	ret = _ckpt_read_buffer(ctx, sma, nsems * sizeof(*sma));
+| +	if (ret < 0)
+| +		goto out;
+| +
+| +	/* validate sem array contents */
+| +	for (i = 0; i < nsems; i++) {
+| +		if (sma[i].semval < 0 || sma[i].sempid < 0) {
+| +			ret = -EINVAL;
+| +			break;
+| +		}
+| +	}
+| + out:
+| +	if (ret < 0) {
+| +		kfree(sma);
+| +		sma = ERR_PTR(ret);
+| +	}
+| +	return sma;
+| +}
+...
 
-Example is when pagecache is enabled in host to provide the same
-pre-cache feature that tmem provides to Xen. We already have that
-pre-cache of tmem since day zero in KVM (in fact we only more recently
-had a way to switch it off and do zerocopy DMA with O_DIRECT, kind of
-turning off tmem).
-
-So it wouldn't be impossible to have a shared pre-cache even when we
-don't share the same parent qcow2 image, but that is purely
-theoretical, and it likely never happen. So I am ok with considering
-ksm pages as anon...
-
-For swap we'll need to sue a new bitflag there and adjust PageAnon to
-check against &(PAGE_MAPPING_ANON|PAGE_MAPPING_KSM)!=0, which will
-have the same runtime cost, so no problem there.
-
-> But I'd still expect them to be PageAnon: even more so, really -
-> once they're swapping, they're even more ordinary anonymous pages.
-
-Frankly the fact they swap on swap device, doesn't make them more
-anonymous the same way /dev/shm files are filebacked and they swap to
-swap device too.
-
-> Leave them out of such accounting completely, or give them their
-> own stats: yes, that can be done, but not without changes elsewhere;
-> which I think we'd prefer not to press until KSM is a more accepted
-> part of regular mm operation.
-
-Ok.
-
-> That's certainly the ugliest part of accepting PageKsm pages as
-> PageAnon, and I wept when I realized we needed that check (well,
-> I exaggerate a little ;).
-
-Yes, that very change is exactly what actually made me to rewind back
-to the issue of why Ksm pages provides benefit to be Anon pages too.
-
-> It didn't cross my mind to move it into reuse_swap_page(): yes,
-> we could do that.  I don't see how it's safer; and to be honest,
-
-I thought it was safer, because reuse_swap_page is the thing that tell
-us if we can takeover an anon page and avoid COW. So anybody calling
-reuse_swap_page should first check if it's a Ksm page outside of it,
-and not takeover in that case. Ksm pages must always be readonly to
-avoid screwing stable tree lookups (stable tree is never regenerated
-and we need it to stay stable). The swapin path right now doesn't
-require the check because we know Ksm pages won't come in from swap
-but I thought it was safer to have reuse_swap_page to be aware instead
-of leaving the job to the caller. Not that it makes much difference.
-
-> its main appeal to me is that it would hide this wart away more,
-> where fewer eyes would notice it.  Which may not be the best
-> argument for making the move!  Technically, I think it would
-> just increase the overhead of COWing a KSM page (getting that
-> page lock, maybe having to drop ptlock etc.), but that may not
-> matter much: please persuade me it's safer in reuse_swap_page()
-> and I'll move it there.
-
-Yes it increases overhead a bit, but Ksm pages are never locked so the
-difference in overhead is negligeable. It's up to you...
-
-Ack 6/10 too..
+	-- Cyrill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
