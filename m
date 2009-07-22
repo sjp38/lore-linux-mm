@@ -1,310 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A0F56B0083
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:00:38 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2865E6B0085
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 06:00:43 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [RFC v17][PATCH 00/60] Kernel based checkpoint/restart
-Date: Wed, 22 Jul 2009 05:59:22 -0400
-Message-Id: <1248256822-23416-1-git-send-email-orenl@librato.com>
+Subject: [RFC v17][PATCH 02/60] x86: ptrace debugreg checks rewrite
+Date: Wed, 22 Jul 2009 05:59:24 -0400
+Message-Id: <1248256822-23416-3-git-send-email-orenl@librato.com>
+In-Reply-To: <1248256822-23416-1-git-send-email-orenl@librato.com>
+References: <1248256822-23416-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@librato.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Application checkpoint/restart (c/r) is the ability to save the state
-of a running application so that it can later resume its execution
-from the time at which it was checkpointed, on the same or a different
-machine.
+From: Alexey Dobriyan <adobriyan@gmail.com>
 
-This version introduces 'clone_with_pids()' syscall to preset pid(s)
-for a child process. It is used by restart(2) to recreate process
-hierarchy with the same pids as at checkpoint time.
+This is a mess.
 
-It also adds a freezer state CHECKPOINTING to safeguard processes
-during a checkpoint. Other important changes include support for
-threads and zombies, credentials, signal handling, and improved
-restart logic. See below for a more detailed changelog.
+Pre unified-x86 code did check for breakpoint addr
+to be "< TASK_SIZE - 3 (or 7)". This was fine from security POV,
+but banned valid breakpoint usage when address is close to TASK_SIZE.
+E. g. 1-byte breakpoint at TASK_SIZE - 1 should be allowed, but it wasn't.
 
-Compiled and tested against v2.6.31-rc3.
+Then came commit 84929801e14d968caeb84795bfbb88f04283fbd9
+("[PATCH] x86_64: TASK_SIZE fixes for compatibility mode processes")
+which for some reason touched ptrace as well and made effective
+TASK_SIZE of 32-bit process depending on IA32_PAGE_OFFSET
+which is not a constant!:
 
-For more information, check out Documentation/checkpoint/*.txt
+	#define IA32_PAGE_OFFSET ((current->personality & ADDR_LIMIT_3GB) ? 0xc0000000 : 0xFFFFe000)
+				   ^^^^^^^
+Maximum addr for breakpoint became dependent on personality of ptracer.
 
-Q: How useful is this code as it stands in real-world usage?
-A: Right now, the application can be single- or multi-processes and
-   threads. Supports open files - regular files and directories on
-   ext[234], pipes, and /dev/{null,zero,random,urandom}. All sort of
-   shared memory work. sysv IPC also works (except for semaphore 
-   undo). It's already suitable for many types of batch jobs. (Note:
-   it is assumed that the fs view is available at restart).
+Commit also relaxed danger zone for 32-bit processes from 8 bytes to 4
+not taking into account that 8-byte wide breakpoints are possible even
+for 32-bit processes. This was fine, however, because 64-bit kernel
+addresses are too far from 32-bit ones.
 
-Q: What can it checkpoint and restart ?
-A: A (single threaded) process can checkpoint itself, aka "self"
-   checkpoint, if it calls the new system calls. Otherise, for an
-   "external" checkpoint, the caller must first freeze the target
-   processes. One can either checkpoint an entire container (and
-   we make best effort to ensure that the result is self-contained),
-   or merely a subtree of a process hierarchy.
+Then came utrace with commit 2047b08be67b70875d8765fc81d34ce28041bec3
+("x86: x86 ptrace getreg/putreg merge") which copy-pasted and ifdeffed 32-bit
+part of TASK_SIZE_OF() leaving 8-byte issue as-is.
 
-Q: What about namespaces ?
-A: Currrently, UTS and IPC namespaces are restored. They demonstrate
-   how namespaces are handled. More to come.
+So, what patch fixes?
+1) Too strict logic near TASK_SIZE boundary -- as long as we don't cross
+   TASK_SIZE_MAX, we're fine.
+2) Too smart logic of using breakpoints over non-existent kernel
+   boundary -- we should only protect against setting up after
+   TASK_SIZE_MAX, the rest is none of kernel business. This fixes
+   IA32_PAGE_OFFSET beartrap as well.
 
-Q: What additional work needs to be done to it?
-A: Fill in the gory details following the examples so far. WIP
-   includes (pending) signals, fifos, pseudo terminals, unix-
-   domain sockets, event-poll, architectures: powerpc and x86_64,
-   and more file systems types. 
-   
-Q: How can I try it ?
-A: This one can actually be used for simple batch jobs (pipes, too),
-   a whole container or just a subtree of tasks. Try it:
+As a bonus, remove uberhack and big comment determining DR7 validness,
+rewrite with clear algorithm when it's obvious what's going on.
 
-   create the freezer cgroup:
-     $ mount -t cgroup -ofreezer freezer /cgroup
-     $ mkdir /cgroup/0
-   
-   run the test, freeze it:  
-     $ test/multitask &
-     [1] 2754
-     $ for i in `pidof multitask`; do echo $i > /cgroup/0/tasks; done
-     $ echo FROZEN > /cgruop/0/freezer.state
-   
-   checkpoint:
-     $ ./ckpt 2754 > ckpt.out
-   
-   restart:
-     $ ./mktree < ckpt.out
-   
-   voila :)
-   
-To do all this, you'll need:
+Make DR validness checker suitable for C/R. On restart DR registers
+must be checked the same way they are checked on PTRACE_POKEUSR.
 
-The git tree tracking v17, branch 'ckpt-v17' (and past versions):
-	git://git.ncl.cs.columbia.edu/pub/git/linux-cr.git
+Question 1: TIF_DEBUG can set even if none of breakpoints is turned on,
+should this be optimized?
 
-Restarting multiple processes requires 'mktree' userspace tool with
-the matching branch (v17):
-	git://git.ncl.cs.columbia.edu/pub/git/user-cr.git
+Question 2: Breakpoints are allowed to be globally enabled, is this a
+security risk?
 
-Oren.
+Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+---
+ arch/x86/kernel/ptrace.c |  175 +++++++++++++++++++++++++++-------------------
+ 1 files changed, 103 insertions(+), 72 deletions(-)
 
-
-Changelog:
-
-[2009-Jul-21] v17
-  - Introduce syscall clone_with_pids() to restore original pids
-  - Support threads and zombies
-  - Save/restore task->files
-  - Save/restore task->sighand
-  - Save/restore futex
-  - Save/restore credentials
-  - Introduce PF_RESTARTING to skip notifications on task exit
-  - restart(2) allow caller to ask to freeze tasks after restart
-  - restart(2) isn't idempotent: return -EINTR if interrupted
-  - Improve debugging output handling 
-  - Make multi-process restart logic more robust and complete
-  - Correctly select return value for restarting tasks on success
-  - Tighten ptrace test for checkpoint to PTRACE_MODE_ATTACH
-  - Use CHECKPOINTING state for frozen checkpointed tasks
-  - Fix compilation without CONFIG_CHECKPOINT
-  - Fix compilation with CONFIG_COMPAT
-  - Fix headers includes and exports
-  - Leak detection performed in two steps
-  - Detect "inverse" leaks of objects (dis)appearing unexpectedly
-  - Memory: save/restore mm->{flags,def_flags,saved_auxv}
-  - Memory: only collect sub-objects of mm once (leak detection)
-  - Files: validate f_mode after restore
-  - Namespaces: leak detection for nsproxy sub-components
-  - Namespaces: proper restart from namespace(s) without namespace(s)
-  - Save global constants in header instead of per-object
-  - IPC: replace sys_unshare() with create_ipc_ns()
-  - IPC: restore objects in suitable namespace
-  - IPC: correct behavior under !CONFIG_IPC_NS
-  - UTS: save/restore all fields
-  - UTS: replace sys_unshare() with create_uts_ns()
-  - X86_32: sanitize cpu, debug, and segment registers on restart
-  - cgroup_freezer: add CHECKPOINTING state to safeguard checkpoint
-  - cgroup_freezer: add interface to freeze a cgroup (given a task)
-
-[2009-May-27] v16
-  - Privilege checks for IPC checkpoint
-  - Fix error string generation during checkpoint
-  - Use kzalloc for header allocation
-  - Restart blocks are arch-independent
-  - Redo pipe c/r using splice
-  - Fixes to s390 arch
-  - Remove powerpc arch (temporary)
-  - Explicitly restore ->nsproxy
-  - All objects in image are precedeed by 'struct ckpt_hdr'
-  - Fix leaks detection (and leaks)
-  - Reorder of patchset
-  - Misc bugs and compilation fixes
-
-[2009-Apr-12] v15
-  - Minor fixes
-
-[2009-Apr-28] v14
-  - Tested against kernel v2.6.30-rc3 on x86_32.
-  - Refactor files chekpoint to use f_ops (file operations)
-  - Refactor mm/vma to use vma_ops
-  - Explicitly handle VDSO vma (and require compat mode)
-  - Added code to c/r restat-blocks (restart timeout related syscalls)
-  - Added code to c/r namespaces: uts, ipc (with Dan Smith)
-  - Added code to c/r sysvipc (shm, msg, sem)
-  - Support for VM_CLONE shared memory
-  - Added resource leak detection for whole-container checkpoint
-  - Added sysctl gauge to allow unprivileged restart/checkpoint
-  - Improve and simplify the code and logic of shared objects
-  - Rework image format: shared objects appear prior to their use
-  - Merge checkpoint and restart functionality into same files
-  - Massive renaming of functions: prefix "ckpt_" for generics,
-    "checkpoint_" for checkpoint, and "restore_" for restart.
-  - Report checkpoint errors as a valid (string record) in the output
-  - Merged PPC architecture (by Nathan Lunch),
-  - Requires updates to userspace tools too.
-  - Misc nits and bug fixes
-
-[2009-Mar-31] v14-rc2
-  - Change along Dave's suggestion to use f_ops->checkpoint() for files
-  - Merge patch simplifying Kconfig, with CONFIG_CHECKPOINT_SUPPORT
-  - Merge support for PPC arch (Nathan Lynch)
-  - Misc cleanups and fixes in response to comments
-
-[2009-Mar-20] v14-rc1:
-  - The 'h.parent' field of 'struct cr_hdr' isn't used - discard
-  - Check whether calls to cr_hbuf_get() succeed or fail.
-  - Fixed of pipe c/r code
-  - Prevent deadlock by refusing c/r when a pipe inode == ctx->file inode
-  - Refuse non-self checkpoint if a task isn't frozen
-  - Use unsigned fields in checkpoint headers unless otherwise required
-  - Rename functions in files c/r to better reflect their role
-  - Add support for anonymous shared memory
-  - Merge support for s390 arch (Dan Smith, Serge Hallyn)
-    
-[2008-Dec-03] v13:
-  - Cleanups of 'struct cr_ctx' - remove unused fields
-  - Misc fixes for comments
-  
-[2008-Dec-17] v12:
-  - Fix re-alloc/reset of pgarr chain to correctly reuse buffers
-    (empty pgarr are saves in a separate pool chain)
-  - Add a couple of missed calls to cr_hbuf_put()
-  - cr_kwrite/cr_kread() again use vfs_read(), vfs_write() (safer)
-  - Split cr_write/cr_read() to two parts: _cr_write/read() helper
-  - Befriend with sparse: explicit conversion to 'void __user *'
-  - Redrefine 'pr_fmt' ind replace cr_debug() with pr_debug()
-
-[2008-Dec-05] v11:
-  - Use contents of 'init->fs->root' instead of pointing to it
-  - Ignore symlinks (there is no such thing as an open symlink)
-  - cr_scan_fds() retries from scratch if it hits size limits
-  - Add missing test for VM_MAYSHARE when dumping memory
-  - Improve documentation about: behavior when tasks aren't fronen,
-    life span of the object hash, references to objects in the hash
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index 09ecbde..9b4cacf 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -136,11 +136,6 @@ static int set_segment_reg(struct task_struct *task,
+ 	return 0;
+ }
  
-[2008-Nov-26] v10:
-  - Grab vfs root of container init, rather than current process
-  - Acquire dcache_lock around call to __d_path() in cr_fill_name()
-  - Force end-of-string in cr_read_string() (fix possible DoS)
-  - Introduce cr_write_buffer(), cr_read_buffer() and cr_read_buf_type()
-
-[2008-Nov-10] v9:
-  - Support multiple processes c/r
-  - Extend checkpoint header with archtiecture dependent header 
-  - Misc bug fixes (see individual changelogs)
-  - Rebase to v2.6.28-rc3.
-
-[2008-Oct-29] v8:
-  - Support "external" checkpoint
-  - Include Dave Hansen's 'deny-checkpoint' patch
-  - Split docs in Documentation/checkpoint/..., and improve contents
-
-[2008-Oct-17] v7:
-  - Fix save/restore state of FPU
-  - Fix argument given to kunmap_atomic() in memory dump/restore
-
-[2008-Oct-07] v6:
-  - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
-    (even though it's not really needed)
-  - Add assumptions and what's-missing to documentation
-  - Misc fixes and cleanups
-
-[2008-Sep-11] v5:
-  - Config is now 'def_bool n' by default
-  - Improve memory dump/restore code (following Dave Hansen's comments)
-  - Change dump format (and code) to allow chunks of <vaddrs, pages>
-    instead of one long list of each
-  - Fix use of follow_page() to avoid faulting in non-present pages
-  - Memory restore now maps user pages explicitly to copy data into them,
-    instead of reading directly to user space; got rid of mprotect_fixup()
-  - Remove preempt_disable() when restoring debug registers
-  - Rename headers files s/ckpt/checkpoint/
-  - Fix misc bugs in files dump/restore
-  - Fixes and cleanups on some error paths
-  - Fix misc coding style
-
-[2008-Sep-09] v4:
-  - Various fixes and clean-ups
-  - Fix calculation of hash table size
-  - Fix header structure alignment
-  - Use stand list_... for cr_pgarr
-
-[2008-Aug-29] v3:
-  - Various fixes and clean-ups
-  - Use standard hlist_... for hash table
-  - Better use of standard kmalloc/kfree
-
-[2008-Aug-20] v2:
-  - Added Dump and restore of open files (regular and directories)
-  - Added basic handling of shared objects, and improve handling of
-    'parent tag' concept
-  - Added documentation
-  - Improved ABI, 64bit padding for image data
-  - Improved locking when saving/restoring memory
-  - Added UTS information to header (release, version, machine)
-  - Cleanup extraction of filename from a file pointer
-  - Refactor to allow easier reviewing
-  - Remove requirement for CAPS_SYS_ADMIN until we come up with a
-    security policy (this means that file restore may fail)
-  - Other cleanup and response to comments for v1
-
-[2008-Jul-29] v1:
-  - Initial version: support a single task with address space of only
-    private anonymous or file-mapped VMAs; syscalls ignore pid/crid
-    argument and act on current process.
-
---
-At the containers mini-conference before OLS, the consensus among
-all the stakeholders was that doing checkpoint/restart in the kernel
-as much as possible was the best approach.  With this approach, the
-kernel will export a relatively opaque 'blob' of data to userspace
-which can then be handed to the new kernel at restore time.
-
-This is different than what had been proposed before, which was
-that a userspace application would be responsible for collecting
-all of this data.  We were also planning on adding lots of new,
-little kernel interfaces for all of the things that needed
-checkpointing.  This unites those into a single, grand interface.
-
-The 'blob' will contain copies of select portions of kernel
-structures such as vmas and mm_structs.  It will also contain
-copies of the actual memory that the process uses.  Any changes
-in this blob's format between kernel revisions can be handled by
-an in-userspace conversion program.
-
-This is a similar approach to virtually all of the commercial
-checkpoint/restart products out there, as well as the research
-project Zap.
-
-These patches basically serialize internel kernel state and write
-it out to a file descriptor.  The checkpoint and restore are done
-with two new system calls: sys_checkpoint and sys_restart.
-
-In this incarnation, they can only work checkpoint and restore a
-single task. The task's address space may consist of only private,
-simple vma's - anonymous or file-mapped. The open files may consist
-of only simple files and directories.
---
+-static unsigned long debugreg_addr_limit(struct task_struct *task)
+-{
+-	return TASK_SIZE - 3;
+-}
+-
+ #else  /* CONFIG_X86_64 */
+ 
+ #define FLAG_MASK		(FLAG_MASK_32 | X86_EFLAGS_NT)
+@@ -264,16 +259,6 @@ static int set_segment_reg(struct task_struct *task,
+ 
+ 	return 0;
+ }
+-
+-static unsigned long debugreg_addr_limit(struct task_struct *task)
+-{
+-#ifdef CONFIG_IA32_EMULATION
+-	if (test_tsk_thread_flag(task, TIF_IA32))
+-		return IA32_PAGE_OFFSET - 3;
+-#endif
+-	return TASK_SIZE_MAX - 7;
+-}
+-
+ #endif	/* CONFIG_X86_32 */
+ 
+ static unsigned long get_flags(struct task_struct *task)
+@@ -481,77 +466,123 @@ static unsigned long ptrace_get_debugreg(struct task_struct *child, int n)
+ 	return 0;
+ }
+ 
++static int ptrace_check_debugreg(int _32bit,
++				 unsigned long dr0, unsigned long dr1,
++				 unsigned long dr2, unsigned long dr3,
++				 unsigned long dr6, unsigned long dr7)
++{
++	/* Breakpoint type: 00: --x, 01: -w-, 10: undefined, 11: rw- */
++	unsigned int rw[4];
++	/* Breakpoint length: 00: 1 byte, 01: 2 bytes, 10: 8 bytes, 11: 4 bytes */
++	unsigned int len[4];
++	int n;
++
++	if (dr0 >= TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr1 >= TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr2 >= TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr3 >= TASK_SIZE_MAX)
++		return -EINVAL;
++
++	for (n = 0; n < 4; n++) {
++		rw[n] = (dr7 >> (16 + n * 4)) & 0x3;
++		len[n] = (dr7 >> (16 + n * 4 + 2)) & 0x3;
++
++		if (rw[n] == 0x2)
++			return -EINVAL;
++		if (rw[n] == 0x0 && len[n] != 0x0)
++			return -EINVAL;
++		if (_32bit && len[n] == 0x2)
++			return -EINVAL;
++
++		if (len[n] == 0x0)
++			len[n] = 1;
++		else if (len[n] == 0x1)
++			len[n] = 2;
++		else if (len[n] == 0x2)
++			len[n] = 8;
++		else if (len[n] == 0x3)
++			len[n] = 4;
++		/* From now breakpoint length is in bytes. */
++	}
++
++	if (dr6 & ~0xFFFFFFFFUL)
++		return -EINVAL;
++	if (dr7 & ~0xFFFFFFFFUL)
++		return -EINVAL;
++
++	if (dr7 == 0)
++		return 0;
++
++	if (dr0 + len[0] > TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr1 + len[1] > TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr2 + len[2] > TASK_SIZE_MAX)
++		return -EINVAL;
++	if (dr3 + len[3] > TASK_SIZE_MAX)
++		return -EINVAL;
++
++	return 0;
++}
++
+ static int ptrace_set_debugreg(struct task_struct *child,
+ 			       int n, unsigned long data)
+ {
+-	int i;
++	unsigned long dr0, dr1, dr2, dr3, dr6, dr7;
++	int _32bit;
+ 
+ 	if (unlikely(n == 4 || n == 5))
+ 		return -EIO;
+ 
+-	if (n < 4 && unlikely(data >= debugreg_addr_limit(child)))
+-		return -EIO;
+-
++	dr0 = child->thread.debugreg0;
++	dr1 = child->thread.debugreg1;
++	dr2 = child->thread.debugreg2;
++	dr3 = child->thread.debugreg3;
++	dr6 = child->thread.debugreg6;
++	dr7 = child->thread.debugreg7;
+ 	switch (n) {
+-	case 0:		child->thread.debugreg0 = data; break;
+-	case 1:		child->thread.debugreg1 = data; break;
+-	case 2:		child->thread.debugreg2 = data; break;
+-	case 3:		child->thread.debugreg3 = data; break;
+-
++	case 0:
++		dr0 = data;
++		break;
++	case 1:
++		dr1 = data;
++		break;
++	case 2:
++		dr2 = data;
++		break;
++	case 3:
++		dr3 = data;
++		break;
+ 	case 6:
+-		if ((data & ~0xffffffffUL) != 0)
+-			return -EIO;
+-		child->thread.debugreg6 = data;
++		dr6 = data;
+ 		break;
+-
+ 	case 7:
+-		/*
+-		 * Sanity-check data. Take one half-byte at once with
+-		 * check = (val >> (16 + 4*i)) & 0xf. It contains the
+-		 * R/Wi and LENi bits; bits 0 and 1 are R/Wi, and bits
+-		 * 2 and 3 are LENi. Given a list of invalid values,
+-		 * we do mask |= 1 << invalid_value, so that
+-		 * (mask >> check) & 1 is a correct test for invalid
+-		 * values.
+-		 *
+-		 * R/Wi contains the type of the breakpoint /
+-		 * watchpoint, LENi contains the length of the watched
+-		 * data in the watchpoint case.
+-		 *
+-		 * The invalid values are:
+-		 * - LENi == 0x10 (undefined), so mask |= 0x0f00.	[32-bit]
+-		 * - R/Wi == 0x10 (break on I/O reads or writes), so
+-		 *   mask |= 0x4444.
+-		 * - R/Wi == 0x00 && LENi != 0x00, so we have mask |=
+-		 *   0x1110.
+-		 *
+-		 * Finally, mask = 0x0f00 | 0x4444 | 0x1110 == 0x5f54.
+-		 *
+-		 * See the Intel Manual "System Programming Guide",
+-		 * 15.2.4
+-		 *
+-		 * Note that LENi == 0x10 is defined on x86_64 in long
+-		 * mode (i.e. even for 32-bit userspace software, but
+-		 * 64-bit kernel), so the x86_64 mask value is 0x5454.
+-		 * See the AMD manual no. 24593 (AMD64 System Programming)
+-		 */
+-#ifdef CONFIG_X86_32
+-#define	DR7_MASK	0x5f54
+-#else
+-#define	DR7_MASK	0x5554
+-#endif
+-		data &= ~DR_CONTROL_RESERVED;
+-		for (i = 0; i < 4; i++)
+-			if ((DR7_MASK >> ((data >> (16 + 4*i)) & 0xf)) & 1)
+-				return -EIO;
+-		child->thread.debugreg7 = data;
+-		if (data)
+-			set_tsk_thread_flag(child, TIF_DEBUG);
+-		else
+-			clear_tsk_thread_flag(child, TIF_DEBUG);
++		dr7 = data & ~DR_CONTROL_RESERVED;
+ 		break;
+ 	}
+ 
++	_32bit = (sizeof(unsigned long) == 4);
++#ifdef CONFIG_COMPAT
++	if (test_tsk_thread_flag(child, TIF_IA32))
++		_32bit = 1;
++#endif
++	if (ptrace_check_debugreg(_32bit, dr0, dr1, dr2, dr3, dr6, dr7))
++		return -EIO;
++
++	child->thread.debugreg0 = dr0;
++	child->thread.debugreg1 = dr1;
++	child->thread.debugreg2 = dr2;
++	child->thread.debugreg3 = dr3;
++	child->thread.debugreg6 = dr6;
++	child->thread.debugreg7 = dr7;
++	if (dr7)
++		set_tsk_thread_flag(child, TIF_DEBUG);
++	else
++		clear_tsk_thread_flag(child, TIF_DEBUG);
++
+ 	return 0;
+ }
+ 
+-- 
+1.6.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
