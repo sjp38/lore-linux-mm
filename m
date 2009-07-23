@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2ECBB6B004D
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 22:08:46 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6N28imf007985
+	by kanga.kvack.org (Postfix) with SMTP id 7F5926B004D
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 22:35:19 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6N2ZJVk020445
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Jul 2009 11:08:44 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DA5C2AEAA1
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4679B1EF084
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D77581DB8038
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:43 +0900 (JST)
+	Thu, 23 Jul 2009 11:35:19 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E26F545DE60
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B6E2245DE7D
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:18 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 97EBB1DB803A
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:17 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8691F1DB8040
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:43 +0900 (JST)
-Date: Thu, 23 Jul 2009 11:06:55 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D19C1DB8047
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:16 +0900 (JST)
+Date: Thu, 23 Jul 2009 11:33:20 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
-Message-Id: <20090723110655.f08cdcdc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0907221346040.529@sister.anvils>
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-2-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-3-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-4-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-5-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-6-git-send-email-ieidus@redhat.com>
-	<1247851850-4298-7-git-send-email-ieidus@redhat.com>
-	<20090721175139.GE2239@random.random>
-	<4A660101.3000307@redhat.com>
-	<Pine.LNX.4.64.0907221346040.529@sister.anvils>
+Subject: Re: [RFC v17][PATCH 10/60] c/r: make file_pos_read/write() public
+Message-Id: <20090723113320.65f6746d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1248256822-23416-11-git-send-email-orenl@librato.com>
+References: <1248256822-23416-1-git-send-email-orenl@librato.com>
+	<1248256822-23416-11-git-send-email-orenl@librato.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
+To: Oren Laadan <orenl@librato.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Alexey Dobriyan <adobriyan@gmail.com>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Jul 2009 13:54:06 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+a nitpick.
 
-> On Tue, 21 Jul 2009, Rik van Riel wrote:
-> > Andrea Arcangeli wrote:
-> > > > -	if (PageAnon(old_page)) {
-> > > > +	if (PageAnon(old_page) && !PageKsm(old_page)) {
-> > > >    if (!trylock_page(old_page)) {
-> > > >     page_cache_get(old_page);
-> > > >     pte_unmap_unlock(page_table, ptl);
-> > > 
-> > > What exactly does it buy to have PageAnon return 1 on ksm pages,
-> > > besides requiring the above additional check (that if we stick to the
-> > > above code, I would find safer to move inside reuse_swap_page).
-> > 
-> > I guess that if they are to remain unswappable, they
-> > should go onto the unevictable list.
-> 
-> The KSM pages are not put on any LRU, so wouldn't be slowing vmscan
-> down with futile scans: isn't the unevictable list for pages which
-> belong to another LRU once they become evictable again?
-> 
-> (At this instant I've forgotten why there's an unevictable list at
-> all - somewhere in vmscan.c which is accustomed to dealing with
-> pages on lists, so easier to have them on a list than not?)
-> 
-I forget, too. But in short thinking, Unevictable pages should be
-on LRU (marked as PG_lru) for isolating page (from LRU) called by
-page migration etc.
+On Wed, 22 Jul 2009 05:59:32 -0400
+Oren Laadan <orenl@librato.com> wrote:
 
-isolate_lru_page()
-	-> put page on private list
-	-> do some work
-	-> putback_lru_page()
+> These two are used in the next patch when calling vfs_read/write()
 
-sequence is useful at handling pages in a list.
-Because mlock/munclock can be called arbitrarily, unevicatable lru
-works enough good for making above kinds of code simpler.
+> +static inline loff_t file_pos_read(struct file *file)
+> +{
+> +	return file->f_pos;
+> +}
+> +
+> +static inline void file_pos_write(struct file *file, loff_t pos)
+> +{
+> +	file->f_pos = pos;
+> +}
+> +
+
+I'm not sure but how about renaming this to
+	file_pos() 
+	set_file_pos()
+at moving this to global include file ?
 
 Thanks,
 -Kame
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
