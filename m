@@ -1,43 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7546B013E
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:59:13 -0400 (EDT)
-Message-Id: <74BA64FD-0DFF-45A2-868D-A001D9BA496F@kernel.crashing.org>
-From: Kumar Gala <galak@kernel.crashing.org>
-In-Reply-To: <1248310415.3367.22.camel@pasglop>
-Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2ECBB6B004D
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 22:08:46 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6N28imf007985
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 23 Jul 2009 11:08:44 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DA5C2AEAA1
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4679B1EF084
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D77581DB8038
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:43 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8691F1DB8040
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:08:43 +0900 (JST)
+Date: Thu, 23 Jul 2009 11:06:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
+Message-Id: <20090723110655.f08cdcdc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0907221346040.529@sister.anvils>
+References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-2-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-3-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-4-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-5-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-6-git-send-email-ieidus@redhat.com>
+	<1247851850-4298-7-git-send-email-ieidus@redhat.com>
+	<20090721175139.GE2239@random.random>
+	<4A660101.3000307@redhat.com>
+	<Pine.LNX.4.64.0907221346040.529@sister.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0 (Apple Message framework v935.3)
-Subject: Re: [RFC/PATCH] mm: Pass virtual address to [__]p{te,ud,md}_free_tlb()
-Date: Wed, 22 Jul 2009 19:59:08 -0500
-References: <20090715074952.A36C7DDDB2@ozlabs.org> <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop> <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain> <1248310415.3367.22.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux-Arch <linux-arch@vger.kernel.org>, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 22 Jul 2009 13:54:06 +0100 (BST)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-On Jul 22, 2009, at 7:53 PM, Benjamin Herrenschmidt wrote:
+> On Tue, 21 Jul 2009, Rik van Riel wrote:
+> > Andrea Arcangeli wrote:
+> > > > -	if (PageAnon(old_page)) {
+> > > > +	if (PageAnon(old_page) && !PageKsm(old_page)) {
+> > > >    if (!trylock_page(old_page)) {
+> > > >     page_cache_get(old_page);
+> > > >     pte_unmap_unlock(page_table, ptl);
+> > > 
+> > > What exactly does it buy to have PageAnon return 1 on ksm pages,
+> > > besides requiring the above additional check (that if we stick to the
+> > > above code, I would find safer to move inside reuse_swap_page).
+> > 
+> > I guess that if they are to remain unswappable, they
+> > should go onto the unevictable list.
+> 
+> The KSM pages are not put on any LRU, so wouldn't be slowing vmscan
+> down with futile scans: isn't the unevictable list for pages which
+> belong to another LRU once they become evictable again?
+> 
+> (At this instant I've forgotten why there's an unevictable list at
+> all - somewhere in vmscan.c which is accustomed to dealing with
+> pages on lists, so easier to have them on a list than not?)
+> 
+I forget, too. But in short thinking, Unevictable pages should be
+on LRU (marked as PG_lru) for isolating page (from LRU) called by
+page migration etc.
 
-> On Wed, 2009-07-22 at 09:31 -0700, Linus Torvalds wrote:
->>> CC'ing Linus here. How do you want to proceed with that merge ?  
->>> (IE. so
->>> far nobody objected to the patch itself)
->>
->> Maybe you can put it as a separate branch in -next, and have it  
->> merged
->> before the stuff that depends on it, and then just sending it to me  
->> (as a
->> git branch or patch or whatever) in the first day of the merge  
->> window?
->
-> Hrm... my powerpc-next branch will contain stuff that depend on it, so
-> I'll probably have to pull it in though, unless I tell all my
-> sub-maintainers to also pull from that other branch first :-)
+isolate_lru_page()
+	-> put page on private list
+	-> do some work
+	-> putback_lru_page()
 
-Can you not cherry pick it into powerpc-next to 'pull it through'?
+sequence is useful at handling pages in a list.
+Because mlock/munclock can be called arbitrarily, unevicatable lru
+works enough good for making above kinds of code simpler.
 
-- k
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
