@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7F5926B004D
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 22:35:19 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6N2ZJVk020445
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Jul 2009 11:35:19 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E26F545DE60
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B6E2245DE7D
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 97EBB1DB803A
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:17 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D19C1DB8047
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 11:35:16 +0900 (JST)
-Date: Thu, 23 Jul 2009 11:33:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC v17][PATCH 10/60] c/r: make file_pos_read/write() public
-Message-Id: <20090723113320.65f6746d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1248256822-23416-11-git-send-email-orenl@librato.com>
-References: <1248256822-23416-1-git-send-email-orenl@librato.com>
-	<1248256822-23416-11-git-send-email-orenl@librato.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F02536B004D
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 23:46:53 -0400 (EDT)
+Message-ID: <4A67DD16.1090704@cs.columbia.edu>
+Date: Wed, 22 Jul 2009 23:46:30 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Subject: Re: [RFC v17][PATCH 52/60] c/r: support semaphore sysv-ipc
+References: <1248256822-23416-1-git-send-email-orenl@librato.com> <1248256822-23416-53-git-send-email-orenl@librato.com> <20090722172502.GA15805@lenovo>
+In-Reply-To: <20090722172502.GA15805@lenovo>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oren Laadan <orenl@librato.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Alexey Dobriyan <adobriyan@gmail.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Oren Laadan <orenl@librato.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-a nitpick.
 
-On Wed, 22 Jul 2009 05:59:32 -0400
-Oren Laadan <orenl@librato.com> wrote:
 
-> These two are used in the next patch when calling vfs_read/write()
+Cyrill Gorcunov wrote:
+> [Oren Laadan - Wed, Jul 22, 2009 at 06:00:14AM -0400]
+> ...
+> | +static struct sem *restore_sem_array(struct ckpt_ctx *ctx, int nsems)
+> | +{
+> | +	struct sem *sma;
+> | +	int i, ret;
+> | +
+> | +	sma = kmalloc(nsems * sizeof(*sma), GFP_KERNEL);
+> 
+> Forgot to
+> 
+> 	if (!sma)
+> 		return -ENOMEM;
+> 
+> right?
 
-> +static inline loff_t file_pos_read(struct file *file)
-> +{
-> +	return file->f_pos;
-> +}
-> +
-> +static inline void file_pos_write(struct file *file, loff_t pos)
-> +{
-> +	file->f_pos = pos;
-> +}
-> +
+Yep !  thanks...  (fixed commit to branch ckpt-v17-dev)
 
-I'm not sure but how about renaming this to
-	file_pos() 
-	set_file_pos()
-at moving this to global include file ?
+Oren.
 
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
