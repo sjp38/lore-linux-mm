@@ -1,92 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A55C6B004D
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 07:49:43 -0400 (EDT)
-Subject: Re: [PATCH 06/10] ksm: identify PageKsm pages
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090723110655.f08cdcdc.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1247851850-4298-1-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-2-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-3-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-4-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-5-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-6-git-send-email-ieidus@redhat.com>
-	 <1247851850-4298-7-git-send-email-ieidus@redhat.com>
-	 <20090721175139.GE2239@random.random> <4A660101.3000307@redhat.com>
-	 <Pine.LNX.4.64.0907221346040.529@sister.anvils>
-	 <20090723110655.f08cdcdc.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Thu, 23 Jul 2009 07:49:43 -0400
-Message-Id: <1248349783.5674.2.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 126346B004D
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 09:21:20 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n6ND8Lbd024228
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 07:08:21 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6NDCx5A255046
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 07:12:59 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6NDCpbh015264
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 07:12:58 -0600
+Date: Thu, 23 Jul 2009 08:12:50 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v17][PATCH 22/60] c/r: external checkpoint of a task
+	other than ourself
+Message-ID: <20090723131250.GA9535@us.ibm.com>
+References: <1248256822-23416-1-git-send-email-orenl@librato.com> <1248256822-23416-23-git-send-email-orenl@librato.com> <20090722175223.GA19389@us.ibm.com> <4A67E7D7.9060800@librato.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A67E7D7.9060800@librato.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, chrisw@redhat.com, avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nickpiggin@yahoo.com.au, Wu Fengguang <fengguang.wu@intel.com>
+To: Oren Laadan <orenl@librato.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-07-23 at 11:06 +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 22 Jul 2009 13:54:06 +0100 (BST)
-> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+Quoting Oren Laadan (orenl@librato.com):
 > 
-> > On Tue, 21 Jul 2009, Rik van Riel wrote:
-> > > Andrea Arcangeli wrote:
-> > > > > -	if (PageAnon(old_page)) {
-> > > > > +	if (PageAnon(old_page) && !PageKsm(old_page)) {
-> > > > >    if (!trylock_page(old_page)) {
-> > > > >     page_cache_get(old_page);
-> > > > >     pte_unmap_unlock(page_table, ptl);
-> > > > 
-> > > > What exactly does it buy to have PageAnon return 1 on ksm pages,
-> > > > besides requiring the above additional check (that if we stick to the
-> > > > above code, I would find safer to move inside reuse_swap_page).
-> > > 
-> > > I guess that if they are to remain unswappable, they
-> > > should go onto the unevictable list.
-> > 
-> > The KSM pages are not put on any LRU, so wouldn't be slowing vmscan
-> > down with futile scans: isn't the unevictable list for pages which
-> > belong to another LRU once they become evictable again?
-> > 
-> > (At this instant I've forgotten why there's an unevictable list at
-> > all - somewhere in vmscan.c which is accustomed to dealing with
-> > pages on lists, so easier to have them on a list than not?)
-> > 
-> I forget, too. But in short thinking, Unevictable pages should be
-> on LRU (marked as PG_lru) for isolating page (from LRU) called by
-> page migration etc.
 > 
-> isolate_lru_page()
-> 	-> put page on private list
-> 	-> do some work
-> 	-> putback_lru_page()
+> Serge E. Hallyn wrote:
+> > Quoting Oren Laadan (orenl@librato.com):
+> >> Now we can do "external" checkpoint, i.e. act on another task.
+> > 
+> > ...
+> > 
+> >>  long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid)
+> >>  {
+> >>  	long ret;
+> >>
+> >> +	ret = init_checkpoint_ctx(ctx, pid);
+> >> +	if (ret < 0)
+> >> +		return ret;
+> >> +
+> >> +	if (ctx->root_freezer) {
+> >> +		ret = cgroup_freezer_begin_checkpoint(ctx->root_freezer);
+> >> +		if (ret < 0)
+> >> +			return ret;
+> >> +	}
+> > 
+> > Self-checkpoint of a task in root freezer is now denied, though.
+> > 
+> > Was that intentional?
 > 
-> sequence is useful at handling pages in a list.
-> Because mlock/munclock can be called arbitrarily, unevicatable lru
-> works enough good for making above kinds of code simpler.
+> Yes.
+> 
+> "root freezer" is an arbitrary task in the checkpoint subtree or
+> container. It is used to verify that all checkpointed tasks - except
+> for current, if doing self-checkpoint - belong to the same freezer
+> group.
+> 
+> Since current is busy calling checkpoint(2), and since we only permit
+> checkpoint of (cgroup-) frozen tasks, then - by definition - it cannot
+> possibly belong to the same group. If it did, it would itself be frozen
+> like its fellows and unable to call checkpoint(2).
 
-Right.  Quoting from Documentation/vm/unevictable-lru.txt:
+So then you're saying that regular self-checkpoint no longer works,
+but the documentation still shows self.c and claims it should just
+work.
 
-The Unevictable LRU infrastructure maintains unevictable pages on an additional
-LRU list for a few reasons:
- 
- (1) We get to "treat unevictable pages just like we treat other pages in the
-     system - which means we get to use the same code to manipulate them, the
-     same code to isolate them (for migrate, etc.), the same code to keep track
-     of the statistics, etc..." [Rik van Riel]
+Mind you I prefer this as it is more consistent, but I thought it
+was something you wanted to support.
 
- (2) We want to be able to migrate unevictable pages between nodes for memory
-     defragmentation, workload management and memory hotplug.  The linux kernel
-     can only migrate pages that it can successfully isolate from the LRU
-     lists.  If we were to maintain pages elsewhere than on an LRU-like list,
-     where they can be found by isolate_lru_page(), we would prevent their
-     migration, unless we reworked migration code to find the unevictable pages
-     itself.
-
-
-I guess "a few" became "a couple" over time...
-
-Lee
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
