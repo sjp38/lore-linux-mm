@@ -1,48 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A05B06B0139
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:47:40 -0400 (EDT)
-Date: Wed, 22 Jul 2009 17:47:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
-Message-Id: <20090722174741.79743e3a.akpm@linux-foundation.org>
-In-Reply-To: <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090722171245.d5b3a108.akpm@linux-foundation.org>
-	<20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C0786B013C
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:53:34 -0400 (EDT)
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>
+	 <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop>
+	 <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain>
+Content-Type: text/plain
+Date: Thu, 23 Jul 2009 10:53:35 +1000
+Message-Id: <1248310415.3367.22.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, hugh.dickins@tiscali.co.uk, avi@redhat.com, torvalds@linux-foundation.org, aarcange@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Jul 2009 09:33:34 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> BTW, when I post new version, should I send a reply to old version to say
-> "this version is obsolete" ? Can it make your work easier ? like following.
+On Wed, 2009-07-22 at 09:31 -0700, Linus Torvalds wrote:
+> > CC'ing Linus here. How do you want to proceed with that merge ? (IE. so
+> > far nobody objected to the patch itself)
 > 
-> Re:[PATCH][Obsolete] new version weill come (Was.....)
-> 
-> I tend to update patches until v5 or more until merged.
+> Maybe you can put it as a separate branch in -next, and have it merged 
+> before the stuff that depends on it, and then just sending it to me (as a 
+> git branch or patch or whatever) in the first day of the merge window?
 
-Usually it's pretty clear when a new patch or patch series is going to
-be sent.  I think that simply resending it all is OK.
+Hrm... my powerpc-next branch will contain stuff that depend on it, so
+I'll probably have to pull it in though, unless I tell all my
+sub-maintainers to also pull from that other branch first :-)
 
-I don't pay much attention to the "version N" info either - it can be
-unreliable and not everyone does it and chronological ordering works OK
-for this.
+Cheers,
+Ben.
 
-Very occasionally I'll merge a patch and then discover a later version
-further down through the backlog.  But that's OK - I'll just update the
-patch.  Plus I'm not usually stuck this far in the past.
-
-(I'm still trying to find half a day to read "Per-bdi writeback flusher
-threads v12")
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
