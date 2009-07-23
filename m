@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 28D956B0138
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:35:26 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6N0ZP8i001974
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Jul 2009 09:35:26 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C1EC345DE56
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 09:35:25 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 246D445DE50
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 09:35:25 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 096C61DB803A
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 09:35:25 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 76A4BE08005
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 09:35:24 +0900 (JST)
-Date: Thu, 23 Jul 2009 09:33:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A05B06B0139
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2009 20:47:40 -0400 (EDT)
+Date: Wed, 22 Jul 2009 17:47:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
-Message-Id: <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090722171245.d5b3a108.akpm@linux-foundation.org>
+Message-Id: <20090722174741.79743e3a.akpm@linux-foundation.org>
+In-Reply-To: <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090722171245.d5b3a108.akpm@linux-foundation.org>
+	<20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, hugh.dickins@tiscali.co.uk, avi@redhat.com, torvalds@linux-foundation.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Jul 2009 17:12:45 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 23 Jul 2009 09:33:34 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Thu, 23 Jul 2009 08:51:37 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> BTW, when I post new version, should I send a reply to old version to say
+> "this version is obsolete" ? Can it make your work easier ? like following.
 > 
-> > On Thu, 16 Jul 2009 18:01:34 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> > > 
-> > > Rebased onto  mm-of-the-moment snapshot 2009-07-15-20-57.
-> > > And modifeied to make vm_normal_page() eat FOLL_NOZERO, directly.
-> > > 
-> > > Any comments ?
-> > > 
-> > 
-> > A week passed since I posted this.
+> Re:[PATCH][Obsolete] new version weill come (Was.....)
 > 
-> I'm catching up at a rate of 2.5 days per day.  Am presently up to July
-> 16.  I never know whether to work through it forwards or in reverse.
-> 
-> Geeze you guys send a lot of stuff.  Stop writing new code and go fix
-> some bugs!
-> 
-In these months, I myself don't write any new feature.
-I'm now in stablization stage.
-(ZERO_PAGE is not new feature in my point of view.)
+> I tend to update patches until v5 or more until merged.
 
-Remainig big one is Direce-I/O v.s. fork() fix.
+Usually it's pretty clear when a new patch or patch series is going to
+be sent.  I think that simply resending it all is OK.
 
-> > It's no problem to keep updating this
-> > and post again. But if anyone have concerns, please notify me.
-> > I'll reduce CC: list in the next post.
-> 
-> ok...
-> 
-I'll postpone v5 until the next week.
+I don't pay much attention to the "version N" info either - it can be
+unreliable and not everyone does it and chronological ordering works OK
+for this.
 
-Thank you for your efforts.
+Very occasionally I'll merge a patch and then discover a later version
+further down through the backlog.  But that's OK - I'll just update the
+patch.  Plus I'm not usually stuck this far in the past.
 
-BTW, when I post new version, should I send a reply to old version to say
-"this version is obsolete" ? Can it make your work easier ? like following.
-
-Re:[PATCH][Obsolete] new version weill come (Was.....)
-
-I tend to update patches until v5 or more until merged.
-
-Regards,
--Kame
+(I'm still trying to find half a day to read "Per-bdi writeback flusher
+threads v12")
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
