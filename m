@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 53FF26B0055
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 14:02:13 -0400 (EDT)
-Message-ID: <4A68A562.9020109@zytor.com>
-Date: Thu, 23 Jul 2009 11:01:06 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CE3B26B004D
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2009 23:31:23 -0400 (EDT)
+From: Frans Pop <elendil@planet.nl>
+Subject: [PATCH] trivial: improve help text for mm debug config options
+Date: Fri, 24 Jul 2009 05:31:17 +0200
 MIME-Version: 1.0
-Subject: Re: Replacing 0x% with %# ?
-References: <alpine.DEB.1.00.0907201543230.22052@mail.selltech.ca>	 <20090721154756.2AB7.A69D9226@jp.fujitsu.com>	 <4A679FC5.6020206@zytor.com> <2f11576a0907231041x1841b8d4y554470b04e9ecc81@mail.gmail.com>
-In-Reply-To: <2f11576a0907231041x1841b8d4y554470b04e9ecc81@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200907240531.18676.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "Li, Ming Chun" <macli@brc.ubc.ca>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Jiri Kosina <trivial@kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
->>>> Hi MM list:
->>>>
->>>> I am newbie and wish to contribute tiny bit. Before I submit a trivial
->>>> patch, I would ask if it is worth replacing  '0x%' with '%#' in printk in
->>>> mm/*.c? If it is going to be noise for you guys, I would drop it and keep
->>>> silent :).
->>> Never mind. we already post many trivial cleanup patches.
->>>
->> The other thing is that we reallly should make %p include the 0x prefix, as
->> it does in userspace.
-> 
-> I think you mean %x, not %p. if so, I agree you. this difference
-> doesn't make any sense.
+Improve the help text for PAGE_POISONING.
+Also fix some typos and improve consistency within the file.
 
-No, I mean %p.  %x should definitely not issue the 0x prefix without a # 
-modifier.
+Signed-of-by: Frans Pop <elendil@planet.nl>
 
-	-hpa
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index aa99fd1..af7cfb4 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -6,7 +6,7 @@ config DEBUG_PAGEALLOC
+ 	---help---
+ 	  Unmap pages from the kernel linear mapping after free_pages().
+ 	  This results in a large slowdown, but helps to find certain types
+-	  of memory corruptions.
++	  of memory corruption.
+ 
+ config WANT_PAGE_DEBUG_FLAGS
+ 	bool
+@@ -17,11 +17,11 @@ config PAGE_POISONING
+ 	depends on !HIBERNATION
+ 	select DEBUG_PAGEALLOC
+ 	select WANT_PAGE_DEBUG_FLAGS
+-	help
++	---help---
+ 	   Fill the pages with poison patterns after free_pages() and verify
+ 	   the patterns before alloc_pages(). This results in a large slowdown,
+-	   but helps to find certain types of memory corruptions.
++	   but helps to find certain types of memory corruption.
+ 
+-	   This option cannot enalbe with hibernation. Otherwise, it will get
+-	   wrong messages for memory corruption because the free pages are not
+-	   saved to the suspend image.
++	   This option cannot be enabled in combination with hibernation as
++	   that would result in incorrect warnings of memory corruption after
++	   a resume because free pages are not saved to the suspend image.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
