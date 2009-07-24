@@ -1,121 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F6846B004D
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 01:33:06 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6O5X428019107
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 24 Jul 2009 14:33:04 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7042D45DE4E
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 14:33:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 451D645DE4D
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 14:33:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BC321DB8038
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 14:33:04 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A1AB3E08002
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 14:33:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] bump up nr_to_write in xfs_vm_writepage
-In-Reply-To: <7149D747-2769-4559-BAF6-AAD2B6C6C941@sgi.com>
-References: <20090710153349.17EC.A69D9226@jp.fujitsu.com> <7149D747-2769-4559-BAF6-AAD2B6C6C941@sgi.com>
-Message-Id: <20090724143159.67B6.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 70ABF6B004D
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2009 06:36:59 -0400 (EDT)
+Date: Fri, 24 Jul 2009 11:36:56 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: Warn once when a page is freed with PG_mlocked set
+	V2
+Message-ID: <20090724103656.GA18074@csn.ul.ie>
+References: <20090715125822.GB29749@csn.ul.ie> <alpine.DEB.1.10.0907151027410.23643@gentwo.org> <20090722160649.61176c61.akpm@linux-foundation.org> <20090723102938.GA27731@csn.ul.ie> <20090723102316.b94a2e4f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 24 Jul 2009 14:33:02 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090723102316.b94a2e4f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Felix Blyakher <felixb@sgi.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Chris Mason <chris.mason@oracle.com>, Eric Sandeen <sandeen@redhat.com>, xfs mailing list <xfs@oss.sgi.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Olaf Weber <olaf@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, maximlevitsky@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee.Schermerhorn@hp.com, penberg@cs.helsinki.fi, hannes@cmpxchg.org, jirislaby@gmail.com
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jul 23, 2009 at 10:23:16AM -0700, Andrew Morton wrote:
+> On Thu, 23 Jul 2009 11:29:39 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> On Jul 10, 2009, at 2:12 AM, KOSAKI Motohiro wrote:
+> > On Wed, Jul 22, 2009 at 04:06:49PM -0700, Andrew Morton wrote:
+> > > On Wed, 15 Jul 2009 10:31:54 -0400 (EDT)
+> > > Christoph Lameter <cl@linux-foundation.org> wrote:
+> > > 
+> > > > On Wed, 15 Jul 2009, Mel Gorman wrote:
+> > > > 
+> > > > > -static inline int free_pages_check(struct page *page)
+> > > > > +static inline int free_pages_check(struct page *page, int wasMlocked)
+> > > > >  {
+> > > > > +	WARN_ONCE(wasMlocked, KERN_WARNING
+> > > > > +		"Page flag mlocked set for process %s at pfn:%05lx\n"
+> > > > > +		"page:%p flags:0x%lX\n",
+> > > > > +		current->comm, page_to_pfn(page),
+> > > > > +		page, page->flags|__PG_MLOCKED);
+> > > > > +
+> > > > >  	if (unlikely(page_mapcount(page) |
+> > > > 
+> > > > There is already a free_page_mlocked() that is only called if the mlock
+> > > > bit is set. Move it into there to avoid having to run two checks in the
+> > > > hot codee path?
+> > > 
+> > > Agreed.
+> > > 
+> > > This patch gratuitously adds hotpath overhead.  Moving the change to be
+> > > inside those preexisting wasMlocked tests will reduce its overhead a lot.
+> > > 
+> > 
+> > It adds code duplication then, one of which is in a fast path.
+> > 
+> > > As it stands, I'm really doubting that the patch's utility is worth its
+> > > cost.
+> > > 
+> > 
+> > I'm happy to let this one drop. It seemed like it would be nice for debugging
+> > while there are still corner cases where mlocked pages are getting freed
+> > instead of torn down but we already account for that situation occuring. While
+> > I think it'll be tricky to spot, it's probably preferable to having warnings
+> > spew out onto dmesg.
 > 
-> >> On Thu, Jul 09, 2009 at 11:04:32AM +0900, KOSAKI Motohiro wrote:
-> >>>> On Tue, Jul 07, 2009 at 07:33:04PM +0900, KOSAKI Motohiro wrote:
-> >>>>> At least, I agree with Olaf. if you got someone's NAK in past  
-> >>>>> thread,
-> >>>>> Could you please tell me its url?
-> >>>>
-> >>>> The previous thread was simply dead-ended and nothing happened.
-> >>>>
-> >>>
-> >>> Can you remember this thread subject? sorry, I haven't remember it.
-> >>
-> >> This is the original thread, it did lead to a few different patches
-> >> going in, but the nr_to_write change wasn't one of them.
-> >>
-> >> http://kerneltrap.org/mailarchive/linux-kernel/2008/10/1/3472704/thread
-> >
-> > Thanks good pointer. This thread have multiple interesting discussion.
-> >
-> > 1. making ext4_write_cache_pages() or modifying write_cache_pages()
-> >
-> > I think this is Christoph's homework. he said
-> >
-> >> I agree.  But I'm still not quite sure if that requirement is  
-> >> unique to
-> >> ext4 anyway.  Give me some time to dive into the writeback code  
-> >> again,
-> >> haven't been there for quite a while.
-> >
-> > if he says modifying write_cache_pages() is necessary, I'd like to  
-> > review it.
-> >
-> >
-> > 2. Current mapping->writeback_index updating is not proper?
-> >
-> > I'm not sure which solution is better. but I think your first  
-> > proposal is
-> > enough acceptable.
-> >
-> >
-> > 3. Current wbc->nr_to_write value is not proper?
-> >
-> > Current writeback_set_ratelimit() doesn't permit that  
-> > ratelimit_pages exceed
-> > 4M byte. but it is too low restriction for nowadays.
-> > (that's my understand. right?)
-> >
-> > =======================================================
-> > void writeback_set_ratelimit(void)
-> > {
-> >        ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
-> >        if (ratelimit_pages < 16)
-> >                ratelimit_pages = 16;
-> >        if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
-> >                ratelimit_pages = (4096 * 1024) / PAGE_CACHE_SIZE;
-> > }
-> > =======================================================
-> >
-> > Yes, 4M bytes are pretty magical constant. We have three choice
-> >  A. Remove magical 4M constant simple (a bit danger)
+> If we do in it the way which Christoph recommends, the additional
+> overhead is miniscule?
 > 
-> That's will be outside the xfs, and seems like there is no much interest
-> from mm people.
 
-That's ok. you can join mm people :)
+Yep, it should be. I misinterpreted what you said with doubting the patch's
+utility. The cost as it was was too high rather than the warning itself was
+useless. When moved to free_page_mlock(), patch looks like;
 
+==== CUT HERE ====
+mm: Warn once when a page is freed with PG_mlocked set V3
 
+Changelog since V2
+  o Move warning to free_page_mlock()
+  o Use %#lx instead of 0x%lX in printf format string
 
-> >  B. Decide high border from IO capability
-> 
-> It's not clear to me how to calculate that high border, but again
-> it's outside of the xfs scope, and we don't have much control here.
-> 
-> >  C. Introduce new /proc knob (as Olaf proposed)
-> 
-> We need at least to play with different numbers, and putting the
-> knob (xfs tunable) would be one way to do it. Also, different
-> configurations may need different nr_to_write value.
-> 
-> In either way it seems hackish, but with the knob at least there is
-> some control of it.
+Changelog since V1
+  o Remove unnecessary branch
 
+When a page is freed with the PG_mlocked set, it is considered an unexpected
+but recoverable situation. A counter records how often this event happens
+but it is easy to miss that this event has occured at all. This patch warns
+once when PG_mlocked is set to prompt debuggers to check the counter to
+see how often it is happening.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ mm/page_alloc.c |    5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b8283e8..d3d0707 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -488,6 +488,11 @@ static inline void __free_one_page(struct page *page,
+  */
+ static inline void free_page_mlock(struct page *page)
+ {
++	WARN_ONCE(1, KERN_WARNING
++		"Page flag mlocked set for process %s at pfn:%05lx\n"
++		"page:%p flags:%#lx\n",
++		current->comm, page_to_pfn(page),
++		page, page->flags|__PG_MLOCKED);
+ 	__dec_zone_page_state(page, NR_MLOCK);
+ 	__count_vm_event(UNEVICTABLE_MLOCKFREED);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
