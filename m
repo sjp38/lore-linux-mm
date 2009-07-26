@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AF2FB6B009F
-	for <linux-mm@kvack.org>; Sun, 26 Jul 2009 10:56:13 -0400 (EDT)
-Message-ID: <4A6C6F96.2050207@redhat.com>
-Date: Sun, 26 Jul 2009 18:00:38 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B45816B00A2
+	for <linux-mm@kvack.org>; Sun, 26 Jul 2009 12:01:19 -0400 (EDT)
+Date: Sun, 26 Jul 2009 17:00:54 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
+In-Reply-To: <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0907261639570.32238@sister.anvils>
+References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090722171245.d5b3a108.akpm@linux-foundation.org>
+ <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-References: <a09e4489-a755-46e7-a569-a0751e0fc39f@default> <4A5A1A51.2080301@redhat.com> <4A5A3AC1.5080800@codemonkey.ws> <20090713201745.GA3783@think> <4A5B9B55.6000404@codemonkey.ws> <20090713210112.GC3783@think> <4A5BA451.5070604@codemonkey.ws>
-In-Reply-To: <4A5BA451.5070604@codemonkey.ws>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Anthony Liguori <anthony@codemonkey.ws>
-Cc: Chris Mason <chris.mason@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggin@suse.de, akpm@osdl.org, jeremy@goop.org, xen-devel@lists.xensource.com, tmem-devel@oss.oracle.com, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, kurt.hackel@oracle.com, Rusty Russell <rusty@rustcorp.com.au>, dave.mccracken@oracle.com, Marcelo Tosatti <mtosatti@redhat.com>, sunil.mushran@oracle.com, Schwidefsky <schwidefsky@de.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, avi@redhat.com, torvalds@linux-foundation.org, aarcange@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 07/14/2009 12:17 AM, Anthony Liguori wrote:
-> Chris Mason wrote:
->> On Mon, Jul 13, 2009 at 03:38:45PM -0500, Anthony Liguori wrote:
->>   I'll definitely grant that caching with writethough adds more caching,
->> but it does need trim support before it is similar to tmem.
->
-> I think trim is somewhat orthogonal but even if you do need it, the 
-> nice thing about implementing ATA trim support verses a 
-> paravirtualization is that it works with a wide variety of guests.
->
-> From the perspective of the VMM, it seems like a good thing.
+On Thu, 23 Jul 2009, KAMEZAWA Hiroyuki wrote:
+> On Wed, 22 Jul 2009 17:12:45 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Thu, 23 Jul 2009 08:51:37 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > On Thu, 16 Jul 2009 18:01:34 +0900
+> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > > 
+> > > > Rebased onto  mm-of-the-moment snapshot 2009-07-15-20-57.
+> > > > And modifeied to make vm_normal_page() eat FOLL_NOZERO, directly.
+> > > > 
+> > > > Any comments ?
 
-trim is also lovely in that images will no longer grow monotonously even 
-though guest disk usage is constant or is even reduced.
+Sorry, I've been waiting to have something positive to suggest,
+but today still busy with my own issues (handling OOM in KSM).
 
--- 
-error compiling committee.c: too many arguments to function
+I do dislike that additional argument to vm_normal_page, and
+feel that's a problem to be solved in follow_page, rather
+than spread to every other vm_normal_page user.
+
+Does follow_page even need to be using vm_normal_page?
+Hmm, VM_MIXEDMAP, __get_user_pages doesn't exclude that.
+
+I also feel a strong (but not yet fulfilled) urge to check
+all the use_zero_page ignore_zero stuff: which is far from
+self-evident.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
