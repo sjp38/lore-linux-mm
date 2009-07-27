@@ -1,85 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 84A3F6B00A4
-	for <linux-mm@kvack.org>; Sun, 26 Jul 2009 18:56:11 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6QMuHuo026939
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 27 Jul 2009 07:56:17 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D1C245DE57
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 07:56:17 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C0BFC45DE54
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 07:56:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A2D721DB8042
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 07:56:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B32F1DB803E
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 07:56:16 +0900 (JST)
-Message-ID: <d3f2ef305f8c04aca0d93765a8dde741.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0907261639570.32238@sister.anvils>
-References: <20090709122428.8c2d4232.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090716180134.3393acde.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090723085137.b14fe267.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090722171245.d5b3a108.akpm@linux-foundation.org>
-    <20090723093334.3166e9d2.kamezawa.hiroyu@jp.fujitsu.com>
-    <Pine.LNX.4.64.0907261639570.32238@sister.anvils>
-Date: Mon, 27 Jul 2009 07:56:15 +0900 (JST)
-Subject: Re: [PATCH 0/2] ZERO PAGE again v4.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B32BB6B004D
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 10:35:10 -0400 (EDT)
+Date: Mon, 27 Jul 2009 09:35:07 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: [PATCH] x86, UV: blade-local memory 
+Message-ID: <20090727143507.GA7006@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, npiggin@suse.de, avi@redhat.com, torvalds@linux-foundation.org, aarcange@redhat.com
+To: mingo@elte.hu, tglx@linutronix.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins さんは書きました：
-> On Thu, 23 Jul 2009, KAMEZAWA Hiroyuki wrote:
->> On Wed, 22 Jul 2009 17:12:45 -0700
->> Andrew Morton <akpm@linux-foundation.org> wrote:
->> > On Thu, 23 Jul 2009 08:51:37 +0900
->> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > > On Thu, 16 Jul 2009 18:01:34 +0900
->> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > > >
->> > > > Rebased onto  mm-of-the-moment snapshot 2009-07-15-20-57.
->> > > > And modifeied to make vm_normal_page() eat FOLL_NOZERO, directly.
->> > > >
->> > > > Any comments ?
->
-> Sorry, I've been waiting to have something positive to suggest,
-> but today still busy with my own issues (handling OOM in KSM).
->
-no problems. thank you.
-
-> I do dislike that additional argument to vm_normal_page, and
-> feel that's a problem to be solved in follow_page, rather
-> than spread to every other vm_normal_page user.
->
-Hmm, I'll check whether it's necessary or not agian before v5.
-
-> Does follow_page even need to be using vm_normal_page?
-Avoiding it means follow_page() has to handle pte_special().
-But yes, all vm_normal_page() users other than get_user_page() uses
-__FOLL_NOZERO. I feel it's just "which is cleaner ?" problem.
+UV blades may not have any blade-local memory. Add a field (nid) to the UV
+blade structure to indicates whether the node has local memory.
+This is needed by the GRU driver (pushed separately).
 
 
-> Hmm, VM_MIXEDMAP, __get_user_pages doesn't exclude that.
-> > I also feel a strong (but not yet fulfilled) urge to check
-> all the use_zero_page ignore_zero stuff: which is far from
-> self-evident.
->
-I'll add comment more, in v5 (if vm_normal_page() still have "flags")
+Signed-off-by: Jack Steiner <steiner@sgi.com>
 
-I myself feels I'll have to update this to v6 or v7.
+---
+ arch/x86/include/asm/uv/uv_hub.h   |    7 +++++++
+ arch/x86/kernel/apic/x2apic_uv_x.c |    5 +++++
+ 2 files changed, 12 insertions(+)
 
-Thank you
--Kame
-
+Index: linux/arch/x86/include/asm/uv/uv_hub.h
+===================================================================
+--- linux.orig/arch/x86/include/asm/uv/uv_hub.h	2009-07-23 09:17:15.000000000 -0500
++++ linux/arch/x86/include/asm/uv/uv_hub.h	2009-07-23 09:44:41.000000000 -0500
+@@ -327,6 +327,7 @@ struct uv_blade_info {
+ 	unsigned short	nr_possible_cpus;
+ 	unsigned short	nr_online_cpus;
+ 	unsigned short	pnode;
++	short		memory_nid;
+ };
+ extern struct uv_blade_info *uv_blade_info;
+ extern short *uv_node_to_blade;
+@@ -363,6 +364,12 @@ static inline int uv_blade_to_pnode(int 
+ 	return uv_blade_info[bid].pnode;
+ }
+ 
++/* Nid of memory node on blade. -1 if no blade-local memory */
++static inline int uv_blade_to_memory_nid(int bid)
++{
++	return uv_blade_info[bid].memory_nid;
++}
++
+ /* Determine the number of possible cpus on a blade */
+ static inline int uv_blade_nr_possible_cpus(int bid)
+ {
+Index: linux/arch/x86/kernel/apic/x2apic_uv_x.c
+===================================================================
+--- linux.orig/arch/x86/kernel/apic/x2apic_uv_x.c	2009-07-23 09:17:15.000000000 -0500
++++ linux/arch/x86/kernel/apic/x2apic_uv_x.c	2009-07-23 09:44:41.000000000 -0500
+@@ -592,6 +592,8 @@ void __init uv_system_init(void)
+ 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
+ 	uv_blade_info = kmalloc(bytes, GFP_KERNEL);
+ 	BUG_ON(!uv_blade_info);
++	for (blade = 0; blade < uv_num_possible_blades(); blade++)
++		uv_blade_info[blade].memory_nid = -1;
+ 
+ 	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
+ 
+@@ -630,6 +632,9 @@ void __init uv_system_init(void)
+ 		lcpu = uv_blade_info[blade].nr_possible_cpus;
+ 		uv_blade_info[blade].nr_possible_cpus++;
+ 
++		/* Any node on the blade, else will contain -1. */
++		uv_blade_info[blade].memory_nid = nid;
++
+ 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
+ 		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
+ 		uv_cpu_hub_info(cpu)->m_val = m_val;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
