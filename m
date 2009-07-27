@@ -1,50 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 936B16B0055
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 14:01:06 -0400 (EDT)
-Received: from spaceape13.eur.corp.google.com (spaceape13.eur.corp.google.com [172.28.16.147])
-	by smtp-out.google.com with ESMTP id n6RI0sv8026101
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 11:00:54 -0700
-Received: from wa-out-1112.google.com (wagm34.prod.google.com [10.114.214.34])
-	by spaceape13.eur.corp.google.com with ESMTP id n6RI0o6D031057
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 11:00:51 -0700
-Received: by wa-out-1112.google.com with SMTP id m34so598606wag.30
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2009 11:00:50 -0700 (PDT)
-Date: Mon, 27 Jul 2009 11:00:48 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUG] set_mempolicy(MPOL_INTERLEAV) cause kernel panic
-In-Reply-To: <f39a7fd56408054bebd11e40b7dd4db6.squirrel@webmail-b.css.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0907271056170.8408@chino.kir.corp.google.com>
-References: <20090715182320.39B5.A69D9226@jp.fujitsu.com> <1247679064.4089.26.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0907161257190.31844@chino.kir.corp.google.com> <alpine.DEB.2.00.0907241551070.8573@chino.kir.corp.google.com>
- <20090724160936.a3b8ad29.akpm@linux-foundation.org> <337c5d83954b38b14a17f0adf4d357d8.squirrel@webmail-b.css.fujitsu.com> <5bb65c0e4c6828b1331d33745f34d9ee.squirrel@webmail-b.css.fujitsu.com> <9443f91bd4648e6214b32acff4512b97.squirrel@webmail-b.css.fujitsu.com>
- <2f11576a0907250621w3696fdc0pe61638c8c935c981@mail.gmail.com> <f39a7fd56408054bebd11e40b7dd4db6.squirrel@webmail-b.css.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id ABC546B004D
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 15:11:34 -0400 (EDT)
+Date: Mon, 27 Jul 2009 12:11:13 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+In-Reply-To: <1248310415.3367.22.camel@pasglop>
+Message-ID: <alpine.LFD.2.01.0907271210210.25224@localhost.localdomain>
+References: <20090715074952.A36C7DDDB2@ozlabs.org>  <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop>  <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain> <1248310415.3367.22.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, miaox@cn.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, y-goto@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 25 Jul 2009, KAMEZAWA Hiroyuki wrote:
 
-> This behavior itself is not very bad.
-> And all hotplug thing is just a side story of this bugfix.
+
+On Thu, 23 Jul 2009, Benjamin Herrenschmidt wrote:
 > 
+> Hrm... my powerpc-next branch will contain stuff that depend on it, so
+> I'll probably have to pull it in though, unless I tell all my
+> sub-maintainers to also pull from that other branch first :-)
 
-Right, the original problem that Lee reported doesn't appear to be caused 
-by hotplug.
+Ok, I'll just apply the patch. It does look obvious enough.
 
-> To update nodemask,  user's mask should be saved in the policy
-> even when the mask is not relative and v.node should be calculated
-> again, at event. IIUC, rather than per-policy update by notifer,
-> some new implemenation for policy will be necessary.
-> 
-
-We don't need additional non-default mempolicy support for MEM_ONLINE.  
-It would be inappropriate to store the user nodemask and then hot-add new 
-nodes to mempolicies based on the given node id's when nothing is assumed 
-of its proximity.  It's better left to userspace to update existing 
-mempolicies to use the newly added memory.
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
