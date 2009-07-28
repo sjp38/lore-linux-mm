@@ -1,56 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B93A86B004F
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 15:11:35 -0400 (EDT)
-Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
-	by smtp-out.google.com with ESMTP id n6SJBZqM019319
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 20:11:36 +0100
-Received: from wf-out-1314.google.com (wfg24.prod.google.com [10.142.7.24])
-	by spaceape10.eur.corp.google.com with ESMTP id n6SJBIAF029889
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 12:11:33 -0700
-Received: by wf-out-1314.google.com with SMTP id 24so70539wfg.7
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2009 12:11:32 -0700 (PDT)
-MIME-Version: 1.0
-Date: Tue, 28 Jul 2009 12:11:31 -0700
-Message-ID: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
-Subject: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-From: Chad Talbott <ctalbott@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 721026B004F
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 16:46:49 -0400 (EDT)
+From: Sage Weil <sage@newdream.net>
+Subject: [PATCH] mempool: launder reused items from kzalloc pool
+Date: Tue, 28 Jul 2009 13:46:07 -0700
+Message-Id: <1248813967-27448-1-git-send-email-sage@newdream.net>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, wfg@mail.ustc.edu.cn, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, sandeen@redhat.com
+Cc: Sage Weil <sage@newdream.net>, Neil Brown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I run a simple workload on a 4GB machine which dirties a few largish
-inodes like so:
+The kzalloc pool created by mempool_create_kzalloc_pool() only zeros items
+the first time they are allocated; it doesn't re-zero freed items that are
+returned to the pool.  This only comes up when the pool is used in the
+first place (when memory is very low).
 
-# seq 10 | xargs -P0 -n1 -i\{} dd if=/dev/zero of=/tmp/dump\{}
-bs=1024k count=100
+Fix this by adding a mempool_launder_t method that is called before
+returning items to the pool, and set it in mempool_create_kzalloc_pool.
+This preserves the use of __GFP_ZERO in the common case where the pool
+isn't touched at all.
 
-While the dds are running data is written out at disk speed.  However,
-once the dds have run to completion and exited there is ~500MB of
-dirty memory left.  Background writeout then takes about 3 more
-minutes to clean memory at only ~3.3MB/s.  When I explicitly sync, I
-can see that the disk is capable of 40MB/s, which finishes off the
-files in ~10s. [1]
+There are currently two in-tree users of mempool_create_kzalloc_pool:
+	drivers/md/multipath.c
+	drivers/scsi/ibmvscsi/ibmvfc.c
+The first appears to be affected by this bug.  The second manually zeros
+each allocation, and can stop doing so after this is fixed.
 
-An interesting recent-ish change is "writeback: speed up writeback of
-big dirty files."  When I revert the change to __sync_single_inode the
-problem appears to go away and background writeout proceeds at disk
-speed.  Interestingly, that code is in the git commit [2], but not in
-the post to LKML. [3]  This is may not be the fix, but it makes this
-test behave better.
+Alternatively, mempool_create_kzalloc_pool() could be removed entirely and
+the callers could zero allocations themselves.
 
-Thanks,
-Chad
+CC: Neil Brown <neilb@suse.de>
+CC: <linux-raid@vger.kernel.org>
+CC: <linux-kernel@vger.kernel.org>
+CC: <linux-mm@kvack.org>
+CC: <stable@kernel.org>
+Signed-off-by: Sage Weil <sage@newdream.net>
+---
+ include/linux/mempool.h |   10 ++++++++--
+ mm/mempool.c            |    9 +++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)
 
-[1] I've plotted the dirty memory from /proc/meminfo and disk write
-speed from iostat at
-http://sites.google.com/site/cwtlinux/2-6-31-writeback-bug
-[2] git commit:
-http://mirror.celinuxforum.org/gitstat/commit-detail.php?commit=8bc3be2751b4f74ab90a446da1912fd8204d53f7
-[3] LKML post: http://marc.info/?l=linux-kernel&m=119131601130372&w=2
+diff --git a/include/linux/mempool.h b/include/linux/mempool.h
+index 9be484d..889c7e1 100644
+--- a/include/linux/mempool.h
++++ b/include/linux/mempool.h
+@@ -10,6 +10,7 @@ struct kmem_cache;
+ 
+ typedef void * (mempool_alloc_t)(gfp_t gfp_mask, void *pool_data);
+ typedef void (mempool_free_t)(void *element, void *pool_data);
++typedef void (mempool_launder_t)(void *element, void *pool_data);
+ 
+ typedef struct mempool_s {
+ 	spinlock_t lock;
+@@ -20,6 +21,7 @@ typedef struct mempool_s {
+ 	void *pool_data;
+ 	mempool_alloc_t *alloc;
+ 	mempool_free_t *free;
++	mempool_launder_t *launder;
+ 	wait_queue_head_t wait;
+ } mempool_t;
+ 
+@@ -52,6 +54,7 @@ mempool_create_slab_pool(int min_nr, struct kmem_cache *kc)
+  */
+ void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data);
+ void *mempool_kzalloc(gfp_t gfp_mask, void *pool_data);
++void mempool_rezero(void *element, void *pool_data);
+ void mempool_kfree(void *element, void *pool_data);
+ static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
+ {
+@@ -60,8 +63,11 @@ static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
+ }
+ static inline mempool_t *mempool_create_kzalloc_pool(int min_nr, size_t size)
+ {
+-	return mempool_create(min_nr, mempool_kzalloc, mempool_kfree,
+-			      (void *) size);
++	mempool_t *pool = mempool_create(min_nr, mempool_kzalloc, mempool_kfree,
++					 (void *) size);
++	if (pool)
++		pool->launder = mempool_rezero;
++	return pool;
+ }
+ 
+ /*
+diff --git a/mm/mempool.c b/mm/mempool.c
+index a46eb1b..6bb3056 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -269,6 +269,8 @@ void mempool_free(void *element, mempool_t *pool)
+ 	if (pool->curr_nr < pool->min_nr) {
+ 		spin_lock_irqsave(&pool->lock, flags);
+ 		if (pool->curr_nr < pool->min_nr) {
++			if (pool->launder)
++				pool->launder(element, pool->pool_data);
+ 			add_element(pool, element);
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			wake_up(&pool->wait);
+@@ -315,6 +317,13 @@ void *mempool_kzalloc(gfp_t gfp_mask, void *pool_data)
+ }
+ EXPORT_SYMBOL(mempool_kzalloc);
+ 
++void mempool_rezero(void *element, void *pool_data)
++{
++	size_t size = (size_t) pool_data;
++	memset(element, 0, size);
++}
++EXPORT_SYMBOL(mempool_rezero);
++
+ void mempool_kfree(void *element, void *pool_data)
+ {
+ 	kfree(element);
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
