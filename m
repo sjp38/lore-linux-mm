@@ -1,66 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B19926B004D
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 20:25:24 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E00636B0055
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 20:27:22 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6S0RUgo018187
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 28 Jul 2009 09:27:30 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 02D7745DE4F
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 09:27:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C47A545DE4E
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 09:27:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 77CE11DB8038
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 09:27:29 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2BB31DB803E
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 09:27:28 +0900 (JST)
 Date: Tue, 28 Jul 2009 09:25:29 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: [RFC/PATCH] mm: Pass virtual address to [__]p{te,ud,md}_free_tlb()
-Message-ID: <20090728002529.GB22668@linux-sh.org>
-References: <20090715074952.A36C7DDDB2@ozlabs.org> <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop> <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain> <1248310415.3367.22.camel@pasglop> <alpine.LFD.2.01.0907271210210.25224@localhost.localdomain> <1248740260.30993.26.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1248740260.30993.26.camel@pasglop>
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUG] set_mempolicy(MPOL_INTERLEAV) cause kernel panic
+Message-Id: <20090728092529.bb0d7e9c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0907271710590.27881@chino.kir.corp.google.com>
+References: <20090715182320.39B5.A69D9226@jp.fujitsu.com>
+	<1247679064.4089.26.camel@useless.americas.hpqcorp.net>
+	<alpine.DEB.2.00.0907161257190.31844@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.0907241551070.8573@chino.kir.corp.google.com>
+	<20090724160936.a3b8ad29.akpm@linux-foundation.org>
+	<337c5d83954b38b14a17f0adf4d357d8.squirrel@webmail-b.css.fujitsu.com>
+	<5bb65c0e4c6828b1331d33745f34d9ee.squirrel@webmail-b.css.fujitsu.com>
+	<9443f91bd4648e6214b32acff4512b97.squirrel@webmail-b.css.fujitsu.com>
+	<alpine.DEB.2.00.0907271047590.8408@chino.kir.corp.google.com>
+	<20090728085810.f7ae678a.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.0907271710590.27881@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, ralf <ralf@linux-mips.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, miaox@cn.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, y-goto@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 28, 2009 at 10:17:40AM +1000, Benjamin Herrenschmidt wrote:
-> On Mon, 2009-07-27 at 12:11 -0700, Linus Torvalds wrote:
-> > On Thu, 23 Jul 2009, Benjamin Herrenschmidt wrote:
+On Mon, 27 Jul 2009 17:14:32 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
+
+> On Tue, 28 Jul 2009, KAMEZAWA Hiroyuki wrote:
+> 
+> > > The nodemask for each task is updated to reflect the removal of a node and 
+> > > it calls mpol_rebind_mm() with the new nodemask.
 > > > 
-> > > Hrm... my powerpc-next branch will contain stuff that depend on it, so
-> > > I'll probably have to pull it in though, unless I tell all my
-> > > sub-maintainers to also pull from that other branch first :-)
+> > yes, but _not_ updated at online.
 > > 
-> > Ok, I'll just apply the patch. It does look obvious enough.
 > 
-> There seem to be a MIPS and SH breakage as a result but I can't see
-> how my patch would have broken it, ie, it looks like the bug was
-> already in those two archs. The error is that it complains about a
-> duplicate definition of __pmd_free_tlb() between those arch pgalloc.h
-> and pgtable-nopmd.h
+> Well, I disagreed that we needed to alter any pre-existing mempolicies for 
+> MEM_GOING_ONLINE or MEM_ONLINE since it may diverge from the original 
+> intent of the policy.  MPOL_PREFERRED certain shouldn't change, 
+> MPOL_INTERLEAVE would be unbalanced, and MPOL_BIND could diverge from 
+> memory isolation or affinity requirements.
 > 
-> For MIPS, when CONFIG_32BIT is set, asm/pgalloc.h redefines
-> __pmd_free_tlb despite the fact that it's already defined by
-> asm-generic/pgtable-nopmd.h (via via pgtable.h via linux/mm.h).
+> I'd be interested to hear any real world use cases for MEM_ONLINE updating 
+> of mempolicies.
 > 
-> I -suspect- what happens is that the compiler, before, would ignore the
-> double definition (or maybe just warn) due to the definition being
-> strictly identical. With the new argument added, it's no longer the case
-> as it's called "a" in asm-generic and "addr" in mips... oops.
-> 
-> In any case, can Ralf and Paul check if the following patch is correct ?
-> 
-Yup, that seems to be what happened. I've never seen a warning about this
-with any compiler version, otherwise we would have caught this much
-earlier. As soon as the addr -> a rename took place it blew up
-immediately as a redefinition. Is there a magical gcc flag we can turn on
-to warn on identical definitions, even if just for testing?
+Sorry, I was a bit condused. I thought I said about task->mems_allowed.
+Not each policy.
 
-> >From 41928c7945d855ae0eb053eadad590ab6876847e Mon Sep 17 00:00:00 2001
-> From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Date: Tue, 28 Jul 2009 10:16:48 +1000
-> Subject: [PATCH] mm: Remove duplicate definitions in MIPS and SH
-> 
-> Those definitions are already provided by asm-generic
-> 
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Because we dont' update, task->mems_allowed need to be initilaized as
+N_POSSIBLE_NODES. At usual thinking,  it should be N_HIGH_MEMORY or
+N_ONLINE_NODES, as my patch does.
 
-Builds and boots fine, thanks.
+> > What I felt at reading cpuset/mempolicy again is that it's too complex ;)
+> > The 1st question is why mems_allowed which can be 1024bytes when max_node=4096
+> > is copied per tasks....
+> 
+> The page allocator needs lockless access to mems_allowed.
+> 
+Hmm, ok, I'll take care of that. 
 
-Acked-by: Paul Mundt <lethal@linux-sh.org>
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
