@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 217DE6B0055
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 20:38:39 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id n6S0caXA001939
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 01:38:37 +0100
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by wpaz17.hot.corp.google.com with ESMTP id n6S0cLSs018120
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 17:38:34 -0700
-Received: by pzk37 with SMTP id 37so2370542pzk.24
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2009 17:38:34 -0700 (PDT)
-Date: Mon, 27 Jul 2009 17:38:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUG] set_mempolicy(MPOL_INTERLEAV) cause kernel panic
-In-Reply-To: <20090728092529.bb0d7e9c.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0907271731040.29815@chino.kir.corp.google.com>
-References: <20090715182320.39B5.A69D9226@jp.fujitsu.com> <1247679064.4089.26.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0907161257190.31844@chino.kir.corp.google.com> <alpine.DEB.2.00.0907241551070.8573@chino.kir.corp.google.com>
- <20090724160936.a3b8ad29.akpm@linux-foundation.org> <337c5d83954b38b14a17f0adf4d357d8.squirrel@webmail-b.css.fujitsu.com> <5bb65c0e4c6828b1331d33745f34d9ee.squirrel@webmail-b.css.fujitsu.com> <9443f91bd4648e6214b32acff4512b97.squirrel@webmail-b.css.fujitsu.com>
- <alpine.DEB.2.00.0907271047590.8408@chino.kir.corp.google.com> <20090728085810.f7ae678a.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.0907271710590.27881@chino.kir.corp.google.com> <20090728092529.bb0d7e9c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C7F56B0055
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2009 20:41:40 -0400 (EDT)
+Date: Mon, 27 Jul 2009 17:41:38 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC/PATCH] mm: Pass virtual address to
+ [__]p{te,ud,md}_free_tlb()
+In-Reply-To: <20090728002529.GB22668@linux-sh.org>
+Message-ID: <alpine.LFD.2.01.0907271727220.3186@localhost.localdomain>
+References: <20090715074952.A36C7DDDB2@ozlabs.org> <20090715135620.GD7298@wotan.suse.de> <1248073873.13067.31.camel@pasglop> <alpine.LFD.2.01.0907220930320.19335@localhost.localdomain> <1248310415.3367.22.camel@pasglop> <alpine.LFD.2.01.0907271210210.25224@localhost.localdomain>
+ <1248740260.30993.26.camel@pasglop> <20090728002529.GB22668@linux-sh.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, miaox@cn.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, y-goto@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul Mundt <lethal@linux-sh.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <npiggin@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Hugh Dickins <hugh@tiscali.co.uk>, ralf <ralf@linux-mips.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Jul 2009, KAMEZAWA Hiroyuki wrote:
 
-> Because we dont' update, task->mems_allowed need to be initilaized as
-> N_POSSIBLE_NODES. At usual thinking,  it should be N_HIGH_MEMORY or
-> N_ONLINE_NODES, as my patch does.
-> 
 
-On MEM_OFFLINE, cpusets calls scan_for_empty_cpusets() which will 
-intersect each system cpuset's mems_allowed with N_HIGH_MEMORY.  It then 
-calls update_tasks_nodemask() which will update task->mems_allowed for 
-each task assigned to those cpusets.  This has a callback into the 
-mempolicy code to rebind the policy with the new mems.
+On Tue, 28 Jul 2009, Paul Mundt wrote:
+>
+> Yup, that seems to be what happened. I've never seen a warning about this
+> with any compiler version, otherwise we would have caught this much
+> earlier. As soon as the addr -> a rename took place it blew up
+> immediately as a redefinition. Is there a magical gcc flag we can turn on
+> to warn on identical definitions, even if just for testing?
 
-So there's no apparent issue with memory hotplug in dealing with cpuset 
-mems, although I suggested that this be done for MEM_GOING_OFFLINE instead 
-of waiting until the mem is actually offline.
+No, this is actually defined C behavior - identical macro redefinitions 
+are ok. That's very much on purpose, and allows different header files to 
+use an identical #define to define some common macro.
 
-The problem originally reported here doesn't appear to have anything to do 
-with hotplug, it looks like it is the result of Lee's observation that 
-ia64 defaults top_cpuset's mems to N_POSSIBLE, which _should_ have been 
-updated by cpuset_init_smp().  So it makes me believe that N_HIGH_MEMORY 
-isn't actually ready by the time do_basic_setup() is called to be useful.
+Strictly speaking, this is a "safety feature", in that you obviously 
+_could_ just always do a #undef+#define, but such a case would be able to 
+redefine a macro even if the new definition didn't match the old one. So 
+the C pre-processor rules is that you can safely re-define something if 
+you re-define it identically.
+
+Of course, we could make the rules for the kernel be stricter, but I don't 
+know if there are any flags to warn about it, since it's such a standard C 
+feature: the lack of warning is _not_ an accident.
+
+It would be trivial to teach sparse to warn about it, of course. Look at 
+sparse/pre-process.c, function do_handle_define(). Notice how it literally 
+checks that any previous #define is identical in both expansion and 
+argument list, with:
+
+		if (token_list_different(sym->expansion, expansion) ||
+		    token_list_different(sym->arglist, arglist)) {
+
+and just make token_list_different() always return true (this is the only 
+use of that function).
+
+I haven't checked if such a change would actually result in a lot of 
+warnings.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
