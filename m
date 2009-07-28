@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B275A6B004D
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 03:39:16 -0400 (EDT)
-Subject: Re: [PATCH] mm: Make it easier to catch NULL cache names
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.DEB.2.00.0907272200520.22207@chino.kir.corp.google.com>
-References: <1248745735.30993.38.camel@pasglop>
-	 <alpine.LFD.2.01.0907271951390.3186@localhost.localdomain>
-	 <1248749739.30993.39.camel@pasglop>
-	 <alpine.DEB.2.00.0907272200520.22207@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Tue, 28 Jul 2009 17:39:10 +1000
-Message-Id: <1248766750.30993.51.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 18E796B004D
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 04:52:10 -0400 (EDT)
+Subject: Re: [BUGFIX] set_mempolicy(MPOL_INTERLEAV) N_HIGH_MEMORY aware
+From: Andi Kleen <andi@firstfloor.org>
+References: <20090715182320.39B5.A69D9226@jp.fujitsu.com>
+	<20090728161813.f2fefd29.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 28 Jul 2009 10:52:10 +0200
+In-Reply-To: <20090728161813.f2fefd29.kamezawa.hiroyu@jp.fujitsu.com> (KAMEZAWA Hiroyuki's message of "Tue, 28 Jul 2009 16:18:13 +0900")
+Message-ID: <877hxti405.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Miao Xie <miaox@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, Paul Menage <menage@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Yasunori Goto <y-goto@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-07-27 at 22:01 -0700, David Rientjes wrote:
-> On Tue, 28 Jul 2009, Benjamin Herrenschmidt wrote:
-> 
-> > > Please don't do BUG_ON() when there are alternatives.
-> > > 
-> > > In this case, something like
-> > > 
-> > > 	if (WARN_ON(!name))
-> > > 		return NULL;
-> > > 
-> > > would probably have worked too.
-> > 
-> > Fair enough..  I'll send a new patch.
-> > 
-> 
-> Actually needs goto err, not return NULL, to appropriately panic when 
-> SLAB_PANIC is set.
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
-Rats ! Why is it the trivial ones that are sooo hard :-)
+> tested on x86-64/fake NUMA and ia64/NUMA.
+> (That ia64 is a host which orignal bug report used.)
+>
+> Maybe this is bigger patch than expected, but NODEMASK_ALLOC() will be a way
+> to go, anyway. (even if CPUMASK_ALLOC is not used anyware yet..)
+> Kosaki tested this on ia64 NUMA. thanks.
 
-New patch will have to wait til tomorrow, on my way home now.
+Note that low/high memory support in NUMA policy is only partial
+anyways, e.g. the VMA based policy only supports a single zone. That
+was by design choice and because NUMA has a lot of issues on 32bit due
+to the limited address space and is not widely used.
 
-Cheers,
-Ben.
+So small fixes are ok but I wouldn't go to large effort to fix NUMA
+policy on 32bit.
 
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
