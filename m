@@ -1,98 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 43CBD6B004F
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 01:55:52 -0400 (EDT)
-Subject: Re: [PATCH] mm: Make it easier to catch NULL cache names
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090728170632.2d136ce6.akpm@linux-foundation.org>
-References: <1248754289.30993.45.camel@pasglop>
-	 <20090728170632.2d136ce6.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 29 Jul 2009 15:55:46 +1000
-Message-Id: <1248846946.17395.59.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 056426B004F
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 03:15:52 -0400 (EDT)
+Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
+	by smtp-out.google.com with ESMTP id n6T7Fr5Q011135
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 08:15:54 +0100
+Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
+	by spaceape11.eur.corp.google.com with ESMTP id n6T7FnlG005418
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 00:15:50 -0700
+Received: by pzk41 with SMTP id 41so392141pzk.30
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2009 00:15:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com>
+References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
+	 <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com>
+Date: Wed, 29 Jul 2009 00:15:48 -0700
+Message-ID: <33307c790907290015m1e6b5666x9c0014cdaf5ed08@mail.gmail.com>
+Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
+From: Martin Bligh <mbligh@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Chad Talbott <ctalbott@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, sandeen@redhat.com, Michael Davidson <md@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-07-28 at 17:06 -0700, Andrew Morton wrote:
-> On Tue, 28 Jul 2009 14:11:29 +1000
-> Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-> 
-> > Right now, if you inadvertently pass NULL to kmem_cache_create() at boot
-> > time, it crashes much later after boot somewhere deep inside sysfs which
-> > makes it very non obvious to figure out what's going on.
-> 
-> That must have been a pretty dumb piece of kernel code.  It's a bit
-> questionable (IMO) whether we need to cater for really exceptional
-> bugs.  But whatever.
+On Tue, Jul 28, 2009 at 2:49 PM, Martin Bligh<mbligh@google.com> wrote:
+>> An interesting recent-ish change is "writeback: speed up writeback of
+>> big dirty files." =A0When I revert the change to __sync_single_inode the
+>> problem appears to go away and background writeout proceeds at disk
+>> speed. =A0Interestingly, that code is in the git commit [2], but not in
+>> the post to LKML. [3] =A0This is may not be the fix, but it makes this
+>> test behave better.
+>
+> I'm fairly sure this is not fixing the root cause - but putting it at the=
+ head
+> rather than the tail of the queue causes the error not to starve wb_kupda=
+te
+> for nearly so long - as long as we keep the queue full, the bug is hidden=
+.
 
- :-)
+OK, it seems this is the root cause - I wasn't clear why all the pages were=
+n't
+being written back, and thought there was another bug. What happens is
+we go into write_cache_pages, and stuff the disk queue with as much as
+we can put into it, and then inevitably hit the congestion limit.
 
-It was an array of caches created from something like an enum and the
-array of names got out of sync :-)
+Then we back out to __sync_single_inode, who says "huh, you didn't manage
+to write your whole slice", and penalizes the poor blameless inode in quest=
+ion
+by putting it back into the penalty box for 30s.
 
-> slab used to have a check (__get_user) to see whether the ->name field
-> was still readable.  This was to detect the case where the slab cache
-> was created from a kernel module and the module forgot to remove the
-> cache at rmmod-time.  Subsequent reads of /proc/slabinfo would
-> confusingly go splat.  The check seems to have been removed (from
-> slab.c, at least).  If it is still there then it should be applied
-> consistently and across all slab versions.  In which case that check
-> would make your patch arguably-unneeded.  But it seems to have got
-> itself zapped.
+This results in very lumpy I/O writeback at 5s intervals, and very
+poor throughput.
 
-That sounds like a better idea. However, it looks like we create sysfs
-things and pass that pointer down to sysfs nowadays, so that's going to
-blow up somewhere in the guts of sysfs unless we duplicate the string.
+Patch below is inline and probably text munged, but is for RFC only.
+I'll test it
+more thoroughly tomorrow. As for the comment about starving other writes,
+I believe requeue_io moves it from s_io to s_more_io which should at least
+allow some progress of other files.
 
-The advantage of duplicating the string would also be that we could
-blow up right away if it's NULL :-)
-
-Cheers,
-Ben.
-
-> > Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> > ---
-> > 
-> > Yes, I did hit that :-) Something in ppc land using an array of caches
-> > and got the names array out of sync with changes to the list of indices.
-> > 
-> >  mm/slub.c |    3 +++
-> >  1 files changed, 3 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index b9f1491..e31fbe6 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -3292,6 +3292,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
-> >  {
-> >  	struct kmem_cache *s;
-> >  
-> > +	if (WARN_ON(!name))
-> > +		return NULL;
-> > +
-> >  	down_write(&slub_lock);
-> >  	s = find_mergeable(size, align, flags, name, ctor);
-> >  	if (s) {
-> 
-> Let's see:
-> 
-> slab.c: goes BUG
-> slob.c: will apparently go oops at some later time
-> slqb.c: does dump_stack(), returns NULL from kmem_cache_create()
-> slub.c: does WARN(), returns NULL from kmem_cache_create()
-> 
-> 
-> I think I'll apply the patch, cc Pekka then run away.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--- linux-2.6.30/fs/fs-writeback.c.old  2009-07-29 00:08:29.000000000 -0700
++++ linux-2.6.30/fs/fs-writeback.c      2009-07-29 00:11:28.000000000 -0700
+@@ -322,46 +322,11 @@ __sync_single_inode(struct inode *inode,
+                        /*
+                         * We didn't write back all the pages.  nfs_writepa=
+ges()
+                         * sometimes bales out without doing anything. Redi=
+rty
+-                        * the inode; Move it from s_io onto s_more_io/s_di=
+rty.
++                        * the inode; Move it from s_io onto s_more_io. It
++                        * may well have just encountered congestion
+                         */
+-                       /*
+-                        * akpm: if the caller was the kupdate function we =
+put
+-                        * this inode at the head of s_dirty so it gets fir=
+st
+-                        * consideration.  Otherwise, move it to the tail, =
+for
+-                        * the reasons described there.  I'm not really sur=
+e
+-                        * how much sense this makes.  Presumably I had a g=
+ood
+-                        * reasons for doing it this way, and I'd rather no=
+t
+-                        * muck with it at present.
+-                        */
+-                       if (wbc->for_kupdate) {
+-                               /*
+-                                * For the kupdate function we move the ino=
+de
+-                                * to s_more_io so it will get more writeou=
+t as
+-                                * soon as the queue becomes uncongested.
+-                                */
+-                               inode->i_state |=3D I_DIRTY_PAGES;
+-                               if (wbc->nr_to_write <=3D 0) {
+-                                       /*
+-                                        * slice used up: queue for next tu=
+rn
+-                                        */
+-                                       requeue_io(inode);
+-                               } else {
+-                                       /*
+-                                        * somehow blocked: retry later
+-                                        */
+-                                       redirty_tail(inode);
+-                               }
+-                       } else {
+-                               /*
+-                                * Otherwise fully redirty the inode so tha=
+t
+-                                * other inodes on this superblock will get=
+ some
+-                                * writeout.  Otherwise heavy writing to on=
+e
+-                                * file would indefinitely suspend writeout=
+ of
+-                                * all the other files.
+-                                */
+-                               inode->i_state |=3D I_DIRTY_PAGES;
+-                               redirty_tail(inode);
+-                       }
++                       inode->i_state |=3D I_DIRTY_PAGES;
++                       requeue_io(inode);
+                } else if (inode->i_state & I_DIRTY) {
+                        /*
+                         * Someone redirtied the inode while were writing b=
+ack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
