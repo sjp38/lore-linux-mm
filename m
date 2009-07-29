@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 609606B00A6
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 17:18:43 -0400 (EDT)
-Date: Wed, 29 Jul 2009 23:18:45 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
-Message-ID: <20090729211845.GB4148@kernel.dk>
-References: <20090729161456.GB8059@barkeeper1-xen.linbit>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090729161456.GB8059@barkeeper1-xen.linbit>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB426B00AC
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 19:13:44 -0400 (EDT)
+Date: Wed, 29 Jul 2009 16:13:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+Message-Id: <20090729161341.269b90e3.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lars Ellenberg <lars.ellenberg@linbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
+To: David Rientjes <rientjes@google.com>
+Cc: riel@redhat.com, menage@google.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 29 2009, Lars Ellenberg wrote:
-> I naively assumed, from the "readahead" in the name, that readahead
-> would be submitting READA bios. It does not.
-> 
-> I recently did some statistics on how many READ and READA requests
-> we actually see on the block device level.
-> I was suprised that READA is basically only used for file system
-> internal meta data (and not even for all file systems),
-> but _never_ for file data.
-> 
-> A simple
-> 	dd if=bigfile of=/dev/null bs=4k count=1
-> will absolutely cause readahead of the configured amount, no problem.
-> But on the block device level, these are READ requests, where I'd
-> expected them to be READA requests, based on the name.
-> 
-> This is because __do_page_cache_readahead() calls read_pages(),
-> which in turn is mapping->a_ops->readpages(), or, as fallback,
-> mapping->a_ops->readpage().
-> 
-> On that level, all variants end up submitting as READ.
-> 
-> This may even be intentional.
-> But if so, I'd like to understand that.
+On Tue, 28 Jul 2009 21:27:15 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-I don't think it's intentional, and if memory serves, we used to use
-READA when submitting read-ahead. Not sure how best to improve the
-situation, since (as you describe), we lose the read-ahead vs normal
-read at that level. I did some experimentation some time ago for
-flagging this, see:
+> +static ssize_t oom_adj_child_write(struct file *file, const char __user *buf,
+> +				size_t count, loff_t *ppos)
+> +{
+> +	struct task_struct *task;
+> +	char buffer[PROC_NUMBUF], *end;
+> +	int oom_adj_child;
+> +
+> +	memset(buffer, 0, sizeof(buffer));
+> +	if (count > sizeof(buffer) - 1)
+> +		count = sizeof(buffer) - 1;
+> +	if (copy_from_user(buffer, buf, count))
+> +		return -EFAULT;
+> +	oom_adj_child = simple_strtol(buffer, &end, 0);
+> +	if ((oom_adj_child < OOM_ADJUST_MIN ||
+> +	     oom_adj_child > OOM_ADJUST_MAX) && oom_adj_child != OOM_DISABLE)
+> +		return -EINVAL;
+> +	if (*end == '\n')
+> +		end++;
+> +	task = get_proc_task(file->f_path.dentry->d_inode);
+> +	if (!task)
+> +		return -ESRCH;
+> +	task_lock(task);
+> +	if (task->mm && oom_adj_child < task->mm->oom_adj &&
+> +	    !capable(CAP_SYS_RESOURCE)) {
+> +		task_unlock(task);
+> +		put_task_struct(task);
+> +		return -EINVAL;
+> +	}
+> +	task_unlock(task);
+> +	task->oom_adj_child = oom_adj_child;
+> +	put_task_struct(task);
+> +	if (end - buffer == 0)
+> +		return -EIO;
+> +	return end - buffer;
+> +}
 
-http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
+Do we really need to do all that string hacking?  All it does is reads
+a plain old integer from userspace.
 
-which should pass down READA properly.
+It's weird that the obfuscated check for zero-length input happens
+right at the end of the function, particularly as we couldn't have got
+that far anyway, because we'd already have returned -EINVAL.
 
--- 
-Jens Axboe
+And even after all that, I suspect the function will permit illogical
+input such as "12foo" - which is what strict_strtoul() is for (as
+checkpatch points out!).
+
+
+
+grumble.  At how many codesites do we read an ascii integer from
+userspace?  Thousands, surely.  You'd think we'd have a little function
+to do it by now.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
