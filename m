@@ -1,58 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD2F6B005C
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 13:52:35 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D9806B0062
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 13:52:42 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Wed, 29 Jul 2009 13:54:50 -0400
-Message-Id: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
-Subject: [PATCH 0/4] hugetlb: V3 constrain allocation/free based on task mempolicy
+Date: Wed, 29 Jul 2009 13:54:58 -0400
+Message-Id: <20090729175458.23681.4421.sendpatchset@localhost.localdomain>
+In-Reply-To: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
+References: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
+Subject: [PATCH 1/4] hugetlb:  rework hstate_next_node_* functions
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-PATCH 0/4 hugetlb: constrain allocation/free based on task mempolicy
+[PATCH 1/4] hugetlb:  rework hstate_next_node* functions
 
-I'm sending these out again, slightly revised, for comparison
-with a 3rd alternative for controlling where persistent huge
-pages are allocated which I'll send out as a separate series.
-
-Against:  2.6.31-rc3-mmotm-090716-1432
-atop previously submitted "alloc_bootmem_huge_pages() fix"
+Against: 2.6.31-rc3-mmotm-090716-1432
+atop the alloc_bootmem_huge_page() fix patch
 [http://marc.info/?l=linux-mm&m=124775468226290&w=4]
 
-This is V3 of a series of patches to constrain the allocation and
-freeing of persistent huge pages using the task NUMA mempolicy of
-the task modifying "nr_hugepages".  This series is based on Mel
-Gorman's suggestion to use task mempolicy.  One of the benefits
-of this method is that it does not *require* modification to
-hugeadm(8) to use this feature.
+V2:
++ cleaned up comments, removed some deemed unnecessary,
+  add some suggested by review
++ removed check for !current in huge_mpol_nodes_allowed().
++ added 'current->comm' to warning message in huge_mpol_nodes_allowed().
++ added VM_BUG_ON() assertion in hugetlb.c next_node_allowed() to
+  catch out of range node id.
++ add examples to patch description
 
-V3 factors the "rework" of the hstate_next_node_to_{alloc|free}
-functions out of the patch to derive huge pages nodes_allowed
-from mempolicy, and moves it before the patch to add nodemasks
-to the alloc/free functions.  See patch patch 1/4.
+V3:
++ factored this "cleanup" patch out of V2 patch 2/3
++ moved ahead of patch to add nodes_allowed mask to alloc funcs
+  as this patch is somewhat independent from using task mempolicy
+  to control huge page allocation and freeing.
 
-A couple of limitations [still] in this version:
+Modify the hstate_next_node* functions to allow them to be called to
+obtain the "start_nid".  Then, whereas prior to this patch we
+unconditionally called hstate_next_node_to_{alloc|free}(), whether
+or not we successfully allocated/freed a huge page on the node,
+now we only call these functions on failure to alloc/free.
 
-1) I haven't implemented a boot time parameter to constrain the
-   boot time allocation of huge pages.  This can be added if
-   anyone feels strongly that it is required.
+Factor out the next_node_allowed() function to handle wrap at end
+of node_online_map.  In this version, the allowed nodes are all 
+of the online nodes.
 
-2) I have not implemented a per node nr_overcommit_hugepages as
-   David Rientjes and I discussed earlier.  Again, this can be
-   added and specific nodes can be addressed using the mempolicy
-   as this series does for allocation and free.  However, after
-   some experience with the libhugetlbfs test suite, specifically
-   attempting to run the test suite constrained by mempolicy and
-   a cpuset, I'm thinking that per node overcommit limits might
-   not be such a good idea.  This would require an application
-   [or the library] to sum the per node limits over the allowed
-   nodes and possibly compare to global limits to determine the
-   available resources.  Per cpuset limits might work better.
-   This are requires more investigation, but this patch series
-   doesn't seem to make things worse than they already are in
-   this regard.
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ mm/hugetlb.c |   70 +++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 45 insertions(+), 25 deletions(-)
+
+Index: linux-2.6.31-rc3-mmotm-090716-1432/mm/hugetlb.c
+===================================================================
+--- linux-2.6.31-rc3-mmotm-090716-1432.orig/mm/hugetlb.c	2009-07-22 15:42:46.000000000 -0400
++++ linux-2.6.31-rc3-mmotm-090716-1432/mm/hugetlb.c	2009-07-22 15:42:48.000000000 -0400
+@@ -622,6 +622,20 @@ static struct page *alloc_fresh_huge_pag
+ }
+ 
+ /*
++ * common helper function for hstate_next_node_to_{alloc|free}.
++ * return next node in node_online_map, wrapping at end.
++ */
++static int next_node_allowed(int nid)
++{
++	nid = next_node(nid, node_online_map);
++	if (nid == MAX_NUMNODES)
++		nid = first_node(node_online_map);
++	VM_BUG_ON(nid >= MAX_NUMNODES);
++
++	return nid;
++}
++
++/*
+  * Use a helper variable to find the next node and then
+  * copy it back to next_nid_to_alloc afterwards:
+  * otherwise there's a window in which a racer might
+@@ -634,12 +648,12 @@ static struct page *alloc_fresh_huge_pag
+  */
+ static int hstate_next_node_to_alloc(struct hstate *h)
+ {
+-	int next_nid;
+-	next_nid = next_node(h->next_nid_to_alloc, node_online_map);
+-	if (next_nid == MAX_NUMNODES)
+-		next_nid = first_node(node_online_map);
++	int nid, next_nid;
++
++	nid = h->next_nid_to_alloc;
++	next_nid = next_node_allowed(nid);
+ 	h->next_nid_to_alloc = next_nid;
+-	return next_nid;
++	return nid;
+ }
+ 
+ static int alloc_fresh_huge_page(struct hstate *h)
+@@ -649,15 +663,17 @@ static int alloc_fresh_huge_page(struct 
+ 	int next_nid;
+ 	int ret = 0;
+ 
+-	start_nid = h->next_nid_to_alloc;
++	start_nid = hstate_next_node_to_alloc(h);
+ 	next_nid = start_nid;
+ 
+ 	do {
+ 		page = alloc_fresh_huge_page_node(h, next_nid);
+-		if (page)
++		if (page) {
+ 			ret = 1;
++			break;
++		}
+ 		next_nid = hstate_next_node_to_alloc(h);
+-	} while (!page && next_nid != start_nid);
++	} while (next_nid != start_nid);
+ 
+ 	if (ret)
+ 		count_vm_event(HTLB_BUDDY_PGALLOC);
+@@ -668,17 +684,19 @@ static int alloc_fresh_huge_page(struct 
+ }
+ 
+ /*
+- * helper for free_pool_huge_page() - find next node
+- * from which to free a huge page
++ * helper for free_pool_huge_page() - return the next node
++ * from which to free a huge page.  Advance the next node id
++ * whether or not we find a free huge page to free so that the
++ * next attempt to free addresses the next node.
+  */
+ static int hstate_next_node_to_free(struct hstate *h)
+ {
+-	int next_nid;
+-	next_nid = next_node(h->next_nid_to_free, node_online_map);
+-	if (next_nid == MAX_NUMNODES)
+-		next_nid = first_node(node_online_map);
++	int nid, next_nid;
++
++	nid = h->next_nid_to_free;
++	next_nid = next_node_allowed(nid);
+ 	h->next_nid_to_free = next_nid;
+-	return next_nid;
++	return nid;
+ }
+ 
+ /*
+@@ -693,7 +711,7 @@ static int free_pool_huge_page(struct hs
+ 	int next_nid;
+ 	int ret = 0;
+ 
+-	start_nid = h->next_nid_to_free;
++	start_nid = hstate_next_node_to_free(h);
+ 	next_nid = start_nid;
+ 
+ 	do {
+@@ -715,9 +733,10 @@ static int free_pool_huge_page(struct hs
+ 			}
+ 			update_and_free_page(h, page);
+ 			ret = 1;
++			break;
+ 		}
+ 		next_nid = hstate_next_node_to_free(h);
+-	} while (!ret && next_nid != start_nid);
++	} while (next_nid != start_nid);
+ 
+ 	return ret;
+ }
+@@ -1028,10 +1047,9 @@ int __weak alloc_bootmem_huge_page(struc
+ 		void *addr;
+ 
+ 		addr = __alloc_bootmem_node_nopanic(
+-				NODE_DATA(h->next_nid_to_alloc),
++				NODE_DATA(hstate_next_node_to_alloc(h)),
+ 				huge_page_size(h), huge_page_size(h), 0);
+ 
+-		hstate_next_node_to_alloc(h);
+ 		if (addr) {
+ 			/*
+ 			 * Use the beginning of the huge page to store the
+@@ -1167,29 +1185,31 @@ static int adjust_pool_surplus(struct hs
+ 	VM_BUG_ON(delta != -1 && delta != 1);
+ 
+ 	if (delta < 0)
+-		start_nid = h->next_nid_to_alloc;
++		start_nid = hstate_next_node_to_alloc(h);
+ 	else
+-		start_nid = h->next_nid_to_free;
++		start_nid = hstate_next_node_to_free(h);
+ 	next_nid = start_nid;
+ 
+ 	do {
+ 		int nid = next_nid;
+ 		if (delta < 0)  {
+-			next_nid = hstate_next_node_to_alloc(h);
+ 			/*
+ 			 * To shrink on this node, there must be a surplus page
+ 			 */
+-			if (!h->surplus_huge_pages_node[nid])
++			if (!h->surplus_huge_pages_node[nid]) {
++				next_nid = hstate_next_node_to_alloc(h);
+ 				continue;
++			}
+ 		}
+ 		if (delta > 0) {
+-			next_nid = hstate_next_node_to_free(h);
+ 			/*
+ 			 * Surplus cannot exceed the total number of pages
+ 			 */
+ 			if (h->surplus_huge_pages_node[nid] >=
+-						h->nr_huge_pages_node[nid])
++						h->nr_huge_pages_node[nid]) {
++				next_nid = hstate_next_node_to_free(h);
+ 				continue;
++			}
+ 		}
+ 
+ 		h->surplus_huge_pages += delta;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
