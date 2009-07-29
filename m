@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE7D6B00AE
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 19:25:21 -0400 (EDT)
-Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
-	by smtp-out.google.com with ESMTP id n6TNPPrV007298
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:25:26 +0100
-Received: from yxe28 (yxe28.prod.google.com [10.190.2.28])
-	by spaceape7.eur.corp.google.com with ESMTP id n6TNPM7V012292
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 16:25:23 -0700
-Received: by yxe28 with SMTP id 28so2088321yxe.10
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2009 16:25:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8309C6B00AF
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 19:35:21 -0400 (EDT)
+Date: Wed, 29 Jul 2009 18:55:01 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
+Message-ID: <20090729225501.GH24801@think>
+References: <20090729161456.GB8059@barkeeper1-xen.linbit>
+ <20090729211845.GB4148@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <20090729161341.269b90e3.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
-	 <20090729161341.269b90e3.akpm@linux-foundation.org>
-Date: Wed, 29 Jul 2009 16:25:22 -0700
-Message-ID: <6599ad830907291625k697f17d3h87d054d796c59407@mail.gmail.com>
-Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090729211845.GB4148@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 29, 2009 at 4:13 PM, Andrew Morton<akpm@linux-foundation.org> w=
-rote:
->
-> Do we really need to do all that string hacking? =A0All it does is reads
-> a plain old integer from userspace.
+On Wed, Jul 29, 2009 at 11:18:45PM +0200, Jens Axboe wrote:
+> On Wed, Jul 29 2009, Lars Ellenberg wrote:
+> > I naively assumed, from the "readahead" in the name, that readahead
+> > would be submitting READA bios. It does not.
+> > 
+> > I recently did some statistics on how many READ and READA requests
+> > we actually see on the block device level.
+> > I was suprised that READA is basically only used for file system
+> > internal meta data (and not even for all file systems),
+> > but _never_ for file data.
+> > 
+> > A simple
+> > 	dd if=bigfile of=/dev/null bs=4k count=1
+> > will absolutely cause readahead of the configured amount, no problem.
+> > But on the block device level, these are READ requests, where I'd
+> > expected them to be READA requests, based on the name.
+> > 
+> > This is because __do_page_cache_readahead() calls read_pages(),
+> > which in turn is mapping->a_ops->readpages(), or, as fallback,
+> > mapping->a_ops->readpage().
+> > 
+> > On that level, all variants end up submitting as READ.
+> > 
+> > This may even be intentional.
+> > But if so, I'd like to understand that.
+> 
+> I don't think it's intentional, and if memory serves, we used to use
+> READA when submitting read-ahead. Not sure how best to improve the
+> situation, since (as you describe), we lose the read-ahead vs normal
+> read at that level. I did some experimentation some time ago for
+> flagging this, see:
+> 
+> http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
+> 
+> which should pass down READA properly.
 
-It would be nice to have the equivalent of the cgroupfs read_u64 and
-write_u64 methods, where you just supply a function that
-accepts/returns the appropriate value, and all the buffer munging is
-done in the generic code.
+One of the problems in the past was that reada would fail if there
+wasn't a free request when we actually wanted it to go ahead and wait.
+Or something.  We've switched it around a few times I think.
 
-Paul
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
