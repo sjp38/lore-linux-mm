@@ -1,42 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4F56B004F
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 17:49:43 -0400 (EDT)
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id n6SLngR2027739
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 22:49:43 +0100
-Received: from wf-out-1314.google.com (wff28.prod.google.com [10.142.6.28])
-	by spaceape9.eur.corp.google.com with ESMTP id n6SLnd0D011570
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 14:49:40 -0700
-Received: by wf-out-1314.google.com with SMTP id 28so88192wff.12
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2009 14:49:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
-References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
-Date: Tue, 28 Jul 2009 14:49:38 -0700
-Message-ID: <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com>
-Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-From: Martin Bligh <mbligh@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EF8D6B004F
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2009 20:07:07 -0400 (EDT)
+Date: Tue, 28 Jul 2009 17:06:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Make it easier to catch NULL cache names
+Message-Id: <20090728170632.2d136ce6.akpm@linux-foundation.org>
+In-Reply-To: <1248754289.30993.45.camel@pasglop>
+References: <1248754289.30993.45.camel@pasglop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chad Talbott <ctalbott@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, sandeen@redhat.com
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-> An interesting recent-ish change is "writeback: speed up writeback of
-> big dirty files." =A0When I revert the change to __sync_single_inode the
-> problem appears to go away and background writeout proceeds at disk
-> speed. =A0Interestingly, that code is in the git commit [2], but not in
-> the post to LKML. [3] =A0This is may not be the fix, but it makes this
-> test behave better.
+On Tue, 28 Jul 2009 14:11:29 +1000
+Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
 
-I'm fairly sure this is not fixing the root cause - but putting it at the h=
-ead
-rather than the tail of the queue causes the error not to starve wb_kupdate
-for nearly so long - as long as we keep the queue full, the bug is hidden.
+> Right now, if you inadvertently pass NULL to kmem_cache_create() at boot
+> time, it crashes much later after boot somewhere deep inside sysfs which
+> makes it very non obvious to figure out what's going on.
 
-M.
+That must have been a pretty dumb piece of kernel code.  It's a bit
+questionable (IMO) whether we need to cater for really exceptional
+bugs.  But whatever.
+
+slab used to have a check (__get_user) to see whether the ->name field
+was still readable.  This was to detect the case where the slab cache
+was created from a kernel module and the module forgot to remove the
+cache at rmmod-time.  Subsequent reads of /proc/slabinfo would
+confusingly go splat.  The check seems to have been removed (from
+slab.c, at least).  If it is still there then it should be applied
+consistently and across all slab versions.  In which case that check
+would make your patch arguably-unneeded.  But it seems to have got
+itself zapped.
+
+> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> ---
+> 
+> Yes, I did hit that :-) Something in ppc land using an array of caches
+> and got the names array out of sync with changes to the list of indices.
+> 
+>  mm/slub.c |    3 +++
+>  1 files changed, 3 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index b9f1491..e31fbe6 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3292,6 +3292,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
+>  {
+>  	struct kmem_cache *s;
+>  
+> +	if (WARN_ON(!name))
+> +		return NULL;
+> +
+>  	down_write(&slub_lock);
+>  	s = find_mergeable(size, align, flags, name, ctor);
+>  	if (s) {
+
+Let's see:
+
+slab.c: goes BUG
+slob.c: will apparently go oops at some later time
+slqb.c: does dump_stack(), returns NULL from kmem_cache_create()
+slub.c: does WARN(), returns NULL from kmem_cache_create()
+
+
+I think I'll apply the patch, cc Pekka then run away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
