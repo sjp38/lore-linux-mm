@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1428B6B004D
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 12:14:57 -0400 (EDT)
-Date: Wed, 29 Jul 2009 18:14:56 +0200
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-Subject: Why does __do_page_cache_readahead submit READ, not READA?
-Message-ID: <20090729161456.GB8059@barkeeper1-xen.linbit>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DFAE36B005A
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 12:19:41 -0400 (EDT)
+Message-ID: <4A707696.6080301@redhat.com>
+Date: Wed, 29 Jul 2009 12:19:34 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are	isolated
+ already (v3)
+References: <20090715223854.7548740a@bree.surriel.com> <20090715194820.237a4d77.akpm@linux-foundation.org> <4A5E9A33.3030704@redhat.com> <20090715202114.789d36f7.akpm@linux-foundation.org> <4A5E9E4E.5000308@redhat.com> <20090715203854.336de2d5.akpm@linux-foundation.org> <20090715235318.6d2f5247@bree.surriel.com> <20090729150443.GB1534@ucw.cz>
+In-Reply-To: <20090729150443.GB1534@ucw.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-I naively assumed, from the "readahead" in the name, that readahead
-would be submitting READA bios. It does not.
+Pavel Machek wrote:
+> On Wed 2009-07-15 23:53:18, Rik van Riel wrote:
+>> When way too many processes go into direct reclaim, it is possible
+>> for all of the pages to be taken off the LRU.  One result of this
+>> is that the next process in the page reclaim code thinks there are
+>> no reclaimable pages left and triggers an out of memory kill.
+>>
+>> One solution to this problem is to never let so many processes into
+>> the page reclaim path that the entire LRU is emptied.  Limiting the
+>> system to only having half of each inactive list isolated for
+>> reclaim should be safe.
+> 
+> Is this still racy? Like on 100cpu machine, with LRU size of 50...?
 
-I recently did some statistics on how many READ and READA requests
-we actually see on the block device level.
-I was suprised that READA is basically only used for file system
-internal meta data (and not even for all file systems),
-but _never_ for file data.
+If a 100 CPU system gets down to just 100 reclaimable pages,
+getting the OOM killer to trigger sounds desirable.
 
-A simple
-	dd if=bigfile of=/dev/null bs=4k count=1
-will absolutely cause readahead of the configured amount, no problem.
-But on the block device level, these are READ requests, where I'd
-expected them to be READA requests, based on the name.
+The goal of this patch is to avoid _false_ OOM kills, when
+the system still has enough reclaimable memory available.
 
-This is because __do_page_cache_readahead() calls read_pages(),
-which in turn is mapping->a_ops->readpages(), or, as fallback,
-mapping->a_ops->readpage().
-
-On that level, all variants end up submitting as READ.
-
-This may even be intentional.
-But if so, I'd like to understand that.
-
-Please, anyone in the know, enlighten me ;)
-
-
-	Lars
-
-Annecdotical: I've seen an oracle being killed by OOM, because someone
-did a grep -r . while accidentally having a bogusly huge readahead set.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
