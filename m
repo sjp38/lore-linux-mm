@@ -1,135 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 056426B004F
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 03:15:52 -0400 (EDT)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id n6T7Fr5Q011135
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 08:15:54 +0100
-Received: from pzk41 (pzk41.prod.google.com [10.243.19.169])
-	by spaceape11.eur.corp.google.com with ESMTP id n6T7FnlG005418
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 00:15:50 -0700
-Received: by pzk41 with SMTP id 41so392141pzk.30
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2009 00:15:49 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A4EB36B004F
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 05:49:50 -0400 (EDT)
+Date: Wed, 29 Jul 2009 10:49:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] page-allocator: Change migratetype for all pageblocks
+	within a high-order page during __rmqueue_fallback
+Message-ID: <20090729094951.GA15102@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com>
-References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
-	 <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com>
-Date: Wed, 29 Jul 2009 00:15:48 -0700
-Message-ID: <33307c790907290015m1e6b5666x9c0014cdaf5ed08@mail.gmail.com>
-Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-From: Martin Bligh <mbligh@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Chad Talbott <ctalbott@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, sandeen@redhat.com, Michael Davidson <md@google.com>
+To: akpm@linux-foundation.org
+Cc: apw@shadowen.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 28, 2009 at 2:49 PM, Martin Bligh<mbligh@google.com> wrote:
->> An interesting recent-ish change is "writeback: speed up writeback of
->> big dirty files." =A0When I revert the change to __sync_single_inode the
->> problem appears to go away and background writeout proceeds at disk
->> speed. =A0Interestingly, that code is in the git commit [2], but not in
->> the post to LKML. [3] =A0This is may not be the fix, but it makes this
->> test behave better.
->
-> I'm fairly sure this is not fixing the root cause - but putting it at the=
- head
-> rather than the tail of the queue causes the error not to starve wb_kupda=
-te
-> for nearly so long - as long as we keep the queue full, the bug is hidden=
-.
+When there are no pages of a target migratetype free, the page allocator
+selects a high-order block of another migratetype to allocate from. When
+the order of the page taken is greater than pageblock_order, all pageblocks
+within that high-order page should change migratetype so that pages are
+later freed to the correct free-lists.
 
-OK, it seems this is the root cause - I wasn't clear why all the pages were=
-n't
-being written back, and thought there was another bug. What happens is
-we go into write_cache_pages, and stuff the disk queue with as much as
-we can put into it, and then inevitably hit the congestion limit.
+The current behaviour is that pageblocks change migratetype if the order
+being split matches the pageblock_order.  When pageblock_order < MAX_ORDER-1,
+ownership is not changing correct and pages are being later freed to the
+incorrect list and this impacts fragmentation avoidance.
 
-Then we back out to __sync_single_inode, who says "huh, you didn't manage
-to write your whole slice", and penalizes the poor blameless inode in quest=
-ion
-by putting it back into the penalty box for 30s.
+This patch changes all pageblocks within the high-order page being split to
+the correct migratetype. Without the patch, allocation success rates for
+hugepages under stress were about 59% of physical memory on x86-64. With
+the patch applied, this goes up to 65%.
 
-This results in very lumpy I/O writeback at 5s intervals, and very
-poor throughput.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ mm/page_alloc.c |   16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
 
-Patch below is inline and probably text munged, but is for RFC only.
-I'll test it
-more thoroughly tomorrow. As for the comment about starving other writes,
-I believe requeue_io moves it from s_io to s_more_io which should at least
-allow some progress of other files.
-
---- linux-2.6.30/fs/fs-writeback.c.old  2009-07-29 00:08:29.000000000 -0700
-+++ linux-2.6.30/fs/fs-writeback.c      2009-07-29 00:11:28.000000000 -0700
-@@ -322,46 +322,11 @@ __sync_single_inode(struct inode *inode,
-                        /*
-                         * We didn't write back all the pages.  nfs_writepa=
-ges()
-                         * sometimes bales out without doing anything. Redi=
-rty
--                        * the inode; Move it from s_io onto s_more_io/s_di=
-rty.
-+                        * the inode; Move it from s_io onto s_more_io. It
-+                        * may well have just encountered congestion
-                         */
--                       /*
--                        * akpm: if the caller was the kupdate function we =
-put
--                        * this inode at the head of s_dirty so it gets fir=
-st
--                        * consideration.  Otherwise, move it to the tail, =
-for
--                        * the reasons described there.  I'm not really sur=
-e
--                        * how much sense this makes.  Presumably I had a g=
-ood
--                        * reasons for doing it this way, and I'd rather no=
-t
--                        * muck with it at present.
--                        */
--                       if (wbc->for_kupdate) {
--                               /*
--                                * For the kupdate function we move the ino=
-de
--                                * to s_more_io so it will get more writeou=
-t as
--                                * soon as the queue becomes uncongested.
--                                */
--                               inode->i_state |=3D I_DIRTY_PAGES;
--                               if (wbc->nr_to_write <=3D 0) {
--                                       /*
--                                        * slice used up: queue for next tu=
-rn
--                                        */
--                                       requeue_io(inode);
--                               } else {
--                                       /*
--                                        * somehow blocked: retry later
--                                        */
--                                       redirty_tail(inode);
--                               }
--                       } else {
--                               /*
--                                * Otherwise fully redirty the inode so tha=
-t
--                                * other inodes on this superblock will get=
- some
--                                * writeout.  Otherwise heavy writing to on=
-e
--                                * file would indefinitely suspend writeout=
- of
--                                * all the other files.
--                                */
--                               inode->i_state |=3D I_DIRTY_PAGES;
--                               redirty_tail(inode);
--                       }
-+                       inode->i_state |=3D I_DIRTY_PAGES;
-+                       requeue_io(inode);
-                } else if (inode->i_state & I_DIRTY) {
-                        /*
-                         * Someone redirtied the inode while were writing b=
-ack
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index caa9268..c158466 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -783,6 +783,17 @@ static int move_freepages_block(struct zone *zone, struct page *page,
+ 	return move_freepages(zone, start_page, end_page, migratetype);
+ }
+ 
++static void change_pageblock_range(struct page *pageblock_page,
++					int start_order, int migratetype)
++{
++	int nr_pageblocks = 1 << (MAX_ORDER - 1 - start_order);
++
++	while (nr_pageblocks--) {
++		set_pageblock_migratetype(pageblock_page, migratetype);
++		pageblock_page += pageblock_nr_pages;
++	}
++}
++
+ /* Remove an element from the buddy allocator from the fallback list */
+ static inline struct page *
+ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+@@ -834,8 +845,9 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			list_del(&page->lru);
+ 			rmv_page_order(page);
+ 
+-			if (current_order == pageblock_order)
+-				set_pageblock_migratetype(page,
++			/* Take ownership for orders >= pageblock_order */
++			if (current_order >= pageblock_order)
++				change_pageblock_range(page, current_order,
+ 							start_migratetype);
+ 
+ 			expand(zone, page, order, current_order, area, migratetype);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
