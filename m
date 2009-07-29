@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A4EB36B004F
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 05:49:50 -0400 (EDT)
-Date: Wed, 29 Jul 2009 10:49:52 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] page-allocator: Change migratetype for all pageblocks
-	within a high-order page during __rmqueue_fallback
-Message-ID: <20090729094951.GA15102@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 60EC76B004F
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 07:21:17 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.1/8.13.1) with ESMTP id n6TBLLBZ001673
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 11:21:21 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n6TBLJrh2338910
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 13:21:21 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n6TBLIs7008568
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 13:21:19 +0200
+Message-ID: <4A70309A.3030304@de.ibm.com>
+Date: Wed, 29 Jul 2009 13:20:58 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Reply-To: gerald.schaefer@de.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Subject: Re: [PATCH] hibernate / memory hotplug: always use for_each_populated_zone()
+References: <1248103551.23961.0.camel@localhost.localdomain> <20090721071508.GB12734@osiris.boeblingen.de.ibm.com> <20090721163846.2a8001c1.kamezawa.hiroyu@jp.fujitsu.com> <200907211611.09525.rjw@sisk.pl>
+In-Reply-To: <200907211611.09525.rjw@sisk.pl>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: apw@shadowen.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Nigel Cunningham <ncunningham@crca.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When there are no pages of a target migratetype free, the page allocator
-selects a high-order block of another migratetype to allocate from. When
-the order of the page taken is greater than pageblock_order, all pageblocks
-within that high-order page should change migratetype so that pages are
-later freed to the correct free-lists.
+Rafael J. Wysocki wrote:
+>>> So it looks like checking for pfn_valid() and afterwards checking
+>>> for PG_Reserved (?) might give what one would expect.
+>> I think so, too. If memory is offline, PG_reserved is always set.
+>>
+>> In general, it's expected that "page is contiguous in MAX_ORDER range"
+>> and no memory holes in MAX_ORDER. In most case, PG_reserved is checked
+>> for skipping not-existing memory.
+> 
+> PG_reserved is also set for kernel text, at least on some architectures, and
+> for some other areas that we want to save.
 
-The current behaviour is that pageblocks change migratetype if the order
-being split matches the pageblock_order.  When pageblock_order < MAX_ORDER-1,
-ownership is not changing correct and pages are being later freed to the
-incorrect list and this impacts fragmentation avoidance.
+How about checking for PG_reserved && ZONE_MOVABLE? I think we don't
+have any special cases for PG_reserved inside ZONE_MOVABLE, but I'm not
+sure if this is true for all architectures and NUMA systems.
 
-This patch changes all pageblocks within the high-order page being split to
-the correct migratetype. Without the patch, allocation success rates for
-hugepages under stress were about 59% of physical memory on x86-64. With
-the patch applied, this goes up to 65%.
+If this would work, it could be a simple way to determine which hotplug
+memory should be saved.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- mm/page_alloc.c |   16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index caa9268..c158466 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -783,6 +783,17 @@ static int move_freepages_block(struct zone *zone, struct page *page,
- 	return move_freepages(zone, start_page, end_page, migratetype);
- }
- 
-+static void change_pageblock_range(struct page *pageblock_page,
-+					int start_order, int migratetype)
-+{
-+	int nr_pageblocks = 1 << (MAX_ORDER - 1 - start_order);
-+
-+	while (nr_pageblocks--) {
-+		set_pageblock_migratetype(pageblock_page, migratetype);
-+		pageblock_page += pageblock_nr_pages;
-+	}
-+}
-+
- /* Remove an element from the buddy allocator from the fallback list */
- static inline struct page *
- __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
-@@ -834,8 +845,9 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 			list_del(&page->lru);
- 			rmv_page_order(page);
- 
--			if (current_order == pageblock_order)
--				set_pageblock_migratetype(page,
-+			/* Take ownership for orders >= pageblock_order */
-+			if (current_order >= pageblock_order)
-+				change_pageblock_range(page, current_order,
- 							start_migratetype);
- 
- 			expand(zone, page, order, current_order, area, migratetype);
+--
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
