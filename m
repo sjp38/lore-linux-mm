@@ -1,44 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DFAE36B005A
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 12:19:41 -0400 (EDT)
-Message-ID: <4A707696.6080301@redhat.com>
-Date: Wed, 29 Jul 2009 12:19:34 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] throttle direct reclaim when too many pages are	isolated
- already (v3)
-References: <20090715223854.7548740a@bree.surriel.com> <20090715194820.237a4d77.akpm@linux-foundation.org> <4A5E9A33.3030704@redhat.com> <20090715202114.789d36f7.akpm@linux-foundation.org> <4A5E9E4E.5000308@redhat.com> <20090715203854.336de2d5.akpm@linux-foundation.org> <20090715235318.6d2f5247@bree.surriel.com> <20090729150443.GB1534@ucw.cz>
-In-Reply-To: <20090729150443.GB1534@ucw.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD2F6B005C
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 13:52:35 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Wed, 29 Jul 2009 13:54:50 -0400
+Message-Id: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/4] hugetlb: V3 constrain allocation/free based on task mempolicy
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Pavel Machek wrote:
-> On Wed 2009-07-15 23:53:18, Rik van Riel wrote:
->> When way too many processes go into direct reclaim, it is possible
->> for all of the pages to be taken off the LRU.  One result of this
->> is that the next process in the page reclaim code thinks there are
->> no reclaimable pages left and triggers an out of memory kill.
->>
->> One solution to this problem is to never let so many processes into
->> the page reclaim path that the entire LRU is emptied.  Limiting the
->> system to only having half of each inactive list isolated for
->> reclaim should be safe.
-> 
-> Is this still racy? Like on 100cpu machine, with LRU size of 50...?
+PATCH 0/4 hugetlb: constrain allocation/free based on task mempolicy
 
-If a 100 CPU system gets down to just 100 reclaimable pages,
-getting the OOM killer to trigger sounds desirable.
+I'm sending these out again, slightly revised, for comparison
+with a 3rd alternative for controlling where persistent huge
+pages are allocated which I'll send out as a separate series.
 
-The goal of this patch is to avoid _false_ OOM kills, when
-the system still has enough reclaimable memory available.
+Against:  2.6.31-rc3-mmotm-090716-1432
+atop previously submitted "alloc_bootmem_huge_pages() fix"
+[http://marc.info/?l=linux-mm&m=124775468226290&w=4]
 
--- 
-All rights reversed.
+This is V3 of a series of patches to constrain the allocation and
+freeing of persistent huge pages using the task NUMA mempolicy of
+the task modifying "nr_hugepages".  This series is based on Mel
+Gorman's suggestion to use task mempolicy.  One of the benefits
+of this method is that it does not *require* modification to
+hugeadm(8) to use this feature.
+
+V3 factors the "rework" of the hstate_next_node_to_{alloc|free}
+functions out of the patch to derive huge pages nodes_allowed
+from mempolicy, and moves it before the patch to add nodemasks
+to the alloc/free functions.  See patch patch 1/4.
+
+A couple of limitations [still] in this version:
+
+1) I haven't implemented a boot time parameter to constrain the
+   boot time allocation of huge pages.  This can be added if
+   anyone feels strongly that it is required.
+
+2) I have not implemented a per node nr_overcommit_hugepages as
+   David Rientjes and I discussed earlier.  Again, this can be
+   added and specific nodes can be addressed using the mempolicy
+   as this series does for allocation and free.  However, after
+   some experience with the libhugetlbfs test suite, specifically
+   attempting to run the test suite constrained by mempolicy and
+   a cpuset, I'm thinking that per node overcommit limits might
+   not be such a good idea.  This would require an application
+   [or the library] to sum the per node limits over the allowed
+   nodes and possibly compare to global limits to determine the
+   available resources.  Per cpuset limits might work better.
+   This are requires more investigation, but this patch series
+   doesn't seem to make things worse than they already are in
+   this regard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
