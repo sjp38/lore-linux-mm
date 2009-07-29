@@ -1,77 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CDB426B00AC
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 19:13:44 -0400 (EDT)
-Date: Wed, 29 Jul 2009 16:13:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-Message-Id: <20090729161341.269b90e3.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EBE7D6B00AE
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 19:25:21 -0400 (EDT)
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id n6TNPPrV007298
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:25:26 +0100
+Received: from yxe28 (yxe28.prod.google.com [10.190.2.28])
+	by spaceape7.eur.corp.google.com with ESMTP id n6TNPM7V012292
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2009 16:25:23 -0700
+Received: by yxe28 with SMTP id 28so2088321yxe.10
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2009 16:25:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090729161341.269b90e3.akpm@linux-foundation.org>
 References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20090729161341.269b90e3.akpm@linux-foundation.org>
+Date: Wed, 29 Jul 2009 16:25:22 -0700
+Message-ID: <6599ad830907291625k697f17d3h87d054d796c59407@mail.gmail.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: riel@redhat.com, menage@google.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Jul 2009 21:27:15 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Wed, Jul 29, 2009 at 4:13 PM, Andrew Morton<akpm@linux-foundation.org> w=
+rote:
+>
+> Do we really need to do all that string hacking? =A0All it does is reads
+> a plain old integer from userspace.
 
-> +static ssize_t oom_adj_child_write(struct file *file, const char __user *buf,
-> +				size_t count, loff_t *ppos)
-> +{
-> +	struct task_struct *task;
-> +	char buffer[PROC_NUMBUF], *end;
-> +	int oom_adj_child;
-> +
-> +	memset(buffer, 0, sizeof(buffer));
-> +	if (count > sizeof(buffer) - 1)
-> +		count = sizeof(buffer) - 1;
-> +	if (copy_from_user(buffer, buf, count))
-> +		return -EFAULT;
-> +	oom_adj_child = simple_strtol(buffer, &end, 0);
-> +	if ((oom_adj_child < OOM_ADJUST_MIN ||
-> +	     oom_adj_child > OOM_ADJUST_MAX) && oom_adj_child != OOM_DISABLE)
-> +		return -EINVAL;
-> +	if (*end == '\n')
-> +		end++;
-> +	task = get_proc_task(file->f_path.dentry->d_inode);
-> +	if (!task)
-> +		return -ESRCH;
-> +	task_lock(task);
-> +	if (task->mm && oom_adj_child < task->mm->oom_adj &&
-> +	    !capable(CAP_SYS_RESOURCE)) {
-> +		task_unlock(task);
-> +		put_task_struct(task);
-> +		return -EINVAL;
-> +	}
-> +	task_unlock(task);
-> +	task->oom_adj_child = oom_adj_child;
-> +	put_task_struct(task);
-> +	if (end - buffer == 0)
-> +		return -EIO;
-> +	return end - buffer;
-> +}
+It would be nice to have the equivalent of the cgroupfs read_u64 and
+write_u64 methods, where you just supply a function that
+accepts/returns the appropriate value, and all the buffer munging is
+done in the generic code.
 
-Do we really need to do all that string hacking?  All it does is reads
-a plain old integer from userspace.
-
-It's weird that the obfuscated check for zero-length input happens
-right at the end of the function, particularly as we couldn't have got
-that far anyway, because we'd already have returned -EINVAL.
-
-And even after all that, I suspect the function will permit illogical
-input such as "12foo" - which is what strict_strtoul() is for (as
-checkpatch points out!).
-
-
-
-grumble.  At how many codesites do we read an ascii integer from
-userspace?  Thousands, surely.  You'd think we'd have a little function
-to do it by now.
-
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
