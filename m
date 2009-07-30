@@ -1,88 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AAF1C6B00AA
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 07:18:10 -0400 (EDT)
-Date: Thu, 30 Jul 2009 12:18:14 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/4] hugetlb: V3 constrain allocation/free based on
-	task mempolicy
-Message-ID: <20090730111813.GD4831@csn.ul.ie>
-References: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B7A9E6B004D
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 12:47:22 -0400 (EDT)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
+References: <20090729161456.GB8059@barkeeper1-xen.linbit>
+	<20090729211845.GB4148@kernel.dk> <20090729225501.GH24801@think>
+	<20090730060649.GC4148@kernel.dk> <20090730143409.GJ24801@think>
+Date: Thu, 30 Jul 2009 12:47:21 -0400
+In-Reply-To: <20090730143409.GJ24801@think> (Chris Mason's message of "Thu, 30
+	Jul 2009 10:34:09 -0400")
+Message-ID: <x49fxcedso6.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090729175450.23681.75547.sendpatchset@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 29, 2009 at 01:54:50PM -0400, Lee Schermerhorn wrote:
-> PATCH 0/4 hugetlb: constrain allocation/free based on task mempolicy
-> 
-> I'm sending these out again, slightly revised, for comparison
-> with a 3rd alternative for controlling where persistent huge
-> pages are allocated which I'll send out as a separate series.
-> 
-> Against:  2.6.31-rc3-mmotm-090716-1432
-> atop previously submitted "alloc_bootmem_huge_pages() fix"
-> [http://marc.info/?l=linux-mm&m=124775468226290&w=4]
-> 
-> This is V3 of a series of patches to constrain the allocation and
-> freeing of persistent huge pages using the task NUMA mempolicy of
-> the task modifying "nr_hugepages".  This series is based on Mel
-> Gorman's suggestion to use task mempolicy.  One of the benefits
-> of this method is that it does not *require* modification to
-> hugeadm(8) to use this feature.
-> 
-> V3 factors the "rework" of the hstate_next_node_to_{alloc|free}
-> functions out of the patch to derive huge pages nodes_allowed
-> from mempolicy, and moves it before the patch to add nodemasks
-> to the alloc/free functions.  See patch patch 1/4.
-> 
-> A couple of limitations [still] in this version:
-> 
-> 1) I haven't implemented a boot time parameter to constrain the
->    boot time allocation of huge pages.  This can be added if
->    anyone feels strongly that it is required.
-> 
-> 2) I have not implemented a per node nr_overcommit_hugepages as
->    David Rientjes and I discussed earlier.  Again, this can be
->    added and specific nodes can be addressed using the mempolicy
->    as this series does for allocation and free.  However, after
->    some experience with the libhugetlbfs test suite, specifically
->    attempting to run the test suite constrained by mempolicy and
->    a cpuset, I'm thinking that per node overcommit limits might
->    not be such a good idea.  This would require an application
->    [or the library] to sum the per node limits over the allowed
->    nodes and possibly compare to global limits to determine the
->    available resources.  Per cpuset limits might work better.
->    This are requires more investigation, but this patch series
->    doesn't seem to make things worse than they already are in
->    this regard.
-> 
+Chris Mason <chris.mason@oracle.com> writes:
 
-There needs to be a third limitation listed here and preferably added as a
-note in the documentation or better yet, warned about explicitly at runtime.
+> On Thu, Jul 30, 2009 at 08:06:49AM +0200, Jens Axboe wrote:
+>> On Wed, Jul 29 2009, Chris Mason wrote:
+>> > On Wed, Jul 29, 2009 at 11:18:45PM +0200, Jens Axboe wrote:
+>> > > On Wed, Jul 29 2009, Lars Ellenberg wrote:
+>> > > > I naively assumed, from the "readahead" in the name, that readahead
+>> > > > would be submitting READA bios. It does not.
+>> > > > 
+>> > > > I recently did some statistics on how many READ and READA requests
+>> > > > we actually see on the block device level.
+>> > > > I was suprised that READA is basically only used for file system
+>> > > > internal meta data (and not even for all file systems),
+>> > > > but _never_ for file data.
+>> > > > 
+>> > > > A simple
+>> > > > 	dd if=bigfile of=/dev/null bs=4k count=1
+>> > > > will absolutely cause readahead of the configured amount, no problem.
+>> > > > But on the block device level, these are READ requests, where I'd
+>> > > > expected them to be READA requests, based on the name.
+>> > > > 
+>> > > > This is because __do_page_cache_readahead() calls read_pages(),
+>> > > > which in turn is mapping->a_ops->readpages(), or, as fallback,
+>> > > > mapping->a_ops->readpage().
+>> > > > 
+>> > > > On that level, all variants end up submitting as READ.
+>> > > > 
+>> > > > This may even be intentional.
+>> > > > But if so, I'd like to understand that.
+>> > > 
+>> > > I don't think it's intentional, and if memory serves, we used to use
+>> > > READA when submitting read-ahead. Not sure how best to improve the
+>> > > situation, since (as you describe), we lose the read-ahead vs normal
+>> > > read at that level. I did some experimentation some time ago for
+>> > > flagging this, see:
+>> > > 
+>> > > http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
+>> > > 
+>> > > which should pass down READA properly.
+>> > 
+>> > One of the problems in the past was that reada would fail if there
+>> > wasn't a free request when we actually wanted it to go ahead and wait.
+>> > Or something.  We've switched it around a few times I think.
+>> 
+>> Yes, we did used to do that, whether it was 2.2 or 2.4 I
+>> don't recall :-)
+>> 
+>> It should be safe to enable know, whether there's a prettier way
+>> than the above, I don't know. It works by detecting the read-ahead
+>> marker, but it's a bit of a fragile design.
+>
+> I dug through my old email and found this fun bug w/buffer heads and
+> reada.
+>
+> 1) submit reada ll_rw_block on ext3 directory block
+> 2) decide that we really really need to wait on this block
+> 3) wait_on_buffer(bh) ; check up to date bit when done
+>
+> The problem in the bugzilla was that reada was returning EAGAIN or
+> EWOULDBLOCK, and the whole filesystem world expects that if we
+> wait_on_buffer and don't find the buffer up to date, its time
+> set things read only and run around screaming.
+>
+> The expectations in the code at the time were that the caller needs to
+> be aware the request may fail with EAGAIN/EWOULDBLOCK, but the reality
+> was that everyone who found that locked buffer also needed to be able to
+> check for it.  This one bugzilla had a teeny window where the reada
+> buffer head was leaked to the world.
+>
+> So, I think we can start using it again if it is just a hint to the
+> elevator about what to do with the IO, and we never actually turn the
+> READA into a transient failure (which I think is mostly true today, there
+> weren't many READA tests in the code I could see).
 
-3) hugetlb reservations are not mempolicy aware. If an application runs
-   that only has access to a subset of nodes with hugepages, it may encounter
-   stability problems as mmap() will return success and potentially fail a
-   page fault later
+Well, is it a hint to the elevator or to the driver (or both)?  The one
+bug I remember regarding READA failing was due to the FAILFAST bit
+getting set for READA I/O, and the powerpath driver returning a failure.
+Is that the bug to which you are referring?
 
-I'm ok with that for the moment but it'll be something that eventually
-needs to be addressed. However, I don't consider it a prequisite for
-this patchset because there is obvious utility for administrators that
-want to run a limited number of hugepage applications all on the same
-node that would be covered by this patch.
-
-Other than the possible memory leak in patch 3 which I've commented on there,
-I'm fine with the patchset.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
