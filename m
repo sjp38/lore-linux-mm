@@ -1,47 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8BB856B0098
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:08:05 -0400 (EDT)
-Date: Thu, 30 Jul 2009 12:08:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-Message-ID: <20090730040803.GA20652@localhost>
-References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com> <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com> <33307c790907290015m1e6b5666x9c0014cdaf5ed08@mail.gmail.com> <20090729114322.GA9335@localhost> <33307c790907290711s320607b0i79c939104d4c2d61@mail.gmail.com> <20090730010630.GA7326@localhost> <33307c790907291812j40146a96tc2e9c5e097a33615@mail.gmail.com> <20090730015754.GC7326@localhost> <33307c790907291959r47b1bd3ap7cfa06fd5154aaad@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 13E396B009A
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 02:06:51 -0400 (EDT)
+Date: Thu, 30 Jul 2009 08:06:49 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
+Message-ID: <20090730060649.GC4148@kernel.dk>
+References: <20090729161456.GB8059@barkeeper1-xen.linbit> <20090729211845.GB4148@kernel.dk> <20090729225501.GH24801@think>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <33307c790907291959r47b1bd3ap7cfa06fd5154aaad@mail.gmail.com>
+In-Reply-To: <20090729225501.GH24801@think>
 Sender: owner-linux-mm@kvack.org
-To: Martin Bligh <mbligh@google.com>
-Cc: Chad Talbott <ctalbott@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, "sandeen@redhat.com" <sandeen@redhat.com>, Michael Davidson <md@google.com>
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 30, 2009 at 10:59:09AM +0800, Martin Bligh wrote:
-> On Wed, Jul 29, 2009 at 6:57 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > On Thu, Jul 30, 2009 at 09:12:26AM +0800, Martin Bligh wrote:
-> >> > I agree on the unification of kupdate and sync paths. In fact I had a
-> >> > patch for doing this. And I'd recommend to do it in two patches:
-> >> > one to fix the congestion case, another to do the code unification.
-> >> >
-> >> > The sync path don't care whether requeue_io() or redirty_tail() is
-> >> > used, because they disregard the time stamps totally - only order of
-> >> > inodes matters (ie. starvation), which is same for requeue_io()/redirty_tail().
-> >>
-> >> But, as I understand it, both paths share the same lists, so we still have
-> >> to be consistent?
-> >
-> > Then let's first unify the code, then fix the congestion case? :)
+On Wed, Jul 29 2009, Chris Mason wrote:
+> On Wed, Jul 29, 2009 at 11:18:45PM +0200, Jens Axboe wrote:
+> > On Wed, Jul 29 2009, Lars Ellenberg wrote:
+> > > I naively assumed, from the "readahead" in the name, that readahead
+> > > would be submitting READA bios. It does not.
+> > > 
+> > > I recently did some statistics on how many READ and READA requests
+> > > we actually see on the block device level.
+> > > I was suprised that READA is basically only used for file system
+> > > internal meta data (and not even for all file systems),
+> > > but _never_ for file data.
+> > > 
+> > > A simple
+> > > 	dd if=bigfile of=/dev/null bs=4k count=1
+> > > will absolutely cause readahead of the configured amount, no problem.
+> > > But on the block device level, these are READ requests, where I'd
+> > > expected them to be READA requests, based on the name.
+> > > 
+> > > This is because __do_page_cache_readahead() calls read_pages(),
+> > > which in turn is mapping->a_ops->readpages(), or, as fallback,
+> > > mapping->a_ops->readpage().
+> > > 
+> > > On that level, all variants end up submitting as READ.
+> > > 
+> > > This may even be intentional.
+> > > But if so, I'd like to understand that.
+> > 
+> > I don't think it's intentional, and if memory serves, we used to use
+> > READA when submitting read-ahead. Not sure how best to improve the
+> > situation, since (as you describe), we lose the read-ahead vs normal
+> > read at that level. I did some experimentation some time ago for
+> > flagging this, see:
+> > 
+> > http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
+> > 
+> > which should pass down READA properly.
 > 
-> OK, I will send it out as separate patches. I am just finishing up the testing
-> first.
+> One of the problems in the past was that reada would fail if there
+> wasn't a free request when we actually wanted it to go ahead and wait.
+> Or something.  We've switched it around a few times I think.
 
-Note that this is a simple fix that may have suboptimal write performance.
-Here is an old reasoning:
+Yes, we did used to do that, whether it was 2.2 or 2.4 I
+don't recall :-)
 
-        http://lkml.org/lkml/2009/3/28/235
+It should be safe to enable know, whether there's a prettier way
+than the above, I don't know. It works by detecting the read-ahead
+marker, but it's a bit of a fragile design.
 
-Thanks,
-Fengguang
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
