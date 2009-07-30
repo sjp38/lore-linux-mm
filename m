@@ -1,71 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E396B009A
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 02:06:51 -0400 (EDT)
-Date: Thu, 30 Jul 2009 08:06:49 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
-Message-ID: <20090730060649.GC4148@kernel.dk>
-References: <20090729161456.GB8059@barkeeper1-xen.linbit> <20090729211845.GB4148@kernel.dk> <20090729225501.GH24801@think>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B56726B005D
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 03:06:47 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id n6U76jpU028261
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:06:46 -0700
+Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
+	by wpaz13.hot.corp.google.com with ESMTP id n6U76gMA017675
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:06:43 -0700
+Received: by pxi10 with SMTP id 10so871718pxi.25
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2009 00:06:42 -0700 (PDT)
+Date: Thu, 30 Jul 2009 00:06:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <20090730090855.E415.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0907292356410.5581@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com> <20090730090855.E415.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090729225501.GH24801@think>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Lars Ellenberg <lars.ellenberg@linbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dm-devel@redhat.com, Neil Brown <neilb@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 29 2009, Chris Mason wrote:
-> On Wed, Jul 29, 2009 at 11:18:45PM +0200, Jens Axboe wrote:
-> > On Wed, Jul 29 2009, Lars Ellenberg wrote:
-> > > I naively assumed, from the "readahead" in the name, that readahead
-> > > would be submitting READA bios. It does not.
-> > > 
-> > > I recently did some statistics on how many READ and READA requests
-> > > we actually see on the block device level.
-> > > I was suprised that READA is basically only used for file system
-> > > internal meta data (and not even for all file systems),
-> > > but _never_ for file data.
-> > > 
-> > > A simple
-> > > 	dd if=bigfile of=/dev/null bs=4k count=1
-> > > will absolutely cause readahead of the configured amount, no problem.
-> > > But on the block device level, these are READ requests, where I'd
-> > > expected them to be READA requests, based on the name.
-> > > 
-> > > This is because __do_page_cache_readahead() calls read_pages(),
-> > > which in turn is mapping->a_ops->readpages(), or, as fallback,
-> > > mapping->a_ops->readpage().
-> > > 
-> > > On that level, all variants end up submitting as READ.
-> > > 
-> > > This may even be intentional.
-> > > But if so, I'd like to understand that.
-> > 
-> > I don't think it's intentional, and if memory serves, we used to use
-> > READA when submitting read-ahead. Not sure how best to improve the
-> > situation, since (as you describe), we lose the read-ahead vs normal
-> > read at that level. I did some experimentation some time ago for
-> > flagging this, see:
-> > 
-> > http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
-> > 
-> > which should pass down READA properly.
+On Thu, 30 Jul 2009, KOSAKI Motohiro wrote:
+
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -426,7 +426,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+> >  	init_rwsem(&mm->mmap_sem);
+> >  	INIT_LIST_HEAD(&mm->mmlist);
+> >  	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
+> > -	mm->oom_adj = (current->mm) ? current->mm->oom_adj : 0;
+> > +	mm->oom_adj = p->oom_adj_child;
 > 
-> One of the problems in the past was that reada would fail if there
-> wasn't a free request when we actually wanted it to go ahead and wait.
-> Or something.  We've switched it around a few times I think.
+> This code doesn't fix anything.
+> mm->oom_adj assignment still change vfork() parent process oom_adj value.
+> (Again, vfork() parent and child use the same mm)
+> 
 
-Yes, we did used to do that, whether it was 2.2 or 2.4 I
-don't recall :-)
+That's because the oom killer only really considers the highest oom_adj 
+value amongst all threads that share the same mm.  Allowing those threads 
+to each have different oom_adj values leads (i) to an inconsistency in 
+reporting /proc/pid/oom_score for how the oom killer selects a task to 
+kill and (ii) the oom killer livelock that it fixes when one thread 
+happens to be OOM_DISABLE.
 
-It should be safe to enable know, whether there's a prettier way
-than the above, I don't know. It works by detecting the read-ahead
-marker, but it's a bit of a fragile design.
+So, yes, changing the oom_adj value for a thread may have side-effects 
+on other threads that didn't exist prior to 2.6.31-rc1 because the oom_adj 
+value now represents a killable quantity of memory instead of a being a 
+characteristic of the task itself.  But we now provide the inheritance 
+property in a new way, via /proc/pid/oom_adj_child, that gives you all the 
+functionality that the previous way did but without the potential for 
+livelock.
 
--- 
-Jens Axboe
+> IOW, in vfork case, oom_adj_child parameter doesn't only change child oom_adj,
+> but also parent oom_adj value.
+
+Changing oom_adj_child for a task never changes oom_adj for any mm, it 
+simply specifies what default value shall be given for a child's newly 
+initialized mm.  Chaning oom_adj, on the other hand, will 
+
+> IOW, oom_adj_child is NOT child effective parameter.
+> 
+
+It's not meant to be, it's only meant to specify a default value for newly 
+initialized mm's of its descendants.  What happens after that is governed 
+completely by the child's own /proc/pid/oom_adj.  That's pretty clearly 
+explained in Documentation/filesystems/proc.txt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
