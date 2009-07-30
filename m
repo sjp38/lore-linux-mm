@@ -1,116 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B3B3C6B005C
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 06:04:04 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6UA43C9026993
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 30 Jul 2009 19:04:03 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4957745DE4F
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 19:04:03 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1716645DE52
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 19:04:03 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C491EEF8001
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 19:04:02 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 77AD81DB8041
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 19:04:02 +0900 (JST)
-Date: Thu, 30 Jul 2009 19:02:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-Message-Id: <20090730190216.5aae685a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.0907300219580.13674@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
-	<20090730180029.c4edcc09.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0907300219580.13674@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CCE5A6B00A4
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 06:40:19 -0400 (EDT)
+Date: Thu, 30 Jul 2009 11:40:19 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] hugetlb:  rework hstate_next_node_* functions
+Message-ID: <20090730104019.GA4831@csn.ul.ie>
+References: <20090729175450.23681.75547.sendpatchset@localhost.localdomain> <20090729175458.23681.4421.sendpatchset@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090729175458.23681.4421.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Jul 2009 02:31:04 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Thu, 30 Jul 2009, KAMEZAWA Hiroyuki wrote:
+On Wed, Jul 29, 2009 at 01:54:58PM -0400, Lee Schermerhorn wrote:
+> [PATCH 1/4] hugetlb:  rework hstate_next_node* functions
 > 
-> > 1. IIUC, the name is strange.
-> > 
-> > At job scheduler, which does this.
-> > 
-> > if (vfork() == 0) {
-> > 	/* do some job */
-> > 	execve(.....)
-> > }
-> > 
-> > Then, when oom_adj_child can be effective is after execve().
-> > IIUC, the _child_ means a process created by vfork().
-> > 
+> Against: 2.6.31-rc3-mmotm-090716-1432
+> atop the alloc_bootmem_huge_page() fix patch
+> [http://marc.info/?l=linux-mm&m=124775468226290&w=4]
 > 
-> It's certainly a difficult thing to name and I don't claim that "child" is 
-> completely accurate since, as you said, vfork'd tasks are also children 
-> of the parent yet they share the same oom_adj value since it's an 
-> attribute of the shared mm.
+> V2:
+> + cleaned up comments, removed some deemed unnecessary,
+>   add some suggested by review
+> + removed check for !current in huge_mpol_nodes_allowed().
+> + added 'current->comm' to warning message in huge_mpol_nodes_allowed().
+> + added VM_BUG_ON() assertion in hugetlb.c next_node_allowed() to
+>   catch out of range node id.
+> + add examples to patch description
 > 
-> If you have suggestions for a better name, I'd happily ack it.
+> V3:
+> + factored this "cleanup" patch out of V2 patch 2/3
+> + moved ahead of patch to add nodes_allowed mask to alloc funcs
+>   as this patch is somewhat independent from using task mempolicy
+>   to control huge page allocation and freeing.
 > 
-
-Simply, reset_oom_adj_at_new_mm_context or some.
-
-> > 2. More simple plan is like this, IIUC.
-> > 
-> >   fix oom-killer's select_bad_process() not to be in deadlock.
-> > 
+> Modify the hstate_next_node* functions to allow them to be called to
+> obtain the "start_nid".  Then, whereas prior to this patch we
+> unconditionally called hstate_next_node_to_{alloc|free}(), whether
+> or not we successfully allocated/freed a huge page on the node,
+> now we only call these functions on failure to alloc/free.
 > 
-> Alternate ideas?
+> Factor out the next_node_allowed() function to handle wrap at end
+> of node_online_map.  In this version, the allowed nodes are all 
+> of the online nodes.
 > 
-At brief thiking.
-
-1. move oom_adj from mm_struct to signal struct. or somewhere.
-   (see copy_signal())
-   Then,
-    - all threads in a process will have the same oom_adj.
-    - vfork()'ed thread will inherit its parent's oom_adj.   
-    - vfork()'ed thread can override oom_adj of its own.
-
-    In other words, oom_adj is shared when CLONE_PARENT is not set.
-
-2. rename  mm_struct's oom_adj as shadow_oom_adj.
-
-   update this shadow_oom_adj as the highest oom_adj among
-   the values all threads share this mm_struct have.
-   This update is done when
-   - mm_init()
-   - oom_adj is written.
-
-   User's 
-   # echo XXXX > /proc/<x>/oom_adj
-   is not necessary to be very very fast.
-
-   I don't think a process which calls vfork() is multi-threaded.
-
-3. use shadow_oom_adj in select_bad_process().
-
-
-
-> > rather than this new stupid interface.
-> > 
-> 
-> Well, thank you.  Regardless of whether you think it's stupid or not, it 
-> doesn't allow you to livelock the kernel in a very trivial way when the 
-> oom killer gets invoked prior to execve() and the parent is OOM_DISABLE.
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 > 
 
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
 
-just plz consider more.
+>  mm/hugetlb.c |   70 +++++++++++++++++++++++++++++++++++++----------------------
+>  1 file changed, 45 insertions(+), 25 deletions(-)
+> 
+> Index: linux-2.6.31-rc3-mmotm-090716-1432/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.31-rc3-mmotm-090716-1432.orig/mm/hugetlb.c	2009-07-22 15:42:46.000000000 -0400
+> +++ linux-2.6.31-rc3-mmotm-090716-1432/mm/hugetlb.c	2009-07-22 15:42:48.000000000 -0400
+> @@ -622,6 +622,20 @@ static struct page *alloc_fresh_huge_pag
+>  }
+>  
+>  /*
+> + * common helper function for hstate_next_node_to_{alloc|free}.
+> + * return next node in node_online_map, wrapping at end.
+> + */
+> +static int next_node_allowed(int nid)
+> +{
+> +	nid = next_node(nid, node_online_map);
+> +	if (nid == MAX_NUMNODES)
+> +		nid = first_node(node_online_map);
+> +	VM_BUG_ON(nid >= MAX_NUMNODES);
+> +
+> +	return nid;
+> +}
+> +
+> +/*
+>   * Use a helper variable to find the next node and then
+>   * copy it back to next_nid_to_alloc afterwards:
+>   * otherwise there's a window in which a racer might
+> @@ -634,12 +648,12 @@ static struct page *alloc_fresh_huge_pag
+>   */
+>  static int hstate_next_node_to_alloc(struct hstate *h)
+>  {
+> -	int next_nid;
+> -	next_nid = next_node(h->next_nid_to_alloc, node_online_map);
+> -	if (next_nid == MAX_NUMNODES)
+> -		next_nid = first_node(node_online_map);
+> +	int nid, next_nid;
+> +
+> +	nid = h->next_nid_to_alloc;
+> +	next_nid = next_node_allowed(nid);
+>  	h->next_nid_to_alloc = next_nid;
+> -	return next_nid;
+> +	return nid;
+>  }
+>  
+>  static int alloc_fresh_huge_page(struct hstate *h)
+> @@ -649,15 +663,17 @@ static int alloc_fresh_huge_page(struct 
+>  	int next_nid;
+>  	int ret = 0;
+>  
+> -	start_nid = h->next_nid_to_alloc;
+> +	start_nid = hstate_next_node_to_alloc(h);
+>  	next_nid = start_nid;
+>  
+>  	do {
+>  		page = alloc_fresh_huge_page_node(h, next_nid);
+> -		if (page)
+> +		if (page) {
+>  			ret = 1;
+> +			break;
+> +		}
+>  		next_nid = hstate_next_node_to_alloc(h);
+> -	} while (!page && next_nid != start_nid);
+> +	} while (next_nid != start_nid);
+>  
+>  	if (ret)
+>  		count_vm_event(HTLB_BUDDY_PGALLOC);
+> @@ -668,17 +684,19 @@ static int alloc_fresh_huge_page(struct 
+>  }
+>  
+>  /*
+> - * helper for free_pool_huge_page() - find next node
+> - * from which to free a huge page
+> + * helper for free_pool_huge_page() - return the next node
+> + * from which to free a huge page.  Advance the next node id
+> + * whether or not we find a free huge page to free so that the
+> + * next attempt to free addresses the next node.
+>   */
+>  static int hstate_next_node_to_free(struct hstate *h)
+>  {
+> -	int next_nid;
+> -	next_nid = next_node(h->next_nid_to_free, node_online_map);
+> -	if (next_nid == MAX_NUMNODES)
+> -		next_nid = first_node(node_online_map);
+> +	int nid, next_nid;
+> +
+> +	nid = h->next_nid_to_free;
+> +	next_nid = next_node_allowed(nid);
+>  	h->next_nid_to_free = next_nid;
+> -	return next_nid;
+> +	return nid;
+>  }
+>  
+>  /*
+> @@ -693,7 +711,7 @@ static int free_pool_huge_page(struct hs
+>  	int next_nid;
+>  	int ret = 0;
+>  
+> -	start_nid = h->next_nid_to_free;
+> +	start_nid = hstate_next_node_to_free(h);
+>  	next_nid = start_nid;
+>  
+>  	do {
+> @@ -715,9 +733,10 @@ static int free_pool_huge_page(struct hs
+>  			}
+>  			update_and_free_page(h, page);
+>  			ret = 1;
+> +			break;
+>  		}
+>  		next_nid = hstate_next_node_to_free(h);
+> -	} while (!ret && next_nid != start_nid);
+> +	} while (next_nid != start_nid);
+>  
+>  	return ret;
+>  }
+> @@ -1028,10 +1047,9 @@ int __weak alloc_bootmem_huge_page(struc
+>  		void *addr;
+>  
+>  		addr = __alloc_bootmem_node_nopanic(
+> -				NODE_DATA(h->next_nid_to_alloc),
+> +				NODE_DATA(hstate_next_node_to_alloc(h)),
+>  				huge_page_size(h), huge_page_size(h), 0);
+>  
+> -		hstate_next_node_to_alloc(h);
+>  		if (addr) {
+>  			/*
+>  			 * Use the beginning of the huge page to store the
+> @@ -1167,29 +1185,31 @@ static int adjust_pool_surplus(struct hs
+>  	VM_BUG_ON(delta != -1 && delta != 1);
+>  
+>  	if (delta < 0)
+> -		start_nid = h->next_nid_to_alloc;
+> +		start_nid = hstate_next_node_to_alloc(h);
+>  	else
+> -		start_nid = h->next_nid_to_free;
+> +		start_nid = hstate_next_node_to_free(h);
+>  	next_nid = start_nid;
+>  
+>  	do {
+>  		int nid = next_nid;
+>  		if (delta < 0)  {
+> -			next_nid = hstate_next_node_to_alloc(h);
+>  			/*
+>  			 * To shrink on this node, there must be a surplus page
+>  			 */
+> -			if (!h->surplus_huge_pages_node[nid])
+> +			if (!h->surplus_huge_pages_node[nid]) {
+> +				next_nid = hstate_next_node_to_alloc(h);
+>  				continue;
+> +			}
+>  		}
+>  		if (delta > 0) {
+> -			next_nid = hstate_next_node_to_free(h);
+>  			/*
+>  			 * Surplus cannot exceed the total number of pages
+>  			 */
+>  			if (h->surplus_huge_pages_node[nid] >=
+> -						h->nr_huge_pages_node[nid])
+> +						h->nr_huge_pages_node[nid]) {
+> +				next_nid = hstate_next_node_to_free(h);
+>  				continue;
+> +			}
+>  		}
+>  
+>  		h->surplus_huge_pages += delta;
+> 
 
-Thanks,
--Kame
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
