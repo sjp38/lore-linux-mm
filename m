@@ -1,179 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 979216B004D
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 06:36:33 -0400 (EDT)
-Date: Fri, 31 Jul 2009 11:36:32 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
-Message-ID: <20090731103632.GB28766@csn.ul.ie>
-References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain> <20090729181205.23716.25002.sendpatchset@localhost.localdomain> <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 244A56B0055
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 06:49:01 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6VAn44X007473
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 31 Jul 2009 19:49:05 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A80345DE4D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 431C245DE4F
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB4B91DB8040
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:03 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7660BE08001
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:03 +0900 (JST)
+Message-ID: <7f54310137837631f2526d4e335287fc.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.0907310231370.25447@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
+    <20090730180029.c4edcc09.kamezawa.hiroyu@jp.fujitsu.com>
+    <alpine.DEB.2.00.0907300219580.13674@chino.kir.corp.google.com>
+    <20090730190216.5aae685a.kamezawa.hiroyu@jp.fujitsu.com>
+    <alpine.DEB.2.00.0907301157100.9652@chino.kir.corp.google.com>
+    <20090731093305.50bcc58d.kamezawa.hiroyu@jp.fujitsu.com>
+    <alpine.DEB.2.00.0907310231370.25447@chino.kir.corp.google.com>
+Date: Fri, 31 Jul 2009 19:49:02 +0900 (JST)
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Content-Type: text/plain;charset=iso-2022-jp
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Greg KH <gregkh@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 30, 2009 at 12:39:09PM -0700, David Rientjes wrote:
-> On Wed, Jul 29, 2009 at 11:12 AM, Lee
-> Schermerhorn<lee.schermerhorn@hp.com> wrote:
-> > PATCH/RFC 4/4 hugetlb:  register per node hugepages attributes
-> >
-> > Against: 2.6.31-rc3-mmotm-090716-1432
-> > atop the previously posted alloc_bootmem_hugepages fix.
-> > [http://marc.info/?l=linux-mm&m=124775468226290&w=4]
-> >
-> > This patch adds the per huge page size control/query attributes
-> > to the per node sysdevs:
-> >
-> > /sys/devices/system/node/node<ID>/hugepages/hugepages-<size>/
-> >        nr_hugepages       - r/w
-> >        free_huge_pages    - r/o
-> >        surplus_huge_pages - r/o
-> >
-> > The patch attempts to re-use/share as much of the existing
-> > global hstate attribute initialization and handling as possible.
-> > Throughout, a node id < 0 indicates global hstate parameters.
-> >
-> > Note:  computation of "min_count" in set_max_huge_pages() for a
-> > specified node needs careful review.
-> >
-> > Issue:  dependency of base driver [node] dependency on hugetlbfs module.
-> > We want to keep all of the hstate attribute registration and handling
-> > in the hugetlb module.  However, we need to call into this code to
-> > register the per node hstate attributes on node hot plug.
-> >
-> > With this patch:
-> >
-> > (me):ls /sys/devices/system/node/node0/hugepages/hugepages-2048kB
-> > ./  ../  free_hugepages  nr_hugepages  surplus_hugepages
-> >
-> > Starting from:
-> > Node 0 HugePages_Total:     0
-> > Node 0 HugePages_Free:      0
-> > Node 0 HugePages_Surp:      0
-> > Node 1 HugePages_Total:     0
-> > Node 1 HugePages_Free:      0
-> > Node 1 HugePages_Surp:      0
-> > Node 2 HugePages_Total:     0
-> > Node 2 HugePages_Free:      0
-> > Node 2 HugePages_Surp:      0
-> > Node 3 HugePages_Total:     0
-> > Node 3 HugePages_Free:      0
-> > Node 3 HugePages_Surp:      0
-> > vm.nr_hugepages = 0
-> >
-> > Allocate 16 persistent huge pages on node 2:
-> > (me):echo 16 >/sys/devices/system/node/node2/hugepages/hugepages-2048kB/nr_hugepages
-> >
-> > Yields:
-> > Node 0 HugePages_Total:     0
-> > Node 0 HugePages_Free:      0
-> > Node 0 HugePages_Surp:      0
-> > Node 1 HugePages_Total:     0
-> > Node 1 HugePages_Free:      0
-> > Node 1 HugePages_Surp:      0
-> > Node 2 HugePages_Total:    16
-> > Node 2 HugePages_Free:     16
-> > Node 2 HugePages_Surp:      0
-> > Node 3 HugePages_Total:     0
-> > Node 3 HugePages_Free:      0
-> > Node 3 HugePages_Surp:      0
-> > vm.nr_hugepages = 16
-> >
-> > Global controls work as expected--reduce pool to 8 persistent huge pages:
-> > (me):echo 8 >/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-> >
-> > Node 0 HugePages_Total:     0
-> > Node 0 HugePages_Free:      0
-> > Node 0 HugePages_Surp:      0
-> > Node 1 HugePages_Total:     0
-> > Node 1 HugePages_Free:      0
-> > Node 1 HugePages_Surp:      0
-> > Node 2 HugePages_Total:     8
-> > Node 2 HugePages_Free:      8
-> > Node 2 HugePages_Surp:      0
-> > Node 3 HugePages_Total:     0
-> > Node 3 HugePages_Free:      0
-> > Node 3 HugePages_Surp:      0
-> >
-> >
-> >
-> >
-> >
-> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> >
-> 
-> Thank you very much for doing this.
-> 
-> Google is going to need this support regardless of what finally gets
-> merged into mainline, so I'm thrilled you've implemented this version.
-> 
+David Rientjes wrote:
+> On Fri, 31 Jul 2009, KAMEZAWA Hiroyuki wrote:
+>
+>> > > Simply, reset_oom_adj_at_new_mm_context or some.
+>> > >
+>> >
+>> > I think it's preferred to keep the name relatively short which is an
+>> > unfortuante requirement in this case.  I also prefer to start the name
+>> > with "oom_adj" so it appears alongside /proc/pid/oom_adj when listed
+>> > alphabetically.
+>> >
+>> But misleading name is bad.
+>>
+>
+> Can you help think of any names that start with oom_adj_* and are
+> relatively short?  I'd happily ack it.
+>
+There have been traditional name "effective" as uid and euid.
 
-The fact that there is a definite use case in mind lends weight to this
-approach but I want to be 100% sure that a hugetlbfs-specific interface
-is required in this case.
+ then,  per thread oom_adj as oom_adj
+        per proc   oom_adj as effective_oom_adj
 
-> I hugely (get it? hugely :) favor this approach because it's much
-> simpler to reserve hugepages from this interface than a mempolicy
-> based approach once hugepages have already been allocated before.  For
-> cpusets users in particular, jobs typically get allocated on a subset
-> of nodes that are required for that application and they don't last
-> for the duration of the machine's uptime.  When a job exits and the
-> nodes need to be reallocated to a new cpuset, it may be a very
-> different set of mems based on the memory requirements or interleave
-> optimizations for the new job.  Allocating resources such as hugepages
-> are possible in this scenario via mempolicies, but it would require a
-> temporary mempolicy to then allocate additional hugepages from which
-> seems like an unnecessary requirement, especially if the job scheduler
-> that is governing hugepage allocations already has a mempolicy of its
-> own.
-> 
+is an natural way as Unix, I think.
 
-I don't know the setup, but lets say something like the following is
-happening
 
-1. job scheduler creates cpuset of subset of nodes
-2. job scheduler creates memory policy for subset of nodes
-3. initialisation job starts, reserves huge pages. If a memory policy is
-   already in place, it will reserve them in the correct places
-4. Job completes
-5. job scheduler frees the pages reserved for the job freeing up pages
-   on the subset of nodes
 
-i.e. if the job scheduler already has a memory policy of it's own, or
-even some child process of that job scheduler, it should just be able to
-set nr_hugepages and have them reserved on the correct nodes.
+>> Why don't you think select_bad_process()-> oom_kill_task()
+>> implementation is bad ?
+>
+> It livelocks if a thread is chosen and passed to oom_kill_task() while
+> another per-thread oom_adj value is OOM_DISABLE for a thread sharing the
+> same memory.
+>
+I say "why don't modify buggy selection logic?"
 
-With the per-node-attribute approach, little stops a process going
-outside of it's subset of allowed nodes.
+Why we have to scan all threads ?
+As fs/proc/readdir does, you can scan only "process group leader".
 
-> So it's my opinion that the mempolicy based approach is very
-> appropriate for tasks that allocate hugepages itself.  Other users,
-> particularly cpusets users, however, would require preallocation of
-> hugepages prior to a job being scheduled in which case a temporary
-> mempolicy would be required for that job scheduler. 
+per-thread scan itself is buggy because now we have per-process
+effective-oom-adj.
 
-And why is it such a big difficulty for the job scheduler just to create a
-child that does
 
-numactl -m $NODES_SUBSET hugeadm --pool-pages-min 2M:+$PAGES_NEEDED
+>> IMHO, it's bad manner to fix an os-implementation problem by adding
+>> _new_ user
+>> interface which is hard to understand.
+>>
+>
+> How else do you propose the oom killer use oom_adj values on a per-thread
+> basis without considering other threads sharing the same memory?
+As I wrote.
+   per-process(signal struct) or per-thread oom_adj and add
+   mm->effecitve_oom_adj
 
-?
+task scanning isn't necessary to do per-thread scan and you can scan
+only process-group-leader. What's bad ?
+If oom_score is problem, plz fix it to show effective_oom_score.
 
-> That seems like
-> an inconvenience when the entire state of the system's hugepages could
-> easily be governed with the per-node hstate attributes and a slightly
-> modified user library.
-> 
+If you can wait until the end of August, plz wait. I'll do some.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
