@@ -1,104 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 244A56B0055
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 06:49:01 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6VAn44X007473
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 31 Jul 2009 19:49:05 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A80345DE4D
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:04 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 431C245DE4F
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:04 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB4B91DB8040
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:03 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7660BE08001
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 19:49:03 +0900 (JST)
-Message-ID: <7f54310137837631f2526d4e335287fc.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.0907310231370.25447@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
-    <20090730180029.c4edcc09.kamezawa.hiroyu@jp.fujitsu.com>
-    <alpine.DEB.2.00.0907300219580.13674@chino.kir.corp.google.com>
-    <20090730190216.5aae685a.kamezawa.hiroyu@jp.fujitsu.com>
-    <alpine.DEB.2.00.0907301157100.9652@chino.kir.corp.google.com>
-    <20090731093305.50bcc58d.kamezawa.hiroyu@jp.fujitsu.com>
-    <alpine.DEB.2.00.0907310231370.25447@chino.kir.corp.google.com>
-Date: Fri, 31 Jul 2009 19:49:02 +0900 (JST)
-Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E75486B004D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:46:09 -0400 (EDT)
+Received: by gxk3 with SMTP id 3so3701694gxk.14
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2009 09:46:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Date: Sat, 1 Aug 2009 00:46:14 +0800
+Message-ID: <dc46d49c0907310946m1c67e404n11947a5fe1d76fc4@mail.gmail.com>
+Subject: [PATCH] rm unnecessary node_load[] during funtion build_zonelists()
+From: Bob Liu <yjfpb04@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Rientjes wrote:
-> On Fri, 31 Jul 2009, KAMEZAWA Hiroyuki wrote:
->
->> > > Simply, reset_oom_adj_at_new_mm_context or some.
->> > >
->> >
->> > I think it's preferred to keep the name relatively short which is an
->> > unfortuante requirement in this case.  I also prefer to start the name
->> > with "oom_adj" so it appears alongside /proc/pid/oom_adj when listed
->> > alphabetically.
->> >
->> But misleading name is bad.
->>
->
-> Can you help think of any names that start with oom_adj_* and are
-> relatively short?  I'd happily ack it.
->
-There have been traditional name "effective" as uid and euid.
+Hi, All
+           I think node_load[] is unnecessary during the funtion
+build_zonelists(). Because when  find_next_best_node() return a
+node,the node must have been added to used_node_mask. Then set
+node_load[node] will not affect anything.
+---
+Thanks
+Bob
 
- then,  per thread oom_adj as oom_adj
-        per proc   oom_adj as effective_oom_adj
+Date: Sat, 1 Aug 2009 00:28:49 +0800
+Subject: [PATCH] rm unnecessary node_load[] during funtion build_zonelists
+ Signed-off-by: Bob Liu <bo-liu@hotmail.com>
 
-is an natural way as Unix, I think.
+---
+ mm/page_alloc.c |   25 +++----------------------
+ 1 files changed, 3 insertions(+), 22 deletions(-)
 
-
-
->> Why don't you think select_bad_process()-> oom_kill_task()
->> implementation is bad ?
->
-> It livelocks if a thread is chosen and passed to oom_kill_task() while
-> another per-thread oom_adj value is OOM_DISABLE for a thread sharing the
-> same memory.
->
-I say "why don't modify buggy selection logic?"
-
-Why we have to scan all threads ?
-As fs/proc/readdir does, you can scan only "process group leader".
-
-per-thread scan itself is buggy because now we have per-process
-effective-oom-adj.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d052abb..6e9682b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2331,8 +2331,6 @@ int numa_zonelist_order_handler(ctl_table
+*table, int write,
+ }
 
 
->> IMHO, it's bad manner to fix an os-implementation problem by adding
->> _new_ user
->> interface which is hard to understand.
->>
->
-> How else do you propose the oom killer use oom_adj values on a per-thread
-> basis without considering other threads sharing the same memory?
-As I wrote.
-   per-process(signal struct) or per-thread oom_adj and add
-   mm->effecitve_oom_adj
+-#define MAX_NODE_LOAD (nr_online_nodes)
+-static int node_load[MAX_NUMNODES];
 
-task scanning isn't necessary to do per-thread scan and you can scan
-only process-group-leader. What's bad ?
-If oom_score is problem, plz fix it to show effective_oom_score.
+ /**
+  * find_next_best_node - find the next node that should appear in a
+given node's fallback list
+@@ -2378,10 +2376,6 @@ static int find_next_best_node(int node,
+nodemask_t *used_node_mask)
+ 		if (!cpumask_empty(tmp))
+ 			val += PENALTY_FOR_NODE_WITH_CPUS;
 
-If you can wait until the end of August, plz wait. I'll do some.
+-		/* Slight preference for less loaded node */
+-		val *= (MAX_NODE_LOAD*MAX_NUMNODES);
+-		val += node_load[n];
+-
+ 		if (val < min_val) {
+ 			min_val = val;
+ 			best_node = n;
+@@ -2524,10 +2518,10 @@ static void set_zonelist_order(void)
 
-Thanks,
--Kame
+ static void build_zonelists(pg_data_t *pgdat)
+ {
+-	int j, node, load;
++	int j, node;
+ 	enum zone_type i;
+ 	nodemask_t used_mask;
+-	int local_node, prev_node;
++	int local_node;
+ 	struct zonelist *zonelist;
+ 	int order = current_zonelist_order;
+
+@@ -2540,11 +2534,8 @@ static void build_zonelists(pg_data_t *pgdat)
+
+ 	/* NUMA-aware ordering of nodes */
+ 	local_node = pgdat->node_id;
+-	load = nr_online_nodes;
+-	prev_node = local_node;
+ 	nodes_clear(used_mask);
+
+-	memset(node_load, 0, sizeof(node_load));
+ 	memset(node_order, 0, sizeof(node_order));
+ 	j = 0;
+
+@@ -2557,17 +2548,7 @@ static void build_zonelists(pg_data_t *pgdat)
+ 		 */
+ 		if (distance > RECLAIM_DISTANCE)
+ 			zone_reclaim_mode = 1;
+-
+-		/*
+-		 * We don't want to pressure a particular node.
+-		 * So adding penalty to the first node in same
+-		 * distance group to make it round-robin.
+-		 */
+-		if (distance != node_distance(local_node, prev_node))
+-			node_load[node] = load;
+-
+-		prev_node = node;
+-		load--;
++		
+ 		if (order == ZONELIST_ORDER_NODE)
+ 			build_zonelists_in_node_order(pgdat, node);
+ 		else
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
