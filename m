@@ -1,71 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DFA1B6B0055
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 03:46:45 -0400 (EDT)
-Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <33307c790907301548t2ef1bb72k4adbe81865d2bde9@mail.gmail.com>
-References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com>
-	 <20090730213956.GH12579@kernel.dk>
-	 <33307c790907301501v4c605ea8oe57762b21d414445@mail.gmail.com>
-	 <20090730221727.GI12579@kernel.dk>
-	 <33307c790907301534v64c08f59o66fbdfbd3174ff5f@mail.gmail.com>
-	 <20090730224308.GJ12579@kernel.dk>
-	 <33307c790907301548t2ef1bb72k4adbe81865d2bde9@mail.gmail.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Fri, 31 Jul 2009 09:50:04 +0200
-Message-Id: <1249026604.6391.58.camel@twins>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8270D6B004D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 05:31:34 -0400 (EDT)
+Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
+	by smtp-out.google.com with ESMTP id n6V9VSMt024052
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 10:31:29 +0100
+Received: from pxi42 (pxi42.prod.google.com [10.243.27.42])
+	by zps77.corp.google.com with ESMTP id n6V9VP52008509
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 02:31:26 -0700
+Received: by pxi42 with SMTP id 42so577419pxi.29
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2009 02:31:25 -0700 (PDT)
+Date: Fri, 31 Jul 2009 02:31:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <20090731091744.B6DE.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.0907310210460.25447@chino.kir.corp.google.com>
+References: <20090730090855.E415.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0907292356410.5581@chino.kir.corp.google.com> <20090731091744.B6DE.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Martin Bligh <mbligh@google.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Chad Talbott <ctalbott@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wfg@mail.ustc.edu.cn, Michael Rubin <mrubin@google.com>, sandeen@redhat.com, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-07-30 at 15:48 -0700, Martin Bligh wrote:
+On Fri, 31 Jul 2009, KOSAKI Motohiro wrote:
 
-> There's another issue I was discussing with Peter Z. earlier that the
-> bdi changes might help with - if you look at where the dirty pages
-> get to, they are capped hard at the average of the dirty and
-> background thresholds, meaning we can only dirty about half the
-> pages we should be able to. That does very slowly go away when
-> the bdi limit catches up, but it seems to start at 0, and it's progess
-> seems glacially slow (at least if you're impatient ;-))
+> > That's because the oom killer only really considers the highest oom_adj 
+> > value amongst all threads that share the same mm.  Allowing those threads 
+> > to each have different oom_adj values leads (i) to an inconsistency in 
+> > reporting /proc/pid/oom_score for how the oom killer selects a task to 
+> > kill and (ii) the oom killer livelock that it fixes when one thread 
+> > happens to be OOM_DISABLE.
 > 
-> This seems to affect some of our workloads badly when they have
-> a sharp spike in dirty data to one device, they get throttled heavily
-> when they wouldn't have before the per-bdi dirty limits.
+> I agree both. again I only disagree ABI breakage regression and
+> stupid new /proc interface.
 
-Right, currently that adjustment period is about the same order as
-writing out the full dirty page capacity. If your system has unbalanced
-memory vs io capacity this might indeed end up being glacial.
+Let's state the difference in behavior as of 2.6.31-rc1: applications can 
+no longer change the oom_adj value of a vfork() child prior to exec() 
+without it also affecting the parent.  I agree that was previously 
+allowed.  And it was that very allowance that LEADS TO THE LIVELOCK 
+because they both share a VM and it was possible for the oom killer to 
+select the one of the threads while the other was OOM_DISABLE.
 
-I've been considering making it a sublinear function wrt the memory
-size, so that larger machines get less and therefore adjust faster.
+This is an extremely simple livelock to trigger, AND YOU DON'T EVEN NEED 
+CAP_SYS_RESOURCE TO DO IT.  Consider a job scheduler that superuser has 
+set to OOM_DISABLE because of its necessity to the system.  Imagine if 
+that job scheduler vfork's a child and sets its inherited oom_adj value of 
+OOM_DISABLE to something higher so that the machine doesn't panic on 
+exec() when the child spikes in memory usage when the application first 
+starts.
 
-Something like the below perhaps -- the alternative is yet another
-sysctl :/
+Now imagine that either there are no other user threads or the job 
+scheduler itself has allocated more pages than any other thread.  Or, more 
+simply, imagine that it sets the child's oom_adj value to a higher 
+priority than other threads based on some heuristic.  Regardless, if the 
+system becomes oom before the exec() can happen and before the new VM is 
+attached to the child, the machine livelocks.
 
-Not sure how the sqrt works out on a wide variety of machines though,..
-we'll have to test and see.
+That happens because of two things:
 
----
- mm/page-writeback.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ - the oom killer uses the oom_adj value to adjust the oom_score for a
+   task, and that score is mainly based on the size of each thread's VM,
+   and
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 81627eb..64aa140 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -152,7 +152,7 @@ static int calc_period_shift(void)
- 	else
- 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
- 				100;
--	return 2 + ilog2(dirty_total - 1);
-+	return 2 + ilog2(int_sqrt(dirty_total) - 1);
- }
- 
- /*
+ - the oom killer cannot kill a thread that shares a VM with an
+   OOM_DISABLE thread because it will not lead to future memory freeing.
+
+So the preferred solution for complete consistency and to fix the livelock 
+is to make the oom_adj value a characteristic of the VM, because THAT'S 
+WHAT IT ACTS ON.  The effective oom_adj value for a thread is always equal 
+to the highest oom_adj value of any thread sharing its VM.
+
+Do we really want to keep this inconsistency around forever in the kernel 
+so that /proc/pid/oom_score actually means NOTHING because another thread 
+sharing the memory has a different oom_adj?  Or do we want to take the 
+opportunity to fix a broken userspace model that leads to a livelock to 
+fix it and move on with a consistent interface and, with oom_adj_child, 
+all the functionality you had before.
+
+And you and KAMEZAWA-san can continue to call my patches stupid, but 
+that's not adding anything to your argument.
+
+> Paul already pointed out this issue can be fixed without ABI change.
+> 
+
+I'm unaware of any viable solution that has been proposed, sorry.
+
+> if you feel my stand point is double standard, I need explain me more.
+> So, I don't think per-process oom_adj makes any regression on _real_ world.
+
+Wrong, our machines have livelocked because of the exact scenario I 
+described above.
+
+> but vfork()'s one is real world issue.
+> 
+
+And it's based on a broken assumption that oom_adj values actually mean 
+anything independent of other threads sharing the same memory.  That's a 
+completely false assumption.  Applications that are tuning oom_adj value 
+will rely on oom_scores, which are currently false if oom_adj differs 
+amongst those threads, and should be written to how the oom killer uses 
+the value.
+
+> And, May I explay why I think your oom_adj_child is wrong idea?
+> The fact is: new feature introducing never fix regression. yes, some
+> application use new interface and disappear the problem. but other
+> application still hit the problem. that's not correct development style
+> in kernel.
+> 
+
+So you're proposing that we forever allow /proc/pid/oom_score to be 
+completely wrong for pid without any knowledge to userspace?  That we 
+falsely advertise what it represents and allow userspace to believe that 
+changing oom_adj for a thread sharing memory with other threads actually 
+changes how the oom killer selects tasks?
+
+Please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
