@@ -1,186 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F88E6B005A
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:38:31 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id n6VJcUp4002215
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:38:31 -0700
-Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
-	by spaceape8.eur.corp.google.com with ESMTP id n6VJcRtJ009445
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:38:27 -0700
-Received: by pzk27 with SMTP id 27so1619740pzk.2
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:38:26 -0700 (PDT)
-Date: Fri, 31 Jul 2009 12:38:24 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BC866B004D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:55:10 -0400 (EDT)
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id n6VJtEw3031296
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 20:55:15 +0100
+Received: from pzk16 (pzk16.prod.google.com [10.243.19.144])
+	by wpaz9.hot.corp.google.com with ESMTP id n6VJtAwg000912
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:55:12 -0700
+Received: by pzk16 with SMTP id 16so1620959pzk.20
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2009 12:55:10 -0700 (PDT)
+Date: Fri, 31 Jul 2009 12:55:08 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-In-Reply-To: <20090731154823.B6EF.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0907311225480.22732@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.0907301157100.9652@chino.kir.corp.google.com> <20090731093305.50bcc58d.kamezawa.hiroyu@jp.fujitsu.com> <20090731154823.B6EF.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
+In-Reply-To: <20090731103632.GB28766@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0907311239190.22732@chino.kir.corp.google.com>
+References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain> <20090729181205.23716.25002.sendpatchset@localhost.localdomain> <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com> <20090731103632.GB28766@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 31 Jul 2009, KOSAKI Motohiro wrote:
+On Fri, 31 Jul 2009, Mel Gorman wrote:
 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 3ce5ae9..c64499e 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1008,7 +1008,7 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
->  		return -ESRCH;
->  	task_lock(task);
->  	if (task->mm)
-> -		oom_adjust = task->mm->oom_adj;
-> +		oom_adjust = task->signal->oom_adj;
->  	else
->  		oom_adjust = OOM_DISABLE;
->  	task_unlock(task);
+> > Google is going to need this support regardless of what finally gets
+> > merged into mainline, so I'm thrilled you've implemented this version.
+> > 
+> 
+> The fact that there is a definite use case in mind lends weight to this
+> approach but I want to be 100% sure that a hugetlbfs-specific interface
+> is required in this case.
+> 
 
-This may display a /proc/pid/oom_adj that is radically different from 
-task->mm->oom_adj_cached without knowledge to userspace and you can't 
-simply display task->mm>oom_adj_cached here because it gets reset on every 
-write to /proc/pid/oom_adj.
+It's not necessarily required over the mempolicy approach for allocation 
+since it's quite simple to just do
 
-> @@ -1046,12 +1046,13 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
->  		put_task_struct(task);
->  		return -EINVAL;
->  	}
-> -	if (oom_adjust < task->mm->oom_adj && !capable(CAP_SYS_RESOURCE)) {
-> +	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
->  		task_unlock(task);
->  		put_task_struct(task);
->  		return -EACCES;
->  	}
-> -	task->mm->oom_adj = oom_adjust;
-> +	task->signal->oom_adj = oom_adjust;
-> +	task->mm->oom_adj_cached = OOM_CACHE_DEFAULT;
->  	task_unlock(task);
->  	put_task_struct(task);
->  	if (end - buffer == 0)
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 7acc843..f93f97f 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -240,7 +240,8 @@ struct mm_struct {
->  
->  	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
->  
-> -	s8 oom_adj;	/* OOM kill score adjustment (bit shift) */
-> +	s8 oom_adj_cached;	/* mirror from signal_struct->oom_adj.
-> +				   in vfork case, multiple processes use the same mm. */
->  
->  	cpumask_t cpu_vm_mask;
->  
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index a7979ba..a219480 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -3,6 +3,7 @@
->  
->  /* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
->  #define OOM_DISABLE (-17)
-> +#define OOM_CACHE_DEFAULT (15)
->  /* inclusive */
->  #define OOM_ADJUST_MIN (-16)
->  #define OOM_ADJUST_MAX 15
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 3ab08e4..e10b12b 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -629,6 +629,8 @@ struct signal_struct {
->  	unsigned audit_tty;
->  	struct tty_audit_buf *tty_audit_buf;
->  #endif
-> +
-> +	s8 oom_adj;	/* OOM kill score adjustment (bit shift) */
->  };
->  
->  /* Context switch must be unlocked if interrupts are to be enabled */
+	numactl --membind nodemask echo 10 >			\
+		/sys/kernel/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 
-I don't believe oom_adj is an appropriate use of signal_struct, sorry.
+on the nodemask for which you want to allocate 10 additional hugepages 
+(or, if node-targeted allocations are really necessary, to use
+numactl --preferred node in succession to get a balanced interleave, for 
+example.)
 
-> diff --git a/kernel/exit.c b/kernel/exit.c
-> index 869dc22..c741a45 100644
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -688,6 +689,7 @@ static void exit_mm(struct task_struct * tsk)
->  	enter_lazy_tlb(mm, current);
->  	/* We don't want this task to be frozen prematurely */
->  	clear_freeze_flag(tsk);
-> +	mm->oom_adj_cached = OOM_CACHE_DEFAULT;
->  	task_unlock(tsk);
->  	mm_update_next_owner(mm);
->  	mmput(mm);
+> I don't know the setup, but lets say something like the following is
+> happening
+> 
+> 1. job scheduler creates cpuset of subset of nodes
+> 2. job scheduler creates memory policy for subset of nodes
+> 3. initialisation job starts, reserves huge pages. If a memory policy is
+>    already in place, it will reserve them in the correct places
 
-This is similiar to an early proposal that wanted to keep an array of 
-oom_adj values for tasks attached to the mm in mm_struct.  The problem is 
-that you're obviously losing information about all threads attached to the 
-mm any time one of the threads exits or writes to /proc/pid/oom_adj.  That 
-information can only be regenerated with a tasklist scan.
+This is where per-node nr_hugepages attributes would be helpful.  It may 
+not be possible for the desired number of hugepages to be evenly allocated 
+on each node in the subset for MPOL_INTERLEAVE.
 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 9b42695..b7cb474 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -426,6 +427,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
->  	init_rwsem(&mm->mmap_sem);
->  	INIT_LIST_HEAD(&mm->mmlist);
->  	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
-> +	mm->oom_adj_cached = OOM_CACHE_DEFAULT;
->  	mm->core_state = NULL;
->  	mm->nr_ptes = 0;
->  	set_mm_counter(mm, file_rss, 0);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 175a67a..eae2d78 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -58,7 +58,7 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  	unsigned long points, cpu_time, run_time;
->  	struct mm_struct *mm;
->  	struct task_struct *child;
-> -	int oom_adj;
-> +	s8 oom_adj;
->  
->  	task_lock(p);
->  	mm = p->mm;
-> @@ -66,7 +66,10 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  		task_unlock(p);
->  		return 0;
->  	}
-> -	oom_adj = mm->oom_adj;
-> +
-> +	if (mm->oom_adj_cached < p->signal->oom_adj)
-> +		mm->oom_adj_cached = p->signal->oom_adj;
+If the subset is {1, 2, 3}, for instance, it's possible to get hugepage 
+quantities on those nodes as {10, 5, 10}.  The preferred userspace 
+solution may be to either change its subset of the cpuset nodes to 
+allocate 10 hugepages on another node and not use node 2, or to deallocate 
+hugepages on nodes 1 and 3 so it matches node 2.
 
-This conditional will never be true since mm->oom_adj_cached is 
-initialized to 15, which is the upper bound on which p->signal->oom_adj 
-may ever be, so mm->oom_adj_cached never gets changed from 
-OOM_CACHE_DEFAULT.
+With the per-node nr_hugepages attributes, that's trivial.  With the 
+mempolicy based approach, you'd need to do this (I guess):
 
-Thus, this patch doesn't even work, and you probably would have noticed 
-that if you'd checked /proc/pid/oom_score for any pid.
+ - to change the subset of cpuset nodes: construct a mempolicy of
+   MPOL_PREFERRED on node 2, deallocate via the global nr_hugepages file,
+   select (or allocate) another cpuset node, construct another mempolicy
+   of MPOL_PREFERRED on that new node, allocate, check, reiterate, and
 
-Even if mm->oom_adj_cached _was_ properly updated here, 
-/proc/pid/oom_score would be out of sync with more negative oom_adj values 
-for threads sharing the mm_struct since it calls badness() for only a 
-single thread.
+ - to deallocate on nodes 1 and 3: construct a mempolicy of MPOL_BIND on
+   nodes 1 and 3, deallocate via the global nr_hugepages.
 
-> +	oom_adj = mm->oom_adj_cached;
->  	if (oom_adj == OOM_DISABLE) {
->  		task_unlock(p);
->  		return 0;
-> @@ -350,7 +354,7 @@ static int oom_kill_task(struct task_struct *p)
->  
->  	task_lock(p);
->  	mm = p->mm;
-> -	if (!mm || mm->oom_adj == OOM_DISABLE) {
-> +	if (!mm || p->signal->oom_adj == OOM_DISABLE) {
->  		task_unlock(p);
->  		return 1;
->  	}
+I'm not sure at the moment that mempolicies work in freeing hugepages via 
+/sys/kernel/mm/hugepages/*/nr_hugepags and it isn't simply a round-robin, 
+so the second solution may not even work.
+
+> 4. Job completes
+> 5. job scheduler frees the pages reserved for the job freeing up pages
+>    on the subset of nodes
+> 
+> i.e. if the job scheduler already has a memory policy of it's own, or
+> even some child process of that job scheduler, it should just be able to
+> set nr_hugepages and have them reserved on the correct nodes.
+> 
+
+Right, allocation is simple with the mempolicy based approach, but given 
+the fact that hugepages are not always successfully allocated to what 
+userspace wants and freeing is more difficult, it's easier to use per-node 
+controls.
+
+> With the per-node-attribute approach, little stops a process going
+> outside of it's subset of allowed nodes.
+> 
+
+If you are allowed the capability to allocate system-wide resources for 
+hugepages (and you can change your own mempolicy to MPOL_DEFAULT whenever 
+you want, of course), that doesn't seem like an issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
