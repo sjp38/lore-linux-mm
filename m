@@ -1,133 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B185F6B004D
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2009 20:34:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6V0Ys5e010776
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 31 Jul 2009 09:34:54 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 74BCF45DE54
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 09:34:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4190345DE4F
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 09:34:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C59DE08003
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 09:34:54 +0900 (JST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D15B36B004D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 02:47:55 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n6V6lwYQ031229
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 31 Jul 2009 15:47:58 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D02ED45DE62
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:47:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EBD3245DE5D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:47:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C65B11DB803A
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:47:56 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E6E1DB8038
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 09:34:53 +0900 (JST)
-Date: Fri, 31 Jul 2009 09:33:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 37C771DB803C
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 15:47:56 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
-Message-Id: <20090731093305.50bcc58d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.0907301157100.9652@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.0907282125260.554@chino.kir.corp.google.com>
-	<20090730180029.c4edcc09.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0907300219580.13674@chino.kir.corp.google.com>
-	<20090730190216.5aae685a.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.0907301157100.9652@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.0907292356410.5581@chino.kir.corp.google.com>
+References: <20090730090855.E415.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0907292356410.5581@chino.kir.corp.google.com>
+Message-Id: <20090731091744.B6DE.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 31 Jul 2009 15:47:55 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Jul 2009 12:05:30 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+Hi
 
-> On Thu, 30 Jul 2009, KAMEZAWA Hiroyuki wrote:
+> On Thu, 30 Jul 2009, KOSAKI Motohiro wrote:
 > 
-> > > If you have suggestions for a better name, I'd happily ack it.
-> > > 
+> > > diff --git a/kernel/fork.c b/kernel/fork.c
+> > > --- a/kernel/fork.c
+> > > +++ b/kernel/fork.c
+> > > @@ -426,7 +426,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+> > >  	init_rwsem(&mm->mmap_sem);
+> > >  	INIT_LIST_HEAD(&mm->mmlist);
+> > >  	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
+> > > -	mm->oom_adj = (current->mm) ? current->mm->oom_adj : 0;
+> > > +	mm->oom_adj = p->oom_adj_child;
 > > 
-> > Simply, reset_oom_adj_at_new_mm_context or some.
-> > 
-> 
-> I think it's preferred to keep the name relatively short which is an 
-> unfortuante requirement in this case.  I also prefer to start the name 
-> with "oom_adj" so it appears alongside /proc/pid/oom_adj when listed 
-> alphabetically.
-> 
-But misleading name is bad.
-
-
-
-> > > > 2. More simple plan is like this, IIUC.
-> > > > 
-> > > >   fix oom-killer's select_bad_process() not to be in deadlock.
-> > > > 
-> > > 
-> > > Alternate ideas?
-> > > 
-> > At brief thiking.
-> > 
-> > 1. move oom_adj from mm_struct to signal struct. or somewhere.
-> >    (see copy_signal())
-> >    Then,
-> >     - all threads in a process will have the same oom_adj.
-> >     - vfork()'ed thread will inherit its parent's oom_adj.   
-> >     - vfork()'ed thread can override oom_adj of its own.
-> > 
-> >     In other words, oom_adj is shared when CLONE_PARENT is not set.
+> > This code doesn't fix anything.
+> > mm->oom_adj assignment still change vfork() parent process oom_adj value.
+> > (Again, vfork() parent and child use the same mm)
 > > 
 > 
-> Hmm, didn't we talk about signal_struct already?  The problem with that 
-> approach is that oom_adj values represent a killable quantity of memory, 
-> so having multiple threads sharing the same mm_struct with one set to 
-> OOM_DISABLE and the other at +15 will still livelock because the oom 
-> killer can't kill either.
->
-> > 2. rename  mm_struct's oom_adj as shadow_oom_adj.
-> > 
-> >    update this shadow_oom_adj as the highest oom_adj among
-> >    the values all threads share this mm_struct have.
-> >    This update is done when
-> >    - mm_init()
-> >    - oom_adj is written.
-> > 
-> >    User's 
-> >    # echo XXXX > /proc/<x>/oom_adj
-> >    is not necessary to be very very fast.
-> > 
-> >    I don't think a process which calls vfork() is multi-threaded.
-> > 
-> > 3. use shadow_oom_adj in select_bad_process().
+> That's because the oom killer only really considers the highest oom_adj 
+> value amongst all threads that share the same mm.  Allowing those threads 
+> to each have different oom_adj values leads (i) to an inconsistency in 
+> reporting /proc/pid/oom_score for how the oom killer selects a task to 
+> kill and (ii) the oom killer livelock that it fixes when one thread 
+> happens to be OOM_DISABLE.
+
+I agree both. again I only disagree ABI breakage regression and
+stupid new /proc interface.
+Paul already pointed out this issue can be fixed without ABI change.
+
+
+> So, yes, changing the oom_adj value for a thread may have side-effects 
+> on other threads that didn't exist prior to 2.6.31-rc1 because the oom_adj 
+> value now represents a killable quantity of memory instead of a being a 
+> characteristic of the task itself.  But we now provide the inheritance 
+> property in a new way, via /proc/pid/oom_adj_child, that gives you all the 
+> functionality that the previous way did but without the potential for 
+> livelock.
+
+maybe, I should say my stand-point obviously. I don't dislike your
+per-process oom_adj concept.
+I only oppose vfork breakage.
+
+if you feel my stand point is double standard, I need explain me more.
+So, I don't think per-process oom_adj makes any regression on _real_ world.
+but vfork()'s one is real world issue.
+
+I think they are totally different thing.
+
+
+And, May I explay why I think your oom_adj_child is wrong idea?
+The fact is: new feature introducing never fix regression. yes, some
+application use new interface and disappear the problem. but other
+application still hit the problem. that's not correct development style
+in kernel.
+
+
+> 
+> > IOW, in vfork case, oom_adj_child parameter doesn't only change child oom_adj,
+> > but also parent oom_adj value.
+> 
+> Changing oom_adj_child for a task never changes oom_adj for any mm, it 
+> simply specifies what default value shall be given for a child's newly 
+> initialized mm.  Chaning oom_adj, on the other hand, will 
+
+Ah, ok. I miunderstood.
+However, We can fix this issue without new interface, isn't it?
+
+
+> > IOW, oom_adj_child is NOT child effective parameter.
 > > 
 > 
-> Ideas 2 & 3 here seem to be a single proposal.  The problem is that it 
-> still leaves /proc/pid/oom_score to be inconsistent with the badness 
-> scoring that the oom killer will eventually use since if it oom kills one 
-> task, it must kill all tasks sharing the same mm_struct to lead to future 
-> memory freeing.
-> 
-yes.
-
-> Additionally, if you were to set one thread to OOM_DISABLE, storing the 
-> highest oom_adj value in mm_struct isn't going to help because 
-> oom_kill_task() will still require a tasklist scan to ensure no threads 
-> sharing the mm_struct are OOM_DISABLE and the livelock persists.
-> 
-
-Why don't you think select_bad_process()-> oom_kill_task() implementation is bad ?
-IMHO, it's bad manner to fix an os-implementation problem by adding _new_ user
-interface which is hard to understand.
+> It's not meant to be, it's only meant to specify a default value for newly 
+> initialized mm's of its descendants.  What happens after that is governed 
+> completely by the child's own /proc/pid/oom_adj.  That's pretty clearly 
+> explained in Documentation/filesystems/proc.txt.
 
 
-> In other words, the issue here is larger than the inheritance of the 
-> oom_adj value amongst children, it addresses a livelock that neither of 
-> your approaches solve.  The fix actually makes /proc/pid/oom_adj (and 
-> /proc/pid/oom_score) consistent with how the oom killer behaves.
-
-This oom_adj_child itself is not related to livelock problem. Don't make
-the problem bigger than it is.
-oom_adj_child itself is just a problem how to handle vfork().
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
