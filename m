@@ -1,57 +1,57 @@
-From: Anthony Liguori <anthony@codemonkey.ws>
-Subject: Re: [RFC PATCH 0/4] (Take 2): transcendent memory ("tmem") for Linux
-Date: Mon, 13 Jul 2009 15:38:45 -0500
-Message-ID: <4A5B9B55.6000404__21224.0835921422$1247517615$gmane$org@codemonkey.ws>
-References: <a09e4489-a755-46e7-a569-a0751e0fc39f@default> <4A5A1A51.2080301@redhat.com> <4A5A3AC1.5080800@codemonkey.ws> <20090713201745.GA3783@think>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7C1CB6B004F
-	for <linux-mm@kvack.org>; Mon, 13 Jul 2009 16:13:07 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so886372qwf.44
-        for <linux-mm@kvack.org>; Mon, 13 Jul 2009 13:38:49 -0700 (PDT)
-In-Reply-To: <20090713201745.GA3783@think>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DD12B6B004D
+	for <linux-mm@kvack.org>; Sat,  1 Aug 2009 00:01:58 -0400 (EDT)
+Date: Sat, 1 Aug 2009 12:02:24 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
+Message-ID: <20090801040224.GA13291@localhost>
+References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com> <20090730213956.GH12579@kernel.dk> <33307c790907301501v4c605ea8oe57762b21d414445@mail.gmail.com> <20090730221727.GI12579@kernel.dk> <33307c790907301534v64c08f59o66fbdfbd3174ff5f@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <33307c790907301534v64c08f59o66fbdfbd3174ff5f@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Avi Kivity <avi@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, npiggi
-List-Id: linux-mm.kvack.org
+To: Martin Bligh <mbligh@google.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Chad Talbott <ctalbott@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, sandeen@redhat.com
+List-ID: <linux-mm.kvack.org>
 
-Chris Mason wrote:
-> This depends on the extent to which tmem is integrated into the VM.  For
-> filesystem usage, the hooks are relatively simple because we already
-> have a lot of code sharing in this area.  Basically tmem is concerned
-> with when we free a clean page and when the contents of a particular
-> offset in the file are no longer valid.
->   
+On Thu, Jul 30, 2009 at 03:34:12PM -0700, Martin Bligh wrote:
+> > The test case above on a 4G machine is only generating 1G of dirty data.
+> > I ran the same test case on the 16G, resulting in only background
+> > writeout. The relevant bit here being that the background writeout
+> > finished quickly, writing at disk speed.
+> >
+> > I re-ran the same test, but using 300 100MB files instead. While the
+> > dd's are running, we are going at ~80MB/sec (this is disk speed, it's an
+> > x25-m). When the dd's are done, it continues doing 80MB/sec for 10
+> > seconds or so. Then the remainder (about 2G) is written in bursts at
+> > disk speeds, but with some time in between.
+> 
+> OK, I think the test case is sensitive to how many files you have - if
+> we punt them to the back of the list, and yet we still have 299 other
+> ones, it may well be able to keep the disk spinning despite the bug
+> I outlined.Try using 30 1GB files?
+> 
+> Though it doesn't seem to happen with just one dd streamer, and
+> I don't see why the bug doesn't trigger in that case either.
 
-But filesystem usage is perhaps the least interesting part of tmem.
+I guess the bug is not related to number dd streamers, but whether
+there is a stream of newly dirtied inodes (atime dirtiness would be
+enough). Because wb_kupdate() itself won't give up on congestion, but
+redirty_tail() would refresh the inode dirty time if there are newly
+dirtied inodes in front. And we cannot claim it to be a bug of the
+list based redirty_tail(), since we call it with the belief that the
+inode is somehow blocked. In this manner redirty_tail() can refresh
+the inode dirty time (and therefore delay its writeback for up to 30s)
+at will.
 
-The VMM already knows which pages in the guest are the result of disk IO 
-(it's the one that put it there, afterall).  It also knows when those 
-pages have been invalidated (or it can tell based on write-faulting).
+> I believe the bugfix is correct independent of any bdi changes?
 
-The VMM also knows when the disk IO has been rerequested by tracking 
-previous requests.  It can keep the old IO requests cached in memory and 
-use that to satisfy re-reads as long as the memory isn't needed for 
-something else.  Basically, we have tmem today with kvm and we use it by 
-default by using the host page cache to do I/O caching (via 
-cache=writethrough).
+Agreed.
 
-The difference between our "tmem" is that instead of providing an 
-interface where the guest explicitly says, "I'm throwing away this 
-memory, I may need it later", and then asking again for it, the guest 
-throws away the page and then we can later satisfy the disk I/O request 
-that results from re-requesting the page instantaneously.
-
-This transparent approach is far superior too because it enables 
-transparent sharing across multiple guests.  This works well for CoW 
-images and would work really well if we had a file system capable of 
-block-level deduplification... :-)
-
-Regards,
-
-Anthony Liguori
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
