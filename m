@@ -1,157 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 977B36B004D
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 22:02:41 -0400 (EDT)
-Date: Sat, 1 Aug 2009 10:02:28 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 990936B004D
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2009 22:58:09 -0400 (EDT)
+Date: Sat, 1 Aug 2009 10:58:13 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: Bug in kernel 2.6.31, Slow wb_kupdate writeout
-Message-ID: <20090801020228.GA6542@localhost>
-References: <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com> <33307c790907290015m1e6b5666x9c0014cdaf5ed08@mail.gmail.com> <20090729114322.GA9335@localhost> <33307c790907290711s320607b0i79c939104d4c2d61@mail.gmail.com> <20090730010630.GA7326@localhost> <33307c790907291812j40146a96tc2e9c5e097a33615@mail.gmail.com> <20090730015754.GC7326@localhost> <33307c790907291959r47b1bd3ap7cfa06fd5154aaad@mail.gmail.com> <20090730040803.GA20652@localhost> <33307c790907301255j136e003dtac0e4ba2032e890e@mail.gmail.com>
+Message-ID: <20090801025813.GB6542@localhost>
+References: <1786ab030907281211x6e432ba6ha6afe9de73f24e0c@mail.gmail.com> <33307c790907281449k5e8d4f6cib2c93848f5ec2661@mail.gmail.com> <33307c790907290015m1e6b5666x9c0014cdaf5ed08@mail.gmail.com> <20090729114322.GA9335@localhost> <33307c790907291719r2caf7914xb543877464ba6fc2@mail.gmail.com> <33307c790907291828x6906e874l4d75e695116aa874@mail.gmail.com> <20090730020922.GD7326@localhost> <33307c790907291957n35c55afehfe809c6583b10a76@mail.gmail.com> <20090730031927.GA17669@localhost> <33307c790907301333i28b571eat29460164d558d370@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="45Z9DzgjV8m4Oswq"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <33307c790907301255j136e003dtac0e4ba2032e890e@mail.gmail.com>
+In-Reply-To: <33307c790907301333i28b571eat29460164d558d370@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Martin Bligh <mbligh@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Rubin <mrubin@google.com>, "sandeen@redhat.com" <sandeen@redhat.com>, Michael Davidson <md@google.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: Chad Talbott <ctalbott@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@google.com>, "sandeen@redhat.com" <sandeen@redhat.com>, Michael Davidson <md@google.com>
 List-ID: <linux-mm.kvack.org>
 
-
---45Z9DzgjV8m4Oswq
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-
-On Fri, Jul 31, 2009 at 03:55:44AM +0800, Martin Bligh wrote:
-> > Note that this is a simple fix that may have suboptimal write performance.
-> > Here is an old reasoning:
+On Fri, Jul 31, 2009 at 04:33:09AM +0800, Martin Bligh wrote:
+> (BTW: background ... I'm not picking through this code for fun, I'm
+> trying to debug writeback problems introduced in our new kernel
+> that are affecting Google production workloads ;-))
+> 
+> >> Well, I see two problems. One is that we set more_io based on
+> >> whether s_more_io is empty or not before we finish the loop.
+> >> I can't see how this can be correct, especially as there can be
+> >> other concurrent writers. So somehow we need to check when
+> >> we exit the loop, not during it.
 > >
-> > A  A  A  A http://lkml.org/lkml/2009/3/28/235
+> > It is correct inside the loop, however with some overheads.
+> >
+> > We put it inside the loop because sometimes the whole filesystem is
+> > skipped and we shall not set more_io on them whether or not s_more_io
+> > is empty.
 > 
-> The other thing I've been experimenting with is to disable the per-page
-> check in write_cache_pages, ie:
+> My point was that you're setting more_io based on a condition
+> at a point in time that isn't when you return to the caller.
 > 
->                         if (wbc->nonblocking && bdi_write_congested(bdi)) {
->                                 wb_stats_inc(WB_STATS_WCP_SECTION_CONG);
->                                 wbc->encountered_congestion = 1;
->                                 /* done = 1; */
+> By the time you return to the caller (after several more loops
+> iterations), that condition may no longer be true.
+
+You are right in that sense. Sorry that my claim of correctness is
+somehow biased: we normally care much about early abortion, and don't
+mind one extra trip over the superblocks. And the extra trip should be
+rare enough. I'd be surprised if you observed much of them in real
+workloads.
+
+> One other way to address that would to be only to set if if we're
+> about to fall off the end of the loop, ie change it to:
 > 
-> This treats the congestion limits as soft, but encourages us to write
-> back in larger, more efficient chunks. If that's not going to scare
-> people unduly, I can submit that as well.
+> if (!list_empty(&sb->s_more_io) && list_empty(&sb->s_io))
+>        wbc->more_io = 1;
 
-This risks hitting the hard limit (nr_requests), and block everyone,
-including the ones with higher priority (ie. kswapd).
+Let more_io=0 when there are more inodes in s_io to be worked on?
+I cannot understand it, and suspect we are talking about imaginary
+problem on this point ;)
 
-On the other hand, the simple fix in previous mails won't necessarily
-act too sub-optimal. It's only a potential one. There is a window of
-(1/16)*(nr_requests)*request_size (= 128*256KB/16 = 4MB) between
-congestion-on and congestion-off states. So for the best we can inject
-a big 4MB chunk into the async write queue once it becomes uncongested.
+> >> The other is that we're saying we are setting more_io when
+> >> nr_to_write is <=0 ... but we only really check it when
+> >> nr_to_write is > 0 ... I can't see how this can be useful?
+> >
+> > That's the caller's fault - I guess the logic was changed a bit by
+> > Jens in linux-next. I noticed this just now. It shall be fixed.
+> 
+> I am guessing you're setting more_io here because we're stopping
+> because our slice expired, presumably without us completing
+> all the io there was to do? That doesn't seem entirely accurate,
+> we could have finished all the pending IO (particularly given that
+> we can go over nr_to_write somewhat and send it negative).
+> Hence, I though that checking whether s_more_io and s_io were
+> empty at the time of return might be a more accurate check,
+> but on the other hand they are shared lists.
 
-I have a writeback debug patch that can help find out how
-that works out in your real world workloads (by monitoring
-nr_to_write). You can also try doubling the ratio (1/16) in
-blk_queue_congestion_threshold(), to see how an increased
-congestion-on-off window may help.
+Yes the current more_io logic is not entirely accurate, but I doubt we
+can gain much and the improvement can be done trivially (not the line
+of code, but the analyzes and tests involved).
+
+Anyway if you would take the time to push forward a patch for reducing
+the overheads of possible extra trips, I'll take the time to review it ;)
 
 Thanks,
 Fengguang
-
---45Z9DzgjV8m4Oswq
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="writeback-debug-2.6.31.patch"
-
- mm/page-writeback.c |   38 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 38 insertions(+)
-
---- sound-2.6.orig/mm/page-writeback.c
-+++ sound-2.6/mm/page-writeback.c
-@@ -116,6 +116,33 @@ EXPORT_SYMBOL(laptop_mode);
- 
- /* End of sysctl-exported parameters */
- 
-+#define writeback_debug_report(n, wbc) do {                               \
-+	__writeback_debug_report(n, wbc, __FILE__, __LINE__, __FUNCTION__); \
-+} while (0)
-+
-+void print_writeback_control(struct writeback_control *wbc)
-+{
-+	printk(KERN_DEBUG
-+			"global dirty %lu writeback %lu nfs %lu "
-+			"flags %c%c towrite %ld skipped %ld\n",
-+			global_page_state(NR_FILE_DIRTY),
-+			global_page_state(NR_WRITEBACK),
-+			global_page_state(NR_UNSTABLE_NFS),
-+			wbc->encountered_congestion ? 'C':'_',
-+			wbc->more_io ? 'M':'_',
-+			wbc->nr_to_write,
-+			wbc->pages_skipped);
-+}
-+
-+void __writeback_debug_report(long n, struct writeback_control *wbc,
-+		const char *file, int line, const char *func)
-+{
-+	printk(KERN_DEBUG "%s %d %s: %s(%d) %ld\n",
-+			file, line, func,
-+			current->comm, current->pid,
-+			n);
-+	print_writeback_control(wbc);
-+}
- 
- static void background_writeout(unsigned long _min_pages);
- 
-@@ -550,6 +577,7 @@ static void balance_dirty_pages(struct a
- 			pages_written += write_chunk - wbc.nr_to_write;
- 			get_dirty_limits(&background_thresh, &dirty_thresh,
- 				       &bdi_thresh, bdi);
-+			writeback_debug_report(pages_written, &wbc);
- 		}
- 
- 		/*
-@@ -576,6 +604,7 @@ static void balance_dirty_pages(struct a
- 			break;		/* We've done our duty */
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		writeback_debug_report(-pages_written, &wbc);
- 	}
- 
- 	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
-@@ -670,6 +699,11 @@ void throttle_vm_writeout(gfp_t gfp_mask
- 			global_page_state(NR_WRITEBACK) <= dirty_thresh)
-                         	break;
-                 congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		printk(KERN_DEBUG "throttle_vm_writeout: "
-+				"congestion_wait on %lu+%lu > %lu\n",
-+				global_page_state(NR_UNSTABLE_NFS),
-+				global_page_state(NR_WRITEBACK),
-+				dirty_thresh);
- 
- 		/*
- 		 * The caller might hold locks which can prevent IO completion
-@@ -719,7 +753,9 @@ static void background_writeout(unsigned
- 			else
- 				break;
- 		}
-+		writeback_debug_report(min_pages, &wbc);
- 	}
-+	writeback_debug_report(min_pages, &wbc);
- }
- 
- /*
-@@ -792,7 +828,9 @@ static void wb_kupdate(unsigned long arg
- 				break;	/* All the old data is written */
- 		}
- 		nr_to_write -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
-+		writeback_debug_report(nr_to_write, &wbc);
- 	}
-+	writeback_debug_report(nr_to_write, &wbc);
- 	if (time_before(next_jif, jiffies + HZ))
- 		next_jif = jiffies + HZ;
- 	if (dirty_writeback_interval)
-
---45Z9DzgjV8m4Oswq--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
