@@ -1,102 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DC1646B005A
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 05:25:43 -0400 (EDT)
-Date: Mon, 3 Aug 2009 17:44:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
-Message-ID: <20090803094412.GA25786@localhost>
-References: <20090729161456.GB8059@barkeeper1-xen.linbit> <20090729211845.GB4148@kernel.dk> <20090729225501.GH24801@think> <20090730060649.GC4148@kernel.dk> <20090803075202.GA13485@localhost> <20090803075933.GI12579@kernel.dk> <20090803082318.GA18731@localhost> <20090803092515.GK12579@kernel.dk> <20090803093426.GA25139@localhost> <20090803093753.GL12579@kernel.dk>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 262306B005A
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:39:01 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n73BwHw6012424
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 3 Aug 2009 20:58:18 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ADAE845DE61
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 20:58:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8159945DE57
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 20:58:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E4C31DB803F
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 20:58:17 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAA651DB804B
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 20:58:16 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <alpine.DEB.2.00.0907310210460.25447@chino.kir.corp.google.com>
+References: <20090731091744.B6DE.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0907310210460.25447@chino.kir.corp.google.com>
+Message-Id: <20090803200639.CC1D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090803093753.GL12579@kernel.dk>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  3 Aug 2009 20:58:16 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Neil Brown <neilb@suse.de>, "Van De Ven, Arjan" <arjan.van.de.ven@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 03, 2009 at 05:37:53PM +0800, Jens Axboe wrote:
-> On Mon, Aug 03 2009, Wu Fengguang wrote:
-> > On Mon, Aug 03, 2009 at 05:25:15PM +0800, Jens Axboe wrote:
-> > > On Mon, Aug 03 2009, Wu Fengguang wrote:
-> > > > On Mon, Aug 03, 2009 at 03:59:33PM +0800, Jens Axboe wrote:
-> > > > > On Mon, Aug 03 2009, Wu Fengguang wrote:
-> > > > > > On Thu, Jul 30, 2009 at 08:06:49AM +0200, Jens Axboe wrote:
-> > > > > > > > > read at that level. I did some experimentation some time ago for
-> > > > > > > > > flagging this, see:
-> > > > > > > > > 
-> > > > > > > > > http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
-> > > > > > > > > 
-> > > > > > > > > which should pass down READA properly.
-> > > > > > > > 
-> > > > > > > > One of the problems in the past was that reada would fail if there
-> > > > > > > > wasn't a free request when we actually wanted it to go ahead and wait.
-> > > > > > > > Or something.  We've switched it around a few times I think.
-> > > > > > > 
-> > > > > > > Yes, we did used to do that, whether it was 2.2 or 2.4 I
-> > > > > > > don't recall :-)
-> > > > > > > 
-> > > > > > > It should be safe to enable know, whether there's a prettier way
-> > > > > > > than the above, I don't know. It works by detecting the read-ahead
-> > > > > > > marker, but it's a bit of a fragile design.
-> > > > > > 
-> > > > > > Another consideration is io-priority reversion and the overheads
-> > > > > > required to avoid it:
-> > > > > > 
-> > > > > >         readahead(pages A-Z)    => READA IO for pages A-Z
-> > > > > >         <short time later>
-> > > > > >         read(page A) => blocked => find the request that contains page A
-> > > > > >                                    and requeue/kick it as READ IO
-> > > > > > 
-> > > > > > The page-to-request lookups are not always required but nevertheless
-> > > > > > the complexity and overheads won't be trivial.
-> > > > > > 
-> > > > > > The page-to-request lookup feature would be also useful for "advanced"
-> > > > > > features like io-canceling (if implemented, hwpoison could be its
-> > > > > > first user ;)
-> > > > > 
-> > > > > I added that 3-4 years ago or so, to experiment with in-kernel
-> > > > > cancellation for things like truncate(). Tracking pages is not cheap,
-> > > > > and since the write cancelling wasn't really very sucessful, I didn't go
-> > > > > ahead with it.
-> > > > 
-> > > > Ah OK.
-> > > > 
-> > > > > So I'm not sure it's a viable alternative, even if we restricted it to
-> > > > > just tracking READA's, for instance.
-> > > > 
-> > > > Kind of agreed. I guess it won't benefit too much workloads to default
-> > > > to READA; for most workloads it would be pure overheads if considering
-> > > > priority inversion.
-> > > > 
-> > > > > But I don't think we have any priority inversion to worry about, at
-> > > > > least not from the CFQ perspective.
-> > > > 
-> > > > The priority inversion problem showed up in an early attempt to do
-> > > > boot time prefetching. I guess this problem was somehow circumvented
-> > > > by limiting the prefetch depth and do prefetches in original read
-> > > > order instead of disk location order (Arjan cc'ed).
-> > > 
-> > > But was that not due to the prefetcher running at a lower cpu priority?
-> > 
-> > Yes, it is. Thus the priority inversion problem.
-> > 
-> > > Just flagging a reada hint will not change your priority in the IO
-> > > scheduler, so we should have no priority inversion there.
-> > 
-> > Ah OK. So READA merely means "don't try hard on error" for now.
-> > Sorry I implicitly associated it with some priority class..
+> On Fri, 31 Jul 2009, KOSAKI Motohiro wrote:
 > 
-> Well not necessarily, it could also have some priority implications in
-> the scheduler. My point is just that it need not be severe enough to
-> introduce priority inversions, so that we need a specific tracking
-> framework to graduate READA to READ.
+> > > That's because the oom killer only really considers the highest oom_adj 
+> > > value amongst all threads that share the same mm.  Allowing those threads 
+> > > to each have different oom_adj values leads (i) to an inconsistency in 
+> > > reporting /proc/pid/oom_score for how the oom killer selects a task to 
+> > > kill and (ii) the oom killer livelock that it fixes when one thread 
+> > > happens to be OOM_DISABLE.
+> > 
+> > I agree both. again I only disagree ABI breakage regression and
+> > stupid new /proc interface.
+> 
+> Let's state the difference in behavior as of 2.6.31-rc1: applications can 
+> no longer change the oom_adj value of a vfork() child prior to exec() 
+> without it also affecting the parent.  I agree that was previously 
+> allowed.  And it was that very allowance that LEADS TO THE LIVELOCK 
+> because they both share a VM and it was possible for the oom killer to 
+> select the one of the threads while the other was OOM_DISABLE.
+> 
+> This is an extremely simple livelock to trigger, AND YOU DON'T EVEN NEED 
+> CAP_SYS_RESOURCE TO DO IT.  Consider a job scheduler that superuser has 
+> set to OOM_DISABLE because of its necessity to the system.  Imagine if 
+> that job scheduler vfork's a child and sets its inherited oom_adj value of 
+> OOM_DISABLE to something higher so that the machine doesn't panic on 
+> exec() when the child spikes in memory usage when the application first 
+> starts.
+> 
+> Now imagine that either there are no other user threads or the job 
+> scheduler itself has allocated more pages than any other thread.  Or, more 
+> simply, imagine that it sets the child's oom_adj value to a higher 
+> priority than other threads based on some heuristic.  Regardless, if the 
+> system becomes oom before the exec() can happen and before the new VM is 
+> attached to the child, the machine livelocks.
+> 
+> That happens because of two things:
+> 
+>  - the oom killer uses the oom_adj value to adjust the oom_score for a
+>    task, and that score is mainly based on the size of each thread's VM,
+>    and
+> 
+>  - the oom killer cannot kill a thread that shares a VM with an
+>    OOM_DISABLE thread because it will not lead to future memory freeing.
+> 
+> So the preferred solution for complete consistency and to fix the livelock 
+> is to make the oom_adj value a characteristic of the VM, because THAT'S 
+> WHAT IT ACTS ON.  The effective oom_adj value for a thread is always equal 
+> to the highest oom_adj value of any thread sharing its VM.
+> 
+> Do we really want to keep this inconsistency around forever in the kernel 
+> so that /proc/pid/oom_score actually means NOTHING because another thread 
+> sharing the memory has a different oom_adj?  Or do we want to take the 
+> opportunity to fix a broken userspace model that leads to a livelock to 
+> fix it and move on with a consistent interface and, with oom_adj_child, 
+> all the functionality you had before.
+> 
+> And you and KAMEZAWA-san can continue to call my patches stupid, but 
+> that's not adding anything to your argument.
 
-Right, that's a good point. 
+Then, your patch will got full reverting ;)
+I wouldn't hope this... please.
 
-Thanks,
-Fengguang
+
+> 
+> > Paul already pointed out this issue can be fixed without ABI change.
+> > 
+> 
+> I'm unaware of any viable solution that has been proposed, sorry.
+
+Please see my another mail. it's contain the patch.
+
+
+> > if you feel my stand point is double standard, I need explain me more.
+> > So, I don't think per-process oom_adj makes any regression on _real_ world.
+> 
+> Wrong, our machines have livelocked because of the exact scenario I 
+> described above.
+
+Hua?
+David, per-process oom_adj was made _your_ patch. Do you propose
+NAK yourself patch?
+
+maybe, We made any miscommunication?
+
+> > but vfork()'s one is real world issue.
+> > 
+> 
+> And it's based on a broken assumption that oom_adj values actually mean 
+> anything independent of other threads sharing the same memory.  That's a 
+> completely false assumption.  Applications that are tuning oom_adj value 
+> will rely on oom_scores, which are currently false if oom_adj differs 
+> amongst those threads, and should be written to how the oom killer uses 
+> the value.
+
+No. another process have another process value is valid assumption.
+sharing struct_mm is deeply implementaion detail. it shouldn't be
+exposed userland.
+
+Why do you think false assumption? In UNIX/Linux programming
+is frequently used following idiom.
+
+	if (fork() == 0) {
+		setting_something_process_property();
+		execve("new-command");
+	}
+
+vfork() is also frequently used. It is allowed long time common practice.
+I don't think we can says "hey, you are silly!" to application developer.
+
+
+> 
+> > And, May I explay why I think your oom_adj_child is wrong idea?
+> > The fact is: new feature introducing never fix regression. yes, some
+> > application use new interface and disappear the problem. but other
+> > application still hit the problem. that's not correct development style
+> > in kernel.
+> > 
+> 
+> So you're proposing that we forever allow /proc/pid/oom_score to be 
+> completely wrong for pid without any knowledge to userspace?  That we 
+> falsely advertise what it represents and allow userspace to believe that 
+> changing oom_adj for a thread sharing memory with other threads actually 
+> changes how the oom killer selects tasks?
+
+No. perhaps no doublly.
+
+1) In my patch, oom_score is also per-process value. all thread have the same
+   oom_score.
+   It's clear meaning.
+2) In almost case, oom_score display collect value because oom_adj is per-process
+   value too. 
+   Yes, there is one exception. vfork() and change oom_adj'ed process might display 
+   wrong value. but I don't think it is serious problem because vfork() process call
+   exec() soon.
+   Administrator never recognize this difference.
+
+> Please.
+
+David, I hope you join to fix this regression. I can't believe we
+can't fix this issue honestly.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
