@@ -1,124 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5354A6B005A
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:59:57 -0400 (EDT)
-Date: Mon, 3 Aug 2009 13:19:13 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 10/12] ksm: sysfs and defaults
-In-Reply-To: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0908031318220.16754@sister.anvils>
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id BFDDE6B005A
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 08:00:34 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n73CJxIb022001
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 3 Aug 2009 21:19:59 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 77F1B45DE62
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:19:59 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 539DC45DE4F
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:19:59 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 25A941DB803E
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:19:59 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BF3051DB803F
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:19:58 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <20090803175557.645b9ca3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090803174519.74673413.kamezawa.hiroyu@jp.fujitsu.com> <20090803175557.645b9ca3.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090803211812.CC29.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  3 Aug 2009 21:19:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At present KSM is just a waste of space if you don't have CONFIG_SYSFS=y
-to provide the /sys/kernel/mm/ksm files to tune and activate it.
+> On Mon, 3 Aug 2009 17:45:19 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > "just inherit at fork, change at exec" is an usual manner, I think.
+> > If oom_adj_exec rather than oom_adj_child, I won't complain, more.
+> > 
+> But this/(and yours) requires users to rewrite their apps.
+> Then, breaks current API.
+> please fight with other guardians.
 
-Make KSM depend on SYSFS?  Could do, but it might be better to provide
-some defaults so that KSM works out-of-the-box, ready for testers to
-madvise MADV_MERGEABLE, even without SYSFS.
+Definitely, I never agree regressionful ABI change ;)
+At least, I still think it can be fixable.
 
-Though anyone serious is likely to want to retune the numbers to their
-taste once they have experience; and whether these settings ever reach
-2.6.32 can be discussed along the way.  
 
-Save 1kB from tiny kernels by #ifdef'ing the SYSFS side of it.
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
-
- mm/ksm.c |   26 +++++++++++++++++++-------
- 1 file changed, 19 insertions(+), 7 deletions(-)
-
---- ksm9/mm/ksm.c	2009-08-02 13:50:41.000000000 +0100
-+++ ksm10/mm/ksm.c	2009-08-02 13:50:48.000000000 +0100
-@@ -163,18 +163,18 @@ static unsigned long ksm_pages_unshared;
- static unsigned long ksm_rmap_items;
- 
- /* Limit on the number of unswappable pages used */
--static unsigned long ksm_max_kernel_pages;
-+static unsigned long ksm_max_kernel_pages = 2000;
- 
- /* Number of pages ksmd should scan in one batch */
--static unsigned int ksm_thread_pages_to_scan;
-+static unsigned int ksm_thread_pages_to_scan = 200;
- 
- /* Milliseconds ksmd should sleep between batches */
--static unsigned int ksm_thread_sleep_millisecs;
-+static unsigned int ksm_thread_sleep_millisecs = 20;
- 
- #define KSM_RUN_STOP	0
- #define KSM_RUN_MERGE	1
- #define KSM_RUN_UNMERGE	2
--static unsigned int ksm_run;
-+static unsigned int ksm_run = KSM_RUN_MERGE;
- 
- static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
- static DEFINE_MUTEX(ksm_thread_mutex);
-@@ -506,6 +506,10 @@ static int unmerge_ksm_pages(struct vm_a
- 	return err;
- }
- 
-+#ifdef CONFIG_SYSFS
-+/*
-+ * Only called through the sysfs control interface:
-+ */
- static int unmerge_and_remove_all_rmap_items(void)
- {
- 	struct mm_slot *mm_slot;
-@@ -563,6 +567,7 @@ error:
- 	spin_unlock(&ksm_mmlist_lock);
- 	return err;
- }
-+#endif /* CONFIG_SYSFS */
- 
- static u32 calc_checksum(struct page *page)
- {
-@@ -1464,6 +1469,11 @@ void __ksm_exit(struct mm_struct *mm,
- 	}
- }
- 
-+#ifdef CONFIG_SYSFS
-+/*
-+ * This all compiles without CONFIG_SYSFS, but is a waste of space.
-+ */
-+
- #define KSM_ATTR_RO(_name) \
- 	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
- #define KSM_ATTR(_name) \
-@@ -1646,6 +1656,7 @@ static struct attribute_group ksm_attr_g
- 	.attrs = ksm_attrs,
- 	.name = "ksm",
- };
-+#endif /* CONFIG_SYSFS */
- 
- static int __init ksm_init(void)
- {
-@@ -1667,16 +1678,17 @@ static int __init ksm_init(void)
- 		goto out_free2;
- 	}
- 
-+#ifdef CONFIG_SYSFS
- 	err = sysfs_create_group(mm_kobj, &ksm_attr_group);
- 	if (err) {
- 		printk(KERN_ERR "ksm: register sysfs failed\n");
--		goto out_free3;
-+		kthread_stop(ksm_thread);
-+		goto out_free2;
- 	}
-+#endif /* CONFIG_SYSFS */
- 
- 	return 0;
- 
--out_free3:
--	kthread_stop(ksm_thread);
- out_free2:
- 	mm_slots_hash_free();
- out_free1:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
