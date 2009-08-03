@@ -1,149 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 29CA86B005C
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:52:39 -0400 (EDT)
-Date: Mon, 3 Aug 2009 13:11:53 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 3/12] ksm: pages_unshared and pages_volatile
-In-Reply-To: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0908031311061.16754@sister.anvils>
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D96B86B005A
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:53:33 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n73CCtRq011450
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 3 Aug 2009 21:12:55 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 227DA45DE58
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:12:55 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3E9645DE57
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:12:54 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A61631DB8041
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:12:54 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D6B21DB803A
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:12:54 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <20090803200639.CC1D.A69D9226@jp.fujitsu.com>
+References: <alpine.DEB.2.00.0907310210460.25447@chino.kir.corp.google.com> <20090803200639.CC1D.A69D9226@jp.fujitsu.com>
+Message-Id: <20090803211112.CC23.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  3 Aug 2009 21:12:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The pages_shared and pages_sharing counts give a good picture of how
-successful KSM is at sharing; but no clue to how much wasted work it's
-doing to get there.  Add pages_unshared (count of unique pages waiting
-in the unstable tree, hoping to find a mate) and pages_volatile.
 
-pages_volatile is harder to define.  It includes those pages changing
-too fast to get into the unstable tree, but also whatever other edge
-conditions prevent a page getting into the trees: a high value may
-deserve investigation.  Don't try to calculate it from the various
-conditions: it's the total of rmap_items less those accounted for.
+One mistake.
 
-Also show full_scans: the number of completed scans of everything
-registered in the mm list.
+> > > And, May I explay why I think your oom_adj_child is wrong idea?
+> > > The fact is: new feature introducing never fix regression. yes, some
+> > > application use new interface and disappear the problem. but other
+> > > application still hit the problem. that's not correct development style
+> > > in kernel.
+> > > 
+> > 
+> > So you're proposing that we forever allow /proc/pid/oom_score to be 
+> > completely wrong for pid without any knowledge to userspace?  That we 
+> > falsely advertise what it represents and allow userspace to believe that 
+> > changing oom_adj for a thread sharing memory with other threads actually 
+> > changes how the oom killer selects tasks?
+> 
+> No. perhaps no doublly.
+> 
+> 1) In my patch, oom_score is also per-process value. all thread have the same
+>    oom_score.
+>    It's clear meaning.
 
-The locking for all these counts is simply ksm_thread_mutex.
+it's wrong explanation. oom_score is calculated from the same oom_adj.
+but it have each different oom_score. sorry my confused.
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
 
- mm/ksm.c |   52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 51 insertions(+), 1 deletion(-)
 
---- ksm2/mm/ksm.c	2009-08-02 13:49:43.000000000 +0100
-+++ ksm3/mm/ksm.c	2009-08-02 13:49:51.000000000 +0100
-@@ -155,6 +155,12 @@ static unsigned long ksm_pages_shared;
- /* The number of page slots additionally sharing those nodes */
- static unsigned long ksm_pages_sharing;
- 
-+/* The number of nodes in the unstable tree */
-+static unsigned long ksm_pages_unshared;
-+
-+/* The number of rmap_items in use: to calculate pages_volatile */
-+static unsigned long ksm_rmap_items;
-+
- /* Limit on the number of unswappable pages used */
- static unsigned long ksm_max_kernel_pages;
- 
-@@ -204,11 +210,17 @@ static void __init ksm_slab_free(void)
- 
- static inline struct rmap_item *alloc_rmap_item(void)
- {
--	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-+	struct rmap_item *rmap_item;
-+
-+	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-+	if (rmap_item)
-+		ksm_rmap_items++;
-+	return rmap_item;
- }
- 
- static inline void free_rmap_item(struct rmap_item *rmap_item)
- {
-+	ksm_rmap_items--;
- 	rmap_item->mm = NULL;	/* debug safety */
- 	kmem_cache_free(rmap_item_cache, rmap_item);
- }
-@@ -419,6 +431,7 @@ static void remove_rmap_item_from_tree(s
- 		BUG_ON(age > 2);
- 		if (!age)
- 			rb_erase(&rmap_item->node, &root_unstable_tree);
-+		ksm_pages_unshared--;
- 	}
- 
- 	rmap_item->address &= PAGE_MASK;
-@@ -1002,6 +1015,7 @@ static struct rmap_item *unstable_tree_s
- 	rb_link_node(&rmap_item->node, parent, new);
- 	rb_insert_color(&rmap_item->node, &root_unstable_tree);
- 
-+	ksm_pages_unshared++;
- 	return NULL;
- }
- 
-@@ -1098,6 +1112,8 @@ static void cmp_and_merge_page(struct pa
- 		if (!err) {
- 			rb_erase(&tree_rmap_item->node, &root_unstable_tree);
- 			tree_rmap_item->address &= ~NODE_FLAG;
-+			ksm_pages_unshared--;
-+
- 			/*
- 			 * If we fail to insert the page into the stable tree,
- 			 * we will have 2 virtual addresses that are pointing
-@@ -1481,6 +1497,37 @@ static ssize_t pages_sharing_show(struct
- }
- KSM_ATTR_RO(pages_sharing);
- 
-+static ssize_t pages_unshared_show(struct kobject *kobj,
-+				   struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", ksm_pages_unshared);
-+}
-+KSM_ATTR_RO(pages_unshared);
-+
-+static ssize_t pages_volatile_show(struct kobject *kobj,
-+				   struct kobj_attribute *attr, char *buf)
-+{
-+	long ksm_pages_volatile;
-+
-+	ksm_pages_volatile = ksm_rmap_items - ksm_pages_shared
-+				- ksm_pages_sharing - ksm_pages_unshared;
-+	/*
-+	 * It was not worth any locking to calculate that statistic,
-+	 * but it might therefore sometimes be negative: conceal that.
-+	 */
-+	if (ksm_pages_volatile < 0)
-+		ksm_pages_volatile = 0;
-+	return sprintf(buf, "%ld\n", ksm_pages_volatile);
-+}
-+KSM_ATTR_RO(pages_volatile);
-+
-+static ssize_t full_scans_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", ksm_scan.seqnr);
-+}
-+KSM_ATTR_RO(full_scans);
-+
- static struct attribute *ksm_attrs[] = {
- 	&sleep_millisecs_attr.attr,
- 	&pages_to_scan_attr.attr,
-@@ -1488,6 +1535,9 @@ static struct attribute *ksm_attrs[] = {
- 	&max_kernel_pages_attr.attr,
- 	&pages_shared_attr.attr,
- 	&pages_sharing_attr.attr,
-+	&pages_unshared_attr.attr,
-+	&pages_volatile_attr.attr,
-+	&full_scans_attr.attr,
- 	NULL,
- };
- 
+> 2) In almost case, oom_score display collect value because oom_adj is per-process
+>    value too. 
+>    Yes, there is one exception. vfork() and change oom_adj'ed process might display 
+>    wrong value. but I don't think it is serious problem because vfork() process call
+>    exec() soon.
+>    Administrator never recognize this difference.
+> 
+> > Please.
+> 
+> David, I hope you join to fix this regression. I can't believe we
+> can't fix this issue honestly.
+> 
+> 
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
