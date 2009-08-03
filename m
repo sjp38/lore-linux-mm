@@ -1,235 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9E1256B005A
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:56:59 -0400 (EDT)
-Date: Mon, 3 Aug 2009 13:16:15 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 7/12] ksm: fix endless loop on oom
-In-Reply-To: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0908031315200.16754@sister.anvils>
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9BEB36B0062
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 07:57:03 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n73CGRkc013281
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 3 Aug 2009 21:16:27 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1236145DE53
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:16:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DEDB345DE4E
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:16:26 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A41DC1DB8044
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:16:26 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 490791DB8042
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 21:16:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch -mm v2] mm: introduce oom_adj_child
+In-Reply-To: <alpine.DEB.2.00.0907311225480.22732@chino.kir.corp.google.com>
+References: <20090731154823.B6EF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0907311225480.22732@chino.kir.corp.google.com>
+Message-Id: <20090803210010.CC20.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  3 Aug 2009 21:16:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-break_ksm has been looping endlessly ignoring VM_FAULT_OOM: that should
-only be a problem for ksmd when a memory control group imposes limits
-(normally the OOM killer will kill others with an mm until it succeeds);
-but in general (especially for MADV_UNMERGEABLE and KSM_RUN_UNMERGE) we
-do need to route the error (or kill) back to the caller (or sighandling).
+> On Fri, 31 Jul 2009, KOSAKI Motohiro wrote:
+> 
+> > diff --git a/fs/proc/base.c b/fs/proc/base.c
+> > index 3ce5ae9..c64499e 100644
+> > --- a/fs/proc/base.c
+> > +++ b/fs/proc/base.c
+> > @@ -1008,7 +1008,7 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
+> >  		return -ESRCH;
+> >  	task_lock(task);
+> >  	if (task->mm)
+> > -		oom_adjust = task->mm->oom_adj;
+> > +		oom_adjust = task->signal->oom_adj;
+> >  	else
+> >  		oom_adjust = OOM_DISABLE;
+> >  	task_unlock(task);
+> 
+> This may display a /proc/pid/oom_adj that is radically different from 
+> task->mm->oom_adj_cached without knowledge to userspace and you can't 
+> simply display task->mm>oom_adj_cached here because it gets reset on every 
+> write to /proc/pid/oom_adj.
 
-Test signal_pending in unmerge_ksm_pages, which could be a lengthy
-procedure if it has to spill into swap: returning -ERESTARTSYS so that
-trivial signals will restart but fatals will terminate (is that right?
-we do different things in different places in mm, none exactly this).
+Is this necessary?
+different value was only happen when vfork process change oom_adj. but
+vfork()ed process call exec() soon.
+userland monitor program don't confuse.
 
-unmerge_and_remove_all_rmap_items was forgetting to lock when going
-down the mm_list: fix that.  Whether it's successful or not, reset
-ksm_scan cursor to head; but only if it's successful, reset seqnr
-(shown in full_scans) - page counts will have gone down to zero.
+Plus, if you can post any troublesome testcase, I can fix it.
+this is not essential code in this patch.
 
-This patch leaves a significant OOM deadlock, but it's a good step
-on the way, and that deadlock is fixed in a subsequent patch.
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
 
- mm/ksm.c |  108 +++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 85 insertions(+), 23 deletions(-)
+> > @@ -1046,12 +1046,13 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+> >  		put_task_struct(task);
+> >  		return -EINVAL;
+> >  	}
+> > -	if (oom_adjust < task->mm->oom_adj && !capable(CAP_SYS_RESOURCE)) {
+> > +	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
+> >  		task_unlock(task);
+> >  		put_task_struct(task);
+> >  		return -EACCES;
+> >  	}
+> > -	task->mm->oom_adj = oom_adjust;
+> > +	task->signal->oom_adj = oom_adjust;
+> > +	task->mm->oom_adj_cached = OOM_CACHE_DEFAULT;
+> >  	task_unlock(task);
+> >  	put_task_struct(task);
+> >  	if (end - buffer == 0)
+> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > index 7acc843..f93f97f 100644
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -240,7 +240,8 @@ struct mm_struct {
+> >  
+> >  	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+> >  
+> > -	s8 oom_adj;	/* OOM kill score adjustment (bit shift) */
+> > +	s8 oom_adj_cached;	/* mirror from signal_struct->oom_adj.
+> > +				   in vfork case, multiple processes use the same mm. */
+> >  
+> >  	cpumask_t cpu_vm_mask;
+> >  
+> > diff --git a/include/linux/oom.h b/include/linux/oom.h
+> > index a7979ba..a219480 100644
+> > --- a/include/linux/oom.h
+> > +++ b/include/linux/oom.h
+> > @@ -3,6 +3,7 @@
+> >  
+> >  /* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
+> >  #define OOM_DISABLE (-17)
+> > +#define OOM_CACHE_DEFAULT (15)
+> >  /* inclusive */
+> >  #define OOM_ADJUST_MIN (-16)
+> >  #define OOM_ADJUST_MAX 15
+> > diff --git a/include/linux/sched.h b/include/linux/sched.h
+> > index 3ab08e4..e10b12b 100644
+> > --- a/include/linux/sched.h
+> > +++ b/include/linux/sched.h
+> > @@ -629,6 +629,8 @@ struct signal_struct {
+> >  	unsigned audit_tty;
+> >  	struct tty_audit_buf *tty_audit_buf;
+> >  #endif
+> > +
+> > +	s8 oom_adj;	/* OOM kill score adjustment (bit shift) */
+> >  };
+> >  
+> >  /* Context switch must be unlocked if interrupts are to be enabled */
+> 
+> I don't believe oom_adj is an appropriate use of signal_struct, sorry.
 
---- ksm6/mm/ksm.c	2009-08-02 13:50:15.000000000 +0100
-+++ ksm7/mm/ksm.c	2009-08-02 13:50:25.000000000 +0100
-@@ -294,10 +294,10 @@ static inline int in_stable_tree(struct
-  * Could a ksm page appear anywhere else?  Actually yes, in a VM_PFNMAP
-  * mmap of /dev/mem or /dev/kmem, where we would not want to touch it.
-  */
--static void break_ksm(struct vm_area_struct *vma, unsigned long addr)
-+static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
- {
- 	struct page *page;
--	int ret;
-+	int ret = 0;
- 
- 	do {
- 		cond_resched();
-@@ -310,9 +310,36 @@ static void break_ksm(struct vm_area_str
- 		else
- 			ret = VM_FAULT_WRITE;
- 		put_page(page);
--	} while (!(ret & (VM_FAULT_WRITE | VM_FAULT_SIGBUS)));
--
--	/* Which leaves us looping there if VM_FAULT_OOM: hmmm... */
-+	} while (!(ret & (VM_FAULT_WRITE | VM_FAULT_SIGBUS | VM_FAULT_OOM)));
-+	/*
-+	 * We must loop because handle_mm_fault() may back out if there's
-+	 * any difficulty e.g. if pte accessed bit gets updated concurrently.
-+	 *
-+	 * VM_FAULT_WRITE is what we have been hoping for: it indicates that
-+	 * COW has been broken, even if the vma does not permit VM_WRITE;
-+	 * but note that a concurrent fault might break PageKsm for us.
-+	 *
-+	 * VM_FAULT_SIGBUS could occur if we race with truncation of the
-+	 * backing file, which also invalidates anonymous pages: that's
-+	 * okay, that truncation will have unmapped the PageKsm for us.
-+	 *
-+	 * VM_FAULT_OOM: at the time of writing (late July 2009), setting
-+	 * aside mem_cgroup limits, VM_FAULT_OOM would only be set if the
-+	 * current task has TIF_MEMDIE set, and will be OOM killed on return
-+	 * to user; and ksmd, having no mm, would never be chosen for that.
-+	 *
-+	 * But if the mm is in a limited mem_cgroup, then the fault may fail
-+	 * with VM_FAULT_OOM even if the current task is not TIF_MEMDIE; and
-+	 * even ksmd can fail in this way - though it's usually breaking ksm
-+	 * just to undo a merge it made a moment before, so unlikely to oom.
-+	 *
-+	 * That's a pity: we might therefore have more kernel pages allocated
-+	 * than we're counting as nodes in the stable tree; but ksm_do_scan
-+	 * will retry to break_cow on each pass, so should recover the page
-+	 * in due course.  The important thing is to not let VM_MERGEABLE
-+	 * be cleared while any such pages might remain in the area.
-+	 */
-+	return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
- }
- 
- static void break_cow(struct mm_struct *mm, unsigned long addr)
-@@ -462,39 +489,61 @@ static void remove_trailing_rmap_items(s
-  * to the next pass of ksmd - consider, for example, how ksmd might be
-  * in cmp_and_merge_page on one of the rmap_items we would be removing.
-  */
--static void unmerge_ksm_pages(struct vm_area_struct *vma,
--			      unsigned long start, unsigned long end)
-+static int unmerge_ksm_pages(struct vm_area_struct *vma,
-+			     unsigned long start, unsigned long end)
- {
- 	unsigned long addr;
-+	int err = 0;
- 
--	for (addr = start; addr < end; addr += PAGE_SIZE)
--		break_ksm(vma, addr);
-+	for (addr = start; addr < end && !err; addr += PAGE_SIZE) {
-+		if (signal_pending(current))
-+			err = -ERESTARTSYS;
-+		else
-+			err = break_ksm(vma, addr);
-+	}
-+	return err;
- }
- 
--static void unmerge_and_remove_all_rmap_items(void)
-+static int unmerge_and_remove_all_rmap_items(void)
- {
- 	struct mm_slot *mm_slot;
- 	struct mm_struct *mm;
- 	struct vm_area_struct *vma;
-+	int err = 0;
-+
-+	spin_lock(&ksm_mmlist_lock);
-+	mm_slot = list_entry(ksm_mm_head.mm_list.next,
-+						struct mm_slot, mm_list);
-+	spin_unlock(&ksm_mmlist_lock);
- 
--	list_for_each_entry(mm_slot, &ksm_mm_head.mm_list, mm_list) {
-+	while (mm_slot != &ksm_mm_head) {
- 		mm = mm_slot->mm;
- 		down_read(&mm->mmap_sem);
- 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 			if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
- 				continue;
--			unmerge_ksm_pages(vma, vma->vm_start, vma->vm_end);
-+			err = unmerge_ksm_pages(vma,
-+						vma->vm_start, vma->vm_end);
-+			if (err) {
-+				up_read(&mm->mmap_sem);
-+				goto out;
-+			}
- 		}
- 		remove_trailing_rmap_items(mm_slot, mm_slot->rmap_list.next);
- 		up_read(&mm->mmap_sem);
-+
-+		spin_lock(&ksm_mmlist_lock);
-+		mm_slot = list_entry(mm_slot->mm_list.next,
-+						struct mm_slot, mm_list);
-+		spin_unlock(&ksm_mmlist_lock);
- 	}
- 
-+	ksm_scan.seqnr = 0;
-+out:
- 	spin_lock(&ksm_mmlist_lock);
--	if (ksm_scan.mm_slot != &ksm_mm_head) {
--		ksm_scan.mm_slot = &ksm_mm_head;
--		ksm_scan.seqnr++;
--	}
-+	ksm_scan.mm_slot = &ksm_mm_head;
- 	spin_unlock(&ksm_mmlist_lock);
-+	return err;
- }
- 
- static void remove_mm_from_lists(struct mm_struct *mm)
-@@ -1058,6 +1107,8 @@ static void cmp_and_merge_page(struct pa
- 	/*
- 	 * A ksm page might have got here by fork, but its other
- 	 * references have already been removed from the stable tree.
-+	 * Or it might be left over from a break_ksm which failed
-+	 * when the mem_cgroup had reached its limit: try again now.
- 	 */
- 	if (PageKsm(page))
- 		break_cow(rmap_item->mm, rmap_item->address);
-@@ -1293,6 +1344,7 @@ int ksm_madvise(struct vm_area_struct *v
- 		unsigned long end, int advice, unsigned long *vm_flags)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-+	int err;
- 
- 	switch (advice) {
- 	case MADV_MERGEABLE:
-@@ -1305,9 +1357,11 @@ int ksm_madvise(struct vm_area_struct *v
- 				 VM_MIXEDMAP  | VM_SAO))
- 			return 0;		/* just ignore the advice */
- 
--		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
--			if (__ksm_enter(mm) < 0)
--				return -EAGAIN;
-+		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-+			err = __ksm_enter(mm);
-+			if (err)
-+				return err;
-+		}
- 
- 		*vm_flags |= VM_MERGEABLE;
- 		break;
-@@ -1316,8 +1370,11 @@ int ksm_madvise(struct vm_area_struct *v
- 		if (!(*vm_flags & VM_MERGEABLE))
- 			return 0;		/* just ignore the advice */
- 
--		if (vma->anon_vma)
--			unmerge_ksm_pages(vma, start, end);
-+		if (vma->anon_vma) {
-+			err = unmerge_ksm_pages(vma, start, end);
-+			if (err)
-+				return err;
-+		}
- 
- 		*vm_flags &= ~VM_MERGEABLE;
- 		break;
-@@ -1448,8 +1505,13 @@ static ssize_t run_store(struct kobject
- 	mutex_lock(&ksm_thread_mutex);
- 	if (ksm_run != flags) {
- 		ksm_run = flags;
--		if (flags & KSM_RUN_UNMERGE)
--			unmerge_and_remove_all_rmap_items();
-+		if (flags & KSM_RUN_UNMERGE) {
-+			err = unmerge_and_remove_all_rmap_items();
-+			if (err) {
-+				ksm_run = KSM_RUN_STOP;
-+				count = err;
-+			}
-+		}
- 	}
- 	mutex_unlock(&ksm_thread_mutex);
- 
+Real world and life aren't so simple... and linux too.
+At least, regression is definitely worst result. any other way
+is better than it.
+
+
+> 
+> > diff --git a/kernel/exit.c b/kernel/exit.c
+> > index 869dc22..c741a45 100644
+> > --- a/kernel/exit.c
+> > +++ b/kernel/exit.c
+> > @@ -688,6 +689,7 @@ static void exit_mm(struct task_struct * tsk)
+> >  	enter_lazy_tlb(mm, current);
+> >  	/* We don't want this task to be frozen prematurely */
+> >  	clear_freeze_flag(tsk);
+> > +	mm->oom_adj_cached = OOM_CACHE_DEFAULT;
+> >  	task_unlock(tsk);
+> >  	mm_update_next_owner(mm);
+> >  	mmput(mm);
+> 
+> This is similiar to an early proposal that wanted to keep an array of 
+> oom_adj values for tasks attached to the mm in mm_struct.  The problem is 
+> that you're obviously losing information about all threads attached to the 
+> mm any time one of the threads exits or writes to /proc/pid/oom_adj.  That 
+> information can only be regenerated with a tasklist scan.
+
+I agree this. but I can't imazine this darkside. Can you please explain this?
+maybe, we can improve this implementaion obviously. reset at each thread exitting
+is caused by my lazy and small patch preference.
+a bit line adding can change this.
+
+> 
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index 9b42695..b7cb474 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -426,6 +427,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+> >  	init_rwsem(&mm->mmap_sem);
+> >  	INIT_LIST_HEAD(&mm->mmlist);
+> >  	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
+> > +	mm->oom_adj_cached = OOM_CACHE_DEFAULT;
+> >  	mm->core_state = NULL;
+> >  	mm->nr_ptes = 0;
+> >  	set_mm_counter(mm, file_rss, 0);
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 175a67a..eae2d78 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -58,7 +58,7 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+> >  	unsigned long points, cpu_time, run_time;
+> >  	struct mm_struct *mm;
+> >  	struct task_struct *child;
+> > -	int oom_adj;
+> > +	s8 oom_adj;
+> >  
+> >  	task_lock(p);
+> >  	mm = p->mm;
+> > @@ -66,7 +66,10 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+> >  		task_unlock(p);
+> >  		return 0;
+> >  	}
+> > -	oom_adj = mm->oom_adj;
+> > +
+> > +	if (mm->oom_adj_cached < p->signal->oom_adj)
+> > +		mm->oom_adj_cached = p->signal->oom_adj;
+> 
+> This conditional will never be true since mm->oom_adj_cached is 
+> initialized to 15, which is the upper bound on which p->signal->oom_adj 
+> may ever be, so mm->oom_adj_cached never gets changed from 
+> OOM_CACHE_DEFAULT.
+
+Ah, good catch. this condition shold be reserve. thanks.
+
+
+> Thus, this patch doesn't even work, and you probably would have noticed 
+> that if you'd checked /proc/pid/oom_score for any pid.
+> 
+> Even if mm->oom_adj_cached _was_ properly updated here, 
+> /proc/pid/oom_score would be out of sync with more negative oom_adj values 
+> for threads sharing the mm_struct since it calls badness() for only a 
+> single thread.
+
+Hm, I don't think this is serious problem. but I can fix it easily
+because badness() isn't fast-path.
+
+
+
+> 
+> > +	oom_adj = mm->oom_adj_cached;
+> >  	if (oom_adj == OOM_DISABLE) {
+> >  		task_unlock(p);
+> >  		return 0;
+> > @@ -350,7 +354,7 @@ static int oom_kill_task(struct task_struct *p)
+> >  
+> >  	task_lock(p);
+> >  	mm = p->mm;
+> > -	if (!mm || mm->oom_adj == OOM_DISABLE) {
+> > +	if (!mm || p->signal->oom_adj == OOM_DISABLE) {
+> >  		task_unlock(p);
+> >  		return 1;
+> >  	}
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
