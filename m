@@ -1,403 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CE1776B0099
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 05:01:55 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp03.in.ibm.com (8.14.3/8.13.1) with ESMTP id n739KEsc032496
-	for <linux-mm@kvack.org>; Mon, 3 Aug 2009 14:50:14 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n739KENY1196080
-	for <linux-mm@kvack.org>; Mon, 3 Aug 2009 14:50:14 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n739KDS9004225
-	for <linux-mm@kvack.org>; Mon, 3 Aug 2009 19:20:14 +1000
-Date: Mon, 3 Aug 2009 14:50:02 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFI] Help Resource Counters scale better
-Message-ID: <20090803092001.GA6895@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090802172517.GG8514@balbir.in.ibm.com>
- <20090803101306.0d62fc82.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 07FF96B009A
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2009 05:06:50 -0400 (EDT)
+Date: Mon, 3 Aug 2009 11:25:15 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: Why does __do_page_cache_readahead submit READ, not READA?
+Message-ID: <20090803092515.GK12579@kernel.dk>
+References: <20090729161456.GB8059@barkeeper1-xen.linbit> <20090729211845.GB4148@kernel.dk> <20090729225501.GH24801@think> <20090730060649.GC4148@kernel.dk> <20090803075202.GA13485@localhost> <20090803075933.GI12579@kernel.dk> <20090803082318.GA18731@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090803101306.0d62fc82.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090803082318.GA18731@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Lars Ellenberg <lars.ellenberg@linbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Neil Brown <neilb@suse.de>, "Van De Ven, Arjan" <arjan.van.de.ven@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-03 10:13:06]:
-
-> On Sun, 2 Aug 2009 22:55:17 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
+On Mon, Aug 03 2009, Wu Fengguang wrote:
+> On Mon, Aug 03, 2009 at 03:59:33PM +0800, Jens Axboe wrote:
+> > On Mon, Aug 03 2009, Wu Fengguang wrote:
+> > > On Thu, Jul 30, 2009 at 08:06:49AM +0200, Jens Axboe wrote:
+> > > > On Wed, Jul 29 2009, Chris Mason wrote:
+> > > > > On Wed, Jul 29, 2009 at 11:18:45PM +0200, Jens Axboe wrote:
+> > > > > > On Wed, Jul 29 2009, Lars Ellenberg wrote:
+> > > > > > > I naively assumed, from the "readahead" in the name, that readahead
+> > > > > > > would be submitting READA bios. It does not.
+> > > > > > > 
+> > > > > > > I recently did some statistics on how many READ and READA requests
+> > > > > > > we actually see on the block device level.
+> > > > > > > I was suprised that READA is basically only used for file system
+> > > > > > > internal meta data (and not even for all file systems),
+> > > > > > > but _never_ for file data.
+> > > > > > > 
+> > > > > > > A simple
+> > > > > > > 	dd if=bigfile of=/dev/null bs=4k count=1
+> > > > > > > will absolutely cause readahead of the configured amount, no problem.
+> > > > > > > But on the block device level, these are READ requests, where I'd
+> > > > > > > expected them to be READA requests, based on the name.
+> > > > > > > 
+> > > > > > > This is because __do_page_cache_readahead() calls read_pages(),
+> > > > > > > which in turn is mapping->a_ops->readpages(), or, as fallback,
+> > > > > > > mapping->a_ops->readpage().
+> > > > > > > 
+> > > > > > > On that level, all variants end up submitting as READ.
+> > > > > > > 
+> > > > > > > This may even be intentional.
+> > > > > > > But if so, I'd like to understand that.
+> > > > > > 
+> > > > > > I don't think it's intentional, and if memory serves, we used to use
+> > > > > > READA when submitting read-ahead. Not sure how best to improve the
+> > > > > > situation, since (as you describe), we lose the read-ahead vs normal
+> > > > > > read at that level. I did some experimentation some time ago for
+> > > > > > flagging this, see:
+> > > > > > 
+> > > > > > http://git.kernel.dk/?p=linux-2.6-block.git;a=commitdiff;h=16cfe64e3568cda412b3cf6b7b891331946b595e
+> > > > > > 
+> > > > > > which should pass down READA properly.
+> > > > > 
+> > > > > One of the problems in the past was that reada would fail if there
+> > > > > wasn't a free request when we actually wanted it to go ahead and wait.
+> > > > > Or something.  We've switched it around a few times I think.
+> > > > 
+> > > > Yes, we did used to do that, whether it was 2.2 or 2.4 I
+> > > > don't recall :-)
+> > > > 
+> > > > It should be safe to enable know, whether there's a prettier way
+> > > > than the above, I don't know. It works by detecting the read-ahead
+> > > > marker, but it's a bit of a fragile design.
+> > > 
+> > > Another consideration is io-priority reversion and the overheads
+> > > required to avoid it:
+> > > 
+> > >         readahead(pages A-Z)    => READA IO for pages A-Z
+> > >         <short time later>
+> > >         read(page A) => blocked => find the request that contains page A
+> > >                                    and requeue/kick it as READ IO
+> > > 
+> > > The page-to-request lookups are not always required but nevertheless
+> > > the complexity and overheads won't be trivial.
+> > > 
+> > > The page-to-request lookup feature would be also useful for "advanced"
+> > > features like io-canceling (if implemented, hwpoison could be its
+> > > first user ;)
 > > 
-> > Enhancement: For scalability move the resource counter to a percpu counter
-> > 
-> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > This patch changes the usage field of a resource counter to a percpu
-> > counter. The counter is incremented with local irq disabled. The other
-> > fields are still protected by the spin lock for write.
-> > 
-> thanks, will have to go this way.
+> > I added that 3-4 years ago or so, to experiment with in-kernel
+> > cancellation for things like truncate(). Tracking pages is not cheap,
+> > and since the write cancelling wasn't really very sucessful, I didn't go
+> > ahead with it.
 > 
+> Ah OK.
 > 
-> > This patch adds a fuzziness factor to hard limit, since the value we read
-> > could be off the original value (by batch value), this can be fixed
-> > by adding a strict/non-strict functionality check. The intention is
-> > to turn of strict checking for root (since we can't set limits on
->      turn off ?
-> > it anyway).
-> > 
+> > So I'm not sure it's a viable alternative, even if we restricted it to
+> > just tracking READA's, for instance.
 > 
-> Hmm, this is the first problem of per-cpu counter, always.
-> I wonder if there are systems with thousands of cpus, it has
-> tons of memory.  Then, if jitter per cpu is enough small,
-> it will not be big problem anyway.
+> Kind of agreed. I guess it won't benefit too much workloads to default
+> to READA; for most workloads it would be pure overheads if considering
+> priority inversion.
+> 
+> > But I don't think we have any priority inversion to worry about, at
+> > least not from the CFQ perspective.
+> 
+> The priority inversion problem showed up in an early attempt to do
+> boot time prefetching. I guess this problem was somehow circumvented
+> by limiting the prefetch depth and do prefetches in original read
+> order instead of disk location order (Arjan cc'ed).
 
-Agreed
-
-> But... root only ?
-> 
-
-We can extend it, but I wanted to allow the user to specify for other
-groups, to provide flexibility and backward compatability. For root
-I want to use it by default.
-
-> > I tested this patch on my x86_64 box with a regular test for hard
-> > limits and a page fault program.
-> > 
-> > This is an early RFI on the design and changes for resource counter
-> > functionality to help it scale better.
-> > 
-> > Direct uses of mem->res.usage in memcontrol.c have been converted
-> > to the standard resource counters interface.
-> > 
-> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > ---
-> > 
-> >  include/linux/res_counter.h |   41 ++++++++++++++++++++++++-----------------
-> >  kernel/res_counter.c        |   31 +++++++++++++++++--------------
-> >  mm/memcontrol.c             |    6 +++---
-> >  3 files changed, 44 insertions(+), 34 deletions(-)
-> > 
-> > 
-> > diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> > index 731af71..0f9ee03 100644
-> > --- a/include/linux/res_counter.h
-> > +++ b/include/linux/res_counter.h
-> > @@ -14,6 +14,7 @@
-> >   */
-> >  
-> >  #include <linux/cgroup.h>
-> > +#include <linux/percpu_counter.h>
-> >  
-> >  /*
-> >   * The core object. the cgroup that wishes to account for some
-> > @@ -23,10 +24,6 @@
-> >  
-> >  struct res_counter {
-> >  	/*
-> > -	 * the current resource consumption level
-> > -	 */
-> > -	unsigned long long usage;
-> > -	/*
-> >  	 * the maximal value of the usage from the counter creation
-> >  	 */
-> >  	unsigned long long max_usage;
-> > @@ -48,6 +45,11 @@ struct res_counter {
-> >  	 */
-> >  	spinlock_t lock;
-> >  	/*
-> > +	 * the current resource consumption level
-> > +	 */
-> > +	struct percpu_counter usage;
-> > +	unsigned long long tmp_usage;	/* Used by res_counter_member */
-> > +	/*
-> 
-> 
->  - We should condier take following policy or not..
->    * res_counter->usage is very strict now and it can exceeds res->limit.
->      Then, we don't take a lock for res->limit at charge/uncharge.
->    Maybe your code is on this policy. If so, plz write this somewhere.
-> 
-
-Yep, I'll update the document and comments in the code.
-
->  - We should take care that usage is now s64, not u64.
-
-I am aware of that, but ideally we are not affected. Data types depend
-on how we interpret them - for example if we check for < 0 or print it
-out, etc. With usage we start at 0.
-
-> 
-> 
-> >  	 * Parent counter, used for hierarchial resource accounting
-> >  	 */
-> >  	struct res_counter *parent;
-> > @@ -133,7 +135,8 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val,
-> >  
-> >  static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
-> >  {
-> > -	if (cnt->usage < cnt->limit)
-> > +	unsigned long long usage = percpu_counter_read_positive(&cnt->usage);
-> > +	if (usage < cnt->limit)
-> >  		return true;
-> >  
-> >  	return false;
-> > @@ -141,7 +144,8 @@ static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
-> >  
-> >  static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
-> >  {
-> > -	if (cnt->usage < cnt->soft_limit)
-> > +	unsigned long long usage = percpu_counter_read_positive(&cnt->usage);
-> > +	if (usage < cnt->soft_limit)
-> >  		return true;
-> >  
-> >  	return false;
-> > @@ -157,15 +161,16 @@ static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
-> >  static inline unsigned long long
-> >  res_counter_soft_limit_excess(struct res_counter *cnt)
-> >  {
-> > -	unsigned long long excess;
-> > +	unsigned long long excess, usage;
-> >  	unsigned long flags;
-> >  
-> > -	spin_lock_irqsave(&cnt->lock, flags);
-> > -	if (cnt->usage <= cnt->soft_limit)
-> > +	local_irq_save(flags);
-> > +	usage = percpu_counter_read_positive(&cnt->usage);
-> > +	if (usage <= cnt->soft_limit)
-> >  		excess = 0;
-> >  	else
-> > -		excess = cnt->usage - cnt->soft_limit;
-> > -	spin_unlock_irqrestore(&cnt->lock, flags);
-> > +		excess = usage - cnt->soft_limit;
-> > +	local_irq_restore(flags);
-> >  	return excess;
-> >  }
-> I'm not sure why local_irq_save()/restore() is required.
-> Will this be called from interrupt context ?
->
-
-No.. It might not be required, but in general, IIRC, most of the irq
-protection is to protect against atomic reclaim.
-
- 
-> >  
-> > @@ -178,9 +183,9 @@ static inline bool res_counter_check_under_limit(struct res_counter *cnt)
-> >  	bool ret;
-> >  	unsigned long flags;
-> >  
-> > -	spin_lock_irqsave(&cnt->lock, flags);
-> > +	local_irq_save(flags);
-> >  	ret = res_counter_limit_check_locked(cnt);
-> > -	spin_unlock_irqrestore(&cnt->lock, flags);
-> > +	local_irq_restore(flags);
-> >  	return ret;
-> >  }
-> >  
-> > @@ -189,18 +194,19 @@ static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
-> >  	bool ret;
-> >  	unsigned long flags;
-> >  
-> > -	spin_lock_irqsave(&cnt->lock, flags);
-> > +	local_irq_save(flags);
-> >  	ret = res_counter_soft_limit_check_locked(cnt);
-> > -	spin_unlock_irqrestore(&cnt->lock, flags);
-> > +	local_irq_restore(flags);
-> >  	return ret;
-> >  }
-> >  
-> >  static inline void res_counter_reset_max(struct res_counter *cnt)
-> >  {
-> >  	unsigned long flags;
-> > +	unsigned long long usage = percpu_counter_read_positive(&cnt->usage);
-> >  
-> >  	spin_lock_irqsave(&cnt->lock, flags);
-> > -	cnt->max_usage = cnt->usage;
-> > +	cnt->max_usage = usage;
-> >  	spin_unlock_irqrestore(&cnt->lock, flags);
-> >  }
-> >  
-> > @@ -217,10 +223,11 @@ static inline int res_counter_set_limit(struct res_counter *cnt,
-> >  		unsigned long long limit)
-> >  {
-> >  	unsigned long flags;
-> > +	unsigned long long usage = percpu_counter_read_positive(&cnt->usage);
-> >  	int ret = -EBUSY;
-> >  
-> >  	spin_lock_irqsave(&cnt->lock, flags);
-> > -	if (cnt->usage <= limit) {
-> > +	if (usage <= limit) {
-> >  		cnt->limit = limit;
-> >  		ret = 0;
-> >  	}
-> > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> > index 88faec2..730a60d 100644
-> > --- a/kernel/res_counter.c
-> > +++ b/kernel/res_counter.c
-> > @@ -18,6 +18,7 @@
-> >  void res_counter_init(struct res_counter *counter, struct res_counter *parent)
-> >  {
-> >  	spin_lock_init(&counter->lock);
-> > +	percpu_counter_init(&counter->usage, 0);
-> >  	counter->limit = RESOURCE_MAX;
-> >  	counter->soft_limit = RESOURCE_MAX;
-> >  	counter->parent = parent;
-> > @@ -25,14 +26,17 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
-> >  
-> >  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
-> >  {
-> > -	if (counter->usage + val > counter->limit) {
-> > +	unsigned long long usage;
-> > +
-> > +	usage = percpu_counter_read_positive(&counter->usage);
-> > +	if (usage + val > counter->limit) {
-> >  		counter->failcnt++;
-> >  		return -ENOMEM;
-> >  	}
-> >  
-> > -	counter->usage += val;
-> > -	if (counter->usage > counter->max_usage)
-> > -		counter->max_usage = counter->usage;
-> > +	__percpu_counter_add(&counter->usage, val, nr_cpu_ids * PAGE_SIZE);
-> 
-> At first, this is res_counter and not only for memcg.
-> you shouldn't use PAGE_SIZE here ;)
-
-Good point, I wonder if I should go back to accounting via 1 instead
-of PAGE_SIZE and scale internally.
-
-> 
-> And, this "batch" value seems wrong. Should not be multiple of # of cpus.
-> 
-> How about this ?
-> 
-> /*
->  * This is per-cpu error tolerance for res_counter's usage for memcg.
->  * By this, max error in res_counter's usage will be
->  * _RES_USAGE_ERROR_TOLERANCE_MEMCG * # of cpus.
->  * This can be coufigure via boot opttion (or some...)
->  *
->  */
-> 
-> /* 256k bytes per 8cpus. 1M per 32cpus. */
-> #define __RES_USAGE_ERROR_TOLERANCE_MEMCG	(8 * 4096)
-> 
-> or some. (Above means 32M error in 1024 cpu system. But, I think admin of 1024 cpu system
-> will not take care of Megabytes of memory.)
-> 
-
-Yeah.. We'll need to do something like that.
-
-> 
-> 
-> > +	if (usage + val > counter->max_usage)
-> > +		counter->max_usage = (usage + val);
-> 
-> Hmm, this part should be
-> 
-> 	if (usage + val > counter->max_usage) {
-> 		spin_lock()
-> 		if (usage + val > counter->max_usage)
-> 			counter->max_usage = usage +val;
-> 		spin_unlock()
-> 	}
-
-Good point, max_usage needs to be protected.
-
-> 
-> ?
-> 
-> 
-> >  	return 0;
-> >  }
-> >  
-> > @@ -49,7 +53,6 @@ int res_counter_charge(struct res_counter *counter, unsigned long val,
-> >  		*soft_limit_fail_at = NULL;
-> >  	local_irq_save(flags);
-> >  	for (c = counter; c != NULL; c = c->parent) {
-> > -		spin_lock(&c->lock);
-> >  		ret = res_counter_charge_locked(c, val);
-> >  		/*
-> >  		 * With soft limits, we return the highest ancestor
-> > @@ -58,7 +61,6 @@ int res_counter_charge(struct res_counter *counter, unsigned long val,
-> >  		if (soft_limit_fail_at &&
-> >  			!res_counter_soft_limit_check_locked(c))
-> >  			*soft_limit_fail_at = c;
-> > -		spin_unlock(&c->lock);
-> >  		if (ret < 0) {
-> >  			*limit_fail_at = c;
-> >  			goto undo;
-> > @@ -68,9 +70,7 @@ int res_counter_charge(struct res_counter *counter, unsigned long val,
-> >  	goto done;
-> >  undo:
-> >  	for (u = counter; u != c; u = u->parent) {
-> > -		spin_lock(&u->lock);
-> >  		res_counter_uncharge_locked(u, val);
-> > -		spin_unlock(&u->lock);
-> >  	}
-> >  done:
-> >  	local_irq_restore(flags);
-> > @@ -79,10 +79,13 @@ done:
-> >  
-> >  void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
-> >  {
-> > -	if (WARN_ON(counter->usage < val))
-> > -		val = counter->usage;
-> > +	unsigned long long usage;
-> > +
-> > +	usage = percpu_counter_read_positive(&counter->usage);
-> > +	if (WARN_ON((usage + nr_cpu_ids * PAGE_SIZE) < val))
-> > +		val = usage;
-> >  
-> > -	counter->usage -= val;
-> > +	percpu_counter_sub(&counter->usage, val);
-> >  }
-> >  
-> >  void res_counter_uncharge(struct res_counter *counter, unsigned long val,
-> > @@ -93,12 +96,10 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val,
-> >  
-> >  	local_irq_save(flags);
-> >  	for (c = counter; c != NULL; c = c->parent) {
-> > -		spin_lock(&c->lock);
-> >  		if (was_soft_limit_excess)
-> >  			*was_soft_limit_excess =
-> >  				!res_counter_soft_limit_check_locked(c);
-> >  		res_counter_uncharge_locked(c, val);
-> > -		spin_unlock(&c->lock);
-> >  	}
-> >  	local_irq_restore(flags);
-> 
-> For this part, I wonder local_irq_save() can be replaced wiht preempt_disable()...
-> 
-> 
-> >  }
-> > @@ -109,7 +110,9 @@ res_counter_member(struct res_counter *counter, int member)
-> >  {
-> >  	switch (member) {
-> >  	case RES_USAGE:
-> > -		return &counter->usage;
-> > +		counter->tmp_usage =
-> > +			percpu_counter_read_positive(&counter->usage);
-> > +		return &counter->tmp_usage;
-> 
-> I don't like to have tmp_usage in res_counter just for this purpose.
-> Shouldn't we add
-> 	s64	res_counter_usage(res);
-> ?
->
-
-I considered it, I'll see how to incorporate it without adding too
-many special conditions in the code for usage
-
-Thanks for the review! 
+But was that not due to the prefetcher running at a lower cpu priority?
+Just flagging a reada hint will not change your priority in the IO
+scheduler, so we should have no priority inversion there.
 
 -- 
-	Balbir
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
