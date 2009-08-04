@@ -1,40 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A07D06B004F
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 15:00:12 -0400 (EDT)
-Message-ID: <4A788D32.1090300@redhat.com>
-Date: Tue, 04 Aug 2009 22:34:10 +0300
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4F84E6B004F
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 15:01:11 -0400 (EDT)
+Message-ID: <4A788D6B.8030108@redhat.com>
+Date: Tue, 04 Aug 2009 22:35:07 +0300
 From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/12] ksm: sysfs and defaults
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031318220.16754@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0908031318220.16754@sister.anvils>
+Subject: Re: [PATCH 11/12] ksm: add some documentation
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031319180.16754@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908031319180.16754@sister.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@googlemail.com>, Randy Dunlap <randy.dunlap@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> At present KSM is just a waste of space if you don't have CONFIG_SYSFS=y
-> to provide the /sys/kernel/mm/ksm files to tune and activate it.
->
-> Make KSM depend on SYSFS?  Could do, but it might be better to provide
-> some defaults so that KSM works out-of-the-box, ready for testers to
-> madvise MADV_MERGEABLE, even without SYSFS.
->
-> Though anyone serious is likely to want to retune the numbers to their
-> taste once they have experience; and whether these settings ever reach
-> 2.6.32 can be discussed along the way.  
->
-> Save 1kB from tiny kernels by #ifdef'ing the SYSFS side of it.
+> Add Documentation/vm/ksm.txt: how to use the Kernel Samepage Merging feature
 >
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: Michael Kerrisk <mtk.manpages@googlemail.com>
+> Cc: Randy Dunlap <randy.dunlap@oracle.com>
 > ---
 >   
-
-Acked-By: Izik Eidus <ieidus@redhat.com>
+Acked-by: Izik Eidus <ieidus@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
