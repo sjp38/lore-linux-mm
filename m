@@ -1,104 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C2E26B005A
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 10:39:19 -0400 (EDT)
-Received: from vaebh105.NOE.Nokia.com (vaebh105.europe.nokia.com [10.160.244.31])
-	by mgw-mx09.nokia.com (Switch-3.3.3/Switch-3.3.3) with ESMTP id n74F76CK023694
-	for <linux-mm@kvack.org>; Tue, 4 Aug 2009 10:07:24 -0500
-Received: from [172.21.41.104] (esdhcp041104.research.nokia.com [172.21.41.104])
-	by mgw-sa02.ext.nokia.com (Switch-3.3.3/Switch-3.3.3) with ESMTP id n74F7WAI005735
-	for <linux-mm@kvack.org>; Tue, 4 Aug 2009 18:07:33 +0300
-Subject: SysV swapped shared memory calculated incorrectly
-From: Niko Jokinen <ext-niko.k.jokinen@nokia.com>
-Reply-To: ext-niko.k.jokinen@nokia.com
-Content-Type: text/plain
-Date: Tue, 04 Aug 2009 18:07:32 +0300
-Message-Id: <1249398452.3905.268.camel@niko-laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DD5E6B004F
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 13:43:08 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 3/4] tracing, page-allocator: Add trace event for page traffic related to the buddy lists
+Date: Tue,  4 Aug 2009 19:12:25 +0100
+Message-Id: <1249409546-6343-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
+References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+The page allocation trace event reports that a page was successfully allocated
+but it does not specify where it came from. When analysing performance,
+it can be important to distinguish between pages coming from the per-cpu
+allocator and pages coming from the buddy lists as the latter requires the
+zone lock to the taken and more data structures to be examined.
 
-Tested on 2.6.28 and 2.6.31-rc4
+This patch adds a trace event for __rmqueue reporting when a page is being
+allocated from the buddy lists. It distinguishes between being called
+to refill the per-cpu lists or whether it is a high-order allocation.
+Similarly, this patch adds an event to catch when the PCP lists are being
+drained a little and pages are going back to the buddy lists.
 
-SysV swapped shared memory is not calculated correctly
-in /proc/<pid>/smaps and also by parsing /proc/<pid>/pagemap.
-Rss value decreases also when swap is disabled, so this is where I am
-lost as how shared memory is supposed to behave.
+This is trickier to draw conclusions from but high activity on those
+events could explain why there were a large number of cache misses on a
+page-allocator-intensive workload. The coalescing and splitting of buddies
+involves a lot of writing of page metadata and cache line bounces not to
+mention the acquisition of an interrupt-safe lock necessary to enter this
+path.
 
-I have test program which makes 32MB shared memory segment and then I
-use 'stress -m 1 --vm-bytes 120M', --vm-bytes is increased until rss
-size decreases in smaps. Swap value never increases in smaps.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
+ include/trace/events/kmem.h |   54 +++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c             |    2 +
+ 2 files changed, 56 insertions(+), 0 deletions(-)
 
-On the other hand shmctl(0, SHM_INFO, ...) does show shared memory in
-swap because shm.c shm_get_stat() uses inodes to get values.
-
-
-When test program is started:
-
-shmctl() printout:
-SHM_INFO (sys-wide):       total : 34580 kB
-                             rss : 34388 kB
-                            swap : 192 kB
-
-smaps printout:
-40153000-42153000 rw-s 00000000 00:08 1703949    /SYSV54016264 (deleted)
-Size:              32768 kB
-Rss:               32768 kB
-Pss:               32768 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:         0 kB
-Private_Dirty:     32768 kB
-Referenced:        32768 kB
-Swap:                  0 kB
-
-------------
-
-After all memory is allocated (without swap smaps is the same, except
-SHM_INFO shows 'Swap: 0' like it should), first byte is read hence the
-4KB Referenced:
-
-SHM_INFO (sys-wide):       total : 34580 kB
-                             rss : 1528 kB
-                            swap : 33052 kB
-
-
-40153000-42153000 rw-s 00000000 00:08 1867789    /SYSV54016264 (deleted)
-Size:              32768 kB
-Rss:                   4 kB
-Pss:                   4 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:         4 kB
-Private_Dirty:         0 kB
-Referenced:            4 kB
-Swap:                  0 kB
-
-------------
-
-task_mmu.c, smaps_pte_range():
-
-		if (is_swap_pte(ptent)) {
-			mss->swap += PAGE_SIZE;
-			continue;
-		}
-
-		if (!pte_present(ptent))
-			continue;
-
-When all memory is allocated pte_present() returns false for shared
-memory. is_swap_pte() is never true for shared memory.
-
-Ideas how to fix?
-
-
-Br,
-Niko Jokinen
-
+diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+index 0b4002e..3be3df3 100644
+--- a/include/trace/events/kmem.h
++++ b/include/trace/events/kmem.h
+@@ -311,6 +311,60 @@ TRACE_EVENT(mm_page_alloc,
+ 		show_gfp_flags(__entry->gfp_flags))
+ );
+ 
++TRACE_EVENT(mm_page_alloc_zone_locked,
++
++	TP_PROTO(const void *page, unsigned int order,
++				int migratetype, int percpu_refill),
++
++	TP_ARGS(page, order, migratetype, percpu_refill),
++
++	TP_STRUCT__entry(
++		__field(	const void *,	page		)
++		__field(	unsigned int,	order		)
++		__field(	int,		migratetype	)
++		__field(	int,		percpu_refill	)
++	),
++
++	TP_fast_assign(
++		__entry->page		= page;
++		__entry->order		= order;
++		__entry->migratetype	= migratetype;
++		__entry->percpu_refill	= percpu_refill;
++	),
++
++	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
++		__entry->page,
++		page_to_pfn((struct page *)__entry->page),
++		__entry->order,
++		__entry->migratetype,
++		__entry->percpu_refill)
++);
++
++TRACE_EVENT(mm_page_pcpu_drain,
++
++	TP_PROTO(const void *page, int order, int migratetype),
++
++	TP_ARGS(page, order, migratetype),
++
++	TP_STRUCT__entry(
++		__field(	const void *,	page		)
++		__field(	int,		order		)
++		__field(	int,		migratetype	)
++	),
++
++	TP_fast_assign(
++		__entry->page		= page;
++		__entry->order		= order;
++		__entry->migratetype	= migratetype;
++	),
++
++	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
++		__entry->page,
++		page_to_pfn((struct page *)__entry->page),
++		__entry->order,
++		__entry->migratetype)
++);
++
+ TRACE_EVENT(mm_page_alloc_extfrag,
+ 
+ 	TP_PROTO(const void *page,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c2c90cd..35b92a9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -535,6 +535,7 @@ static void free_pages_bulk(struct zone *zone, int count,
+ 		page = list_entry(list->prev, struct page, lru);
+ 		/* have to delete it as __free_one_page list manipulates */
+ 		list_del(&page->lru);
++		trace_mm_page_pcpu_drain(page, order, page_private(page));
+ 		__free_one_page(page, zone, order, page_private(page));
+ 	}
+ 	spin_unlock(&zone->lock);
+@@ -878,6 +879,7 @@ retry_reserve:
+ 		}
+ 	}
+ 
++	trace_mm_page_alloc_zone_locked(page, order, migratetype, order == 0);
+ 	return page;
+ }
+ 
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
