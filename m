@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CE5E6B004F
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 16:24:27 -0400 (EDT)
-Date: Tue, 4 Aug 2009 13:53:15 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 811856B004F
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 17:49:50 -0400 (EDT)
+Date: Tue, 4 Aug 2009 14:49:20 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing
- script for page-allocator-related ftrace events
-Message-Id: <20090804135315.b2678e11.akpm@linux-foundation.org>
-In-Reply-To: <20090804203526.GA8699@elte.hu>
-References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
-	<1249409546-6343-5-git-send-email-mel@csn.ul.ie>
-	<20090804112246.4e6d0ab1.akpm@linux-foundation.org>
-	<20090804195717.GA5998@elte.hu>
-	<20090804131818.ee5d4696.akpm@linux-foundation.org>
-	<20090804203526.GA8699@elte.hu>
+Subject: Re: [PATCH 3/12] ksm: pages_unshared and pages_volatile
+Message-Id: <20090804144920.bfc6a44f.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0908031311061.16754@sister.anvils>
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+	<Pine.LNX.4.64.0908031311061.16754@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: penberg@cs.helsinki.fi, a.p.zijlstra@chello.nl, fweisbec@gmail.com, rostedt@goodmis.org, mel@csn.ul.ie, lwoodman@redhat.com, riel@redhat.com, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: ieidus@redhat.com, aarcange@redhat.com, riel@redhat.com, chrisw@redhat.com, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Aug 2009 22:35:26 +0200
-Ingo Molnar <mingo@elte.hu> wrote:
+On Mon, 3 Aug 2009 13:11:53 +0100 (BST)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-> Did you never want to see whether firefox is leaking [any sort of] 
-> memory, and if yes, on what callsites? Try something like on an 
-> already running firefox context:
+> The pages_shared and pages_sharing counts give a good picture of how
+> successful KSM is at sharing; but no clue to how much wasted work it's
+> doing to get there.  Add pages_unshared (count of unique pages waiting
+> in the unstable tree, hoping to find a mate) and pages_volatile.
 > 
->   perf stat -e kmem:mm_page_alloc \
->             -e kmem:mm_pagevec_free \
->             -e kmem:mm_page_free_direct \
->      -p $(pidof firefox-bin) sleep 10
+> pages_volatile is harder to define.  It includes those pages changing
+> too fast to get into the unstable tree, but also whatever other edge
+> conditions prevent a page getting into the trees: a high value may
+> deserve investigation.  Don't try to calculate it from the various
+> conditions: it's the total of rmap_items less those accounted for.
 > 
-> ... and "perf record" for the specific callsites.
-
-OK, that would be useful.  What does the output look like?
-
-In what way is it superior to existing ways of finding leaks?
-
-> this perf stuff is immensely flexible and a very unixish 
-> abstraction. The perf.data contains timestamped trace entries of 
-> page allocations and freeing done.
+> Also show full_scans: the number of completed scans of everything
+> registered in the mm list.
 > 
-> [...]
-> > It would be nice to at least partially remove the vmstat/meminfo 
-> > infrastructure but I don't think we can do that?
+> The locking for all these counts is simply ksm_thread_mutex.
 > 
-> at least meminfo is an ABI for sure - vmstat too really.
-> 
-> But we can stop adding new fields into obsolete, inflexible and 
-> clearly deficient interfaces, and we can standardize new 
-> instrumentation to use modern instrumentation facilities - i.e. 
-> tracepoints and perfcounters.
+> ...
+>
+>  static inline struct rmap_item *alloc_rmap_item(void)
+>  {
+> -	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> +	struct rmap_item *rmap_item;
+> +
+> +	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> +	if (rmap_item)
+> +		ksm_rmap_items++;
+> +	return rmap_item;
+>  }
 
-That's bad.  Is there really no way in which we can consolidate _any_
-of that infrastructure?  We just pile in new stuff alongside the old?
-
-The worst part is needing two unrelated sets of userspace tools to
-access basically-identical things.
-
+ksm_rmap_items was already available via /proc/slabinfo.  I guess that
+wasn't a particularly nice user interface ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
