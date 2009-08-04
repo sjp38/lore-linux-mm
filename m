@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0AA2E6B005A
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 08:09:32 -0400 (EDT)
-Message-ID: <4A782C61.4030809@redhat.com>
-Date: Tue, 04 Aug 2009 15:41:05 +0300
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2DBF16B005A
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 08:24:16 -0400 (EDT)
+Message-ID: <4A782FDF.40908@redhat.com>
+Date: Tue, 04 Aug 2009 15:55:59 +0300
 From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/12] ksm: five little cleanups
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031314070.16754@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0908031314070.16754@sister.anvils>
+Subject: Re: [PATCH 7/12] ksm: fix endless loop on oom
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031315200.16754@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908031315200.16754@sister.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,19 +17,34 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chri
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> 1. We don't use __break_cow entry point now: merge it into break_cow.
-> 2. remove_all_slot_rmap_items is just a special case of
->    remove_trailing_rmap_items: use the latter instead.
-> 3. Extend comment on unmerge_ksm_pages and rmap_items.
-> 4. try_to_merge_two_pages should use try_to_merge_with_ksm_page
->    instead of duplicating its code; and so swap them around.
-> 5. Comment on cmp_and_merge_page described last year's: update it.
+> break_ksm has been looping endlessly ignoring VM_FAULT_OOM: that should
+> only be a problem for ksmd when a memory control group imposes limits
+> (normally the OOM killer will kill others with an mm until it succeeds);
+> but in general (especially for MADV_UNMERGEABLE and KSM_RUN_UNMERGE) we
+> do need to route the error (or kill) back to the caller (or sighandling).
+>
+> Test signal_pending in unmerge_ksm_pages, which could be a lengthy
+> procedure if it has to spill into swap: returning -ERESTARTSYS so that
+> trivial signals will restart but fatals will terminate (is that right?
+> we do different things in different places in mm, none exactly this).
+>
+> unmerge_and_remove_all_rmap_items was forgetting to lock when going
+> down the mm_list: fix that.  Whether it's successful or not, reset
+> ksm_scan cursor to head; but only if it's successful, reset seqnr
+> (shown in full_scans) - page counts will have gone down to zero.
+>
+> This patch leaves a significant OOM deadlock, but it's a good step
+> on the way, and that deadlock is fixed in a subsequent patch.
 >
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > ---
 >
 >
 >   
+Better than before for sure, And I dont have in mind better and yet 
+simple solution for the "failing to break the pages" then to just wait 
+and catch them in the next scan, so ACK.
+
 Acked-by: Izik Eidus <ieidus@redhat.com>
 
 --
