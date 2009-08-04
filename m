@@ -1,131 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DD5E6B004F
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 13:43:08 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D8BA6B004F
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 13:43:09 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/4] tracing, page-allocator: Add trace event for page traffic related to the buddy lists
-Date: Tue,  4 Aug 2009 19:12:25 +0100
-Message-Id: <1249409546-6343-4-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
-References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 0/4] Add some trace events for the page allocator v3
+Date: Tue,  4 Aug 2009 19:12:22 +0100
+Message-Id: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-The page allocation trace event reports that a page was successfully allocated
-but it does not specify where it came from. When analysing performance,
-it can be important to distinguish between pages coming from the per-cpu
-allocator and pages coming from the buddy lists as the latter requires the
-zone lock to the taken and more data structures to be examined.
+Changelog since V2
+  o Added Ack-ed By's from Rik
+  o Only call trace_mm_page_free_direct when page count reaches zero
+  o Rebase to 2.6.31-rc5
 
-This patch adds a trace event for __rmqueue reporting when a page is being
-allocated from the buddy lists. It distinguishes between being called
-to refill the per-cpu lists or whether it is a high-order allocation.
-Similarly, this patch adds an event to catch when the PCP lists are being
-drained a little and pages are going back to the buddy lists.
+Changelog since V1
+  o Fix minor formatting error for the __rmqueue event
+  o Add event for __pagevec_free
+  o Bring naming more in line with Larry Woodman's tracing patch
+  o Add an example post-processing script for the trace events
 
-This is trickier to draw conclusions from but high activity on those
-events could explain why there were a large number of cache misses on a
-page-allocator-intensive workload. The coalescing and splitting of buddies
-involves a lot of writing of page metadata and cache line bounces not to
-mention the acquisition of an interrupt-safe lock necessary to enter this
-path.
+This is V3 of a patchset to add some trace points for the page allocator. This
+version adds some ACKs, drops the RFC from the headline and fixes one issue
+where trace_mm_page_free_direct triggered more than it should. The following
+four patches add some trace events for the page allocator under the heading
+of kmem.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/trace/events/kmem.h |   54 +++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    2 +
- 2 files changed, 56 insertions(+), 0 deletions(-)
+	Patch 1 adds events for plain old allocate and freeing of pages
+	Patch 2 gives information useful for analysing fragmentation avoidance
+	Patch 3 tracks pages going to and from the buddy lists as an indirect
+		indication of zone lock hotness
+	Patch 4 adds a post-processing script that aggegates the events to
+		give a higher-level view
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 0b4002e..3be3df3 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -311,6 +311,60 @@ TRACE_EVENT(mm_page_alloc,
- 		show_gfp_flags(__entry->gfp_flags))
- );
- 
-+TRACE_EVENT(mm_page_alloc_zone_locked,
-+
-+	TP_PROTO(const void *page, unsigned int order,
-+				int migratetype, int percpu_refill),
-+
-+	TP_ARGS(page, order, migratetype, percpu_refill),
-+
-+	TP_STRUCT__entry(
-+		__field(	const void *,	page		)
-+		__field(	unsigned int,	order		)
-+		__field(	int,		migratetype	)
-+		__field(	int,		percpu_refill	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->migratetype	= migratetype;
-+		__entry->percpu_refill	= percpu_refill;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
-+		__entry->page,
-+		page_to_pfn((struct page *)__entry->page),
-+		__entry->order,
-+		__entry->migratetype,
-+		__entry->percpu_refill)
-+);
-+
-+TRACE_EVENT(mm_page_pcpu_drain,
-+
-+	TP_PROTO(const void *page, int order, int migratetype),
-+
-+	TP_ARGS(page, order, migratetype),
-+
-+	TP_STRUCT__entry(
-+		__field(	const void *,	page		)
-+		__field(	int,		order		)
-+		__field(	int,		migratetype	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->migratetype	= migratetype;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
-+		__entry->page,
-+		page_to_pfn((struct page *)__entry->page),
-+		__entry->order,
-+		__entry->migratetype)
-+);
-+
- TRACE_EVENT(mm_page_alloc_extfrag,
- 
- 	TP_PROTO(const void *page,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c2c90cd..35b92a9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -535,6 +535,7 @@ static void free_pages_bulk(struct zone *zone, int count,
- 		page = list_entry(list->prev, struct page, lru);
- 		/* have to delete it as __free_one_page list manipulates */
- 		list_del(&page->lru);
-+		trace_mm_page_pcpu_drain(page, order, page_private(page));
- 		__free_one_page(page, zone, order, page_private(page));
- 	}
- 	spin_unlock(&zone->lock);
-@@ -878,6 +879,7 @@ retry_reserve:
- 		}
- 	}
- 
-+	trace_mm_page_alloc_zone_locked(page, order, migratetype, order == 0);
- 	return page;
- }
- 
--- 
-1.6.3.3
+The first one could be used as an indicator as to whether the workload was
+heavily dependant on the page allocator or not. You can make a guess based
+on vmstat but you can't get a per-process breakdown. Depending on the call
+path, the call_site for page allocation may be __get_free_pages() instead
+of a useful callsite. Instead of passing down a return address similar to
+slab debugging, the user should enable the stacktrace and seg-addr options
+to get a proper stack trace.
+
+The second patch would mainly be useful for users of hugepages and
+particularly dynamic hugepage pool resizing as it could be used to tune
+min_free_kbytes to a level that fragmentation was rarely a problem. My
+main concern is that maybe I'm trying to jam too much into the TP_printk
+that could be extrapolated after the fact if you were familiar with the
+implementation. I couldn't determine if it was best to hold the hand of
+the administrator even if it cost more to figure it out.
+
+The third patch is trickier to draw conclusions from but high activity on
+those events could explain why there were a large number of cache misses
+on a page-allocator-intensive workload. The coalescing and splitting of
+buddies involves a lot of writing of page metadata and cache line bounces
+not to mention the acquisition of an interrupt-safe lock necessary to enter
+this path.
+
+The fourth patch parses the trace buffer to draw a higher-level picture of
+what is going on broken down on a per-process basis.
+
+ .../postprocess/trace-pagealloc-postprocess.pl     |  131 ++++++++++++++
+ include/trace/events/kmem.h                        |  184 ++++++++++++++++++++
+ mm/page_alloc.c                                    |   14 ++-
+ 3 files changed, 328 insertions(+), 1 deletions(-)
+ create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
