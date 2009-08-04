@@ -1,55 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAEF6B005A
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 04:11:48 -0400 (EDT)
-Message-ID: <4A77F366.9020104@librato.com>
-Date: Tue, 04 Aug 2009 04:37:58 -0400
-From: Oren Laadan <orenl@librato.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 890046B005A
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 05:58:24 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n74APBxg003216
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 4 Aug 2009 19:25:11 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 414E845DE55
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 19:25:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EF61F45DE53
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 19:25:09 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C056FE08004
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 19:25:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B4B71DB803E
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 19:25:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH for 2.6.31 0/4] fix oom_adj regression v2
+Message-Id: <20090804191031.6A3D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v17][PATCH 16/60] pids 6/7: Define do_fork_with_pids()
-References: <1248256822-23416-1-git-send-email-orenl@librato.com> <1248256822-23416-17-git-send-email-orenl@librato.com> <20090803182640.GB7493@us.ibm.com>
-In-Reply-To: <20090803182640.GB7493@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  4 Aug 2009 19:25:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Serge E. Hallyn" <serue@us.ibm.com>, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Pavel Emelyanov <xemul@openvz.org>, Alexey Dobriyan <adobriyan@gmail.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+The commit 2ff05b2b (oom: move oom_adj value) move oom_adj value to mm_struct.
+It is very good first step for sanitize OOM.
+
+However Paul Menage reported the commit makes regression to his job scheduler.
+Current OOM logic can kill OOM_DISABLED process.
+
+Why? His program has the code of similar to the following.
+
+	...
+	set_oom_adj(OOM_DISABLE); /* The job scheduler never killed by oom */
+	...
+	if (vfork() == 0) {
+		set_oom_adj(0); /* Invoked child can be killed */
+		execve("foo-bar-cmd")
+	}
+	....
+
+vfork() parent and child are shared the same mm_struct. then above set_oom_adj(0) doesn't
+only change oom_adj for vfork() child, it's also change oom_adj for vfork() parent.
+Then, vfork() parent (job scheduler) lost OOM immune and it was killed.
+
+Actually, fork-setting-exec idiom is very frequently used in userland program. We must
+not break this assumption.
+
+This patch series are slightly big, but we must fix any regression soon.
 
 
-Serge E. Hallyn wrote:
-> Quoting Oren Laadan (orenl@librato.com):
->> From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
-> ...
->> +struct target_pid_set {
->> +	int num_pids;
->> +	pid_t *target_pids;
->> +};
-> 
-> Oren, I thought you had decided to add an extended flags field
-> here, to support additional CLONE_ flags - such as CLONE_TIMENS?
 
-Yes.
+Sorting out OOM requirements:
+-----------------------
+  - select_bad_process() must select killable process.
+    otherwise OOM might makes following livelock.
+      1. select_bad_process() select unkillable process
+      2. oom_kill_process() do no-op and return.
+      3. exit out_of_memory and makes next OOM soon. then, goto 1 again.
+  - vfork parent and child must not shared oom_adj.
 
-> 
-> I mention it now because if you're still considering that
-> long-term, then IMO the syscall should not be called clone_with_pids(),
-> but clone_extended().  Otherwise, to support new clone flags we'll
-> either have to use unshare2 (without clone support), or add yet
-> another clone variant, OR use clone_with_pids() which is a poor name
-> for something which will likely be used in cases without specifying
-> pids, but specifying flags not support through any other interface.
 
-True.
+My proposal
+-----------------------
+  - oom_adj become per-process property. it have been documented long time.
+    but the implementaion was not correct.
+  - oom_score also become per-process property. it makes oom logic simpler and faster.
+  - remove bogus vfork() parent killing logic
 
-Also, Suka - any objections to rename 'struct target_pid_set' to
-simply 'struct pid_set' ?
-Actually, it could probably be (re)used internally in the patch that
-adds to cgroup a 'procs' file similar to 'tasks'
-(https://lists.linux-foundation.org/pipermail/containers/2009-July/019679.html)
 
-Oren.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
