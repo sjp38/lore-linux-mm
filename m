@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 767606B005C
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 13:43:09 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 812B96B005C
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 13:43:30 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/4] tracing, page-allocator: Add trace events for page allocation and page freeing
-Date: Tue,  4 Aug 2009 19:12:23 +0100
-Message-Id: <1249409546-6343-2-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 4/4] tracing, page-allocator: Add a postprocessing script for page-allocator-related ftrace events
+Date: Tue,  4 Aug 2009 19:12:26 +0100
+Message-Id: <1249409546-6343-5-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
 References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,157 +13,176 @@ To: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.or
 Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds trace events for the allocation and freeing of pages,
-including the freeing of pagevecs.  Using the events, it will be known what
-struct page and pfns are being allocated and freed and what the call site
-was in many cases.
+This patch adds a simple post-processing script for the page-allocator-related
+trace events. It can be used to give an indication of who the most
+allocator-intensive processes are and how often the zone lock was taken
+during the tracing period. Example output looks like
 
-The page alloc tracepoints be used as an indicator as to whether the workload
-was heavily dependant on the page allocator or not. You can make a guess based
-on vmstat but you can't get a per-process breakdown. Depending on the call
-path, the call_site for page allocation may be __get_free_pages() instead
-of a useful callsite. Instead of passing down a return address similar to
-slab debugging, the user should enable the stacktrace and seg-addr options
-to get a proper stack trace.
+find-2840
+ o pages allocd            = 1877
+ o pages allocd under lock = 1817
+ o pages freed directly    = 9
+ o pcpu refills            = 1078
+ o migrate fallbacks       = 48
+   - fragmentation causing = 48
+     - severe              = 46
+     - moderate            = 2
+   - changed migratetype   = 7
 
-The pagevec free tracepoint has a different usecase. It can be used to get
-a idea of how many pages are being dumped off the LRU and whether it is
-kswapd doing the work or a process doing direct reclaim.
+The high number of fragmentation events were because 32 dd processes were
+running at the same time under qemu, with limited memory with standard
+min_free_kbytes so it's not a surprising outcome.
+
+The postprocessor parses the text output of tracing. While there is a binary
+format, the expectation is that the binary output can be readily translated
+into text and post-processed offline. Obviously if the text format
+changes, the parser will break but the regular expression parser is
+fairly rudimentary so should be readily adjustable.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/trace/events/kmem.h |   86 +++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    6 ++-
- 2 files changed, 91 insertions(+), 1 deletions(-)
+ .../postprocess/trace-pagealloc-postprocess.pl     |  131 ++++++++++++++++++++
+ 1 files changed, 131 insertions(+), 0 deletions(-)
+ create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 1493c54..57bf13c 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -225,6 +225,92 @@ TRACE_EVENT(kmem_cache_free,
- 
- 	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
- );
+diff --git a/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl b/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+new file mode 100755
+index 0000000..d4332c3
+--- /dev/null
++++ b/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+@@ -0,0 +1,131 @@
++#!/usr/bin/perl
++# This is a POC (proof of concept or piece of crap, take your pick) for reading the
++# text representation of trace output related to page allocation. It makes an attempt
++# to extract some high-level information on what is going on. The accuracy of the parser
++# may vary considerably
++#
++# Copyright (c) Mel Gorman 2009
++use Switch;
++use strict;
 +
-+TRACE_EVENT(mm_page_free_direct,
++my $traceevent;
++my %perprocess;
 +
-+	TP_PROTO(unsigned long call_site, const void *page, unsigned int order),
++while ($traceevent = <>) {
++	my $process_pid;
++	my $cpus;
++	my $timestamp;
++	my $tracepoint;
++	my $details;
 +
-+	TP_ARGS(call_site, page, order),
++	#                      (process_pid)     (cpus      )   ( time  )   (tpoint    ) (details)
++	if ($traceevent =~ /\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)/) {
++		$process_pid = $1;
++		$cpus = $2;
++		$timestamp = $3;
++		$tracepoint = $4;
++		$details = $5;
 +
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	call_site	)
-+		__field(	const void *,	page		)
-+		__field(	unsigned int,	order		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->call_site	= call_site;
-+		__entry->page		= page;
-+		__entry->order		= order;
-+	),
-+
-+	TP_printk("call_site=%lx page=%p pfn=%lu order=%d",
-+			__entry->call_site,
-+			__entry->page,
-+			page_to_pfn((struct page *)__entry->page),
-+			__entry->order)
-+);
-+
-+TRACE_EVENT(mm_pagevec_free,
-+
-+	TP_PROTO(unsigned long call_site, const void *page, int order, int cold),
-+
-+	TP_ARGS(call_site, page, order, cold),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	call_site	)
-+		__field(	const void *,	page		)
-+		__field(	int,		order		)
-+		__field(	int,		cold		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->call_site	= call_site;
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->cold		= cold;
-+	),
-+
-+	TP_printk("call_site=%lx page=%p pfn=%lu order=%d cold=%d",
-+			__entry->call_site,
-+			__entry->page,
-+			page_to_pfn((struct page *)__entry->page),
-+			__entry->order,
-+			__entry->cold)
-+);
-+
-+TRACE_EVENT(mm_page_alloc,
-+
-+	TP_PROTO(unsigned long call_site, const void *page, unsigned int order,
-+			gfp_t gfp_flags, int migratetype),
-+
-+	TP_ARGS(call_site, page, order, gfp_flags, migratetype),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,	call_site	)
-+		__field(	const void *,	page		)
-+		__field(	unsigned int,	order		)
-+		__field(	gfp_t,		gfp_flags	)
-+		__field(	int,		migratetype	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->call_site	= call_site;
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->gfp_flags	= gfp_flags;
-+		__entry->migratetype	= migratetype;
-+	),
-+
-+	TP_printk("call_site=%lx page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
-+		__entry->call_site,
-+		__entry->page,
-+		page_to_pfn((struct page *)__entry->page),
-+		__entry->order,
-+		__entry->migratetype,
-+		show_gfp_flags(__entry->gfp_flags))
-+);
-+
- #endif /* _TRACE_KMEM_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d052abb..843bdec 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1905,6 +1905,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
- 
-+	trace_mm_page_alloc(_RET_IP_, page, order, gfp_mask, migratetype);
- 	return page;
- }
- EXPORT_SYMBOL(__alloc_pages_nodemask);
-@@ -1945,13 +1946,16 @@ void __pagevec_free(struct pagevec *pvec)
- {
- 	int i = pagevec_count(pvec);
- 
--	while (--i >= 0)
-+	while (--i >= 0) {
-+		trace_mm_pagevec_free(_RET_IP_, pvec->pages[i], 0, pvec->cold);
- 		free_hot_cold_page(pvec->pages[i], pvec->cold);
++	} else {
++		next;
 +	}
- }
- 
- void __free_pages(struct page *page, unsigned int order)
- {
- 	if (put_page_testzero(page)) {
-+		trace_mm_page_free_direct(_RET_IP_, page, order);
- 		if (order == 0)
- 			free_hot_page(page);
- 		else
++
++	switch ($tracepoint) {
++	case "mm_page_alloc" {
++		$perprocess{$process_pid}->{"mm_page_alloc"}++;
++	}
++	case "mm_page_free_direct" {
++		$perprocess{$process_pid}->{"mm_page_free_direct"}++;
++	}
++	case "mm_pagevec_free" {
++		$perprocess{$process_pid}->{"mm_pagevec_free"}++;
++	}
++	case "mm_page_pcpu_drain" {
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain"}++;
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain-pagesdrained"}++;
++	}
++	case "mm_page_alloc_zone_locked" {
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked"}++;
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked-pagesrefilled"}++;
++	}
++	case "mm_page_alloc_extfrag" {
++		$perprocess{$process_pid}->{"mm_page_alloc_extfrag"}++;
++		my ($page, $pfn);
++		my ($alloc_order, $fallback_order, $pageblock_order);
++		my ($alloc_migratetype, $fallback_migratetype);
++		my ($fragmenting, $change_ownership);
++
++		$details =~ /page=([0-9a-f]*) pfn=([0-9]*) alloc_order=([0-9]*) fallback_order=([0-9]*) pageblock_order=([0-9]*) alloc_migratetype=([0-9]*) fallback_migratetype=([0-9]*) fragmenting=([0-9]) change_ownership=([0-9])/;
++		$page = $1;
++		$pfn = $2;
++		$alloc_order = $3;
++		$fallback_order = $4;
++		$pageblock_order = $5;
++		$alloc_migratetype = $6;
++		$fallback_migratetype = $7;
++		$fragmenting = $8;
++		$change_ownership = $9;
++
++		if ($fragmenting) {
++			$perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting"}++;
++			if ($fallback_order <= 3) {
++				$perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting-severe"}++;
++			} else {
++				$perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting-moderate"}++;
++			}
++		}
++		if ($change_ownership) {
++			$perprocess{$process_pid}->{"mm_page_alloc_extfrag-changetype"}++;
++		}
++	}
++	else {
++		$perprocess{$process_pid}->{"unknown"}++;
++	}
++	}
++
++	# Catch a full pcpu drain event
++	if ($perprocess{$process_pid}->{"mm_page_pcpu_drain-pagesdrained"} &&
++			$tracepoint ne "mm_page_pcpu_drain") {
++
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain-drains"}++;
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain-pagesdrained"} = 0;
++	}
++
++	# Catch a full pcpu refill event
++	if ($perprocess{$process_pid}->{"mm_page_alloc_zone_locked-pagesrefilled"} &&
++			$tracepoint ne "mm_page_alloc_zone_locked") {
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked-refills"}++;
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked-pagesrefilled"} = 0;
++	}
++}
++
++# Dump per-process stats
++my $process_pid;
++foreach $process_pid (keys %perprocess) {
++	# Dump final aggregates
++	if ($perprocess{$process_pid}->{"mm_page_pcpu_drain-pagesdrained"}) {
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain-drains"}++;
++		$perprocess{$process_pid}->{"mm_page_pcpu_drain-pagesdrained"} = 0;
++	}
++	if ($perprocess{$process_pid}->{"mm_page_alloc_zone_locked-pagesrefilled"}) {
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked-refills"}++;
++		$perprocess{$process_pid}->{"mm_page_alloc_zone_locked-pagesrefilled"} = 0;
++	}
++
++	my %process = $perprocess{$process_pid};
++	printf("$process_pid\n");
++	printf(" o pages allocd            = %d\n", $perprocess{$process_pid}->{"mm_page_alloc"});
++	printf(" o pages allocd under lock = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_zone_locked"});
++	printf(" o pages freed directly    = %d\n", $perprocess{$process_pid}->{"mm_page_free_direct"});
++	printf(" o pages freed via pagevec = %d\n", $perprocess{$process_pid}->{"mm_pagevec_free"});
++	printf(" o pcpu pages drained      = %d\n", $perprocess{$process_pid}->{"mm_page_pcpu_drain"});
++	printf(" o pcpu drains             = %d\n", $perprocess{$process_pid}->{"mm_page_pcpu_drain-drains"});
++	printf(" o pcpu refills            = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_zone_locked-refills"});
++	printf(" o migrate fallbacks       = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_extfrag"});
++	printf("   - fragmentation causing = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting"});
++	printf("     - severe              = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting-severe"});
++	printf("     - moderate            = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_extfrag-fragmenting-moderate"});
++	printf("   - changed migratetype   = %d\n", $perprocess{$process_pid}->{"mm_page_alloc_extfrag-changetype"});
++	printf(" o unknown events          = %d\n", $perprocess{$process_pid}->{"unknown"});
++	printf("\n");
++}
 -- 
 1.6.3.3
 
