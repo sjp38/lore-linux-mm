@@ -1,37 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 533F16B005A
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 08:31:39 -0400 (EDT)
-Message-ID: <4A78319D.9030002@redhat.com>
-Date: Tue, 04 Aug 2009 16:03:25 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 8/12] ksm: distribute remove_mm_from_lists
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031316180.16754@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0908031316180.16754@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2E26B005A
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 10:39:19 -0400 (EDT)
+Received: from vaebh105.NOE.Nokia.com (vaebh105.europe.nokia.com [10.160.244.31])
+	by mgw-mx09.nokia.com (Switch-3.3.3/Switch-3.3.3) with ESMTP id n74F76CK023694
+	for <linux-mm@kvack.org>; Tue, 4 Aug 2009 10:07:24 -0500
+Received: from [172.21.41.104] (esdhcp041104.research.nokia.com [172.21.41.104])
+	by mgw-sa02.ext.nokia.com (Switch-3.3.3/Switch-3.3.3) with ESMTP id n74F7WAI005735
+	for <linux-mm@kvack.org>; Tue, 4 Aug 2009 18:07:33 +0300
+Subject: SysV swapped shared memory calculated incorrectly
+From: Niko Jokinen <ext-niko.k.jokinen@nokia.com>
+Reply-To: ext-niko.k.jokinen@nokia.com
+Content-Type: text/plain
+Date: Tue, 04 Aug 2009 18:07:32 +0300
+Message-Id: <1249398452.3905.268.camel@niko-laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> Do some housekeeping in ksm.c, to help make the next patch easier
-> to understand: remove the function remove_mm_from_lists, distributing
-> its code to its callsites scan_get_next_rmap_item and __ksm_exit.
->
-> That turns out to be a win in scan_get_next_rmap_item: move its
-> remove_trailing_rmap_items and cursor advancement up, and it becomes
-> simpler than before.  __ksm_exit becomes messier, but will change
-> again; and moving its remove_trailing_rmap_items up lets us strengthen
-> the unstable tree item's age condition in remove_rmap_item_from_tree.
->
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> ---
->
->   
-Acked-by: Izik Eidus <ieidus@redhat.com>
+Hi,
+
+Tested on 2.6.28 and 2.6.31-rc4
+
+SysV swapped shared memory is not calculated correctly
+in /proc/<pid>/smaps and also by parsing /proc/<pid>/pagemap.
+Rss value decreases also when swap is disabled, so this is where I am
+lost as how shared memory is supposed to behave.
+
+I have test program which makes 32MB shared memory segment and then I
+use 'stress -m 1 --vm-bytes 120M', --vm-bytes is increased until rss
+size decreases in smaps. Swap value never increases in smaps.
+
+On the other hand shmctl(0, SHM_INFO, ...) does show shared memory in
+swap because shm.c shm_get_stat() uses inodes to get values.
+
+
+When test program is started:
+
+shmctl() printout:
+SHM_INFO (sys-wide):       total : 34580 kB
+                             rss : 34388 kB
+                            swap : 192 kB
+
+smaps printout:
+40153000-42153000 rw-s 00000000 00:08 1703949    /SYSV54016264 (deleted)
+Size:              32768 kB
+Rss:               32768 kB
+Pss:               32768 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:     32768 kB
+Referenced:        32768 kB
+Swap:                  0 kB
+
+------------
+
+After all memory is allocated (without swap smaps is the same, except
+SHM_INFO shows 'Swap: 0' like it should), first byte is read hence the
+4KB Referenced:
+
+SHM_INFO (sys-wide):       total : 34580 kB
+                             rss : 1528 kB
+                            swap : 33052 kB
+
+
+40153000-42153000 rw-s 00000000 00:08 1867789    /SYSV54016264 (deleted)
+Size:              32768 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         4 kB
+Private_Dirty:         0 kB
+Referenced:            4 kB
+Swap:                  0 kB
+
+------------
+
+task_mmu.c, smaps_pte_range():
+
+		if (is_swap_pte(ptent)) {
+			mss->swap += PAGE_SIZE;
+			continue;
+		}
+
+		if (!pte_present(ptent))
+			continue;
+
+When all memory is allocated pte_present() returns false for shared
+memory. is_swap_pte() is never true for shared memory.
+
+Ideas how to fix?
+
+
+Br,
+Niko Jokinen
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
