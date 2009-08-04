@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 811856B004F
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 17:49:50 -0400 (EDT)
-Date: Tue, 4 Aug 2009 14:49:20 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 45B3D6B005C
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 18:00:28 -0400 (EDT)
+Date: Tue, 4 Aug 2009 14:59:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/12] ksm: pages_unshared and pages_volatile
-Message-Id: <20090804144920.bfc6a44f.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0908031311061.16754@sister.anvils>
+Subject: Re: [PATCH 5/12] ksm: keep quiet while list empty
+Message-Id: <20090804145935.e258cd2f.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0908031313030.16754@sister.anvils>
 References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
-	<Pine.LNX.4.64.0908031311061.16754@sister.anvils>
+	<Pine.LNX.4.64.0908031313030.16754@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,40 +17,39 @@ To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 Cc: ieidus@redhat.com, aarcange@redhat.com, riel@redhat.com, chrisw@redhat.com, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Aug 2009 13:11:53 +0100 (BST)
+On Mon, 3 Aug 2009 13:14:03 +0100 (BST)
 Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-> The pages_shared and pages_sharing counts give a good picture of how
-> successful KSM is at sharing; but no clue to how much wasted work it's
-> doing to get there.  Add pages_unshared (count of unique pages waiting
-> in the unstable tree, hoping to find a mate) and pages_volatile.
-> 
-> pages_volatile is harder to define.  It includes those pages changing
-> too fast to get into the unstable tree, but also whatever other edge
-> conditions prevent a page getting into the trees: a high value may
-> deserve investigation.  Don't try to calculate it from the various
-> conditions: it's the total of rmap_items less those accounted for.
-> 
-> Also show full_scans: the number of completed scans of everything
-> registered in the mm list.
-> 
-> The locking for all these counts is simply ksm_thread_mutex.
-> 
-> ...
->
->  static inline struct rmap_item *alloc_rmap_item(void)
->  {
-> -	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-> +	struct rmap_item *rmap_item;
-> +
-> +	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-> +	if (rmap_item)
-> +		ksm_rmap_items++;
-> +	return rmap_item;
->  }
+> +		if (ksmd_should_run()) {
+>  			schedule_timeout_interruptible(
+>  				msecs_to_jiffies(ksm_thread_sleep_millisecs));
+>  		} else {
+>  			wait_event_interruptible(ksm_thread_wait,
+> -					(ksm_run & KSM_RUN_MERGE) ||
+> -					kthread_should_stop());
+> +				ksmd_should_run() || kthread_should_stop());
+>  		}
 
-ksm_rmap_items was already available via /proc/slabinfo.  I guess that
-wasn't a particularly nice user interface ;)
+Yields
+
+
+		if (ksmd_should_run()) {
+			schedule_timeout_interruptible(
+				msecs_to_jiffies(ksm_thread_sleep_millisecs));
+		} else {
+			wait_event_interruptible(ksm_thread_wait,
+				ksmd_should_run() || kthread_should_stop());
+		}
+
+can it be something like
+
+		wait_event_interruptible_timeout(ksm_thread_wait,
+			ksmd_should_run() || kthread_should_stop(),
+			msecs_to_jiffies(ksm_thread_sleep_millisecs));
+
+?
+
+That would also reduce the latency in responding to kthread_should_stop().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
