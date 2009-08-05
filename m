@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8D9046B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 02:04:51 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7564ngj006768
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 5 Aug 2009 15:04:49 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 71EDC45DE60
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:04:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F65C45DE4D
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:04:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D0AE1DB8043
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:04:49 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CDC921DB803F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:04:48 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B98E86B005C
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 02:05:19 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7565Igw017232
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 5 Aug 2009 15:05:19 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F00645DE54
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:05:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F8BB45DE4E
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:05:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 506E01DB8044
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:05:18 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EAD761DB803F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 15:05:17 +0900 (JST)
+Date: Wed, 5 Aug 2009 15:03:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 1/4] oom: move oom_adj to signal_struct
+Message-Id: <20090805150323.2624a68f.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090805145516.b2129f81.minchan.kim@barrios-desktop>
-References: <20090805114650.5BA1.A69D9226@jp.fujitsu.com> <20090805145516.b2129f81.minchan.kim@barrios-desktop>
-Message-Id: <20090805150017.5BB9.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+References: <20090805110107.5B97.A69D9226@jp.fujitsu.com>
+	<20090805114004.459a7deb.minchan.kim@barrios-desktop>
+	<20090805114650.5BA1.A69D9226@jp.fujitsu.com>
+	<20090805145516.b2129f81.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed,  5 Aug 2009 15:04:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
+
+On Wed, 5 Aug 2009 14:55:16 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
 > On Wed,  5 Aug 2009 11:51:31 +0900 (JST)
 > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
@@ -97,14 +103,21 @@ List-ID: <linux-mm.kvack.org>
 > since oomkilladj is used to present just -17 ~ 15. 
 > 
 > What do you think about this approach ?
-
-I can ack this. but please re-initialize oom_scale_down at fork and
-exec time.
-currently oom_scale_down makes too big affect.
-
-and, May I ask which you hate my approach? 
-
 > 
+keeping this in "task" struct is troublesome.
+It may not livelock but near-to-livelock state, in bad case.
+
+After applying Kosaki's , oom_kill will use
+"for_each_process()" instead of "do_each_thread", I think it's a way to go.
+
+But, yes, your "scale_down" idea itself is interesitng.
+Then, hmm, merging two of yours ?
+
+Thanks,
+-Kame
+
+
+
 > ----
 > 
 > This is based on 2.6.30 which is kernel before applying David Patch. 
@@ -159,13 +172,7 @@ and, May I ask which you hate my approach?
 > -- 
 > Kind regards,
 > Minchan Kim
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
-
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
