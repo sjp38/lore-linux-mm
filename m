@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E0C016B005D
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 13:53:43 -0400 (EDT)
-Message-ID: <4A79C70C.6010200@redhat.com>
-Date: Wed, 05 Aug 2009 13:53:16 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B87C46B005A
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 14:21:25 -0400 (EDT)
+Date: Wed, 5 Aug 2009 19:21:22 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: SysV swapped shared memory calculated incorrectly
+In-Reply-To: <1249398452.3905.268.camel@niko-laptop>
+Message-ID: <Pine.LNX.4.64.0908051853120.7907@sister.anvils>
+References: <1249398452.3905.268.camel@niko-laptop>
 MIME-Version: 1.0
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-References: <20090805024058.GA8886@localhost>
-In-Reply-To: <20090805024058.GA8886@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Niko Jokinen <ext-niko.k.jokinen@nokia.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
+On Tue, 4 Aug 2009, Niko Jokinen wrote:
+> 
+> Tested on 2.6.28 and 2.6.31-rc4
+> 
+> SysV swapped shared memory is not calculated correctly
+> in /proc/<pid>/smaps and also by parsing /proc/<pid>/pagemap.
 
-> The refaults can be drastically reduced by the following patch, which
-> respects the referenced bit of all anonymous pages (including the KVM
-> pages).
+smaps and pagemap are (reasonably) counting swap entries in the
+page tables they're looking at.
 
-The big question is, which referenced bit?
+But SysV shared memory is dealt with just like mmap of a tmpfs
+file: we don't put swap entries into the page tables for that,
+just as we don't put sector numbers into the page tables when
+unmapping a diskfile page; the use of swapspace by that
+filesystem is a lower-level detail not exposed at this level.
 
-All anonymous pages get the referenced bit set when they are
-initially created.  Acting on that bit is pretty useless, since
-it does not add any information at all.
+Well, we have had to expose "swap backed" near this level in
+recent releases.  So it would be possible to recognize the
+swap-backed shared vmas, and insert pte_file ptes instead
+of pte_none ptes when unmapping pages from them, and adjust
+the code which only expects those in nonlinear vmas, and
+adjust smaps and pagemap to behave accordingly.
 
-> However it risks reintroducing the problem addressed by commit 7e9cd4842
-> (fix reclaim scalability problem by ignoring the referenced bit,
-> mainly the pte young bit). I wonder if there are better solutions?
+But I admit to having no appetite for any such change, cluttering
+the main code just to touch up the anyhow rough picture that smaps
+and pagemap are painting.  I much prefer to say that these areas are
+backed by files, and it's a lower-level detail that those files are
+backed by swap.
 
-Reintroducing that problem is disastrous for large systems
-running eg. JVMs or certain scientific computing workloads.
+> Rss value decreases also when swap is disabled, so this is where I am
+> lost as how shared memory is supposed to behave.
 
-When you have a 256GB system that is low on memory, you need
-to be able to find a page to swap out soon.  If all 64 million
-pages in your system are "recently referenced", you run into
-BIG trouble.
+Did you check that detail on both 2.6.28 and 2.6.31-rc4?  I think
+2.6.28 was unmapping the ptes from the pagetables, before the lower
+level found that it had no swap to write them to; whereas a current
+kernel didn't unmap them at all in my case.
 
-I do not believe we can afford to reintroduce that problem.
+> 
+> I have test program which makes 32MB shared memory segment and then I
+> use 'stress -m 1 --vm-bytes 120M', --vm-bytes is increased until rss
+> size decreases in smaps. Swap value never increases in smaps.
+> 
+> On the other hand shmctl(0, SHM_INFO, ...) does show shared memory in
+> swap because shm.c shm_get_stat() uses inodes to get values.
 
-Also, the inactive list (where references to anonymous pages
-_do_ count) is pretty big.  Is it not big enough in Jeff's
-test case?
+SHM-specific tools know they're dealing with tmpfs and perhaps swap,
+and so can present a more tailored version of the info.
 
-Jeff, what kind of workloads are you running in the guests?
-
--- 
-All rights reversed.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
