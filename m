@@ -1,41 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 08BEC6B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 10:10:01 -0400 (EDT)
-Date: Wed, 5 Aug 2009 16:10:01 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct
-	truncating of page v2
-Message-ID: <20090805141001.GJ11385@basil.fritz.box>
-References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de> <20090805134607.GH11385@basil.fritz.box> <20090805140145.GB28563@wotan.suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B39376B005D
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 10:15:39 -0400 (EDT)
+Message-ID: <4A7993F4.9020008@redhat.com>
+Date: Wed, 05 Aug 2009 10:15:16 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805140145.GB28563@wotan.suse.de>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090805024058.GA8886@localhost> <4A793B92.9040204@redhat.com>
+In-Reply-To: <4A793B92.9040204@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
+To: Avi Kivity <avi@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> I haven't brought up the caller at this point, but IIRC you had
-> the page locked and mapping confirmed at this point anyway so
-> it would never be an error for your code.
-> 
-> Probably it would be nice to just force callers to verify the page.
-> Normally IMO it is much nicer and clearer to do it at the time the
-> page gets locked, unless there is good reason otherwise.
+Avi Kivity wrote:
 
-Ok. I think I'll just keep it as it is for now.
+>> However it risks reintroducing the problem addressed by commit 7e9cd4842
+>> (fix reclaim scalability problem by ignoring the referenced bit,
+>> mainly the pte young bit). I wonder if there are better solutions?
 
-The only reason I added the error code was to make truncate_inode_page
-fit into .error_remove_page, but then latter I did another wrapper
-so it could be removed again. But it won't hurt to have it either.
+Agreed, we need to figure out what the real problem is,
+and how to solve it better.
 
--Andi
+> Jeff, do you see the refaults on Nehalem systems?  If so, that's likely 
+> due to the lack of an accessed bit on EPT pagetables.  It would be 
+> interesting to compare with Barcelona  (which does).
 
+Not having a hardware accessed bit would explain why
+the VM is not reactivating the pages that were accessed
+while on the inactive list.
+
+> If that's indeed the case, we can have the EPT ageing mechanism give 
+> pages a bit more time around by using an available bit in the EPT PTEs 
+> to return accessed on the first pass and not-accessed on the second.
+
+Can we find out which pages are EPT pages?
+
+If so, we could unmap them when they get moved from the
+active to the inactive list, and soft fault them back in
+on access, emulating the referenced bit for EPT pages and
+making page replacement on them work like it should.
+
+Your approximation of pretending the page is accessed the
+first time and pretending it's not the second time sounds
+like it will just lead to less efficient FIFO replacement,
+not to anything even vaguely approximating LRU.
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
