@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A11276B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 07:12:46 -0400 (EDT)
-Date: Wed, 5 Aug 2009 07:12:31 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
-	migration aware file systems
-Message-ID: <20090805111231.GA19532@infradead.org>
-References: <200908051136.682859934@firstfloor.org> <20090805093643.E0C00B15D8@basil.firstfloor.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4FBA86B004F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 07:39:19 -0400 (EDT)
+Date: Wed, 5 Aug 2009 12:39:06 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 3/12] ksm: pages_unshared and pages_volatile
+In-Reply-To: <20090804144920.bfc6a44f.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0908051216020.13195@sister.anvils>
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+ <Pine.LNX.4.64.0908031311061.16754@sister.anvils>
+ <20090804144920.bfc6a44f.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805093643.E0C00B15D8@basil.firstfloor.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: tytso@mit.edu, hch@infradead.org, mfasheh@suse.com, aia21@cantab.net, hugh.dickins@tiscali.co.uk, swhiteho@redhat.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: ieidus@redhat.com, aarcange@redhat.com, riel@redhat.com, chrisw@redhat.com, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 11:36:43AM +0200, Andi Kleen wrote:
+On Tue, 4 Aug 2009, Andrew Morton wrote:
+> On Mon, 3 Aug 2009 13:11:53 +0100 (BST)
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 > 
-> Enable removing of corrupted pages through truncation
-> for a bunch of file systems: ext*, xfs, gfs2, ocfs2, ntfs
-> These should cover most server needs.
+> > pages_volatile is harder to define.  It includes those pages changing
+> > too fast to get into the unstable tree, but also whatever other edge
+> > conditions prevent a page getting into the trees: a high value may
+> > deserve investigation.  Don't try to calculate it from the various
+> > conditions: it's the total of rmap_items less those accounted for.
+...
+> >  static inline struct rmap_item *alloc_rmap_item(void)
+> >  {
+> > -	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> > +	struct rmap_item *rmap_item;
+> > +
+> > +	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> > +	if (rmap_item)
+> > +		ksm_rmap_items++;
+> > +	return rmap_item;
+> >  }
 > 
-> I chose the set of migration aware file systems for this
-> for now, assuming they have been especially audited.
-> But in general it should be safe for all file systems
-> on the data area that support read/write and truncate.
-> 
-> Caveat: the hardware error handler does not take i_mutex
-> for now before calling the truncate function. Is that ok?
+> ksm_rmap_items was already available via /proc/slabinfo.  I guess that
+> wasn't a particularly nice user interface ;)
 
-It will probably need locking, e.g. the iolock in XFS.  I'll
-need to take a look at the actual implementation of
-generic_error_remove_page to make sense of this.
+procfs is not a nice interface for sysfs to be reading
+when it's asked to show pages_volatile!
 
-Is there any way for us to test this functionality without introducing
-real hardware problems?
+And not even always available, I think: SLOB wouldn't be able to report
+the number of objects of any particular type, SLUB would need slub_nomerge
+(or a debug flag) to keep the kmem_cache separate; and even SLAB would
+have to assemble numbers from different cpus and queues, I guess.
+Easier and more reliable for KSM to do its own thing here.
 
+I do agree that slabinfo or slqbinfo or /proc/slabinfo is a good enough
+interface for checking up on the number of rmap_items in use; it's what
+I was using most of the time.  I did once fleetingly wonder whether to
+show the count of rmap_items under /sys/kernel/mm/ksm, but rejected it
+as not interesting enough to deserve more than what slabinfo tells.
+
+But here the rmap_item count is being used to deduce something more
+interesting (though more obscure), and I don't want SL?B divergences
+to perturb the resulting number more than it is already.  I did start
+out without the rmap_items count, incrementing and decrementing
+pages_volatile all over the place; but soon abandoned that in
+favour of the difference calculation.
+
+But I think I'm taking you more seriously than you intended,
+sorry for my humourlessness!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
