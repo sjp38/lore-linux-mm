@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D4B256B0085
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:12:27 -0400 (EDT)
-Date: Wed, 5 Aug 2009 23:12:20 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct
-	truncating of page v2
-Message-ID: <20090805151220.GB6210@localhost>
-References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de> <20090805134607.GH11385@basil.fritz.box> <20090805140145.GB28563@wotan.suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 563816B0083
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:15:32 -0400 (EDT)
+Message-ID: <4A79A1FB.6010406@redhat.com>
+Date: Wed, 05 Aug 2009 11:15:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805140145.GB28563@wotan.suse.de>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090805024058.GA8886@localhost> <4A793B92.9040204@redhat.com> <4A7993F4.9020008@redhat.com> <4A79A16A.1050401@redhat.com>
+In-Reply-To: <4A79A16A.1050401@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hidehiro.kawai.ez@hitachi.com" <hidehiro.kawai.ez@hitachi.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 10:01:45PM +0800, Nick Piggin wrote:
-> On Wed, Aug 05, 2009 at 03:46:08PM +0200, Andi Kleen wrote:
-> > On Wed, Aug 05, 2009 at 12:20:08PM +0200, Nick Piggin wrote:
-> > > >  truncate_complete_page(struct address_space *mapping, struct page *page)
-> > > >  {
-> > > >  	if (page->mapping != mapping)
-> > > > -		return;
-> > > > +		return -EIO;
-> > > 
-> > > Hmm, at this point, the page must have been removed from pagecache,
-> > > so I don't know if you need to pass an error back?
-> > 
-> > It could be reused, which would be bad for us?
->  
-> I haven't brought up the caller at this point, but IIRC you had
-> the page locked and mapping confirmed at this point anyway so
-> it would never be an error for your code.
+Avi Kivity wrote:
 
-Right, that 'if' will always evaluate to false for the hwpoison case.
-Because that 'mapping' was taken from 'page->mapping' inside page lock
-and they will just remain the same values.
+>> If so, we could unmap them when they get moved from the
+>> active to the inactive list, and soft fault them back in
+>> on access, emulating the referenced bit for EPT pages and
+>> making page replacement on them work like it should.
+> 
+> It should be easy to implement via the mmu notifier callback: when the 
+> mm calls clear_flush_young(), mark it as young, and unmap it from the 
+> EPT pagetable.
 
-> Probably it would be nice to just force callers to verify the page.
-> Normally IMO it is much nicer and clearer to do it at the time the
-> page gets locked, unless there is good reason otherwise.
+You mean "mark it as old"?
 
-Yes we do checked page->mapping after taking page lock.
+>> Your approximation of pretending the page is accessed the
+>> first time and pretending it's not the second time sounds
+>> like it will just lead to less efficient FIFO replacement,
+>> not to anything even vaguely approximating LRU.
+> 
+> Right, it's just a hack that gives EPT pages higher priority, like the 
+> original patch suggested.  Note that LRU for VMs is not a good 
+> algorithm, since the VM will also reference the least recently used 
+> page, leading to thrashing.
+
+That is one of the reasons we use a very coarse two
+handed clock algorithm instead of true LRU.
+
+LRU has more overhead and more artifacts :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
