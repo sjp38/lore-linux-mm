@@ -1,106 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C61EF6B005C
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 22:51:30 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n752pZmB024455
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3C90D6B005D
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2009 23:07:14 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7537ExI031630
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 5 Aug 2009 11:51:36 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BAB252AEA81
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:51:35 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 903BF1EF081
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:51:35 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B2ABE1800A
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:51:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 320D0E1800B
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:51:32 +0900 (JST)
+	Wed, 5 Aug 2009 12:07:14 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F345A45DE4F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 12:07:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BED445DE57
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 12:07:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 805701DB8038
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 12:07:06 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A3241DB803C
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 12:07:05 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] oom: move oom_adj to signal_struct
-In-Reply-To: <20090805114004.459a7deb.minchan.kim@barrios-desktop>
-References: <20090805110107.5B97.A69D9226@jp.fujitsu.com> <20090805114004.459a7deb.minchan.kim@barrios-desktop>
-Message-Id: <20090805114650.5BA1.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing script for page-allocator-related ftrace events
+In-Reply-To: <20090804112246.4e6d0ab1.akpm@linux-foundation.org>
+References: <1249409546-6343-5-git-send-email-mel@csn.ul.ie> <20090804112246.4e6d0ab1.akpm@linux-foundation.org>
+Message-Id: <20090805113207.5B9C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed,  5 Aug 2009 11:51:31 +0900 (JST)
+Date: Wed,  5 Aug 2009 12:07:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Larry Woodman <lwoodman@redhat.com>, riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed,  5 Aug 2009 11:29:34 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > Hi
-> > 
-> > > Hi, Kosaki. 
-> > > 
-> > > I am so late to invole this thread. 
-> > > But let me have a question. 
-> > > 
-> > > What's advantage of placing oom_adj in singal rather than task ?
-> > > I mean task->oom_adj and task->signal->oom_adj ?
-> > > 
-> > > I am sorry if you already discussed it at last threads. 
-> > 
-> > Not sorry. that's very good question.
-> > 
-> > I'm trying to explain the detailed intention of commit 2ff05b2b4eac
-> > (move oom_adj to mm_struct).
-> > 
-> > In 2.6.30, OOM logic callflow is here.
-> > 
-> > __out_of_memory
-> > 	select_bad_process		for each task
-> > 		badness			calculate badness of one task
-> > 	oom_kill_process		search child
-> > 		oom_kill_task		kill target task and mm shared tasks with it
-> > 
-> > example, process-A have two thread, thread-A and thread-B and it 
-> > have very fat memory.
-> > And, each thread have following likes oom property.
-> > 
-> > 	thread-A: oom_adj = OOM_DISABLE, oom_score = 0
-> > 	thread-B: oom_adj = 0,           oom_score = very-high
-> > 
-> > Then, select_bad_process() select thread-B, but oom_kill_task refuse
-> > kill the task because thread-A have OOM_DISABLE.
-> > __out_of_memory() call select_bad_process() again. but select_bad_process()
-> > select the same task. It mean kernel fall in the livelock.
-> > 
-> > The fact is, select_bad_process() must select killable task. otherwise
-> > OOM logic go into livelock.
-> > 
-> > Is this enough explanation? thanks.
-> > 
-> 
-> Thanks for good explanation. :)
-> 
-> It resulted from patch of David which moved task_struct->oom_ajd 
-> to mm_struct. I understood it. 
+Hi
 
-No. It's very old problem. David's patch fixed it. 
-It mean per-process oom_adj prevent select_bad_process() return
-a task in unkillable process.
-
-unfortunatelly, his patch can't treat vfork case ideally. I hope to
-fix it.
-
-> It meant oom_adj was not per-process.
+> On Tue,  4 Aug 2009 19:12:26 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> AFAIU, you want to make oom_adj per-process, again. 
-> And you selected the place with task->singal as per-process.
+> > This patch adds a simple post-processing script for the page-allocator-related
+> > trace events. It can be used to give an indication of who the most
+> > allocator-intensive processes are and how often the zone lock was taken
+> > during the tracing period. Example output looks like
+> > 
+> > find-2840
+> >  o pages allocd            = 1877
+> >  o pages allocd under lock = 1817
+> >  o pages freed directly    = 9
+> >  o pcpu refills            = 1078
+> >  o migrate fallbacks       = 48
+> >    - fragmentation causing = 48
+> >      - severe              = 46
+> >      - moderate            = 2
+> >    - changed migratetype   = 7
 > 
-> What I have a question is that why do you select task_struct->signal 
-> rather than task_struct like old?
-> 
-> What's benefit of using task_struct->signal ?
+> The usual way of accumulating and presenting such measurements is via
+> /proc/vmstat.  How do we justify adding a completely new and different
+> way of doing something which we already do?
 
-prior Davied patch (task->oom_adj) might makes livelock.
+I think this approach have following merit.
+
+ - It can collect per-process information.
+   (Of cource, ftrace event filter can filter more various condtion)
+ - It can integrate perf-counter easily.
+ -
+
 
 
 
