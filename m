@@ -1,88 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id ECFEF6B008C
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F36926B0095
 	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:41 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200908051136.682859934@firstfloor.org>
 In-Reply-To: <200908051136.682859934@firstfloor.org>
-Subject: [PATCH] [12/19] HWPOISON: Add invalidate_inode_page
-Message-Id: <20090805093639.D5FBEB15D8@basil.firstfloor.org>
-Date: Wed,  5 Aug 2009 11:36:39 +0200 (CEST)
+Subject: [PATCH] [13/19] HWPOISON: Define a new error_remove_page address space op for async truncation
+Message-Id: <20090805093640.D8856B15D8@basil.firstfloor.org>
+Date: Wed,  5 Aug 2009 11:36:40 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: fengguang.wu@intel.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.orgfengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
+To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
 
-From: Wu Fengguang <fengguang.wu@intel.com>
+Truncating metadata pages is not safe right now before
+we haven't audited all file systems.
 
-Add a simple way to invalidate a single page
-This is just a refactoring of the truncate.c code.
-Originally from Fengguang, modified by Andi Kleen.
+To enable truncation only for data address space define
+a new address_space callback error_remove_page.
+
+This is used for memory_failure.c memory error handling.
+
+This can be then set to truncate_inode_page()
+
+This patch just defines the new operation and adds documentation.
+
+Callers and users come in followon patches.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/mm.h |    2 ++
- mm/truncate.c      |   26 ++++++++++++++++++++------
- 2 files changed, 22 insertions(+), 6 deletions(-)
+ Documentation/filesystems/vfs.txt |    7 +++++++
+ include/linux/fs.h                |    1 +
+ include/linux/mm.h                |    1 +
+ mm/truncate.c                     |   17 +++++++++++++++++
+ 4 files changed, 26 insertions(+)
 
-Index: linux/include/linux/mm.h
+Index: linux/include/linux/fs.h
 ===================================================================
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -811,6 +811,8 @@ extern int vmtruncate_range(struct inode
+--- linux.orig/include/linux/fs.h
++++ linux/include/linux/fs.h
+@@ -595,6 +595,7 @@ struct address_space_operations {
+ 	int (*launder_page) (struct page *);
+ 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+ 					unsigned long);
++	int (*error_remove_page)(struct address_space *, struct page *);
+ };
  
- int truncate_inode_page(struct address_space *mapping, struct page *page);
+ /*
+Index: linux/Documentation/filesystems/vfs.txt
+===================================================================
+--- linux.orig/Documentation/filesystems/vfs.txt
++++ linux/Documentation/filesystems/vfs.txt
+@@ -536,6 +536,7 @@ struct address_space_operations {
+ 	/* migrate the contents of a page to the specified target */
+ 	int (*migratepage) (struct page *, struct page *);
+ 	int (*launder_page) (struct page *);
++	int (*error_remove_page) (struct mapping *mapping, struct page *page);
+ };
  
-+int invalidate_inode_page(struct page *page);
+   writepage: called by the VM to write a dirty page to backing store.
+@@ -694,6 +695,12 @@ struct address_space_operations {
+   	prevent redirtying the page, it is kept locked during the whole
+ 	operation.
+ 
++  error_remove_page: normally set to generic_error_remove_page if truncation
++	is ok for this address space. Used for memory failure handling.
++	Setting this implies you deal with pages going away under you,
++	unless you have them locked or reference counts increased.
 +
- #ifdef CONFIG_MMU
- extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, unsigned int flags);
++
+ The File Object
+ ===============
+ 
 Index: linux/mm/truncate.c
 ===================================================================
 --- linux.orig/mm/truncate.c
 +++ linux/mm/truncate.c
-@@ -146,6 +146,24 @@ int truncate_inode_page(struct address_s
- 	return truncate_complete_page(mapping, page);
+@@ -147,6 +147,23 @@ int truncate_inode_page(struct address_s
  }
  
-+/*
-+ * Safely invalidate one page from its pagecache mapping.
-+ * It only drops clean, unused pages. The page must be locked.
-+ *
-+ * Returns 1 if the page is successfully invalidated, otherwise 0.
+ /*
++ * Used to get rid of pages on hardware memory corruption.
 + */
-+int invalidate_inode_page(struct page *page)
++int generic_error_remove_page(struct address_space *mapping, struct page *page)
 +{
-+	struct address_space *mapping = page_mapping(page);
 +	if (!mapping)
-+		return 0;
-+	if (PageDirty(page) || PageWriteback(page))
-+		return 0;
-+	if (page_mapped(page))
-+		return 0;
-+	return invalidate_complete_page(mapping, page);
++		return -EINVAL;
++	/*
++	 * Only punch for normal data pages for now.
++	 * Handling other types like directories would need more auditing.
++	 */
++	if (!S_ISREG(mapping->host->i_mode))
++		return -EIO;
++	return truncate_inode_page(mapping, page);
 +}
++EXPORT_SYMBOL(generic_error_remove_page);
 +
- /**
-  * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
-  * @mapping: mapping to truncate
-@@ -312,12 +330,8 @@ unsigned long invalidate_mapping_pages(s
- 			if (lock_failed)
- 				continue;
++/*
+  * Safely invalidate one page from its pagecache mapping.
+  * It only drops clean, unused pages. The page must be locked.
+  *
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -810,6 +810,7 @@ extern int vmtruncate(struct inode * ino
+ extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
  
--			if (PageDirty(page) || PageWriteback(page))
--				goto unlock;
--			if (page_mapped(page))
--				goto unlock;
--			ret += invalidate_complete_page(mapping, page);
--unlock:
-+			ret += invalidate_inode_page(page);
-+
- 			unlock_page(page);
- 			if (next > end)
- 				break;
+ int truncate_inode_page(struct address_space *mapping, struct page *page);
++int generic_error_remove_page(struct address_space *mapping, struct page *page);
+ 
+ int invalidate_inode_page(struct page *page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
