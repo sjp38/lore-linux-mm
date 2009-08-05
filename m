@@ -1,97 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8C1016B0085
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 06:19:36 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n75AJfMe031036
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 5 Aug 2009 19:19:41 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E9EAE45DE57
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:19:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B3DAD45DE54
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:19:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C23E1DB8040
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:19:40 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A4BF0E08004
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:19:38 +0900 (JST)
-Date: Wed, 5 Aug 2009 19:17:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/2] ZERO_PAGE config
-Message-Id: <20090805191750.a6d10776.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090805191643.2b11ae78.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090805191643.2b11ae78.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7656B6B0089
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 06:20:06 -0400 (EDT)
+Date: Wed, 5 Aug 2009 12:20:08 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct truncating of page v2
+Message-ID: <20090805102008.GB17190@wotan.suse.de>
+References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090805093638.D3754B15D8@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, npiggin@suse.de, hugh.dickins@tiscali.co.uk, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, torvalds@linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
-no changes from v4.
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Aug 05, 2009 at 11:36:38AM +0200, Andi Kleen wrote:
+> 
+> From: Nick Piggin <npiggin@suse.de>
+> 
+> Extract out truncate_inode_page() out of the truncate path so that
+> it can be used by memory-failure.c
+> 
+> [AK: description, headers, fix typos]
+> v2: Some white space changes from Fengguang Wu 
+> 
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  include/linux/mm.h |    2 ++
+>  mm/truncate.c      |   29 +++++++++++++++--------------
+>  2 files changed, 17 insertions(+), 14 deletions(-)
+> 
+> Index: linux/mm/truncate.c
+> ===================================================================
+> --- linux.orig/mm/truncate.c
+> +++ linux/mm/truncate.c
+> @@ -93,11 +93,11 @@ EXPORT_SYMBOL(cancel_dirty_page);
+>   * its lock, b) when a concurrent invalidate_mapping_pages got there first and
+>   * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
+>   */
+> -static void
+> +static int
+>  truncate_complete_page(struct address_space *mapping, struct page *page)
+>  {
+>  	if (page->mapping != mapping)
+> -		return;
+> +		return -EIO;
 
-Kconfig for using ZERO_PAGE or not. Using ZERO_PAGE or not is depends on
- - arch has pte_special() or not.
- - arch allows to use ZERO_PAGE or not.
+Hmm, at this point, the page must have been removed from pagecache,
+so I don't know if you need to pass an error back?
 
-In this patch, generic-config for /mm and arch-specific config for x86
-is added. Other archs ?
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- arch/x86/Kconfig |    3 +++
- mm/Kconfig       |   18 ++++++++++++++++++
- 2 files changed, 21 insertions(+)
-
-Index: mmotm-2.6.31-Aug4/mm/Kconfig
-===================================================================
---- mmotm-2.6.31-Aug4.orig/mm/Kconfig
-+++ mmotm-2.6.31-Aug4/mm/Kconfig
-@@ -225,6 +225,24 @@ config KSM
- 	  saving memory until one or another app needs to modify the content.
- 	  Recommended for use with KVM, or with other duplicative applications.
- 
-+config SUPPORT_ANON_ZERO_PAGE
-+	bool "Use anon zero page"
-+	default y if ARCH_SUPPORT_ANON_ZERO_PAGE
-+	help
-+	  In anonymous private mapping (MAP_ANONYMOUS and /dev/zero), a read
-+	  page fault will allocate a new zero-cleared page. If the first page
-+	  fault is write, allocating a new page is necessary. But if it is
-+	  read, we can use ZERO_PAGE until a write comes. If you set this to y,
-+	  the kernel use ZERO_PAGE and delays allocating new memory in private
-+	  anon mapping until the first write. If applications use large mmap
-+	  and most of accesses are read, this reduces memory usage and cache
-+	  usage to some extent. To support this, your architecture should have
-+	  _PAGE_SPECIAL bit in pte. And this will be no help to cpu cache if
-+	  the arch's cache is virtually tagged.
-+	  To developper:
-+	  This ZERO_PAGE changes behavior of follow_page(). please check
-+	  usage of follow_page() in your arch before supporting this.
-+
- config DEFAULT_MMAP_MIN_ADDR
-         int "Low address space to protect from user allocation"
-         default 4096
-Index: mmotm-2.6.31-Aug4/arch/x86/Kconfig
-===================================================================
---- mmotm-2.6.31-Aug4.orig/arch/x86/Kconfig
-+++ mmotm-2.6.31-Aug4/arch/x86/Kconfig
-@@ -158,6 +158,9 @@ config ARCH_HIBERNATION_POSSIBLE
- config ARCH_SUSPEND_POSSIBLE
- 	def_bool y
- 
-+config ARCH_SUPPORT_ANON_ZERO_PAGE
-+	def_bool y
-+
- config ZONE_DMA32
- 	bool
- 	default X86_64
+  
+>  	if (page_has_private(page))
+>  		do_invalidatepage(page, 0);
+> @@ -108,6 +108,7 @@ truncate_complete_page(struct address_sp
+>  	remove_from_page_cache(page);
+>  	ClearPageMappedToDisk(page);
+>  	page_cache_release(page);	/* pagecache ref */
+> +	return 0;
+>  }
+>  
+>  /*
+> @@ -135,6 +136,16 @@ invalidate_complete_page(struct address_
+>  	return ret;
+>  }
+>  
+> +int truncate_inode_page(struct address_space *mapping, struct page *page)
+> +{
+> +	if (page_mapped(page)) {
+> +		unmap_mapping_range(mapping,
+> +				   (loff_t)page->index << PAGE_CACHE_SHIFT,
+> +				   PAGE_CACHE_SIZE, 0);
+> +	}
+> +	return truncate_complete_page(mapping, page);
+> +}
+> +
+>  /**
+>   * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
+>   * @mapping: mapping to truncate
+> @@ -196,12 +207,7 @@ void truncate_inode_pages_range(struct a
+>  				unlock_page(page);
+>  				continue;
+>  			}
+> -			if (page_mapped(page)) {
+> -				unmap_mapping_range(mapping,
+> -				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
+> -				  PAGE_CACHE_SIZE, 0);
+> -			}
+> -			truncate_complete_page(mapping, page);
+> +			truncate_inode_page(mapping, page);
+>  			unlock_page(page);
+>  		}
+>  		pagevec_release(&pvec);
+> @@ -238,15 +244,10 @@ void truncate_inode_pages_range(struct a
+>  				break;
+>  			lock_page(page);
+>  			wait_on_page_writeback(page);
+> -			if (page_mapped(page)) {
+> -				unmap_mapping_range(mapping,
+> -				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
+> -				  PAGE_CACHE_SIZE, 0);
+> -			}
+> +			truncate_inode_page(mapping, page);
+>  			if (page->index > next)
+>  				next = page->index;
+>  			next++;
+> -			truncate_complete_page(mapping, page);
+>  			unlock_page(page);
+>  		}
+>  		pagevec_release(&pvec);
+> Index: linux/include/linux/mm.h
+> ===================================================================
+> --- linux.orig/include/linux/mm.h
+> +++ linux/include/linux/mm.h
+> @@ -809,6 +809,8 @@ static inline void unmap_shared_mapping_
+>  extern int vmtruncate(struct inode * inode, loff_t offset);
+>  extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+>  
+> +int truncate_inode_page(struct address_space *mapping, struct page *page);
+> +
+>  #ifdef CONFIG_MMU
+>  extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, unsigned int flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
