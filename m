@@ -1,118 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F36926B0095
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:41 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 24AF76B0098
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:43 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200908051136.682859934@firstfloor.org>
 In-Reply-To: <200908051136.682859934@firstfloor.org>
-Subject: [PATCH] [13/19] HWPOISON: Define a new error_remove_page address space op for async truncation
-Message-Id: <20090805093640.D8856B15D8@basil.firstfloor.org>
-Date: Wed,  5 Aug 2009 11:36:40 +0200 (CEST)
+Subject: [PATCH] [14/19] HWPOISON: Add PR_MCE_KILL prctl to control early kill behaviour per process
+Message-Id: <20090805093641.DB176B15D8@basil.firstfloor.org>
+Date: Wed,  5 Aug 2009 11:36:41 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
 
-Truncating metadata pages is not safe right now before
-we haven't audited all file systems.
+This allows processes to override their early/late kill
+behaviour on hardware memory errors.
 
-To enable truncation only for data address space define
-a new address_space callback error_remove_page.
+Typically applications which are memory error aware is
+better of with early kill (see the error as soon
+as possible), all others with late kill (only
+see the error when the error is really impacting execution)
 
-This is used for memory_failure.c memory error handling.
+There's a global sysctl, but this way an application
+can set its specific policy.
 
-This can be then set to truncate_inode_page()
+We're using two bits, one to signify that the process
+stated its intention and that 
 
-This patch just defines the new operation and adds documentation.
+I also made the prctl future proof by enforcing
+the unused arguments are 0.
 
-Callers and users come in followon patches.
+The state is inherited to children for now. I've
+been considering to reset it on exec, but not done for
+now (TBD).
+
+Note this makes us officially run out of process flags
+on 32bit, but the next patch can easily add another field.
+
+Manpage patch will be supplied separately.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- Documentation/filesystems/vfs.txt |    7 +++++++
- include/linux/fs.h                |    1 +
- include/linux/mm.h                |    1 +
- mm/truncate.c                     |   17 +++++++++++++++++
- 4 files changed, 26 insertions(+)
+ include/linux/prctl.h |    2 ++
+ include/linux/sched.h |    2 ++
+ kernel/sys.c          |   22 ++++++++++++++++++++++
+ 3 files changed, 26 insertions(+)
 
-Index: linux/include/linux/fs.h
+Index: linux/include/linux/sched.h
 ===================================================================
---- linux.orig/include/linux/fs.h
-+++ linux/include/linux/fs.h
-@@ -595,6 +595,7 @@ struct address_space_operations {
- 	int (*launder_page) (struct page *);
- 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
- 					unsigned long);
-+	int (*error_remove_page)(struct address_space *, struct page *);
- };
- 
- /*
-Index: linux/Documentation/filesystems/vfs.txt
+--- linux.orig/include/linux/sched.h
++++ linux/include/linux/sched.h
+@@ -1674,6 +1674,7 @@ extern cputime_t task_gtime(struct task_
+ #define PF_EXITPIDONE	0x00000008	/* pi exit done on shut down */
+ #define PF_VCPU		0x00000010	/* I'm a virtual CPU */
+ #define PF_FORKNOEXEC	0x00000040	/* forked but didn't exec */
++#define PF_MCE_PROCESS  0x00000080      /* process policy on mce errors */
+ #define PF_SUPERPRIV	0x00000100	/* used super-user privileges */
+ #define PF_DUMPCORE	0x00000200	/* dumped core */
+ #define PF_SIGNALED	0x00000400	/* killed by a signal */
+@@ -1693,6 +1694,7 @@ extern cputime_t task_gtime(struct task_
+ #define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
+ #define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
+ #define PF_THREAD_BOUND	0x04000000	/* Thread bound to specific cpu */
++#define PF_MCE_EARLY    0x08000000      /* Early kill for mce process policy */
+ #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
+ #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
+ #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezeable */
+Index: linux/kernel/sys.c
 ===================================================================
---- linux.orig/Documentation/filesystems/vfs.txt
-+++ linux/Documentation/filesystems/vfs.txt
-@@ -536,6 +536,7 @@ struct address_space_operations {
- 	/* migrate the contents of a page to the specified target */
- 	int (*migratepage) (struct page *, struct page *);
- 	int (*launder_page) (struct page *);
-+	int (*error_remove_page) (struct mapping *mapping, struct page *page);
- };
- 
-   writepage: called by the VM to write a dirty page to backing store.
-@@ -694,6 +695,12 @@ struct address_space_operations {
-   	prevent redirtying the page, it is kept locked during the whole
- 	operation.
- 
-+  error_remove_page: normally set to generic_error_remove_page if truncation
-+	is ok for this address space. Used for memory failure handling.
-+	Setting this implies you deal with pages going away under you,
-+	unless you have them locked or reference counts increased.
+--- linux.orig/kernel/sys.c
++++ linux/kernel/sys.c
+@@ -1528,6 +1528,28 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
+ 				current->timer_slack_ns = arg2;
+ 			error = 0;
+ 			break;
++		case PR_MCE_KILL:
++			if (arg4 | arg5)
++				return -EINVAL;
++			switch (arg2) {
++			case 0:
++				if (arg3 != 0)
++					return -EINVAL;
++				current->flags &= ~PF_MCE_PROCESS;
++				break;
++			case 1:
++				current->flags |= PF_MCE_PROCESS;
++				if (arg3 != 0)
++					current->flags |= PF_MCE_EARLY;
++				else
++					current->flags &= ~PF_MCE_EARLY;
++				break;
++			default:
++				return -EINVAL;
++			}
++			error = 0;
++			break;
 +
-+
- The File Object
- ===============
- 
-Index: linux/mm/truncate.c
+ 		default:
+ 			error = -EINVAL;
+ 			break;
+Index: linux/include/linux/prctl.h
 ===================================================================
---- linux.orig/mm/truncate.c
-+++ linux/mm/truncate.c
-@@ -147,6 +147,23 @@ int truncate_inode_page(struct address_s
- }
+--- linux.orig/include/linux/prctl.h
++++ linux/include/linux/prctl.h
+@@ -88,4 +88,6 @@
+ #define PR_TASK_PERF_COUNTERS_DISABLE		31
+ #define PR_TASK_PERF_COUNTERS_ENABLE		32
  
- /*
-+ * Used to get rid of pages on hardware memory corruption.
-+ */
-+int generic_error_remove_page(struct address_space *mapping, struct page *page)
-+{
-+	if (!mapping)
-+		return -EINVAL;
-+	/*
-+	 * Only punch for normal data pages for now.
-+	 * Handling other types like directories would need more auditing.
-+	 */
-+	if (!S_ISREG(mapping->host->i_mode))
-+		return -EIO;
-+	return truncate_inode_page(mapping, page);
-+}
-+EXPORT_SYMBOL(generic_error_remove_page);
++#define PR_MCE_KILL	33
 +
-+/*
-  * Safely invalidate one page from its pagecache mapping.
-  * It only drops clean, unused pages. The page must be locked.
-  *
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -810,6 +810,7 @@ extern int vmtruncate(struct inode * ino
- extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
- 
- int truncate_inode_page(struct address_space *mapping, struct page *page);
-+int generic_error_remove_page(struct address_space *mapping, struct page *page);
- 
- int invalidate_inode_page(struct page *page);
- 
+ #endif /* _LINUX_PRCTL_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
