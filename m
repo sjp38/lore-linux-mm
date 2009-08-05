@@ -1,84 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9206B0088
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:36 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A97AD6B0087
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:37 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200908051136.682859934@firstfloor.org>
 In-Reply-To: <200908051136.682859934@firstfloor.org>
-Subject: [PATCH] [7/19] HWPOISON: x86: Add VM_FAULT_HWPOISON handling to x86 page fault handler v2
-Message-Id: <20090805093634.C8C1DB15D8@basil.firstfloor.org>
-Date: Wed,  5 Aug 2009 11:36:34 +0200 (CEST)
+Subject: [PATCH] [9/19] HWPOISON: Handle hardware poisoned pages in try_to_unmap
+Message-Id: <20090805093636.CDE6FB15D8@basil.firstfloor.org>
+Date: Wed,  5 Aug 2009 11:36:36 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
+To: ak@linux.intel.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
 
-Add VM_FAULT_HWPOISON handling to the x86 page fault handler. This is 
-very similar to VM_FAULT_OOM, the only difference is that a different
-si_code is passed to user space and the new addr_lsb field is initialized.
+From: Andi Kleen <ak@linux.intel.com>
 
-v2: Make the printk more verbose/unique
+When a page has the poison bit set replace the PTE with a poison entry.
+This causes the right error handling to be done later when a process runs
+into it.
 
+v2: add a new flag to not do that (needed for the memory-failure handler
+later) (Fengguang)
+v3: remove unnecessary is_migration_entry() test (Fengguang, Minchan)
+
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- arch/x86/mm/fault.c |   19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ include/linux/rmap.h |    1 +
+ mm/rmap.c            |    9 ++++++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
-Index: linux/arch/x86/mm/fault.c
+Index: linux/mm/rmap.c
 ===================================================================
---- linux.orig/arch/x86/mm/fault.c
-+++ linux/arch/x86/mm/fault.c
-@@ -167,6 +167,7 @@ force_sig_info_fault(int si_signo, int s
- 	info.si_errno	= 0;
- 	info.si_code	= si_code;
- 	info.si_addr	= (void __user *)address;
-+	info.si_addr_lsb = si_code == BUS_MCEERR_AR ? PAGE_SHIFT : 0;
+--- linux.orig/mm/rmap.c
++++ linux/mm/rmap.c
+@@ -819,7 +819,14 @@ static int try_to_unmap_one(struct page
+ 	/* Update high watermark before we lower rss */
+ 	update_hiwater_rss(mm);
  
- 	force_sig_info(si_signo, &info, tsk);
- }
-@@ -799,10 +800,12 @@ out_of_memory(struct pt_regs *regs, unsi
- }
+-	if (PageAnon(page)) {
++	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
++		if (PageAnon(page))
++			dec_mm_counter(mm, anon_rss);
++		else
++			dec_mm_counter(mm, file_rss);
++		set_pte_at(mm, address, pte,
++				swp_entry_to_pte(make_hwpoison_entry(page)));
++	} else if (PageAnon(page)) {
+ 		swp_entry_t entry = { .val = page_private(page) };
  
- static void
--do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
-+do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
-+	  unsigned int fault)
- {
- 	struct task_struct *tsk = current;
- 	struct mm_struct *mm = tsk->mm;
-+	int code = BUS_ADRERR;
+ 		if (PageSwapCache(page)) {
+Index: linux/include/linux/rmap.h
+===================================================================
+--- linux.orig/include/linux/rmap.h
++++ linux/include/linux/rmap.h
+@@ -93,6 +93,7 @@ enum ttu_flags {
  
- 	up_read(&mm->mmap_sem);
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
++	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+ };
+ #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
  
-@@ -818,7 +821,15 @@ do_sigbus(struct pt_regs *regs, unsigned
- 	tsk->thread.error_code	= error_code;
- 	tsk->thread.trap_no	= 14;
- 
--	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
-+#ifdef CONFIG_MEMORY_FAILURE
-+	if (fault & VM_FAULT_HWPOISON) {
-+		printk(KERN_ERR
-+	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
-+			tsk->comm, tsk->pid, address);
-+		code = BUS_MCEERR_AR;
-+	}
-+#endif
-+	force_sig_info_fault(SIGBUS, code, address, tsk);
- }
- 
- static noinline void
-@@ -828,8 +839,8 @@ mm_fault_error(struct pt_regs *regs, uns
- 	if (fault & VM_FAULT_OOM) {
- 		out_of_memory(regs, error_code, address);
- 	} else {
--		if (fault & VM_FAULT_SIGBUS)
--			do_sigbus(regs, error_code, address);
-+		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON))
-+			do_sigbus(regs, error_code, address, fault);
- 		else
- 			BUG();
- 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
