@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1114F6B005A
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:33:40 -0400 (EDT)
-Date: Wed, 5 Aug 2009 16:33:25 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ABB8A6B005A
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 19:40:16 -0400 (EDT)
+Date: Wed, 5 Aug 2009 16:39:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] oom: fix oom_adjust_write() input sanity check.
-Message-Id: <20090805163325.14a4a77f.akpm@linux-foundation.org>
-In-Reply-To: <20090804192721.6A49.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH for 2.6.31 0/4] fix oom_adj regression v2
+Message-Id: <20090805163945.056c463c.akpm@linux-foundation.org>
+In-Reply-To: <20090804191031.6A3D.A69D9226@jp.fujitsu.com>
 References: <20090804191031.6A3D.A69D9226@jp.fujitsu.com>
-	<20090804192721.6A49.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,86 +16,49 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  4 Aug 2009 19:28:03 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue,  4 Aug 2009 19:25:08 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Subject: [PATCH] oom: fix oom_adjust_write() input sanity check.
+> The commit 2ff05b2b (oom: move oom_adj value) move oom_adj value to mm_struct.
+> It is very good first step for sanitize OOM.
 > 
-> Andrew Morton pointed out oom_adjust_write() has very strange EIO
-> and new line handling. this patch fixes it.
+> However Paul Menage reported the commit makes regression to his job scheduler.
+> Current OOM logic can kill OOM_DISABLED process.
 > 
+> Why? His program has the code of similar to the following.
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Paul Menage <menage@google.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Rik van Riel <riel@redhat.com>,
-> Cc: Andrew Morton <akpm@linux-foundation.org>,
-> ---
->  fs/proc/base.c |   12 +++++++-----
->  1 file changed, 7 insertions(+), 5 deletions(-)
+> 	...
+> 	set_oom_adj(OOM_DISABLE); /* The job scheduler never killed by oom */
+> 	...
+> 	if (vfork() == 0) {
+> 		set_oom_adj(0); /* Invoked child can be killed */
+> 		execve("foo-bar-cmd")
+> 	}
+> 	....
 > 
-> Index: b/fs/proc/base.c
-> ===================================================================
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1033,12 +1033,15 @@ static ssize_t oom_adjust_write(struct f
->  		count = sizeof(buffer) - 1;
->  	if (copy_from_user(buffer, buf, count))
->  		return -EFAULT;
-> +
-> +	strstrip(buffer);
-
-+1 for using strstrip()
-
--1 for using it wrongly.  If it strips leading whitespace it will
-return a new address for the caller to use.
-
-We could mark it __must_check() to prevent reoccurences of this error.
-
-How does this look?
-
---- a/fs/proc/base.c~oom-fix-oom_adjust_write-input-sanity-check-fix
-+++ a/fs/proc/base.c
-@@ -1033,8 +1033,7 @@ static ssize_t oom_adjust_write(struct f
- 	if (copy_from_user(buffer, buf, count))
- 		return -EFAULT;
- 
--	strstrip(buffer);
--	oom_adjust = simple_strtol(buffer, &end, 0);
-+	oom_adjust = simple_strtol(strstrip(buffer), &end, 0);
- 	if (*end)
- 		return -EINVAL;
- 	if ((oom_adjust < OOM_ADJUST_MIN || oom_adjust > OOM_ADJUST_MAX) &&
-
-
->  	oom_adjust = simple_strtol(buffer, &end, 0);
-
-That should've used strict_strtoul() but it's too late to fix it now.
-
-> +	if (*end)
-> +		return -EINVAL;
->  	if ((oom_adjust < OOM_ADJUST_MIN || oom_adjust > OOM_ADJUST_MAX) &&
->  	     oom_adjust != OOM_DISABLE)
->  		return -EINVAL;
-> -	if (*end == '\n')
-> -		end++;
-> +
->  	task = get_proc_task(file->f_path.dentry->d_inode);
->  	if (!task)
->  		return -ESRCH;
-> @@ -1057,9 +1060,8 @@ static ssize_t oom_adjust_write(struct f
->  	task->signal->oom_adj = oom_adjust;
->  	unlock_task_sighand(task, &flags);
->  	put_task_struct(task);
-> -	if (end - buffer == 0)
-> -		return -EIO;
-> -	return end - buffer;
-> +
-> +	return count;
->  }
->  
->  static const struct file_operations proc_oom_adjust_operations = {
+> vfork() parent and child are shared the same mm_struct. then above set_oom_adj(0) doesn't
+> only change oom_adj for vfork() child, it's also change oom_adj for vfork() parent.
+> Then, vfork() parent (job scheduler) lost OOM immune and it was killed.
 > 
+> Actually, fork-setting-exec idiom is very frequently used in userland program. We must
+> not break this assumption.
+> 
+> This patch series are slightly big, but we must fix any regression soon.
+> 
+
+So I merged these but I have a feeling that this isn't the last I'll be
+hearing on the topic ;)
+
+Given the amount of churn, the amount of discussion and the size of the
+patches, this doesn't look like something we should push into 2.6.31.  
+
+If we think that the 2ff05b2b regression is sufficiently serious to be
+a must-fix for 2.6.31 then can we please find something safer and
+smaller?  Like reverting 2ff05b2b?
+
+
+These patches clash with the controversial
+mm-introduce-proc-pid-oom_adj_child.patch, so I've disabled that patch
+now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
