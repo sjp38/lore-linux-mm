@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A08B56B004D
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 10:54:39 -0400 (EDT)
-Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing script for page-allocator-related ftrace events
-In-Reply-To: Your message of "Tue, 04 Aug 2009 21:57:17 +0200."
-             <20090804195717.GA5998@elte.hu>
-From: Valdis.Kletnieks@vt.edu
-References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie> <1249409546-6343-5-git-send-email-mel@csn.ul.ie> <20090804112246.4e6d0ab1.akpm@linux-foundation.org>
-            <20090804195717.GA5998@elte.hu>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1249484030_3824P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 05 Aug 2009 10:53:50 -0400
-Message-ID: <16246.1249484030@turing-police.cc.vt.edu>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1B26B004F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:00:47 -0400 (EDT)
+Date: Wed, 5 Aug 2009 09:00:39 -0600
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct
+	truncating of page v2
+Message-ID: <20090805150038.GL3711@parisc-linux.org>
+References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de> <20090805134607.GH11385@basil.fritz.box> <20090805140145.GB28563@wotan.suse.de> <20090805141001.GJ11385@basil.fritz.box> <20090805141642.GB23992@wotan.suse.de> <20090805144112.GM11385@basil.fritz.box>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090805144112.GM11385@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Mel Gorman <mel@csn.ul.ie>, Larry Woodman <lwoodman@redhat.com>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com, linux-arch@vger.kernel.org, linux-parisc@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1249484030_3824P
-Content-Type: text/plain; charset=us-ascii
-
-On Tue, 04 Aug 2009 21:57:17 +0200, Ingo Molnar said:
-
-> Let me demonstrate these features in action (i've applied the 
-> patches for testing to -tip):
+On Wed, Aug 05, 2009 at 04:41:12PM +0200, Andi Kleen wrote:
+> > One question I had for the others (Andrew? other mm guys?) what is the
+> > feelings of merging this feature? Leaving aside exact implementation
+> > and just considering the high level design and cost/benefit. Last time
+> > there were some people objecting, so I wonder the situation now? So
+> > does anybody need more convincing? :)
 > 
-> First, discovery/enumeration of available counters can be done via 
-> 'perf list':
+> The main objection last time was that it was a bit too late in the 
+> release schedule.
+> 
+> I can't remember anyone really questioning the basic feature itself.
+> 
+> > Also I will just cc linux-arch. It would be interesting to know whether
+> > powerpc, ia64, or s390 or others would be interested to use this feature?
+> 
+> ia64 is interested (but no code so far) I talked to DaveM and he seems to be 
+> interested for sparc too.  I would expect other server architectures to 
+> eventually use it as they get around to writing the necessary architecture 
+> specific glue.
 
-Woo hoo! A perf cheat sheet! perf's usability just went up 110%, at least
-for me.
+parisc could certainly implement this.  Don't know if there's interest.
 
-Thanks for the clear demo. ;)
-
---==_Exmh_1249484030_3824P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFKeZz+cC3lWbTT17ARAthwAJ9iV+frrscEnfUCi6AepglcAzXzgACg3lLF
-Hih3Fs/miSAqZpcg8z7KSzo=
-=ciaC
------END PGP SIGNATURE-----
-
---==_Exmh_1249484030_3824P--
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
