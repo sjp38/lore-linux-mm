@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1B26B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:00:47 -0400 (EDT)
-Date: Wed, 5 Aug 2009 09:00:39 -0600
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct
-	truncating of page v2
-Message-ID: <20090805150038.GL3711@parisc-linux.org>
-References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de> <20090805134607.GH11385@basil.fritz.box> <20090805140145.GB28563@wotan.suse.de> <20090805141001.GJ11385@basil.fritz.box> <20090805141642.GB23992@wotan.suse.de> <20090805144112.GM11385@basil.fritz.box>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9A3CA6B006A
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 11:07:20 -0400 (EDT)
+Message-ID: <4A79A16A.1050401@redhat.com>
+Date: Wed, 05 Aug 2009 18:12:42 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805144112.GM11385@basil.fritz.box>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090805024058.GA8886@localhost> <4A793B92.9040204@redhat.com> <4A7993F4.9020008@redhat.com>
+In-Reply-To: <4A7993F4.9020008@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com, linux-arch@vger.kernel.org, linux-parisc@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 04:41:12PM +0200, Andi Kleen wrote:
-> > One question I had for the others (Andrew? other mm guys?) what is the
-> > feelings of merging this feature? Leaving aside exact implementation
-> > and just considering the high level design and cost/benefit. Last time
-> > there were some people objecting, so I wonder the situation now? So
-> > does anybody need more convincing? :)
-> 
-> The main objection last time was that it was a bit too late in the 
-> release schedule.
-> 
-> I can't remember anyone really questioning the basic feature itself.
-> 
-> > Also I will just cc linux-arch. It would be interesting to know whether
-> > powerpc, ia64, or s390 or others would be interested to use this feature?
-> 
-> ia64 is interested (but no code so far) I talked to DaveM and he seems to be 
-> interested for sparc too.  I would expect other server architectures to 
-> eventually use it as they get around to writing the necessary architecture 
-> specific glue.
+On 08/05/2009 05:15 PM, Rik van Riel wrote:
+>> If that's indeed the case, we can have the EPT ageing mechanism give 
+>> pages a bit more time around by using an available bit in the EPT 
+>> PTEs to return accessed on the first pass and not-accessed on the 
+>> second.
+>
+> Can we find out which pages are EPT pages?
+>
 
-parisc could certainly implement this.  Don't know if there's interest.
+No need to (see below).
+
+> If so, we could unmap them when they get moved from the
+> active to the inactive list, and soft fault them back in
+> on access, emulating the referenced bit for EPT pages and
+> making page replacement on them work like it should.
+
+It should be easy to implement via the mmu notifier callback: when the 
+mm calls clear_flush_young(), mark it as young, and unmap it from the 
+EPT pagetable.
+
+> Your approximation of pretending the page is accessed the
+> first time and pretending it's not the second time sounds
+> like it will just lead to less efficient FIFO replacement,
+> not to anything even vaguely approximating LRU.
+
+Right, it's just a hack that gives EPT pages higher priority, like the 
+original patch suggested.  Note that LRU for VMs is not a good 
+algorithm, since the VM will also reference the least recently used 
+page, leading to thrashing.
 
 -- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
