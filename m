@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 908EE6B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 10:44:02 -0400 (EDT)
-Date: Wed, 5 Aug 2009 16:44:02 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct truncating of page v2
-Message-ID: <20090805144402.GD23992@wotan.suse.de>
-References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de> <20090805134607.GH11385@basil.fritz.box> <20090805140145.GB28563@wotan.suse.de> <20090805141001.GJ11385@basil.fritz.box> <20090805141642.GB23992@wotan.suse.de> <20090805144112.GM11385@basil.fritz.box>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7B9FF6B004F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 10:53:32 -0400 (EDT)
+Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing
+	script for page-allocator-related ftrace events
+From: Larry Woodman <lwoodman@redhat.com>
+In-Reply-To: <20090804204857.GA32092@csn.ul.ie>
+References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
+	 <1249409546-6343-5-git-send-email-mel@csn.ul.ie>
+	 <20090804112246.4e6d0ab1.akpm@linux-foundation.org>
+	 <4A787D84.2030207@redhat.com>
+	 <20090804121332.46df33a7.akpm@linux-foundation.org>
+	 <20090804204857.GA32092@csn.ul.ie>
+Content-Type: text/plain
+Date: Wed, 05 Aug 2009 10:53:50 -0400
+Message-Id: <1249484030.7512.42.camel@dhcp-100-19-198.bos.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805144112.GM11385@basil.fritz.box>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com, linux-arch@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, mingo@elte.hu, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 04:41:12PM +0200, Andi Kleen wrote:
-> > One question I had for the others (Andrew? other mm guys?) what is the
-> > feelings of merging this feature? Leaving aside exact implementation
-> > and just considering the high level design and cost/benefit. Last time
-> > there were some people objecting, so I wonder the situation now? So
-> > does anybody need more convincing? :)
+On Tue, 2009-08-04 at 21:48 +0100, Mel Gorman wrote:
+
+> > 
 > 
-> The main objection last time was that it was a bit too late in the 
-> release schedule.
+> Adding and deleting tracepoints, rebuilding and rebooting the kernel is
+> obviously usable by developers but not a whole pile of use if
+> recompiling the kernel is not an option or you're trying to debug a
+> difficult-to-reproduce-but-is-happening-now type of problem.
 > 
-> I can't remember anyone really questioning the basic feature itself.
-
-I can't exactly remember. Maybe it was in a thread with Alan and/or
-Arjan ;) I don't think the feature itself was questioned as much as
-cost/benefit. Maybe I was wrong...
-
-I just want to see everyone is happy with the basic idea ;)
-
-
-> > Also I will just cc linux-arch. It would be interesting to know whether
-> > powerpc, ia64, or s390 or others would be interested to use this feature?
+> Of the CC list, I believe Larry Woodman has the most experience with
+> these sort of problems in the field so I'm hoping he'll make some sort
+> of comment.
 > 
-> ia64 is interested (but no code so far) I talked to DaveM and he seems to be 
-> interested for sparc too.  I would expect other server architectures to 
-> eventually use it as they get around to writing the necessary architecture 
-> specific glue.
+
+I am all for adding tracepoints that eliminate the need to locate a
+problem, add debug code, rebuild, reboot and retest until the real
+problem is found.  
+
+Personally I have not seen as many problems in the page allocator as I
+have in the page reclaim code thats why the majority of my tracepoints
+were in vmscan.c  However I do ACK this patch set because it provides
+the opportunity to zoom into the page allocator dynamically without
+needing to iterate through the cumbersome debug process.
+
+Larry
+ 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
