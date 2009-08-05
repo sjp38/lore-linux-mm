@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EAF866B009C
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 06:28:09 -0400 (EDT)
-Date: Wed, 5 Aug 2009 11:28:17 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] page-allocator: Remove dead function free_cold_page()
-Message-ID: <20090805102817.GE21950@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0569D6B009C
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 06:28:33 -0400 (EDT)
+Date: Wed, 5 Aug 2009 12:27:50 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing script for page-allocator-related ftrace events
+Message-ID: <20090805102750.GA2488@cmpxchg.org>
+References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie> <1249409546-6343-5-git-send-email-mel@csn.ul.ie> <20090804112246.4e6d0ab1.akpm@linux-foundation.org> <4A787D84.2030207@redhat.com> <20090804121332.46df33a7.akpm@linux-foundation.org> <20090804204857.GA32092@csn.ul.ie> <20090805074103.GD19322@elte.hu> <20090805090742.GA21950@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090805090742.GA21950@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Fr?d?ric Weisbecker <fweisbec@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-The function free_cold_page() has no callers so delete it.
+On Wed, Aug 05, 2009 at 10:07:43AM +0100, Mel Gorman wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
---- 
- include/linux/gfp.h |    1 -
- mm/page_alloc.c     |    5 -----
- 2 files changed, 6 deletions(-)
+> I also decided to just deal with the page allocator and not the MM as a whole
+> figuring that reviewing all MM tracepoints at the same time would be too much
+> to chew on and decide "are these the right tracepoints?". My expectation is
+> that there would need to be at least one set per headings;
+> 
+> page allocator
+>   subsys: kmem
+>   prefix: mm_page*
+>   example use: estimate zone lock contention
+> 
+> o slab allocator (already done)
+>   subsys: kmem
+>   prefix: kmem_* (although this wasn't consistent, e.g. kmalloc vs kmem_kmalloc)
+>   example use: measure allocation times for slab, slub, slqb
+> 
+> o high-level reclaim, kswapd wakeups, direct reclaim, lumpy triggers
+>   subsys: vmscan
+>   prefix: mm_vmscan*
+>   example use: estimate memory pressure
+> 
+> o low-level reclaim, list rotations, pages scanned, types of pages moving etc.
+>   subsys: vmscan
+>   prefix: mm_vmscan*
+>   (debugging VM tunables such as swappiness or why kswapd so active)
+> 
+> The following might also be useful for kernel developers but maybe less
+> useful in general so would be harder to justify.
+> 
+> o fault activity, anon, file, swap ins/outs 
+> o page cache activity
+> o readahead
+> o VM/FS, writeback, pdflush
+> o hugepage reservations, pool activity, faulting
+> o hotplug
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 7c777a0..c32bfa8 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -326,7 +326,6 @@ void free_pages_exact(void *virt, size_t size);
- extern void __free_pages(struct page *page, unsigned int order);
- extern void free_pages(unsigned long addr, unsigned int order);
- extern void free_hot_page(struct page *page);
--extern void free_cold_page(struct page *page);
- 
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr),0)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d052abb..36758db 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1065,11 +1065,6 @@ void free_hot_page(struct page *page)
- 	free_hot_cold_page(page, 0);
- }
- 	
--void free_cold_page(struct page *page)
--{
--	free_hot_cold_page(page, 1);
--}
--
- /*
-  * split_page takes a non-compound higher-order page, and splits it into
-  * n (1<<order) sub-pages: page[0..n]
+Maybe if more people would tell how they currently use tracepoints in
+the MM we can find some common ground on what can be useful to more
+than one person and why?
+
+FWIW, I recently started using tracepoints at the following places for
+looking at swap code behaviour:
+
+	o swap slot alloc/free	[type, offset]
+	o swap slot read/write	[type, offset]
+	o swapcache add/delete	[type, offset]
+	o swap fault/evict	[page->mapping, page->index, type, offset]
+
+This gives detail beyond vmstat's possibilities at the cost of 8 lines
+of trace_swap_foo() distributed over 5 files.
+
+I have not aggregated the output so far, just looked at the raw data
+and enjoyed reading how the swap slot allocator behaves in reality
+(you can probably integrate the traces into snapshots of the whole
+swap space layout), what load behaviour triggers insane swap IO
+patterns, in what context is readahead reading the wrong pages etc.,
+stuff you wouldn't see when starting out with statistical
+aggregations.
+
+Now, these data are pretty specialized and probably only few people
+will make use of them, but OTOH, the cost they impose on the traced
+code is so miniscule that it would be a much greater pain to 1) know
+about and find third party patches and 2) apply, possibly forward-port
+third party patches.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
