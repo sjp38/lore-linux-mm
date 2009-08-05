@@ -1,75 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 42B976B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 07:54:52 -0400 (EDT)
-Date: Wed, 5 Aug 2009 12:54:49 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 5/12] ksm: keep quiet while list empty
-In-Reply-To: <20090804145935.e258cd2f.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0908051239150.13195@sister.anvils>
-References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
- <Pine.LNX.4.64.0908031313030.16754@sister.anvils>
- <20090804145935.e258cd2f.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E1F946B004F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 08:17:00 -0400 (EDT)
+Date: Wed, 5 Aug 2009 19:52:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
+	migration aware file systems
+Message-ID: <20090805115242.GB6737@localhost>
+References: <200908051136.682859934@firstfloor.org> <20090805093643.E0C00B15D8@basil.firstfloor.org> <20090805111231.GA19532@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090805111231.GA19532@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ieidus@redhat.com, aarcange@redhat.com, riel@redhat.com, chrisw@redhat.com, nickpiggin@yahoo.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andi Kleen <andi@firstfloor.org>, "tytso@mit.edu" <tytso@mit.edu>, "mfasheh@suse.com" <mfasheh@suse.com>, "aia21@cantab.net" <aia21@cantab.net>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "swhiteho@redhat.com" <swhiteho@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hidehiro.kawai.ez@hitachi.com" <hidehiro.kawai.ez@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Aug 2009, Andrew Morton wrote:
-> On Mon, 3 Aug 2009 13:14:03 +0100 (BST)
-> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+On Wed, Aug 05, 2009 at 07:12:31PM +0800, Christoph Hellwig wrote:
+> On Wed, Aug 05, 2009 at 11:36:43AM +0200, Andi Kleen wrote:
+> > 
+> > Enable removing of corrupted pages through truncation
+> > for a bunch of file systems: ext*, xfs, gfs2, ocfs2, ntfs
+> > These should cover most server needs.
+> > 
+> > I chose the set of migration aware file systems for this
+> > for now, assuming they have been especially audited.
+> > But in general it should be safe for all file systems
+> > on the data area that support read/write and truncate.
+> > 
+> > Caveat: the hardware error handler does not take i_mutex
+> > for now before calling the truncate function. Is that ok?
 > 
-> > +		if (ksmd_should_run()) {
-> >  			schedule_timeout_interruptible(
-> >  				msecs_to_jiffies(ksm_thread_sleep_millisecs));
-> >  		} else {
-> >  			wait_event_interruptible(ksm_thread_wait,
-> > -					(ksm_run & KSM_RUN_MERGE) ||
-> > -					kthread_should_stop());
-> > +				ksmd_should_run() || kthread_should_stop());
-> >  		}
-> 
-> Yields
+> It will probably need locking, e.g. the iolock in XFS.  I'll
+> need to take a look at the actual implementation of
+> generic_error_remove_page to make sense of this.
 
-(Phew, for a moment I thought you were asking us to use yield() here.)
+In patch 13, it simply calls truncate_inode_page() for S_ISREG inodes.
 
-> 
-> 
-> 		if (ksmd_should_run()) {
-> 			schedule_timeout_interruptible(
-> 				msecs_to_jiffies(ksm_thread_sleep_millisecs));
-> 		} else {
-> 			wait_event_interruptible(ksm_thread_wait,
-> 				ksmd_should_run() || kthread_should_stop());
-> 		}
-> 
-> can it be something like
-> 
-> 		wait_event_interruptible_timeout(ksm_thread_wait,
-> 			ksmd_should_run() || kthread_should_stop(),
-> 			msecs_to_jiffies(ksm_thread_sleep_millisecs));
-> 
-> ?
+Nick suggests call truncate_inode_page() with i_mutex. Sure we can
+do mutex_trylock(i_mutex), but we'd appreciate it if some fs gurus
+can demonstrate some bad consequences of not doing so, thanks!
 
-I'd be glad to simplify what we have there, but I think your proposal
-ends up doing exactly what we're trying to avoid, doesn't it?  Won't
-it briefly wake up ksmd every ksm_thread_sleep_millisecs, even when
-there's nothing for it to do?
+> Is there any way for us to test this functionality without introducing
+> real hardware problems?
 
-> 
-> That would also reduce the latency in responding to kthread_should_stop().
+We have some additional patches (ugly but works for now) that export
+interfaces for injecting hwpoison to selected types pages. It can
+guarantee only data/metadata pages of selected fs will be poisoned.
+Based on which we can do all kinds of stress testing in user space.
 
-That's not a high priority consideration.  So far as I can tell, the only
-use for that test is at startup, if the sysfs_create_group mysteriously
-fails.  It's mostly a leftover from when you could have CONFIG_KSM=m:
-
-I did wonder whether to go back and add some SLAB_PANICs etc now,
-but in the end I was either too lazy or too deferential to Izik's
-fine error handling (you choose which to believe: both, actually).
-
-Hugh
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
