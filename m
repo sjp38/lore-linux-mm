@@ -1,95 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 733236B0082
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:34 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 48E6A6B0083
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:36:35 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <200908051136.682859934@firstfloor.org>
 In-Reply-To: <200908051136.682859934@firstfloor.org>
-Subject: [PATCH] [5/19] HWPOISON: Add basic support for poisoned pages in fault handler v3
-Message-Id: <20090805093632.C3860B15D8@basil.firstfloor.org>
-Date: Wed,  5 Aug 2009 11:36:32 +0200 (CEST)
+Subject: [PATCH] [6/19] HWPOISON: Add various poison checks in mm/memory.c v2
+Message-Id: <20090805093633.C6124B15D8@basil.firstfloor.org>
+Date: Wed,  5 Aug 2009 11:36:33 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, hidehiro.kawai.ez@hitachi.com
 List-ID: <linux-mm.kvack.org>
 
 
-- Add a new VM_FAULT_HWPOISON error code to handle_mm_fault. Right now
-architectures have to explicitely enable poison page support, so
-this is forward compatible to all architectures. They only need
-to add it when they enable poison page support.
-- Add poison page handling in swap in fault code
+Bail out early when hardware poisoned pages are found in page fault handling.
+Since they are poisoned they should not be mapped freshly into processes,
+because that would cause another (potentially deadly) machine check
 
-v2: Add missing delayacct_clear_flag (Hidehiro Kawai)
-v3: Really use delayacct_clear_flag (Hidehiro Kawai)
+This is generally handled in the same way as OOM, just a different
+error code is returned to the architecture code.
+
+v2: Do a page unlock if needed (Fengguang Wu)
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/mm.h |    3 ++-
- mm/memory.c        |   18 +++++++++++++++---
- 2 files changed, 17 insertions(+), 4 deletions(-)
+ mm/memory.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
 Index: linux/mm/memory.c
 ===================================================================
 --- linux.orig/mm/memory.c
 +++ linux/mm/memory.c
-@@ -1319,7 +1319,8 @@ int __get_user_pages(struct task_struct
- 				if (ret & VM_FAULT_ERROR) {
- 					if (ret & VM_FAULT_OOM)
- 						return i ? i : -ENOMEM;
--					else if (ret & VM_FAULT_SIGBUS)
-+					if (ret &
-+					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
- 						return i ? i : -EFAULT;
- 					BUG();
- 				}
-@@ -2511,8 +2512,15 @@ static int do_swap_page(struct mm_struct
- 		goto out;
+@@ -2711,6 +2711,12 @@ static int __do_fault(struct mm_struct *
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+ 		return ret;
  
- 	entry = pte_to_swp_entry(orig_pte);
--	if (is_migration_entry(entry)) {
--		migration_entry_wait(mm, pmd, address);
-+	if (unlikely(non_swap_entry(entry))) {
-+		if (is_migration_entry(entry)) {
-+			migration_entry_wait(mm, pmd, address);
-+		} else if (is_hwpoison_entry(entry)) {
-+			ret = VM_FAULT_HWPOISON;
-+		} else {
-+			print_bad_pte(vma, address, pte, NULL);
-+			ret = VM_FAULT_OOM;
-+		}
- 		goto out;
- 	}
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-@@ -2536,6 +2544,10 @@ static int do_swap_page(struct mm_struct
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
-+	} else if (PageHWPoison(page)) {
-+		ret = VM_FAULT_HWPOISON;
-+		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+		goto out;
- 	}
- 
- 	lock_page(page);
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -700,11 +700,12 @@ static inline int page_mapped(struct pag
- #define VM_FAULT_SIGBUS	0x0002
- #define VM_FAULT_MAJOR	0x0004
- #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
-+#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
- 
- #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
- #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
- 
--#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
-+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
- 
- /*
-  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
++	if (unlikely(PageHWPoison(vmf.page))) {
++		if (ret & VM_FAULT_LOCKED)
++			unlock_page(vmf.page);
++		return VM_FAULT_HWPOISON;
++	}
++
+ 	/*
+ 	 * For consistency in subsequent calls, make the faulted page always
+ 	 * locked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
