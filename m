@@ -1,145 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 240986B005D
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 08:38:00 -0400 (EDT)
-Date: Wed, 5 Aug 2009 20:37:49 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [11/19] HWPOISON: Refactor truncate to allow direct
-	truncating of page v2
-Message-ID: <20090805123749.GA9443@localhost>
-References: <200908051136.682859934@firstfloor.org> <20090805093638.D3754B15D8@basil.firstfloor.org> <20090805102008.GB17190@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805102008.GB17190@wotan.suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6B8F56B005D
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 09:05:11 -0400 (EDT)
+Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing
+ script for page-allocator-related ftrace events
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20090804203526.GA8699@elte.hu>
+References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie>
+	 <1249409546-6343-5-git-send-email-mel@csn.ul.ie>
+	 <20090804112246.4e6d0ab1.akpm@linux-foundation.org>
+	 <20090804195717.GA5998@elte.hu>
+	 <20090804131818.ee5d4696.akpm@linux-foundation.org>
+	 <20090804203526.GA8699@elte.hu>
+Content-Type: text/plain
+Date: Wed, 05 Aug 2009 15:04:54 +0200
+Message-Id: <1249477494.32113.4.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hidehiro.kawai.ez@hitachi.com" <hidehiro.kawai.ez@hitachi.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, penberg@cs.helsinki.fi, fweisbec@gmail.com, rostedt@goodmis.org, mel@csn.ul.ie, lwoodman@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 06:20:08PM +0800, Nick Piggin wrote:
-> On Wed, Aug 05, 2009 at 11:36:38AM +0200, Andi Kleen wrote:
-> > 
-> > From: Nick Piggin <npiggin@suse.de>
-> > 
-> > Extract out truncate_inode_page() out of the truncate path so that
-> > it can be used by memory-failure.c
-> > 
-> > [AK: description, headers, fix typos]
-> > v2: Some white space changes from Fengguang Wu 
-> > 
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> > 
-> > ---
-> >  include/linux/mm.h |    2 ++
-> >  mm/truncate.c      |   29 +++++++++++++++--------------
-> >  2 files changed, 17 insertions(+), 14 deletions(-)
-> > 
-> > Index: linux/mm/truncate.c
-> > ===================================================================
-> > --- linux.orig/mm/truncate.c
-> > +++ linux/mm/truncate.c
-> > @@ -93,11 +93,11 @@ EXPORT_SYMBOL(cancel_dirty_page);
-> >   * its lock, b) when a concurrent invalidate_mapping_pages got there first and
-> >   * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
-> >   */
-> > -static void
-> > +static int
-> >  truncate_complete_page(struct address_space *mapping, struct page *page)
-> >  {
-> >  	if (page->mapping != mapping)
-> > -		return;
-> > +		return -EIO;
+On Tue, 2009-08-04 at 22:35 +0200, Ingo Molnar wrote:
+
+> Did you never want to see whether firefox is leaking [any sort of] 
+> memory, and if yes, on what callsites? Try something like on an 
+> already running firefox context:
 > 
-> Hmm, at this point, the page must have been removed from pagecache,
-> so I don't know if you need to pass an error back?
+>   perf stat -e kmem:mm_page_alloc \
+>             -e kmem:mm_pagevec_free \
+>             -e kmem:mm_page_free_direct \
+>      -p $(pidof firefox-bin) sleep 10
+> 
+> .... and "perf record" for the specific callsites.
 
-Me think so too. When called from hwpoison, the page count and lock
-have both be taken, so at least _in this case_,
+If these tracepoints were to use something like (not yet in mainline)
 
-        (page->mapping != mapping)
+  TP_perf_assign(
+ 	__perf_data(obj);
+  ),
 
-can be equally written as
+Where obj was the thing being allocated/freed, you could, when using
+PERF_SAMPLE_ADDR even match up alloc/frees, combined with
+PERF_SAMPLE_CALLCHAIN you could then figure out where the unmatched
+entries came from.
 
-        (page->mapping == NULL)
+Might be useful, dunno.
 
-But anyway, the return value is now ignored in upper layer :)
-
-Thanks,
-Fengguang
-
->   
-> >  	if (page_has_private(page))
-> >  		do_invalidatepage(page, 0);
-> > @@ -108,6 +108,7 @@ truncate_complete_page(struct address_sp
-> >  	remove_from_page_cache(page);
-> >  	ClearPageMappedToDisk(page);
-> >  	page_cache_release(page);	/* pagecache ref */
-> > +	return 0;
-> >  }
-> >  
-> >  /*
-> > @@ -135,6 +136,16 @@ invalidate_complete_page(struct address_
-> >  	return ret;
-> >  }
-> >  
-> > +int truncate_inode_page(struct address_space *mapping, struct page *page)
-> > +{
-> > +	if (page_mapped(page)) {
-> > +		unmap_mapping_range(mapping,
-> > +				   (loff_t)page->index << PAGE_CACHE_SHIFT,
-> > +				   PAGE_CACHE_SIZE, 0);
-> > +	}
-> > +	return truncate_complete_page(mapping, page);
-> > +}
-> > +
-> >  /**
-> >   * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
-> >   * @mapping: mapping to truncate
-> > @@ -196,12 +207,7 @@ void truncate_inode_pages_range(struct a
-> >  				unlock_page(page);
-> >  				continue;
-> >  			}
-> > -			if (page_mapped(page)) {
-> > -				unmap_mapping_range(mapping,
-> > -				  (loff_t)page_index<<PAGE_CACHE_SHIFT,
-> > -				  PAGE_CACHE_SIZE, 0);
-> > -			}
-> > -			truncate_complete_page(mapping, page);
-> > +			truncate_inode_page(mapping, page);
-> >  			unlock_page(page);
-> >  		}
-> >  		pagevec_release(&pvec);
-> > @@ -238,15 +244,10 @@ void truncate_inode_pages_range(struct a
-> >  				break;
-> >  			lock_page(page);
-> >  			wait_on_page_writeback(page);
-> > -			if (page_mapped(page)) {
-> > -				unmap_mapping_range(mapping,
-> > -				  (loff_t)page->index<<PAGE_CACHE_SHIFT,
-> > -				  PAGE_CACHE_SIZE, 0);
-> > -			}
-> > +			truncate_inode_page(mapping, page);
-> >  			if (page->index > next)
-> >  				next = page->index;
-> >  			next++;
-> > -			truncate_complete_page(mapping, page);
-> >  			unlock_page(page);
-> >  		}
-> >  		pagevec_release(&pvec);
-> > Index: linux/include/linux/mm.h
-> > ===================================================================
-> > --- linux.orig/include/linux/mm.h
-> > +++ linux/include/linux/mm.h
-> > @@ -809,6 +809,8 @@ static inline void unmap_shared_mapping_
-> >  extern int vmtruncate(struct inode * inode, loff_t offset);
-> >  extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
-> >  
-> > +int truncate_inode_page(struct address_space *mapping, struct page *page);
-> > +
-> >  #ifdef CONFIG_MMU
-> >  extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  			unsigned long address, unsigned int flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
