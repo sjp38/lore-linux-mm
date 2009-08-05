@@ -1,126 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C921E6B004F
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:07:43 -0400 (EDT)
-Date: Wed, 5 Aug 2009 10:07:43 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing
-	script for page-allocator-related ftrace events
-Message-ID: <20090805090742.GA21950@csn.ul.ie>
-References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie> <1249409546-6343-5-git-send-email-mel@csn.ul.ie> <20090804112246.4e6d0ab1.akpm@linux-foundation.org> <4A787D84.2030207@redhat.com> <20090804121332.46df33a7.akpm@linux-foundation.org> <20090804204857.GA32092@csn.ul.ie> <20090805074103.GD19322@elte.hu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 46B4F6B005D
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 05:13:10 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n759DBxN031761
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 5 Aug 2009 18:13:11 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2382845DE53
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 18:13:11 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EE99A45DE4F
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 18:13:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CE6941DB8047
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 18:13:10 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6ECE61DB8038
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 18:13:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] tracing, page-allocator: Add trace events for page allocation and page freeing
+In-Reply-To: <1249409546-6343-2-git-send-email-mel@csn.ul.ie>
+References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie> <1249409546-6343-2-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090805165302.5BC8.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090805074103.GD19322@elte.hu>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  5 Aug 2009 18:13:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, lwoodman@redhat.com, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Steven Rostedt <rostedt@goodmis.org>, Fr?d?ric Weisbecker <fweisbec@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 09:41:03AM +0200, Ingo Molnar wrote:
+Hi
+
+sorry for the delayed review.
+
+> This patch adds trace events for the allocation and freeing of pages,
+> including the freeing of pagevecs.  Using the events, it will be known what
+> struct page and pfns are being allocated and freed and what the call site
+> was in many cases.
 > 
-> * Mel Gorman <mel@csn.ul.ie> wrote:
+> The page alloc tracepoints be used as an indicator as to whether the workload
+> was heavily dependant on the page allocator or not. You can make a guess based
+> on vmstat but you can't get a per-process breakdown. Depending on the call
+> path, the call_site for page allocation may be __get_free_pages() instead
+> of a useful callsite. Instead of passing down a return address similar to
+> slab debugging, the user should enable the stacktrace and seg-addr options
+> to get a proper stack trace.
 > 
-> [...]
-> > > Is there a plan to add the rest later on?
-> > 
-> > Depending on how this goes, I will attempt to do a similar set of 
-> > trace points for tracking kswapd and direct reclaim with the view 
-> > to identifying when stalls occur due to reclaim, when lumpy 
-> > reclaim is kicking in, how long it's taken and how often is 
-> > succeeds/fails.
-> > 
-> > > Or are these nine more a proof-of-concept demonstration-code 
-> > > thing?  If so, is it expected that developers will do an ad-hoc 
-> > > copy-n-paste to solve a particular short-term problem and will 
-> > > then toss the tracepoint away?  I guess that could be useful, 
-> > > although you can do the same with vmstat.
-> > 
-> > Adding and deleting tracepoints, rebuilding and rebooting the 
-> > kernel is obviously usable by developers but not a whole pile of 
-> > use if recompiling the kernel is not an option or you're trying to 
-> > debug a difficult-to-reproduce-but-is-happening-now type of 
-> > problem.
-> > 
-> > Of the CC list, I believe Larry Woodman has the most experience 
-> > with these sort of problems in the field so I'm hoping he'll make 
-> > some sort of comment.
+> The pagevec free tracepoint has a different usecase. It can be used to get
+> a idea of how many pages are being dumped off the LRU and whether it is
+> kswapd doing the work or a process doing direct reclaim.
 > 
-> Yes. FYI, Larry's last set of patches (which Andrew essentially 
-> NAK-ed) can be found attached below.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  include/trace/events/kmem.h |   86 +++++++++++++++++++++++++++++++++++++++++++
+>  mm/page_alloc.c             |    6 ++-
+>  2 files changed, 91 insertions(+), 1 deletions(-)
 > 
+> diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+> index 1493c54..57bf13c 100644
+> --- a/include/trace/events/kmem.h
+> +++ b/include/trace/events/kmem.h
+> @@ -225,6 +225,92 @@ TRACE_EVENT(kmem_cache_free,
+>  
+>  	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
+>  );
+> +
+> +TRACE_EVENT(mm_page_free_direct,
+> +
+> +	TP_PROTO(unsigned long call_site, const void *page, unsigned int order),
+> +
+> +	TP_ARGS(call_site, page, order),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	call_site	)
+> +		__field(	const void *,	page		)
 
-I was made aware of that patch after V1 of this patchset and brought the
-naming scheme more in line with Larry's. It's still up in the air what the
-proper naming scheme should be. I went with mm_page* as the prefix which
-I'm reasonably happy with but I've been hit on the nose with a rolled up
-newspaper over naming before.
+Why void? Is there any benefit?
 
-I also decided to just deal with the page allocator and not the MM as a whole
-figuring that reviewing all MM tracepoints at the same time would be too much
-to chew on and decide "are these the right tracepoints?". My expectation is
-that there would need to be at least one set per headings;
+> +		__field(	unsigned int,	order		)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->call_site	= call_site;
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +	),
+> +
+> +	TP_printk("call_site=%lx page=%p pfn=%lu order=%d",
+> +			__entry->call_site,
+> +			__entry->page,
+> +			page_to_pfn((struct page *)__entry->page),
+> +			__entry->order)
+> +);
+> +
+> +TRACE_EVENT(mm_pagevec_free,
+> +
+> +	TP_PROTO(unsigned long call_site, const void *page, int order, int cold),
+> +
+> +	TP_ARGS(call_site, page, order, cold),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	call_site	)
+> +		__field(	const void *,	page		)
+> +		__field(	int,		order		)
+> +		__field(	int,		cold		)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->call_site	= call_site;
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +		__entry->cold		= cold;
+> +	),
+> +
+> +	TP_printk("call_site=%lx page=%p pfn=%lu order=%d cold=%d",
+> +			__entry->call_site,
+> +			__entry->page,
+> +			page_to_pfn((struct page *)__entry->page),
+> +			__entry->order,
+> +			__entry->cold)
+> +);
+> +
+> +TRACE_EVENT(mm_page_alloc,
+> +
+> +	TP_PROTO(unsigned long call_site, const void *page, unsigned int order,
+> +			gfp_t gfp_flags, int migratetype),
+> +
+> +	TP_ARGS(call_site, page, order, gfp_flags, migratetype),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	call_site	)
+> +		__field(	const void *,	page		)
+> +		__field(	unsigned int,	order		)
+> +		__field(	gfp_t,		gfp_flags	)
+> +		__field(	int,		migratetype	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->call_site	= call_site;
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +		__entry->gfp_flags	= gfp_flags;
+> +		__entry->migratetype	= migratetype;
+> +	),
+> +
+> +	TP_printk("call_site=%lx page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
+> +		__entry->call_site,
+> +		__entry->page,
+> +		page_to_pfn((struct page *)__entry->page),
+> +		__entry->order,
+> +		__entry->migratetype,
+> +		show_gfp_flags(__entry->gfp_flags))
+> +);
+> +
+>  #endif /* _TRACE_KMEM_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d052abb..843bdec 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1905,6 +1905,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  				zonelist, high_zoneidx, nodemask,
+>  				preferred_zone, migratetype);
+>  
+> +	trace_mm_page_alloc(_RET_IP_, page, order, gfp_mask, migratetype);
+>  	return page;
+>  }
 
-page allocator
-  subsys: kmem
-  prefix: mm_page*
-  example use: estimate zone lock contention
+In almost case, __alloc_pages_nodemask() is called from alloc_pages_current().
+Can you add call_site argument? (likes slab_alloc)
 
-o slab allocator (already done)
-  subsys: kmem
-  prefix: kmem_* (although this wasn't consistent, e.g. kmalloc vs kmem_kmalloc)
-  example use: measure allocation times for slab, slub, slqb
 
-o high-level reclaim, kswapd wakeups, direct reclaim, lumpy triggers
-  subsys: vmscan
-  prefix: mm_vmscan*
-  example use: estimate memory pressure
+>  EXPORT_SYMBOL(__alloc_pages_nodemask);
+> @@ -1945,13 +1946,16 @@ void __pagevec_free(struct pagevec *pvec)
+>  {
+>  	int i = pagevec_count(pvec);
+>  
+> -	while (--i >= 0)
+> +	while (--i >= 0) {
+> +		trace_mm_pagevec_free(_RET_IP_, pvec->pages[i], 0, pvec->cold);
+>  		free_hot_cold_page(pvec->pages[i], pvec->cold);
+> +	}
+>  }
 
-o low-level reclaim, list rotations, pages scanned, types of pages moving etc.
-  subsys: vmscan
-  prefix: mm_vmscan*
-  (debugging VM tunables such as swappiness or why kswapd so active)
+This _RET_IP_ assume pagevec_free() is inlined function. Then,
+pagevec_free() sould also change always_inline?
 
-The following might also be useful for kernel developers but maybe less
-useful in general so would be harder to justify.
+Yeah, I agree this is theoretical issue. but it improve readability and
+studying author's intention. 
 
-o fault activity, anon, file, swap ins/outs 
-o page cache activity
-o readahead
-o VM/FS, writeback, pdflush
-o hugepage reservations, pool activity, faulting
-o hotplug
+>  void __free_pages(struct page *page, unsigned int order)
+>  {
+>  	if (put_page_testzero(page)) {
+> +		trace_mm_page_free_direct(_RET_IP_, page, order);
+>  		if (order == 0)
+>  			free_hot_page(page);
+>  		else
 
-> My general impression is that these things are very clearly useful, 
-> but that it would also be nice to see a more structured plan about 
-> what we want to instrument in the MM and what not so that a general 
-> decision can be made instead of a creeping stream of ad-hoc 
-> tracepoints with no end in sight.
-> 
-> I.e. have a full cycle set of tracepoints based on a high level 
-> description - one (incomplete) sub-set i outlined here for example:
-> 
->   http://lkml.org/lkml/2009/3/24/435
-> 
-> Adding a document about the page allocator and perhaps comment on 
-> precisely what we want to trace would definitely be useful in 
-> addressing Andrew's scepticism i think.
-> 
-> I.e. we'd have your patch in the end, but also with some feel-good 
-> thoughts made about it on a higher level, so that we can be 
-> reasonably sure that we have a meaningful set of tracepoints.
-> 
+This patch covered free_pages() and __pagevec_free() case.
+but it doesn't cover free_hot_page() direct call.
 
-Ok, I think I could put together such a description for the page allocator
-tracepoints using the leader and your mail as starting points. I reckon the
-best place for the end result would be Documentation/vm/tracepoints.txt
+(Fortunately, there is no free_cold_page() caller)
 
-<Larry's patch snipped>
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
