@@ -1,170 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B084B6B005D
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 12:07:27 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7D76B0055
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 12:10:05 -0400 (EDT)
+Date: Thu, 6 Aug 2009 17:10:06 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/6] tracing, page-allocator: Add trace events for page allocation and page freeing
-Date: Thu,  6 Aug 2009 17:07:02 +0100
-Message-Id: <1249574827-18745-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1249574827-18745-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 0/4] Add some trace events for the page allocator v4
+Message-ID: <20090806161005.GD6915@csn.ul.ie>
 References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1249574827-18745-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds trace events for the allocation and freeing of pages,
-including the freeing of pagevecs.  Using the events, it will be known what
-struct page and pfns are being allocated and freed and what the call site
-was in many cases.
+On Thu, Aug 06, 2009 at 05:07:01PM +0100, Mel Gorman wrote:
+> This is V4 of a patchset to add some trace points for the page allocator. The
+> largest changes in this version is performance improvements and expansion
+> of the post-processing script as well as some documentation. There were minor changes
+> elsewhere that are described in the changelog.
+> 
 
-The page alloc tracepoints be used as an indicator as to whether the workload
-was heavily dependant on the page allocator or not. You can make a guess based
-on vmstat but you can't get a per-process breakdown. Depending on the call
-path, the call_site for page allocation may be __get_free_pages() instead
-of a useful callsite. Instead of passing down a return address similar to
-slab debugging, the user should enable the stacktrace and seg-addr options
-to get a proper stack trace.
+Cack, the subject should be 0/6 of course, not 0/4
 
-The pagevec free tracepoint has a different usecase. It can be used to get
-a idea of how many pages are being dumped off the LRU and whether it is
-kswapd doing the work or a process doing direct reclaim.
+> <SNIP>
+> 
+>  Documentation/trace/events-kmem.txt                |  107 ++++++
+>  .../postprocess/trace-pagealloc-postprocess.pl     |  356 ++++++++++++++++++++
+>  Documentation/trace/tracepoint-analysis.txt        |  327 ++++++++++++++++++
+>  include/trace/events/kmem.h                        |  177 ++++++++++
+>  mm/page_alloc.c                                    |   16 +-
+>  5 files changed, 982 insertions(+), 1 deletions(-)
+>  create mode 100644 Documentation/trace/events-kmem.txt
+>  create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+>  create mode 100644 Documentation/trace/tracepoint-analysis.txt
+> 
+> Mel Gorman (6):
+>   tracing, page-allocator: Add trace events for page allocation and
+>     page freeing
+>   tracing, page-allocator: Add trace events for anti-fragmentation
+>     falling back to other migratetypes
+>   tracing, page-allocator: Add trace event for page traffic related to
+>     the buddy lists
+>   tracing, page-allocator: Add a postprocessing script for
+>     page-allocator-related ftrace events
+>   tracing, documentation: Add a document describing how to do some
+>     performance analysis with tracepoints
+>   tracing, documentation: Add a document on the kmem tracepoints
+> 
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/trace/events/kmem.h |   77 +++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    7 +++-
- 2 files changed, 83 insertions(+), 1 deletions(-)
+Similarly, I should have stripped this junk away before tending. The
+real diffstat is below. Sorry
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 1493c54..8ab0f98 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -225,6 +225,83 @@ TRACE_EVENT(kmem_cache_free,
- 
- 	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
- );
-+
-+TRACE_EVENT(mm_page_free_direct,
-+
-+	TP_PROTO(struct page *page, unsigned int order),
-+
-+	TP_ARGS(page, order),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	unsigned int,	order		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%d",
-+			__entry->page,
-+			page_to_pfn(__entry->page),
-+			__entry->order)
-+);
-+
-+TRACE_EVENT(mm_pagevec_free,
-+
-+	TP_PROTO(struct page *page, int order, int cold),
-+
-+	TP_ARGS(page, order, cold),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	int,		order		)
-+		__field(	int,		cold		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->cold		= cold;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%d cold=%d",
-+			__entry->page,
-+			page_to_pfn(__entry->page),
-+			__entry->order,
-+			__entry->cold)
-+);
-+
-+TRACE_EVENT(mm_page_alloc,
-+
-+	TP_PROTO(struct page *page, unsigned int order,
-+			gfp_t gfp_flags, int migratetype),
-+
-+	TP_ARGS(page, order, gfp_flags, migratetype),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	unsigned int,	order		)
-+		__field(	gfp_t,		gfp_flags	)
-+		__field(	int,		migratetype	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->gfp_flags	= gfp_flags;
-+		__entry->migratetype	= migratetype;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
-+		__entry->page,
-+		page_to_pfn(__entry->page),
-+		__entry->order,
-+		__entry->migratetype,
-+		show_gfp_flags(__entry->gfp_flags))
-+);
-+
- #endif /* _TRACE_KMEM_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d052abb..f3f6039 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1062,6 +1062,7 @@ static void free_hot_cold_page(struct page *page, int cold)
- 
- void free_hot_page(struct page *page)
- {
-+	trace_mm_page_free_direct(page, 0);
- 	free_hot_cold_page(page, 0);
- }
- 	
-@@ -1905,6 +1906,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
- 
-+	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
- 	return page;
- }
- EXPORT_SYMBOL(__alloc_pages_nodemask);
-@@ -1945,13 +1947,16 @@ void __pagevec_free(struct pagevec *pvec)
- {
- 	int i = pagevec_count(pvec);
- 
--	while (--i >= 0)
-+	while (--i >= 0) {
-+		trace_mm_pagevec_free(pvec->pages[i], 0, pvec->cold);
- 		free_hot_cold_page(pvec->pages[i], pvec->cold);
-+	}
- }
- 
- void __free_pages(struct page *page, unsigned int order)
- {
- 	if (put_page_testzero(page)) {
-+		trace_mm_page_free_direct(page, order);
- 		if (order == 0)
- 			free_hot_page(page);
- 		else
+>  Documentation/trace/events-kmem.txt                |  107 ++++++
+>  .../postprocess/trace-pagealloc-postprocess.pl     |  356 ++++++++++++++++++++
+>  Documentation/trace/tracepoint-analysis.txt        |  327 ++++++++++++++++++
+>  include/trace/events/kmem.h                        |  177 ++++++++++
+>  mm/page_alloc.c                                    |   15 +-
+>  5 files changed, 981 insertions(+), 1 deletions(-)
+>  create mode 100644 Documentation/trace/events-kmem.txt
+>  create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+>  create mode 100644 Documentation/trace/tracepoint-analysis.txt
+> 
+
 -- 
-1.6.3.3
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
