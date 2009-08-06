@@ -1,70 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4F8086B005A
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 01:16:47 -0400 (EDT)
-Received: by gxk3 with SMTP id 3so768073gxk.14
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2009 22:16:51 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 80D6F6B005A
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 01:31:56 -0400 (EDT)
+Date: Thu, 6 Aug 2009 13:31:53 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] slab: remove duplicate kmem_cache_init_late() declarations
+Message-ID: <20090806053153.GA13960@localhost>
+References: <20090806022704.GA17337@localhost> <20090805211727.cd4ccedd.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20090806013444.GA22095@redhat.com>
-References: <20090804191031.6A3D.A69D9226@jp.fujitsu.com>
-	 <20090804192514.6A40.A69D9226@jp.fujitsu.com>
-	 <20090806013444.GA22095@redhat.com>
-Date: Thu, 6 Aug 2009 14:16:51 +0900
-Message-ID: <2f11576a0908052216i560b977by68c400020e786d47@mail.gmail.com>
-Subject: Re: [PATCH 1/4] oom: move oom_adj to signal_struct
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090805211727.cd4ccedd.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-2009/8/6 Oleg Nesterov <oleg@redhat.com>:
-> Sorry for late reply. And sorry, I didn't read these patches carefully ye=
-t,
-> probably missed something...
->
-> On 08/04, KOSAKI Motohiro wrote:
->>
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -34,6 +34,31 @@ int sysctl_oom_dump_tasks;
->> =A0static DEFINE_SPINLOCK(zone_scan_lock);
->> =A0/* #define DEBUG */
->>
->> +int get_oom_adj(struct task_struct *tsk)
->
-> is it used outside oom_kill.c ?
+On Thu, Aug 06, 2009 at 12:17:27PM +0800, Andrew Morton wrote:
+> On Thu, 6 Aug 2009 10:27:04 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  include/linux/slqb_def.h |    2 ++
+> >  1 file changed, 2 insertions(+)
+> > 
+> > --- linux-mm.orig/include/linux/slqb_def.h	2009-07-20 20:10:20.000000000 +0800
+> > +++ linux-mm/include/linux/slqb_def.h	2009-08-06 10:17:05.000000000 +0800
+> > @@ -298,4 +298,6 @@ static __always_inline void *kmalloc_nod
+> >  }
+> >  #endif
+> >  
+> > +void __init kmem_cache_init_late(void);
+> > +
+> >  #endif /* _LINUX_SLQB_DEF_H */
+> 
+> spose so.
+> 
+> As all sl[a-zA-Z_]b.c must implement this, why not put the declaration
+> into slab.h?
+> 
+> That would require uninlining the slob one, but it's tiny and __init.
 
-Good catch.
-Will fix.
+Right. It seems someone recently moved the declaration from slab_def.h
+to slab.h, so the replacement patch is a bit smaller:
 
+---
+slab: remove duplicate kmem_cache_init_late() declarations
 
->> +{
->> + =A0 =A0 unsigned long flags;
->> + =A0 =A0 int oom_adj =3D OOM_DISABLE;
->> +
->> + =A0 =A0 if (tsk->mm && lock_task_sighand(tsk, &flags)) {
->
-> Minor nit. _Afaics_, unlike proc, oom_kill.c never needs lock_task_sighan=
-d()
-> to access ->signal->oom_adj.
->
-> If the task was found under tasklist_lock by for_each_process/do_each_thr=
-ead
-> it must have the valid ->signal !=3D NULL and it can't go away.
+kmem_cache_init_late() has been declared in slab.h
 
-Thanks good suggestion!
-Will fix.
+CC: Nick Piggin <npiggin@suse.de>
+CC: Matt Mackall <mpm@selenic.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/slob_def.h |    5 -----
+ include/linux/slub_def.h |    2 --
+ mm/slob.c                |    5 +++++
+ 3 files changed, 5 insertions(+), 7 deletions(-)
 
-
-
-> With these patches I think mm-introduce-proc-pid-oom_adj_child.patch shou=
-ld
-> be dropped. This is good ;)
-
-I agree, It should be dropped.
+--- linux-mm.orig/include/linux/slub_def.h	2009-08-06 13:15:24.000000000 +0800
++++ linux-mm/include/linux/slub_def.h	2009-08-06 13:15:52.000000000 +0800
+@@ -304,6 +304,4 @@ static __always_inline void *kmalloc_nod
+ }
+ #endif
+ 
+-void __init kmem_cache_init_late(void);
+-
+ #endif /* _LINUX_SLUB_DEF_H */
+--- linux-mm.orig/include/linux/slob_def.h	2009-08-06 13:15:24.000000000 +0800
++++ linux-mm/include/linux/slob_def.h	2009-08-06 13:15:52.000000000 +0800
+@@ -34,9 +34,4 @@ static __always_inline void *__kmalloc(s
+ 	return kmalloc(size, flags);
+ }
+ 
+-static inline void kmem_cache_init_late(void)
+-{
+-	/* Nothing to do */
+-}
+-
+ #endif /* __LINUX_SLOB_DEF_H */
+--- linux-mm.orig/mm/slob.c	2009-08-06 13:15:24.000000000 +0800
++++ linux-mm/mm/slob.c	2009-08-06 13:23:50.000000000 +0800
+@@ -692,3 +692,8 @@ void __init kmem_cache_init(void)
+ {
+ 	slob_ready = 1;
+ }
++
++void __init kmem_cache_init_late(void)
++{
++	/* Nothing to do */
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
