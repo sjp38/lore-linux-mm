@@ -1,39 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E2BF76B005A
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 09:09:27 -0400 (EDT)
-Message-ID: <4A7AD5DF.7090801@redhat.com>
-Date: Thu, 06 Aug 2009 09:08:47 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2DC846B005A
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 09:11:39 -0400 (EDT)
+Message-ID: <4A7AD681.3090709@redhat.com>
+Date: Thu, 06 Aug 2009 09:11:29 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random>
-In-Reply-To: <20090806100824.GO23385@random.random>
+References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost>
+In-Reply-To: <20090806105932.GA1569@localhost>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Avi Kivity <avi@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+Wu Fengguang wrote:
 
-> Likely we need a cut-off point, if we detect it takes more than X
-> seconds to scan the whole active list, we start ignoring young bits,
+> This is a quick hack to materialize the idea. It remembers roughly
+> the last 32*SWAP_CLUSTER_MAX=1024 active (mapped) pages scanned,
+> and if _all of them_ are referenced, then the referenced bit is
+> probably meaningless and should not be taken seriously.
 
-We could just make this depend on the calculated inactive_ratio,
-which depends on the size of the list.
-
-For small systems, it may make sense to make every accessed bit
-count, because the working set will often approach the size of
-memory.
-
-On very large systems, the working set may also approach the
-size of memory, but the inactive list only contains a small
-percentage of the pages, so there is enough space for everything.
-
-Say, if the inactive_ratio is 3 or less, make the accessed bit
-on the active lists count.
+This has the potential to increase the number of active
+pages scanned by almost a factor 1024.  Let me whip up an
+alternative idea when I get to the office later today.
 
 -- 
 All rights reversed.
