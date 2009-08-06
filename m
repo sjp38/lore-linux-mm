@@ -1,61 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DFFF6B004D
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 11:54:46 -0400 (EDT)
-Date: Thu, 6 Aug 2009 16:54:51 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B3E36B0055
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 12:07:09 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/4] tracing, page-allocator: Add a postprocessing
-	script for page-allocator-related ftrace events
-Message-ID: <20090806155451.GC6915@csn.ul.ie>
-References: <1249409546-6343-1-git-send-email-mel@csn.ul.ie> <1249409546-6343-5-git-send-email-mel@csn.ul.ie> <20090804112246.4e6d0ab1.akpm@linux-foundation.org> <4A787D84.2030207@redhat.com> <20090804121332.46df33a7.akpm@linux-foundation.org> <20090804204857.GA32092@csn.ul.ie> <1249484030.7512.42.camel@dhcp-100-19-198.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1249484030.7512.42.camel@dhcp-100-19-198.bos.redhat.com>
+Subject: [PATCH 0/4] Add some trace events for the page allocator v4
+Date: Thu,  6 Aug 2009 17:07:01 +0100
+Message-Id: <1249574827-18745-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, mingo@elte.hu, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 05, 2009 at 10:53:50AM -0400, Larry Woodman wrote:
-> On Tue, 2009-08-04 at 21:48 +0100, Mel Gorman wrote:
-> 
-> > > 
-> > 
-> > Adding and deleting tracepoints, rebuilding and rebooting the kernel is
-> > obviously usable by developers but not a whole pile of use if
-> > recompiling the kernel is not an option or you're trying to debug a
-> > difficult-to-reproduce-but-is-happening-now type of problem.
-> > 
-> > Of the CC list, I believe Larry Woodman has the most experience with
-> > these sort of problems in the field so I'm hoping he'll make some sort
-> > of comment.
-> > 
-> 
-> I am all for adding tracepoints that eliminate the need to locate a
-> problem, add debug code, rebuild, reboot and retest until the real
-> problem is found.  
-> 
-> Personally I have not seen as many problems in the page allocator as I
-> have in the page reclaim code thats why the majority of my tracepoints
-> were in vmscan.c 
+This is V4 of a patchset to add some trace points for the page allocator. The
+largest changes in this version is performance improvements and expansion
+of the post-processing script as well as some documentation. There were minor changes
+elsewhere that are described in the changelog.
 
-I'd be surprised if you had, problems in page reclaim would be a lot
-more obvious for a start. The page allocator happened to be where I wanted
-tracepoints at the moment and I think the next patchset will act as a template
-for how to introduce tracepoints which can be repeated for the reclaim points.
+Changelog since V3
+  o Drop call_site information from trace events
+  o Use struct page * instead of void * in trace events
+  o Add CPU information to the per-cpu tracepoints information
+  o Improved performance of offline-process script so it can run online
+  o Add support for interrupting processing script to dump what it has
+  o Add support for stripping pids, getting additional information from
+    proc and adding information on the parent process
+  o Improve layout of output of post processing script for use with sort
+  o Add documentation on performance analysis using tracepoints
+  o Add documentation on the kmem tracepoints in particular
 
-> However I do ACK this patch set because it provides
-> the opportunity to zoom into the page allocator dynamically without
-> needing to iterate through the cumbersome debug process.
-> 
+Changelog since V2
+  o Added Ack-ed By's from Rik
+  o Only call trace_mm_page_free_direct when page count reaches zero
+  o Rebase to 2.6.31-rc5
 
-Thanks.
+Changelog since V1
+  o Fix minor formatting error for the __rmqueue event
+  o Add event for __pagevec_free
+  o Bring naming more in line with Larry Woodman's tracing patch
+  o Add an example post-processing script for the trace events
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+The following four patches add some trace events for the page allocator
+under the heading of kmem.
+
+	Patch 1 adds events for plain old allocate and freeing of pages
+	Patch 2 gives information useful for analysing fragmentation avoidance
+	Patch 3 tracks pages going to and from the buddy lists as an indirect
+		indication of zone lock hotness
+	Patch 4 adds a post-processing script that aggegates the events to
+		give a higher-level view
+	Patch 5 adds documentation on analysis using tracepoints
+	Patch 6 adds documentation on the kmem tracepoints in particular
+
+The first set of events can be used as an indicator as to whether the workload
+was heavily dependant on the page allocator or not. You can make a guess based
+on vmstat but you can't get a per-process breakdown. Depending on the call
+path, the call_site for page allocation may be __get_free_pages() instead
+of a useful callsite. Instead of passing down a return address similar to
+slab debugging, the user should enable the stacktrace and seg-addr options
+to get a proper stack trace.
+
+The second patch is mainly of use to users of hugepages and particularly
+dynamic hugepage pool resizing as it could be used to tune min_free_kbytes
+to a level that fragmentation was rarely a problem. My main concern is
+that maybe I'm trying to jam too much into the TP_printk that could be
+extrapolated after the fact if you were familiar with the implementation. I
+couldn't determine if it was best to hold the hand of the administrator
+even if it cost more to figure it out.
+
+The third patch is trickier to draw conclusions from but high activity on
+those events could explain why there were a large number of cache misses
+on a page-allocator-intensive workload. The coalescing and splitting of
+buddies involves a lot of writing of page metadata and cache line bounces
+not to mention the acquisition of an interrupt-safe lock necessary to enter
+this path.
+
+The fourth patch parses the trace buffer to draw a higher-level picture of
+what is going on broken down on a per-process basis.
+
+The last two patches add documentation.
+
+ Documentation/trace/events-kmem.txt                |  107 ++++++
+ .../postprocess/trace-pagealloc-postprocess.pl     |  356 ++++++++++++++++++++
+ Documentation/trace/tracepoint-analysis.txt        |  327 ++++++++++++++++++
+ include/trace/events/kmem.h                        |  177 ++++++++++
+ mm/page_alloc.c                                    |   16 +-
+ 5 files changed, 982 insertions(+), 1 deletions(-)
+ create mode 100644 Documentation/trace/events-kmem.txt
+ create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+ create mode 100644 Documentation/trace/tracepoint-analysis.txt
+
+Mel Gorman (6):
+  tracing, page-allocator: Add trace events for page allocation and
+    page freeing
+  tracing, page-allocator: Add trace events for anti-fragmentation
+    falling back to other migratetypes
+  tracing, page-allocator: Add trace event for page traffic related to
+    the buddy lists
+  tracing, page-allocator: Add a postprocessing script for
+    page-allocator-related ftrace events
+  tracing, documentation: Add a document describing how to do some
+    performance analysis with tracepoints
+  tracing, documentation: Add a document on the kmem tracepoints
+
+ Documentation/trace/events-kmem.txt                |  107 ++++++
+ .../postprocess/trace-pagealloc-postprocess.pl     |  356 ++++++++++++++++++++
+ Documentation/trace/tracepoint-analysis.txt        |  327 ++++++++++++++++++
+ include/trace/events/kmem.h                        |  177 ++++++++++
+ mm/page_alloc.c                                    |   15 +-
+ 5 files changed, 981 insertions(+), 1 deletions(-)
+ create mode 100644 Documentation/trace/events-kmem.txt
+ create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+ create mode 100644 Documentation/trace/tracepoint-analysis.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
