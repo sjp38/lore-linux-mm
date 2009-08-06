@@ -1,44 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4972E6B005D
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 09:44:10 -0400 (EDT)
-Message-ID: <4A7ADF78.20105@redhat.com>
-Date: Thu, 06 Aug 2009 16:49:44 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 563C56B005C
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 06:49:30 -0400 (EDT)
+Received: by yxe14 with SMTP id 14so906125yxe.12
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2009 03:49:36 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com> <4A7AD6EB.9090208@redhat.com>
-In-Reply-To: <4A7AD6EB.9090208@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Thu, 6 Aug 2009 18:49:35 +0800
+Message-ID: <dc46d49c0908060349u67dccc12g8c6736bf4cfedf0f@mail.gmail.com>
+Subject: =?UTF-8?B?W1BBVENIXSBtdiBjbGVhciBub2RlX2xvYWRbXSB0byBfX2J1aWxkX2FsbF96b25lbGlzdA==?=
+	=?UTF-8?B?cygp4oCP?=
+From: Bob Liu <yjfpb04@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: mel@csn.ul.ie, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/06/2009 04:13 PM, Rik van Riel wrote:
-> Avi Kivity wrote:
->> On 08/06/2009 01:59 PM, Wu Fengguang wrote:
->
->>> As a refinement, the static variable 'recent_all_referenced' could be
->>> moved to struct zone or made a per-cpu variable.
->>
->> Definitely this should be made part of the zone structure, consider 
->> the original report where the problem occurs in a 128MB zone (where 
->> we can expect many pages to have their referenced bit set).
->
-> The problem did not occur in a 128MB zone, but in a 128MB cgroup.
->
-> Putting it in the zone means that the cgroup, which may have
-> different behaviour from the rest of the zone, due to excessive
-> memory pressure inside the cgroup, does not get the right
-> statistics.
->
+ If node_load[] is cleared everytime build_zonelists() is called,node_load[]
+ will have no help to find the next node that should appear in the given node's
+ fallback list.
+ Signed-off-by: Bob Liu <bo-liu@hotmail.com>
+---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Well, it should be per inactive list, whether it's a zone or a cgroup.  
-What's the name of this thing? ("inactive list"?)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d052abb..72f7345 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	prev_node = local_node;
+ 	nodes_clear(used_mask);
 
-error compiling committee.c: too many arguments to function
+-	memset(node_load, 0, sizeof(node_load));
+ 	memset(node_order, 0, sizeof(node_order));
+ 	j = 0;
+
+@@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
+ {
+ 	int nid;
+
++	memset(node_load, 0, sizeof(node_load));
+ 	for_each_online_node(nid) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
