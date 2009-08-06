@@ -1,79 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 539176B005A
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 22:36:55 -0400 (EDT)
-Received: by yxe14 with SMTP id 14so699207yxe.12
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2009 19:36:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090805185247.86766d80.akpm@linux-foundation.org>
-References: <20090805102817.GE21950@csn.ul.ie>
-	 <20090805185247.86766d80.akpm@linux-foundation.org>
-Date: Thu, 6 Aug 2009 11:36:56 +0900
-Message-ID: <2f11576a0908051936j6be1c7afta9d2004787b2760b@mail.gmail.com>
-Subject: Re: [PATCH] page-allocator: Remove dead function free_cold_page()
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BC66B005A
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 00:17:31 -0400 (EDT)
+Date: Wed, 5 Aug 2009 21:17:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] slqb: add declaration for kmem_cache_init_late()
+Message-Id: <20090805211727.cd4ccedd.akpm@linux-foundation.org>
+In-Reply-To: <20090806022704.GA17337@localhost>
+References: <20090806022704.GA17337@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-2009/8/6 Andrew Morton <akpm@linux-foundation.org>:
-> On Wed, 5 Aug 2009 11:28:17 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
->
->> The function free_cold_page() has no callers so delete it.
->>
->> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
->> ---
->> =A0include/linux/gfp.h | =A0 =A01 -
->> =A0mm/page_alloc.c =A0 =A0 | =A0 =A05 -----
->> =A02 files changed, 6 deletions(-)
->>
->> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->> index 7c777a0..c32bfa8 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -326,7 +326,6 @@ void free_pages_exact(void *virt, size_t size);
->> =A0extern void __free_pages(struct page *page, unsigned int order);
->> =A0extern void free_pages(unsigned long addr, unsigned int order);
->> =A0extern void free_hot_page(struct page *page);
->> -extern void free_cold_page(struct page *page);
->>
->> =A0#define __free_page(page) __free_pages((page), 0)
->> =A0#define free_page(addr) free_pages((addr),0)
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index d052abb..36758db 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1065,11 +1065,6 @@ void free_hot_page(struct page *page)
->> =A0 =A0 =A0 free_hot_cold_page(page, 0);
->> =A0}
->>
->> -void free_cold_page(struct page *page)
->> -{
->> - =A0 =A0 free_hot_cold_page(page, 1);
->> -}
->> -
->> =A0/*
->> =A0 * split_page takes a non-compound higher-order page, and splits it i=
-nto
->> =A0 * n (1<<order) sub-pages: page[0..n]
->
-> Well I spose so. =A0But the function is valid and might need to be
-> resurrected at any stage. =A0We could `#if 0' it to save a few bytes of
-> text, perhaps.
->
-> I wonder how many free_page() callers should really be calling
-> free_cold_page(). =A0c'mon, write a thingy to work it out ;) You can
-> query a page's hotness by timing how long it takes to read all its
-> cachelines.
+On Thu, 6 Aug 2009 10:27:04 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-if we decide to keep this function, I think we also need to consider
-make it exporting.
-Driver developers never user unexported function.
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  include/linux/slqb_def.h |    2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> --- linux-mm.orig/include/linux/slqb_def.h	2009-07-20 20:10:20.000000000 +0800
+> +++ linux-mm/include/linux/slqb_def.h	2009-08-06 10:17:05.000000000 +0800
+> @@ -298,4 +298,6 @@ static __always_inline void *kmalloc_nod
+>  }
+>  #endif
+>  
+> +void __init kmem_cache_init_late(void);
+> +
+>  #endif /* _LINUX_SLQB_DEF_H */
 
-Or, Can we free_hot_page() and free_cold_page move to inlined function?
+spose so.
+
+As all sl[a-zA-Z_]b.c must implement this, why not put the declaration
+into slab.h?
+
+That would require uninlining the slob one, but it's tiny and __init.
+
+That's one for Pekka to worry about ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
