@@ -1,97 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 80D6F6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 01:31:56 -0400 (EDT)
-Date: Thu, 6 Aug 2009 13:31:53 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] slab: remove duplicate kmem_cache_init_late() declarations
-Message-ID: <20090806053153.GA13960@localhost>
-References: <20090806022704.GA17337@localhost> <20090805211727.cd4ccedd.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4C9E46B005A
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 04:07:40 -0400 (EDT)
+Received: by yxe14 with SMTP id 14so843780yxe.12
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2009 01:07:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090805211727.cd4ccedd.akpm@linux-foundation.org>
+In-Reply-To: <2f11576a0908052213m3fba4154ifb73ab1ae2ea74d6@mail.gmail.com>
+References: <20090804191031.6A3D.A69D9226@jp.fujitsu.com>
+	 <20090805163945.056c463c.akpm@linux-foundation.org>
+	 <2f11576a0908052213m3fba4154ifb73ab1ae2ea74d6@mail.gmail.com>
+Date: Thu, 6 Aug 2009 17:07:41 +0900
+Message-ID: <28c262360908060107i4d1d23f3h47c112b48f1d8e48@mail.gmail.com>
+Subject: Re: [PATCH for 2.6.31 0/4] fix oom_adj regression v2
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 06, 2009 at 12:17:27PM +0800, Andrew Morton wrote:
-> On Thu, 6 Aug 2009 10:27:04 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  include/linux/slqb_def.h |    2 ++
-> >  1 file changed, 2 insertions(+)
-> > 
-> > --- linux-mm.orig/include/linux/slqb_def.h	2009-07-20 20:10:20.000000000 +0800
-> > +++ linux-mm/include/linux/slqb_def.h	2009-08-06 10:17:05.000000000 +0800
-> > @@ -298,4 +298,6 @@ static __always_inline void *kmalloc_nod
-> >  }
-> >  #endif
-> >  
-> > +void __init kmem_cache_init_late(void);
-> > +
-> >  #endif /* _LINUX_SLQB_DEF_H */
-> 
-> spose so.
-> 
-> As all sl[a-zA-Z_]b.c must implement this, why not put the declaration
-> into slab.h?
-> 
-> That would require uninlining the slob one, but it's tiny and __init.
+Hi, Kosaki.
 
-Right. It seems someone recently moved the declaration from slab_def.h
-to slab.h, so the replacement patch is a bit smaller:
+On Thu, Aug 6, 2009 at 2:13 PM, KOSAKI
+Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> So I merged these but I have a feeling that this isn't the last I'll be
+>> hearing on the topic ;)
+>>
+>> Given the amount of churn, the amount of discussion and the size of the
+>> patches, this doesn't look like something we should push into 2.6.31.
+>>
+>> If we think that the 2ff05b2b regression is sufficiently serious to be
+>> a must-fix for 2.6.31 then can we please find something safer and
+>> smaller? =C2=A0Like reverting 2ff05b2b?
+>
+> I don't think the serious problem is only =C2=A0this issue, I oppose to
+> ignore regression
+> bug report ;-)
+>
+> Yes, your point makes sense. then, I'll make two patch series.
+> 1. reverting 2ff05b2b for 2.6.31
+> 2. retry fix oom livelock for -mm
+>
+> I expect I can do that next sunday.
+>
+>
+>> These patches clash with the controversial
+>> mm-introduce-proc-pid-oom_adj_child.patch, so I've disabled that patch
+>> now.
+>
+> I think we can drop this because workaround patch is only needed until
+> the issue not fixed.
 
----
-slab: remove duplicate kmem_cache_init_late() declarations
 
-kmem_cache_init_late() has been declared in slab.h
+I looked over your this patches.
+I can't find out merge point our both idea.
 
-CC: Nick Piggin <npiggin@suse.de>
-CC: Matt Mackall <mpm@selenic.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Christoph Lameter <cl@linux-foundation.org>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- include/linux/slob_def.h |    5 -----
- include/linux/slub_def.h |    2 --
- mm/slob.c                |    5 +++++
- 3 files changed, 5 insertions(+), 7 deletions(-)
+I think it would be better than mine.
 
---- linux-mm.orig/include/linux/slub_def.h	2009-08-06 13:15:24.000000000 +0800
-+++ linux-mm/include/linux/slub_def.h	2009-08-06 13:15:52.000000000 +0800
-@@ -304,6 +304,4 @@ static __always_inline void *kmalloc_nod
- }
- #endif
- 
--void __init kmem_cache_init_late(void);
--
- #endif /* _LINUX_SLUB_DEF_H */
---- linux-mm.orig/include/linux/slob_def.h	2009-08-06 13:15:24.000000000 +0800
-+++ linux-mm/include/linux/slob_def.h	2009-08-06 13:15:52.000000000 +0800
-@@ -34,9 +34,4 @@ static __always_inline void *__kmalloc(s
- 	return kmalloc(size, flags);
- }
- 
--static inline void kmem_cache_init_late(void)
--{
--	/* Nothing to do */
--}
--
- #endif /* __LINUX_SLOB_DEF_H */
---- linux-mm.orig/mm/slob.c	2009-08-06 13:15:24.000000000 +0800
-+++ linux-mm/mm/slob.c	2009-08-06 13:23:50.000000000 +0800
-@@ -692,3 +692,8 @@ void __init kmem_cache_init(void)
- {
- 	slob_ready = 1;
- }
-+
-+void __init kmem_cache_init_late(void)
-+{
-+	/* Nothing to do */
-+}
+As kame pointed out, you patch can solve long stall time of do_each_thread
+as well as livelock.
+
+So I will wait for you to finish this work and review then.
+I ask you add me in CC, then. :)
+
+Thanks.
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
