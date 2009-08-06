@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 02C3E6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 09:06:48 -0400 (EDT)
-Date: Thu, 6 Aug 2009 21:06:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090806130631.GB6162@localhost>
-References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E2BF76B005A
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 09:09:27 -0400 (EDT)
+Message-ID: <4A7AD5DF.7090801@redhat.com>
+Date: Thu, 06 Aug 2009 09:08:47 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A7AC201.4010202@redhat.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random>
+In-Reply-To: <20090806100824.GO23385@random.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 06, 2009 at 07:44:01PM +0800, Avi Kivity wrote:
-> On 08/06/2009 01:59 PM, Wu Fengguang wrote:
+Andrea Arcangeli wrote:
 
-scheme KEEP_MOST:
+> Likely we need a cut-off point, if we detect it takes more than X
+> seconds to scan the whole active list, we start ignoring young bits,
 
->> How about, for every N pages that you scan, evict at least 1 page,
->> regardless of young bit status?  That limits overscanning to a N:1
->> ratio.  With N=250 we'll spend at most 25 usec in order to locate one
->> page to evict.
+We could just make this depend on the calculated inactive_ratio,
+which depends on the size of the list.
 
-scheme DROP_CONTINUOUS:
+For small systems, it may make sense to make every accessed bit
+count, because the working set will often approach the size of
+memory.
 
-> > This is a quick hack to materialize the idea. It remembers roughly
-> > the last 32*SWAP_CLUSTER_MAX=1024 active (mapped) pages scanned,
-> > and if _all of them_ are referenced, then the referenced bit is
-> > probably meaningless and should not be taken seriously.
+On very large systems, the working set may also approach the
+size of memory, but the inactive list only contains a small
+percentage of the pages, so there is enough space for everything.
 
-> I don't think we should ignore the referenced bit. There could still be 
-> a large batch of unreferenced pages later on that we should 
-> preferentially swap. If we swap at least 1 page for every 250 scanned, 
-> after 4K swaps we will have traversed 1M pages, enough to find them.
+Say, if the inactive_ratio is 3 or less, make the accessed bit
+on the active lists count.
 
-I guess both schemes have unacceptable flaws.
-
-For JVM/BIGMEM workload, most pages would be found referenced _all the time_.
-So the KEEP_MOST scheme could increase reclaim overheads by N=250 times;
-while the DROP_CONTINUOUS scheme is effectively zero cost.
-
-However, the DROP_CONTINUOUS scheme does bring more _indeterminacy_.
-It can behave vastly different on single active task and multi ones.
-It is short sighted and can be cheated by bursty activities.
-
-> > As a refinement, the static variable 'recent_all_referenced' could be
-> > moved to struct zone or made a per-cpu variable.
-> 
-> Definitely this should be made part of the zone structure, consider the 
-> original report where the problem occurs in a 128MB zone (where we can 
-> expect many pages to have their referenced bit set).
-
-Good point. Here the cgroup list is highly stressed, while the global
-zones are idling.
-
-Thanks,
-Fengguang
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
