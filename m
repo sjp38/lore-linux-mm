@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6D1646B005A
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 21:38:12 -0400 (EDT)
-Date: Thu, 6 Aug 2009 03:34:44 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/4] oom: move oom_adj to signal_struct
-Message-ID: <20090806013444.GA22095@redhat.com>
-References: <20090804191031.6A3D.A69D9226@jp.fujitsu.com> <20090804192514.6A40.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090804192514.6A40.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6546B005A
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2009 21:57:41 -0400 (EDT)
+Date: Wed, 5 Aug 2009 18:52:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] page-allocator: Remove dead function free_cold_page()
+Message-Id: <20090805185247.86766d80.akpm@linux-foundation.org>
+In-Reply-To: <20090805102817.GE21950@csn.ul.ie>
+References: <20090805102817.GE21950@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry for late reply. And sorry, I didn't read these patches carefully yet,
-probably missed something...
+On Wed, 5 Aug 2009 11:28:17 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
 
-On 08/04, KOSAKI Motohiro wrote:
->
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -34,6 +34,31 @@ int sysctl_oom_dump_tasks;
->  static DEFINE_SPINLOCK(zone_scan_lock);
->  /* #define DEBUG */
->
-> +int get_oom_adj(struct task_struct *tsk)
+> The function free_cold_page() has no callers so delete it.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+>  include/linux/gfp.h |    1 -
+>  mm/page_alloc.c     |    5 -----
+>  2 files changed, 6 deletions(-)
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 7c777a0..c32bfa8 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -326,7 +326,6 @@ void free_pages_exact(void *virt, size_t size);
+>  extern void __free_pages(struct page *page, unsigned int order);
+>  extern void free_pages(unsigned long addr, unsigned int order);
+>  extern void free_hot_page(struct page *page);
+> -extern void free_cold_page(struct page *page);
+>  
+>  #define __free_page(page) __free_pages((page), 0)
+>  #define free_page(addr) free_pages((addr),0)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d052abb..36758db 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1065,11 +1065,6 @@ void free_hot_page(struct page *page)
+>  	free_hot_cold_page(page, 0);
+>  }
+>  	
+> -void free_cold_page(struct page *page)
+> -{
+> -	free_hot_cold_page(page, 1);
+> -}
+> -
+>  /*
+>   * split_page takes a non-compound higher-order page, and splits it into
+>   * n (1<<order) sub-pages: page[0..n]
 
-is it used outside oom_kill.c ?
+Well I spose so.  But the function is valid and might need to be
+resurrected at any stage.  We could `#if 0' it to save a few bytes of
+text, perhaps.
 
-> +{
-> +	unsigned long flags;
-> +	int oom_adj = OOM_DISABLE;
-> +
-> +	if (tsk->mm && lock_task_sighand(tsk, &flags)) {
+I wonder how many free_page() callers should really be calling
+free_cold_page().  c'mon, write a thingy to work it out ;) You can
+query a page's hotness by timing how long it takes to read all its
+cachelines.
 
-Minor nit. _Afaics_, unlike proc, oom_kill.c never needs lock_task_sighand()
-to access ->signal->oom_adj.
-
-If the task was found under tasklist_lock by for_each_process/do_each_thread
-it must have the valid ->signal != NULL and it can't go away.
-
-
-With these patches I think mm-introduce-proc-pid-oom_adj_child.patch should
-be dropped. This is good ;)
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
