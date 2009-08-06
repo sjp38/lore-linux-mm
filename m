@@ -1,40 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 68DBE6B0055
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 17:11:00 -0400 (EDT)
-Date: Thu, 6 Aug 2009 17:09:55 -0400
-From: Jeff Dike <jdike@addtoit.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090806210955.GA14201@c2.user-mode-linux.org>
-References: <20090805024058.GA8886@localhost> <20090805155805.GC23385@random.random> <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C82806B004D
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 19:06:03 -0400 (EDT)
+Subject: Re: [PATCH 2/2] Dirty page tracking & on-the-fly memory mirroring
+From: Andi Kleen <andi@firstfloor.org>
+References: <4A7393D9.50807@redhat.com>
+Date: Fri, 07 Aug 2009 01:06:01 +0200
+In-Reply-To: <4A7393D9.50807@redhat.com> (Jim Paradis's message of "Fri, 31 Jul 2009 21:01:13 -0400")
+Message-ID: <87hbwkiluu.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090806130631.GB6162@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Jim Paradis <jparadis@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Side question -
-	Is there a good reason for this to be in shrink_active_list()
-as opposed to __isolate_lru_page?
+Jim Paradis <jparadis@redhat.com> writes:
 
-		if (unlikely(!page_evictable(page, NULL))) {
-			putback_lru_page(page);
-			continue;
-		}
+> +#ifdef CONFIG_TRACK_DIRTY_PAGES
+> +
+> +#if PAGETABLE_LEVELS <= 3
+> +static inline unsigned pud_index(unsigned long address)
+> +{
+> +    return 0;
+> +}
+> +#endif
 
-Maybe we want to minimize the amount of code under the lru lock or
-avoid duplicate logic in the isolate_page functions.
+Needing special code for different page table levels is a really bad
+sign that it uses the wrong abstractions for page tables. It should be using
+the standard page walk idioms or perhaps even walk_page_range() now
 
-But if there are important mlock-heavy workloads, this could make the
-scan come up empty, or at least emptier than we might like.
+-Andi
 
-				Jeff
 
 -- 
-Work email - jdike at linux dot intel dot com
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
