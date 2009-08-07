@@ -1,111 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 533526B004D
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 08:20:17 -0400 (EDT)
-Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1245839904.3210.85.camel@localhost.localdomain>
-References: <1245839904.3210.85.camel@localhost.localdomain>
-Content-Type: text/plain
-Date: Fri, 07 Aug 2009 14:20:01 +0200
-Message-Id: <1249647601.32113.700.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 11FA96B004D
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 10:16:48 -0400 (EDT)
+Date: Fri, 7 Aug 2009 15:16:50 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/6] tracing, page-allocator: Add a postprocessing
+	script for page-allocator-related ftrace events
+Message-ID: <20090807141650.GA24148@csn.ul.ie>
+References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-5-git-send-email-mel@csn.ul.ie> <20090807080018.GD20292@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090807080018.GD20292@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Fr?d?ric Weisbecker <fweisbec@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-06-24 at 11:38 +0100, Richard Kennedy wrote:
->   
-> Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
-> ---
-> balance_dirty_pages can overreact and move all of the dirty pages to
-> writeback unnecessarily.
+On Fri, Aug 07, 2009 at 10:00:18AM +0200, Ingo Molnar wrote:
 > 
-> balance_dirty_pages makes its decision to throttle based on the number
-> of dirty plus writeback pages that are over the calculated limit,so it
-> will continue to move pages even when there are plenty of pages in
-> writeback and less than the threshold still dirty.
+> * Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> This allows it to overshoot its limits and move all the dirty pages to
-> writeback while waiting for the drives to catch up and empty the
-> writeback list. 
+> > This patch adds a simple post-processing script for the 
+> > page-allocator-related trace events. It can be used to give an 
+> > indication of who the most allocator-intensive processes are and 
+> > how often the zone lock was taken during the tracing period. 
+> > Example output looks like
 > 
-> A simple fio test easily demonstrates this problem.  
-> 
-> fio --name=f1 --directory=/disk1 --size=2G -rw=write
-> 	--name=f2 --directory=/disk2 --size=1G --rw=write 		--startdelay=10
-> 
-> The attached graph before.png shows how all pages are moved to writeback
-> as the second write starts and the throttling kicks in.
-> 
-> after.png is the same test with the patch applied, which clearly shows
-> that it keeps dirty_background_ratio dirty pages in the buffer.
-> The values and timings of the graphs are only approximate but are good
-> enough to show the behaviour.  
-> 
-> This is the simplest fix I could find, but I'm not entirely sure that it
-> alone will be enough for all cases. But it certainly is an improvement
-> on my desktop machine writing to 2 disks.
-> 
-> Do we need something more for machines with large arrays where
-> bdi_threshold * number_of_drives is greater than the dirty_ratio ?
+> Note, this script hard-codes certain aspects of the output format:
 > 
 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 7b0dcea..7687879 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -541,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
->  		 * filesystems (i.e. NFS) in which data may have been
->  		 * written to the server's write cache, but has not yet
->  		 * been flushed to permanent storage.
-> +		 * Only move pages to writeback if this bdi is over its
-> +		 * threshold otherwise wait until the disk writes catch
-> +		 * up.
->  		 */
-> -		if (bdi_nr_reclaimable) {
-> +		if (bdi_nr_reclaimable > bdi_thresh) {
->  			writeback_inodes(&wbc);
->  			pages_written += write_chunk - wbc.nr_to_write;
->  			get_dirty_limits(&background_thresh, &dirty_thresh,
+Yes, I noted that to some extent in the header with "The accuracy of the
+parser may vary considerably" knowing that significant changes in the output
+format would bust the script.
 
-OK, so Chris ran into this bit yesterday, complaining that he'd only get
-very few write requests and couldn't saturate his IO channel.
+> +my $regex_traceevent =
+> +'\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)';
+> +my $regex_fragdetails = 'page=([0-9a-f]*) pfn=([0-9]*) alloc_order=([0-9]*)
+> +fallback_order=([0-9]*) pageblock_order=([0-9]*) alloc_migratetype=([0-9]*)
+> +fallback_migratetype=([0-9]*) fragmenting=([0-9]) change_ownership=([0-9])';
+> +my $regex_statname = '[-0-9]*\s\((.*)\).*';
+> +my $regex_statppid = '[-0-9]*\s\(.*\)\s[A-Za-z]\s([0-9]*).*';
+> 
+> the proper appproach is to parse /debug/tracing/events/mm/*/format. 
+> That is why we emit a format string - to detach tools and reduce the 
+> semi-ABI effect.
+> 
 
-Now, since writing out everything once there's something to do sucks for
-Richard, but only writing out stuff when we're over the limit sucks for
-Chris (since we can only be over the limit a little), the best thing
-would be to only write out when we're over the background limit. Since
-that is the low watermark we use for throttling it makes sense that we
-try to write out when above that.
+Building a regularly expression is a tad messy but I can certainly do a
+better job than currently. The information on every tracepoint seems
+static so it doesn't need to be discovered but the trace format of the
+details needs to be verified. I did the following and it should
 
-However, since there's a lack of bdi_background_thresh, and I don't
-think introducing one just for this is really justified. How about the
-below?
+o Ignore unrecognised fields in the middle of the format string
+o Exit if expected fields do not exist
+o It's not pasted, but it'll warn if the regex fails to match
 
-Chris how did this work for you? Richard, does this make things suck for
-you again?
+Downsides include that I now hardcode the mount point of debugfs.
 
----
- mm/page-writeback.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Basically, this can still break but it's more robust than it was.
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 81627eb..92f42d6 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -545,7 +545,7 @@ static void balance_dirty_pages(struct address_space *mapping)
- 		 * threshold otherwise wait until the disk writes catch
- 		 * up.
- 		 */
--		if (bdi_nr_reclaimable > bdi_thresh) {
-+		if (bdi_nr_reclaimable > bdi_thresh/2) {
- 			writeback_inodes(&wbc);
- 			pages_written += write_chunk - wbc.nr_to_write;
- 			get_dirty_limits(&background_thresh, &dirty_thresh,
+# Defaults for dynamically discovered regex's
+my $regex_fragdetails_default = 'page=([0-9a-f]*) pfn=([0-9]*) alloc_order=([-0-9]*) fallback_order=([-0-9]*) pageblock_order=([-0-9]*) alloc_migratetype=([-0-9]*) fallback_migratetype=([-0-9]*) fragmenting=([-0-9]) change_ownership=([-0-9])';
 
+# Dyanically discovered regex
+my $regex_fragdetails;
+
+# Static regex used. Specified like this for readability and for use with /o
+#                      (process_pid)     (cpus      )   ( time  )   (tpoint    ) (details)
+my $regex_traceevent = '\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)';
+my $regex_statname = '[-0-9]*\s\((.*)\).*';
+my $regex_statppid = '[-0-9]*\s\(.*\)\s[A-Za-z]\s([0-9]*).*';
+
+sub generate_traceevent_regex {
+	my $event = shift;
+	my $default = shift;
+	my @fields = @_;
+	my $regex;
+
+	# Read the event format or use the default
+	if (!open (FORMAT, "/sys/kernel/debug/tracing/events/$event/format")) {
+		$regex = $default;
+	} else {
+		my $line;
+		while (!eof(FORMAT)) {
+			$line = <FORMAT>;
+			if ($line =~ /^print fmt:\s"(.*)",.*/) {
+				$regex = $1;
+				$regex =~ s/%p/\([0-9a-f]*\)/g;
+				$regex =~ s/%d/\([-0-9]*\)/g;
+				$regex =~ s/%lu/\([0-9]*\)/g;
+			}
+		}
+	}
+
+	# Verify fields are in the right order
+	my $tuple;
+	foreach $tuple (split /\s/, $regex) {
+		my ($key, $value) = split(/=/, $tuple);
+		my $expected = shift;
+		if ($key ne $expected) {
+			print("WARNING: Format not as expected '$key' != '$expected'");
+			$regex =~ s/$key=\((.*)\)/$key=$1/;
+		}
+	}
+	if (defined $_) {
+		die("Fewer fields than expected in format");
+	}
+
+	return $regex;
+}
+$regex_fragdetails = generate_traceevent_regex("kmem/mm_page_alloc_extfrag",
+			$regex_fragdetails_default,
+			"page", "pfn",
+			"alloc_order", "fallback_order", "pageblock_order",
+			"alloc_migratetype", "fallback_migratetype",
+			"fragmenting", "change_ownership");
+
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
