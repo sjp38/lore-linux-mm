@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 45AAC6B004D
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 87CB66B0055
 	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 13:40:17 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/6] tracing, page-allocator: Add trace events for page allocation and page freeing
-Date: Fri,  7 Aug 2009 18:40:10 +0100
-Message-Id: <1249666815-28784-2-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 3/6] tracing, page-allocator: Add trace event for page traffic related to the buddy lists
+Date: Fri,  7 Aug 2009 18:40:12 +0100
+Message-Id: <1249666815-28784-4-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1249666815-28784-1-git-send-email-mel@csn.ul.ie>
 References: <1249666815-28784-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,153 +13,114 @@ To: Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Mor
 Cc: riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds trace events for the allocation and freeing of pages,
-including the freeing of pagevecs.  Using the events, it will be known what
-struct page and pfns are being allocated and freed and what the call site
-was in many cases.
+The page allocation trace event reports that a page was successfully allocated
+but it does not specify where it came from. When analysing performance,
+it can be important to distinguish between pages coming from the per-cpu
+allocator and pages coming from the buddy lists as the latter requires the
+zone lock to the taken and more data structures to be examined.
 
-The page alloc tracepoints be used as an indicator as to whether the workload
-was heavily dependant on the page allocator or not. You can make a guess based
-on vmstat but you can't get a per-process breakdown. Depending on the call
-path, the call_site for page allocation may be __get_free_pages() instead
-of a useful callsite. Instead of passing down a return address similar to
-slab debugging, the user should enable the stacktrace and seg-addr options
-to get a proper stack trace.
+This patch adds a trace event for __rmqueue reporting when a page is being
+allocated from the buddy lists. It distinguishes between being called
+to refill the per-cpu lists or whether it is a high-order allocation.
+Similarly, this patch adds an event to catch when the PCP lists are being
+drained a little and pages are going back to the buddy lists.
 
-The pagevec free tracepoint has a different usecase. It can be used to get
-a idea of how many pages are being dumped off the LRU and whether it is
-kswapd doing the work or a process doing direct reclaim.
+This is trickier to draw conclusions from but high activity on those
+events could explain why there were a large number of cache misses on a
+page-allocator-intensive workload. The coalescing and splitting of buddies
+involves a lot of writing of page metadata and cache line bounces not to
+mention the acquisition of an interrupt-safe lock necessary to enter this
+path.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/trace/events/kmem.h |   74 +++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    7 +++-
- 2 files changed, 80 insertions(+), 1 deletions(-)
+ include/trace/events/kmem.h |   51 +++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c             |    2 +
+ 2 files changed, 53 insertions(+), 0 deletions(-)
 
 diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 1493c54..0d358a0 100644
+index aae16ee..eaf46bd 100644
 --- a/include/trace/events/kmem.h
 +++ b/include/trace/events/kmem.h
-@@ -225,6 +225,80 @@ TRACE_EVENT(kmem_cache_free,
- 
- 	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
+@@ -299,6 +299,57 @@ TRACE_EVENT(mm_page_alloc,
+ 		show_gfp_flags(__entry->gfp_flags))
  );
+ 
++TRACE_EVENT(mm_page_alloc_zone_locked,
 +
-+TRACE_EVENT(mm_page_free_direct,
++	TP_PROTO(struct page *page, unsigned int order, int migratetype),
 +
-+	TP_PROTO(struct page *page, unsigned int order),
-+
-+	TP_ARGS(page, order),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	unsigned int,	order		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=%d",
-+			__entry->page,
-+			page_to_pfn(__entry->page),
-+			__entry->order)
-+);
-+
-+TRACE_EVENT(mm_pagevec_free,
-+
-+	TP_PROTO(struct page *page, int cold),
-+
-+	TP_ARGS(page, cold),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	int,		cold		)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->cold		= cold;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu order=0 cold=%d",
-+			__entry->page,
-+			page_to_pfn(__entry->page),
-+			__entry->cold)
-+);
-+
-+TRACE_EVENT(mm_page_alloc,
-+
-+	TP_PROTO(struct page *page, unsigned int order,
-+			gfp_t gfp_flags, int migratetype),
-+
-+	TP_ARGS(page, order, gfp_flags, migratetype),
++	TP_ARGS(page, order, migratetype),
 +
 +	TP_STRUCT__entry(
 +		__field(	struct page *,	page		)
 +		__field(	unsigned int,	order		)
-+		__field(	gfp_t,		gfp_flags	)
 +		__field(	int,		migratetype	)
 +	),
 +
 +	TP_fast_assign(
 +		__entry->page		= page;
 +		__entry->order		= order;
-+		__entry->gfp_flags	= gfp_flags;
 +		__entry->migratetype	= migratetype;
 +	),
 +
-+	TP_printk("page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
++	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
 +		__entry->page,
 +		page_to_pfn(__entry->page),
 +		__entry->order,
 +		__entry->migratetype,
-+		show_gfp_flags(__entry->gfp_flags))
++		__entry->order == 0)
 +);
 +
- #endif /* _TRACE_KMEM_H */
++TRACE_EVENT(mm_page_pcpu_drain,
++
++	TP_PROTO(struct page *page, int order, int migratetype),
++
++	TP_ARGS(page, order, migratetype),
++
++	TP_STRUCT__entry(
++		__field(	struct page *,	page		)
++		__field(	int,		order		)
++		__field(	int,		migratetype	)
++	),
++
++	TP_fast_assign(
++		__entry->page		= page;
++		__entry->order		= order;
++		__entry->migratetype	= migratetype;
++	),
++
++	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->order,
++		__entry->migratetype)
++);
++
+ TRACE_EVENT(mm_page_alloc_extfrag,
  
- /* This part must be outside protection */
+ 	TP_PROTO(struct page *page,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d052abb..440c439 100644
+index 4c20bfa..bbd7de8 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1062,6 +1062,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+@@ -535,6 +535,7 @@ static void free_pages_bulk(struct zone *zone, int count,
+ 		page = list_entry(list->prev, struct page, lru);
+ 		/* have to delete it as __free_one_page list manipulates */
+ 		list_del(&page->lru);
++		trace_mm_page_pcpu_drain(page, order, page_private(page));
+ 		__free_one_page(page, zone, order, page_private(page));
+ 	}
+ 	spin_unlock(&zone->lock);
+@@ -876,6 +877,7 @@ retry_reserve:
+ 		}
+ 	}
  
- void free_hot_page(struct page *page)
- {
-+	trace_mm_page_free_direct(page, 0);
- 	free_hot_cold_page(page, 0);
- }
- 	
-@@ -1905,6 +1906,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
- 
-+	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
++	trace_mm_page_alloc_zone_locked(page, order, migratetype);
  	return page;
  }
- EXPORT_SYMBOL(__alloc_pages_nodemask);
-@@ -1945,13 +1947,16 @@ void __pagevec_free(struct pagevec *pvec)
- {
- 	int i = pagevec_count(pvec);
  
--	while (--i >= 0)
-+	while (--i >= 0) {
-+		trace_mm_pagevec_free(pvec->pages[i], pvec->cold);
- 		free_hot_cold_page(pvec->pages[i], pvec->cold);
-+	}
- }
- 
- void __free_pages(struct page *page, unsigned int order)
- {
- 	if (put_page_testzero(page)) {
-+		trace_mm_page_free_direct(page, order);
- 		if (order == 0)
- 			free_hot_page(page);
- 		else
 -- 
 1.6.3.3
 
