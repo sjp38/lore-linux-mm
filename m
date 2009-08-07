@@ -1,48 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BDB86B005D
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:02:56 -0400 (EDT)
-Date: Fri, 7 Aug 2009 10:02:49 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 2/6] tracing, page-allocator: Add trace events for
-	anti-fragmentation falling back to other migratetypes
-Message-ID: <20090807080249.GA21821@elte.hu>
-References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-3-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5461A6B005C
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:06:17 -0400 (EDT)
+Message-ID: <4A7BE015.6030002@cn.fujitsu.com>
+Date: Fri, 07 Aug 2009 16:04:37 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1249574827-18745-3-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 3/6] tracing, page-allocator: Add trace event for page
+ traffic related to the buddy lists
+References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1249574827-18745-4-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-* Mel Gorman <mel@csn.ul.ie> wrote:
-
-> +++ b/mm/page_alloc.c
-> @@ -839,6 +839,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->  							start_migratetype);
->  
->  			expand(zone, page, order, current_order, area, migratetype);
+> +TRACE_EVENT(mm_page_alloc_zone_locked,
 > +
-> +			trace_mm_page_alloc_extfrag(page, order, current_order,
-> +				start_migratetype, migratetype,
-> +				current_order < pageblock_order,
-> +				migratetype == start_migratetype);
+> +	TP_PROTO(struct page *page, unsigned int order,
+> +				int migratetype, int percpu_refill),
+> +
+> +	TP_ARGS(page, order, migratetype, percpu_refill),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	struct page *,	page		)
+> +		__field(	unsigned int,	order		)
+> +		__field(	int,		migratetype	)
+> +		__field(	int,		percpu_refill	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +		__entry->migratetype	= migratetype;
+> +		__entry->percpu_refill	= percpu_refill;
+> +	),
+> +
+> +	TP_printk("page=%p pfn=%lu order=%u migratetype=%d cpu=%d percpu_refill=%d",
+> +		__entry->page,
+> +		page_to_pfn(__entry->page),
+> +		__entry->order,
+> +		__entry->migratetype,
+> +		smp_processor_id(),
 
-This tracepoint too should be optimized some more:
+This is the cpu when printk() is called, but not the cpu when
+this event happens.
 
- - pageblock_order can be passed down verbatim instead of the 
-   'current_order < pageblock_order': it means one comparison less 
-   in the fast-path, plus it gives more trace information as well.
+And this information has already been stored, and is printed
+if context-info option is set, which is set by default.
 
- - migratetype == start_migratetype check is superfluous as both 
-   values are already traced. This property can be added to the 
-   TP_printk() post-processing stage instead, if the pretty-printing 
-   is desired.
+> +		__entry->percpu_refill)
+> +);
+> +
+> +TRACE_EVENT(mm_page_pcpu_drain,
+> +
+> +	TP_PROTO(struct page *page, int order, int migratetype),
+> +
+> +	TP_ARGS(page, order, migratetype),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	struct page *,	page		)
+> +		__field(	int,		order		)
+> +		__field(	int,		migratetype	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +		__entry->migratetype	= migratetype;
+> +	),
+> +
+> +	TP_printk("page=%p pfn=%lu order=%d cpu=%d migratetype=%d",
+> +		__entry->page,
+> +		page_to_pfn(__entry->page),
+> +		__entry->order,
+> +		smp_processor_id(),
 
-	Ingo
+ditto
+
+> +		__entry->migratetype)
+> +);
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
