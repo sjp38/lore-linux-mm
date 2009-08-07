@@ -1,108 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 32F5B6B006A
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 13:40:21 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C12176B0062
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 13:40:24 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/6] tracing, page-allocator: Add trace events for anti-fragmentation falling back to other migratetypes
-Date: Fri,  7 Aug 2009 18:40:11 +0100
-Message-Id: <1249666815-28784-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1249666815-28784-1-git-send-email-mel@csn.ul.ie>
-References: <1249666815-28784-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 0/6] Add some trace events for the page allocator v5
+Date: Fri,  7 Aug 2009 18:40:09 +0100
+Message-Id: <1249666815-28784-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 Cc: riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Fragmentation avoidance depends on being able to use free pages from
-lists of the appropriate migrate type. In the event this is not
-possible, __rmqueue_fallback() selects a different list and in some
-circumstances change the migratetype of the pageblock. Simplistically,
-the more times this event occurs, the more likely that fragmentation
-will be a problem later for hugepage allocation at least but there are
-other considerations such as the order of page being split to satisfy
-the allocation.
+This is V5 of a patchset. The main changes are due to feedback from Ingo on
+optimising tracepoints to store the least amount of information in the record
+during the trace fastpath and delay until the TP_printk step.  The regex
+handling in the tracepoint postprocessing script is also a bit more robust.
 
-This patch adds a trace event for __rmqueue_fallback() that reports what
-page is being used for the fallback, the orders of relevant pages, the
-desired migratetype and the migratetype of the lists being used, whether
-the pageblock changed type and whether this event is important with
-respect to fragmentation avoidance or not. This information can be used
-to help analyse fragmentation avoidance and help decide whether
-min_free_kbytes should be increased or not.
+Changelog since V4
+  o Drop the order parameter from mm_pagevec_free() as it's implicitly 0
+  o Drop the cpu= information from PCPU events as the CPU printed is
+    incorrect and the information is already available
+  o Pass down the minimum amount of information during fallback and the
+    zone_locked event as the additional information in TP_printk
+  o Pass down the minimum amount of information during fallback and figure
+    out the additional information in the post-processing TP_printk
+  o Make the post-processing script more robust against format changes.
+    This could be significantly more robust and construct a regex on
+    the fly but it makes more sense to leave this as a POC with the
+    view to integrating properly with perf once the important information
+    has been identified
+  o Exit the script after multiple signals without waiting for further input
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- include/trace/events/kmem.h |   38 ++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    4 ++++
- 2 files changed, 42 insertions(+), 0 deletions(-)
+Changelog since V3
+  o Drop call_site information from trace events
+  o Use struct page * instead of void * in trace events
+  o Add CPU information to the per-cpu tracepoints information
+  o Improved performance of offline-process script so it can run online
+  o Add support for interrupting processing script to dump what it has
+  o Add support for stripping pids, getting additional information from
+    proc and adding information on the parent process
+  o Improve layout of output of post processing script for use with sort
+  o Add documentation on performance analysis using tracepoints
+  o Add documentation on the kmem tracepoints in particular
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 0d358a0..aae16ee 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -299,6 +299,44 @@ TRACE_EVENT(mm_page_alloc,
- 		show_gfp_flags(__entry->gfp_flags))
- );
- 
-+TRACE_EVENT(mm_page_alloc_extfrag,
-+
-+	TP_PROTO(struct page *page,
-+			int alloc_order, int fallback_order,
-+			int alloc_migratetype, int fallback_migratetype),
-+
-+	TP_ARGS(page,
-+		alloc_order, fallback_order,
-+		alloc_migratetype, fallback_migratetype),
-+
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page			)
-+		__field(	int,		alloc_order		)
-+		__field(	int,		fallback_order		)
-+		__field(	int,		alloc_migratetype	)
-+		__field(	int,		fallback_migratetype	)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page			= page;
-+		__entry->alloc_order		= alloc_order;
-+		__entry->fallback_order		= fallback_order;
-+		__entry->alloc_migratetype	= alloc_migratetype;
-+		__entry->fallback_migratetype	= fallback_migratetype;
-+	),
-+
-+	TP_printk("page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d",
-+		__entry->page,
-+		page_to_pfn(__entry->page),
-+		__entry->alloc_order,
-+		__entry->fallback_order,
-+		pageblock_order,
-+		__entry->alloc_migratetype,
-+		__entry->fallback_migratetype,
-+		__entry->fallback_order < pageblock_order,
-+		__entry->alloc_migratetype == __entry->fallback_migratetype)
-+);
-+
- #endif /* _TRACE_KMEM_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 440c439..4c20bfa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -839,6 +839,10 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 							start_migratetype);
- 
- 			expand(zone, page, order, current_order, area, migratetype);
-+
-+			trace_mm_page_alloc_extfrag(page, order, current_order,
-+				start_migratetype, migratetype);
-+
- 			return page;
- 		}
- 	}
--- 
-1.6.3.3
+Changelog since V2
+  o Added Ack-ed By's from Rik
+  o Only call trace_mm_page_free_direct when page count reaches zero
+  o Rebase to 2.6.31-rc5
+
+Changelog since V1
+  o Fix minor formatting error for the __rmqueue event
+  o Add event for __pagevec_free
+  o Bring naming more in line with Larry Woodman's tracing patch
+  o Add an example post-processing script for the trace events
+
+The following four patches add some trace events for the page allocator
+under the heading of kmem.
+
+	Patch 1 adds events for plain old allocate and freeing of pages
+	Patch 2 gives information useful for analysing fragmentation avoidance
+	Patch 3 tracks pages going to and from the buddy lists as an indirect
+		indication of zone lock hotness
+	Patch 4 adds a post-processing script that aggegates the events to
+		give a higher-level view
+	Patch 5 adds documentation on analysis using tracepoints
+	Patch 6 adds documentation on the kmem tracepoints in particular
+
+The first set of events can be used as an indicator as to whether the workload
+was heavily dependant on the page allocator or not. You can make a guess based
+on vmstat but you can't get a per-process breakdown. Depending on the call
+path, the call_site for page allocation may be __get_free_pages() instead
+of a useful callsite. Instead of passing down a return address similar to
+slab debugging, the user should enable the stacktrace and seg-addr options
+to get a proper stack trace.
+
+The second patch is mainly of use to users of hugepages and particularly
+dynamic hugepage pool resizing as it could be used to tune min_free_kbytes
+to a level that fragmentation was rarely a problem. My main concern is
+that maybe I'm trying to jam too much into the TP_printk that could be
+extrapolated after the fact if you were familiar with the implementation. I
+couldn't determine if it was best to hold the hand of the administrator
+even if it cost more to figure it out.
+
+The third patch is trickier to draw conclusions from but high activity on
+those events could explain why there were a large number of cache misses
+on a page-allocator-intensive workload. The coalescing and splitting of
+buddies involves a lot of writing of page metadata and cache line bounces
+not to mention the acquisition of an interrupt-safe lock necessary to enter
+this path.
+
+The fourth patch parses the trace buffer to draw a higher-level picture of
+what is going on broken down on a per-process basis.
+
+The last two patches add documentation.
+
+ Documentation/trace/events-kmem.txt                |  107 +++++
+ .../postprocess/trace-pagealloc-postprocess.pl     |  418 ++++++++++++++++++++
+ Documentation/trace/tracepoint-analysis.txt        |  327 +++++++++++++++
+ include/trace/events/kmem.h                        |  163 ++++++++
+ mm/page_alloc.c                                    |   13 +-
+ 5 files changed, 1027 insertions(+), 1 deletions(-)
+ create mode 100644 Documentation/trace/events-kmem.txt
+ create mode 100755 Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
+ create mode 100644 Documentation/trace/tracepoint-analysis.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
