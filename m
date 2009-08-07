@@ -1,73 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4789A6B005C
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:09:07 -0400 (EDT)
-Subject: Re: SysV swapped shared memory calculated incorrectly
-From: Niko Jokinen <ext-niko.k.jokinen@nokia.com>
-Reply-To: ext-niko.k.jokinen@nokia.com
-In-Reply-To: <Pine.LNX.4.64.0908051853120.7907@sister.anvils>
-References: <1249398452.3905.268.camel@niko-laptop>
-	 <Pine.LNX.4.64.0908051853120.7907@sister.anvils>
-Content-Type: text/plain
-Date: Fri, 07 Aug 2009 11:08:57 +0300
-Message-Id: <1249632537.3905.296.camel@niko-laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2DC2D6B0055
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:26:17 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n778QNZP002288
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 7 Aug 2009 17:26:23 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E9AC45DE50
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 17:26:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4246145DE4F
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 17:26:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 298F31DB8037
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 17:26:23 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B3E731DB8042
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 17:26:19 +0900 (JST)
+Date: Fri, 7 Aug 2009 17:24:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+Message-Id: <20090807172425.8554da30.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <661de9470908070054l2fa99ac6w6cac2be63cd5d91f@mail.gmail.com>
+References: <4A7AC201.4010202@redhat.com>
+	<4A7AD6EB.9090208@redhat.com>
+	<20090807120857.5BE2.A69D9226@jp.fujitsu.com>
+	<661de9470908070054l2fa99ac6w6cac2be63cd5d91f@mail.gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: ext Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-08-05 at 20:21 +0200, ext Hugh Dickins wrote:
-> On Tue, 4 Aug 2009, Niko Jokinen wrote:
-> > 
-> > Tested on 2.6.28 and 2.6.31-rc4
-> > 
-> > SysV swapped shared memory is not calculated correctly
-> > in /proc/<pid>/smaps and also by parsing /proc/<pid>/pagemap.
-> 
-> smaps and pagemap are (reasonably) counting swap entries in the
-> page tables they're looking at.
-> 
-> But SysV shared memory is dealt with just like mmap of a tmpfs
-> file: we don't put swap entries into the page tables for that,
-> just as we don't put sector numbers into the page tables when
-> unmapping a diskfile page; the use of swapspace by that
-> filesystem is a lower-level detail not exposed at this level.
-> 
-> Well, we have had to expose "swap backed" near this level in
-> recent releases.  So it would be possible to recognize the
-> swap-backed shared vmas, and insert pte_file ptes instead
-> of pte_none ptes when unmapping pages from them, and adjust
-> the code which only expects those in nonlinear vmas, and
-> adjust smaps and pagemap to behave accordingly.
-> 
-> But I admit to having no appetite for any such change, cluttering
-> the main code just to touch up the anyhow rough picture that smaps
-> and pagemap are painting.  I much prefer to say that these areas are
-> backed by files, and it's a lower-level detail that those files are
-> backed by swap.
-> 
+On Fri, 7 Aug 2009 13:24:34 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-This issue is originally from our performance team and they cannot
-accurately measure per application memory usage if shared memory is
-used. 
-I guess workaround is to assume that following is true for shared memory
-segments: Size-Rss = Swapped. (Since the issue below is fixed).
-
-> > Rss value decreases also when swap is disabled, so this is where I am
-> > lost as how shared memory is supposed to behave.
+> On Fri, Aug 7, 2009 at 8:41 AM, KOSAKI
+> Motohiro<kosaki.motohiro@jp.fujitsu.com> wrote:
+> > Current memcgroup logic also use recent_scan/recent_rotate statistics.
+> > Isn't it enought?
 > 
-> Did you check that detail on both 2.6.28 and 2.6.31-rc4?  I think
-> 2.6.28 was unmapping the ptes from the pagetables, before the lower
-> level found that it had no swap to write them to; whereas a current
-> kernel didn't unmap them at all in my case.
+> I don't understand the context, I'll look at the problem when I am
+> back (I am away from work for the next few days).
 > 
+Brief summary: (please point out if not correct)
 
-You are correct, tested on 2.6.31-rc5 and rss does not decrease anymore.
+prepare a memcg with
+	memory.limit_in_bytex=128MB
 
-Br,
-Niko Jokinen
+Run kvm on it, and use apps, those working-set is near to 256MB (then, heavy swap)
+In this case,
+  - Anon memory are swapped-out even while there are file caches.
+    Especially, a page for stack which is frequently accessed can be
+    easily swapped out, again and again.
+
+One of reasone is a recent change as:
+"a page mapped with VM_EXEC is not pageout even if no reference"
+
+Without memcg, a user can use Gigabytes of memory, above change
+is very welcomed.
+
+Then, current point is "how we can handle this case without bad effect".
+
+One possibility I wonder is this is a problem of configuration mistake.
+setting memory.memsw.limit_in_bytes to be proper value may change bahavior.
+But it seems just a workaround.
+
+Can't we find algorithmic/heuristic way to avoid too much swap-out ?
+I think memcg can check # of swap-ins, but now, we don't have a tag
+to see the sign of "recently swapped-out page is reused" case or
+executable file pages are too much.
+
+I wonder we can comapre
+    # of pageouted file-caches v.s. # of swapout anon.
+and keeping  "# of pageouted file-caches < # of swapout anon." (or use swappiness)
+This state can be checked by recalim_stat. (per memcg)
+Hmm?
+
+I'm sorry I'll be on a trip Aug/11-Aug/17 and response will be delayed.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
