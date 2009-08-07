@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CF64A6B004D
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 23:11:11 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n773BC9q026044
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E34646B004D
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 23:17:20 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n773HOfj028978
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 7 Aug 2009 12:11:12 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 198422AEA83
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:11:09 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA3445DE4F
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:11:08 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A64C31DB805E
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:11:08 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 135A91DB803C
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:11:08 +0900 (JST)
+	Fri, 7 Aug 2009 12:17:24 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F5DC2AFD63
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:17:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 47DA645DE60
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:17:24 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 157B41DB803E
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:17:24 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B05611DB8040
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 12:17:23 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-In-Reply-To: <4A7AD6EB.9090208@redhat.com>
-References: <4A7AC201.4010202@redhat.com> <4A7AD6EB.9090208@redhat.com>
-Message-Id: <20090807120857.5BE2.A69D9226@jp.fujitsu.com>
+In-Reply-To: <4A7AD5DF.7090801@redhat.com>
+References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com>
+Message-Id: <20090807121443.5BE5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
-Date: Fri,  7 Aug 2009 12:11:06 +0900 (JST)
+Date: Fri,  7 Aug 2009 12:17:22 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Avi Kivity <avi@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrea Arcangeli <aarcange@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-(cc to memcg folks)
-
-> Avi Kivity wrote:
-> > On 08/06/2009 01:59 PM, Wu Fengguang wrote:
+> Andrea Arcangeli wrote:
 > 
-> >> As a refinement, the static variable 'recent_all_referenced' could be
-> >> moved to struct zone or made a per-cpu variable.
-> > 
-> > Definitely this should be made part of the zone structure, consider the 
-> > original report where the problem occurs in a 128MB zone (where we can 
-> > expect many pages to have their referenced bit set).
+> > Likely we need a cut-off point, if we detect it takes more than X
+> > seconds to scan the whole active list, we start ignoring young bits,
 > 
-> The problem did not occur in a 128MB zone, but in a 128MB cgroup.
+> We could just make this depend on the calculated inactive_ratio,
+> which depends on the size of the list.
 > 
-> Putting it in the zone means that the cgroup, which may have
-> different behaviour from the rest of the zone, due to excessive
-> memory pressure inside the cgroup, does not get the right
-> statistics.
+> For small systems, it may make sense to make every accessed bit
+> count, because the working set will often approach the size of
+> memory.
+> 
+> On very large systems, the working set may also approach the
+> size of memory, but the inactive list only contains a small
+> percentage of the pages, so there is enough space for everything.
+> 
+> Say, if the inactive_ratio is 3 or less, make the accessed bit
+> on the active lists count.
 
-maybe, I heven't catch your point.
-
-Current memcgroup logic also use recent_scan/recent_rotate statistics.
-Isn't it enought?
-
+Sound reasonable. How do we confirm the idea correctness?
+Wu, your X focus switching benchmark is sufficient test?
 
 
 
