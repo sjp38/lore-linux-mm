@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 46DAB6B004D
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:00:37 -0400 (EDT)
-Date: Fri, 7 Aug 2009 10:00:18 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BDB86B005D
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 04:02:56 -0400 (EDT)
+Date: Fri, 7 Aug 2009 10:02:49 +0200
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 4/6] tracing, page-allocator: Add a postprocessing
-	script for page-allocator-related ftrace events
-Message-ID: <20090807080018.GD20292@elte.hu>
-References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-5-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 2/6] tracing, page-allocator: Add trace events for
+	anti-fragmentation falling back to other migratetypes
+Message-ID: <20090807080249.GA21821@elte.hu>
+References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1249574827-18745-5-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1249574827-18745-3-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>
+Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
 * Mel Gorman <mel@csn.ul.ie> wrote:
 
-> This patch adds a simple post-processing script for the 
-> page-allocator-related trace events. It can be used to give an 
-> indication of who the most allocator-intensive processes are and 
-> how often the zone lock was taken during the tracing period. 
-> Example output looks like
+> +++ b/mm/page_alloc.c
+> @@ -839,6 +839,12 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+>  							start_migratetype);
+>  
+>  			expand(zone, page, order, current_order, area, migratetype);
+> +
+> +			trace_mm_page_alloc_extfrag(page, order, current_order,
+> +				start_migratetype, migratetype,
+> +				current_order < pageblock_order,
+> +				migratetype == start_migratetype);
 
-Note, this script hard-codes certain aspects of the output format:
+This tracepoint too should be optimized some more:
 
-+my $regex_traceevent =
-+'\s*([a-zA-Z0-9-]*)\s*(\[[0-9]*\])\s*([0-9.]*):\s*([a-zA-Z_]*):\s*(.*)';
-+my $regex_fragdetails = 'page=([0-9a-f]*) pfn=([0-9]*) alloc_order=([0-9]*)
-+fallback_order=([0-9]*) pageblock_order=([0-9]*) alloc_migratetype=([0-9]*)
-+fallback_migratetype=([0-9]*) fragmenting=([0-9]) change_ownership=([0-9])';
-+my $regex_statname = '[-0-9]*\s\((.*)\).*';
-+my $regex_statppid = '[-0-9]*\s\(.*\)\s[A-Za-z]\s([0-9]*).*';
+ - pageblock_order can be passed down verbatim instead of the 
+   'current_order < pageblock_order': it means one comparison less 
+   in the fast-path, plus it gives more trace information as well.
 
-the proper appproach is to parse /debug/tracing/events/mm/*/format. 
-That is why we emit a format string - to detach tools and reduce the 
-semi-ABI effect.
+ - migratetype == start_migratetype check is superfluous as both 
+   values are already traced. This property can be added to the 
+   TP_printk() post-processing stage instead, if the pretty-printing 
+   is desired.
 
 	Ingo
 
