@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5CD1A6B005A
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2009 23:23:40 -0400 (EDT)
-Date: Fri, 7 Aug 2009 11:23:45 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: [PATCH] mmotm: slqb correctly return value for notification handler
-Message-ID: <20090807032345.GA15686@sli10-desk.sh.intel.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 00D566B004D
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 03:50:44 -0400 (EDT)
+Date: Fri, 7 Aug 2009 09:50:30 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/6] tracing, page-allocator: Add trace events for page
+	allocation and page freeing
+Message-ID: <20090807075030.GB20292@elte.hu>
+References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-2-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1249574827-18745-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Correctly return value for notification handler. The bug causes other
-handlers are ignored and panic kernel.
 
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
----
- mm/slqb.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+* Mel Gorman <mel@csn.ul.ie> wrote:
 
-Index: mmotm/mm/slqb.c
-===================================================================
---- mmotm.orig/mm/slqb.c	2009-08-07 11:14:39.000000000 +0800
-+++ mmotm/mm/slqb.c	2009-08-07 11:17:36.000000000 +0800
-@@ -2846,7 +2846,10 @@ static int slab_memory_callback(struct n
- 		break;
- 	}
- 
--	ret = notifier_from_errno(ret);
-+	if (ret)
-+		ret = notifier_from_errno(ret);
-+	else
-+		ret = NOTIFY_OK;
- 	return ret;
- }
- 
+> +TRACE_EVENT(mm_pagevec_free,
+
+> +	TP_fast_assign(
+> +		__entry->page		= page;
+> +		__entry->order		= order;
+> +		__entry->cold		= cold;
+> +	),
+
+> -	while (--i >= 0)
+> +	while (--i >= 0) {
+> +		trace_mm_pagevec_free(pvec->pages[i], 0, pvec->cold);
+>  		free_hot_cold_page(pvec->pages[i], pvec->cold);
+> +	}
+
+Pagevec freeing has order 0 implicit, so you can further optimize 
+this by leaving out the 'order' field and using this format string:
+
++	TP_printk("page=%p pfn=%lu order=0 cold=%d",
++                       __entry->page,
++                       page_to_pfn(__entry->page),
++                       __entry->cold)
+
+the trace record becomes smaller by 4 bytes and the tracepoint 
+fastpath becomes shorter as well.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
