@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A136B004D
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 10:25:28 -0400 (EDT)
-Date: Fri, 7 Aug 2009 15:25:35 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/6] tracing, documentation: Add a document describing
-	how to do some performance analysis with tracepoints
-Message-ID: <20090807142534.GB24148@csn.ul.ie>
-References: <1249574827-18745-1-git-send-email-mel@csn.ul.ie> <1249574827-18745-6-git-send-email-mel@csn.ul.ie> <20090807080707.GB21821@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090807080707.GB21821@elte.hu>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BE5F76B004D
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2009 10:36:07 -0400 (EDT)
+Subject: Re: [RFC][PATCH] mm: stop balance_dirty_pages doing too much work
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <1249647601.32113.700.camel@twins>
+References: <1245839904.3210.85.camel@localhost.localdomain>
+	 <1249647601.32113.700.camel@twins>
+Content-Type: text/plain
+Date: Fri, 07 Aug 2009 15:36:01 +0100
+Message-Id: <1249655761.2719.11.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Fr?d?ric Weisbecker <fweisbec@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard@elte.hu, Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 07, 2009 at 10:07:07AM +0200, Ingo Molnar wrote:
-> > <SNIP>
+On Fri, 2009-08-07 at 14:20 +0200, Peter Zijlstra wrote:
+> On Wed, 2009-06-24 at 11:38 +0100, Richard Kennedy wrote:
+...
+> OK, so Chris ran into this bit yesterday, complaining that he'd only get
+> very few write requests and couldn't saturate his IO channel.
 > 
-> This is a very nice and comprehensive description!
+> Now, since writing out everything once there's something to do sucks for
+> Richard, but only writing out stuff when we're over the limit sucks for
+> Chris (since we can only be over the limit a little), the best thing
+> would be to only write out when we're over the background limit. Since
+> that is the low watermark we use for throttling it makes sense that we
+> try to write out when above that.
 > 
-
-Thanks, you did write a nice chunk of it yourself though :)
-
-> I'm wondering: would you mind if we integrated the analysis ideas 
-> from your perl script into 'perf trace'? Those kinds of high-level 
-> counts and summaries are useful not just for MM events.
+> However, since there's a lack of bdi_background_thresh, and I don't
+> think introducing one just for this is really justified. How about the
+> below?
 > 
-
-Of course not. Part of the motivation for doing the perl script was as a
-POC for the gathering of high-level events. In the event such sample
-scripts work out, it'd justify the greater effort to integrate them into
-perf.
-
-> Another thing that was raise dbefore is a 'perf mem' special-purpose 
-> tool to help the analysis of all things memory related: leak 
-> detection, high level stats, etc. That could have some turn-key 
-> modes of analysis for the page allocator too.
+> Chris how did this work for you? Richard, does this make things suck for
+> you again?
 > 
-
-Again, my vague notion was to prototype such things in perl and then when it
-works out to incorporate it in perf if suitable. As high-level gathering of
-information is just a state machine, it's conceivable that some of the code
-could be auto-generated.
-
-> perf will do a proper format-string evaluation of 
-> /debug/tracing/events/*/format as well, thus any tweaks to the 
-> tracepoints get automatically adopted to.
+> ---
+>  mm/page-writeback.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 81627eb..92f42d6 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -545,7 +545,7 @@ static void balance_dirty_pages(struct address_space *mapping)
+>  		 * threshold otherwise wait until the disk writes catch
+>  		 * up.
+>  		 */
+> -		if (bdi_nr_reclaimable > bdi_thresh) {
+> +		if (bdi_nr_reclaimable > bdi_thresh/2) {
+>  			writeback_inodes(&wbc);
+>  			pages_written += write_chunk - wbc.nr_to_write;
+>  			get_dirty_limits(&background_thresh, &dirty_thresh,
+> 
+> 
+I'll run some tests and let you know :)
 
-Which would be a major plus.
+But what if someone has changed the vm settings?
+Maybe something like 
+	(bdi_thresh * dirty_background_ratio / dirty_ratio)
+might be better ?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Chris, what sort of workload are you having problems with?
+
+regards
+Richard
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
