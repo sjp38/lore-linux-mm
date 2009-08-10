@@ -1,44 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 948236B004D
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 13:59:51 -0400 (EDT)
-Message-ID: <4A805FFF.7090805@redhat.com>
-Date: Mon, 10 Aug 2009 13:59:27 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1483A6B004D
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:56:59 -0400 (EDT)
+Date: Mon, 10 Aug 2009 20:56:33 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 0/6] Add some trace events for the page allocator v6
+Message-ID: <20090810185633.GA1130@elte.hu>
+References: <1249918915-16061-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: New patch for Linux
-References: <4353.132.70.1.75.1249546446.squirrel@webmail.cs.biu.ac.il>    <1249548768.32113.68.camel@twins>    <1466.77.126.168.195.1249763409.squirrel@webmail.cs.biu.ac.il>    <4A7E03B4.8010503@redhat.com>    <1085.77.126.199.142.1249842457.squirrel@webmail.cs.biu.ac.il>    <4A803F62.2050006@redhat.com> <1703.77.126.199.142.1249923286.squirrel@webmail.cs.biu.ac.il>
-In-Reply-To: <1703.77.126.199.142.1249923286.squirrel@webmail.cs.biu.ac.il>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1249918915-16061-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: wiseman@macs.biu.ac.il
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Larry Woodman <lwoodman@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, Li Ming Chun <macli@brc.ubc.ca>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yair Wiseman wrote:
-> It will work for larger amounts of memory. We just have to choose a longer time slice.
 
-Sounds simple, but in practice you will run into the fact that users
-don't really mind a 1 second latency during thrashing, but the 1 minute
-(or more) latencies that may be required for this scheme to scale to
-very large memory systems may be totally unacceptable.
+* Mel Gorman <mel@csn.ul.ie> wrote:
 
-> I will try to find a newer
-> version, but I do not see the difference in this case.
- > We just suggest to replace the LRU-token approach.
+> This is V6 of a patchset to add some tracepoints of interest when analysing
+> the page allocator. The only changes since the last revision were to fix a
+> minor error in the post-processing script and to add a reviewed-by to one
+> of the patches.
+> 
+> Can we get a yey/nay on whether these should be merged or not?
 
-I have no problem with replacing the LRU-token, if we can find
-something that is shown to work better.  BSD style process
-suspension has been tried many times on Linux and it never seemed
-to work right.
+It's up to Andrew - from an instrumentation POV it all looks fine to 
+me:
 
-Maybe your approach can be made to automatically work right on
-machines of all memory sizes, but it would be good to demonstrate
-that before committing to such a change.
+   Reviewed-by: Ingo Molnar <mingo@elte.hu>
 
--- 
-All rights reversed.
+With the highlight of the patchset being the very low cross section 
+it has to regular MM code/hacking:
+
+>  mm/page_alloc.c                                    |   13 +-
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
