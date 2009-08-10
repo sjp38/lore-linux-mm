@@ -1,103 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5924C6B004D
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 04:36:10 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7A8WeXE011683
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:02:40 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7A8a5KO659580
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:06:06 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7A8a447026062
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 18:36:05 +1000
-Date: Mon, 10 Aug 2009 14:06:02 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: Help Resource Counters Scale Better (v3)
-Message-ID: <20090810083602.GA7176@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090807221238.GJ9686@balbir.in.ibm.com> <39eafe409b85053081e9c6826005bb06.squirrel@webmail-b.css.fujitsu.com> <20090808060531.GL9686@balbir.in.ibm.com> <99f2a13990d68c34c76c33581949aefd.squirrel@webmail-b.css.fujitsu.com> <20090809121530.GA5833@balbir.in.ibm.com> <20090810093229.10db7185.kamezawa.hiroyu@jp.fujitsu.com> <20090810053025.GC5257@balbir.in.ibm.com> <20090810144559.ac5a3499.kamezawa.hiroyu@jp.fujitsu.com> <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 92E546B004D
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 07:24:35 -0400 (EDT)
+Date: Mon, 10 Aug 2009 12:24:22 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] ZERO_PAGE again v5.
+In-Reply-To: <20090810091458.1e889cdc.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0908101152150.8339@sister.anvils>
+References: <20090805191643.2b11ae78.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0908091753250.30153@sister.anvils>
+ <20090810091458.1e889cdc.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, andi.kleen@intel.com, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-10 15:22:05]:
+On Mon, 10 Aug 2009, KAMEZAWA Hiroyuki wrote:
+> On Sun, 9 Aug 2009 18:28:48 +0100 (BST)
+> Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> > 
+> > Actually, I don't understand ignore_zero at all: it's used solely by
+> > the mlock case, yet its effect seems to be precisely not to fault in
+> > pages if they're missing - I wonder if you've got in a muddle between
+> > the two very different awkward cases, mlocking and coredumps of
+> > sparsely populated areas.
+> > 
+> Ah, then, you say mlock() should allocate 'real' page if zero page
+> is mapped. Right ?
 
-> On Mon, 10 Aug 2009 14:45:59 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+No.
+
+(That would be a possibility if it gets us out of some difficulty
+with the newer mlocking code, but it's not something we ever did or
+wanted to do in the past.)
+
+What I was saying in that paragraph was that (it appears to me that)
+in your patch only __mlock_vma_pages_range sets GUP_FLAGS_IGNORE_ZERO,
+that __get_user_pages sets ignore_zero according to that flag, some
+conditions may clear it, but then it goes on to say
+			while (!(page = follow_page(vma, start, foll_flags))) {
+				/*
+				 * When we ignore zero pages, no more ops to do.
+				 */
+				if (ignore_zero)
+					break;
+which means that when ignore_zero is set and follow_page returns NULL,
+we emerge from the loop with NULL page, don't we?  Whereas when mlocking,
+we want to fault in any pages which were not already there.
+
+Or am I just reading this all wrong?
+
+> > And I don't at all like the way you flush_dcache_page(page) on a
+> > page which may now be NULL: okay, you're only encouraging x86 to
+> > say Yes to the Kconfig option, but that's a landmine for the first
+> > arch with a real flush_dcache_page(page) which says Yes to it.
+> > 
+> do_wp_page()
+> 	-> cow_user_page()
+> 		-> (src is NULL)
+> Ah....ok, it's bug. I added ....Sorry, I didn't see this in older version
+> and missed this.
+
+That's an entirely different issue, and I don't see that it's a bug,
+just the inefficiency I mentioned elsewhere that we'd be better off
+doing a memset than trying to memcpy the ZERO_PAGE.
+
+What I was saying in that paragraph is that when you break from the
+loop in __get_user_pages with ignore_zero and NULL page, you reach
+			if (IS_ERR(page))
+				return i ? i : PTR_ERR(page);
+			if (pages) {
+				pages[i] = page;
+
+				flush_anon_page(vma, page, start);
+				flush_dcache_page(page);
+			}
+which inserts a NULL into pages[i] (which may be okay if the other
+end is prepared for it, as I think __mlock_vma_pages_range is),
+then passes a NULL page to flush_anon_page and flush_dcache_page.
+
+I looked up one of the non-empty implementations of flush_dcache_page
+and saw it testing a bit in page->flags, assuming (very reasonably!)
+that the page pointer is not NULL.  Oops.
+
+> > Because I hate reviewing things and trying to direct other people
+> > by remote control: what usually happens is I send them off in some
+> > direction which, once I try to do it myself, turns out to have been
+> > the wrong direction.  I do need to try to do this myself, instead of
+> > standing on the sidelines criticizing.
+> > 
+> > In fairness, I think Linus himself was a little confused when he
+> > separated off use_zero_page(): I think we've all got confused around
+> > there (as we noticed a month or so ago when discussing its hugetlb
+> > equivalent), and I need to think it through again at last.
+> > 
+> > I'll get on to it now.
+> > 
 > 
-> > > Do you agree?
-> > 
-> > Ok. Config is enough at this stage.
-> > 
-> > The last advice for merge is, it's better to show the numbers or
-> > ask someone who have many cpus to measure benefits. Then, Andrew can
-> > know how this is benefical.
-> > (My box has 8 cpus. But maybe your IBM collaegue has some bigger one)
-> > 
-> > In my experience (in my own old trial),
-> >  - lock contention itself is low. not high.
-> >  - but cacheline-miss, pingpong is very very frequent.
-> > 
-> > Then, this patch has some benefit logically but, in general,
-> > File-I/O, swapin-swapout, page-allocation/initalize etc..dominates
-> > the performance of usual apps. You'll have to be careful to select apps
-> > to measure the benfits of this patch by application performance.
-> > (And this is why I don't feel so much emergency as you do)
-> > 
-> 
-> Why I say "I want to see the numbers" again and again is that
-> this is performance improvement with _bad side effect_.
-> If this is an emergent trouble, and need fast-track, which requires us
-> "fix small problems later", plz say so. 
->
+> Thank you for comments. I'll go to a trip until Aug/17, programming-camp,
 
-OK... I finally got a bigger machine (24 CPUs). I ran a simple
-program called parallel_pagefault, which does pagefault's in parallel
-(runs on every other CPU) and allocates 10K pages and touches the
-data allocated, unmaps and repeats the process. I ran the program
-for 300 seconds. With the patch, I was able to fault in twice
-the number of pages as I was able to without the patch. I used
-perf tool from tools/perf in the kernel
+Sorry for not getting to all this sooner, yes I'd seen your warning in
+another mail that you'd be away, but I just didn't get here fast enough.
 
-With patch
+> I'll be able to consider this patch and the whole things aroung paging in calm
+> enviroment. I'll try to restart from scratch.
 
- Performance counter stats for '/home/balbir/parallel_pagefault':
+What I'm saying above is that I'd much prefer to try doing the patch
+myself and have you review that, than us to keep on going back and
+forth with different versions like this.
 
- 7188177.405648  task-clock-msecs         #     23.926 CPUs 
-         423130  context-switches         #      0.000 M/sec
-            210  CPU-migrations           #      0.000 M/sec
-       49851597  page-faults              #      0.007 M/sec
-  5900210219604  cycles                   #    820.821 M/sec
-   424658049425  instructions             #      0.072 IPC  
-     7867744369  cache-references         #      1.095 M/sec
-     2882370051  cache-misses             #      0.401 M/sec
+I am not confident that you've grasped all the issues, and I am sure
+that there's a least one issue which I have not grasped: maybe it'll
+end up irrelevant, but I do need to understand Linus's Fix ZERO_PAGE
+breakage with vmware, 672ca28e300c17bf8d792a2a7a8631193e580c74
 
-  300.431591843  seconds time elapsed
+But I'll discuss that separately, probably offlist; or, if I'm lucky,
+just composing the mail will bring me to answer my own question!
 
-Without Patch
-
- Performance counter stats for '/home/balbir/parallel_pagefault':
-
- 7192804.124144  task-clock-msecs         #     23.937 CPUs 
-         424691  context-switches         #      0.000 M/sec
-            267  CPU-migrations           #      0.000 M/sec
-       28498113  page-faults              #      0.004 M/sec
-  5826093739340  cycles                   #    809.989 M/sec
-   408883496292  instructions             #      0.070 IPC  
-     7057079452  cache-references         #      0.981 M/sec
-     3036086243  cache-misses             #      0.422 M/sec
-
-  300.485365680  seconds time elapsed
-
-
--- 
-	Balbir
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
