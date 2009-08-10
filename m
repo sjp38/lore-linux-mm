@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 313396B007E
-	for <linux-mm@kvack.org>; Sun,  9 Aug 2009 22:58:54 -0400 (EDT)
-Date: Mon, 10 Aug 2009 11:26:41 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B55A6B0082
+	for <linux-mm@kvack.org>; Sun,  9 Aug 2009 22:59:45 -0400 (EDT)
+Date: Mon, 10 Aug 2009 11:27:16 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][1/2] mm: add_to_swap_cache() must not sleep
-Message-Id: <20090810112641.02e1db72.nishimura@mxp.nes.nec.co.jp>
+Subject: [cleanup][2/2] mm: add_to_swap_cache() does not return -EEXIST
+Message-Id: <20090810112716.fb110c5a.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20090810112326.3526b11d.nishimura@mxp.nes.nec.co.jp>
 References: <20090810112326.3526b11d.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -17,50 +17,146 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.i
 List-ID: <linux-mm.kvack.org>
 
 After commit 355cfa73(mm: modify swap_map and add SWAP_HAS_CACHE flag),
-read_swap_cache_async() will busy-wait while a entry doesn't on swap cache
-but it has SWAP_HAS_CACHE flag.
+only the context which have set SWAP_HAS_CACHE flag by swapcache_prepare()
+or get_swap_page() would call add_to_swap_cache().
+So add_to_swap_cache() doesn't return -EEXIST any more.
 
-Such entries can exist on add/delete path of swap cache.
-On add path, add_to_swap_cache() is called soon after SWAP_HAS_CACHE flag
-is set, and on delete path, swapcache_free() will be called (SWAP_HAS_CACHE
-flag is cleared) soon after __delete_from_swap_cache() is called.
-So, the busy-wait works well in most cases.
+Even though it doesn't return -EEXIST, it's not a good behavior conceptually
+to call swapcache_prepare() in -EEXIST case, because it means clearing
+SWAP_HAS_CACHE flag while the entry is on swap cache.
 
-But this mechanism can cause soft lockup if add_to_swap_cache() sleeps
-and read_swap_cache_async() tries to swap-in the same entry on the same cpu.
-
-add_to_swap() and shmem_writepage() call add_to_swap_cache() w/o __GFP_WAIT,
-but read_swap_cache_async() can call it w/ __GFP_WAIT, so it can cause
-soft lockup.
-
-This patch changes the gfp_mask of add_to_swap_cache() in read_swap_cache_async().
+This patch removes redundant codes and comments from callers of it, and
+adds VM_BUG_ON() in error path of add_to_swap_cache() and some comments.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- mm/swap_state.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ mm/shmem.c      |    4 +++
+ mm/swap_state.c |   75 +++++++++++++++++++++++++++----------------------------
+ 2 files changed, 41 insertions(+), 38 deletions(-)
 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d713239..c71ac6c 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1097,6 +1097,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 	shmem_swp_unmap(entry);
+ unlock:
+ 	spin_unlock(&info->lock);
++	/*
++	 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++	 * clear SWAP_HAS_CACHE flag.
++	 */
+ 	swapcache_free(swap, NULL);
+ redirty:
+ 	set_page_dirty(page);
 diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 42cd38e..3e6dd72 100644
+index 3e6dd72..e891208 100644
 --- a/mm/swap_state.c
 +++ b/mm/swap_state.c
-@@ -76,6 +76,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
- 	VM_BUG_ON(!PageLocked(page));
- 	VM_BUG_ON(PageSwapCache(page));
- 	VM_BUG_ON(!PageSwapBacked(page));
-+	VM_BUG_ON(gfp_mask & __GFP_WAIT);
+@@ -96,6 +96,12 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+ 		radix_tree_preload_end();
  
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
-@@ -307,7 +308,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		if (unlikely(error)) {
++			/*
++			 * Only the context which have set SWAP_HAS_CACHE flag
++			 * would call add_to_swap_cache().
++			 * So add_to_swap_cache() doesn't returns -EEXIST.
++			 */
++			VM_BUG_ON(error == -EEXIST);
+ 			set_page_private(page, 0UL);
+ 			ClearPageSwapCache(page);
+ 			page_cache_release(page);
+@@ -137,38 +143,34 @@ int add_to_swap(struct page *page)
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(!PageUptodate(page));
+ 
+-	for (;;) {
+-		entry = get_swap_page();
+-		if (!entry.val)
+-			return 0;
++	entry = get_swap_page();
++	if (!entry.val)
++		return 0;
+ 
++	/*
++	 * Radix-tree node allocations from PF_MEMALLOC contexts could
++	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
++	 * stops emergency reserves from being allocated.
++	 *
++	 * TODO: this could cause a theoretical memory reclaim
++	 * deadlock in the swap out path.
++	 */
++	/*
++	 * Add it to the swap cache and mark it dirty
++	 */
++	err = add_to_swap_cache(page, entry,
++			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
++
++	if (!err) {	/* Success */
++		SetPageDirty(page);
++		return 1;
++	} else {	/* -ENOMEM radix-tree allocation failure */
+ 		/*
+-		 * Radix-tree node allocations from PF_MEMALLOC contexts could
+-		 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+-		 * stops emergency reserves from being allocated.
+-		 *
+-		 * TODO: this could cause a theoretical memory reclaim
+-		 * deadlock in the swap out path.
+-		 */
+-		/*
+-		 * Add it to the swap cache and mark it dirty
++		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++		 * clear SWAP_HAS_CACHE flag.
  		 */
+-		err = add_to_swap_cache(page, entry,
+-				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+-
+-		switch (err) {
+-		case 0:				/* Success */
+-			SetPageDirty(page);
+-			return 1;
+-		case -EEXIST:
+-			/* Raced with "speculative" read_swap_cache_async */
+-			swapcache_free(entry, NULL);
+-			continue;
+-		default:
+-			/* -ENOMEM radix-tree allocation failure */
+-			swapcache_free(entry, NULL);
+-			return 0;
+-		}
++		swapcache_free(entry, NULL);
++		return 0;
+ 	}
+ }
+ 
+@@ -298,14 +300,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		if (err)           /* swp entry is obsolete ? */
+ 			break;
+ 
+-		/*
+-		 * Associate the page with swap entry in the swap cache.
+-		 * May fail (-EEXIST) if there is already a page associated
+-		 * with this entry in the swap cache: added by a racing
+-		 * read_swap_cache_async, or add_to_swap or shmem_writepage
+-		 * re-using the just freed swap entry for an existing page.
+-		 * May fail (-ENOMEM) if radix-tree node allocation failed.
+-		 */
++		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
  		__set_page_locked(new_page);
  		SetPageSwapBacked(new_page);
--		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
-+		err = add_to_swap_cache(new_page, entry, GFP_ATOMIC);
- 		if (likely(!err)) {
- 			/*
- 			 * Initiate read into locked page and return.
+ 		err = add_to_swap_cache(new_page, entry, GFP_ATOMIC);
+@@ -319,6 +314,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		}
+ 		ClearPageSwapBacked(new_page);
+ 		__clear_page_locked(new_page);
++		/*
++		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++		 * clear SWAP_HAS_CACHE flag.
++		 */
+ 		swapcache_free(entry, NULL);
+ 	} while (err != -ENOMEM);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
