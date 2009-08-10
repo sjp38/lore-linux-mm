@@ -1,114 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C8F706B005A
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 03:44:23 -0400 (EDT)
-Date: Mon, 10 Aug 2009 09:44:21 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
-	migration aware file systems
-Message-ID: <20090810074421.GA6838@basil.fritz.box>
-References: <200908051136.682859934@firstfloor.org> <20090805093643.E0C00B15D8@basil.firstfloor.org> <4A7FBFD1.2010208@hitachi.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5924C6B004D
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 04:36:10 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7A8WeXE011683
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:02:40 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7A8a5KO659580
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:06:06 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7A8a447026062
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 18:36:05 +1000
+Date: Mon, 10 Aug 2009 14:06:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: Help Resource Counters Scale Better (v3)
+Message-ID: <20090810083602.GA7176@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090807221238.GJ9686@balbir.in.ibm.com> <39eafe409b85053081e9c6826005bb06.squirrel@webmail-b.css.fujitsu.com> <20090808060531.GL9686@balbir.in.ibm.com> <99f2a13990d68c34c76c33581949aefd.squirrel@webmail-b.css.fujitsu.com> <20090809121530.GA5833@balbir.in.ibm.com> <20090810093229.10db7185.kamezawa.hiroyu@jp.fujitsu.com> <20090810053025.GC5257@balbir.in.ibm.com> <20090810144559.ac5a3499.kamezawa.hiroyu@jp.fujitsu.com> <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4A7FBFD1.2010208@hitachi.com>
+In-Reply-To: <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, tytso@mit.edu, hch@infradead.org, mfasheh@suse.com, aia21@cantab.net, hugh.dickins@tiscali.co.uk, swhiteho@redhat.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, andi.kleen@intel.com, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-10 15:22:05]:
 
-> If my understanding is correct, the following scenario can happen:
-
-Yes it can happen.
-
+> On Mon, 10 Aug 2009 14:45:59 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> 1. An uncorrected error on a dirty page cache page is detected by
->    memory scrubbing
-> 2. Kernel unmaps and truncates the page to recover from the error
-> 3. An application reads data from the file location corresponding
->    to the truncated page
->    ==> Old or garbage data will be read into a new page cache page
-
-The problem currently is that the error is not sticky enough and
-doesn't stay around long enough. It gets reported once,
-but not in later IO operations.
-
-However it's a generic problem not unique to hwpoison. Me 
-and Fengguang went through the error propagation as our test program
-triggered the problem and we looked like it was really a generic problem,
-not unique to hardware poison (e.g. the IO error handling 
-on metadata has exactly the same problem)
-
-And redesigning VFS IO error reporting was a bit of of scope for hwpoison.
-So we decided to not be better than a normal IO error here for now.
-
-An application that handles current IO errors correctly will
-also also handle hwpoison IO errors correctly. And application
-that doesn't handle current IO errors correctly will also
-not necessarily handle hwpoison correctly (it's not better and not worse)
-So the hwpoison errors are pretty much the same as the normal IO
-errors.
-
-The normal error path probably needs some improvements, in particular
-the address space EIO error error likely needs to be more sticky
-than it is today.
-
-An application has to handle the error on the first strike.
-
-That is something that could be improved in the VFS -- although I fear
-any improvements here could also break compatibility. I don't think
-it's a blocker on hwpoison for now. It needs more design
-effort and thinking (e.g. likely the address space IO error
-bit should be separated into multiple bits)
-
-Perhaps you're interested in working on this?
-
-> 4. The application modifies the data and write back it to the disk
-> 5. The file will corrurpt!
+> > > Do you agree?
+> > 
+> > Ok. Config is enough at this stage.
+> > 
+> > The last advice for merge is, it's better to show the numbers or
+> > ask someone who have many cpus to measure benefits. Then, Andrew can
+> > know how this is benefical.
+> > (My box has 8 cpus. But maybe your IBM collaegue has some bigger one)
+> > 
+> > In my experience (in my own old trial),
+> >  - lock contention itself is low. not high.
+> >  - but cacheline-miss, pingpong is very very frequent.
+> > 
+> > Then, this patch has some benefit logically but, in general,
+> > File-I/O, swapin-swapout, page-allocation/initalize etc..dominates
+> > the performance of usual apps. You'll have to be careful to select apps
+> > to measure the benfits of this patch by application performance.
+> > (And this is why I don't feel so much emergency as you do)
+> > 
 > 
-> (Yes, the application is wrong to not do the right thing, i.e. fsync,
->  but it's not user's fault!)
-> 
-> A similar data corruption can be caused by a write I/O error,
-> because dirty flag is cleared even if the page couldn't be written
-> to the disk.
-> 
-> However, we have a way to avoid this kind of data corruption at
-> least for ext3.  If we mount an ext3 filesystem with data=ordered
-> and data_err=abort, all I/O errors on file data block belonging to
-> the committing transaction are checked.  When I/O error is found,
-> abort journaling and remount the filesystem with read-only to
-> prevent further updates.  This kind of feature is very important
-> for mission critical systems.
+> Why I say "I want to see the numbers" again and again is that
+> this is performance improvement with _bad side effect_.
+> If this is an emergent trouble, and need fast-track, which requires us
+> "fix small problems later", plz say so. 
+>
 
-Well it sounds like a potentially useful enhancement to ext3 (or ext4).
+OK... I finally got a bigger machine (24 CPUs). I ran a simple
+program called parallel_pagefault, which does pagefault's in parallel
+(runs on every other CPU) and allocates 10K pages and touches the
+data allocated, unmaps and repeats the process. I ran the program
+for 300 seconds. With the patch, I was able to fault in twice
+the number of pages as I was able to without the patch. I used
+perf tool from tools/perf in the kernel
 
-One issue is that the default is not ordered anymore since
-Linus changed the default.
+With patch
 
-I'm sure other enhancements for IO errors could be done too.
-Some of the file systems also handle them still quite poorly (e.g. btrfs)
+ Performance counter stats for '/home/balbir/parallel_pagefault':
 
-But again I don't think it's a blocker for hwpoison.
+ 7188177.405648  task-clock-msecs         #     23.926 CPUs 
+         423130  context-switches         #      0.000 M/sec
+            210  CPU-migrations           #      0.000 M/sec
+       49851597  page-faults              #      0.007 M/sec
+  5900210219604  cycles                   #    820.821 M/sec
+   424658049425  instructions             #      0.072 IPC  
+     7867744369  cache-references         #      1.095 M/sec
+     2882370051  cache-misses             #      0.401 M/sec
 
-> I think there are three options,
-> 
-> (1) drop this patch
-> (2) merge this patch with new panic_on_dirty_page_cache_corruption
->     sysctl
-> (3) implement a more sophisticated error_remove_page function
+  300.431591843  seconds time elapsed
 
-(4) accept that hwpoison error handling is not better and not worse than normal
-IO error handling.
+Without Patch
 
-We opted for (4).
+ Performance counter stats for '/home/balbir/parallel_pagefault':
+
+ 7192804.124144  task-clock-msecs         #     23.937 CPUs 
+         424691  context-switches         #      0.000 M/sec
+            267  CPU-migrations           #      0.000 M/sec
+       28498113  page-faults              #      0.004 M/sec
+  5826093739340  cycles                   #    809.989 M/sec
+   408883496292  instructions             #      0.070 IPC  
+     7057079452  cache-references         #      0.981 M/sec
+     3036086243  cache-misses             #      0.422 M/sec
+
+  300.485365680  seconds time elapsed
 
 
--Andi
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
