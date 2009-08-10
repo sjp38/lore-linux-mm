@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D9C6B004D
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 11:41:58 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8E46B004D
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 11:42:00 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/6] tracing, page-allocator: Add trace event for page traffic related to the buddy lists
-Date: Mon, 10 Aug 2009 16:41:52 +0100
-Message-Id: <1249918915-16061-4-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 6/6] tracing, documentation: Add a document on the kmem tracepoints
+Date: Mon, 10 Aug 2009 16:41:55 +0100
+Message-Id: <1249918915-16061-7-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1249918915-16061-1-git-send-email-mel@csn.ul.ie>
 References: <1249918915-16061-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,114 +13,130 @@ To: Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Mor
 Cc: riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, Li Ming Chun <macli@brc.ubc.ca>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-The page allocation trace event reports that a page was successfully allocated
-but it does not specify where it came from. When analysing performance,
-it can be important to distinguish between pages coming from the per-cpu
-allocator and pages coming from the buddy lists as the latter requires the
-zone lock to the taken and more data structures to be examined.
-
-This patch adds a trace event for __rmqueue reporting when a page is being
-allocated from the buddy lists. It distinguishes between being called
-to refill the per-cpu lists or whether it is a high-order allocation.
-Similarly, this patch adds an event to catch when the PCP lists are being
-drained a little and pages are going back to the buddy lists.
-
-This is trickier to draw conclusions from but high activity on those
-events could explain why there were a large number of cache misses on a
-page-allocator-intensive workload. The coalescing and splitting of buddies
-involves a lot of writing of page metadata and cache line bounces not to
-mention the acquisition of an interrupt-safe lock necessary to enter this
-path.
+Knowing tracepoints exist is not quite the same as knowing what they
+should be used for. This patch adds a document giving a basic
+description of the kmem tracepoints and why they might be useful to a
+performance analyst.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/trace/events/kmem.h |   51 +++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             |    2 +
- 2 files changed, 53 insertions(+), 0 deletions(-)
+ Documentation/trace/events-kmem.txt |  107 +++++++++++++++++++++++++++++++++++
+ 1 files changed, 107 insertions(+), 0 deletions(-)
+ create mode 100644 Documentation/trace/events-kmem.txt
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index aae16ee..eaf46bd 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -299,6 +299,57 @@ TRACE_EVENT(mm_page_alloc,
- 		show_gfp_flags(__entry->gfp_flags))
- );
- 
-+TRACE_EVENT(mm_page_alloc_zone_locked,
+diff --git a/Documentation/trace/events-kmem.txt b/Documentation/trace/events-kmem.txt
+new file mode 100644
+index 0000000..6ef2a86
+--- /dev/null
++++ b/Documentation/trace/events-kmem.txt
+@@ -0,0 +1,107 @@
++			Subsystem Trace Points: kmem
 +
-+	TP_PROTO(struct page *page, unsigned int order, int migratetype),
++The tracing system kmem captures events related to object and page allocation
++within the kernel. Broadly speaking there are four major subheadings.
 +
-+	TP_ARGS(page, order, migratetype),
++  o Slab allocation of small objects of unknown type (kmalloc)
++  o Slab allocation of small objects of known type
++  o Page allocation
++  o Per-CPU Allocator Activity
++  o External Fragmentation
 +
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	unsigned int,	order		)
-+		__field(	int,		migratetype	)
-+	),
++This document will describe what each of the tracepoints are and why they
++might be useful.
 +
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->migratetype	= migratetype;
-+	),
++1. Slab allocation of small objects of unknown type
++===================================================
++kmalloc		call_site=%lx ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s
++kmalloc_node	call_site=%lx ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s node=%d
++kfree		call_site=%lx ptr=%p
 +
-+	TP_printk("page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d",
-+		__entry->page,
-+		page_to_pfn(__entry->page),
-+		__entry->order,
-+		__entry->migratetype,
-+		__entry->order == 0)
-+);
++Heavy activity for these events may indicate that a specific cache is
++justified, particularly if kmalloc slab pages are getting significantly
++internal fragmented as a result of the allocation pattern. By correlating
++kmalloc with kfree, it may be possible to identify memory leaks and where
++the allocation sites were.
 +
-+TRACE_EVENT(mm_page_pcpu_drain,
 +
-+	TP_PROTO(struct page *page, int order, int migratetype),
++2. Slab allocation of small objects of known type
++=================================================
++kmem_cache_alloc	call_site=%lx ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s
++kmem_cache_alloc_node	call_site=%lx ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s node=%d
++kmem_cache_free		call_site=%lx ptr=%p
 +
-+	TP_ARGS(page, order, migratetype),
++These events are similar in usage to the kmalloc-related events except that
++it is likely easier to pin the event down to a specific cache. At the time
++of writing, no information is available on what slab is being allocated from,
++but the call_site can usually be used to extrapolate that information
 +
-+	TP_STRUCT__entry(
-+		__field(	struct page *,	page		)
-+		__field(	int,		order		)
-+		__field(	int,		migratetype	)
-+	),
++3. Page allocation
++==================
++mm_page_alloc		  page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s
++mm_page_alloc_zone_locked page=%p pfn=%lu order=%u migratetype=%d cpu=%d percpu_refill=%d
++mm_page_free_direct	  page=%p pfn=%lu order=%d
++mm_pagevec_free		  page=%p pfn=%lu order=%d cold=%d
 +
-+	TP_fast_assign(
-+		__entry->page		= page;
-+		__entry->order		= order;
-+		__entry->migratetype	= migratetype;
-+	),
++These four events deal with page allocation and freeing. mm_page_alloc is
++a simple indicator of page allocator activity. Pages may be allocated from
++the per-CPU allocator (high performance) or the buddy allocator.
 +
-+	TP_printk("page=%p pfn=%lu order=%d migratetype=%d",
-+		__entry->page,
-+		page_to_pfn(__entry->page),
-+		__entry->order,
-+		__entry->migratetype)
-+);
++If pages are allocated directly from the buddy allocator, the
++mm_page_alloc_zone_locked event is triggered. This event is important as high
++amounts of activity imply high activity on the zone->lock. Taking this lock
++impairs performance by disabling interrupts, dirtying cache lines between
++CPUs and serialising many CPUs.
 +
- TRACE_EVENT(mm_page_alloc_extfrag,
- 
- 	TP_PROTO(struct page *page,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4c20bfa..bbd7de8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -535,6 +535,7 @@ static void free_pages_bulk(struct zone *zone, int count,
- 		page = list_entry(list->prev, struct page, lru);
- 		/* have to delete it as __free_one_page list manipulates */
- 		list_del(&page->lru);
-+		trace_mm_page_pcpu_drain(page, order, page_private(page));
- 		__free_one_page(page, zone, order, page_private(page));
- 	}
- 	spin_unlock(&zone->lock);
-@@ -876,6 +877,7 @@ retry_reserve:
- 		}
- 	}
- 
-+	trace_mm_page_alloc_zone_locked(page, order, migratetype);
- 	return page;
- }
- 
++When a page is freed directly by the caller, the mm_page_free_direct event
++is triggered. Significant amounts of activity here could indicate that the
++callers should be batching their activities.
++
++When pages are freed using a pagevec, the mm_pagevec_free is
++triggered. Broadly speaking, pages are taken off the LRU lock in bulk and
++freed in batch with a pagevec. Significant amounts of activity here could
++indicate that the system is under memory pressure and can also indicate
++contention on the zone->lru_lock.
++
++4. Per-CPU Allocator Activity
++=============================
++mm_page_alloc_zone_locked	page=%p pfn=%lu order=%u migratetype=%d cpu=%d percpu_refill=%d
++mm_page_pcpu_drain		page=%p pfn=%lu order=%d cpu=%d migratetype=%d
++
++In front of the page allocator is a per-cpu page allocator. It exists only
++for order-0 pages, reduces contention on the zone->lock and reduces the
++amount of writing on struct page.
++
++When a per-CPU list is empty or pages of the wrong type are allocated,
++the zone->lock will be taken once and the per-CPU list refilled. The event
++triggered is mm_page_alloc_zone_locked for each page allocated with the
++event indicating whether it is for a percpu_refill or not.
++
++When the per-CPU list is too full, a number of pages are freed, each one
++which triggers a mm_page_pcpu_drain event.
++
++The individual nature of the events are so that pages can be tracked
++between allocation and freeing. A number of drain or refill pages that occur
++consecutively imply the zone->lock being taken once. Large amounts of PCP
++refills and drains could imply an imbalance between CPUs where too much work
++is being concentrated in one place. It could also indicate that the per-CPU
++lists should be a larger size. Finally, large amounts of refills on one CPU
++and drains on another could be a factor in causing large amounts of cache
++line bounces due to writes between CPUs and worth investigating if pages
++can be allocated and freed on the same CPU through some algorithm change.
++
++5. External Fragmentation
++=========================
++mm_page_alloc_extfrag		page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d
++
++External fragmentation affects whether a high-order allocation will be
++successful or not. For some types of hardware, this is important although
++it is avoided where possible. If the system is using huge pages and needs
++to be able to resize the pool over the lifetime of the system, this value
++is important.
++
++Large numbers of this event implies that memory is fragmenting and
++high-order allocations will start failing at some time in the future. One
++means of reducing the occurange of this event is to increase the size of
++min_free_kbytes in increments of 3*pageblock_size*nr_online_nodes where
++pageblock_size is usually the size of the default hugepage size.
 -- 
 1.6.3.3
 
