@@ -1,193 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0DDDA6B008A
-	for <linux-mm@kvack.org>; Sun,  9 Aug 2009 23:21:44 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7A3Ln4h003875
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 10 Aug 2009 12:21:50 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A62E545DE55
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 12:21:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8751945DE51
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 12:21:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BCF61DB8041
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 12:21:49 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B7AA1DB8042
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 12:21:49 +0900 (JST)
-Date: Mon, 10 Aug 2009 12:19:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [cleanup][2/2] mm: add_to_swap_cache() does not return -EEXIST
-Message-Id: <20090810121959.5ed44d07.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090810112716.fb110c5a.nishimura@mxp.nes.nec.co.jp>
-References: <20090810112326.3526b11d.nishimura@mxp.nes.nec.co.jp>
-	<20090810112716.fb110c5a.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E2DC6B0088
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 01:22:49 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp01.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7A5Mmfg007456
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 10:52:48 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7A5MkaK475338
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 10:52:48 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7A5Mkkw024475
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 15:22:46 +1000
+Date: Mon, 10 Aug 2009 10:52:43 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: Help Resource Counters Scale Better (v3)
+Message-ID: <20090810052243.GB5257@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090807221238.GJ9686@balbir.in.ibm.com> <39eafe409b85053081e9c6826005bb06.squirrel@webmail-b.css.fujitsu.com> <20090808060531.GL9686@balbir.in.ibm.com> <99f2a13990d68c34c76c33581949aefd.squirrel@webmail-b.css.fujitsu.com> <20090809121530.GA5833@balbir.in.ibm.com> <20090810093229.10db7185.kamezawa.hiroyu@jp.fujitsu.com> <20090810094344.77a8ef55.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090810094344.77a8ef55.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Johannes Weiner <hannes@cmpxchg.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, andi.kleen@intel.com, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Aug 2009 11:27:16 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-10 09:43:44]:
 
-> After commit 355cfa73(mm: modify swap_map and add SWAP_HAS_CACHE flag),
-> only the context which have set SWAP_HAS_CACHE flag by swapcache_prepare()
-> or get_swap_page() would call add_to_swap_cache().
-> So add_to_swap_cache() doesn't return -EEXIST any more.
+> On Mon, 10 Aug 2009 09:32:29 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> Even though it doesn't return -EEXIST, it's not a good behavior conceptually
-> to call swapcache_prepare() in -EEXIST case, because it means clearing
-> SWAP_HAS_CACHE flag while the entry is on swap cache.
+> > 1. you use res_counter_read_positive() in force_empty. It seems force_empty can
+> >    go into infinite loop. plz check. (especially when some pages are freed or swapped-in
+> >    in other cpu while force_empry runs.)
+> > 
+> > 2. In near future, we'll see 256 or 1024 cpus on a system, anyway.
+> >    Assume 1024cpu system, 64k*1024=64M is a tolerance.
+> >    Can't we calculate max-tolerane as following ?
+> >   
+> >    tolerance = min(64k * num_online_cpus(), limit_in_bytes/100);
+> >    tolerance /= num_online_cpus();
+> >    per_cpu_tolerance = min(16k, tolelance);
+> > 
+> >    I think automatic runtine adjusting of tolerance will be finally necessary,
+> >    but above will not be very bad because we can guarantee 1% tolerance.
+> > 
 > 
-> This patch removes redundant codes and comments from callers of it, and
-> adds VM_BUG_ON() in error path of add_to_swap_cache() and some comments.
+> Sorry, one more.
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 3. As I requested when you pushed softlimit changes to mmotom, plz consider
+>    to implement a way to check-and-notify gadget to res_counter.
+>    See: http://marc.info/?l=linux-mm&m=124753058921677&w=2
+>
 
-Nice! I've postponed this ;(
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Yes, I will do that, but only after the scaling, since this is more
+important at the moment. 
 
-> ---
->  mm/shmem.c      |    4 +++
->  mm/swap_state.c |   75 +++++++++++++++++++++++++++----------------------------
->  2 files changed, 41 insertions(+), 38 deletions(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index d713239..c71ac6c 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1097,6 +1097,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
->  	shmem_swp_unmap(entry);
->  unlock:
->  	spin_unlock(&info->lock);
-> +	/*
-> +	 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-> +	 * clear SWAP_HAS_CACHE flag.
-> +	 */
->  	swapcache_free(swap, NULL);
->  redirty:
->  	set_page_dirty(page);
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 3e6dd72..e891208 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -96,6 +96,12 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
->  		radix_tree_preload_end();
->  
->  		if (unlikely(error)) {
-> +			/*
-> +			 * Only the context which have set SWAP_HAS_CACHE flag
-> +			 * would call add_to_swap_cache().
-> +			 * So add_to_swap_cache() doesn't returns -EEXIST.
-> +			 */
-> +			VM_BUG_ON(error == -EEXIST);
->  			set_page_private(page, 0UL);
->  			ClearPageSwapCache(page);
->  			page_cache_release(page);
-> @@ -137,38 +143,34 @@ int add_to_swap(struct page *page)
->  	VM_BUG_ON(!PageLocked(page));
->  	VM_BUG_ON(!PageUptodate(page));
->  
-> -	for (;;) {
-> -		entry = get_swap_page();
-> -		if (!entry.val)
-> -			return 0;
-> +	entry = get_swap_page();
-> +	if (!entry.val)
-> +		return 0;
->  
-> +	/*
-> +	 * Radix-tree node allocations from PF_MEMALLOC contexts could
-> +	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
-> +	 * stops emergency reserves from being allocated.
-> +	 *
-> +	 * TODO: this could cause a theoretical memory reclaim
-> +	 * deadlock in the swap out path.
-> +	 */
-> +	/*
-> +	 * Add it to the swap cache and mark it dirty
-> +	 */
-> +	err = add_to_swap_cache(page, entry,
-> +			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
-> +
-> +	if (!err) {	/* Success */
-> +		SetPageDirty(page);
-> +		return 1;
-> +	} else {	/* -ENOMEM radix-tree allocation failure */
->  		/*
-> -		 * Radix-tree node allocations from PF_MEMALLOC contexts could
-> -		 * completely exhaust the page allocator. __GFP_NOMEMALLOC
-> -		 * stops emergency reserves from being allocated.
-> -		 *
-> -		 * TODO: this could cause a theoretical memory reclaim
-> -		 * deadlock in the swap out path.
-> -		 */
-> -		/*
-> -		 * Add it to the swap cache and mark it dirty
-> +		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-> +		 * clear SWAP_HAS_CACHE flag.
->  		 */
-> -		err = add_to_swap_cache(page, entry,
-> -				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
-> -
-> -		switch (err) {
-> -		case 0:				/* Success */
-> -			SetPageDirty(page);
-> -			return 1;
-> -		case -EEXIST:
-> -			/* Raced with "speculative" read_swap_cache_async */
-> -			swapcache_free(entry, NULL);
-> -			continue;
-> -		default:
-> -			/* -ENOMEM radix-tree allocation failure */
-> -			swapcache_free(entry, NULL);
-> -			return 0;
-> -		}
-> +		swapcache_free(entry, NULL);
-> +		return 0;
->  	}
->  }
->  
-> @@ -298,14 +300,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		if (err)           /* swp entry is obsolete ? */
->  			break;
->  
-> -		/*
-> -		 * Associate the page with swap entry in the swap cache.
-> -		 * May fail (-EEXIST) if there is already a page associated
-> -		 * with this entry in the swap cache: added by a racing
-> -		 * read_swap_cache_async, or add_to_swap or shmem_writepage
-> -		 * re-using the just freed swap entry for an existing page.
-> -		 * May fail (-ENOMEM) if radix-tree node allocation failed.
-> -		 */
-> +		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
->  		__set_page_locked(new_page);
->  		SetPageSwapBacked(new_page);
->  		err = add_to_swap_cache(new_page, entry, GFP_ATOMIC);
-> @@ -319,6 +314,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		}
->  		ClearPageSwapBacked(new_page);
->  		__clear_page_locked(new_page);
-> +		/*
-> +		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-> +		 * clear SWAP_HAS_CACHE flag.
-> +		 */
->  		swapcache_free(entry, NULL);
->  	} while (err != -ENOMEM);
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
