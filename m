@@ -1,131 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BFD6A6B006A
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 01:48:09 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7A5mCeX002885
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 10 Aug 2009 14:48:12 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CBA1B45DE50
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:48:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A353945DE56
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:48:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9271DB8052
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:48:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 385D21DB8038
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 14:47:55 +0900 (JST)
-Date: Mon, 10 Aug 2009 14:45:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Help Resource Counters Scale Better (v3)
-Message-Id: <20090810144559.ac5a3499.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090810053025.GC5257@balbir.in.ibm.com>
-References: <20090807221238.GJ9686@balbir.in.ibm.com>
-	<39eafe409b85053081e9c6826005bb06.squirrel@webmail-b.css.fujitsu.com>
-	<20090808060531.GL9686@balbir.in.ibm.com>
-	<99f2a13990d68c34c76c33581949aefd.squirrel@webmail-b.css.fujitsu.com>
-	<20090809121530.GA5833@balbir.in.ibm.com>
-	<20090810093229.10db7185.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090810053025.GC5257@balbir.in.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 014DB6B006A
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 01:55:59 -0400 (EDT)
+Date: Mon, 10 Aug 2009 14:49:41 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [BUGFIX][1/2] mm: add_to_swap_cache() must not sleep
+Message-Id: <20090810144941.ab642063.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090810121644.6fe466f9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090810112326.3526b11d.nishimura@mxp.nes.nec.co.jp>
+	<20090810112641.02e1db72.nishimura@mxp.nes.nec.co.jp>
+	<20090810121644.6fe466f9.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, andi.kleen@intel.com, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Aug 2009 11:00:25 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-10 09:32:29]:
+On Mon, 10 Aug 2009 12:16:44 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 10 Aug 2009 11:26:41 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> > On Sun, 9 Aug 2009 17:45:30 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > After commit 355cfa73(mm: modify swap_map and add SWAP_HAS_CACHE flag),
+> > read_swap_cache_async() will busy-wait while a entry doesn't on swap cache
+> > but it has SWAP_HAS_CACHE flag.
 > > 
-> > > Hi, 
-> > > 
-> > > Thanks for the detailed review, here is v3 of the patches against
-> > > mmotm 6th August. I've documented the TODOs as well. If there are
-> > > no major objections, I would like this to be included in mmotm
-> > > for more testing. Any test reports on a large machine would be highly
-> > > appreciated.
-> > > 
-> > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > 
-> > > Changelog v3->v2
-> > > 
-> > > 1. Added more documentation and comments
-> > > 2. Made the check in mem_cgroup_set_limit strict
-> > > 3. Increased tolerance per cpu to 64KB.
-> > > 4. Still have the WARN_ON(), I've kept it for debugging
-> > >    purposes, may be we should make it a conditional with
-> > >    DEBUG_VM
-> > > 
-> > Because I'll be absent for a while, I don't give any Reviewed-by or Acked-by, now.
+> > Such entries can exist on add/delete path of swap cache.
+> > On add path, add_to_swap_cache() is called soon after SWAP_HAS_CACHE flag
+> > is set, and on delete path, swapcache_free() will be called (SWAP_HAS_CACHE
+> > flag is cleared) soon after __delete_from_swap_cache() is called.
+> > So, the busy-wait works well in most cases.
 > > 
-> > Before leaving, I'd like to write some concerns here.
-> > 
-> > 1. you use res_counter_read_positive() in force_empty. It seems force_empty can
-> >    go into infinite loop. plz check. (especially when some pages are freed or swapped-in
-> >    in other cpu while force_empry runs.)
+> yes.
 > 
-> OK.. so you want me to use _sum_positive(), will do. In all my testing
-> using the stress scripts I have, I found no issues with force_empty so
-> far. But I'll change over.
-> 
-Thanks. Things around force_empty are very sensitive ;(
-
-
-
+> > But this mechanism can cause soft lockup if add_to_swap_cache() sleeps
+> > and read_swap_cache_async() tries to swap-in the same entry on the same cpu.
 > > 
-> > 2. In near future, we'll see 256 or 1024 cpus on a system, anyway.
-> >    Assume 1024cpu system, 64k*1024=64M is a tolerance.
-> >    Can't we calculate max-tolerane as following ?
-> >   
-> >    tolerance = min(64k * num_online_cpus(), limit_in_bytes/100);
-> >    tolerance /= num_online_cpus();
-> >    per_cpu_tolerance = min(16k, tolelance);
-> > 
-> >    I think automatic runtine adjusting of tolerance will be finally necessary,
-> >    but above will not be very bad because we can guarantee 1% tolerance.
-> > 
+> Hmm..
 > 
-> I agree that automatic tuning will be necessary, but I want to go the
-> CONFIG_MEM_CGROUP_RES_TOLERANCE approach you suggested earlier, since
-> num_online_cpus() with CPU hotplug can be a bit of a game play and
-> with Power Management and CPUs going idle, we really don't want to
-> count those, etc. For now a simple nr_cpu_ids * tolerance and then
-> get feedback, since it is a heuristic. Again, limit_in_bytes can
-> change, may be some of this needs to go into resize_limit and
-> set_limit paths. Right now, I want to keep it simple and see if
-> others can see the benefits of this patch. Then add some more
-> heuristics based on your suggestion.
+> > add_to_swap() and shmem_writepage() call add_to_swap_cache() w/o __GFP_WAIT,
+> > but read_swap_cache_async() can call it w/ __GFP_WAIT, so it can cause
+> > soft lockup.
+> > 
+> > This patch changes the gfp_mask of add_to_swap_cache() in read_swap_cache_async().
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> Do you agree?
+> Thank you for catching.
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> But Hm...I wonder whether this is the best fix.
+> 
+> If I was you, I may do following.
+> 
+>   1. remove radix_tree_preload() and gfp_mask from add_to_swapcache().
+>      Then, rename it fo __add_to_swapcache().
+>      Or, move swap_duplicate() into add_to_swapcache() with a new flag.
+> 
+>   2. do things in following order.
+> 
+> 	radix_tree_peload();
+> 	swap_duplicate();	# this never sleeps.
+> 	add_to_swapcache()
+> 	radix_tree_peload_end();
+> 
+>  Good point of this approach is 
+> 	- we can use __GFP_WAIT in gfp_mask.
+> 	- -ENOMEM means OOM, then, we should be aggressive to get a page.
+> 
+> How do you think ?
+> 
+Thank you for your suggestion. It's a good idea.
 
-Ok. Config is enough at this stage.
+How about this one (Passed build test only) ?
 
-The last advice for merge is, it's better to show the numbers or
-ask someone who have many cpus to measure benefits. Then, Andrew can
-know how this is benefical.
-(My box has 8 cpus. But maybe your IBM collaegue has some bigger one)
+If it's good for you, I'll resend it removing RFC after a long term test,
+unless someone else tell me not to. 
 
-In my experience (in my own old trial),
- - lock contention itself is low. not high.
- - but cacheline-miss, pingpong is very very frequent.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Then, this patch has some benefit logically but, in general,
-File-I/O, swapin-swapout, page-allocation/initalize etc..dominates
-the performance of usual apps. You'll have to be careful to select apps
-to measure the benfits of this patch by application performance.
-(And this is why I don't feel so much emergency as you do)
+After commit 355cfa73(mm: modify swap_map and add SWAP_HAS_CACHE flag),
+read_swap_cache_async() will busy-wait while a entry doesn't on swap cache
+but it has SWAP_HAS_CACHE flag.
 
-Thanks,
--Kame
+Such entries can exist on add/delete path of swap cache.
+On add path, add_to_swap_cache() is called soon after SWAP_HAS_CACHE flag
+is set, and on delete path, swapcache_free() will be called (SWAP_HAS_CACHE
+flag is cleared) soon after __delete_from_swap_cache() is called.
+So, the busy-wait works well in most cases.
+
+But this mechanism can cause soft lockup if add_to_swap_cache() sleeps
+and read_swap_cache_async() tries to swap-in the same entry on the same cpu.
+
+This patch calls radix_tree_preload() before swapcache_prepare() and divide
+add_to_swap_cache() into two part: radix_tree_preload() part and
+radix_tree_insert() part(define it as __add_to_swap_cache()).
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/swap_state.c |   70 ++++++++++++++++++++++++++++++++++++-------------------
+ 1 files changed, 46 insertions(+), 24 deletions(-)
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 42cd38e..0313a13 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -66,10 +66,10 @@ void show_swap_cache_info(void)
+ }
+ 
+ /*
+- * add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
++ * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
+  * but sets SwapCache flag and private instead of mapping and index.
+  */
+-int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
++static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+ {
+ 	int error;
+ 
+@@ -77,28 +77,37 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+ 	VM_BUG_ON(PageSwapCache(page));
+ 	VM_BUG_ON(!PageSwapBacked(page));
+ 
++	page_cache_get(page);
++	SetPageSwapCache(page);
++	set_page_private(page, entry.val);
++
++	spin_lock_irq(&swapper_space.tree_lock);
++	error = radix_tree_insert(&swapper_space.page_tree, entry.val, page);
++	if (likely(!error)) {
++		total_swapcache_pages++;
++		__inc_zone_page_state(page, NR_FILE_PAGES);
++		INC_CACHE_INFO(add_total);
++	}
++	spin_unlock_irq(&swapper_space.tree_lock);
++
++	if (unlikely(error)) {
++		set_page_private(page, 0UL);
++		ClearPageSwapCache(page);
++		page_cache_release(page);
++	}
++
++	return error;
++}
++
++
++int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
++{
++	int error;
++
+ 	error = radix_tree_preload(gfp_mask);
+ 	if (!error) {
+-		page_cache_get(page);
+-		SetPageSwapCache(page);
+-		set_page_private(page, entry.val);
+-
+-		spin_lock_irq(&swapper_space.tree_lock);
+-		error = radix_tree_insert(&swapper_space.page_tree,
+-						entry.val, page);
+-		if (likely(!error)) {
+-			total_swapcache_pages++;
+-			__inc_zone_page_state(page, NR_FILE_PAGES);
+-			INC_CACHE_INFO(add_total);
+-		}
+-		spin_unlock_irq(&swapper_space.tree_lock);
++		error = __add_to_swap_cache(page, entry);
+ 		radix_tree_preload_end();
+-
+-		if (unlikely(error)) {
+-			set_page_private(page, 0UL);
+-			ClearPageSwapCache(page);
+-			page_cache_release(page);
+-		}
+ 	}
+ 	return error;
+ }
+@@ -289,13 +298,24 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		}
+ 
+ 		/*
++		 * call radix_tree_preload() while we can wait.
++		 */
++		err = radix_tree_preload(gfp_mask & GFP_KERNEL);
++		if (err)
++			break;
++
++		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+ 		err = swapcache_prepare(entry);
+-		if (err == -EEXIST) /* seems racy */
++		if (err == -EEXIST) {	/* seems racy */
++			radix_tree_preload_end();
+ 			continue;
+-		if (err)           /* swp entry is obsolete ? */
++		}
++		if (err) {		/* swp entry is obsolete ? */
++			radix_tree_preload_end();
+ 			break;
++		}
+ 
+ 		/*
+ 		 * Associate the page with swap entry in the swap cache.
+@@ -307,8 +327,9 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 */
+ 		__set_page_locked(new_page);
+ 		SetPageSwapBacked(new_page);
+-		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
++		err = __add_to_swap_cache(new_page, entry);
+ 		if (likely(!err)) {
++			radix_tree_preload_end();
+ 			/*
+ 			 * Initiate read into locked page and return.
+ 			 */
+@@ -316,6 +337,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			swap_readpage(new_page);
+ 			return new_page;
+ 		}
++		radix_tree_preload_end();
+ 		ClearPageSwapBacked(new_page);
+ 		__clear_page_locked(new_page);
+ 		swapcache_free(entry, NULL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
