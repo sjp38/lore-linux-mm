@@ -1,136 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7772F6B004D
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 03:41:46 -0400 (EDT)
-Date: Mon, 10 Aug 2009 08:41:46 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] tracing, page-allocator: Add a postprocessing
-	script for page-allocator-related ftrace events
-Message-ID: <20090810074145.GA1933@csn.ul.ie>
-References: <1249666815-28784-1-git-send-email-mel@csn.ul.ie> <1249666815-28784-5-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.00.0908071154120.14649@mail.selltech.ca> <alpine.DEB.1.00.0908071228310.14726@mail.selltech.ca>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC566B0055
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 03:42:51 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id n7A7f8kJ030399
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 17:41:08 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7A7gkk8450980
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 17:42:48 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7A7gjnl021474
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2009 17:42:46 +1000
+Date: Mon, 10 Aug 2009 13:11:34 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: Help Resource Counters Scale Better (v3)
+Message-ID: <20090810074134.GA4648@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090807221238.GJ9686@balbir.in.ibm.com> <39eafe409b85053081e9c6826005bb06.squirrel@webmail-b.css.fujitsu.com> <20090808060531.GL9686@balbir.in.ibm.com> <99f2a13990d68c34c76c33581949aefd.squirrel@webmail-b.css.fujitsu.com> <20090809121530.GA5833@balbir.in.ibm.com> <20090810093229.10db7185.kamezawa.hiroyu@jp.fujitsu.com> <20090810053025.GC5257@balbir.in.ibm.com> <20090810144559.ac5a3499.kamezawa.hiroyu@jp.fujitsu.com> <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0908071228310.14726@mail.selltech.ca>
+In-Reply-To: <20090810152205.d37d8e2f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Li, Ming Chun" <macli@brc.ubc.ca>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, andi.kleen@intel.com, Prarit Bhargava <prarit@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, Pavel Emelianov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 07, 2009 at 12:32:34PM -0700, Li, Ming Chun wrote:
-> On Fri, 7 Aug 2009, Li, Ming Chun wrote:
-> 
-> > On Fri, 7 Aug 2009, Mel Gorman wrote:
-> > 
-> > > +sub generate_traceevent_regex {
-> > > +	my $event = shift;
-> > > +	my $default = shift;
-> > > +	my @fields = @_;
-> > > +	my $regex;
-> > 
-> > You are using shift to retrieve parameters below, @fields is not used 
-> > anywhere.
-> > 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-10 15:22:05]:
 
-Correct, this can be removed. Initially, I was going to use an array but
-shift was far neater. Forgot to cleanup afterwards.
-
-> > > +
-> > > +	# Read the event format or use the default
-> > > +	if (!open (FORMAT, "/sys/kernel/debug/tracing/events/$event/format")) {
-> > > +		$regex = $default;
-> > > +	} else {
-> > > +		my $line;
-> > > +		while (!eof(FORMAT)) {
-> > > +			$line = <FORMAT>;
-> > > +			if ($line =~ /^print fmt:\s"(.*)",.*/) {
-> > > +				$regex = $1;
-> > > +				$regex =~ s/%p/\([0-9a-f]*\)/g;
-> > > +				$regex =~ s/%d/\([-0-9]*\)/g;
-> > > +				$regex =~ s/%lu/\([0-9]*\)/g;
-> > > +			}
-> > > +		}
-> > > +	}
-> > > +
-> > > +	# Verify fields are in the right order
-> > > +	my $tuple;
-> > > +	foreach $tuple (split /\s/, $regex) {
-> > > +		my ($key, $value) = split(/=/, $tuple);
-> > > +		my $expected = shift;
-> > > +		if ($key ne $expected) {
-> > > +			print("WARNING: Format not as expected '$key' != '$expected'");
-> > > +			$regex =~ s/$key=\((.*)\)/$key=$1/;
-> > > +		}
-> > > +	}
-> > > +	if (defined $_) {
-> > > +		die("Fewer fields than expected in format");
-> > > +	}
-> > > +
-> > 
-> > How about:
-> > 	if (defined shift) {
-> > 		die("Fewer fields than expected in format");
-> > 	}
-> > ? 
-> > 
-> > I don't know, just ask if it is clear.
+> On Mon, 10 Aug 2009 14:45:59 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> Ah, I think it should be:
-> 	if (@_) {
-> 		die("Fewer fields than expected in format");
-> 	}
+> > > Do you agree?
+> > 
+> > Ok. Config is enough at this stage.
+> > 
+> > The last advice for merge is, it's better to show the numbers or
+> > ask someone who have many cpus to measure benefits. Then, Andrew can
+> > know how this is benefical.
+> > (My box has 8 cpus. But maybe your IBM collaegue has some bigger one)
+> > 
+> > In my experience (in my own old trial),
+> >  - lock contention itself is low. not high.
+> >  - but cacheline-miss, pingpong is very very frequent.
+> > 
+> > Then, this patch has some benefit logically but, in general,
+> > File-I/O, swapin-swapout, page-allocation/initalize etc..dominates
+> > the performance of usual apps. You'll have to be careful to select apps
+> > to measure the benfits of this patch by application performance.
+> > (And this is why I don't feel so much emergency as you do)
+> > 
 > 
-> ? Sorry for the noise :)
+> Why I say "I want to see the numbers" again and again is that
+> this is performance improvement with _bad side effect_.
+> If this is an emergent trouble, and need fast-track, which requires us
+> "fix small problems later", plz say so. 
 > 
 
-It's not noise at all, you're right to point out something was wrong
-here. It needed to be either
 
-if (defined shift)
-if (defined $_[0])
+Yes, this is an emergent trouble, I've gotten reports of the lock
+showing up on 16 to 64 ways.
 
-I went with your first suggestion of "if (defined shift)"
+> I have no objection to this approach itself because I can't think of
+> something better, now. percpu-counter's error tolerance is a generic
+> problem and we'll have to visit this anyway.
+>
 
-Thanks
+Yes, my plan is to then later add a strict/no-strict accounting layer
+and allow users to choose. Keep root as non-script as we don't
+support limit setting on root now. 
 
-==== CUT HERE ====
-tracing, page-allocator: Fix sanity check of TP_printk format for mm_page_alloc_extfrag
-
-The trace-pagealloc-postprocess.pl script sanity checks the TP_printk
-format for mm_page_alloc_extfrag to ensure all expected fields are in
-the output format. Ming Chun Li pointed out that the check for all
-expected fields is checking the wrong scalar and that there was a
-unused @fields declared. This patch deletes the unused variable and
-fixes the check.
-
-Reported-by: Ming Chun Li <macli@brc.ubc.ca>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- Documentation/trace/postprocess/trace-pagealloc-postprocess.pl |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl b/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
-index 1a8a408..7df50e8 100755
---- a/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
-+++ b/Documentation/trace/postprocess/trace-pagealloc-postprocess.pl
-@@ -91,7 +91,6 @@ my $regex_statppid = '[-0-9]*\s\(.*\)\s[A-Za-z]\s([0-9]*).*';
- sub generate_traceevent_regex {
- 	my $event = shift;
- 	my $default = shift;
--	my @fields = @_;
- 	my $regex;
- 
- 	# Read the event format or use the default
-@@ -120,7 +119,8 @@ sub generate_traceevent_regex {
- 			$regex =~ s/$key=\((.*)\)/$key=$1/;
- 		}
- 	}
--	if (defined $_) {
-+
-+	if (defined shift) {
- 		die("Fewer fields than expected in format");
- 	}
- 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
