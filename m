@@ -1,218 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D24F66B004F
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 07:20:24 -0400 (EDT)
-Date: Tue, 11 Aug 2009 14:19:04 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH 1/2] export cpu_tlbstate to modules
-Message-ID: <20090811111903.GA3809@redhat.com>
-References: <cover.1249930169.git.mst@redhat.com> <20090810185302.GB13924@redhat.com> <4A80979E.3080204@zytor.com> <20090810220613.GA17099@redhat.com> <4A809E32.6060206@zytor.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 161046B004F
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 09:00:20 -0400 (EDT)
+Date: Tue, 11 Aug 2009 20:38:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
+	migration    aware file systems
+Message-ID: <20090811123819.GB18881@localhost>
+References: <200908051136.682859934@firstfloor.org> <20090805093643.E0C00B15D8@basil.firstfloor.org> <4A7FBFD1.2010208@hitachi.com> <20090810070745.GA26533@localhost> <4A80EA14.4030300@hitachi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4A809E32.6060206@zytor.com>
+In-Reply-To: <4A80EA14.4030300@hitachi.com>
 Sender: owner-linux-mm@kvack.org
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, "tytso@mit.edu" <tytso@mit.edu>, "hch@infradead.org" <hch@infradead.org>, "mfasheh@suse.com" <mfasheh@suse.com>, "aia21@cantab.net" <aia21@cantab.net>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "swhiteho@redhat.com" <swhiteho@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "npiggin@suse.de" <npiggin@suse.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-
-Subject: [PATCH] mm: export use_mm/unuse_mm to modules
-
-vhost net module wants to do copy to/from user from a kernel thread,
-which needs use_mm (like what fs/aio has).  Move that into mm/ and
-export to modules.
-
-Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
----
-
-On Mon, Aug 10, 2009 at 03:24:50PM -0700, H. Peter Anvin wrote:
-> On 08/10/2009 03:06 PM, Michael S. Tsirkin wrote:
-> >> Wouldn't it be a *lot* better to move use_mm() from fs/aio.c into common
-> >> code, and export that instead?
+On Tue, Aug 11, 2009 at 11:48:36AM +0800, Hidehiro Kawai wrote:
+> Wu Fengguang wrote:
+> > In fact we proposed a patch for preventing the re-corruption case, see
 > > 
-> > That's easy too. What would a good place for it be?
+> >         http://lkml.org/lkml/2009/6/11/294
+> > 
+> > However it is hard to answer the (policy) question "How sticky should
+> > the EIO bit remain?".
 > 
-> Somewhere in mm/, presumably.  When in doubt, make it a new file...
-> 	
-> 	-hpa
+> It's a good approach!  This approach may also solve my concern,
+> the re-corruption issue caused by transient IO errors.
+> 
+> But I also think it needs a bit more consideration.  For example,
+> if the application has the valid data in the user space buffer,
+> it would try to re-write it after detecting an IO error from the
+> previous write.  In this case, we should clear the sticky error flag.
 
-Like this? Ack?
+Yes, and maybe more than that. The IO error issue really deserves an
+independent work, which will inevitably involve lots of discussions
+with lots of people.
 
- fs/aio.c                    |   47 +----------------------------------
- include/linux/mmu_context.h |    9 ++++++
- mm/Makefile                 |    2 +-
- mm/mmu_context.c            |   58 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 69 insertions(+), 47 deletions(-)
- create mode 100644 include/linux/mmu_context.h
- create mode 100644 mm/mmu_context.c
+For the data re-corruption problem, "vm.memory_failure_recovery = 0"
+should be the most clean workaround for now. Can we settle with that?
+Our goal for this initial hwpoison implementation is to achieve good
+coverage (not necessarily every possible case :).
 
-diff --git a/fs/aio.c b/fs/aio.c
-index d065b2c..fc21c23 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -24,6 +24,7 @@
- #include <linux/file.h>
- #include <linux/mm.h>
- #include <linux/mman.h>
-+#include <linux/mmu_context.h>
- #include <linux/slab.h>
- #include <linux/timer.h>
- #include <linux/aio.h>
-@@ -34,7 +35,6 @@
- 
- #include <asm/kmap_types.h>
- #include <asm/uaccess.h>
--#include <asm/mmu_context.h>
- 
- #if DEBUG > 1
- #define dprintk		printk
-@@ -595,51 +595,6 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
- }
- 
- /*
-- * use_mm
-- *	Makes the calling kernel thread take on the specified
-- *	mm context.
-- *	Called by the retry thread execute retries within the
-- *	iocb issuer's mm context, so that copy_from/to_user
-- *	operations work seamlessly for aio.
-- *	(Note: this routine is intended to be called only
-- *	from a kernel thread context)
-- */
--static void use_mm(struct mm_struct *mm)
--{
--	struct mm_struct *active_mm;
--	struct task_struct *tsk = current;
--
--	task_lock(tsk);
--	active_mm = tsk->active_mm;
--	atomic_inc(&mm->mm_count);
--	tsk->mm = mm;
--	tsk->active_mm = mm;
--	switch_mm(active_mm, mm, tsk);
--	task_unlock(tsk);
--
--	mmdrop(active_mm);
--}
--
--/*
-- * unuse_mm
-- *	Reverses the effect of use_mm, i.e. releases the
-- *	specified mm context which was earlier taken on
-- *	by the calling kernel thread
-- *	(Note: this routine is intended to be called only
-- *	from a kernel thread context)
-- */
--static void unuse_mm(struct mm_struct *mm)
--{
--	struct task_struct *tsk = current;
--
--	task_lock(tsk);
--	tsk->mm = NULL;
--	/* active_mm is still 'mm' */
--	enter_lazy_tlb(mm, tsk);
--	task_unlock(tsk);
--}
--
--/*
-  * Queue up a kiocb to be retried. Assumes that the kiocb
-  * has already been marked as kicked, and places it on
-  * the retry run list for the corresponding ioctx, if it
-diff --git a/include/linux/mmu_context.h b/include/linux/mmu_context.h
-new file mode 100644
-index 0000000..70fffeb
---- /dev/null
-+++ b/include/linux/mmu_context.h
-@@ -0,0 +1,9 @@
-+#ifndef _LINUX_MMU_CONTEXT_H
-+#define _LINUX_MMU_CONTEXT_H
-+
-+struct mm_struct;
-+
-+void use_mm(struct mm_struct *mm);
-+void unuse_mm(struct mm_struct *mm);
-+
-+#endif
-diff --git a/mm/Makefile b/mm/Makefile
-index 5e0bd64..46c3892 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
- 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o mm_init.o $(mmu-y)
-+			   page_isolation.o mm_init.o mmu_context.o $(mmu-y)
- obj-y += init-mm.o
- 
- obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
-diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-new file mode 100644
-index 0000000..9989c2f
---- /dev/null
-+++ b/mm/mmu_context.c
-@@ -0,0 +1,58 @@
-+/* Copyright (C) 2009 Red Hat, Inc.
-+ *
-+ * See ../COPYING for licensing terms.
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/mmu_context.h>
-+#include <linux/module.h>
-+#include <linux/sched.h>
-+
-+#include <asm/mmu_context.h>
-+
-+/*
-+ * use_mm
-+ *	Makes the calling kernel thread take on the specified
-+ *	mm context.
-+ *	Called by the retry thread execute retries within the
-+ *	iocb issuer's mm context, so that copy_from/to_user
-+ *	operations work seamlessly for aio.
-+ *	(Note: this routine is intended to be called only
-+ *	from a kernel thread context)
-+ */
-+void use_mm(struct mm_struct *mm)
-+{
-+	struct mm_struct *active_mm;
-+	struct task_struct *tsk = current;
-+
-+	task_lock(tsk);
-+	active_mm = tsk->active_mm;
-+	atomic_inc(&mm->mm_count);
-+	tsk->mm = mm;
-+	tsk->active_mm = mm;
-+	switch_mm(active_mm, mm, tsk);
-+	task_unlock(tsk);
-+
-+	mmdrop(active_mm);
-+}
-+EXPORT_SYMBOL_GPL(use_mm);
-+
-+/*
-+ * unuse_mm
-+ *	Reverses the effect of use_mm, i.e. releases the
-+ *	specified mm context which was earlier taken on
-+ *	by the calling kernel thread
-+ *	(Note: this routine is intended to be called only
-+ *	from a kernel thread context)
-+ */
-+void unuse_mm(struct mm_struct *mm)
-+{
-+	struct task_struct *tsk = current;
-+
-+	task_lock(tsk);
-+	tsk->mm = NULL;
-+	/* active_mm is still 'mm' */
-+	enter_lazy_tlb(mm, tsk);
-+	task_unlock(tsk);
-+}
-+EXPORT_SYMBOL_GPL(unuse_mm);
--- 
-1.6.2.5
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
