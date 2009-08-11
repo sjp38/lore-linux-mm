@@ -1,256 +1,417 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 242686B004F
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 12:52:36 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7BGqW0J008112
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 22:22:32 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7BGqVbX1744910
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 22:22:32 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7BGqVi8028199
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 02:52:31 +1000
-Date: Tue, 11 Aug 2009 22:22:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: Help Resource Counters Scale better (v4)
-Message-ID: <20090811165210.GZ7176@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090811144405.GW7176@balbir.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090811144405.GW7176@balbir.in.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A57AB6B0055
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 13:34:19 -0400 (EDT)
+Date: Tue, 11 Aug 2009 11:31:39 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH 5/6] tracing, documentation: Add a document describing
+ how to do some performance analysis with tracepoints
+Message-ID: <20090811113139.20bc276e@bike.lwn.net>
+In-Reply-To: <1249918915-16061-6-git-send-email-mel@csn.ul.ie>
+References: <1249918915-16061-1-git-send-email-mel@csn.ul.ie>
+	<1249918915-16061-6-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "menage@google.com" <menage@google.com>, Prarit Bhargava <prarit@redhat.com>, andi.kleen@intel.com, Pavel Emelianov <xemul@openvz.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, Li Ming Chun <macli@brc.ubc.ca>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Balbir Singh <balbir@linux.vnet.ibm.com> [2009-08-11 20:14:05]:
+On Mon, 10 Aug 2009 16:41:54 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Here is a verion of the patch, with the checkpatch.pl warnings fixed.
-I forgot to refresh my changes :(
+> This patch adds a simple document intended to get someone started on the
+> different ways of using tracepoints to gather meaningful data.
 
+It's really good stuff.  Here's a few nits which maybe help to make it
+imperceptibly better...
 
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  Documentation/trace/tracepoint-analysis.txt |  327 +++++++++++++++++++++++++++
+>  1 files changed, 327 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/trace/tracepoint-analysis.txt
+> 
+> diff --git a/Documentation/trace/tracepoint-analysis.txt b/Documentation/trace/tracepoint-analysis.txt
+> new file mode 100644
+> index 0000000..e7a7d3e
+> --- /dev/null
+> +++ b/Documentation/trace/tracepoint-analysis.txt
+> @@ -0,0 +1,327 @@
+> +		Notes on Analysing Behaviour Using Events and Tracepoints
+> +
+> +			Documentation written by Mel Gorman
+> +		PCL information heavily based on email from Ingo Molnar
+> +
+> +1. Introduction
+> +===============
+> +
+> +Tracepoints (see Documentation/trace/tracepoints.txt) can be used without
+> +creating custom kernel modules to register probe functions using the event
+> +tracing infrastructure.
+> +
+> +Simplistically, tracepoints will represent an important event that when can
+> +be taken in conjunction with other tracepoints to build a "Big Picture" of
+> +what is going on within the system. There are a large number of methods for
+> +gathering and interpreting these events. Lacking any current Best Practises,
+> +this document describes some of the methods that can be used.
+> +
+> +This document assumes that debugfs is mounted on /sys/kernel/debug and that
+> +the appropriate tracing options have been configured into the kernel. It is
+> +assumed that the PCL tool tools/perf has been installed and is in your path.
 
-Enhancement: Remove the overhead of root based resource counter accounting
+I would bet it is worth mentioning what those are.  In particular, "perf"
+failed for me until I turned on CONFIG_EVENT_PROFILE - which isn't under
+the tracing options and which doesn't appear to have a help text.
 
-This patch reduces the resource counter overhead (mostly spinlock)
-associated with the root cgroup. This is a part of the several
-patches to reduce mem cgroup overhead. I had posted other
-approaches earlier (including using percpu counters). Those
-patches will be a natural addition and will be added iteratively
-on top of these.
+It might also be worth mentioning that "perf" is in tools/perf - it might
+be a bit before distributors ship it universally.
 
-The patch stops resource counter accounting for the root cgroup.
-The data for display is derived from the statisitcs we maintain
-via mem_cgroup_charge_statistics (which is more scalable).
+> +2. Listing Available Events
+> +===========================
+> +
+> +2.1 Standard Utilities
+> +----------------------
+> +
+> +All possible events are visible from /sys/kernel/debug/tracing/events. Simply
+> +calling
+> +
+> +  $ find /sys/kernel/debug/tracing/events -type d
+> +
+> +will give a fair indication of the number of events available.
+> +
+> +2.2 PCL
+> +-------
+> +
+> +Discovery and enumeration of all counters and events, including tracepoints
+> +are available with the perf tool. Getting a list of available events is a
+> +simple case of
+> +
+> +  $ perf list 2>&1 | grep Tracepoint
+> +  ext4:ext4_free_inode                     [Tracepoint event]
+> +  ext4:ext4_request_inode                  [Tracepoint event]
+> +  ext4:ext4_allocate_inode                 [Tracepoint event]
+> +  ext4:ext4_write_begin                    [Tracepoint event]
+> +  ext4:ext4_ordered_write_end              [Tracepoint event]
+> +  [ .... remaining output snipped .... ]
+> +
+> +
+> +2. Enabling Events
+> +==================
+> +
+> +2.1 System-Wide Event Enabling
+> +------------------------------
+> +
+> +See Documentation/trace/events.txt for a proper description on how events
+> +can be enabled system-wide. A short example of enabling all events related
+> +to page allocation would look something like
+> +
+> +  $ for i in `find /sys/kernel/debug/tracing/events -name "enable" | grep mm_`; do echo 1 > $i; done
 
-The tests results I see on a 24 way show that
+This appears not to be necessary if you're using "perf."  If you're doing
+something else (just catting out the events, say), you also need to set
+.../tracing/tracing_enabled.
 
-1. The lock contention disappears from /proc/lock_stats
-2. The results of the test are comparable to running with
-  cgroup_disable=memory.
+> +
+> +2.2 System-Wide Event Enabling with SystemTap
+> +---------------------------------------------
+> +
+> +In SystemTap, tracepoints are accessible using the kernel.trace() function
+> +call. The following is an example that reports every 5 seconds what processes
+> +were allocating the pages.
+> +
+> +  global page_allocs
+> +
+> +  probe kernel.trace("mm_page_alloc") {
+> +  	page_allocs[execname()]++
+> +  }
+> +
+> +  function print_count() {
+> +  	printf ("%-25s %-s\n", "#Pages Allocated", "Process Name")
+> +  	foreach (proc in page_allocs-)
+> +  		printf("%-25d %s\n", page_allocs[proc], proc)
+> +  	printf ("\n")
+> +  	delete page_allocs
+> +  }
+> +
+> +  probe timer.s(5) {
+> +          print_count()
+> +  }
+> +
+> +2.3 System-Wide Event Enabling with PCL
+> +---------------------------------------
+> +
+> +By specifying the -a switch and analysing sleep, the system-wide events
+> +for a duration of time can be examined.
+> +
+> + $ perf stat -a \
+> +	-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
+> +	-e kmem:mm_pagevec_free \
+> +	sleep 10
+> + Performance counter stats for 'sleep 10':
+> +
+> +           9630  kmem:mm_page_alloc      
+> +           2143  kmem:mm_page_free_direct
+> +           7424  kmem:mm_pagevec_free    
+> +
+> +   10.002577764  seconds time elapsed
+> +
+> +Similarly, one could execute a shell and exit it as desired to get a report
+> +at that point.
+> +
+> +2.4 Local Event Enabling
+> +------------------------
+> +
+> +Documentation/trace/ftrace.txt describes how to enable events on a per-thread
+> +basis using set_ftrace_pid.
+> +
+> +2.5 Local Event Enablement with PCL
+> +-----------------------------------
+> +
+> +Events can be activate and tracked for the duration of a process on a local
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+"activated"
 
- mm/memcontrol.c |   89 +++++++++++++++++++++++++++++++++++++++++++------------
- 1 files changed, 70 insertions(+), 19 deletions(-)
+> +basis using PCL such as follows.
+> +
+> +  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
+> +		 -e kmem:mm_pagevec_free ./hackbench 10
+> +  Time: 0.909
+> +
+> +    Performance counter stats for './hackbench 10':
+> +
+> +          17803  kmem:mm_page_alloc      
+> +          12398  kmem:mm_page_free_direct
+> +           4827  kmem:mm_pagevec_free    
+> +
+> +    0.973913387  seconds time elapsed
+> +
+> +3. Event Filtering
+> +==================
+> +
+> +Documentation/trace/ftrace.txt covers in-depth how to filter events in
+> +ftrace.  Obviously using grep and awk of trace_pipe is an option as well
+> +as any script reading trace_pipe.
+> +
+> +4. Analysing Event Variances with PCL
+> +=====================================
+> +
+> +Any workload can exhibit variances between runs and it can be important
+> +to know what the standard deviation in. By and large, this is left to the
 
+s/deviation in/deviation is/
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 48a38e1..4f51885 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -70,6 +70,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
- 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
- 	MEM_CGROUP_STAT_EVENTS,	/* sum of pagein + pageout for internal use */
-+	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
- 
- 	MEM_CGROUP_STAT_NSTATS,
- };
-@@ -478,6 +479,19 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
- 	return mz;
- }
- 
-+static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
-+					 bool charge)
-+{
-+	int val = (charge) ? 1 : -1;
-+	struct mem_cgroup_stat *stat = &mem->stat;
-+	struct mem_cgroup_stat_cpu *cpustat;
-+	int cpu = get_cpu();
-+
-+	cpustat = &stat->cpustat[cpu];
-+	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_SWAPOUT, val);
-+	put_cpu();
-+}
-+
- static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
- 					 struct page_cgroup *pc,
- 					 bool charge)
-@@ -1281,9 +1295,11 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	VM_BUG_ON(css_is_removed(&mem->css));
- 
- 	while (1) {
--		int ret;
-+		int ret = 0;
- 		unsigned long flags = 0;
- 
-+		if (mem_cgroup_is_root(mem))
-+			goto done;
- 		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res,
- 						&soft_fail_res);
- 		if (likely(!ret)) {
-@@ -1343,6 +1359,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 		if (mem_cgroup_soft_limit_check(mem_over_soft_limit))
- 			mem_cgroup_update_tree(mem_over_soft_limit, page);
- 	}
-+done:
- 	return 0;
- nomem:
- 	css_put(&mem->css);
-@@ -1415,9 +1432,12 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
--		if (do_swap_account)
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+		if (!mem_cgroup_is_root(mem)) {
-+			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
-+			if (do_swap_account)
-+				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
-+							NULL);
-+		}
- 		css_put(&mem->css);
- 		return;
- 	}
-@@ -1494,7 +1514,8 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
- 	if (pc->mem_cgroup != from)
- 		goto out;
- 
--	res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
-+	if (!mem_cgroup_is_root(from))
-+		res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
- 	mem_cgroup_charge_statistics(from, pc, false);
- 
- 	page = pc->page;
-@@ -1513,7 +1534,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
- 						1);
- 	}
- 
--	if (do_swap_account)
-+	if (do_swap_account && !mem_cgroup_is_root(from))
- 		res_counter_uncharge(&from->memsw, PAGE_SIZE, NULL);
- 	css_put(&from->css);
- 
-@@ -1584,9 +1605,11 @@ uncharge:
- 	/* drop extra refcnt by try_charge() */
- 	css_put(&parent->css);
- 	/* uncharge if move fails */
--	res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
--	if (do_swap_account)
--		res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
-+	if (!mem_cgroup_is_root(parent)) {
-+		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
-+		if (do_swap_account)
-+			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
-+	}
- 	return ret;
- }
- 
-@@ -1775,7 +1798,10 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
- 			 * This recorded memcg can be obsolete one. So, avoid
- 			 * calling css_tryget
- 			 */
--			res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
-+			if (!mem_cgroup_is_root(memcg))
-+				res_counter_uncharge(&memcg->memsw, PAGE_SIZE,
-+							NULL);
-+			mem_cgroup_swap_statistics(memcg, false);
- 			mem_cgroup_put(memcg);
- 		}
- 		rcu_read_unlock();
-@@ -1800,9 +1826,11 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
- 		return;
- 	if (!mem)
- 		return;
--	res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
--	if (do_swap_account)
--		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+	if (!mem_cgroup_is_root(mem)) {
-+		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
-+		if (do_swap_account)
-+			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+	}
- 	css_put(&mem->css);
- }
- 
-@@ -1855,9 +1883,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 		break;
- 	}
- 
--	res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
--	if (do_swap_account && (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
--		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+	if (!mem_cgroup_is_root(mem)) {
-+		res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
-+		if (do_swap_account &&
-+				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
-+			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+	}
-+	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT && mem_cgroup_is_root(mem))
-+		mem_cgroup_swap_statistics(mem, true);
- 	mem_cgroup_charge_statistics(mem, pc, false);
- 
- 	ClearPageCgroupUsed(pc);
-@@ -1948,7 +1981,9 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
- 		 * We uncharge this because swap is freed.
- 		 * This memcg can be obsolete one. We avoid calling css_tryget
- 		 */
--		res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
-+		if (!mem_cgroup_is_root(memcg))
-+			res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
-+		mem_cgroup_swap_statistics(memcg, false);
- 		mem_cgroup_put(memcg);
- 	}
- 	rcu_read_unlock();
-@@ -2461,10 +2496,26 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- 	name = MEMFILE_ATTR(cft->private);
- 	switch (type) {
- 	case _MEM:
--		val = res_counter_read_u64(&mem->res, name);
-+		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
-+			val = mem_cgroup_read_stat(&mem->stat,
-+					MEM_CGROUP_STAT_CACHE);
-+			val += mem_cgroup_read_stat(&mem->stat,
-+					MEM_CGROUP_STAT_RSS);
-+			val <<= PAGE_SHIFT;
-+		} else
-+			val = res_counter_read_u64(&mem->res, name);
- 		break;
- 	case _MEMSWAP:
--		val = res_counter_read_u64(&mem->memsw, name);
-+		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
-+			val = mem_cgroup_read_stat(&mem->stat,
-+					MEM_CGROUP_STAT_CACHE);
-+			val += mem_cgroup_read_stat(&mem->stat,
-+					MEM_CGROUP_STAT_RSS);
-+			val += mem_cgroup_read_stat(&mem->stat,
-+					MEM_CGROUP_STAT_SWAPOUT);
-+			val <<= PAGE_SHIFT;
-+		} else
-+			val = res_counter_read_u64(&mem->memsw, name);
- 		break;
- 	default:
- 		BUG();
+> +performance analyst to do it by hand. In the event that the discrete event
 
--- 
-	Balbir
+s/to do it/to do/
+
+> +occurrences are useful to the performance analyst, then perf can be used.
+> +
+> +  $ perf stat --repeat 5 -e kmem:mm_page_alloc -e kmem:mm_page_free_direct
+> +			-e kmem:mm_pagevec_free ./hackbench 10
+> +  Time: 0.890
+> +  Time: 0.895
+> +  Time: 0.915
+> +  Time: 1.001
+> +  Time: 0.899
+> +
+> +   Performance counter stats for './hackbench 10' (5 runs):
+> +
+> +          16630  kmem:mm_page_alloc         ( +-   3.542% )
+> +          11486  kmem:mm_page_free_direct   ( +-   4.771% )
+> +           4730  kmem:mm_pagevec_free       ( +-   2.325% )
+> +
+> +    0.982653002  seconds time elapsed   ( +-   1.448% )
+> +
+> +In the event that some higher-level event is required that depends on some
+> +aggregation of discrete events, then a script would need to be developed.
+> +
+> +Using --repeat, it is also possible to view how events are fluctuating over
+> +time on a system wide basis using -a and sleep.
+> +
+> +  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
+> +		-e kmem:mm_pagevec_free \
+> +		-a --repeat 10 \
+> +		sleep 1
+> +  Performance counter stats for 'sleep 1' (10 runs):
+> +
+> +           1066  kmem:mm_page_alloc         ( +-  26.148% )
+> +            182  kmem:mm_page_free_direct   ( +-   5.464% )
+> +            890  kmem:mm_pagevec_free       ( +-  30.079% )
+> +
+> +    1.002251757  seconds time elapsed   ( +-   0.005% )
+> +
+> +5. Higher-Level Analysis with Helper Scripts
+> +============================================
+> +
+> +When events are enabled the events that are triggering can be read from
+> +/sys/kernel/debug/tracing/trace_pipe in human-readable format although binary
+> +options exist as well. By post-processing the output, further information can
+> +be gathered on-line as appropriate. Examples of post-processing might include
+> +
+> +  o Reading information from /proc for the PID that triggered the event
+> +  o Deriving a higher-level event from a series of lower-level events.
+> +  o Calculate latencies between two events
+
+"Calculating" would match the tense of the first two items.
+
+> +
+> +Documentation/trace/postprocess/trace-pagealloc-postprocess.pl is an example
+
+I don't have that file in current git...?
+
+> +script that can read trace_pipe from STDIN or a copy of a trace. When used
+> +on-line, it can be interrupted once to generate a report without existing
+
+That's why I don't have it!  It can generate reports without
+existing! :)
+
+> +and twice to exit.
+> +
+> +Simplistically, the script just reads STDIN and counts up events but it
+> +also can do more such as
+> +
+> +  o Derive high-level events from many low-level events. If a number of pages
+> +    are freed to the main allocator from the per-CPU lists, it recognises
+> +    that as one per-CPU drain even though there is no specific tracepoint
+> +    for that event
+> +  o It can aggregate based on PID or individual process number
+
+A PID differs from an "individual process number" how?
+
+> +  o In the event memory is getting externally fragmented, it reports
+> +    on whether the fragmentation event was severe or moderate.
+> +  o When receiving an event about a PID, it can record who the parent was so
+> +    that if large numbers of events are coming from very short-lived
+> +    processes, the parent process responsible for creating all the helpers
+> +    can be identified
+> +
+> +6. Lower-Level Analysis with PCL
+> +================================
+> +
+> +There may also be a requirement to identify what functions with a program
+> +were generating events within the kernel. To begin this sort of analysis, the
+> +data must be recorded. At the time of writing, this required root
+
+It works happily without root on my -rc5++ system; I don't think I've
+tweaked anything to make that happen.
+
+> +
+> +  $ perf record -c 1 \
+> +	-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
+> +	-e kmem:mm_pagevec_free \
+> +	./hackbench 10
+> +  Time: 0.894
+> +  [ perf record: Captured and wrote 0.733 MB perf.data (~32010 samples) ]
+> +
+> +Note the use of '-c 1' to set the event period to sample. The default sample
+> +period is quite high to minimise overhead but the information collected can be
+> +very coarse as a result.
+
+What are the units for -c?
+
+> +
+> +This record outputted a file called perf.data which can be analysed using
+> +perf report.
+> +
+> +  $ perf report
+> +  # Samples: 30922
+> +  #
+> +  # Overhead    Command                     Shared Object
+> +  # ........  .........  ................................
+> +  #
+> +      87.27%  hackbench  [vdso]                          
+> +       6.85%  hackbench  /lib/i686/cmov/libc-2.9.so      
+> +       2.62%  hackbench  /lib/ld-2.9.so                  
+> +       1.52%       perf  [vdso]                          
+> +       1.22%  hackbench  ./hackbench                     
+> +       0.48%  hackbench  [kernel]                        
+> +       0.02%       perf  /lib/i686/cmov/libc-2.9.so      
+> +       0.01%       perf  /usr/bin/perf                   
+> +       0.01%       perf  /lib/ld-2.9.so                  
+> +       0.00%  hackbench  /lib/i686/cmov/libpthread-2.9.so
+> +  #
+> +  # (For more details, try: perf report --sort comm,dso,symbol)
+> +  #
+> +
+> +According to this, the vast majority of events occured triggered on events
+> +within the VDSO. With simple binaries, this will often be the case so lets
+> +take a slightly different example. In the course of writing this, it was
+> +noticed that X was generating an insane amount of page allocations so lets look
+> +at it
+> +
+> +  $ perf record -c 1 -f \
+> +		-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
+> +		-e kmem:mm_pagevec_free \
+> +		-p `pidof X`
+> +
+> +This was interrupted after a few seconds and
+> +
+> +  $ perf report
+> +  # Samples: 27666
+> +  #
+> +  # Overhead  Command                            Shared Object
+> +  # ........  .......  .......................................
+> +  #
+> +      51.95%     Xorg  [vdso]                                 
+> +      47.95%     Xorg  /opt/gfx-test/lib/libpixman-1.so.0.13.1
+> +       0.09%     Xorg  /lib/i686/cmov/libc-2.9.so             
+> +       0.01%     Xorg  [kernel]                               
+> +  #
+> +  # (For more details, try: perf report --sort comm,dso,symbol)
+> +  #
+> +
+> +So, almost half of the events are occuring in a library. To get an idea which
+> +symbol.
+> +
+> +  $ perf report --sort comm,dso,symbol
+> +  # Samples: 27666
+> +  #
+> +  # Overhead  Command                            Shared Object  Symbol
+> +  # ........  .......  .......................................  ......
+> +  #
+> +      51.95%     Xorg  [vdso]                                   [.] 0x000000ffffe424
+> +      47.93%     Xorg  /opt/gfx-test/lib/libpixman-1.so.0.13.1  [.] pixmanFillsse2
+> +       0.09%     Xorg  /lib/i686/cmov/libc-2.9.so               [.] _int_malloc
+> +       0.01%     Xorg  /opt/gfx-test/lib/libpixman-1.so.0.13.1  [.] pixman_region32_copy_f
+> +       0.01%     Xorg  [kernel]                                 [k] read_hpet
+> +       0.01%     Xorg  /opt/gfx-test/lib/libpixman-1.so.0.13.1  [.] get_fast_path
+> +       0.00%     Xorg  [kernel]                                 [k] ftrace_trace_userstack
+
+Worth mentioning that [k] marks kernel-space symbols?
+
+> +
+> +To see where within the function pixmanFillsse2 things are going wrong
+> +
+> +  $ perf annotate pixmanFillsse2
+> +  [ ... ]
+> +    0.00 :         34eeb:       0f 18 08                prefetcht0 (%eax)
+> +         :      }
+> +         :
+> +         :      extern __inline void __attribute__((__gnu_inline__, __always_inline__, _
+> +         :      _mm_store_si128 (__m128i *__P, __m128i __B) :      {
+> +         :        *__P = __B;
+> +   12.40 :         34eee:       66 0f 7f 80 40 ff ff    movdqa %xmm0,-0xc0(%eax)
+> +    0.00 :         34ef5:       ff 
+> +   12.40 :         34ef6:       66 0f 7f 80 50 ff ff    movdqa %xmm0,-0xb0(%eax)
+> +    0.00 :         34efd:       ff 
+> +   12.39 :         34efe:       66 0f 7f 80 60 ff ff    movdqa %xmm0,-0xa0(%eax)
+> +    0.00 :         34f05:       ff 
+> +   12.67 :         34f06:       66 0f 7f 80 70 ff ff    movdqa %xmm0,-0x90(%eax)
+> +    0.00 :         34f0d:       ff 
+> +   12.58 :         34f0e:       66 0f 7f 40 80          movdqa %xmm0,-0x80(%eax)
+> +   12.31 :         34f13:       66 0f 7f 40 90          movdqa %xmm0,-0x70(%eax)
+> +   12.40 :         34f18:       66 0f 7f 40 a0          movdqa %xmm0,-0x60(%eax)
+> +   12.31 :         34f1d:       66 0f 7f 40 b0          movdqa %xmm0,-0x50(%eax)
+> +
+> +At a glance, it looks like the time is being spent copying pixmaps to
+> +the card.  Further investigation would be needed to determine why pixmaps
+> +are being copied around so much but a starting point would be to take an
+> +ancient build of libpixmap out of the library path where it was totally
+> +forgotten about from months ago!
+
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
