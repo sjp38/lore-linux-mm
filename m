@@ -1,44 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8BCF96B005D
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 19:32:51 -0400 (EDT)
-Date: Wed, 12 Aug 2009 08:31:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/6] tracing, page-allocator: Add trace event for page traffic related to the buddy lists
-In-Reply-To: <1249918915-16061-4-git-send-email-mel@csn.ul.ie>
-References: <1249918915-16061-1-git-send-email-mel@csn.ul.ie> <1249918915-16061-4-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090811164030.9AE2.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5C26A6B004F
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 19:49:39 -0400 (EDT)
+Received: by qyk36 with SMTP id 36so3700182qyk.12
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2009 16:49:44 -0700 (PDT)
+Message-ID: <4A820391.1090404@gmail.com>
+Date: Tue, 11 Aug 2009 19:49:37 -0400
+From: Gregory Haskins <gregory.haskins@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
+References: <20090811212743.GA26309@redhat.com>
+In-Reply-To: <20090811212743.GA26309@redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enigA223C963729B04B1689E60E6"
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, Peter Zijlstra <peterz@infradead.org>, Li Ming Chun <macli@brc.ubc.ca>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com
 List-ID: <linux-mm.kvack.org>
 
-> The page allocation trace event reports that a page was successfully allocated
-> but it does not specify where it came from. When analysing performance,
-> it can be important to distinguish between pages coming from the per-cpu
-> allocator and pages coming from the buddy lists as the latter requires the
-> zone lock to the taken and more data structures to be examined.
-> 
-> This patch adds a trace event for __rmqueue reporting when a page is being
-> allocated from the buddy lists. It distinguishes between being called
-> to refill the per-cpu lists or whether it is a high-order allocation.
-> Similarly, this patch adds an event to catch when the PCP lists are being
-> drained a little and pages are going back to the buddy lists.
-> 
-> This is trickier to draw conclusions from but high activity on those
-> events could explain why there were a large number of cache misses on a
-> page-allocator-intensive workload. The coalescing and splitting of buddies
-> involves a lot of writing of page metadata and cache line bounces not to
-> mention the acquisition of an interrupt-safe lock necessary to enter this
-> path.
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigA223C963729B04B1689E60E6
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Looks good to me.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Michael S. Tsirkin wrote:
+> This implements vhost: a kernel-level backend for virtio,
+> The main motivation for this work is to reduce virtualization
+> overhead for virtio by removing system calls on data path,
+> without guest changes. For virtio-net, this removes up to
+> 4 system calls per packet: vm exit for kick, reentry for kick,
+> iothread wakeup for packet, interrupt injection for packet.
+>=20
+> Some more detailed description attached to the patch itself.
+>=20
+> The patches are against 2.6.31-rc4.  I'd like them to go into linux-nex=
+t
+> and down the road 2.6.32 if possible.  Please comment.
+
+I will add this series to my benchmark run in the next day or so.  Any
+specific instructions on how to set it up and run?
+
+Regards,
+-Greg
 
 
+--------------enigA223C963729B04B1689E60E6
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iEYEARECAAYFAkqCA5EACgkQP5K2CMvXmqHIvQCfYcoxCyKZvGg3C6EAOrpAEwIH
+JmkAnRmvb/eJZIoYNF9JHmDPGvTAdvT/
+=dirP
+-----END PGP SIGNATURE-----
+
+--------------enigA223C963729B04B1689E60E6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
