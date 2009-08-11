@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 200726B005A
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 11:14:21 -0400 (EDT)
-Message-ID: <4A818A39.3000201@redhat.com>
-Date: Tue, 11 Aug 2009 11:11:53 -0400
+	by kanga.kvack.org (Postfix) with SMTP id 321496B005C
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2009 11:17:26 -0400 (EDT)
+Message-ID: <4A818AF3.9050706@redhat.com>
+Date: Tue, 11 Aug 2009 11:14:59 -0400
 From: Prarit Bhargava <prarit@redhat.com>
 MIME-Version: 1.0
 Subject: Re: Help Resource Counters Scale better (v4)
-References: <20090811144405.GW7176@balbir.in.ibm.com> <4A81863A.2050504@redhat.com> <20090811150057.GY7176@balbir.in.ibm.com>
-In-Reply-To: <20090811150057.GY7176@balbir.in.ibm.com>
+References: <20090811144405.GW7176@balbir.in.ibm.com> <4A81863A.2050504@redhat.com>
+In-Reply-To: <4A81863A.2050504@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,17 +17,43 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroy
 List-ID: <linux-mm.kvack.org>
 
 
->>     
+
+Prarit Bhargava wrote:
 >
-> Without the patch and RESOURCE_COUNTERS do you see a big overhead. I'd
-> assume so, I am seeing it on my 24 way box that I have access to.
->   
+>
+> Balbir Singh wrote:
+>> Enhancement: Remove the overhead of root based resource counter 
+>> accounting
+>>
+>>
+>>   
+>
+> <snip>
+>> Please test/review.
+>>
+>>   
+> FWIW ...
+>
+> On a 64p/32G system running 2.6.31-git2-rc5, with RESOURCE_COUNTERS 
+> off, "time make -j64" results in
+>
+> real    4m54.972s
+> user    90m13.456s
+> sys     50m19.711s
+>
+> On the same system, running 2.6.31-git2-rc5, with RESOURCE_COUNTERS on,
+> plus Balbir's "Help Resource Counters Scale Better (v3)" patch, and 
+> this patch, results in
 
-I see a *huge* overhead:
+Oops, sorry Balbir. 
 
-real 27m8.988s
-user 87m24.916s
-sys 382m6.037s
+I meant to write:
+
+On the same system, running 2.6.31-git2-rc5, with RESOURCE_COUNTERS on, 
+plus Balbir's "Help Resource Counters Scale Better (v4)" patch results 
+in ...
+
+Sorry for the typo,
 
 P.
 
