@@ -1,82 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 14E816B005C
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:39:11 -0400 (EDT)
-Date: Wed, 12 Aug 2009 19:37:37 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
-Message-ID: <20090812163737.GA29903@redhat.com>
-References: <20090811212743.GA26309@redhat.com> <200908121452.01802.arnd@arndb.de> <20090812130612.GC29200@redhat.com> <200908121540.44928.arnd@arndb.de> <4A82C8F1.4030703@gmail.com> <20090812140224.GA29345@redhat.com> <4A82EA37.3010902@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0846B005A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 13:19:45 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7CHJj8I008186
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 22:49:45 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7CHJg6d1380550
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 22:49:44 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7CHJguT010295
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 03:19:42 +1000
+Date: Wed, 12 Aug 2009 22:49:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Help Resource Counters Scale better (v4.1)
+Message-ID: <20090812171940.GD5087@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090811144405.GW7176@balbir.in.ibm.com> <20090811163159.ddc5f5fd.akpm@linux-foundation.org> <20090812045716.GH7176@balbir.in.ibm.com> <49a88ef4a1ba9ec9426febe9e3633b89.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4A82EA37.3010902@gmail.com>
+In-Reply-To: <49a88ef4a1ba9ec9426febe9e3633b89.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, Patrick Mullaney <pmullaney@novell.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp, kosaki.motohiro@jp.fujitsu.com, menage@google.com, prarit@redhat.com, andi.kleen@intel.com, xemul@openvz.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 12:13:43PM -0400, Gregory Haskins wrote:
-> Michael S. Tsirkin wrote:
-> > On Wed, Aug 12, 2009 at 09:51:45AM -0400, Gregory Haskins wrote:
-> >> Arnd Bergmann wrote:
-> >>> On Wednesday 12 August 2009, Michael S. Tsirkin wrote:
-> >>>>> If I understand it correctly, you can at least connect a veth pair
-> >>>>> to a bridge, right? Something like
-> >>>>>
-> >>>>>            veth0 - veth1 - vhost - guest 1 
-> >>>>> eth0 - br0-|
-> >>>>>            veth2 - veth3 - vhost - guest 2
-> >>>>>            
-> >>>> Heh, you don't need a bridge in this picture:
-> >>>>
-> >>>> guest 1 - vhost - veth0 - veth1 - vhost guest 2
-> >>> Sure, but the setup I described is the one that I would expect
-> >>> to see in practice because it gives you external connectivity.
-> >>>
-> >>> Measuring two guests communicating over a veth pair is
-> >>> interesting for finding the bottlenecks, but of little
-> >>> practical relevance.
-> >>>
-> >>> 	Arnd <><
-> >> Yeah, this would be the config I would be interested in.
-> > 
-> > Hmm, this wouldn't be the config to use for the benchmark though: there
-> > are just too many variables.  If you want both guest to guest and guest
-> > to host, create 2 nics in the guest.
-> > 
-> > Here's one way to do this:
-> > 
-> > 	-net nic,model=virtio,vlan=0 -net user,vlan=0
-> > 	-net nic,vlan=1,model=virtio,vhost=veth0
-> > 	-redir tcp:8022::22
-> > 
-> > 	-net nic,model=virtio,vlan=0 -net user,vlan=0
-> > 	 -net nic,vlan=1,model=virtio,vhost=veth1
-> > 	-redir tcp:8023::22
-> > 
-> > In guests, for simplicity, configure eth1 and eth0
-> > to use separate subnets.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-13 01:28:57]:
+
+> Balbir Singh wrote:
+> > Hi, Andrew,
+> >
+> > Does this look better, could you please replace the older patch with
+> > this one.
+> >
+> > 1. I did a quick compile test
+> > 2. Ran scripts/checkpatch.pl
+> >
 > 
-> I can try to do a few variations, but what I am interested is in
-> performance in a real-world L2 configuration.  This would generally mean
->  all hosts (virtual or physical) in the same L2 domain.
+> In general, seems reasonable to me as quick hack for root cgroup.
+> thank you.
 > 
-> If I get a chance, though, I will try to also wire them up in isolation
-> as another data point.
-> 
-> Regards,
-> -Greg
-> 
+> Reviewed-by: KAMEAZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+
+Thanks, yes, we still need to do the percpu counter work, but this
+will give us breathing space to do it correctly and define strict and
+non-strict accounting.
+ 
+> Finally, we'll have to do some rework for light-weight res_counter.
+> But yes, it will take some amount of time.
+> My only concern is account leak, but, if some leak, it's current code's
+> bug, not this patch.
 > 
 
-Or patch macvlan to support guest to guest:
-http://markmail.org/message/sjy74g57qsvdo2wh
-That patch needs to be updated to support guest to guest multiast,
-but it seems functional enough for your purposes.
+Yeah.. we'll need to check for that.
+
+> And..hmm...I like following style other than open-coded.
+> ==
+> int mem_coutner_charge(struct mem_cgroup *mem)
+> {
+>       if (mem_cgroup_is_root(mem))
+>                return 0; // always success
+>       return res_counter_charge(....)
+> }
+> ==
+> But maybe nitpick.
+> 
+
+Yes, we can refactor for simplication, but we'll need some exceptions.
+I'll do that as an add-on patch.
+
+
 
 -- 
-MST
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
