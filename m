@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 82BDB6B0055
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:08:18 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e6.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7C9C85d016294
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:12:08 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7C98EA1225438
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:08:14 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7C98ESP011939
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:08:14 -0400
-Date: Wed, 12 Aug 2009 10:08:11 +0100
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: Re: [PATCH 2/3] Add MAP_LARGEPAGE for mmaping pseudo-anonymous
-	huge page regions
-Message-ID: <20090812090811.GA5404@us.ibm.com>
-References: <cover.1249999949.git.ebmunson@us.ibm.com> <2154e5ac91c7acd5505c5fc6c55665980cbc1bf8.1249999949.git.ebmunson@us.ibm.com> <a45eb555ca7d9e23e5eb051e27f757ae70a6b0c5.1249999949.git.ebmunson@us.ibm.com> <cfd18e0f0908112207y186d0aav6e0e55ce070778cf@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F11786B0055
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:39:50 -0400 (EDT)
+Date: Wed, 12 Aug 2009 17:39:35 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
+	migration aware file systems
+Message-ID: <20090812093935.GA2724@localhost>
+References: <20090805093643.E0C00B15D8@basil.firstfloor.org> <4A7FBFD1.2010208@hitachi.com> <20090810074421.GA6838@basil.fritz.box> <4A80EAA3.7040107@hitachi.com> <20090811071756.GC14368@basil.fritz.box> <20090812080540.GA32342@wotan.suse.de> <20090812082331.GD28848@basil.fritz.box> <20090812084613.GB32342@wotan.suse.de> <20090812085727.GE28848@basil.fritz.box> <20090812090518.GC32342@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="AhhlLboLdkugWU4S"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cfd18e0f0908112207y186d0aav6e0e55ce070778cf@mail.gmail.com>
+In-Reply-To: <20090812090518.GC32342@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: mtk.manpages@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>, "tytso@mit.edu" <tytso@mit.edu>, "hch@infradead.org" <hch@infradead.org>, "mfasheh@suse.com" <mfasheh@suse.com>, "aia21@cantab.net" <aia21@cantab.net>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "swhiteho@redhat.com" <swhiteho@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Aug 12, 2009 at 05:05:18PM +0800, Nick Piggin wrote:
+> On Wed, Aug 12, 2009 at 10:57:27AM +0200, Andi Kleen wrote:
+> > On Wed, Aug 12, 2009 at 10:46:13AM +0200, Nick Piggin wrote:
+> > > On Wed, Aug 12, 2009 at 10:23:31AM +0200, Andi Kleen wrote:
+> > > > > page corruption, IMO, because by definition they should be able to
+> > > > > tolerate panic. But if they do not know about this change to -EIO
+> > > > > semantics, then it is quite possible to cause problems.
+> > > > 
+> > > > There's no change really. You already have this problem with
+> > > > any metadata error, which can cause similar trouble.
+> > > > If the application handles those correctly it will also 
+> > > > handle hwpoison correctly.
+> > > 
+> > > What do you mean metadata error?
+> > 
+> > e.g. when there's an write error on the indirect block or any
+> > other fs metadata. This can also cause you to lose data. The error 
+> > reporting also works through the address space like with hwpoison,
+> > so it only gets reported once.
+> 
+> Well, this is also a filesystem issue, but anyway the data typically
+> does not get thrown out. So a subsequent fsync should be able to
+> retry.
 
---AhhlLboLdkugWU4S
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Right. In normal EIO, the data in page cache is still good and
+accessible.
 
-On Wed, 12 Aug 2009, Michael Kerrisk wrote:
+> But if the filesystem can't handle such errors and loses the original
+> data when there is an IO error in newly dirty metadata, then it's
+> a problem in the filesystem really isn't it?
 
-> Eric,
->=20
-> On Wed, Aug 12, 2009 at 12:13 AM, Eric B Munson<ebmunson@us.ibm.com> wrot=
-e:
-> > This patch adds a flag for mmap that will be used to request a huge
-> > page region that will look like anonymous memory to user space. =A0This
-> > is accomplished by using a file on the internal vfsmount. =A0MAP_LARGEP=
-AGE
-> > is a modifier of MAP_ANONYMOUS and so must be specified with it. =A0The
-> > region will behave the same as a MAP_ANONYMOUS region using small pages.
->=20
-> Does this flag provide functionality analogous to shmget(SHM_HUGETLB)?
-> If so, would iot not make sense to name it similarly (i.e.,
-> MAP_HUGETLB)?
->=20
-> Cheers,
->=20
-> Michael
->=20
-> --=20
-> Michael Kerrisk
-> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-> Watch my Linux system programming book progress to publication!
-> http://blog.man7.org/
->=20
+Right, and the fs should report EIO on future sync attempts as long as
+the problem sticks.
 
-I have no particular attachment to MAP_LARGEPAGE, I will make this chage fo=
-r V2.
+> > I'm not really against fixing that (make the error more sticky
+> > as Fengguang puts it), but I don't think it needs to be mixed
+> > with hwpoison.
+> 
+> I don't know if making it sticky realy "fixes" it. The problem is
+> different semantics of what EIO means. My example illustrates this.
 
---=20
-Eric B Munson
-IBM Linux Technology Center
-ebmunson@us.ibm.com
+Case 1: (re)sync on EIO: sticky EIO will help.
 
+Case 2: read out the data from page cache and rewrite it somewhere.
+Sticky EIO is not enough, because here the application assumes the
+dirty page is still accessible. In this case, patch
+http://lkml.org/lkml/2009/6/11/294 will help. It effectively freezes
+the radix tree, so that no new pages will be loaded to replace the 
+corrupted data and fake a 'good' one.
 
---AhhlLboLdkugWU4S
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAkqChnsACgkQsnv9E83jkzoGOwCgupx9EC5bYI7GrnwhMH8tcpVW
-sh4AoK6AAeN4exv9gK+V7d5Qu8+/TBeK
-=1Il2
------END PGP SIGNATURE-----
-
---AhhlLboLdkugWU4S--
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
