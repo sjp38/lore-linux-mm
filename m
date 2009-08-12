@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5EC986B005A
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:17:22 -0400 (EDT)
-Date: Wed, 12 Aug 2009 17:15:59 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv2 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090812141559.GA29387@redhat.com>
-References: <cover.1249992497.git.mst@redhat.com> <20090811212802.GC26309@redhat.com> <4A82076A.1060805@gmail.com> <20090812090219.GB26847@redhat.com> <4A82BD2F.7080405@gmail.com> <20090812132539.GD29200@redhat.com> <20090812141107.GD6833@linux.vnet.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C5ECF6B005A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:32:15 -0400 (EDT)
+Message-ID: <4A82D24D.6020402@redhat.com>
+Date: Wed, 12 Aug 2009 10:31:41 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090812141107.GD6833@linux.vnet.ibm.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost>
+In-Reply-To: <20090812074820.GA29631@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 07:11:07AM -0700, Paul E. McKenney wrote:
-> On Wed, Aug 12, 2009 at 04:25:40PM +0300, Michael S. Tsirkin wrote:
-> > On Wed, Aug 12, 2009 at 09:01:35AM -0400, Gregory Haskins wrote:
-> > > I think I understand what your comment above meant:  You don't need to
-> > > do synchronize_rcu() because you can flush the workqueue instead to
-> > > ensure that all readers have completed.
-> > 
-> > Yes.
-> > 
-> > >  But if thats true, to me, the
-> > > rcu_dereference itself is gratuitous,
-> > 
-> > Here's a thesis on what rcu_dereference does (besides documentation):
-> > 
-> > reader does this
-> > 
-> > 	A: sock = n->sock
-> > 	B: use *sock
-> > 
-> > Say writer does this:
-> > 
-> > 	C: newsock = allocate socket
-> > 	D: initialize(newsock)
-> > 	E: n->sock = newsock
-> > 	F: flush
-> > 
-> > 
-> > On Alpha, reads could be reordered.  So, on smp, command A could get
-> > data from point F, and command B - from point D (uninitialized, from
-> > cache).  IOW, you get fresh pointer but stale data.
-> > So we need to stick a barrier in there.
-> > 
-> > > and that pointer is *not* actually
-> > > RCU protected (nor does it need to be).
-> > 
-> > Heh, if readers are lockless and writer does init/update/sync,
-> > this to me spells rcu.
+Wu Fengguang wrote:
+> On Fri, Aug 07, 2009 at 11:17:22AM +0800, KOSAKI Motohiro wrote:
+>>> Andrea Arcangeli wrote:
+>>>
+>>>> Likely we need a cut-off point, if we detect it takes more than X
+>>>> seconds to scan the whole active list, we start ignoring young bits,
+>>> We could just make this depend on the calculated inactive_ratio,
+>>> which depends on the size of the list.
+>>>
+>>> For small systems, it may make sense to make every accessed bit
+>>> count, because the working set will often approach the size of
+>>> memory.
+>>>
+>>> On very large systems, the working set may also approach the
+>>> size of memory, but the inactive list only contains a small
+>>> percentage of the pages, so there is enough space for everything.
+>>>
+>>> Say, if the inactive_ratio is 3 or less, make the accessed bit
+>>> on the active lists count.
+>> Sound reasonable.
 > 
-> If you are using call_rcu(), synchronize_rcu(), or one of the
-> similar primitives, then you absolutely need rcu_read_lock() and
-> rcu_read_unlock(), or one of the similar pairs of primitives.
-
-Right. I don't use any of these though.
-
-> If you -don't- use rcu_read_lock(), then you are pretty much restricted
-> to adding data, but never removing it.
+> Yes, such kind of global measurements would be much better.
 > 
-> Make sense?  ;-)
+>> How do we confirm the idea correctness?
 > 
-> 							Thanx, Paul
+> In general the active list tends to grow large on under-scanned LRU.
+> I guess Rik is pretty familiar with typical inactive_ratio values of
+> the large memory systems and may even have some real numbers :)
+> 
+>> Wu, your X focus switching benchmark is sufficient test?
+> 
+> It is a major test case for memory tight desktop.  Jeff presents
+> another interesting one for KVM, hehe.
+> 
+> Anyway I collected the active/inactive list sizes, and the numbers
+> show that the inactive_ratio is roughly 1 when the LRU is scanned
+> actively and may go very high when it is under-scanned.
 
-Since I only access data from a workqueue, I replaced synchronize_rcu
-with workqueue flush. That's why I don't need rcu_read_lock.
+inactive_ratio is based on the zone (or cgroup) size.
+
+For zones it is a fixed value, which is available in
+/proc/zoneinfo
 
 -- 
-MST
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
