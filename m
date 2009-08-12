@@ -1,132 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 800696B004F
+	by kanga.kvack.org (Postfix) with ESMTP id C3B586B0055
 	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 04:32:13 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/5] mm: introduce page_lru_base_type()
-Date: Wed, 12 Aug 2009 10:32:06 +0200
-Message-Id: <1250065929-17392-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/5] mm: return boolean from page_is_file_cache()
+Date: Wed, 12 Aug 2009 10:32:07 +0200
+Message-Id: <1250065929-17392-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org>
 References: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Instead of abusing page_is_file_cache() for LRU list index arithmetic,
-add another helper with a more appropriate name and convert the
-non-boolean users of page_is_file_cache() accordingly.
+page_is_file_cache() has been used for both boolean checks and LRU
+arithmetic, which was always a bit weird.
 
-This new helper gives the LRU base type a page is supposed to live on,
-inactive anon or inactive file.
+Now that page_lru_base_type() exists for LRU arithmetic, make
+page_is_file_cache() a real predicate function and adjust the
+boolean-using callsites to drop those pesky double negations.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
 ---
- include/linux/mm_inline.h |   19 +++++++++++++++++--
- mm/swap.c                 |    4 ++--
- mm/vmscan.c               |    6 +++---
- 3 files changed, 22 insertions(+), 7 deletions(-)
-
-v2: renamed from page_lru_type() [thanks, Minchan]
+ include/linux/mm_inline.h |    8 ++------
+ mm/migrate.c              |    6 +++---
+ mm/swap.c                 |    2 +-
+ mm/vmscan.c               |    2 +-
+ 4 files changed, 7 insertions(+), 11 deletions(-)
 
 diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index 7fbb972..6c8118b 100644
+index 6c8118b..e72d8fb 100644
 --- a/include/linux/mm_inline.h
 +++ b/include/linux/mm_inline.h
-@@ -60,6 +60,21 @@ del_page_from_lru(struct zone *zone, struct page *page)
- }
- 
- /**
-+ * page_lru_base_type - which LRU list type should a page be on?
-+ * @page: the page to test
-+ *
-+ * Used for LRU list index arithmetic.
-+ *
-+ * Returns the base LRU type - file or anon - @page should be on.
-+ */
-+static enum lru_list page_lru_base_type(struct page *page)
-+{
-+	if (page_is_file_cache(page))
-+		return LRU_INACTIVE_FILE;
-+	return LRU_INACTIVE_ANON;
-+}
-+
-+/**
-  * page_lru - which LRU list should a page be on?
+@@ -5,7 +5,7 @@
+  * page_is_file_cache - should the page be on a file LRU or anon LRU?
   * @page: the page to test
   *
-@@ -68,14 +83,14 @@ del_page_from_lru(struct zone *zone, struct page *page)
+- * Returns LRU_FILE if @page is page cache page backed by a regular filesystem,
++ * Returns 1 if @page is page cache page backed by a regular filesystem,
+  * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
+  * Used by functions that manipulate the LRU lists, to sort a page
+  * onto the right LRU list.
+@@ -16,11 +16,7 @@
   */
- static inline enum lru_list page_lru(struct page *page)
+ static inline int page_is_file_cache(struct page *page)
  {
--	enum lru_list lru = LRU_BASE;
-+	enum lru_list lru;
+-	if (PageSwapBacked(page))
+-		return 0;
+-
+-	/* The page is page cache backed by a normal filesystem. */
+-	return LRU_FILE;
++	return !PageSwapBacked(page);
+ }
  
- 	if (PageUnevictable(page))
- 		lru = LRU_UNEVICTABLE;
- 	else {
-+		lru = page_lru_base_type(page);
- 		if (PageActive(page))
- 			lru += LRU_ACTIVE;
--		lru += page_is_file_cache(page);
+ static inline void
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b535a2c..e97e513 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -68,7 +68,7 @@ int putback_lru_pages(struct list_head *l)
+ 	list_for_each_entry_safe(page, page2, l, lru) {
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+-				    !!page_is_file_cache(page));
++				page_is_file_cache(page));
+ 		putback_lru_page(page);
+ 		count++;
+ 	}
+@@ -701,7 +701,7 @@ unlock:
+  		 */
+  		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+-				    !!page_is_file_cache(page));
++				page_is_file_cache(page));
+ 		putback_lru_page(page);
  	}
  
- 	return lru;
+@@ -751,7 +751,7 @@ int migrate_pages(struct list_head *from,
+ 	local_irq_save(flags);
+ 	list_for_each_entry(page, from, lru)
+ 		__inc_zone_page_state(page, NR_ISOLATED_ANON +
+-				      !!page_is_file_cache(page));
++				page_is_file_cache(page));
+ 	local_irq_restore(flags);
+ 
+ 	if (!swapwrite)
 diff --git a/mm/swap.c b/mm/swap.c
-index cb29ae5..168d53e 100644
+index 168d53e..4a8a59e 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -118,7 +118,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
- 			spin_lock(&zone->lru_lock);
- 		}
- 		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
--			int lru = page_is_file_cache(page);
-+			int lru = page_lru_base_type(page);
- 			list_move_tail(&page->lru, &zone->lru[lru].list);
- 			pgmoved++;
- 		}
-@@ -181,7 +181,7 @@ void activate_page(struct page *page)
- 	spin_lock_irq(&zone->lru_lock);
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
- 		int file = page_is_file_cache(page);
--		int lru = LRU_BASE + file;
-+		int lru = page_lru_base_type(page);
- 		del_page_from_lru_list(zone, page, lru);
+@@ -189,7 +189,7 @@ void activate_page(struct page *page)
+ 		add_page_to_lru_list(zone, page, lru);
+ 		__count_vm_event(PGACTIVATE);
  
- 		SetPageActive(page);
+-		update_page_reclaim_stat(zone, page, !!file, 1);
++		update_page_reclaim_stat(zone, page, file, 1);
+ 	}
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a4c298..679c729 100644
+index 679c729..b0f8fc2 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -531,7 +531,7 @@ redo:
- 		 * unevictable page on [in]active list.
- 		 * We know how to handle that.
- 		 */
--		lru = active + page_is_file_cache(page);
-+		lru = active + page_lru_base_type(page);
- 		lru_cache_add_lru(page, lru);
- 	} else {
- 		/*
-@@ -981,7 +981,7 @@ static unsigned long clear_active_flags(struct list_head *page_list,
- 	struct page *page;
+@@ -816,7 +816,7 @@ int __isolate_lru_page(struct page *page, int mode, int file)
+ 	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
+ 		return ret;
  
- 	list_for_each_entry(page, page_list, lru) {
--		lru = page_is_file_cache(page);
-+		lru = page_lru_base_type(page);
- 		if (PageActive(page)) {
- 			lru += LRU_ACTIVE;
- 			ClearPageActive(page);
-@@ -2690,7 +2690,7 @@ static void check_move_unevictable_page(struct page *page, struct zone *zone)
- retry:
- 	ClearPageUnevictable(page);
- 	if (page_evictable(page, NULL)) {
--		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
-+		enum lru_list l = page_lru_base_type(page);
+-	if (mode != ISOLATE_BOTH && (!page_is_file_cache(page) != !file))
++	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
+ 		return ret;
  
- 		__dec_zone_state(zone, NR_UNEVICTABLE);
- 		list_move(&page->lru, &zone->lru[l].list);
+ 	/*
 -- 
 1.6.4.13.ge6580
 
