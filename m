@@ -1,72 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A046B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 02:19:39 -0400 (EDT)
-Date: Wed, 12 Aug 2009 08:19:34 +0200
-From: Pierre Ossman <drzeus-list@drzeus.cx>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 811166B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 02:56:29 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
 Subject: Re: Page allocation failures in guest
-Message-ID: <20090812081934.33e8280f@mjolnir.ossman.eu>
-In-Reply-To: <200908121249.51973.rusty@rustcorp.com.au>
-References: <20090713115158.0a4892b0@mjolnir.ossman.eu>
-	<20090811083233.3b2be444@mjolnir.ossman.eu>
-	<4A811545.5090209@redhat.com>
-	<200908121249.51973.rusty@rustcorp.com.au>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.ossman.eu-3535-1250057980-0001-2"
+Date: Wed, 12 Aug 2009 16:26:30 +0930
+References: <20090713115158.0a4892b0@mjolnir.ossman.eu> <200908121501.53167.rusty@rustcorp.com.au> <4A825601.60000@redhat.com>
+In-Reply-To: <4A825601.60000@redhat.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200908121626.31531.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: Pierre Ossman <drzeus-list@drzeus.cx>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Wed, 12 Aug 2009 03:11:21 pm Avi Kivity wrote:
+> > +	/* In theory, this can happen: if we don't get any buffers in
+> > +	 * we will*never*  try to fill again.  Sleeping in keventd if
+> > +	 * bad, but that is worse. */
+> > +	if (still_empty) {
+> > +		msleep(100);
+> > +		schedule_work(&vi->refill);
+> > +	}
+> > +}
+> > + 
+> 
+> schedule_delayed_work()?
 
---=_freyr.ossman.eu-3535-1250057980-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Hmm, might as well, although this is v. unlikely to happen.
 
-On Wed, 12 Aug 2009 12:49:51 +0930
-Rusty Russell <rusty@rustcorp.com.au> wrote:
+Thanks,
+Rusty.
 
->=20
-> It's kind of the nature of networking devices :(
->=20
-> I'd say your host now offers GSO features, so the guest allocates big
-> packets.
->=20
-> > > I doesn't get out of it though, or at least the virtio net driver
-> > > wedges itself.
->=20
-> There's a fixme to retry when this happens, but this is the first report
-> I've received.  I'll check it out.
->=20
-
-Will it still trigger the OOM killer with this patch, or will things
-behave slightly more gracefully?
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.ossman.eu-3535-1250057980-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkqCXvsACgkQ7b8eESbyJLj8dwCgyJNVA/HvKHZRcWTNV2HHSoHc
-obUAoPCiGgEIC8eYz09sJwwz0c741bns
-=xvSg
------END PGP SIGNATURE-----
-
---=_freyr.ossman.eu-3535-1250057980-0001-2--
+diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
+--- a/drivers/net/virtio_net.c
++++ b/drivers/net/virtio_net.c
+@@ -72,7 +72,7 @@ struct virtnet_info
+ 	struct sk_buff_head send;
+ 
+ 	/* Work struct for refilling if we run low on memory. */
+-	struct work_struct refill;
++	struct delayed_work refill;
+ 	
+ 	/* Chain pages by the private ptr. */
+ 	struct page *pages;
+@@ -402,19 +402,16 @@ static void refill_work(struct work_stru
+ 	struct virtnet_info *vi;
+ 	bool still_empty;
+ 
+-	vi = container_of(work, struct virtnet_info, refill);
++	vi = container_of(work, struct virtnet_info, refill.work);
+ 	napi_disable(&vi->napi);
+ 	try_fill_recv(vi, GFP_KERNEL);
+ 	still_empty = (vi->num == 0);
+ 	napi_enable(&vi->napi);
+ 
+ 	/* In theory, this can happen: if we don't get any buffers in
+-	 * we will *never* try to fill again.  Sleeping in keventd if
+-	 * bad, but that is worse. */
+-	if (still_empty) {
+-		msleep(100);
+-		schedule_work(&vi->refill);
+-	}
++	 * we will *never* try to fill again. */
++	if (still_empty)
++		schedule_delayed_work(&vi->refill, HZ/2);
+ }
+ 
+ static int virtnet_poll(struct napi_struct *napi, int budget)
+@@ -434,7 +431,7 @@ again:
+ 
+ 	if (vi->num < vi->max / 2) {
+ 		if (!try_fill_recv(vi, GFP_ATOMIC))
+-			schedule_work(&vi->refill);
++			schedule_delayed_work(&vi->refill, 0);
+ 	}
+ 
+ 	/* Out of packets? */
+@@ -925,7 +922,7 @@ static int virtnet_probe(struct virtio_d
+ 	vi->vdev = vdev;
+ 	vdev->priv = vi;
+ 	vi->pages = NULL;
+-	INIT_WORK(&vi->refill, refill_work);
++	INIT_DELAYED_WORK(&vi->refill, refill_work);
+ 
+ 	/* If they give us a callback when all buffers are done, we don't need
+ 	 * the timer. */
+@@ -991,7 +988,7 @@ static int virtnet_probe(struct virtio_d
+ 
+ unregister:
+ 	unregister_netdev(dev);
+-	cancel_work_sync(&vi->refill);
++	cancel_delayed_work_sync(&vi->refill);
+ free_vqs:
+ 	vdev->config->del_vqs(vdev);
+ free:
+@@ -1020,7 +1017,7 @@ static void virtnet_remove(struct virtio
+ 	BUG_ON(vi->num != 0);
+ 
+ 	unregister_netdev(vi->dev);
+-	cancel_work_sync(&vi->refill);
++	cancel_delayed_work_sync(&vi->refill);
+ 
+ 	vdev->config->del_vqs(vi->vdev);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
