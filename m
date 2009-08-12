@@ -1,43 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A47206B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 04:36:02 -0400 (EDT)
-Message-ID: <4A827EE9.7090102@redhat.com>
-Date: Wed, 12 Aug 2009 11:35:53 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Page allocation failures in guest
-References: <20090713115158.0a4892b0@mjolnir.ossman.eu>	<20090811083233.3b2be444@mjolnir.ossman.eu>	<4A811545.5090209@redhat.com>	<200908121249.51973.rusty@rustcorp.com.au>	<20090812081934.33e8280f@mjolnir.ossman.eu>	<4A8272B2.3030309@redhat.com> <20090812102225.5a2e2305@mjolnir.ossman.eu>
-In-Reply-To: <20090812102225.5a2e2305@mjolnir.ossman.eu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DAE036B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 04:46:13 -0400 (EDT)
+Date: Wed, 12 Aug 2009 10:46:13 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for migration aware file systems
+Message-ID: <20090812084613.GB32342@wotan.suse.de>
+References: <200908051136.682859934@firstfloor.org> <20090805093643.E0C00B15D8@basil.firstfloor.org> <4A7FBFD1.2010208@hitachi.com> <20090810074421.GA6838@basil.fritz.box> <4A80EAA3.7040107@hitachi.com> <20090811071756.GC14368@basil.fritz.box> <20090812080540.GA32342@wotan.suse.de> <20090812082331.GD28848@basil.fritz.box>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090812082331.GD28848@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus-list@drzeus.cx>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>, tytso@mit.edu, hch@infradead.org, mfasheh@suse.com, aia21@cantab.net, hugh.dickins@tiscali.co.uk, swhiteho@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On 08/12/2009 11:22 AM, Pierre Ossman wrote:
->>
->>> Will it still trigger the OOM killer with this patch, or will things
->>> behave slightly more gracefully?
->>>
->>>        
->> I don't think you mentioned the OOM killer in your original report?  Did
->> it trigger?
->>
->>      
->
-> I might have things backwards here, but I though the OOM killer started
-> doing its dirty business once you got that memory allocation failure
-> dump.
->    
+On Wed, Aug 12, 2009 at 10:23:31AM +0200, Andi Kleen wrote:
+> > page corruption, IMO, because by definition they should be able to
+> > tolerate panic. But if they do not know about this change to -EIO
+> > semantics, then it is quite possible to cause problems.
+> 
+> There's no change really. You already have this problem with
+> any metadata error, which can cause similar trouble.
+> If the application handles those correctly it will also 
+> handle hwpoison correctly.
 
-I don't think the oom killer should trigger on GFP_ATOMIC failures, but 
-don't know for sure.  If you don't have a trace saying it picked a task 
-to kill, it probably didn't.
+What do you mean metadata error?
 
--- 
-error compiling committee.c: too many arguments to function
+To be clear, we're talking about safety given by a panic on any
+memory error, versus safety of this hwpoison code (specifically
+which removes dirty pagecache pages as -EIO).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
