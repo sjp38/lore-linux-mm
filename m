@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id F11786B0055
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:39:50 -0400 (EDT)
-Date: Wed, 12 Aug 2009 17:39:35 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for
-	migration aware file systems
-Message-ID: <20090812093935.GA2724@localhost>
-References: <20090805093643.E0C00B15D8@basil.firstfloor.org> <4A7FBFD1.2010208@hitachi.com> <20090810074421.GA6838@basil.fritz.box> <4A80EAA3.7040107@hitachi.com> <20090811071756.GC14368@basil.fritz.box> <20090812080540.GA32342@wotan.suse.de> <20090812082331.GD28848@basil.fritz.box> <20090812084613.GB32342@wotan.suse.de> <20090812085727.GE28848@basil.fritz.box> <20090812090518.GC32342@wotan.suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DE6686B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 05:52:14 -0400 (EDT)
+Received: from mlsv1.hitachi.co.jp (unknown [133.144.234.166])
+	by mail4.hitachi.co.jp (Postfix) with ESMTP id A301833CC6
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 18:52:19 +0900 (JST)
+Message-ID: <4A8290CE.7000904@hitachi.com>
+Date: Wed, 12 Aug 2009 18:52:14 +0900
+From: Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090812090518.GC32342@wotan.suse.de>
+Subject: Re: [PATCH] [16/19] HWPOISON: Enable .remove_error_page for migration
+    aware file systems
+References: <200908051136.682859934@firstfloor.org>
+    <20090805093643.E0C00B15D8@basil.firstfloor.org>
+    <4A7FBFD1.2010208@hitachi.com> <20090810074421.GA6838@basil.fritz.box>
+    <4A80EAA3.7040107@hitachi.com> <20090811071756.GC14368@basil.fritz.box>
+    <4A822DD4.1050202@hitachi.com> <20090812074611.GC28848@basil.fritz.box>
+In-Reply-To: <20090812074611.GC28848@basil.fritz.box>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Hidehiro Kawai <hidehiro.kawai.ez@hitachi.com>, "tytso@mit.edu" <tytso@mit.edu>, "hch@infradead.org" <hch@infradead.org>, "mfasheh@suse.com" <mfasheh@suse.com>, "aia21@cantab.net" <aia21@cantab.net>, "hugh.dickins@tiscali.co.uk" <hugh.dickins@tiscali.co.uk>, "swhiteho@redhat.com" <swhiteho@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: tytso@mit.edu, hch@infradead.org, mfasheh@suse.com, aia21@cantab.net, hugh.dickins@tiscali.co.uk, swhiteho@redhat.com, akpm@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, Satoshi OSHIMA <satoshi.oshima.fk@hitachi.com>, Taketoshi Sakuraba <taketoshi.sakuraba.hc@hitachi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 05:05:18PM +0800, Nick Piggin wrote:
-> On Wed, Aug 12, 2009 at 10:57:27AM +0200, Andi Kleen wrote:
-> > On Wed, Aug 12, 2009 at 10:46:13AM +0200, Nick Piggin wrote:
-> > > On Wed, Aug 12, 2009 at 10:23:31AM +0200, Andi Kleen wrote:
-> > > > > page corruption, IMO, because by definition they should be able to
-> > > > > tolerate panic. But if they do not know about this change to -EIO
-> > > > > semantics, then it is quite possible to cause problems.
-> > > > 
-> > > > There's no change really. You already have this problem with
-> > > > any metadata error, which can cause similar trouble.
-> > > > If the application handles those correctly it will also 
-> > > > handle hwpoison correctly.
-> > > 
-> > > What do you mean metadata error?
-> > 
-> > e.g. when there's an write error on the indirect block or any
-> > other fs metadata. This can also cause you to lose data. The error 
-> > reporting also works through the address space like with hwpoison,
-> > so it only gets reported once.
+Andi Kleen wrote:
+
+>>Generally, dropping unwritten dirty page caches is considered to be
+>>risky.  So the "panic on IO error" policy has been used as usual
+>>practice for some systems.  I just suggested that we adopted
+>>this policy into machine check errors. 
 > 
-> Well, this is also a filesystem issue, but anyway the data typically
-> does not get thrown out. So a subsequent fsync should be able to
-> retry.
+> Hmm, what we could possibly do -- as followon patches -- would be to
+> let error_remove_page check the per file system panic-on-io-error
+> super block setting for dirty pages and panic in this case too.  
+> Unfortunately this setting is currently per file system, not generic,
+> so it would need to be a fs specific check (or the flag would need
+> to be moved into a generic fs superblock field first)
 
-Right. In normal EIO, the data in page cache is still good and
-accessible.
+A generic setting would be better, so I suggested
+panic_on_dirty_page_cache_corruption flag which would be checked
+before invoking error_remove_page().  If we check per-filesystem
+settings, we might want to notify EIO to the filesystem.
+ 
+> I think that would be relatively clean semantics wise. Would you be 
+> interested in working on patches for that? 
 
-> But if the filesystem can't handle such errors and loses the original
-> data when there is an IO error in newly dirty metadata, then it's
-> a problem in the filesystem really isn't it?
+Yes. :-)
+I will work on this as soon as I come back from summer vacation.
 
-Right, and the fs should report EIO on future sync attempts as long as
-the problem sticks.
-
-> > I'm not really against fixing that (make the error more sticky
-> > as Fengguang puts it), but I don't think it needs to be mixed
-> > with hwpoison.
+>>Another option is to introduce "ignore all" policy instead of
+>>panicking at the beginig of memory_failure().  Perhaps it finally
+>>causes SRAR machine check, and then kernel will panic or a process
+>>will be killed.  Anyway, this is a topic for the next stage.
 > 
-> I don't know if making it sticky realy "fixes" it. The problem is
-> different semantics of what EIO means. My example illustrates this.
+> The problem is memory_failure() would then need to start distingushing
+> between AR=1 and AR=0 which it doesn't today.
+> 
+> It could be done, but would need some more work. 
 
-Case 1: (re)sync on EIO: sticky EIO will help.
-
-Case 2: read out the data from page cache and rewrite it somewhere.
-Sticky EIO is not enough, because here the application assumes the
-dirty page is still accessible. In this case, patch
-http://lkml.org/lkml/2009/6/11/294 will help. It effectively freezes
-the radix tree, so that no new pages will be loaded to replace the 
-corrupted data and fake a 'good' one.
-
+It's my understanding that memory_failure() are never called in
+AR=1 case.  Is it wrong?
+ 
 Thanks,
-Fengguang
+-- 
+Hidehiro Kawai
+Hitachi, Systems Development Laboratory
+Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
