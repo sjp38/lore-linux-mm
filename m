@@ -1,113 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 811166B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 02:56:29 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: Page allocation failures in guest
-Date: Wed, 12 Aug 2009 16:26:30 +0930
-References: <20090713115158.0a4892b0@mjolnir.ossman.eu> <200908121501.53167.rusty@rustcorp.com.au> <4A825601.60000@redhat.com>
-In-Reply-To: <4A825601.60000@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DDB6C6B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 03:17:54 -0400 (EDT)
+Date: Wed, 12 Aug 2009 10:16:36 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
+Message-ID: <20090812071636.GA26847@redhat.com>
+References: <20090811212743.GA26309@redhat.com> <4A820391.1090404@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200908121626.31531.rusty@rustcorp.com.au>
+In-Reply-To: <4A820391.1090404@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Pierre Ossman <drzeus-list@drzeus.cx>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Aug 2009 03:11:21 pm Avi Kivity wrote:
-> > +	/* In theory, this can happen: if we don't get any buffers in
-> > +	 * we will*never*  try to fill again.  Sleeping in keventd if
-> > +	 * bad, but that is worse. */
-> > +	if (still_empty) {
-> > +		msleep(100);
-> > +		schedule_work(&vi->refill);
-> > +	}
-> > +}
-> > + 
+On Tue, Aug 11, 2009 at 07:49:37PM -0400, Gregory Haskins wrote:
+> Michael S. Tsirkin wrote:
+> > This implements vhost: a kernel-level backend for virtio,
+> > The main motivation for this work is to reduce virtualization
+> > overhead for virtio by removing system calls on data path,
+> > without guest changes. For virtio-net, this removes up to
+> > 4 system calls per packet: vm exit for kick, reentry for kick,
+> > iothread wakeup for packet, interrupt injection for packet.
+> > 
+> > Some more detailed description attached to the patch itself.
+> > 
+> > The patches are against 2.6.31-rc4.  I'd like them to go into linux-next
+> > and down the road 2.6.32 if possible.  Please comment.
 > 
-> schedule_delayed_work()?
+> I will add this series to my benchmark run in the next day or so.  Any
+> specific instructions on how to set it up and run?
+> 
+> Regards,
+> -Greg
+> 
 
-Hmm, might as well, although this is v. unlikely to happen.
+1. use a dedicated network interface with SRIOV, program mac to match
+   that of guest (for testing, you can set promisc mode, but that is
+   bad for performance)
+2. disable tso,gso,lro with ethtool
+3. add vhost=ethX
 
-Thanks,
-Rusty.
-
-diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
---- a/drivers/net/virtio_net.c
-+++ b/drivers/net/virtio_net.c
-@@ -72,7 +72,7 @@ struct virtnet_info
- 	struct sk_buff_head send;
- 
- 	/* Work struct for refilling if we run low on memory. */
--	struct work_struct refill;
-+	struct delayed_work refill;
- 	
- 	/* Chain pages by the private ptr. */
- 	struct page *pages;
-@@ -402,19 +402,16 @@ static void refill_work(struct work_stru
- 	struct virtnet_info *vi;
- 	bool still_empty;
- 
--	vi = container_of(work, struct virtnet_info, refill);
-+	vi = container_of(work, struct virtnet_info, refill.work);
- 	napi_disable(&vi->napi);
- 	try_fill_recv(vi, GFP_KERNEL);
- 	still_empty = (vi->num == 0);
- 	napi_enable(&vi->napi);
- 
- 	/* In theory, this can happen: if we don't get any buffers in
--	 * we will *never* try to fill again.  Sleeping in keventd if
--	 * bad, but that is worse. */
--	if (still_empty) {
--		msleep(100);
--		schedule_work(&vi->refill);
--	}
-+	 * we will *never* try to fill again. */
-+	if (still_empty)
-+		schedule_delayed_work(&vi->refill, HZ/2);
- }
- 
- static int virtnet_poll(struct napi_struct *napi, int budget)
-@@ -434,7 +431,7 @@ again:
- 
- 	if (vi->num < vi->max / 2) {
- 		if (!try_fill_recv(vi, GFP_ATOMIC))
--			schedule_work(&vi->refill);
-+			schedule_delayed_work(&vi->refill, 0);
- 	}
- 
- 	/* Out of packets? */
-@@ -925,7 +922,7 @@ static int virtnet_probe(struct virtio_d
- 	vi->vdev = vdev;
- 	vdev->priv = vi;
- 	vi->pages = NULL;
--	INIT_WORK(&vi->refill, refill_work);
-+	INIT_DELAYED_WORK(&vi->refill, refill_work);
- 
- 	/* If they give us a callback when all buffers are done, we don't need
- 	 * the timer. */
-@@ -991,7 +988,7 @@ static int virtnet_probe(struct virtio_d
- 
- unregister:
- 	unregister_netdev(dev);
--	cancel_work_sync(&vi->refill);
-+	cancel_delayed_work_sync(&vi->refill);
- free_vqs:
- 	vdev->config->del_vqs(vdev);
- free:
-@@ -1020,7 +1017,7 @@ static void virtnet_remove(struct virtio
- 	BUG_ON(vi->num != 0);
- 
- 	unregister_netdev(vi->dev);
--	cancel_work_sync(&vi->refill);
-+	cancel_delayed_work_sync(&vi->refill);
- 
- 	vdev->config->del_vqs(vi->vdev);
- 
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
