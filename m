@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8CBE66B005A
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:57:22 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CD1476B0062
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:58:17 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id CCFE682CD41
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:19:28 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3DF6B82CD47
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:20:25 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id Y6+50E1HLwyE for <linux-mm@kvack.org>;
-	Wed, 12 Aug 2009 10:19:24 -0400 (EDT)
+	with ESMTP id zy4RW91bCYn9 for <linux-mm@kvack.org>;
+	Wed, 12 Aug 2009 10:20:20 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 5AC4A82CD3E
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:19:18 -0400 (EDT)
-Date: Wed, 12 Aug 2009 09:57:04 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id F21C782CD48
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:20:15 -0400 (EDT)
+Date: Wed, 12 Aug 2009 09:58:16 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 4/5] mm: return boolean from page_has_private()
-In-Reply-To: <1250065929-17392-4-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.DEB.1.10.0908120956480.19896@gentwo.org>
-References: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org> <1250065929-17392-4-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 5/5] mm: document is_page_cache_freeable()
+In-Reply-To: <1250065929-17392-5-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.1.10.0908120957510.19896@gentwo.org>
+References: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org> <1250065929-17392-5-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,7 +27,6 @@ List-ID: <linux-mm.kvack.org>
 
 
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
