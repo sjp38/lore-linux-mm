@@ -1,50 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C80216B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 01:07:47 -0400 (EDT)
-Received: by ey-out-1920.google.com with SMTP id 13so1404397eye.44
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2009 22:07:48 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EC6F6B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 01:32:00 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: Page allocation failures in guest
+Date: Wed, 12 Aug 2009 15:01:52 +0930
+References: <20090713115158.0a4892b0@mjolnir.ossman.eu> <4A811545.5090209@redhat.com> <200908121249.51973.rusty@rustcorp.com.au>
+In-Reply-To: <200908121249.51973.rusty@rustcorp.com.au>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <a45eb555ca7d9e23e5eb051e27f757ae70a6b0c5.1249999949.git.ebmunson@us.ibm.com>
-References: <cover.1249999949.git.ebmunson@us.ibm.com>
-	 <2154e5ac91c7acd5505c5fc6c55665980cbc1bf8.1249999949.git.ebmunson@us.ibm.com>
-	 <a45eb555ca7d9e23e5eb051e27f757ae70a6b0c5.1249999949.git.ebmunson@us.ibm.com>
-Date: Wed, 12 Aug 2009 07:07:48 +0200
-Message-ID: <cfd18e0f0908112207y186d0aav6e0e55ce070778cf@mail.gmail.com>
-Subject: Re: [PATCH 2/3] Add MAP_LARGEPAGE for mmaping pseudo-anonymous huge
-	page regions
-From: Michael Kerrisk <mtk.manpages@googlemail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200908121501.53167.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <ebmunson@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Pierre Ossman <drzeus-list@drzeus.cx>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Eric,
+On Wed, 12 Aug 2009 12:49:51 pm Rusty Russell wrote:
+> On Tue, 11 Aug 2009 04:22:53 pm Avi Kivity wrote:
+> > On 08/11/2009 09:32 AM, Pierre Ossman wrote:
+> > > I doesn't get out of it though, or at least the virtio net driver
+> > > wedges itself.
+> 
+> There's a fixme to retry when this happens, but this is the first report
+> I've received.  I'll check it out.
 
-On Wed, Aug 12, 2009 at 12:13 AM, Eric B Munson<ebmunson@us.ibm.com> wrote:
-> This patch adds a flag for mmap that will be used to request a huge
-> page region that will look like anonymous memory to user space. =A0This
-> is accomplished by using a file on the internal vfsmount. =A0MAP_LARGEPAG=
-E
-> is a modifier of MAP_ANONYMOUS and so must be specified with it. =A0The
-> region will behave the same as a MAP_ANONYMOUS region using small pages.
+Subject: virtio: net refill on out-of-memory
 
-Does this flag provide functionality analogous to shmget(SHM_HUGETLB)?
-If so, would iot not make sense to name it similarly (i.e.,
-MAP_HUGETLB)?
+If we run out of memory, use keventd to fill the buffer.  There's a
+report of this happening: "Page allocation failures in guest",
+Message-ID: <20090713115158.0a4892b0@mjolnir.ossman.eu>
 
-Cheers,
+Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
 
-Michael
-
---=20
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Watch my Linux system programming book progress to publication!
-http://blog.man7.org/
+diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
+--- a/drivers/net/virtio_net.c
++++ b/drivers/net/virtio_net.c
+@@ -71,6 +71,9 @@ struct virtnet_info
+ 	struct sk_buff_head recv;
+ 	struct sk_buff_head send;
+ 
++	/* Work struct for refilling if we run low on memory. */
++	struct work_struct refill;
++	
+ 	/* Chain pages by the private ptr. */
+ 	struct page *pages;
+ };
+@@ -274,19 +277,22 @@ drop:
+ 	dev_kfree_skb(skb);
+ }
+ 
+-static void try_fill_recv_maxbufs(struct virtnet_info *vi)
++static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
+ {
+ 	struct sk_buff *skb;
+ 	struct scatterlist sg[2+MAX_SKB_FRAGS];
+ 	int num, err, i;
++	bool oom = false;
+ 
+ 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
+ 	for (;;) {
+ 		struct virtio_net_hdr *hdr;
+ 
+ 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
+-		if (unlikely(!skb))
++		if (unlikely(!skb)) {
++			oom = true;
+ 			break;
++		}
+ 
+ 		skb_reserve(skb, NET_IP_ALIGN);
+ 		skb_put(skb, MAX_PACKET_LEN);
+@@ -297,7 +303,7 @@ static void try_fill_recv_maxbufs(struct
+ 		if (vi->big_packets) {
+ 			for (i = 0; i < MAX_SKB_FRAGS; i++) {
+ 				skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+-				f->page = get_a_page(vi, GFP_ATOMIC);
++				f->page = get_a_page(vi, gfp);
+ 				if (!f->page)
+ 					break;
+ 
+@@ -326,31 +332,35 @@ static void try_fill_recv_maxbufs(struct
+ 	if (unlikely(vi->num > vi->max))
+ 		vi->max = vi->num;
+ 	vi->rvq->vq_ops->kick(vi->rvq);
++	return !oom;
+ }
+ 
+-static void try_fill_recv(struct virtnet_info *vi)
++/* Returns false if we couldn't fill entirely (OOM). */
++static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
+ {
+ 	struct sk_buff *skb;
+ 	struct scatterlist sg[1];
+ 	int err;
++	bool oom = false;
+ 
+-	if (!vi->mergeable_rx_bufs) {
+-		try_fill_recv_maxbufs(vi);
+-		return;
+-	}
++	if (!vi->mergeable_rx_bufs)
++		return try_fill_recv_maxbufs(vi, gfp);
+ 
+ 	for (;;) {
+ 		skb_frag_t *f;
+ 
+ 		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
+-		if (unlikely(!skb))
++		if (unlikely(!skb)) {
++			oom = true;
+ 			break;
++		}
+ 
+ 		skb_reserve(skb, NET_IP_ALIGN);
+ 
+ 		f = &skb_shinfo(skb)->frags[0];
+-		f->page = get_a_page(vi, GFP_ATOMIC);
++		f->page = get_a_page(vi, gfp);
+ 		if (!f->page) {
++			oom = true;
+ 			kfree_skb(skb);
+ 			break;
+ 		}
+@@ -374,6 +384,7 @@ static void try_fill_recv(struct virtnet
+ 	if (unlikely(vi->num > vi->max))
+ 		vi->max = vi->num;
+ 	vi->rvq->vq_ops->kick(vi->rvq);
++	return !oom;
+ }
+ 
+ static void skb_recv_done(struct virtqueue *rvq)
+@@ -386,6 +397,26 @@ static void skb_recv_done(struct virtque
+ 	}
+ }
+ 
++static void refill_work(struct work_struct *work)
++{
++	struct virtnet_info *vi;
++	bool still_empty;
++
++	vi = container_of(work, struct virtnet_info, refill);
++	napi_disable(&vi->napi);
++	try_fill_recv(vi, GFP_KERNEL);
++	still_empty = (vi->num == 0);
++	napi_enable(&vi->napi);
++
++	/* In theory, this can happen: if we don't get any buffers in
++	 * we will *never* try to fill again.  Sleeping in keventd if
++	 * bad, but that is worse. */
++	if (still_empty) {
++		msleep(100);
++		schedule_work(&vi->refill);
++	}
++}
++
+ static int virtnet_poll(struct napi_struct *napi, int budget)
+ {
+ 	struct virtnet_info *vi = container_of(napi, struct virtnet_info, napi);
+@@ -401,10 +432,10 @@ again:
+ 		received++;
+ 	}
+ 
+-	/* FIXME: If we oom and completely run out of inbufs, we need
+-	 * to start a timer trying to fill more. */
+-	if (vi->num < vi->max / 2)
+-		try_fill_recv(vi);
++	if (vi->num < vi->max / 2) {
++		if (!try_fill_recv(vi, GFP_ATOMIC))
++			schedule_work(&vi->refill);
++	}
+ 
+ 	/* Out of packets? */
+ 	if (received < budget) {
+@@ -894,6 +925,7 @@ static int virtnet_probe(struct virtio_d
+ 	vi->vdev = vdev;
+ 	vdev->priv = vi;
+ 	vi->pages = NULL;
++	INIT_WORK(&vi->refill, refill_work);
+ 
+ 	/* If they give us a callback when all buffers are done, we don't need
+ 	 * the timer. */
+@@ -942,7 +974,7 @@ static int virtnet_probe(struct virtio_d
+ 	}
+ 
+ 	/* Last of all, set up some receive buffers. */
+-	try_fill_recv(vi);
++	try_fill_recv(vi, GFP_KERNEL);
+ 
+ 	/* If we didn't even get one input buffer, we're useless. */
+ 	if (vi->num == 0) {
+@@ -959,6 +991,7 @@ static int virtnet_probe(struct virtio_d
+ 
+ unregister:
+ 	unregister_netdev(dev);
++	cancel_work_sync(&vi->refill);
+ free_vqs:
+ 	vdev->config->del_vqs(vdev);
+ free:
+@@ -987,6 +1020,7 @@ static void virtnet_remove(struct virtio
+ 	BUG_ON(vi->num != 0);
+ 
+ 	unregister_netdev(vi->dev);
++	cancel_work_sync(&vi->refill);
+ 
+ 	vdev->config->del_vqs(vi->vdev);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
