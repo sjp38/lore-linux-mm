@@ -1,116 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C3B586B0055
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 04:32:13 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 83F546B0062
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 04:32:14 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/5] mm: return boolean from page_is_file_cache()
-Date: Wed, 12 Aug 2009 10:32:07 +0200
-Message-Id: <1250065929-17392-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 4/5] mm: return boolean from page_has_private()
+Date: Wed, 12 Aug 2009 10:32:08 +0200
+Message-Id: <1250065929-17392-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org>
 References: <1250065929-17392-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-page_is_file_cache() has been used for both boolean checks and LRU
-arithmetic, which was always a bit weird.
-
-Now that page_lru_base_type() exists for LRU arithmetic, make
-page_is_file_cache() a real predicate function and adjust the
-boolean-using callsites to drop those pesky double negations.
+Make page_has_private() return a true boolean value and remove the
+double negations from the two callsites using it for arithmetic.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/mm_inline.h |    8 ++------
- mm/migrate.c              |    6 +++---
- mm/swap.c                 |    2 +-
- mm/vmscan.c               |    2 +-
- 4 files changed, 7 insertions(+), 11 deletions(-)
+ include/linux/page-flags.h |   13 ++++++++-----
+ mm/migrate.c               |    2 +-
+ mm/vmscan.c                |    2 +-
+ 3 files changed, 10 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index 6c8118b..e72d8fb 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -5,7 +5,7 @@
-  * page_is_file_cache - should the page be on a file LRU or anon LRU?
-  * @page: the page to test
-  *
-- * Returns LRU_FILE if @page is page cache page backed by a regular filesystem,
-+ * Returns 1 if @page is page cache page backed by a regular filesystem,
-  * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
-  * Used by functions that manipulate the LRU lists, to sort a page
-  * onto the right LRU list.
-@@ -16,11 +16,7 @@
+v2: group private flags in PAGE_FLAGS_PRIVATE [thanks, Christoph]
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 10e6011..840c53b 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -402,8 +402,8 @@ static inline void __ClearPageTail(struct page *page)
   */
- static inline int page_is_file_cache(struct page *page)
- {
--	if (PageSwapBacked(page))
--		return 0;
--
--	/* The page is page cache backed by a normal filesystem. */
--	return LRU_FILE;
-+	return !PageSwapBacked(page);
- }
+ #define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
  
- static inline void
+-#endif /* !__GENERATING_BOUNDS_H */
+-
++#define PAGE_FLAGS_PRIVATE				\
++	(1 << PG_private | 1 << PG_private_2)
+ /**
+  * page_has_private - Determine if page has private stuff
+  * @page: The page to be checked
+@@ -411,8 +411,11 @@ static inline void __ClearPageTail(struct page *page)
+  * Determine if a page has private stuff, indicating that release routines
+  * should be invoked upon it.
+  */
+-#define page_has_private(page)			\
+-	((page)->flags & ((1 << PG_private) |	\
+-			  (1 << PG_private_2)))
++static inline int page_has_private(struct page *page)
++{
++	return !!(page->flags & PAGE_FLAGS_PRIVATE);
++}
++
++#endif /* !__GENERATING_BOUNDS_H */
+ 
+ #endif	/* PAGE_FLAGS_H */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index b535a2c..e97e513 100644
+index e97e513..16052e8 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -68,7 +68,7 @@ int putback_lru_pages(struct list_head *l)
- 	list_for_each_entry_safe(page, page2, l, lru) {
- 		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
--				    !!page_is_file_cache(page));
-+				page_is_file_cache(page));
- 		putback_lru_page(page);
- 		count++;
- 	}
-@@ -701,7 +701,7 @@ unlock:
-  		 */
-  		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
--				    !!page_is_file_cache(page));
-+				page_is_file_cache(page));
- 		putback_lru_page(page);
- 	}
+@@ -272,7 +272,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
+  					page_index(page));
  
-@@ -751,7 +751,7 @@ int migrate_pages(struct list_head *from,
- 	local_irq_save(flags);
- 	list_for_each_entry(page, from, lru)
- 		__inc_zone_page_state(page, NR_ISOLATED_ANON +
--				      !!page_is_file_cache(page));
-+				page_is_file_cache(page));
- 	local_irq_restore(flags);
- 
- 	if (!swapwrite)
-diff --git a/mm/swap.c b/mm/swap.c
-index 168d53e..4a8a59e 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -189,7 +189,7 @@ void activate_page(struct page *page)
- 		add_page_to_lru_list(zone, page, lru);
- 		__count_vm_event(PGACTIVATE);
- 
--		update_page_reclaim_stat(zone, page, !!file, 1);
-+		update_page_reclaim_stat(zone, page, file, 1);
- 	}
- 	spin_unlock_irq(&zone->lru_lock);
- }
+-	expected_count = 2 + !!page_has_private(page);
++	expected_count = 2 + page_has_private(page);
+ 	if (page_count(page) != expected_count ||
+ 			(struct page *)radix_tree_deref_slot(pslot) != page) {
+ 		spin_unlock_irq(&mapping->tree_lock);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 679c729..b0f8fc2 100644
+index b0f8fc2..4904986 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -816,7 +816,7 @@ int __isolate_lru_page(struct page *page, int mode, int file)
- 	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
- 		return ret;
+@@ -286,7 +286,7 @@ static inline int page_mapping_inuse(struct page *page)
  
--	if (mode != ISOLATE_BOTH && (!page_is_file_cache(page) != !file))
-+	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
- 		return ret;
+ static inline int is_page_cache_freeable(struct page *page)
+ {
+-	return page_count(page) - !!page_has_private(page) == 2;
++	return page_count(page) - page_has_private(page) == 2;
+ }
  
- 	/*
+ static int may_write_to_queue(struct backing_dev_info *bdi)
 -- 
 1.6.4.13.ge6580
 
