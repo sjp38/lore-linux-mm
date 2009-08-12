@@ -1,99 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 357936B0088
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:13:44 -0400 (EDT)
-Received: by qyk36 with SMTP id 36so110607qyk.12
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:13:46 -0700 (PDT)
-Message-ID: <4A82EA37.3010902@gmail.com>
-Date: Wed, 12 Aug 2009 12:13:43 -0400
-From: Gregory Haskins <gregory.haskins@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 24FDB6B008A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:19:06 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7CGJAjR027440
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 13 Aug 2009 01:19:10 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C55D545DE57
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 01:19:09 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9341945DE53
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 01:19:09 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F7651DB805D
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 01:19:09 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 17105E1800E
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 01:19:09 +0900 (JST)
+Message-ID: <5de2e6e6dafe61357de744c749e24a46.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <4A829F1B.4060205@redhat.com>
+References: <20090811144405.GW7176@balbir.in.ibm.com>
+    <20090811163159.ddc5f5fd.akpm@linux-foundation.org>
+    <20090812045716.GH7176@balbir.in.ibm.com>
+    <4A829F1B.4060205@redhat.com>
+Date: Thu, 13 Aug 2009 01:19:08 +0900 (JST)
+Subject: Re: [PATCH] Help Resource Counters Scale better (v4.1)
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
-References: <20090811212743.GA26309@redhat.com> <200908121452.01802.arnd@arndb.de> <20090812130612.GC29200@redhat.com> <200908121540.44928.arnd@arndb.de> <4A82C8F1.4030703@gmail.com> <20090812140224.GA29345@redhat.com>
-In-Reply-To: <20090812140224.GA29345@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enig4E37A2FAF65F7E8AF474EC70"
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, Patrick Mullaney <pmullaney@novell.com>
+To: Prarit Bhargava <prarit@redhat.com>
+Cc: balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, kosaki.motohiro@jp.fujitsu.com, menage@google.com, andi.kleen@intel.com, xemul@openvz.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enig4E37A2FAF65F7E8AF474EC70
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Prarit Bhargava さんは書きました：
+>
+>
+> Balbir Singh wrote:
+>> Hi, Andrew,
+>>
+>> Does this look better, could you please replace the older patch with
+>> this one.
+>>
+>> 1. I did a quick compile test
+>> 2. Ran scripts/checkpatch.pl
+>>
+>>
+>>
+>
+> Andi Kleen suggested I use kernbench to profile the kernel.
+>
+> 2.6.31-rc5-git2 w/ CONFIG_RESOURCE_COUNTERS on
+>
+> Tue Aug 11 13:45:14 EDT 2009
+> 2.6.31-rc5-git2-resources
+> Average Half load -j 32 Run (std deviation):
+> Elapsed Time 622.588 (119.243)
+> User Time 4820.8 (962.286)
+> System Time 9807.63 (2669.55)
+> Percent CPU 2324 (167.236)
+> Context Switches 2009606 (368703)
+> Sleeps 1.24949e+06 (118210)
+>
+> Average Optimal load -j 256 Run (std deviation):
+> Elapsed Time 770.97 (90.8685)
+> User Time 5068.42 (750.933)
+> System Time 21499.8 (12822.3)
+> Percent CPU 3660 (1425.28)
+> Context Switches 2.86467e+06 (971764)
+> Sleeps 1.32784e+06 (129048)
+>
+> Average Maximal load -j Run (std deviation):
+> Elapsed Time 757.018 (22.8371)
+> User Time 4958.85 (644.65)
+> System Time 24916.5 (11454.3)
+> Percent CPU 4046.93 (1279.6)
+> Context Switches 3.04894e+06 (826687)
+> Sleeps 1.26053e+06 (146073)
+>
+>
+> 2.6.31-rc5-git2 w/ CONFIG_RESOURCE_COUNTERS off
+>
+> Tue Aug 11 17:58:58 EDT 2009
+> 2.6.31-rc5-git2-no-resources
+> Average Half load -j 32 Run (std deviation):
+> Elapsed Time 280.176 (21.1131)
+> User Time 3558.51 (389.488)
+> System Time 2393.87 (142.692)
+> Percent CPU 2122.6 (50.5104)
+> Context Switches 1.20474e+06 (131112)
+> Sleeps 1062507 (59366.3)
+>
+> Average Optimal load -j 256 Run (std deviation):
+> Elapsed Time 223.192 (42.7007)
+> User Time 4243.19 (967.575)
+> System Time 2649.57 (344.462)
+> Percent CPU 2845.5 (856.217)
+> Context Switches 1.52187e+06 (391821)
+> Sleeps 1.28862e+06 (274222)
+>
+> Average Maximal load -j Run (std deviation):
+> Elapsed Time 216.942 (45.4824)
+> User Time 3860.46 (966.452)
+> System Time 2782.17 (344.154)
+> Percent CPU 2862.47 (720.904)
+> Context Switches 1.43379e+06 (341021)
+> Sleeps 1184325 (269392)
+>
+> 2.6.31-rc5-git2 w/ CONFIG_RESOURCE_COUNTERS on + patch
+>
+> Tue Aug 11 20:58:31 EDT 2009
+> 2.6.31-rc5-git2-mem-patch
+> Average Half load -j 32 Run (std deviation):
+> Elapsed Time 285.788 (18.577)
+> User Time 3483.14 (346.56)
+> System Time 2426.37 (132.015)
+> Percent CPU 2066.8 (80.3754)
+> Context Switches 1.16588e+06 (134701)
+> Sleeps 1048810 (59891.2)
+>
+> Average Optimal load -j 256 Run (std deviation):
+> Elapsed Time 239.81 (14.0759)
+> User Time 3797.7 (422.118)
+> System Time 2622.74 (225.361)
+> Percent CPU 2480.9 (446.735)
+> Context Switches 1.37301e+06 (238886)
+> Sleeps 1195957 (161659)
+>
+> Average Maximal load -j Run (std deviation):
+> Elapsed Time 203.884 (8.59151)
+> User Time 3578.02 (482.79)
+> System Time 2759.9 (273.03)
+> Percent CPU 2663.53 (450.476)
+> Context Switches 1.33907e+06 (199658)
+> Sleeps 1119205 (172089)
+>
+>
+> ... The odd thing is that the run with the patch is still less than the
+> run with CONFIG_RESOURCE_COUNTERS off.  It was so odd that I double
+> checked that I actually built in RESOURCE_COUNTERS and had applied the
+> patch, both of which I had done.
+>
+Hmm, CONFIG_RESOURCE_COUNTER actually means CONFIG_MEM_CGROUP ?
 
-Michael S. Tsirkin wrote:
-> On Wed, Aug 12, 2009 at 09:51:45AM -0400, Gregory Haskins wrote:
->> Arnd Bergmann wrote:
->>> On Wednesday 12 August 2009, Michael S. Tsirkin wrote:
->>>>> If I understand it correctly, you can at least connect a veth pair
->>>>> to a bridge, right? Something like
->>>>>
->>>>>            veth0 - veth1 - vhost - guest 1=20
->>>>> eth0 - br0-|
->>>>>            veth2 - veth3 - vhost - guest 2
->>>>>           =20
->>>> Heh, you don't need a bridge in this picture:
->>>>
->>>> guest 1 - vhost - veth0 - veth1 - vhost guest 2
->>> Sure, but the setup I described is the one that I would expect
->>> to see in practice because it gives you external connectivity.
->>>
->>> Measuring two guests communicating over a veth pair is
->>> interesting for finding the bottlenecks, but of little
->>> practical relevance.
->>>
->>> 	Arnd <><
->> Yeah, this would be the config I would be interested in.
->=20
-> Hmm, this wouldn't be the config to use for the benchmark though: there=
 
-> are just too many variables.  If you want both guest to guest and guest=
+Then, more requests from me. (if you can)
+Apply patch and set config ON. plz check your bench in following cases.
 
-> to host, create 2 nics in the guest.
->=20
-> Here's one way to do this:
->=20
-> 	-net nic,model=3Dvirtio,vlan=3D0 -net user,vlan=3D0
-> 	-net nic,vlan=3D1,model=3Dvirtio,vhost=3Dveth0
-> 	-redir tcp:8022::22
->=20
-> 	-net nic,model=3Dvirtio,vlan=3D0 -net user,vlan=3D0
-> 	 -net nic,vlan=3D1,model=3Dvirtio,vhost=3Dveth1
-> 	-redir tcp:8023::22
->=20
-> In guests, for simplicity, configure eth1 and eth0
-> to use separate subnets.
+ 1. boot with cgroup_disable=memory (will have the same effect as
+    config=off)
 
-I can try to do a few variations, but what I am interested is in
-performance in a real-world L2 configuration.  This would generally mean
- all hosts (virtual or physical) in the same L2 domain.
+    boot without above option...and
+    2. Run your bench without mount memcg.
+    3. Run your bench with memcg...as...
+       #mount -tcgroup none /cgroups -omemory
+       #mkdir /cgroups/test
+       #echo $$ > /cgroups/test
+       #kernbench.
 
-If I get a chance, though, I will try to also wire them up in isolation
-as another data point.
-
-Regards,
--Greg
+Thanks,
+-Kame
 
 
 
---------------enig4E37A2FAF65F7E8AF474EC70
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
 
-iEYEARECAAYFAkqC6jcACgkQP5K2CMvXmqG0FQCfVhCkLU4jF4NKuVMP5GrYh+cH
-NF4AoIqK9SqEu0RYq/LqHoplHQBbErgz
-=ydLy
------END PGP SIGNATURE-----
 
---------------enig4E37A2FAF65F7E8AF474EC70--
+> P.
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
