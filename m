@@ -1,103 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B8DE06B0087
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:06:48 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7CG6jDp017001
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:06:45 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7CG6nlT255582
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:06:49 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7CG6lf7021323
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:06:48 -0400
-Date: Wed, 12 Aug 2009 09:06:45 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCHv2 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090812160645.GC6779@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <cover.1249992497.git.mst@redhat.com> <20090811212802.GC26309@redhat.com> <4A82076A.1060805@gmail.com> <20090812090219.GB26847@redhat.com> <4A82BD2F.7080405@gmail.com> <20090812132539.GD29200@redhat.com> <20090812141107.GD6833@linux.vnet.ibm.com> <20090812141559.GA29387@redhat.com> <20090812152639.GA6779@linux.vnet.ibm.com> <20090812155154.GA29797@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 357936B0088
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 12:13:44 -0400 (EDT)
+Received: by qyk36 with SMTP id 36so110607qyk.12
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:13:46 -0700 (PDT)
+Message-ID: <4A82EA37.3010902@gmail.com>
+Date: Wed, 12 Aug 2009 12:13:43 -0400
+From: Gregory Haskins <gregory.haskins@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090812155154.GA29797@redhat.com>
+Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
+References: <20090811212743.GA26309@redhat.com> <200908121452.01802.arnd@arndb.de> <20090812130612.GC29200@redhat.com> <200908121540.44928.arnd@arndb.de> <4A82C8F1.4030703@gmail.com> <20090812140224.GA29345@redhat.com>
+In-Reply-To: <20090812140224.GA29345@redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enig4E37A2FAF65F7E8AF474EC70"
 Sender: owner-linux-mm@kvack.org
 To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com
+Cc: Arnd Bergmann <arnd@arndb.de>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, Patrick Mullaney <pmullaney@novell.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 06:51:54PM +0300, Michael S. Tsirkin wrote:
-> On Wed, Aug 12, 2009 at 08:26:39AM -0700, Paul E. McKenney wrote:
-> > On Wed, Aug 12, 2009 at 05:15:59PM +0300, Michael S. Tsirkin wrote:
-> > > On Wed, Aug 12, 2009 at 07:11:07AM -0700, Paul E. McKenney wrote:
-> > > > On Wed, Aug 12, 2009 at 04:25:40PM +0300, Michael S. Tsirkin wrote:
-> > > > > On Wed, Aug 12, 2009 at 09:01:35AM -0400, Gregory Haskins wrote:
-> > > > > > I think I understand what your comment above meant:  You don't need to
-> > > > > > do synchronize_rcu() because you can flush the workqueue instead to
-> > > > > > ensure that all readers have completed.
-> > > > > 
-> > > > > Yes.
-> > > > > 
-> > > > > >  But if thats true, to me, the
-> > > > > > rcu_dereference itself is gratuitous,
-> > > > > 
-> > > > > Here's a thesis on what rcu_dereference does (besides documentation):
-> > > > > 
-> > > > > reader does this
-> > > > > 
-> > > > > 	A: sock = n->sock
-> > > > > 	B: use *sock
-> > > > > 
-> > > > > Say writer does this:
-> > > > > 
-> > > > > 	C: newsock = allocate socket
-> > > > > 	D: initialize(newsock)
-> > > > > 	E: n->sock = newsock
-> > > > > 	F: flush
-> > > > > 
-> > > > > 
-> > > > > On Alpha, reads could be reordered.  So, on smp, command A could get
-> > > > > data from point F, and command B - from point D (uninitialized, from
-> > > > > cache).  IOW, you get fresh pointer but stale data.
-> > > > > So we need to stick a barrier in there.
-> > > > > 
-> > > > > > and that pointer is *not* actually
-> > > > > > RCU protected (nor does it need to be).
-> > > > > 
-> > > > > Heh, if readers are lockless and writer does init/update/sync,
-> > > > > this to me spells rcu.
-> > > > 
-> > > > If you are using call_rcu(), synchronize_rcu(), or one of the
-> > > > similar primitives, then you absolutely need rcu_read_lock() and
-> > > > rcu_read_unlock(), or one of the similar pairs of primitives.
-> > > 
-> > > Right. I don't use any of these though.
-> > > 
-> > > > If you -don't- use rcu_read_lock(), then you are pretty much restricted
-> > > > to adding data, but never removing it.
-> > > > 
-> > > > Make sense?  ;-)
-> > > 
-> > > Since I only access data from a workqueue, I replaced synchronize_rcu
-> > > with workqueue flush. That's why I don't need rcu_read_lock.
-> > 
-> > Well, you -do- need -something- that takes on the role of rcu_read_lock(),
-> > and in your case you in fact actually do.  Your equivalent of
-> > rcu_read_lock() is the beginning of execution of a workqueue item, and
-> > the equivalent of rcu_read_unlock() is the end of execution of that same
-> > workqueue item.  Implicit, but no less real.
-> 
-> Well put. I'll add this to comments in my code.
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig4E37A2FAF65F7E8AF474EC70
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Very good, thank you!!!
+Michael S. Tsirkin wrote:
+> On Wed, Aug 12, 2009 at 09:51:45AM -0400, Gregory Haskins wrote:
+>> Arnd Bergmann wrote:
+>>> On Wednesday 12 August 2009, Michael S. Tsirkin wrote:
+>>>>> If I understand it correctly, you can at least connect a veth pair
+>>>>> to a bridge, right? Something like
+>>>>>
+>>>>>            veth0 - veth1 - vhost - guest 1=20
+>>>>> eth0 - br0-|
+>>>>>            veth2 - veth3 - vhost - guest 2
+>>>>>           =20
+>>>> Heh, you don't need a bridge in this picture:
+>>>>
+>>>> guest 1 - vhost - veth0 - veth1 - vhost guest 2
+>>> Sure, but the setup I described is the one that I would expect
+>>> to see in practice because it gives you external connectivity.
+>>>
+>>> Measuring two guests communicating over a veth pair is
+>>> interesting for finding the bottlenecks, but of little
+>>> practical relevance.
+>>>
+>>> 	Arnd <><
+>> Yeah, this would be the config I would be interested in.
+>=20
+> Hmm, this wouldn't be the config to use for the benchmark though: there=
 
-> > If a couple more uses like this show up, I might need to add this to
-> > Documentation/RCU.  ;-)
+> are just too many variables.  If you want both guest to guest and guest=
 
-And I idly wonder if this approach could replace SRCU.  Probably not
-for protecting the CPU-hotplug notifier chains, but worth some thought.
+> to host, create 2 nics in the guest.
+>=20
+> Here's one way to do this:
+>=20
+> 	-net nic,model=3Dvirtio,vlan=3D0 -net user,vlan=3D0
+> 	-net nic,vlan=3D1,model=3Dvirtio,vhost=3Dveth0
+> 	-redir tcp:8022::22
+>=20
+> 	-net nic,model=3Dvirtio,vlan=3D0 -net user,vlan=3D0
+> 	 -net nic,vlan=3D1,model=3Dvirtio,vhost=3Dveth1
+> 	-redir tcp:8023::22
+>=20
+> In guests, for simplicity, configure eth1 and eth0
+> to use separate subnets.
 
-							Thanx, Paul
+I can try to do a few variations, but what I am interested is in
+performance in a real-world L2 configuration.  This would generally mean
+ all hosts (virtual or physical) in the same L2 domain.
+
+If I get a chance, though, I will try to also wire them up in isolation
+as another data point.
+
+Regards,
+-Greg
+
+
+
+--------------enig4E37A2FAF65F7E8AF474EC70
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iEYEARECAAYFAkqC6jcACgkQP5K2CMvXmqG0FQCfVhCkLU4jF4NKuVMP5GrYh+cH
+NF4AoIqK9SqEu0RYq/LqHoplHQBbErgz
+=ydLy
+-----END PGP SIGNATURE-----
+
+--------------enig4E37A2FAF65F7E8AF474EC70--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
