@@ -1,80 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BEAF26B005C
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:48:44 -0400 (EDT)
-Date: Wed, 12 Aug 2009 16:47:15 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv2 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090812134715.GB29340@redhat.com>
-References: <cover.1249992497.git.mst@redhat.com> <20090811212802.GC26309@redhat.com> <4A82076A.1060805@gmail.com> <20090812090219.GB26847@redhat.com> <4A82BD2F.7080405@gmail.com> <20090812132539.GD29200@redhat.com> <4A82C68F.8070306@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8C0BE6B005A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 09:51:43 -0400 (EDT)
+Received: by yxe14 with SMTP id 14so28525yxe.12
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2009 06:51:49 -0700 (PDT)
+Message-ID: <4A82C8F1.4030703@gmail.com>
+Date: Wed, 12 Aug 2009 09:51:45 -0400
+From: Gregory Haskins <gregory.haskins@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A82C68F.8070306@gmail.com>
+Subject: Re: [PATCHv2 0/2] vhost: a kernel-level virtio server
+References: <20090811212743.GA26309@redhat.com> <200908121452.01802.arnd@arndb.de> <20090812130612.GC29200@redhat.com> <200908121540.44928.arnd@arndb.de>
+In-Reply-To: <200908121540.44928.arnd@arndb.de>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enig87A30C9A577D0E621E7B2C9A"
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, paulmck@linux.vnet.ibm.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hpa@zytor.com, Patrick Mullaney <pmullaney@novell.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 09:41:35AM -0400, Gregory Haskins wrote:
-> Michael S. Tsirkin wrote:
-> > On Wed, Aug 12, 2009 at 09:01:35AM -0400, Gregory Haskins wrote:
-> >> I think I understand what your comment above meant:  You don't need to
-> >> do synchronize_rcu() because you can flush the workqueue instead to
-> >> ensure that all readers have completed.
-> > 
-> > Yes.
-> > 
-> >>  But if thats true, to me, the
-> >> rcu_dereference itself is gratuitous,
-> > 
-> > Here's a thesis on what rcu_dereference does (besides documentation):
-> > 
-> > reader does this
-> > 
-> > 	A: sock = n->sock
-> > 	B: use *sock
-> > 
-> > Say writer does this:
-> > 
-> > 	C: newsock = allocate socket
-> > 	D: initialize(newsock)
-> > 	E: n->sock = newsock
-> > 	F: flush
-> > 
-> > 
-> > On Alpha, reads could be reordered.  So, on smp, command A could get
-> > data from point F, and command B - from point D (uninitialized, from
-> > cache).  IOW, you get fresh pointer but stale data.
-> > So we need to stick a barrier in there.
-> 
-> Yes, that is understood.  Perhaps you should just use a normal barrier,
-> however.  (Or at least a comment that says "I am just using this for its
-> barrier").
-> 
-> > 
-> >> and that pointer is *not* actually
-> >> RCU protected (nor does it need to be).
-> > 
-> > Heh, if readers are lockless and writer does init/update/sync,
-> > this to me spells rcu.
-> 
-> More correctly: it "smells like" RCU, but its not. ;)  It's rcu-like,
-> but you are not really using the rcu facilities.  I think anyone that
-> knows RCU and reads your code will likely be scratching their heads as well.
-> 
-> Its probably not a big deal, as I understand your code now.  Just a
-> suggestion to help clarify it.
-> 
-> Regards,
-> -Greg
-> 
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig87A30C9A577D0E621E7B2C9A
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-OK, I'll add some comments about that.
-Thanks for the review!
+Arnd Bergmann wrote:
+> On Wednesday 12 August 2009, Michael S. Tsirkin wrote:
+>>> If I understand it correctly, you can at least connect a veth pair
+>>> to a bridge, right? Something like
+>>>
+>>>            veth0 - veth1 - vhost - guest 1=20
+>>> eth0 - br0-|
+>>>            veth2 - veth3 - vhost - guest 2
+>>>           =20
+>> Heh, you don't need a bridge in this picture:
+>>
+>> guest 1 - vhost - veth0 - veth1 - vhost guest 2
+>=20
+> Sure, but the setup I described is the one that I would expect
+> to see in practice because it gives you external connectivity.
+>=20
+> Measuring two guests communicating over a veth pair is
+> interesting for finding the bottlenecks, but of little
+> practical relevance.
+>=20
+> 	Arnd <><
 
--- 
-MST
+Yeah, this would be the config I would be interested in.
+
+Regards,
+-Greg
+
+
+--------------enig87A30C9A577D0E621E7B2C9A
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iEYEARECAAYFAkqCyPEACgkQP5K2CMvXmqHKgwCbBrxhIdqOX31o4APQvc7hWcWt
+y0oAn1INe0wEK/9n2tSfeBeMCClGjSXU
+=S5BJ
+-----END PGP SIGNATURE-----
+
+--------------enig87A30C9A577D0E621E7B2C9A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
