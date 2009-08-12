@@ -1,66 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C5ECF6B005A
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:32:15 -0400 (EDT)
-Message-ID: <4A82D24D.6020402@redhat.com>
-Date: Wed, 12 Aug 2009 10:31:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 166356B005A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:57:25 -0400 (EDT)
+Received: from elvis.elte.hu ([157.181.1.14])
+	by mx3.mail.elte.hu with esmtp (Exim)
+	id 1MbFGd-0004x7-FO
+	from <mingo@elte.hu>
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 16:57:31 +0200
+Resent-Message-ID: <20090812145728.GA29882@elte.hu>
+Resent-To: linux-mm@kvack.org
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+Date: Wed, 12 Aug 2009 20:07:43 +0530
 MIME-Version: 1.0
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost>
-In-Reply-To: <20090812074820.GA29631@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Disposition: inline
+Subject: [PATCH] swap: send callback when swap slot is freed
+Content-Type: Text/Plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200908122007.43522.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: mingo@elte.hu
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> On Fri, Aug 07, 2009 at 11:17:22AM +0800, KOSAKI Motohiro wrote:
->>> Andrea Arcangeli wrote:
->>>
->>>> Likely we need a cut-off point, if we detect it takes more than X
->>>> seconds to scan the whole active list, we start ignoring young bits,
->>> We could just make this depend on the calculated inactive_ratio,
->>> which depends on the size of the list.
->>>
->>> For small systems, it may make sense to make every accessed bit
->>> count, because the working set will often approach the size of
->>> memory.
->>>
->>> On very large systems, the working set may also approach the
->>> size of memory, but the inactive list only contains a small
->>> percentage of the pages, so there is enough space for everything.
->>>
->>> Say, if the inactive_ratio is 3 or less, make the accessed bit
->>> on the active lists count.
->> Sound reasonable.
-> 
-> Yes, such kind of global measurements would be much better.
-> 
->> How do we confirm the idea correctness?
-> 
-> In general the active list tends to grow large on under-scanned LRU.
-> I guess Rik is pretty familiar with typical inactive_ratio values of
-> the large memory systems and may even have some real numbers :)
-> 
->> Wu, your X focus switching benchmark is sufficient test?
-> 
-> It is a major test case for memory tight desktop.  Jeff presents
-> another interesting one for KVM, hehe.
-> 
-> Anyway I collected the active/inactive list sizes, and the numbers
-> show that the inactive_ratio is roughly 1 when the LRU is scanned
-> actively and may go very high when it is under-scanned.
+Currently, we have "swap discard" mechanism which sends a discard bio request
+when we find a free cluster during scan_swap_map(). This callback can come a
+long time after swap slots are actually freed.
 
-inactive_ratio is based on the zone (or cgroup) size.
+This delay in callback is a great problem when (compressed) RAM [1] is used
+as a swap device. So, this change adds a callback which is called as
+soon as a swap slot becomes free. For above mentioned case of swapping
+over compressed RAM device, this is very useful since we can immediately
+free memory allocated for this swap page.
 
-For zones it is a fixed value, which is available in
-/proc/zoneinfo
+This callback does not replace swap discard support. It is called with
+swap_lock held, so it is meant to trigger action that finishes quickly.
+However, swap discard is an I/O request and can be used for taking longer
+actions.
 
--- 
-All rights reversed.
+Links:
+[1] http://code.google.com/p/compcache/
+
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+---
+
+ include/linux/swap.h |    5 +++++
+ mm/swapfile.c        |   16 ++++++++++++++++
+ 2 files changed, 21 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7c15334..4cbe3c4 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -8,6 +8,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/sched.h>
+ #include <linux/node.h>
++#include <linux/blkdev.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/page.h>
+@@ -20,6 +21,8 @@ struct bio;
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
+ 
++typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
++
+ static inline int current_is_kswapd(void)
+ {
+ 	return current->flags & PF_KSWAPD;
+@@ -155,6 +158,7 @@ struct swap_info_struct {
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+ 	unsigned int old_block_size;
++	swap_free_notify_fn *swap_free_notify_fn;
+ };
+ 
+ struct swap_list_t {
+@@ -295,6 +299,7 @@ extern sector_t swapdev_block(int, pgoff_t);
+ extern struct swap_info_struct *get_swap_info_struct(unsigned);
+ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
++extern void set_swap_free_notify(unsigned, swap_free_notify_fn *);
+ struct backing_dev_info;
+ 
+ /* linux/mm/thrash.c */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8ffdc0d..aa95fc7 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -552,6 +552,20 @@ out:
+ 	return NULL;
+ }
+ 
++/*
++ * Sets callback for event when swap_map[offset] == 0
++ * i.e. page at this swap offset is no longer used.
++ */
++void set_swap_free_notify(unsigned type, swap_free_notify_fn *notify_fn)
++{
++	struct swap_info_struct *sis;
++	sis = get_swap_info_struct(type);
++	BUG_ON(!sis);
++	sis->swap_free_notify_fn = notify_fn;
++	return;
++}
++EXPORT_SYMBOL(set_swap_free_notify);
++
+ static int swap_entry_free(struct swap_info_struct *p,
+ 			   swp_entry_t ent, int cache)
+ {
+@@ -583,6 +597,8 @@ static int swap_entry_free(struct swap_info_struct *p,
+ 			swap_list.next = p - swap_info;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
++		if (p->swap_free_notify_fn)
++			p->swap_free_notify_fn(p->bdev, offset);
+ 	}
+ 	if (!swap_count(count))
+ 		mem_cgroup_uncharge_swap(ent);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
