@@ -1,46 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1846B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:33:53 -0400 (EDT)
-Date: Thu, 13 Aug 2009 09:33:39 -0700 (PDT)
-From: david@lang.hm
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-In-Reply-To: <20090813162621.GB1915@phenom2.trippelsdorf.de>
-Message-ID: <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
-References: <200908122007.43522.ngupta@vflare.org> <Pine.LNX.4.64.0908122312380.25501@sister.anvils> <20090813151312.GA13559@linux.intel.com> <20090813162621.GB1915@phenom2.trippelsdorf.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0D3966B004F
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:40:04 -0400 (EDT)
+Received: by pxi33 with SMTP id 33so65007pxi.11
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2009 09:40:05 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+Subject: Re: [PATCH] swap: send callback when swap slot is freed v2
+Date: Thu, 13 Aug 2009 22:09:54 +0530
+References: <200908132201.05719.ngupta@vflare.org>
+In-Reply-To: <200908132201.05719.ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200908132209.54891.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org
+To: mingo@elte.hu
+Cc: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk, peterz@infradead.org, willy@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Aug 2009, Markus Trippelsdorf wrote:
+(Re-sending with correct linux-mm mailing list address. My bad.)
 
-> On Thu, Aug 13, 2009 at 08:13:12AM -0700, Matthew Wilcox wrote:
->> I am planning a complete overhaul of the discard work.  Users can send
->> down discard requests as frequently as they like.  The block layer will
->> cache them, and invalidate them if writes come through.  Periodically,
->> the block layer will send down a TRIM or an UNMAP (depending on the
->> underlying device) and get rid of the blocks that have remained unwanted
->> in the interim.
->
-> That is a very good idea. I've tested your original TRIM implementation on
-> my Vertex yesterday and it was awful ;-). The SSD needs hundreds of
-> milliseconds to digest a single TRIM command. And since your implementation
-> sends a TRIM for each extent of each deleted file, the whole system is
-> unusable after a short while.
-> An optimal solution would be to consolidate the discard requests, bundle
-> them and send them to the drive as infrequent as possible.
+Currently, we have "swap discard" mechanism which sends a discard bio request
+when we find a free cluster during scan_swap_map(). This callback can come a
+long time after swap slots are actually freed.
 
-or queue them up and send them when the drive is idle (you would need to 
-keep track to make sure the space isn't re-used)
+This delay in callback is a great problem when (compressed) RAM [1] is used
+as a swap device. So, this change adds a callback which is called as
+soon as a swap slot becomes free. For above mentioned case of swapping
+over compressed RAM device, this is very useful since we can immediately
+free memory allocated for this swap page.
 
-as an example, if you would consider spinning down a drive you don't hurt 
-performance by sending accumulated trim commands.
+This callback does not replace swap discard support. It is called with
+swap_lock held, so it is meant to trigger action that finishes quickly.
+However, swap discard is an I/O request and can be used for taking longer
+actions.
 
-David Lang
+Links:
+[1] http://code.google.com/p/compcache/
+
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+---
+
+ include/linux/swap.h |    5 +++++
+ mm/swapfile.c        |   33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7c15334..64796fc 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -8,6 +8,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/sched.h>
+ #include <linux/node.h>
++#include <linux/blkdev.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/page.h>
+@@ -20,6 +21,8 @@ struct bio;
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
+ 
++typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
++
+ static inline int current_is_kswapd(void)
+ {
+ 	return current->flags & PF_KSWAPD;
+@@ -155,6 +158,7 @@ struct swap_info_struct {
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+ 	unsigned int old_block_size;
++	swap_free_notify_fn *swap_free_notify_fn;
+ };
+ 
+ struct swap_list_t {
+@@ -295,6 +299,7 @@ extern sector_t swapdev_block(int, pgoff_t);
+ extern struct swap_info_struct *get_swap_info_struct(unsigned);
+ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
++extern void set_swap_free_notify(struct block_device *, swap_free_notify_fn *);
+ struct backing_dev_info;
+ 
+ /* linux/mm/thrash.c */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8ffdc0d..d75729a 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -552,6 +552,37 @@ out:
+ 	return NULL;
+ }
+ 
++/*
++ * Sets callback for event when swap_map[offset] == 0
++ * i.e. page at this swap offset is no longer used.
++ */
++void set_swap_free_notify(struct block_device *bdev,
++			swap_free_notify_fn *notify_fn)
++{
++	unsigned int i;
++	struct swap_info_struct *sis;
++
++	spin_lock(&swap_lock);
++	for (i = 0; i <= nr_swapfiles; i++) {
++		sis = &swap_info[i];
++		if (!(sis->flags & SWP_USED))
++			continue;
++		if (sis->bdev == bdev)
++			break;
++	}
++
++	/* swap device not found */
++	if (i > nr_swapfiles)
++		return;
++
++	BUG_ON(!sis || sis->swap_free_notify_fn);
++	sis->swap_free_notify_fn = notify_fn;
++	spin_unlock(&swap_lock);
++
++	return;
++}
++EXPORT_SYMBOL_GPL(set_swap_free_notify);
++
+ static int swap_entry_free(struct swap_info_struct *p,
+ 			   swp_entry_t ent, int cache)
+ {
+@@ -583,6 +614,8 @@ static int swap_entry_free(struct swap_info_struct *p,
+ 			swap_list.next = p - swap_info;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
++		if (p->swap_free_notify_fn)
++			p->swap_free_notify_fn(p->bdev, offset);
+ 	}
+ 	if (!swap_count(count))
+ 		mem_cgroup_uncharge_swap(ent);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
