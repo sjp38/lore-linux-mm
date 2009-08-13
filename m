@@ -1,108 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E10046B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 04:21:25 -0400 (EDT)
-Message-ID: <4A83CD84.8040609@redhat.com>
-Date: Thu, 13 Aug 2009 16:23:32 +0800
-From: Amerigo Wang <amwang@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0DC6B005A
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 04:35:44 -0400 (EDT)
+Date: Thu, 13 Aug 2009 10:35:24 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [UPDATED][PATCH][mmotm] Help Root Memory Cgroup Resource
+	Counters Scale Better (v5)
+Message-ID: <20090813083524.GC21389@elte.hu>
+References: <20090813065504.GG5087@balbir.in.ibm.com> <20090813162640.fe2349e9.nishimura@mxp.nes.nec.co.jp> <20090813080206.GH5087@balbir.in.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
-References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain>	<m1bpmk8l1g.fsf@fess.ebiederm.org> <4A83893D.50707@redhat.com> <m1eirg5j9i.fsf@fess.ebiederm.org>
-In-Reply-To: <m1eirg5j9i.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090813080206.GH5087@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "menage@google.com" <menage@google.com>, xemul@openvz.org, prarit@redhat.com, andi.kleen@intel.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman wrote:
-> Amerigo Wang <amwang@redhat.com> writes:
->
->   
->>>   
->>>       
->>>> +	ret = kexec_crash_image != NULL;
->>>> +	mutex_unlock(&kexec_mutex);
->>>> +	return ret;
->>>> +}
->>>> +
->>>> +size_t get_crash_memory_size(void)
->>>> +{
->>>> +	size_t size;
->>>> +	if (!mutex_trylock(&kexec_mutex))
->>>> +		return 1;
->>>>     
->>>>         
->>> We don't need trylock on this code path 
->>>
->>>   
->>>       
->> Hmm, crashk_res is a global struct, so other process can also
->> change it... but currently no process does that, right?
->>
->>     
->
-> We still need the lock.  Just doing trylock doesn't instead
-> of just sleeping doesn't seem to make any sense on these
-> code paths.
->
->   
 
-Ok, got it.
+* Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
->>>   
->>>       
->>>> +	start = crashk_res.start;
->>>> +	end = crashk_res.end;
->>>> +
->>>> +	if (new_size >= end - start + 1) {
->>>> +		ret = -EINVAL;
->>>> +		if (new_size == end - start + 1)
->>>> +			ret = 0;
->>>> +		goto unlock;
->>>> +	}
->>>> +
->>>> +	start = roundup(start, PAGE_SIZE);
->>>> +	end = roundup(start + new_size, PAGE_SIZE) - 1;
->>>> +	npages = (end + 1 - start ) / PAGE_SIZE;
->>>> +
->>>> +	pages = kmalloc(sizeof(struct page *) * npages, GFP_KERNEL);
->>>> +	if (!pages) {
->>>> +		ret = -ENOMEM;
->>>> +		goto unlock;
->>>> +	}
->>>> +	for (i = 0; i < npages; i++) {
->>>> +		addr = end + 1 + i * PAGE_SIZE;
->>>> +		pages[i] = virt_to_page(addr);
->>>> +	}
->>>> +
->>>> +	vaddr = vm_map_ram(pages, npages, 0, PAGE_KERNEL);
->>>>     
->>>>         
->>> This is the wrong kernel call to use.  I expect this needs to look
->>> like a memory hotplug event.  This does not put the pages into the
->>> free page pool.
->>>   
->>>       
->> Well, I also wanted to use an memory-hotplug API, but that will make the code
->> depend on memory-hotplug, which certainly is not what we want...
->>
->> I checked the mm code, actually what I need is an API which is similar to
->> add_active_range(), but add_active_range() can't be used here since it is marked
->> as "__init".
->>
->> Do we have that kind of API in mm? I can't find one.
->>     
->
-> Perhaps we will need to remove __init from add_active_range.  I know the logic
-> but I'm not up to speed on the mm pieces at the moment.
->   
+> Without Patch
+> 
+>  Performance counter stats for '/home/balbir/parallel_pagefault':
+> 
+>   5826093739340  cycles                   #    809.989 M/sec
+>    408883496292  instructions             #      0.070 IPC
+>      7057079452  cache-references         #      0.981 M/sec
+>      3036086243  cache-misses             #      0.422 M/sec
 
-Not that simple, marking it as "__init" means it uses some "__init" data 
-which will be dropped after initialization.
+> With this patch applied
+> 
+>  Performance counter stats for '/home/balbir/parallel_pagefault':
+> 
+>   5957054385619  cycles                   #    828.333 M/sec
+>   1058117350365  instructions             #      0.178 IPC
+>      9161776218  cache-references         #      1.274 M/sec
+>      1920494280  cache-misses             #      0.267 M/sec
 
-Thanks.
+Nice how the instruction count and the IPC value incraesed, and the 
+cache-miss count decreased.
+
+Btw., a 'perf stat' suggestion: you can also make use of built-in 
+error bars via repeating parallel_pagefault N times:
+
+  aldebaran:~> perf stat --repeat 3 /bin/ls
+
+ Performance counter stats for '/bin/ls' (3 runs):
+
+       1.108886  task-clock-msecs         #      0.875 CPUs    ( +-   4.316% )
+              0  context-switches         #      0.000 M/sec   ( +-   0.000% )
+              0  CPU-migrations           #      0.000 M/sec   ( +-   0.000% )
+            254  page-faults              #      0.229 M/sec   ( +-   0.000% )
+        3461896  cycles                   #   3121.958 M/sec   ( +-   3.508% )
+        3044445  instructions             #      0.879 IPC     ( +-   0.134% )
+          21213  cache-references         #     19.130 M/sec   ( +-   1.612% )
+           2610  cache-misses             #      2.354 M/sec   ( +-  39.640% )
+
+    0.001267355  seconds time elapsed   ( +-   4.762% )
+
+that way even small changes in metrics can be identified as positive 
+effects of a patch, if the improvement is beyond the error 
+percentage that perf reports.
+
+For example in the /bin/ls numbers i cited above, the 'instructions' 
+value can be trusted up to 99.8% (with a ~0.13% noise), while say 
+the cache-misses value can not really be trusted, as it has 40% of 
+noise. (Increasing the repeat count will drive down the noise level 
+- at the cost of longer measurement time.)
+
+For your patch the improvement is so drastic that this isnt needed - 
+but the error estimations can be quite useful for more borderline 
+improvements. (and they are also useful in finding and proving small 
+performance regressions)
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
