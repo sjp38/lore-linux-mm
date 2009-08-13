@@ -1,107 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id D32DB6B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:15:24 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so321301qwf.44
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2009 11:15:26 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 5F7326B004F
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:23:24 -0400 (EDT)
+Message-ID: <4A8459F3.5060703@redhat.com>
+Date: Thu, 13 Aug 2009 14:22:43 -0400
+From: Ric Wheeler <rwheeler@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
-References: <200908122007.43522.ngupta@vflare.org>
-	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
-	 <20090813151312.GA13559@linux.intel.com>
-	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
-	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
-Date: Thu, 13 Aug 2009 14:15:26 -0400
-Message-ID: <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
 Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
-	slot is freed)
-From: Greg Freemyer <greg.freemyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ slot is freed)
+References: <200908122007.43522.ngupta@vflare.org>	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>	 <20090813151312.GA13559@linux.intel.com> <1250178192.3901.54.camel@mulgrave.site>
+In-Reply-To: <1250178192.3901.54.camel@mulgrave.site>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: david@lang.hm
-Cc: Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 13, 2009 at 12:33 PM, <david@lang.hm> wrote:
-> On Thu, 13 Aug 2009, Markus Trippelsdorf wrote:
->
->> On Thu, Aug 13, 2009 at 08:13:12AM -0700, Matthew Wilcox wrote:
+On 08/13/2009 11:43 AM, James Bottomley wrote:
+> On Thu, 2009-08-13 at 08:13 -0700, Matthew Wilcox wrote:
+>    
+>> On Wed, Aug 12, 2009 at 11:48:27PM +0100, Hugh Dickins wrote:
+>>      
+>>> But fundamentally, though I can see how this cutdown communication
+>>> path is useful to compcache, I'd much rather deal with it by the more
+>>> general discard route if we can.  (I'm one of those still puzzled by
+>>> the way swap is mixed up with block device in compcache: probably
+>>> because I never found time to pay attention when you explained.)
 >>>
->>> I am planning a complete overhaul of the discard work. =A0Users can sen=
-d
->>> down discard requests as frequently as they like. =A0The block layer wi=
-ll
->>> cache them, and invalidate them if writes come through. =A0Periodically=
-,
->>> the block layer will send down a TRIM or an UNMAP (depending on the
->>> underlying device) and get rid of the blocks that have remained unwante=
-d
->>> in the interim.
+>>> You're right to question the utility of the current swap discard
+>>> placement.  That code is almost a year old, written from a position
+>>> of great ignorance, yet only now do we appear to be on the threshold
+>>> of having an SSD which really supports TRIM (ah, the Linux ATA TRIM
+>>> support seems to have gone missing now, but perhaps it's been
+>>> waiting for a reality to check against too - Willy?).
+>>>        
+>> I am indeed waiting for hardware with TRIM support to appear on my
+>> desk before resubmitting the TRIM code.  It'd also be nice to be able to
+>> get some performance numbers.
 >>
->> That is a very good idea. I've tested your original TRIM implementation =
-on
->> my Vertex yesterday and it was awful ;-). The SSD needs hundreds of
->> milliseconds to digest a single TRIM command. And since your
->> implementation
->> sends a TRIM for each extent of each deleted file, the whole system is
->> unusable after a short while.
->> An optimal solution would be to consolidate the discard requests, bundle
->> them and send them to the drive as infrequent as possible.
+>>      
+>>> I won't be surprised if we find that we need to move swap discard
+>>> support much closer to swap_free (though I know from trying before
+>>> that it's much messier there): in which case, even if we decided to
+>>> keep your hotline to compcache (to avoid allocating bios etc.), it
+>>> would be better placed alongside.
+>>>        
+>> It turns out there are a lot of tradeoffs involved with discard, and
+>> they're different between TRIM and UNMAP.
+>>
+>> Let's start with UNMAP.  This SCSI command is used by giant arrays.
+>> They want to do Thin Provisioning, so allocate physical storage to virtual
+>> LUNs on demand, and want to deallocate it when they get an UNMAP command.
+>> They allocate storage in large chunks (hundreds of kilobytes at a time).
+>> They only care about discards that enable them to free an entire chunk.
+>> The vast majority of users *do not care* about these arrays, because
+>> they don't have one, and will never be able to afford one.  We should
+>> ignore the desires of these vendors when designing our software.
+>>      
 >
-> or queue them up and send them when the drive is idle (you would need to
-> keep track to make sure the space isn't re-used)
+> Fundamentally, unmap, trim and write_same do similar things, so
+> realistically they all map to discard in linux.
 >
-> as an example, if you would consider spinning down a drive you don't hurt
-> performance by sending accumulated trim commands.
+> Ignoring the desires of the enterprise isn't an option, since they are a
+> good base for us.  However, they really do need to step up with a useful
+> patch set for discussion that does what they want, so in the interim I'm
+> happy with any proposal that doesn't actively damage what the enterprise
+> wants to do with trim/write_same.
+>    
+
+I definitely agree - the UNMAP support and the needs of array users is a 
+critical part of the solution.
+
+I would also dispute the contention that this is irrelevant to most 
+users - even those of us who don't personally use arrays almost always 
+use them indirectly since major banks, airlines, etc all use them to 
+store our data :-)
+
+>    
+>> Solid State Drives are introducing an ATA command called TRIM.  SSDs
+>> generally have an intenal mapping layer, and due to their low, low seek
+>> penalty, will happily remap blocks anywhere on the flash.  They want
+>> to know when a block isn't in use any more, so they don't have to copy
+>> it around when they want to erase the chunk of storage that it's on.
+>> The unfortunate thing about the TRIM command is that it's not NCQ, so
+>> all NCQ commands have to finish, then we can send the TRIM command and
+>> wait for it to finish, then we can send NCQ commands again.
+>>      
 >
-> David Lang
+> That's a bit of a silly protocol oversight ... I assume there's no way
+> it can be corrected?
+>
+>    
+>> So TRIM isn't free, and there's a better way for the drive to find
+>> out that the contents of a block no longer matter -- write some new
+>> data to it.  So if we just swapped a page in, and we're going to swap
+>> something else back out again soon, just write it to the same location
+>> instead of to a fresh location.  You've saved a command, and you've
+>> saved the drive some work, plus you've allowed other users to continue
+>> accessing the drive in the meantime.
+>>
+>> I am planning a complete overhaul of the discard work.  Users can send
+>> down discard requests as frequently as they like.  The block layer will
+>> cache them, and invalidate them if writes come through.  Periodically,
+>> the block layer will send down a TRIM or an UNMAP (depending on the
+>> underlying device) and get rid of the blocks that have remained unwanted
+>> in the interim.
+>>
+>> Thoughts on that are welcome.
+>>      
+>
+> What you're basically planning is discard accumulation ... it's
+> certainly closer to what the enterprise is looking for, so no objections
+> from me.
+>
+> James
+>
+>    
 
-An alternate approach is the block layer maintain its own bitmap of
-used unused sectors / blocks. Unmap commands from the filesystem just
-cause the bitmap to be updated.  No other effect.
+This sounds like a good approach to me as well. I think that both TRIM 
+and UNMAP use case will benefit from coalescing these discard requests,
 
-(Big unknown: Where will the bitmap live between reboots?  Require DM
-volumes so we can have a dedicated bitmap volume in the mix to store
-the bitmap to? Maybe on mount, the filesystem has to be scanned to
-initially populate the bitmap?   Other options?)
-
-Assuming we have a persistent bitmap in place, have a background
-scanner that kicks in when the cpu / disk is idle.  It just
-continuously scans the bitmap looking for contiguous blocks of unused
-sectors.  Each time it finds one, it sends the largest possible unmap
-down the block stack and eventually to the device.
-
-When normal cpu / disk activity kicks in, this process goes to sleep.
-
-That way much of the smarts are concentrated in the block layer, not
-in the filesystem code.  And it is being done when the disk is
-otherwise idle, so you don't have the ncq interference.
-
-Even laptop users should have enough idle cpu available to manage
-this.  Enterprise would get the large discards it wants, and
-unmentioned in the previous discussion, mdraid gets the large discards
-it also wants.
-
-ie. If a mdraid raid5/raid6 volume is built of SSDs, it will only be
-able to discard a full stripe at a time. Otherwise the P=3DD1 ^ D2 logic
-is lost.
-
-Another benefit of the above is the code should be extremely safe and testa=
-ble.
-
-Greg
---=20
-Greg Freemyer
-Head of EDD Tape Extraction and Processing team
-Litigation Triage Solutions Specialist
-http://www.linkedin.com/in/gregfreemyer
-Preservation and Forensic processing of Exchange Repositories White Paper -
-<http://www.norcrossgroup.com/forms/whitepapers/tng_whitepaper_fpe.html>
-
-The Norcross Group
-The Intersection of Evidence & Technology
-http://www.norcrossgroup.com
+Ric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
