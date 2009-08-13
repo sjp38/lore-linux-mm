@@ -1,69 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BC4456B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:29:18 -0400 (EDT)
-Date: Thu, 13 Aug 2009 21:27:50 +0300
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C830A6B0055
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:30:38 -0400 (EDT)
+Date: Thu, 13 Aug 2009 21:29:14 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCHv3 0/2] vhost: a kernel-level virtio server
-Message-ID: <20090813182749.GA6585@redhat.com>
+Subject: [PATCHv3 1/2] mm: export use_mm/unuse_mm to modules
+Message-ID: <20090813182913.GB6585@redhat.com>
+References: <cover.1250187913.git.mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <cover.1250187913.git.mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com
+To: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, hpa@zytor.com, gregory.haskins@gmail.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This implements vhost: a kernel-level backend for virtio,
-The main motivation for this work is to reduce virtualization
-overhead for virtio by removing system calls on data path,
-without guest changes. For virtio-net, this removes up to
-4 system calls per packet: vm exit for kick, reentry for kick,
-iothread wakeup for packet, interrupt injection for packet.
+vhost net module wants to do copy to/from user from a kernel thread,
+which needs use_mm (like what fs/aio has).  Move that into mm/ and
+export to modules.
 
-Some more detailed description attached to the patch itself.
-
-The patches are against 2.6.31-rc4.  I'd like them to go into linux-next
-and down the road 2.6.32 if possible.  Please comment.
-
-Changelog from v2:
-- Comments on RCU usage
-- Compat ioctl support
-- Make variable static
-- Copied more idiomatic english from Rusty
-
-Changes from v1:
-- Move use_mm/unuse_mm from fs/aio.c to mm instead of copying.
-- Reorder code to avoid need for forward declarations
-- Kill a couple of debugging printks
-
-Michael S. Tsirkin (2):
-  mm: export use_mm/unuse_mm to modules
-  vhost_net: a kernel-level virtio server
-
- MAINTAINERS                 |   10 +
- arch/x86/kvm/Kconfig        |    1 +
- drivers/Makefile            |    1 +
- drivers/vhost/Kconfig       |   11 +
- drivers/vhost/Makefile      |    2 +
- drivers/vhost/net.c         |  429 ++++++++++++++++++++++++++++
- drivers/vhost/vhost.c       |  663 +++++++++++++++++++++++++++++++++++++++++++
- drivers/vhost/vhost.h       |  108 +++++++
- fs/aio.c                    |   47 +---
- include/linux/Kbuild        |    1 +
- include/linux/miscdevice.h  |    1 +
- include/linux/mmu_context.h |    9 +
- include/linux/vhost.h       |  100 +++++++
+Acked-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+---
+ fs/aio.c                    |   47 +----------------------------------
+ include/linux/mmu_context.h |    9 ++++++
  mm/Makefile                 |    2 +-
- mm/mmu_context.c            |   58 ++++
- 15 files changed, 1396 insertions(+), 47 deletions(-)
- create mode 100644 drivers/vhost/Kconfig
- create mode 100644 drivers/vhost/Makefile
- create mode 100644 drivers/vhost/net.c
- create mode 100644 drivers/vhost/vhost.c
- create mode 100644 drivers/vhost/vhost.h
+ mm/mmu_context.c            |   58 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 69 insertions(+), 47 deletions(-)
  create mode 100644 include/linux/mmu_context.h
- create mode 100644 include/linux/vhost.h
  create mode 100644 mm/mmu_context.c
+
+diff --git a/fs/aio.c b/fs/aio.c
+index d065b2c..fc21c23 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -24,6 +24,7 @@
+ #include <linux/file.h>
+ #include <linux/mm.h>
+ #include <linux/mman.h>
++#include <linux/mmu_context.h>
+ #include <linux/slab.h>
+ #include <linux/timer.h>
+ #include <linux/aio.h>
+@@ -34,7 +35,6 @@
+ 
+ #include <asm/kmap_types.h>
+ #include <asm/uaccess.h>
+-#include <asm/mmu_context.h>
+ 
+ #if DEBUG > 1
+ #define dprintk		printk
+@@ -595,51 +595,6 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
+ }
+ 
+ /*
+- * use_mm
+- *	Makes the calling kernel thread take on the specified
+- *	mm context.
+- *	Called by the retry thread execute retries within the
+- *	iocb issuer's mm context, so that copy_from/to_user
+- *	operations work seamlessly for aio.
+- *	(Note: this routine is intended to be called only
+- *	from a kernel thread context)
+- */
+-static void use_mm(struct mm_struct *mm)
+-{
+-	struct mm_struct *active_mm;
+-	struct task_struct *tsk = current;
+-
+-	task_lock(tsk);
+-	active_mm = tsk->active_mm;
+-	atomic_inc(&mm->mm_count);
+-	tsk->mm = mm;
+-	tsk->active_mm = mm;
+-	switch_mm(active_mm, mm, tsk);
+-	task_unlock(tsk);
+-
+-	mmdrop(active_mm);
+-}
+-
+-/*
+- * unuse_mm
+- *	Reverses the effect of use_mm, i.e. releases the
+- *	specified mm context which was earlier taken on
+- *	by the calling kernel thread
+- *	(Note: this routine is intended to be called only
+- *	from a kernel thread context)
+- */
+-static void unuse_mm(struct mm_struct *mm)
+-{
+-	struct task_struct *tsk = current;
+-
+-	task_lock(tsk);
+-	tsk->mm = NULL;
+-	/* active_mm is still 'mm' */
+-	enter_lazy_tlb(mm, tsk);
+-	task_unlock(tsk);
+-}
+-
+-/*
+  * Queue up a kiocb to be retried. Assumes that the kiocb
+  * has already been marked as kicked, and places it on
+  * the retry run list for the corresponding ioctx, if it
+diff --git a/include/linux/mmu_context.h b/include/linux/mmu_context.h
+new file mode 100644
+index 0000000..70fffeb
+--- /dev/null
++++ b/include/linux/mmu_context.h
+@@ -0,0 +1,9 @@
++#ifndef _LINUX_MMU_CONTEXT_H
++#define _LINUX_MMU_CONTEXT_H
++
++struct mm_struct;
++
++void use_mm(struct mm_struct *mm);
++void unuse_mm(struct mm_struct *mm);
++
++#endif
+diff --git a/mm/Makefile b/mm/Makefile
+index 5e0bd64..46c3892 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o mm_init.o $(mmu-y)
++			   page_isolation.o mm_init.o mmu_context.o $(mmu-y)
+ obj-y += init-mm.o
+ 
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+new file mode 100644
+index 0000000..9989c2f
+--- /dev/null
++++ b/mm/mmu_context.c
+@@ -0,0 +1,58 @@
++/* Copyright (C) 2009 Red Hat, Inc.
++ *
++ * See ../COPYING for licensing terms.
++ */
++
++#include <linux/mm.h>
++#include <linux/mmu_context.h>
++#include <linux/module.h>
++#include <linux/sched.h>
++
++#include <asm/mmu_context.h>
++
++/*
++ * use_mm
++ *	Makes the calling kernel thread take on the specified
++ *	mm context.
++ *	Called by the retry thread execute retries within the
++ *	iocb issuer's mm context, so that copy_from/to_user
++ *	operations work seamlessly for aio.
++ *	(Note: this routine is intended to be called only
++ *	from a kernel thread context)
++ */
++void use_mm(struct mm_struct *mm)
++{
++	struct mm_struct *active_mm;
++	struct task_struct *tsk = current;
++
++	task_lock(tsk);
++	active_mm = tsk->active_mm;
++	atomic_inc(&mm->mm_count);
++	tsk->mm = mm;
++	tsk->active_mm = mm;
++	switch_mm(active_mm, mm, tsk);
++	task_unlock(tsk);
++
++	mmdrop(active_mm);
++}
++EXPORT_SYMBOL_GPL(use_mm);
++
++/*
++ * unuse_mm
++ *	Reverses the effect of use_mm, i.e. releases the
++ *	specified mm context which was earlier taken on
++ *	by the calling kernel thread
++ *	(Note: this routine is intended to be called only
++ *	from a kernel thread context)
++ */
++void unuse_mm(struct mm_struct *mm)
++{
++	struct task_struct *tsk = current;
++
++	task_lock(tsk);
++	tsk->mm = NULL;
++	/* active_mm is still 'mm' */
++	enter_lazy_tlb(mm, tsk);
++	task_unlock(tsk);
++}
++EXPORT_SYMBOL_GPL(unuse_mm);
+-- 
+1.6.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
