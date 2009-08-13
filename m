@@ -1,42 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A459C6B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 11:26:28 -0400 (EDT)
-Date: Thu, 13 Aug 2009 08:26:36 -0700
-From: Matthew Wilcox <willy@linux.intel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 10BF96B004F
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 11:43:16 -0400 (EDT)
 Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
-	slot is freed)
-Message-ID: <20090813152636.GB13559@linux.intel.com>
-References: <200908122007.43522.ngupta@vflare.org> <Pine.LNX.4.64.0908122312380.25501@sister.anvils> <20090813151312.GA13559@linux.intel.com> <alpine.DEB.2.00.0908130815450.30426@asgard.lang.hm>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0908130815450.30426@asgard.lang.hm>
+ slot is freed)
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+In-Reply-To: <20090813151312.GA13559@linux.intel.com>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
+	 <20090813151312.GA13559@linux.intel.com>
+Content-Type: text/plain
+Date: Thu, 13 Aug 2009 15:43:12 +0000
+Message-Id: <1250178192.3901.54.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: david@lang.hm
+To: Matthew Wilcox <willy@linux.intel.com>
 Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 13, 2009 at 08:17:34AM -0700, david@lang.hm wrote:
-> On Thu, 13 Aug 2009, Matthew Wilcox wrote:
->
->> So TRIM isn't free, and there's a better way for the drive to find
->> out that the contents of a block no longer matter -- write some new
->> data to it.  So if we just swapped a page in, and we're going to swap
->> something else back out again soon, just write it to the same location
->> instead of to a fresh location.  You've saved a command, and you've
->> saved the drive some work, plus you've allowed other users to continue
->> accessing the drive in the meantime.
->
-> on the other hand, if you then end up swapping the page you read in out  
-> again and haven't dirtied it, you now have to actually write it as 
-> opposed to just throwing it away (knowing that you already have a copy of 
-> it stored on the swap device)
+On Thu, 2009-08-13 at 08:13 -0700, Matthew Wilcox wrote:
+> On Wed, Aug 12, 2009 at 11:48:27PM +0100, Hugh Dickins wrote:
+> > But fundamentally, though I can see how this cutdown communication
+> > path is useful to compcache, I'd much rather deal with it by the more
+> > general discard route if we can.  (I'm one of those still puzzled by
+> > the way swap is mixed up with block device in compcache: probably
+> > because I never found time to pay attention when you explained.)
+> > 
+> > You're right to question the utility of the current swap discard
+> > placement.  That code is almost a year old, written from a position
+> > of great ignorance, yet only now do we appear to be on the threshold
+> > of having an SSD which really supports TRIM (ah, the Linux ATA TRIM
+> > support seems to have gone missing now, but perhaps it's been
+> > waiting for a reality to check against too - Willy?).
+> 
+> I am indeed waiting for hardware with TRIM support to appear on my
+> desk before resubmitting the TRIM code.  It'd also be nice to be able to
+> get some performance numbers.
+> 
+> > I won't be surprised if we find that we need to move swap discard
+> > support much closer to swap_free (though I know from trying before
+> > that it's much messier there): in which case, even if we decided to
+> > keep your hotline to compcache (to avoid allocating bios etc.), it
+> > would be better placed alongside.
+> 
+> It turns out there are a lot of tradeoffs involved with discard, and
+> they're different between TRIM and UNMAP.
+> 
+> Let's start with UNMAP.  This SCSI command is used by giant arrays.
+> They want to do Thin Provisioning, so allocate physical storage to virtual
+> LUNs on demand, and want to deallocate it when they get an UNMAP command.
+> They allocate storage in large chunks (hundreds of kilobytes at a time).
+> They only care about discards that enable them to free an entire chunk.
+> The vast majority of users *do not care* about these arrays, because
+> they don't have one, and will never be able to afford one.  We should
+> ignore the desires of these vendors when designing our software.
 
-This is true, but at the point where you call discard, you will also
-have to write it again.  My point was about delaying calls to discard,
-rather than moving the point, or changing the circumstances under which
-one calls discard.
+Fundamentally, unmap, trim and write_same do similar things, so
+realistically they all map to discard in linux.
+
+Ignoring the desires of the enterprise isn't an option, since they are a
+good base for us.  However, they really do need to step up with a useful
+patch set for discussion that does what they want, so in the interim I'm
+happy with any proposal that doesn't actively damage what the enterprise
+wants to do with trim/write_same.
+
+> Solid State Drives are introducing an ATA command called TRIM.  SSDs
+> generally have an intenal mapping layer, and due to their low, low seek
+> penalty, will happily remap blocks anywhere on the flash.  They want
+> to know when a block isn't in use any more, so they don't have to copy
+> it around when they want to erase the chunk of storage that it's on.
+> The unfortunate thing about the TRIM command is that it's not NCQ, so
+> all NCQ commands have to finish, then we can send the TRIM command and
+> wait for it to finish, then we can send NCQ commands again.
+
+That's a bit of a silly protocol oversight ... I assume there's no way
+it can be corrected?
+
+> So TRIM isn't free, and there's a better way for the drive to find
+> out that the contents of a block no longer matter -- write some new
+> data to it.  So if we just swapped a page in, and we're going to swap
+> something else back out again soon, just write it to the same location
+> instead of to a fresh location.  You've saved a command, and you've
+> saved the drive some work, plus you've allowed other users to continue
+> accessing the drive in the meantime.
+> 
+> I am planning a complete overhaul of the discard work.  Users can send
+> down discard requests as frequently as they like.  The block layer will
+> cache them, and invalidate them if writes come through.  Periodically,
+> the block layer will send down a TRIM or an UNMAP (depending on the
+> underlying device) and get rid of the blocks that have remained unwanted
+> in the interim.
+> 
+> Thoughts on that are welcome.
+
+What you're basically planning is discard accumulation ... it's
+certainly closer to what the enterprise is looking for, so no objections
+from me.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
