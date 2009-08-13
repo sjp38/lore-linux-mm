@@ -1,156 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0F2136B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 23:30:14 -0400 (EDT)
-Message-ID: <4A83893D.50707@redhat.com>
-Date: Thu, 13 Aug 2009 11:32:13 +0800
-From: Amerigo Wang <amwang@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5066A6B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 23:33:48 -0400 (EDT)
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7D3XeZ1018344
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 09:03:40 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7D3XeUk1388764
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 09:03:40 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7D3XdrW027402
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 13:33:40 +1000
+Date: Thu, 13 Aug 2009 09:03:35 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Help Resource Counters Scale better (v4.1)
+Message-ID: <20090813033335.GF5087@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090811144405.GW7176@balbir.in.ibm.com> <20090811163159.ddc5f5fd.akpm@linux-foundation.org> <20090812045716.GH7176@balbir.in.ibm.com> <20090813100350.bc09c568.nishimura@mxp.nes.nec.co.jp>
 MIME-Version: 1.0
-Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
-References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain> <m1bpmk8l1g.fsf@fess.ebiederm.org>
-In-Reply-To: <m1bpmk8l1g.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090813100350.bc09c568.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, menage@google.com, prarit@redhat.com, andi.kleen@intel.com, xemul@openvz.org, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman wrote:
-> Amerigo Wang <amwang@redhat.com> writes:
->
->   
->> This patch implements shrinking the reserved memory for crash kernel,
->> if it is more than enough.
->>
->> For example, if you have already reserved 128M, now you just want 100M,
->> you can do:
->>
->> # echo $((100*1024*1024)) > /sys/kernel/kexec_crash_size
->>     
->
-> Getting closer (comments inline)
->
-> Semantically this patch is non-contriversial and pretty
-> simple, but still needs a fair amount of review.  Can
-> you put this patch at the front of your patch set.
->
->   
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-08-13 10:03:50]:
 
-Sure, I will do it when I resend them next time.
+> > @@ -1855,9 +1883,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+> >  		break;
+> >  	}
+> >  
+> > -	res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+> > -	if (do_swap_account && (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+> > -		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> > +	if (!mem_cgroup_is_root(mem)) {
+> > +		res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+> > +		if (do_swap_account &&
+> > +				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+> > +			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> > +	}
+> > +	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT && mem_cgroup_is_root(mem))
+> > +		mem_cgroup_swap_statistics(mem, true);
+> I think mem_cgroup_is_root(mem) would be unnecessary here.
+> Otherwise, MEM_CGROUP_STAT_SWAPOUT of groups except root memcgroup wouldn't
+> be counted properly.
+> 
 
-I add mm people into Cc.
->> Index: linux-2.6/kernel/kexec.c
->> ===================================================================
->> --- linux-2.6.orig/kernel/kexec.c
->> +++ linux-2.6/kernel/kexec.c
->> @@ -1083,6 +1083,76 @@ void crash_kexec(struct pt_regs *regs)
->>  	}
->>  }
->>  
->> +int kexec_crash_kernel_loaded(void)
->> +{
->> +	int ret;
->> +	if (!mutex_trylock(&kexec_mutex))
->> +		return 1;
->>     
->
-> We don't need trylock on this code path 
->   
+I think you have a valid point, but it will not impact us currently
+since we use SWAPOUT only for root accounting.
 
-OK.
+> 
+> > @@ -2461,10 +2496,26 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+> >  	name = MEMFILE_ATTR(cft->private);
+> >  	switch (type) {
+> >  	case _MEM:
+> > -		val = res_counter_read_u64(&mem->res, name);
+> > +		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+> > +			val = mem_cgroup_read_stat(&mem->stat,
+> > +					MEM_CGROUP_STAT_CACHE);
+> > +			val += mem_cgroup_read_stat(&mem->stat,
+> > +					MEM_CGROUP_STAT_RSS);
+> > +			val <<= PAGE_SHIFT;
+> > +		} else
+> > +			val = res_counter_read_u64(&mem->res, name);
+> >  		break;
+> >  	case _MEMSWAP:
+> > -		val = res_counter_read_u64(&mem->memsw, name);
+> > +		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+> > +			val = mem_cgroup_read_stat(&mem->stat,
+> > +					MEM_CGROUP_STAT_CACHE);
+> > +			val += mem_cgroup_read_stat(&mem->stat,
+> > +					MEM_CGROUP_STAT_RSS);
+> > +			val += mem_cgroup_read_stat(&mem->stat,
+> > +					MEM_CGROUP_STAT_SWAPOUT);
+> > +			val <<= PAGE_SHIFT;
+> > +		} else
+> > +			val = res_counter_read_u64(&mem->memsw, name);
+> >  		break;
+> >  	default:
+> >  		BUG();
+> Considering use_hierarchy==1 case in the root memcgroup, shouldn't we use
+> mem_cgroup_walk_tree() here to sum up all the children's usage ?
+> *.usage_in_bytes show sum of all the children's usage now if use_hierarchy==1.
 
->   
->> +	ret = kexec_crash_image != NULL;
->> +	mutex_unlock(&kexec_mutex);
->> +	return ret;
->> +}
->> +
->> +size_t get_crash_memory_size(void)
->> +{
->> +	size_t size;
->> +	if (!mutex_trylock(&kexec_mutex))
->> +		return 1;
->>     
->
-> We don't need trylock on this code path 
->
->   
+If memory.use_hiearchy=1, we should use total_stats..right. Let me
+send out a newer version for review.
 
-Hmm, crashk_res is a global struct, so other process can also
-change it... but currently no process does that, right?
 
->> +	size = crashk_res.end - crashk_res.start + 1;
->> +	mutex_unlock(&kexec_mutex);
->> +	return size;
->> +}
->> +
->> +int shrink_crash_memory(unsigned long new_size)
->> +{
->> +	struct page **pages;
->> +	int ret = 0;
->> +	int  npages, i;
->> +	unsigned long addr;
->> +	unsigned long start, end;
->> +	void *vaddr;
->> +
->> +	if (!mutex_trylock(&kexec_mutex))
->> +		return -EBUSY;
->>     
->
-> We don't need trylock on this code path 
->
-> We are missing the check to see if the crash_kernel is loaded
-> under this lock instance. So I please move the kexec_crash_image != NULL
-> test inline here and kill the kexec_crash_kernel_loaded function.
->   
-
-Ok, no problem.
-
->   
->> +	start = crashk_res.start;
->> +	end = crashk_res.end;
->> +
->> +	if (new_size >= end - start + 1) {
->> +		ret = -EINVAL;
->> +		if (new_size == end - start + 1)
->> +			ret = 0;
->> +		goto unlock;
->> +	}
->> +
->> +	start = roundup(start, PAGE_SIZE);
->> +	end = roundup(start + new_size, PAGE_SIZE) - 1;
->> +	npages = (end + 1 - start ) / PAGE_SIZE;
->> +
->> +	pages = kmalloc(sizeof(struct page *) * npages, GFP_KERNEL);
->> +	if (!pages) {
->> +		ret = -ENOMEM;
->> +		goto unlock;
->> +	}
->> +	for (i = 0; i < npages; i++) {
->> +		addr = end + 1 + i * PAGE_SIZE;
->> +		pages[i] = virt_to_page(addr);
->> +	}
->> +
->> +	vaddr = vm_map_ram(pages, npages, 0, PAGE_KERNEL);
->>     
->
-> This is the wrong kernel call to use.  I expect this needs to look
-> like a memory hotplug event.  This does not put the pages into the
-> free page pool.
->   
-
-Well, I also wanted to use an memory-hotplug API, but that will make the 
-code depend on memory-hotplug, which certainly is not what we want...
-
-I checked the mm code, actually what I need is an API which is similar 
-to add_active_range(), but add_active_range() can't be used here since 
-it is marked as "__init".
-
-Do we have that kind of API in mm? I can't find one.
-
-Thanks!
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
