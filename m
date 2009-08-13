@@ -1,88 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D99F66B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:26:23 -0400 (EDT)
-Date: Thu, 13 Aug 2009 18:26:21 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-Message-ID: <20090813162621.GB1915@phenom2.trippelsdorf.de>
-References: <200908122007.43522.ngupta@vflare.org>
- <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
- <20090813151312.GA13559@linux.intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 71FD36B004F
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:26:51 -0400 (EDT)
+Message-ID: <4A843EAE.6070200@redhat.com>
+Date: Thu, 13 Aug 2009 12:26:22 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090813151312.GA13559@linux.intel.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com> <20090813010356.GA7619@localhost> <4A843565.3010104@redhat.com> <4A843B72.6030204@redhat.com>
+In-Reply-To: <4A843B72.6030204@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 13, 2009 at 08:13:12AM -0700, Matthew Wilcox wrote:
-> On Wed, Aug 12, 2009 at 11:48:27PM +0100, Hugh Dickins wrote:
-> > But fundamentally, though I can see how this cutdown communication
-> > path is useful to compcache, I'd much rather deal with it by the more
-> > general discard route if we can.  (I'm one of those still puzzled by
-> > the way swap is mixed up with block device in compcache: probably
-> > because I never found time to pay attention when you explained.)
-> > 
-> > You're right to question the utility of the current swap discard
-> > placement.  That code is almost a year old, written from a position
-> > of great ignorance, yet only now do we appear to be on the threshold
-> > of having an SSD which really supports TRIM (ah, the Linux ATA TRIM
-> > support seems to have gone missing now, but perhaps it's been
-> > waiting for a reality to check against too - Willy?).
+Avi Kivity wrote:
+> On 08/13/2009 06:46 PM, Rik van Riel wrote:
+>> We need to ignore the referenced bit on active anon pages
+>> on very large systems, but it could indeed be helpful to
+>> respect the referenced bit on smaller systems.
+>>
+>> I have no idea where the cut-off between them would be.
+>>
+>> Maybe at inactive_ratio <= 4 ?
 > 
-> I am indeed waiting for hardware with TRIM support to appear on my
-> desk before resubmitting the TRIM code.  It'd also be nice to be able to
-> get some performance numbers.
-> 
+> Why do we need to ignore the referenced bit in such cases?  To avoid 
+> overscanning?
 
-OCZ just released a new firmware with full TRIM support for their Vertex
-SSDs. 
+Because swapping out anonymous pages tends to be a relatively
+rare operation, we'll have many gigabytes of anonymous pages
+that all have the referenced bit set (because there was lots
+of time between swapout bursts).
 
-> > I won't be surprised if we find that we need to move swap discard
-> > support much closer to swap_free (though I know from trying before
-> > that it's much messier there): in which case, even if we decided to
-> > keep your hotline to compcache (to avoid allocating bios etc.), it
-> > would be better placed alongside.
-> 
-> 
-> Solid State Drives are introducing an ATA command called TRIM.  SSDs
-> generally have an intenal mapping layer, and due to their low, low seek
-> penalty, will happily remap blocks anywhere on the flash.  They want
-> to know when a block isn't in use any more, so they don't have to copy
-> it around when they want to erase the chunk of storage that it's on.
-> The unfortunate thing about the TRIM command is that it's not NCQ, so
-> all NCQ commands have to finish, then we can send the TRIM command and
-> wait for it to finish, then we can send NCQ commands again.
-> 
-> So TRIM isn't free, and there's a better way for the drive to find
-> out that the contents of a block no longer matter -- write some new
-> data to it.  So if we just swapped a page in, and we're going to swap
-> something else back out again soon, just write it to the same location
-> instead of to a fresh location.  You've saved a command, and you've
-> saved the drive some work, plus you've allowed other users to continue
-> accessing the drive in the meantime.
-> 
-> I am planning a complete overhaul of the discard work.  Users can send
-> down discard requests as frequently as they like.  The block layer will
-> cache them, and invalidate them if writes come through.  Periodically,
-> the block layer will send down a TRIM or an UNMAP (depending on the
-> underlying device) and get rid of the blocks that have remained unwanted
-> in the interim.
+Ignoring the referenced bit on active anon pages makes no
+difference on these systems, because all active anon pages
+have the referenced bit set, anyway.
 
-That is a very good idea. I've tested your original TRIM implementation on
-my Vertex yesterday and it was awful ;-). The SSD needs hundreds of
-milliseconds to digest a single TRIM command. And since your implementation
-sends a TRIM for each extent of each deleted file, the whole system is
-unusable after a short while. 
-An optimal solution would be to consolidate the discard requests, bundle
-them and send them to the drive as infrequent as possible.
+All we need to do is put the pages on the inactive list and
+give them a chance to get referenced.
+
+However, on smaller systems (and cgroups!), the speed at
+which we can do pageout IO is larger, compared to the amount
+of memory.  This means we can cycle through the pages more
+quickly and we may want to count references on the active
+list, too.
+
+Yes, on smaller systems we'll also often end up with bursty
+swapout loads and all pages referenced - but since we have
+fewer pages to begin with, it won't hurt as much.
+
+I suspect that an inactive_ratio of 3 or 4 might make a
+good cutoff value.
 
 -- 
-Markus
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
