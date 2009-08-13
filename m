@@ -1,175 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 61A676B004D
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 17:34:40 -0400 (EDT)
-From: =?utf-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: [PATCH] [RFC, RT] fix kmap_high_get
-Date: Thu, 13 Aug 2009 23:34:03 +0200
-Message-Id: <1250199243-18677-1-git-send-email-u.kleine-koenig@pengutronix.de>
-In-Reply-To: <1249810600-21946-3-git-send-email-u.kleine-koenig@pengutronix.de>
-References: <1249810600-21946-3-git-send-email-u.kleine-koenig@pengutronix.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 286336B004D
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 17:49:15 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id n7DLnFVu023195
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 22:49:16 +0100
+Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
+	by wpaz1.hot.corp.google.com with ESMTP id n7DLnCMw007370
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:49:13 -0700
+Received: by pzk30 with SMTP id 30so772017pzk.5
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2009 14:49:12 -0700 (PDT)
+Date: Thu, 13 Aug 2009 14:49:09 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/3] Add MAP_HUGETLB for mmaping pseudo-anonymous huge
+ page regions V2
+In-Reply-To: <83949d066e2a7221a25dd74d12d6dcf7e8b4e9ba.1250156841.git.ebmunson@us.ibm.com>
+Message-ID: <alpine.DEB.2.00.0908131443350.9805@chino.kir.corp.google.com>
+References: <cover.1250156841.git.ebmunson@us.ibm.com> <e9b02974a0cca308927ff3a4a0765b93faa6d12f.1250156841.git.ebmunson@us.ibm.com> <83949d066e2a7221a25dd74d12d6dcf7e8b4e9ba.1250156841.git.ebmunson@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: rt-users <linux-rt-users@vger.kernel.org>, Nicolas Pitre <nico@marvell.com>, MinChan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Li Zefan <lizf@cn.fujitsu.com>, Jens Axboe <jens.axboe@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, akpm@linux-foundation.org, mtk.manpages@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-This fixes the build failure with ARCH_NEEDS_KMAP_HIGH_GET.
-This is only compile tested.
+On Thu, 13 Aug 2009, Eric B Munson wrote:
 
-Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
-Cc: Nicolas Pitre <nico@marvell.com>
-Cc: MinChan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
-Hello
+> This patch adds a flag for mmap that will be used to request a huge
+> page region that will look like anonymous memory to user space.  This
+> is accomplished by using a file on the internal vfsmount.  MAP_HUGETLB
+> is a modifier of MAP_ANONYMOUS and so must be specified with it.  The
+> region will behave the same as a MAP_ANONYMOUS region using small pages.
+> 
+> Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+> ---
+> Changes from V1
+>  Rebase to newest linux-2.6 tree
+>  Rename MAP_LARGEPAGE to MAP_HUGETLB to match flag name for huge page shm
+> 
+>  include/asm-generic/mman-common.h |    1 +
+>  include/linux/hugetlb.h           |    7 +++++++
+>  mm/mmap.c                         |   16 ++++++++++++++++
+>  3 files changed, 24 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+> index 3b69ad3..12f5982 100644
+> --- a/include/asm-generic/mman-common.h
+> +++ b/include/asm-generic/mman-common.h
+> @@ -19,6 +19,7 @@
+>  #define MAP_TYPE	0x0f		/* Mask for type of mapping */
+>  #define MAP_FIXED	0x10		/* Interpret addr exactly */
+>  #define MAP_ANONYMOUS	0x20		/* don't use a file */
+> +#define MAP_HUGETLB	0x40		/* create a huge page mapping */
+>  
+>  #define MS_ASYNC	1		/* sync memory asynchronously */
+>  #define MS_INVALIDATE	2		/* invalidate the caches */
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 78b6ddf..b84361c 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -109,12 +109,19 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+>  
+>  #endif /* !CONFIG_HUGETLB_PAGE */
+>  
+> +#define HUGETLB_ANON_FILE "anon_hugepage"
+> +
+>  enum {
+>  	/*
+>  	 * The file will be used as an shm file so shmfs accounting rules
+>  	 * apply
+>  	 */
+>  	HUGETLB_SHMFS_INODE     = 0x01,
+> +	/*
+> +	 * The file is being created on the internal vfs mount and shmfs
+> +	 * accounting rules do not apply
+> +	 */
+> +	HUGETLB_ANONHUGE_INODE  = 0x02,
+>  };
+>  
+>  #ifdef CONFIG_HUGETLBFS
 
-this bases on the patch "[PATCH RT 9/6] [RFH] Build failure on
-2.6.31-rc4-rt1 in mm/highmem.c" earlier in this thread.
+While I think it's appropriate to use an enum here, these two "flags" 
+can't be used together so it would probably be better to avoid the 
+hexadecimal.
 
-I don't know if kmap_high_get() has to call kmap_account().  Anyone?
+If flags were ever needed in the future, you could reserve the upper eight 
+bits of the int for such purposes similiar to mempolicy flags.
 
-As I don't have any knowledge about highmem (or mm in general) I'll go into
-hiding before tglx caughts me with his trout.
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 34579b2..3612b20 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -29,6 +29,7 @@
+>  #include <linux/rmap.h>
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/perf_counter.h>
+> +#include <linux/hugetlb.h>
+>  
+>  #include <asm/uaccess.h>
+>  #include <asm/cacheflush.h>
+> @@ -954,6 +955,21 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>  	if (mm->map_count > sysctl_max_map_count)
+>  		return -ENOMEM;
+>  
+> +	if (flags & MAP_HUGETLB) {
+> +		if (file)
+> +			return -EINVAL;
+> +
+> +		/*
+> +		 * VM_NORESERVE is used because the reservations will be
+> +		 * taken when vm_ops->mmap() is called
+> +		 */
+> +		len = ALIGN(len, huge_page_size(&default_hstate));
+> +		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
+> +						HUGETLB_ANONHUGE_INODE);
+> +		if (IS_ERR(file))
+> +			return -ENOMEM;
+> +	}
+> +
+>  	/* Obtain the address to map to. we verify (or select) it and ensure
+>  	 * that it represents a valid section of the address space.
+>  	 */
 
-Best regards
-Uwe
-
- mm/highmem.c |   79 ++++++++++++++++++++-------------------------------------
- 1 files changed, 28 insertions(+), 51 deletions(-)
-
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 4aa9eea..b5f5faf 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -75,26 +75,6 @@ pte_t * pkmap_page_table;
- 
- static DECLARE_WAIT_QUEUE_HEAD(pkmap_wait);
- 
--
--/*
-- * Most architectures have no use for kmap_high_get(), so let's abstract
-- * the disabling of IRQ out of the locking in that case to save on a
-- * potential useless overhead.
-- */
--#ifdef ARCH_NEEDS_KMAP_HIGH_GET
--#define lock_kmap()             spin_lock_irq(&kmap_lock)
--#define unlock_kmap()           spin_unlock_irq(&kmap_lock)
--#define lock_kmap_any(flags)    spin_lock_irqsave(&kmap_lock, flags)
--#define unlock_kmap_any(flags)  spin_unlock_irqrestore(&kmap_lock, flags)
--#else
--#define lock_kmap()             spin_lock(&kmap_lock)
--#define unlock_kmap()           spin_unlock(&kmap_lock)
--#define lock_kmap_any(flags)    \
--		do { spin_lock(&kmap_lock); (void)(flags); } while (0)
--#define unlock_kmap_any(flags)  \
--		do { spin_unlock(&kmap_lock); (void)(flags); } while (0)
--#endif
--
- /*
-  * Try to free a given kmap slot.
-  *
-@@ -313,22 +293,32 @@ static void kunmap_account(void)
- 	wake_up(&pkmap_wait);
- }
- 
--void *kmap_high(struct page *page)
-+/**
-+ * kmap_high_get - pin a highmem page into memory
-+ * @page: &struct page to pin
-+ *
-+ * Returns the page's current virtual memory address, or NULL if no mapping
-+ * exists.  When and only when a non null address is returned then a
-+ * matching call to kunmap_high() is necessary.
-+ *
-+ * This can be called from any context.
-+ */
-+void *kmap_high_get(struct page *page)
- {
- 	unsigned long vaddr;
- 
--
--	kmap_account();
- again:
- 	vaddr = (unsigned long)page_address(page);
- 	if (vaddr) {
- 		atomic_t *counter = &pkmap_count[PKMAP_NR(vaddr)];
- 		if (atomic_inc_not_zero(counter)) {
- 			/*
--			 * atomic_inc_not_zero implies a (memory) barrier on success
--			 * so page address will be reloaded.
-+			 * atomic_inc_not_zero implies a (memory) barrier on
-+			 * success, so page address will be reloaded.
- 			 */
--			unsigned long vaddr2 = (unsigned long)page_address(page);
-+			unsigned long vaddr2 =
-+				(unsigned long)page_address(page);
-+
- 			if (likely(vaddr == vaddr2))
- 				return (void *)vaddr;
- 
-@@ -344,6 +334,18 @@ again:
- 			goto again;
- 		}
- 	}
-+	return NULL;
-+}
-+
-+void *kmap_high(struct page *page)
-+{
-+	unsigned long vaddr;
-+
-+	kmap_account();
-+again:
-+	vaddr = (unsigned long)kmap_high_get(page);
-+	if (vaddr)
-+		return (void *)vaddr;
- 
- 	vaddr = pkmap_insert(page);
- 	if (!vaddr)
-@@ -354,31 +356,6 @@ again:
- 
- EXPORT_SYMBOL(kmap_high);
- 
--#ifdef ARCH_NEEDS_KMAP_HIGH_GET
--/**
-- * kmap_high_get - pin a highmem page into memory
-- * @page: &struct page to pin
-- *
-- * Returns the page's current virtual memory address, or NULL if no mapping
-- * exists.  When and only when a non null address is returned then a
-- * matching call to kunmap_high() is necessary.
-- *
-- * This can be called from any context.
-- */
--void *kmap_high_get(struct page *page)
--{
--	unsigned long vaddr, flags;
--
--	lock_kmap_any(flags);
--	vaddr = (unsigned long)page_address(page);
--	if (vaddr) {
--		BUG_ON(atomic_read(&pkmap_count[PKMAP_NR(vaddr)]) < 1);
--		atomic_add(1, pkmap_count[PKMAP_NR(vaddr)]);
--	}
--	unlock_kmap_any(flags);
--	return (void*) vaddr;
--}
--#endif
- 
-  void kunmap_high(struct page *page)
- {
--- 
-1.6.3.3
+hugetlb_file_setup() can fail for reasons other than failing to reserve 
+pages, so maybe it would be better to return PTR_ERR(file) instead of 
+hardcoding -ENOMEM?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
