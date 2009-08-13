@@ -1,79 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id C8D8A6B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 21:04:00 -0400 (EDT)
-Date: Thu, 13 Aug 2009 09:03:56 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090813010356.GA7619@localhost>
-References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4A82D24D.6020402@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EEF826B005A
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 21:06:56 -0400 (EDT)
+Date: Thu, 13 Aug 2009 10:03:50 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] Help Resource Counters Scale better (v4.1)
+Message-Id: <20090813100350.bc09c568.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090812045716.GH7176@balbir.in.ibm.com>
+References: <20090811144405.GW7176@balbir.in.ibm.com>
+	<20090811163159.ddc5f5fd.akpm@linux-foundation.org>
+	<20090812045716.GH7176@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, menage@google.com, prarit@redhat.com, andi.kleen@intel.com, xemul@openvz.org, lizf@cn.fujitsu.com, nishimura@mxp.nes.nec.co.jp, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 12, 2009 at 10:31:41PM +0800, Rik van Riel wrote:
-> Wu Fengguang wrote:
-> > On Fri, Aug 07, 2009 at 11:17:22AM +0800, KOSAKI Motohiro wrote:
-> >>> Andrea Arcangeli wrote:
-> >>>
-> >>>> Likely we need a cut-off point, if we detect it takes more than X
-> >>>> seconds to scan the whole active list, we start ignoring young bits,
-> >>> We could just make this depend on the calculated inactive_ratio,
-> >>> which depends on the size of the list.
-> >>>
-> >>> For small systems, it may make sense to make every accessed bit
-> >>> count, because the working set will often approach the size of
-> >>> memory.
-> >>>
-> >>> On very large systems, the working set may also approach the
-> >>> size of memory, but the inactive list only contains a small
-> >>> percentage of the pages, so there is enough space for everything.
-> >>>
-> >>> Say, if the inactive_ratio is 3 or less, make the accessed bit
-> >>> on the active lists count.
-> >> Sound reasonable.
-> > 
-> > Yes, such kind of global measurements would be much better.
-> > 
-> >> How do we confirm the idea correctness?
-> > 
-> > In general the active list tends to grow large on under-scanned LRU.
-> > I guess Rik is pretty familiar with typical inactive_ratio values of
-> > the large memory systems and may even have some real numbers :)
-> > 
-> >> Wu, your X focus switching benchmark is sufficient test?
-> > 
-> > It is a major test case for memory tight desktop.  Jeff presents
-> > another interesting one for KVM, hehe.
-> > 
-> > Anyway I collected the active/inactive list sizes, and the numbers
-> > show that the inactive_ratio is roughly 1 when the LRU is scanned
-> > actively and may go very high when it is under-scanned.
-> 
-> inactive_ratio is based on the zone (or cgroup) size.
+> @@ -1855,9 +1883,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  		break;
+>  	}
+>  
+> -	res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+> -	if (do_swap_account && (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+> -		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> +	if (!mem_cgroup_is_root(mem)) {
+> +		res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+> +		if (do_swap_account &&
+> +				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+> +			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> +	}
+> +	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT && mem_cgroup_is_root(mem))
+> +		mem_cgroup_swap_statistics(mem, true);
+I think mem_cgroup_is_root(mem) would be unnecessary here.
+Otherwise, MEM_CGROUP_STAT_SWAPOUT of groups except root memcgroup wouldn't
+be counted properly.
 
-Ah sorry, my word 'inactive_ratio' means runtime active:inactive ratio.
 
-> For zones it is a fixed value, which is available in
-> /proc/zoneinfo
+> @@ -2461,10 +2496,26 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+>  	name = MEMFILE_ATTR(cft->private);
+>  	switch (type) {
+>  	case _MEM:
+> -		val = res_counter_read_u64(&mem->res, name);
+> +		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+> +			val = mem_cgroup_read_stat(&mem->stat,
+> +					MEM_CGROUP_STAT_CACHE);
+> +			val += mem_cgroup_read_stat(&mem->stat,
+> +					MEM_CGROUP_STAT_RSS);
+> +			val <<= PAGE_SHIFT;
+> +		} else
+> +			val = res_counter_read_u64(&mem->res, name);
+>  		break;
+>  	case _MEMSWAP:
+> -		val = res_counter_read_u64(&mem->memsw, name);
+> +		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+> +			val = mem_cgroup_read_stat(&mem->stat,
+> +					MEM_CGROUP_STAT_CACHE);
+> +			val += mem_cgroup_read_stat(&mem->stat,
+> +					MEM_CGROUP_STAT_RSS);
+> +			val += mem_cgroup_read_stat(&mem->stat,
+> +					MEM_CGROUP_STAT_SWAPOUT);
+> +			val <<= PAGE_SHIFT;
+> +		} else
+> +			val = res_counter_read_u64(&mem->memsw, name);
+>  		break;
+>  	default:
+>  		BUG();
+Considering use_hierarchy==1 case in the root memcgroup, shouldn't we use
+mem_cgroup_walk_tree() here to sum up all the children's usage ?
+*.usage_in_bytes show sum of all the children's usage now if use_hierarchy==1.
 
-On my 64bit desktop with 4GB memory:
-
-        DMA     inactive_ratio:    1
-        DMA32   inactive_ratio:    4
-        Normal  inactive_ratio:    1
-
-The biggest zone DMA32 has inactive_ratio=4. But I guess the
-referenced bit should not be ignored on this typical desktop
-configuration?
 
 Thanks,
-Fengguang
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
