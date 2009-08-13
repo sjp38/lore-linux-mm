@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 556816B004F
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 18:48:43 -0400 (EDT)
-Date: Wed, 12 Aug 2009 23:48:27 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] swap: send callback when swap slot is freed
-In-Reply-To: <200908122007.43522.ngupta@vflare.org>
-Message-ID: <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
-References: <200908122007.43522.ngupta@vflare.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C8D8A6B004F
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 21:04:00 -0400 (EDT)
+Date: Thu, 13 Aug 2009 09:03:56 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+Message-ID: <20090813010356.GA7619@localhost>
+References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4A82D24D.6020402@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Aug 2009, Nitin Gupta wrote:
-
-> Currently, we have "swap discard" mechanism which sends a discard bio request
-> when we find a free cluster during scan_swap_map(). This callback can come a
-> long time after swap slots are actually freed.
+On Wed, Aug 12, 2009 at 10:31:41PM +0800, Rik van Riel wrote:
+> Wu Fengguang wrote:
+> > On Fri, Aug 07, 2009 at 11:17:22AM +0800, KOSAKI Motohiro wrote:
+> >>> Andrea Arcangeli wrote:
+> >>>
+> >>>> Likely we need a cut-off point, if we detect it takes more than X
+> >>>> seconds to scan the whole active list, we start ignoring young bits,
+> >>> We could just make this depend on the calculated inactive_ratio,
+> >>> which depends on the size of the list.
+> >>>
+> >>> For small systems, it may make sense to make every accessed bit
+> >>> count, because the working set will often approach the size of
+> >>> memory.
+> >>>
+> >>> On very large systems, the working set may also approach the
+> >>> size of memory, but the inactive list only contains a small
+> >>> percentage of the pages, so there is enough space for everything.
+> >>>
+> >>> Say, if the inactive_ratio is 3 or less, make the accessed bit
+> >>> on the active lists count.
+> >> Sound reasonable.
+> > 
+> > Yes, such kind of global measurements would be much better.
+> > 
+> >> How do we confirm the idea correctness?
+> > 
+> > In general the active list tends to grow large on under-scanned LRU.
+> > I guess Rik is pretty familiar with typical inactive_ratio values of
+> > the large memory systems and may even have some real numbers :)
+> > 
+> >> Wu, your X focus switching benchmark is sufficient test?
+> > 
+> > It is a major test case for memory tight desktop.  Jeff presents
+> > another interesting one for KVM, hehe.
+> > 
+> > Anyway I collected the active/inactive list sizes, and the numbers
+> > show that the inactive_ratio is roughly 1 when the LRU is scanned
+> > actively and may go very high when it is under-scanned.
 > 
-> This delay in callback is a great problem when (compressed) RAM [1] is used
-> as a swap device. So, this change adds a callback which is called as
-> soon as a swap slot becomes free. For above mentioned case of swapping
-> over compressed RAM device, this is very useful since we can immediately
-> free memory allocated for this swap page.
-> 
-> This callback does not replace swap discard support. It is called with
-> swap_lock held, so it is meant to trigger action that finishes quickly.
-> However, swap discard is an I/O request and can be used for taking longer
-> actions.
-> 
-> Links:
-> [1] http://code.google.com/p/compcache/
+> inactive_ratio is based on the zone (or cgroup) size.
 
-Please keep this with compcache for the moment (it has no other users).
+Ah sorry, my word 'inactive_ratio' means runtime active:inactive ratio.
 
-I don't share Peter's view that it should be using a more general
-notifier interface (but I certainly agree with his EXPORT_SYMBOL_GPL).
-There better not be others hooking in here at the same time (a BUG_ON
-could check that): in fact I don't even want you hooking in here where
-swap_lock is held.  Glancing at compcache, I don't see you violating
-lock hierarchy by that, but it is a worry.
+> For zones it is a fixed value, which is available in
+> /proc/zoneinfo
 
-The interface to set the notifier, you currently have it by swap type:
-that would better be by bdev, wouldn't it?  with a search for the right
-slot.  There's nowhere else in ramzswap.c that you rely on swp_entry_t
-and page_private(page), let's keep such details out of compcache.
+On my 64bit desktop with 4GB memory:
 
-But fundamentally, though I can see how this cutdown communication
-path is useful to compcache, I'd much rather deal with it by the more
-general discard route if we can.  (I'm one of those still puzzled by
-the way swap is mixed up with block device in compcache: probably
-because I never found time to pay attention when you explained.)
+        DMA     inactive_ratio:    1
+        DMA32   inactive_ratio:    4
+        Normal  inactive_ratio:    1
 
-You're right to question the utility of the current swap discard
-placement.  That code is almost a year old, written from a position
-of great ignorance, yet only now do we appear to be on the threshold
-of having an SSD which really supports TRIM (ah, the Linux ATA TRIM
-support seems to have gone missing now, but perhaps it's been
-waiting for a reality to check against too - Willy?).
+The biggest zone DMA32 has inactive_ratio=4. But I guess the
+referenced bit should not be ignored on this typical desktop
+configuration?
 
-I won't be surprised if we find that we need to move swap discard
-support much closer to swap_free (though I know from trying before
-that it's much messier there): in which case, even if we decided to
-keep your hotline to compcache (to avoid allocating bios etc.), it
-would be better placed alongside.
-
-Hugh
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
