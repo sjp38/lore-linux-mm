@@ -1,35 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AF3E76B004F
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:13:04 -0400 (EDT)
-Message-ID: <4A843B72.6030204@redhat.com>
-Date: Thu, 13 Aug 2009 19:12:34 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E724F6B0055
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2009 12:13:22 -0400 (EDT)
+Received: by pzk28 with SMTP id 28so646820pzk.11
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2009 09:13:25 -0700 (PDT)
+Message-ID: <4A843B96.3010200@vflare.org>
+Date: Thu, 13 Aug 2009 21:43:10 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-References: <20090806100824.GO23385@random.random> <4A7AD5DF.7090801@redhat.com> <20090807121443.5BE5.A69D9226@jp.fujitsu.com> <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com> <20090813010356.GA7619@localhost> <4A843565.3010104@redhat.com>
-In-Reply-To: <4A843565.3010104@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+ slot is freed)
+References: <200908122007.43522.ngupta@vflare.org> <Pine.LNX.4.64.0908122312380.25501@sister.anvils> <20090813151312.GA13559@linux.intel.com>
+In-Reply-To: <20090813151312.GA13559@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/13/2009 06:46 PM, Rik van Riel wrote:
-> We need to ignore the referenced bit on active anon pages
-> on very large systems, but it could indeed be helpful to
-> respect the referenced bit on smaller systems.
->
-> I have no idea where the cut-off between them would be.
->
-> Maybe at inactive_ratio <= 4 ?
+On 08/13/2009 08:43 PM, Matthew Wilcox wrote:
 
-Why do we need to ignore the referenced bit in such cases?  To avoid 
-overscanning?
+>
+> I am planning a complete overhaul of the discard work.  Users can send
+> down discard requests as frequently as they like.  The block layer will
+> cache them, and invalidate them if writes come through.  Periodically,
+> the block layer will send down a TRIM or an UNMAP (depending on the
+> underlying device) and get rid of the blocks that have remained unwanted
+> in the interim.
+>
 
--- 
-error compiling committee.c: too many arguments to function
+This batching of discard requests is still sub-optimal for compcache. 
+The optimal solution in this case is to get callback *as soon as* a swap 
+slot becomes free and this is what this patch does.
+
+I see that it will be difficult to accept this patch since compcache 
+seems to be the only user for now. However, this little addition makes a 
+*big* difference for the project. Currently, much of memory is wasted to 
+store all the stale data.
+
+I will be posting compcache patches for review in next merge window. So, 
+maybe this patch can be included now as the first step? The revised 
+patch is ready which addresses issues raised during the first review -- 
+will post it soon.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
