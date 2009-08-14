@@ -1,62 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BD1DC6B004D
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 05:51:11 -0400 (EDT)
-Date: Fri, 14 Aug 2009 17:51:06 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090814095106.GA3345@localhost>
-References: <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com> <20090813010356.GA7619@localhost> <4A843565.3010104@redhat.com> <4A843B72.6030204@redhat.com> <4A843EAE.6070200@redhat.com> <4A846581.2020304@redhat.com> <20090813211626.GA28274@cmpxchg.org> <4A850F4A.9020507@redhat.com> <20090814091055.GA29338@cmpxchg.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C24666B0055
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 07:41:03 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
+Date: Fri, 14 Aug 2009 13:40:36 +0200
+References: <cover.1250187913.git.mst@redhat.com> <20090813182931.GC6585@redhat.com>
+In-Reply-To: <20090813182931.GC6585@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090814091055.GA29338@cmpxchg.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200908141340.36176.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: virtualization@lists.linux-foundation.org
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 14, 2009 at 05:10:55PM +0800, Johannes Weiner wrote:
-> On Fri, Aug 14, 2009 at 10:16:26AM +0300, Avi Kivity wrote:
-> > On 08/14/2009 12:16 AM, Johannes Weiner wrote:
-> > >
-> > >>- do not ignore the referenced bit
-> > >>- if you see a run of N pages which all have the referenced bit set, do
-> > >>swap one
-> > >>
-> > >>     
-> > >
-> > >But it also means destroying the LRU order.
-> > >
-> > >   
-> > 
-> > True, it would, but if we ignore the referenced bit, LRU order is really 
-> > FIFO.
-> 
-> For the active list, yes.  But it's not that we degrade to First Fault
-> First Out in a global scope, we still update the order from
-> mark_page_accessed() and by activating referenced pages in
-> shrink_page_list() etc.
-> 
-> So even with the active list being a FIFO, we keep usage information
-> gathered from the inactive list.  If we deactivate pages in arbitrary
-> list intervals, we throw this away.
+On Thursday 13 August 2009, Michael S. Tsirkin wrote:
+> What it is: vhost net is a character device that can be used to reduce
+> the number of system calls involved in virtio networking.
+> Existing virtio net code is used in the guest without modification.
 
-We do have the danger of FIFO, if inactive list is small enough, so
-that (unconditionally) deactivated pages quickly get reclaimed and
-their life window in inactive list is too small to be useful.
+AFAICT, you have addressed all my comments, mostly by convincing me
+that you got it right anyway ;-).
 
-> And while global FIFO-based reclaim does not work too well, initial
-> fault order is a valuable hint in the aspect of referential locality
-> as the pages get used in groups and thus move around the lists in
-> groups.
-> 
-> Our granularity for regrouping decisions is pretty coarse, for
-> non-filecache pages it's basically 'referenced or not refrenced in the
-> last list round-trip', so it will take quite some time to regroup
-> pages that are used in truly similar intervals.
+I hope this gets into 2.6.32, good work!
 
-Agreed.
+> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+
+Acked-by: Arnd Bergmann <arnd@arndb.de>
+
+One idea though:
+
+> +	/* Parameter checking */
+> +	if (sock->sk->sk_type != SOCK_RAW) {
+> +		r = -ESOCKTNOSUPPORT;
+> +		goto done;
+> +	}
+> +
+> +	r = sock->ops->getname(sock, (struct sockaddr *)&uaddr.sa,
+> +			       &uaddr_len, 0);
+> +	if (r)
+> +		goto done;
+> +
+> +	if (uaddr.sa.sll_family != AF_PACKET) {
+> +		r = -EPFNOSUPPORT;
+> +		goto done;
+> +	}
+
+You currently limit the scope of the driver by only allowing raw packet
+sockets to be passed into the network driver. In qemu, we currently support
+some very similar transports:
+
+* raw packet (not in a release yet)
+* tcp connection
+* UDP multicast
+* tap character device
+* VDE with Unix local sockets
+
+My primary interest right now is the tap support, but I think it would
+be interesting in general to allow different file descriptor types
+in vhost_net_set_socket. AFAICT, there are two major differences
+that we need to handle for this:
+
+* most of the transports are sockets, tap uses a character device.
+  This could be dealt with by having both a struct socket * in
+  struct vhost_net *and* a struct file *, or by always keeping the
+  struct file and calling vfs_readv/vfs_writev for the data transport
+  in both cases.
+
+* Each transport has a slightly different header, we have
+  - raw ethernet frames (raw, udp multicast, tap)
+  - 32-bit length + raw frames, possibly fragmented (tcp)
+  - 80-bit header + raw frames, possibly fragmented (tap with vnet_hdr)
+  To handle these three cases, we need either different ioctl numbers
+  so that vhost_net can choose the right one, or a flags field in
+  VHOST_NET_SET_SOCKET, like
+
+  #define VHOST_NET_RAW		1
+  #define VHOST_NET_LEN_HDR	2
+  #define VHOST_NET_VNET_HDR	4
+
+  struct vhost_net_socket {
+	unsigned int flags;
+	int fd;
+  };
+  #define VHOST_NET_SET_SOCKET _IOW(VHOST_VIRTIO, 0x30, struct vhost_net_socket)
+
+If both of those are addressed, we can treat vhost_net as a generic
+way to do network handling in the kernel independent of the qemu
+model (raw, tap, ...) for it. 
+
+Your qemu patch would have to work differently, so instead of 
+
+qemu -net nic,vhost=eth0
+
+you would do the same as today with the raw packet socket extension
+
+qemu -net nic -net raw,ifname=eth0 
+
+Qemu could then automatically try to use vhost_net, if it's available
+in the kernel, or just fall back on software vlan otherwise.
+Does that make sense?
+
+	Arnd <>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
