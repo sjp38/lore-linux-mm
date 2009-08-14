@@ -1,53 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AADAE6B004F
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:38:51 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id n7EMcn1Y012640
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 23:38:50 +0100
-Received: from pxi36 (pxi36.prod.google.com [10.243.27.36])
-	by wpaz21.hot.corp.google.com with ESMTP id n7EMcSi0013343
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 15:38:47 -0700
-Received: by pxi36 with SMTP id 36so440884pxi.7
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 15:38:45 -0700 (PDT)
-Date: Fri, 14 Aug 2009 15:38:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
-In-Reply-To: <1249067452.4674.235.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.2.00.0908141532510.23204@chino.kir.corp.google.com>
-References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain> <20090729181205.23716.25002.sendpatchset@localhost.localdomain> <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com> <20090731103632.GB28766@csn.ul.ie>
- <1249067452.4674.235.camel@useless.americas.hpqcorp.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7830B6B004F
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:54:05 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so598371qwf.44
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 15:54:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <4A85DF1E.3050801@rtr.ca>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
+	 <20090813151312.GA13559@linux.intel.com>
+	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
+	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	 <1250191095.3901.116.camel@mulgrave.site> <4A85DF1E.3050801@rtr.ca>
+Date: Fri, 14 Aug 2009 18:54:11 -0400
+Message-ID: <87f94c370908141554ia447f5fo87c74d5d8c517c1c@mail.gmail.com>
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+	slot is freed)
+From: Greg Freemyer <greg.freemyer@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Greg KH <gregkh@suse.de>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Mark Lord <liml@rtr.ca>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 31 Jul 2009, Lee Schermerhorn wrote:
+On Fri, Aug 14, 2009 at 6:03 PM, Mark Lord<liml@rtr.ca> wrote:
+> James Bottomley wrote:
+>>
+>> On Thu, 2009-08-13 at 14:15 -0400, Greg Freemyer wrote:
+>>>
+>>> On Thu, Aug 13, 2009 at 12:33 PM, <david@lang.hm> wrote:
+>>>>
+>>>> On Thu, 13 Aug 2009, Markus Trippelsdorf wrote:
+>>>>
+>>>>> On Thu, Aug 13, 2009 at 08:13:12AM -0700, Matthew Wilcox wrote:
+>>>>>>
+>>>>>> I am planning a complete overhaul of the discard work. =A0Users can =
+send
+>>>>>> down discard requests as frequently as they like. =A0The block layer
+>>>>>> will
+>>>>>> cache them, and invalidate them if writes come through. =A0Periodica=
+lly,
+>>>>>> the block layer will send down a TRIM or an UNMAP (depending on the
+>>>>>> underlying device) and get rid of the blocks that have remained
+>>>>>> unwanted
+>>>>>> in the interim.
+>>>>>
+>>>>> That is a very good idea. I've tested your original TRIM implementati=
+on
+>>>>> on
+>>>>> my Vertex yesterday and it was awful ;-). The SSD needs hundreds of
+>>>>> milliseconds to digest a single TRIM command. And since your
+>>>>> implementation
+>>>>> sends a TRIM for each extent of each deleted file, the whole system i=
+s
+>>>>> unusable after a short while.
+>>>>> An optimal solution would be to consolidate the discard requests,
+>>>>> bundle
+>>>>> them and send them to the drive as infrequent as possible.
+>>>>
+>>>> or queue them up and send them when the drive is idle (you would need =
+to
+>>>> keep track to make sure the space isn't re-used)
+>>>>
+>>>> as an example, if you would consider spinning down a drive you don't
+>>>> hurt
+>>>> performance by sending accumulated trim commands.
+>>>>
+>>>> David Lang
+>>>
+>>> An alternate approach is the block layer maintain its own bitmap of
+>>> used unused sectors / blocks. Unmap commands from the filesystem just
+>>> cause the bitmap to be updated. =A0No other effect.
+>>>
+>>> (Big unknown: Where will the bitmap live between reboots? =A0Require DM
+>>> volumes so we can have a dedicated bitmap volume in the mix to store
+>>> the bitmap to? Maybe on mount, the filesystem has to be scanned to
+>>> initially populate the bitmap? =A0 Other options?)
+>>
+>> I wouldn't really have it live anywhere. =A0Discard is best effort; it's
+>> not required for fs integrity. =A0As long as we don't discard an in-use
+>> block we're free to do anything else (including forget to discard,
+>> rediscard a discarded block etc).
+>>
+>> It is theoretically possible to run all of this from user space using
+>> the fs mappings, a bit like a defrag command.
+>
+> ..
+>
+> Already a work-in-progress -- see my wiper.sh script on the hdparm page
+> at sourceforge. =A0Trimming 50+GB of free space on a 120GB Vertex
+> (over 100 million sectors) takes a *single* TRIM command,
+> and completes in only a couple of seconds.
+>
+> Cheers
+>
+Mark,
 
-> PATCH/RFC 5/4 hugetlb:  register per node hugepages attributes
-> 
-> Against: 2.6.31-rc4-mmotm-090730-0510
-> and the hugetlb rework and mempolicy-based nodes_allowed
-> series
-> 
+What filesystems does your script support?  Running a tool like this
+in the middle of the night makes a lot of since to me even from the
+perspective of many / most enterprise users.
 
-Andrew, Lee, what's the status of this patchset?  I don't see it, or the 
-mempolicy support version, in mmotm-2009-08-12-13-55.
+How do prevent a race where a block becomes used between userspace
+asking status and it sending the discard request?
 
-I think there are use cases for both the per-node hstate attributes and 
-the mempolicy restricted hugepage allocation support and both features can 
-co-exist in the kernel.
+ps: I tried to pull wiper.sh straight from sourceforge, but I'm
+getting some crazy page asking all sorts of questions and not letting
+me bypass it.  I hope sourceforge is broken.  The other option is they
+meant to do this. :(
 
-My particular interest is in the per-node hstate attributes because it 
-allows job schedulers to preallocate hugepages in nodes attached to a 
-cpuset with ease and allows node-targeted hugepage freeing for balanced 
-allocations, which is a prerequisite for effective interleave 
-optimizations.
-
-I'd encourage the addition of the per-node hstate attributes to mmotm.  
-Thanks Lee for implementing this feature.
+Greg
+--=20
+Greg Freemyer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
