@@ -1,118 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7830B6B004F
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:54:05 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so598371qwf.44
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 15:54:11 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4A85DF1E.3050801@rtr.ca>
-References: <200908122007.43522.ngupta@vflare.org>
-	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
-	 <20090813151312.GA13559@linux.intel.com>
-	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
-	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
-	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
-	 <1250191095.3901.116.camel@mulgrave.site> <4A85DF1E.3050801@rtr.ca>
-Date: Fri, 14 Aug 2009 18:54:11 -0400
-Message-ID: <87f94c370908141554ia447f5fo87c74d5d8c517c1c@mail.gmail.com>
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
-	slot is freed)
-From: Greg Freemyer <greg.freemyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA496B004F
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:59:20 -0400 (EDT)
+Date: Fri, 14 Aug 2009 15:58:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [rfc][patch] fs: turn iprune_mutex into rwsem
+Message-Id: <20090814155847.860dd23f.akpm@linux-foundation.org>
+In-Reply-To: <20090814152504.GA19195@wotan.suse.de>
+References: <20090814152504.GA19195@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mark Lord <liml@rtr.ca>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 14, 2009 at 6:03 PM, Mark Lord<liml@rtr.ca> wrote:
-> James Bottomley wrote:
->>
->> On Thu, 2009-08-13 at 14:15 -0400, Greg Freemyer wrote:
->>>
->>> On Thu, Aug 13, 2009 at 12:33 PM, <david@lang.hm> wrote:
->>>>
->>>> On Thu, 13 Aug 2009, Markus Trippelsdorf wrote:
->>>>
->>>>> On Thu, Aug 13, 2009 at 08:13:12AM -0700, Matthew Wilcox wrote:
->>>>>>
->>>>>> I am planning a complete overhaul of the discard work. =A0Users can =
-send
->>>>>> down discard requests as frequently as they like. =A0The block layer
->>>>>> will
->>>>>> cache them, and invalidate them if writes come through. =A0Periodica=
-lly,
->>>>>> the block layer will send down a TRIM or an UNMAP (depending on the
->>>>>> underlying device) and get rid of the blocks that have remained
->>>>>> unwanted
->>>>>> in the interim.
->>>>>
->>>>> That is a very good idea. I've tested your original TRIM implementati=
-on
->>>>> on
->>>>> my Vertex yesterday and it was awful ;-). The SSD needs hundreds of
->>>>> milliseconds to digest a single TRIM command. And since your
->>>>> implementation
->>>>> sends a TRIM for each extent of each deleted file, the whole system i=
-s
->>>>> unusable after a short while.
->>>>> An optimal solution would be to consolidate the discard requests,
->>>>> bundle
->>>>> them and send them to the drive as infrequent as possible.
->>>>
->>>> or queue them up and send them when the drive is idle (you would need =
-to
->>>> keep track to make sure the space isn't re-used)
->>>>
->>>> as an example, if you would consider spinning down a drive you don't
->>>> hurt
->>>> performance by sending accumulated trim commands.
->>>>
->>>> David Lang
->>>
->>> An alternate approach is the block layer maintain its own bitmap of
->>> used unused sectors / blocks. Unmap commands from the filesystem just
->>> cause the bitmap to be updated. =A0No other effect.
->>>
->>> (Big unknown: Where will the bitmap live between reboots? =A0Require DM
->>> volumes so we can have a dedicated bitmap volume in the mix to store
->>> the bitmap to? Maybe on mount, the filesystem has to be scanned to
->>> initially populate the bitmap? =A0 Other options?)
->>
->> I wouldn't really have it live anywhere. =A0Discard is best effort; it's
->> not required for fs integrity. =A0As long as we don't discard an in-use
->> block we're free to do anything else (including forget to discard,
->> rediscard a discarded block etc).
->>
->> It is theoretically possible to run all of this from user space using
->> the fs mappings, a bit like a defrag command.
->
-> ..
->
-> Already a work-in-progress -- see my wiper.sh script on the hdparm page
-> at sourceforge. =A0Trimming 50+GB of free space on a 120GB Vertex
-> (over 100 million sectors) takes a *single* TRIM command,
-> and completes in only a couple of seconds.
->
-> Cheers
->
-Mark,
+On Fri, 14 Aug 2009 17:25:05 +0200
+Nick Piggin <npiggin@suse.de> wrote:
 
-What filesystems does your script support?  Running a tool like this
-in the middle of the night makes a lot of since to me even from the
-perspective of many / most enterprise users.
+> 
+> We have had a report of memory allocation hangs during DVD-RAM (UDF) writing.
+> 
+> Jan tracked the cause of this down to UDF inode reclaim blocking:
+> 
+> gnome-screens D ffff810006d1d598     0 20686      1
+>  ffff810006d1d508 0000000000000082 ffff810037db6718 0000000000000800
+>  ffff810006d1d488 ffffffff807e4280 ffffffff807e4280 ffff810006d1a580
+>  ffff8100bccbc140 ffff810006d1a8c0 0000000006d1d4e8 ffff810006d1a8c0
+> Call Trace:
+>  [<ffffffff804477f3>] io_schedule+0x63/0xa5
+>  [<ffffffff802c2587>] sync_buffer+0x3b/0x3f
+>  [<ffffffff80447d2a>] __wait_on_bit+0x47/0x79
+>  [<ffffffff80447dc6>] out_of_line_wait_on_bit+0x6a/0x77
+>  [<ffffffff802c24f6>] __wait_on_buffer+0x1f/0x21
+>  [<ffffffff802c442a>] __bread+0x70/0x86
+>  [<ffffffff88de9ec7>] :udf:udf_tread+0x38/0x3a
+>  [<ffffffff88de0fcf>] :udf:udf_update_inode+0x4d/0x68c
+>  [<ffffffff88de26e1>] :udf:udf_write_inode+0x1d/0x2b
+>  [<ffffffff802bcf85>] __writeback_single_inode+0x1c0/0x394
+>  [<ffffffff802bd205>] write_inode_now+0x7d/0xc4
+>  [<ffffffff88de2e76>] :udf:udf_clear_inode+0x3d/0x53
+>  [<ffffffff802b39ae>] clear_inode+0xc2/0x11b
+>  [<ffffffff802b3ab1>] dispose_list+0x5b/0x102
+>  [<ffffffff802b3d35>] shrink_icache_memory+0x1dd/0x213
+>  [<ffffffff8027ede3>] shrink_slab+0xe3/0x158
+>  [<ffffffff8027fbab>] try_to_free_pages+0x177/0x232
+>  [<ffffffff8027a578>] __alloc_pages+0x1fa/0x392
+>  [<ffffffff802951fa>] alloc_page_vma+0x176/0x189
+>  [<ffffffff802822d8>] __do_fault+0x10c/0x417
+>  [<ffffffff80284232>] handle_mm_fault+0x466/0x940
+>  [<ffffffff8044b922>] do_page_fault+0x676/0xabf
+> 
+> Which blocks with the inode lock held, which then blocks other
+> reclaimers:
+> 
+> X             D ffff81009d47c400     0 17285  14831
+>  ffff8100844f3728 0000000000000086 0000000000000000 ffff81000000e288
+>  ffff81000000da00 ffffffff807e4280 ffffffff807e4280 ffff81009d47c400
+>  ffffffff805ff890 ffff81009d47c740 00000000844f3808 ffff81009d47c740
+> Call Trace:
+>  [<ffffffff80447f8c>] __mutex_lock_slowpath+0x72/0xa9
+>  [<ffffffff80447e1a>] mutex_lock+0x1e/0x22
+>  [<ffffffff802b3ba1>] shrink_icache_memory+0x49/0x213
+>  [<ffffffff8027ede3>] shrink_slab+0xe3/0x158
+>  [<ffffffff8027fbab>] try_to_free_pages+0x177/0x232
+>  [<ffffffff8027a578>] __alloc_pages+0x1fa/0x392
+>  [<ffffffff8029507f>] alloc_pages_current+0xd1/0xd6
+>  [<ffffffff80279ac0>] __get_free_pages+0xe/0x4d
+>  [<ffffffff802ae1b7>] __pollwait+0x5e/0xdf
+>  [<ffffffff8860f2b4>] :nvidia:nv_kern_poll+0x2e/0x73
+>  [<ffffffff802ad949>] do_select+0x308/0x506
+>  [<ffffffff802adced>] core_sys_select+0x1a6/0x254
+>  [<ffffffff802ae0b7>] sys_select+0xb5/0x157
 
-How do prevent a race where a block becomes used between userspace
-asking status and it sending the discard request?
+That isn't a hang.  When the bread() completes, everything proceeds.
 
-ps: I tried to pull wiper.sh straight from sourceforge, but I'm
-getting some crazy page asking all sorts of questions and not letting
-me bypass it.  I hope sourceforge is broken.  The other option is they
-meant to do this. :(
+> Now I think the main problem is having the filesystem block (and do IO
+> in inode reclaim. The problem is that this doesn't get accounted well
+> and penalizes a random allocator with a big latency spike caused by
+> work generated from elsewhere.
 
-Greg
---=20
-Greg Freemyer
+Yes.  Why does UDF do all that stuff in ->clear_inode()?  Other
+filesystems have very simple, non-blocking, non-IO-doing
+->clear_inode() implementations.  This sounds like a design problem
+within UDF.
+
+> I think the best idea would be to avoid this. By design if possible,
+> or by deferring the hard work to an asynchronous context. If the latter,
+> then the fs would probably want to throttle creation of new work with
+> queue size of the deferred work, but let's not get into those details.
+> 
+> Anyway, another obvious thing we looked at is the iprune_mutex which
+> is causing the cascading blocking. We could turn this into an rwsem to
+> improve concurrency. It is unreasonable to totally ban all potentially
+> slow or blocking operations in inode reclaim, so I think this is a cheap
+> way to get a small improvement.
+> 
+> This doesn't solve the whole problem of course. The process doing inode
+> reclaim will still take the latency hit, and concurrent processes may
+> end up contending on filesystem locks. So fs developers should keep
+> these problems in mind please (or discuss alternatives).
+> 
+> Jan points out this has the potential to uncover concurrency bugs in fs
+> code.
+> 
+> Comments?
+
+I bet you found that nice comment over iprune_mutex to be useful, no?
+
+That comment needs updating by this patch, btw.
+
+> -	mutex_unlock(&iprune_mutex);
+> +	up_write(&iprune_sem);
+
+yup, the patch looks OK.  inode_lock protects the lists and each thread
+will make each inode ineligible for lookup by other threads, so it's
+hard to see how there could be races in the VFS code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
