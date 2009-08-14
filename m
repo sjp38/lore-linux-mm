@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 724316B005A
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:10:36 -0400 (EDT)
-Message-ID: <4A85E0DC.9040101@rtr.ca>
-Date: Fri, 14 Aug 2009 18:10:36 -0400
-From: Mark Lord <liml@rtr.ca>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9FE566B005A
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 18:10:49 -0400 (EDT)
+Received: by qyk36 with SMTP id 36so1514378qyk.12
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 15:10:50 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- 	slot is freed)
-References: <200908122007.43522.ngupta@vflare.org> <Pine.LNX.4.64.0908122312380.25501@sister.anvils> 	<20090813151312.GA13559@linux.intel.com> <20090813162621.GB1915@phenom2.trippelsdorf.de> 	<alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm> <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com> 	<alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm> <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
-In-Reply-To: <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <adafxbu3vqt.fsf@cisco.com>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	 <alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	 <87f94c370908131428u75dfe496x1b7d90b94833bf80@mail.gmail.com>
+	 <46b8a8850908131520s747e045cnd8db9493e072939d@mail.gmail.com>
+	 <87f94c370908131719l7d84c5d0x2157cfeeb2451bce@mail.gmail.com>
+	 <46b8a8850908131758s781b07f6v2729483c0e50ae7a@mail.gmail.com>
+	 <87f94c370908141433h111f819j550467bf31c60776@mail.gmail.com>
+	 <adafxbu3vqt.fsf@cisco.com>
+Date: Fri, 14 Aug 2009 18:10:50 -0400
+Message-ID: <87f94c370908141510p1752183elf32c879c0510ebc4@mail.gmail.com>
+Subject: Re: Discard support
+From: Greg Freemyer <greg.freemyer@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Bryan Donlan <bdonlan@gmail.com>
-Cc: david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: Roland Dreier <rdreier@cisco.com>
+Cc: Richard Sharpe <realrichardsharpe@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Bryan Donlan wrote:
-..
-> Perhaps an interface (ioctl, etc) can be added to ask a filesystem to
-> discard all unused blocks in a certain range? (That is, have the
-> filesystem validate the request under any necessary locks before
-> passing it to the block IO layer)
-..
+On Fri, Aug 14, 2009 at 5:56 PM, Roland Dreier<rdreier@cisco.com> wrote:
+>
+> =A0> It seems to me that unmap is not all that different, why do we need =
+to
+> =A0> do it even close in time proximity to the deletes? =A0With a bitmap,=
+ we
+> =A0> have total timing control of when the unmaps are forwarded down to t=
+he
+> =A0> device. =A0I like that timing control much better than a cache and
+> =A0> coalesce approach.
+>
+> The trouble I see with a bitmap is the amount of memory it consumes. =A0I=
+t
+> seems that discards must be tracked on no bigger than 4KB sectors (and
+> possibly even 512 byte sectors). =A0But even with 4KB, then, say, a 32 TB
+> volume (just 16 * 2TB disks, or even lower end with thin provisioning)
+> requires 1 GB of bitmap memory. =A0Which is a lot just to store, let alon=
+e
+> walk over etc.
 
-While possibly TRIM-specific, this approach has the lowest overhead
-and probably the greatest gain-for-pain ratio.
+Have the filesystem guys created any efficient extent tree tracking solutio=
+ns?
 
-But it may not be as nice for enterprise (?).
+I mean a 16TB filesystem obviously has to track the freespace somehow
+that does not require 1GB of ram.  Can that logic be leveraged in
+block to track freespace?  That obviously assumes its not too cpu
+intensive to do so.
 
-On the Indilinx-based SSDs (eg. OCZ Vertex), TRIM seems to trigger an
-internal garbage-collection/erase cycle.  As such, the drive really prefers
-a few LARGE trim lists, rather than many smaller ones.
+If a leaf in the extent tracking tree becomes big enough, it could
+even be sent down from the block layer and that leaf deleted.  ie. If
+a leaf of the tree grows to represent X contiguous blocks, then a
+discard could be sent down to the device and the leaf representing
+those free blocks deleted.
 
-Here's some information that a vendor has observed from the Win7 use of TRIM:
+The new topo info about block devices might be able to help optimize
+the minimum size of a coalesced discard.
 
-> TRIM command is sent:
-> -	About 2/3 of partition is filled up, when file is deleted.
->         (I am not talking about send file to trash bin.)
-> -	In the above case, when trash bin gets emptied.
-> -	In the above case, when partition is deleted.
-> 
-> TRIM command is not sent:-	
-> -	When file is moved to trash bin
-> -	When partition is formatted. (Both quick and full format)
-> -	When empty partition is deleted
-> -	When file is deleted while there is big remaining free space
-..
-
-His words, not mine.  But the idea seems to be to batch them in large chunks.
-
-My wiper.sh "trim script" is packaged with the latest hdparm (currently 9.24)
-on sourceforge, for those who want to try this stuff for real.  No special
-kernel support is required to use it.
-
-Cheers
-
-Mark
+Greg
+--
+Greg Freemyer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
