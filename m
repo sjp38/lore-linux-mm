@@ -1,34 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 83E836B004F
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 17:42:18 -0400 (EDT)
-From: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
-Date: Fri, 14 Aug 2009 14:42:10 -0700
-Subject: RE: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <9EECC02A4CC333418C00A85D21E89326B6611AC5@azsmsx502.amr.corp.intel.com>
-References: <20090812074820.GA29631@localhost> <4A82D24D.6020402@redhat.com>
- <20090813010356.GA7619@localhost> <4A843565.3010104@redhat.com>
- <4A843B72.6030204@redhat.com> <4A843EAE.6070200@redhat.com>
- <4A846581.2020304@redhat.com> <20090813211626.GA28274@cmpxchg.org>
- <4A850F4A.9020507@redhat.com> <20090814091055.GA29338@cmpxchg.org>
- <20090814095106.GA3345@localhost>
-In-Reply-To: <20090814095106.GA3345@localhost>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6746B004F
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 17:56:20 -0400 (EDT)
+From: Roland Dreier <rdreier@cisco.com>
+Subject: Re: Discard support
+References: <200908122007.43522.ngupta@vflare.org>
+	<20090813151312.GA13559@linux.intel.com>
+	<20090813162621.GB1915@phenom2.trippelsdorf.de>
+	<alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	<87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	<alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	<87f94c370908131428u75dfe496x1b7d90b94833bf80@mail.gmail.com>
+	<46b8a8850908131520s747e045cnd8db9493e072939d@mail.gmail.com>
+	<87f94c370908131719l7d84c5d0x2157cfeeb2451bce@mail.gmail.com>
+	<46b8a8850908131758s781b07f6v2729483c0e50ae7a@mail.gmail.com>
+	<87f94c370908141433h111f819j550467bf31c60776@mail.gmail.com>
+Date: Fri, 14 Aug 2009 14:56:26 -0700
+In-Reply-To: <87f94c370908141433h111f819j550467bf31c60776@mail.gmail.com>
+	(Greg Freemyer's message of "Fri, 14 Aug 2009 17:33:49 -0400")
+Message-ID: <adafxbu3vqt.fsf@cisco.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Greg Freemyer <greg.freemyer@gmail.com>
+Cc: Richard Sharpe <realrichardsharpe@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-A side note - I've been doing some tracing and shrink_active_list is called=
- a humongous number of times (25000-ish during a ~90 kvm run), with a net r=
-esult of zero pages moved nearly all the time.  Your test is rescuing essen=
-tially all candidate pages from the inactive list.  Right now, I have the V=
-M_EXEC || PageAnon version of your test.
 
-						Jeff
+ > It seems to me that unmap is not all that different, why do we need to
+ > do it even close in time proximity to the deletes?  With a bitmap, we
+ > have total timing control of when the unmaps are forwarded down to the
+ > device.  I like that timing control much better than a cache and
+ > coalesce approach.
+
+The trouble I see with a bitmap is the amount of memory it consumes.  It
+seems that discards must be tracked on no bigger than 4KB sectors (and
+possibly even 512 byte sectors).  But even with 4KB, then, say, a 32 TB
+volume (just 16 * 2TB disks, or even lower end with thin provisioning)
+requires 1 GB of bitmap memory.  Which is a lot just to store, let alone
+walk over etc.
+
+ - R.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
