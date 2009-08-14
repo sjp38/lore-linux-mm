@@ -1,42 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EF79E6B004D
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 00:54:04 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id l33so301631rvb.26
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2009 21:54:11 -0700 (PDT)
-Message-ID: <4A84EDE4.1080605@vflare.org>
-Date: Fri, 14 Aug 2009 10:23:56 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: compcache as a pre-swap area
-References: <200908122007.43522.ngupta@vflare.org> <200908130805.36787.a1426z@gawab.com> <d760cf2d0908131031i2305f2deqe20d6a96c8d568af@mail.gmail.com> <200908140702.23947.a1426z@gawab.com>
-In-Reply-To: <200908140702.23947.a1426z@gawab.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 263FC6B004D
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 02:20:02 -0400 (EDT)
+Date: Fri, 14 Aug 2009 15:16:30 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [cleanup][2/2] mm: add_to_swap_cache() does not return -EEXIST
+Message-Id: <20090814151630.950e5cd9.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090810112716.fb110c5a.nishimura@mxp.nes.nec.co.jp>
+References: <20090810112326.3526b11d.nishimura@mxp.nes.nec.co.jp>
+	<20090810112716.fb110c5a.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Al Boldi <a1426z@gawab.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Matthew Wilcox <willy@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 08/14/2009 09:32 AM, Al Boldi wrote:
-> Nitin Gupta wrote:
->> compcache is really not really a swap replacement. Its just another
->> swap device that
->> compresses data and stores it in memory itself. You can have disk
->> based swaps along
->> with ramzswap (name of block device).
->
-> So once compcache fills up, it will start to age its contents into normal
-> swap?
->
+Andrew, this is a minor fix for mm-add_to_swap_cache-does-not-return-eexist.patch.
 
-This is desirable but not yet implemented. For now, if 'backing swap' is used, 
-compcache will forward incompressible pages to the backing swap device. If 
-compcache fills up, kernel will simply send further swap-outs to swap device 
-which comes next in priority.
+It didn't catch up with the change in [1/2](mm-add_to_swap_cache-must-not-sleep.patch).
 
-Nitin
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+fix indent size.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/swap_state.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index ff5bd8c..6d1daeb 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -92,12 +92,12 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+ 	spin_unlock_irq(&swapper_space.tree_lock);
+ 
+ 	if (unlikely(error)) {
+-			/*
+-			 * Only the context which have set SWAP_HAS_CACHE flag
+-			 * would call add_to_swap_cache().
+-			 * So add_to_swap_cache() doesn't returns -EEXIST.
+-			 */
+-			VM_BUG_ON(error == -EEXIST);
++		/*
++		 * Only the context which have set SWAP_HAS_CACHE flag
++		 * would call add_to_swap_cache().
++		 * So add_to_swap_cache() doesn't returns -EEXIST.
++		 */
++		VM_BUG_ON(error == -EEXIST);
+ 		set_page_private(page, 0UL);
+ 		ClearPageSwapCache(page);
+ 		page_cache_release(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
