@@ -1,34 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A2ACC6B004F
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 19:09:40 -0400 (EDT)
-Date: Fri, 14 Aug 2009 16:08:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
-Message-Id: <20090814160830.e301d68a.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.0908141532510.23204@chino.kir.corp.google.com>
-References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain>
-	<20090729181205.23716.25002.sendpatchset@localhost.localdomain>
-	<9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com>
-	<20090731103632.GB28766@csn.ul.ie>
-	<1249067452.4674.235.camel@useless.americas.hpqcorp.net>
-	<alpine.DEB.2.00.0908141532510.23204@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 743486B005A
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 19:21:27 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id c3so728320ana.26
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 16:21:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4A85E0DC.9040101@rtr.ca>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <Pine.LNX.4.64.0908122312380.25501@sister.anvils>
+	 <20090813151312.GA13559@linux.intel.com>
+	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
+	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	 <alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	 <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
+	 <4A85E0DC.9040101@rtr.ca>
+Date: Fri, 14 Aug 2009 17:21:32 -0600
+Message-ID: <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com>
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+	slot is freed)
+From: Chris Worley <worleys@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee.Schermerhorn@hp.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-numa@vger.kernel.org, gregkh@suse.de, nacc@us.ibm.com, andi@firstfloor.org, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
+To: Mark Lord <liml@rtr.ca>
+Cc: Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Aug 2009 15:38:43 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Fri, Aug 14, 2009 at 4:10 PM, Mark Lord<liml@rtr.ca> wrote:
+> Bryan Donlan wrote:
+> ..
+>>
+>> Perhaps an interface (ioctl, etc) can be added to ask a filesystem to
+>> discard all unused blocks in a certain range? (That is, have the
+>> filesystem validate the request under any necessary locks before
+>> passing it to the block IO layer)
+>
+> ..
+>
+> While possibly TRIM-specific, this approach has the lowest overhead
+> and probably the greatest gain-for-pain ratio.
+>
+> But it may not be as nice for enterprise (?).
+>
+> On the Indilinx-based SSDs (eg. OCZ Vertex), TRIM seems to trigger an
+> internal garbage-collection/erase cycle. =A0As such, the drive really pre=
+fers
+> a few LARGE trim lists, rather than many smaller ones.
+>
+> Here's some information that a vendor has observed from the Win7 use of
+> TRIM:
+>
+>> TRIM command is sent:
+>> - =A0 =A0 =A0 About 2/3 of partition is filled up, when file is deleted.
+>> =A0 =A0 =A0 =A0(I am not talking about send file to trash bin.)
+>> - =A0 =A0 =A0 In the above case, when trash bin gets emptied.
+>> - =A0 =A0 =A0 In the above case, when partition is deleted.
+>>
+>> TRIM command is not sent:-
+>> - =A0 =A0 =A0 When file is moved to trash bin
+>> - =A0 =A0 =A0 When partition is formatted. (Both quick and full format)
+>> - =A0 =A0 =A0 When empty partition is deleted
+>> - =A0 =A0 =A0 When file is deleted while there is big remaining free spa=
+ce
+>
+> ..
+>
+> His words, not mine. =A0But the idea seems to be to batch them in large
+> chunks.
 
-> Andrew, Lee, what's the status of this patchset?
+Sooner is better than waiting to coalesce.  The longer an LBA is
+inactive, the better for any management scheme.  If you wait until
+it's reused, you might as well forgo the advantages of TRIM/UNMAP.  If
+a the controller wants to coalesce, let it coalesce.
 
-All forgotten about as far as I'm concerned.  It was v1, it had "rfc"
-in there and had an "Ick, no, please don't do that" from Greg.  I
-assume Greg's OK with the fixed-up version.
+Chris
+>
+> My wiper.sh "trim script" is packaged with the latest hdparm (currently
+> 9.24)
+> on sourceforge, for those who want to try this stuff for real. =A0No spec=
+ial
+> kernel support is required to use it.
+>
+> Cheers
+>
+> Mark
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-raid" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
