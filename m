@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 766AA6B004F
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 19:53:21 -0400 (EDT)
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id n7ENrNpc022951
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 16:53:24 -0700
-Received: from pxi14 (pxi14.prod.google.com [10.243.27.14])
-	by spaceape9.eur.corp.google.com with ESMTP id n7ENrJ5E031405
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 16:53:20 -0700
-Received: by pxi14 with SMTP id 14so549773pxi.19
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 16:53:19 -0700 (PDT)
-Date: Fri, 14 Aug 2009 16:53:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
-In-Reply-To: <20090814160830.e301d68a.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.0908141649500.26836@chino.kir.corp.google.com>
-References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain> <20090729181205.23716.25002.sendpatchset@localhost.localdomain> <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com> <20090731103632.GB28766@csn.ul.ie>
- <1249067452.4674.235.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0908141532510.23204@chino.kir.corp.google.com> <20090814160830.e301d68a.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3FDA86B004F
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2009 20:19:34 -0400 (EDT)
+Received: by yxe14 with SMTP id 14so2409509yxe.12
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2009 17:19:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20090814234539.GE27148@parisc-linux.org>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <20090813151312.GA13559@linux.intel.com>
+	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
+	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	 <alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	 <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
+	 <4A85E0DC.9040101@rtr.ca>
+	 <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com>
+	 <20090814234539.GE27148@parisc-linux.org>
+Date: Fri, 14 Aug 2009 18:19:39 -0600
+Message-ID: <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com>
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+	slot is freed)
+From: Chris Worley <worleys@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, nacc@us.ibm.com, Andi Kleen <andi@firstfloor.org>, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: Mark Lord <liml@rtr.ca>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Aug 2009, Andrew Morton wrote:
+On Fri, Aug 14, 2009 at 5:45 PM, Matthew Wilcox<matthew@wil.cx> wrote:
+> On Fri, Aug 14, 2009 at 05:21:32PM -0600, Chris Worley wrote:
+>> Sooner is better than waiting to coalesce. =A0The longer an LBA is
+>> inactive, the better for any management scheme. =A0If you wait until
+>> it's reused, you might as well forgo the advantages of TRIM/UNMAP. =A0If
+>> a the controller wants to coalesce, let it coalesce.
+>
+> I'm sorry, you're wrong. =A0There is a tradeoff point, and it's different
+> for each drive model. =A0Sending down a steady stream of tiny TRIMs is
+> going to give terrible performance.
 
-> On Fri, 14 Aug 2009 15:38:43 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
-> 
-> > Andrew, Lee, what's the status of this patchset?
-> 
-> All forgotten about as far as I'm concerned.  It was v1, it had "rfc"
-> in there and had an "Ick, no, please don't do that" from Greg.  I
-> assume Greg's OK with the fixed-up version.
-> 
-> 
+Sounds like you might be using junk for a device?
 
-I think Greg's concerns were addressed in the latest revision of the 
-patchset, specifically http://marc.info/?l=linux-mm&m=124906676520398.
+For junk, a little coalescing may be warranted... like in the I/O
+schedular, but no more than 100usecs wait before posting, or then you
+effect high performing devices too.
 
-Maybe the more appropriate question to ask is if Mel has any concerns 
-about adding the per-node hstate attributes either as a substitution or as 
-a complement to the mempolicy-based allocation approach.  Mel?
-
-Lee, do you have plans to resend the patchset including the modified kobj 
-handling?
+Chris
+>
+> --
+> Matthew Wilcox =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Intel O=
+pen Source Technology Centre
+> "Bill, look, we understand that you're interested in selling us this
+> operating system, but compare it to ours. =A0We can't possibly take such
+> a retrograde step."
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
