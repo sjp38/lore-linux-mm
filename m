@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7CC716B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 01:50:58 -0400 (EDT)
-Date: Sun, 16 Aug 2009 13:50:46 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 062536B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 02:00:07 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id n7G5vZq8009814
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 15:57:35 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7G604Uo418190
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 16:00:04 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7G602L0031452
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 16:00:03 +1000
+Date: Sun, 16 Aug 2009 11:29:57 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090816055046.GB15320@localhost>
-References: <4A843B72.6030204@redhat.com> <4A843EAE.6070200@redhat.com> <4A846581.2020304@redhat.com> <20090813211626.GA28274@cmpxchg.org> <4A850F4A.9020507@redhat.com> <20090814091055.GA29338@cmpxchg.org> <20090814095106.GA3345@localhost> <4A856467.6050102@redhat.com> <20090815054524.GB11387@localhost> <20090816050902.GR5087@balbir.in.ibm.com>
+Message-ID: <20090816055957.GS5087@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost> <4A7AD79E.4020604@redhat.com> <20090816032822.GB6888@localhost> <4A878377.70502@redhat.com> <20090816045522.GA13740@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090816050902.GR5087@balbir.in.ibm.com>
+In-Reply-To: <20090816045522.GA13740@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 16, 2009 at 01:09:03PM +0800, Balbir Singh wrote:
-> * Wu Fengguang <fengguang.wu@intel.com> [2009-08-15 13:45:24]:
+* Wu Fengguang <fengguang.wu@intel.com> [2009-08-16 12:55:22]:
+
+> On Sun, Aug 16, 2009 at 11:56:39AM +0800, Rik van Riel wrote:
+> > Wu Fengguang wrote:
+> > 
+> > > Right, but I meant busty page allocations and accesses on them, which
+> > > can make a large continuous segment of referenced pages in LRU list,
+> > > say 50MB.  They may or may not be valuable as a whole, however a local
+> > > algorithm may keep the first 4MB and drop the remaining 46MB.
+> > 
+> > I wonder if the problem is that we simply do not keep a large
+> > enough inactive list in Jeff's test.  If we do not, pages do
+> > not have a chance to be referenced again before the reclaim
+> > code comes in.
 > 
-> > On Fri, Aug 14, 2009 at 09:19:35PM +0800, Rik van Riel wrote:
-> > > Wu Fengguang wrote:
-> > > > On Fri, Aug 14, 2009 at 05:10:55PM +0800, Johannes Weiner wrote:
-> > > 
-> > @@ -1541,11 +1542,11 @@ static void shrink_zone(int priority, st
-> >  			scan = (scan * percent[file]) / 100;
-> >  		}
-> >  		if (scanning_global_lru(sc))
-> > -			nr[l] = nr_scan_try_batch(scan,
-> > -						  &zone->lru[l].nr_saved_scan,
-> > -						  swap_cluster_max);
-> > +			saved_scan = &zone->lru[l].nr_saved_scan;
-> >  		else
-> > -			nr[l] = scan;
-> > +			saved_scan = mem_cgroup_get_saved_scan(sc->mem_cgroup,
-> > +							       zone, l);
-> > +		nr[l] = nr_scan_try_batch(scan, saved_scan, swap_cluster_max);
-> >  	}
-> >
+> Exactly, that's the case I call the list FIFO.
 > 
-> This might be a concern (although not a big ATM), since we can't
-> afford to miss limits by much. If a cgroup is near its limit and we
-> drop scanning it. We'll have to work out what this means for the end
-> user. May be more fundamental look through is required at the priority
-> based logic of exposing how much to scan, I don't know.
+> > The cgroup stats should show how many active anon and inactive
+> > anon pages there are in the cgroup.
+> 
+> Jeff, can you have a look at these stats? Thanks!
 
-I also had this worry at first. Then dismissed it because the page
-reclaim should be driven by "pages reclaimed" rather than "pages
-scanned". So when shrink_zone() decides to cancel one smallish scan,
-it may well be called again and accumulate up nr_saved_scan.
+Another experiment would be to toy with memory.swappiness (although
+defaults should work well). Could you compare the in-guest values of
+nr_*active* with the cgroup values as seen by the host?
 
-So it should only be a problem for a very small mem_cgroup (which may
-be _full_ scanned too much times in order to accumulate up nr_saved_scan).
-
-Thanks,
-Fengguang
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
