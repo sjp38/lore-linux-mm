@@ -1,82 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9B6DE6B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 07:29:43 -0400 (EDT)
-Date: Sun, 16 Aug 2009 19:29:10 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090816112910.GA3208@localhost>
-References: <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost> <20090806210955.GA14201@c2.user-mode-linux.org> <20090816031827.GA6888@localhost> <4A87829C.4090908@redhat.com> <20090816051502.GB13740@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090816051502.GB13740@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB946B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 10:11:12 -0400 (EDT)
+Date: Sun, 16 Aug 2009 15:05:30 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+ slot is freed)
+Message-ID: <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk>
+In-Reply-To: <1250344518.4159.4.camel@mulgrave.site>
+References: <200908122007.43522.ngupta@vflare.org>
+	<20090813151312.GA13559@linux.intel.com>
+	<20090813162621.GB1915@phenom2.trippelsdorf.de>
+	<alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	<87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	<alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	<3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
+	<4A85E0DC.9040101@rtr.ca>
+	<f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com>
+	<20090814234539.GE27148@parisc-linux.org>
+	<f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com>
+	<1250341176.4159.2.camel@mulgrave.site>
+	<4A86B69C.7090001@rtr.ca>
+	<1250344518.4159.4.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Mark Lord <liml@rtr.ca>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 16, 2009 at 01:15:02PM +0800, Wu Fengguang wrote:
-> On Sun, Aug 16, 2009 at 11:53:00AM +0800, Rik van Riel wrote:
-> > Wu Fengguang wrote:
-> > > On Fri, Aug 07, 2009 at 05:09:55AM +0800, Jeff Dike wrote:
-> > >> Side question -
-> > >> 	Is there a good reason for this to be in shrink_active_list()
-> > >> as opposed to __isolate_lru_page?
-> > >>
-> > >> 		if (unlikely(!page_evictable(page, NULL))) {
-> > >> 			putback_lru_page(page);
-> > >> 			continue;
-> > >> 		}
-> > >>
-> > >> Maybe we want to minimize the amount of code under the lru lock or
-> > >> avoid duplicate logic in the isolate_page functions.
-> > > 
-> > > I guess the quick test means to avoid the expensive page_referenced()
-> > > call that follows it. But that should be mostly one shot cost - the
-> > > unevictable pages are unlikely to cycle in active/inactive list again
-> > > and again.
+On Sat, 15 Aug 2009 08:55:17 -0500
+James Bottomley <James.Bottomley@suse.de> wrote:
+
+> On Sat, 2009-08-15 at 09:22 -0400, Mark Lord wrote:
+> > James Bottomley wrote:
+> > >
+> > > This means you have to drain the outstanding NCQ commands (stalling the
+> > > device) before you can send a TRIM.   If we do this for every discard,
+> > > the performance impact will be pretty devastating, hence the need to
+> > > coalesce.  It's nothing really to do with device characteristics, it's
+> > > an ATA protocol problem.
+> > ..
 > > 
-> > Please read what putback_lru_page does.
-> > 
-> > It moves the page onto the unevictable list, so that
-> > it will not end up in this scan again.
+> > I don't think that's really much of an issue -- we already have to do
+> > that for cache-flushes whenever barriers are enabled.  Yes it costs,
+> > but not too much.
 > 
-> Yes it does. I said 'mostly' because there is a small hole that an
-> unevictable page may be scanned but still not moved to unevictable
-> list: when a page is mapped in two places, the first pte has the
-> referenced bit set, the _second_ VMA has VM_LOCKED bit set, then
-> page_referenced() will return 1 and shrink_page_list() will move it
-> into active list instead of unevictable list. Shall we fix this rare
-> case?
+> That's not really what the enterprise is saying about flush barriers.
+> True, not all the performance problems are NCQ queue drain, but for a
+> steady workload they are significant.
 
-How about this fix?
+Flush barriers are nightmare for more than enterprise. You drive
+basically goes for a hike for a bit which trashes interactivity as well.
+If the device can't do trim and the like without a drain I don't see much
+point doing it at all, except maybe to wait for idle devices and run a
+filesystem managed background 'strimmer' thread to just weed out now idle
+blocks that have stayed idle - eg by adding an inode of all the deleted
+untrimmed blocks and giving it an irregular empty ?
 
----
-mm: stop circulating of referenced mlocked pages
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
-
---- linux.orig/mm/rmap.c	2009-08-16 19:11:13.000000000 +0800
-+++ linux/mm/rmap.c	2009-08-16 19:22:46.000000000 +0800
-@@ -358,6 +358,7 @@ static int page_referenced_one(struct pa
- 	 */
- 	if (vma->vm_flags & VM_LOCKED) {
- 		*mapcount = 1;	/* break early from loop */
-+		*vm_flags |= VM_LOCKED;
- 		goto out_unmap;
- 	}
- 
-@@ -482,6 +483,8 @@ static int page_referenced_file(struct p
- 	}
- 
- 	spin_unlock(&mapping->i_mmap_lock);
-+	if (*vm_flags & VM_LOCKED)
-+		referenced = 0;
- 	return referenced;
- }
- 
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
