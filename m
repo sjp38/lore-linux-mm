@@ -1,125 +1,102 @@
-From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH] swap: send callback when swap slot is freed
-Date: Wed, 12 Aug 2009 20:07:43 +0530
-Message-ID: <200908122007.43522.ngupta__9375.77749505199$1250089069$gmane$org@vflare.org>
-Reply-To: ngupta@vflare.org
+From: Mark Lord <liml@rtr.ca>
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+ slot is freed)
+Date: Sun, 16 Aug 2009 13:37:07 -0400
+Message-ID: <4A8843C3.3020409__25584.1895741925$1250444255$gmane$org@rtr.ca>
+References: <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com> <4A85E0DC.9040101@rtr.ca> <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com> <20090814234539.GE27148@parisc-linux.org> <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <20090816154430.GE17958@mit.edu> <4A8841D7.10506@rtr.ca>
 Mime-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Return-path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 166356B005A
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 10:57:25 -0400 (EDT)
-Received: from elvis.elte.hu ([157.181.1.14])
-	by mx3.mail.elte.hu with esmtp (Exim)
-	id 1MbFGd-0004x7-FO
-	from <mingo@elte.hu>
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2009 16:57:31 +0200
-Resent-Message-ID: <20090812145728.GA29882@elte.hu>
-Resent-To: linux-mm@kvack.org
-Content-Disposition: inline
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 451466B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 13:37:09 -0400 (EDT)
+In-Reply-To: <4A8841D7.10506@rtr.ca>
 Sender: owner-linux-mm@kvack.org
-To: mingo@elte.hu
-Cc: linux-kernel@vger.kernel.org
+To: Theodore Tso <tytso@mit.edu>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, James Bottomley <James.Bottomley@suse.de>, Mark Lord <liml@rtr.ca>, Chris
 List-Id: linux-mm.kvack.org
 
-Currently, we have "swap discard" mechanism which sends a discard bio request
-when we find a free cluster during scan_swap_map(). This callback can come a
-long time after swap slots are actually freed.
+Mark Lord wrote:
+..
+> As you can see, we're now into the 100 millisecond range
+> for successive TRIM-followed-by-TRIM commands.
+> 
+> Those are all for single extents.  I will follow-up with a small
+> amount of similar data for TRIMs with multiple extents.
+..
 
-This delay in callback is a great problem when (compressed) RAM [1] is used
-as a swap device. So, this change adds a callback which is called as
-soon as a swap slot becomes free. For above mentioned case of swapping
-over compressed RAM device, this is very useful since we can immediately
-free memory allocated for this swap page.
+Here's the exact same TRIM ranges, but issued with *two* extents
+per TRIM command, and again *without* the "sleep 1" between them:
 
-This callback does not replace swap discard support. It is called with
-swap_lock held, so it is meant to trigger action that finishes quickly.
-However, swap discard is an I/O request and can be used for taking longer
-actions.
+Beginning TRIM operations..
+Trimming 2 free extents encompassing 686 sectors (0 MB)
+Trimming 2 free extents encompassing 236 sectors (0 MB)
+Trimming 2 free extents encompassing 2186 sectors (1 MB)
+Trimming 2 free extents encompassing 2206 sectors (1 MB)
+Trimming 2 free extents encompassing 1494 sectors (1 MB)
+Trimming 2 free extents encompassing 1086 sectors (1 MB)
+Trimming 2 free extents encompassing 1658 sectors (1 MB)
+Trimming 2 free extents encompassing 14250 sectors (7 MB)
+Done.
+[ 1528.761626] ata_qc_issue: ATA_CMD_DSM starting
+[ 1528.761825] trim_completed: ATA_CMD_DSM took 419952 cycles
+[ 1528.807158] ata_qc_issue: ATA_CMD_DSM starting
+[ 1528.919035] trim_completed: ATA_CMD_DSM took 241772908 cycles
+[ 1528.956048] ata_qc_issue: ATA_CMD_DSM starting
+[ 1529.068536] trim_completed: ATA_CMD_DSM took 243085505 cycles
+[ 1529.156661] ata_qc_issue: ATA_CMD_DSM starting
+[ 1529.266377] trim_completed: ATA_CMD_DSM took 237098927 cycles
+[ 1529.367212] ata_qc_issue: ATA_CMD_DSM starting
+[ 1529.464676] trim_completed: ATA_CMD_DSM took 210619370 cycles
+[ 1529.518619] ata_qc_issue: ATA_CMD_DSM starting
+[ 1529.630444] trim_completed: ATA_CMD_DSM took 241654712 cycles
+[ 1529.739335] ata_qc_issue: ATA_CMD_DSM starting
+[ 1529.829826] trim_completed: ATA_CMD_DSM took 195545233 cycles
+[ 1529.958442] ata_qc_issue: ATA_CMD_DSM starting
+[ 1530.028356] trim_completed: ATA_CMD_DSM took 151077251 cycles
 
-Links:
-[1] http://code.google.com/p/compcache/
+Next, with *four* extents per TRIM:
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
----
+Beginning TRIM operations..
+Trimming 4 free extents encompassing 922 sectors (0 MB)
+Trimming 4 free extents encompassing 4392 sectors (2 MB)
+Trimming 4 free extents encompassing 2580 sectors (1 MB)
+Trimming 4 free extents encompassing 15908 sectors (8 MB)
+Done.
+[ 1728.923119] ata_qc_issue: ATA_CMD_DSM starting
+[ 1728.923343] trim_completed: ATA_CMD_DSM took 460590 cycles
+[ 1728.975082] ata_qc_issue: ATA_CMD_DSM starting
+[ 1729.087266] trim_completed: ATA_CMD_DSM took 242429200 cycles
+[ 1729.170167] ata_qc_issue: ATA_CMD_DSM starting
+[ 1729.282718] trim_completed: ATA_CMD_DSM took 243229428 cycles
+[ 1729.382328] ata_qc_issue: ATA_CMD_DSM starting
+[ 1729.481364] trim_completed: ATA_CMD_DSM took 214012942 cycles
 
- include/linux/swap.h |    5 +++++
- mm/swapfile.c        |   16 ++++++++++++++++
- 2 files changed, 21 insertions(+), 0 deletions(-)
+And with *eight* extents per TRIM:
+Beginning TRIM operations..
+Trimming 8 free extents encompassing 5314 sectors (3 MB)
+Trimming 8 free extents encompassing 18488 sectors (9 MB)
+Done.
+[ 1788.289669] ata_qc_issue: ATA_CMD_DSM starting
+[ 1788.290247] trim_completed: ATA_CMD_DSM took 1228539 cycles
+[ 1788.327223] ata_qc_issue: ATA_CMD_DSM starting
+[ 1788.440490] trim_completed: ATA_CMD_DSM took 244773243 cycles
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7c15334..4cbe3c4 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -8,6 +8,7 @@
- #include <linux/memcontrol.h>
- #include <linux/sched.h>
- #include <linux/node.h>
-+#include <linux/blkdev.h>
- 
- #include <asm/atomic.h>
- #include <asm/page.h>
-@@ -20,6 +21,8 @@ struct bio;
- #define SWAP_FLAG_PRIO_MASK	0x7fff
- #define SWAP_FLAG_PRIO_SHIFT	0
- 
-+typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
-+
- static inline int current_is_kswapd(void)
- {
- 	return current->flags & PF_KSWAPD;
-@@ -155,6 +158,7 @@ struct swap_info_struct {
- 	unsigned int max;
- 	unsigned int inuse_pages;
- 	unsigned int old_block_size;
-+	swap_free_notify_fn *swap_free_notify_fn;
- };
- 
- struct swap_list_t {
-@@ -295,6 +299,7 @@ extern sector_t swapdev_block(int, pgoff_t);
- extern struct swap_info_struct *get_swap_info_struct(unsigned);
- extern int reuse_swap_page(struct page *);
- extern int try_to_free_swap(struct page *);
-+extern void set_swap_free_notify(unsigned, swap_free_notify_fn *);
- struct backing_dev_info;
- 
- /* linux/mm/thrash.c */
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8ffdc0d..aa95fc7 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -552,6 +552,20 @@ out:
- 	return NULL;
- }
- 
-+/*
-+ * Sets callback for event when swap_map[offset] == 0
-+ * i.e. page at this swap offset is no longer used.
-+ */
-+void set_swap_free_notify(unsigned type, swap_free_notify_fn *notify_fn)
-+{
-+	struct swap_info_struct *sis;
-+	sis = get_swap_info_struct(type);
-+	BUG_ON(!sis);
-+	sis->swap_free_notify_fn = notify_fn;
-+	return;
-+}
-+EXPORT_SYMBOL(set_swap_free_notify);
-+
- static int swap_entry_free(struct swap_info_struct *p,
- 			   swp_entry_t ent, int cache)
- {
-@@ -583,6 +597,8 @@ static int swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p - swap_info;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
-+		if (p->swap_free_notify_fn)
-+			p->swap_free_notify_fn(p->bdev, offset);
- 	}
- 	if (!swap_count(count))
- 		mem_cgroup_uncharge_swap(ent);
+And finally, with everything in a single TRIM:
+
+Beginning TRIM operations..
+Trimming 16 free extents encompassing 23802 sectors (12 MB)
+Done.
+[ 1841.561147] ata_qc_issue: ATA_CMD_DSM starting
+[ 1841.563217] trim_completed: ATA_CMD_DSM took 4458480 cycles
+
+Notice how the first TRIM of each group above shows an artificially
+short completion time, because the firmware seems to return "done"
+before it's really done.  Subsequent TRIMs seem to have to wait
+for the previous one to really complete, and thus give more reliable
+timing data for our purposes.
+
+Cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
