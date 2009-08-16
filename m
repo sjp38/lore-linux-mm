@@ -1,59 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 062536B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 02:00:07 -0400 (EDT)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp05.au.ibm.com (8.14.3/8.13.1) with ESMTP id n7G5vZq8009814
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 15:57:35 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7G604Uo418190
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 16:00:04 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7G602L0031452
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 16:00:03 +1000
-Date: Sun, 16 Aug 2009 11:29:57 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090816055957.GS5087@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090806100824.GO23385@random.random> <4A7AAE07.1010202@redhat.com> <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost> <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost> <4A7AD79E.4020604@redhat.com> <20090816032822.GB6888@localhost> <4A878377.70502@redhat.com> <20090816045522.GA13740@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3B05E6B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 02:52:38 -0400 (EDT)
+Date: Sun, 16 Aug 2009 09:51:10 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
+Message-ID: <20090816065110.GA3008@redhat.com>
+References: <cover.1250187913.git.mst@redhat.com> <20090813182931.GC6585@redhat.com> <200908141340.36176.arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090816045522.GA13740@localhost>
+In-Reply-To: <200908141340.36176.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-* Wu Fengguang <fengguang.wu@intel.com> [2009-08-16 12:55:22]:
+On Fri, Aug 14, 2009 at 01:40:36PM +0200, Arnd Bergmann wrote:
+> On Thursday 13 August 2009, Michael S. Tsirkin wrote:
+> > What it is: vhost net is a character device that can be used to reduce
+> > the number of system calls involved in virtio networking.
+> > Existing virtio net code is used in the guest without modification.
+> 
+> AFAICT, you have addressed all my comments, mostly by convincing me
+> that you got it right anyway ;-).
+> 
+> I hope this gets into 2.6.32, good work!
+> 
+> > Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+> 
+> Acked-by: Arnd Bergmann <arnd@arndb.de>
+> 
+> One idea though:
+> 
+> > +	/* Parameter checking */
+> > +	if (sock->sk->sk_type != SOCK_RAW) {
+> > +		r = -ESOCKTNOSUPPORT;
+> > +		goto done;
+> > +	}
+> > +
+> > +	r = sock->ops->getname(sock, (struct sockaddr *)&uaddr.sa,
+> > +			       &uaddr_len, 0);
+> > +	if (r)
+> > +		goto done;
+> > +
+> > +	if (uaddr.sa.sll_family != AF_PACKET) {
+> > +		r = -EPFNOSUPPORT;
+> > +		goto done;
+> > +	}
+> 
+> You currently limit the scope of the driver by only allowing raw packet
+> sockets to be passed into the network driver. In qemu, we currently support
+> some very similar transports:
+> 
+> * raw packet (not in a release yet)
+> * tcp connection
+> * UDP multicast
+> * tap character device
+> * VDE with Unix local sockets
+> 
+> My primary interest right now is the tap support, but I think it would
+> be interesting in general to allow different file descriptor types
+> in vhost_net_set_socket. AFAICT, there are two major differences
+> that we need to handle for this:
+> 
+> * most of the transports are sockets, tap uses a character device.
+>   This could be dealt with by having both a struct socket * in
+>   struct vhost_net *and* a struct file *, or by always keeping the
+>   struct file and calling vfs_readv/vfs_writev for the data transport
+>   in both cases.
 
-> On Sun, Aug 16, 2009 at 11:56:39AM +0800, Rik van Riel wrote:
-> > Wu Fengguang wrote:
-> > 
-> > > Right, but I meant busty page allocations and accesses on them, which
-> > > can make a large continuous segment of referenced pages in LRU list,
-> > > say 50MB.  They may or may not be valuable as a whole, however a local
-> > > algorithm may keep the first 4MB and drop the remaining 46MB.
-> > 
-> > I wonder if the problem is that we simply do not keep a large
-> > enough inactive list in Jeff's test.  If we do not, pages do
-> > not have a chance to be referenced again before the reclaim
-> > code comes in.
-> 
-> Exactly, that's the case I call the list FIFO.
-> 
-> > The cgroup stats should show how many active anon and inactive
-> > anon pages there are in the cgroup.
-> 
-> Jeff, can you have a look at these stats? Thanks!
+I am concerned that character devices might have weird side effects with
+read/write operations and that calling them from kernel thread the way I
+do might have security implications. Can't point at anything specific
+though at the moment.
+I wonder - can we expose the underlying socket used by tap, or will that
+create complex lifetime issues?
 
-Another experiment would be to toy with memory.swappiness (although
-defaults should work well). Could you compare the in-guest values of
-nr_*active* with the cgroup values as seen by the host?
+> * Each transport has a slightly different header, we have
+>   - raw ethernet frames (raw, udp multicast, tap)
+>   - 32-bit length + raw frames, possibly fragmented (tcp)
+>   - 80-bit header + raw frames, possibly fragmented (tap with vnet_hdr)
+>   To handle these three cases, we need either different ioctl numbers
+>   so that vhost_net can choose the right one, or a flags field in
+>   VHOST_NET_SET_SOCKET, like
+> 
+>   #define VHOST_NET_RAW		1
+>   #define VHOST_NET_LEN_HDR	2
+>   #define VHOST_NET_VNET_HDR	4
+> 
+>   struct vhost_net_socket {
+> 	unsigned int flags;
+> 	int fd;
+>   };
+>   #define VHOST_NET_SET_SOCKET _IOW(VHOST_VIRTIO, 0x30, struct vhost_net_socket)
+
+It seems we can query the socket to find out the type, or use the
+features ioctl.
+
+> If both of those are addressed, we can treat vhost_net as a generic
+> way to do network handling in the kernel independent of the qemu
+> model (raw, tap, ...) for it. 
+> 
+> Your qemu patch would have to work differently, so instead of 
+> 
+> qemu -net nic,vhost=eth0
+> 
+> you would do the same as today with the raw packet socket extension
+> 
+> qemu -net nic -net raw,ifname=eth0 
+> 
+> Qemu could then automatically try to use vhost_net, if it's available
+> in the kernel, or just fall back on software vlan otherwise.
+> Does that make sense?
+> 
+> 	Arnd <>
+
+I agree, long term it should be enabled automatically when possible.
 
 -- 
-	Balbir
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
