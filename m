@@ -1,102 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 451466B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 13:37:09 -0400 (EDT)
-Message-ID: <4A8843C3.3020409@rtr.ca>
-Date: Sun, 16 Aug 2009 13:37:07 -0400
-From: Mark Lord <liml@rtr.ca>
-MIME-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D575F6B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 14:07:36 -0400 (EDT)
 Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
  slot is freed)
-References: <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com> <4A85E0DC.9040101@rtr.ca> <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com> <20090814234539.GE27148@parisc-linux.org> <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <20090816154430.GE17958@mit.edu> <4A8841D7.10506@rtr.ca>
-In-Reply-To: <4A8841D7.10506@rtr.ca>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+From: James Bottomley <James.Bottomley@suse.de>
+In-Reply-To: <4A8834B6.2070104@rtr.ca>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <20090813151312.GA13559@linux.intel.com>
+	 <20090813162621.GB1915@phenom2.trippelsdorf.de>
+	 <alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>
+	 <87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>
+	 <alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>
+	 <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>
+	 <4A85E0DC.9040101@rtr.ca>
+	 <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com>
+	 <20090814234539.GE27148@parisc-linux.org>
+	 <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com>
+	 <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca>
+	 <1250344518.4159.4.camel@mulgrave.site>
+	 <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk>
+	 <20090816083434.2ce69859@infradead.org>
+	 <1250437927.3856.119.camel@mulgrave.site>  <4A8834B6.2070104@rtr.ca>
+Content-Type: text/plain
+Date: Sun, 16 Aug 2009 13:07:27 -0500
+Message-Id: <1250446047.3856.273.camel@mulgrave.site>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@mit.edu>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, James Bottomley <James.Bottomley@suse.de>, Mark Lord <liml@rtr.ca>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: Mark Lord <liml@rtr.ca>
+Cc: Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mark Lord wrote:
-..
-> As you can see, we're now into the 100 millisecond range
-> for successive TRIM-followed-by-TRIM commands.
+On Sun, 2009-08-16 at 12:32 -0400, Mark Lord wrote:
+> James Bottomley wrote:
+> >
+> > For SSDs, the FTL has to have a separate operation: erase.  Now, one
+> > could see the correct implementation simply moving the sectors from the
+> > in-use list to the to be cleaned list and still do the cleaning in the
+> > background: that would be constant cost (but, again, likely expensive).
+> > Of course, if SSD vendors decided to erase on the spot when seeing TRIM,
+> > this wouldn't be true ...
+> ..
 > 
-> Those are all for single extents.  I will follow-up with a small
-> amount of similar data for TRIMs with multiple extents.
-..
+> The SSDs based upon the Indilinx Barefoot controller appear to do
+> the erase on the spot, along with a fair amount of garbage collection.
 
-Here's the exact same TRIM ranges, but issued with *two* extents
-per TRIM command, and again *without* the "sleep 1" between them:
+Groan.  I'm with Jim on this one:  If trim is going to cost us in terms
+of current fs performance, it's likely not worth it.  The whole point of
+a TRIM/UNMAP is that we're just passing hints about storage use.  If the
+drives make us pay the penalty of acting on the hints as we pass them
+in, we may as well improve performance just by not hinting.  Or at least
+it's detrimental hinting in real time.
 
-Beginning TRIM operations..
-Trimming 2 free extents encompassing 686 sectors (0 MB)
-Trimming 2 free extents encompassing 236 sectors (0 MB)
-Trimming 2 free extents encompassing 2186 sectors (1 MB)
-Trimming 2 free extents encompassing 2206 sectors (1 MB)
-Trimming 2 free extents encompassing 1494 sectors (1 MB)
-Trimming 2 free extents encompassing 1086 sectors (1 MB)
-Trimming 2 free extents encompassing 1658 sectors (1 MB)
-Trimming 2 free extents encompassing 14250 sectors (7 MB)
-Done.
-[ 1528.761626] ata_qc_issue: ATA_CMD_DSM starting
-[ 1528.761825] trim_completed: ATA_CMD_DSM took 419952 cycles
-[ 1528.807158] ata_qc_issue: ATA_CMD_DSM starting
-[ 1528.919035] trim_completed: ATA_CMD_DSM took 241772908 cycles
-[ 1528.956048] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.068536] trim_completed: ATA_CMD_DSM took 243085505 cycles
-[ 1529.156661] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.266377] trim_completed: ATA_CMD_DSM took 237098927 cycles
-[ 1529.367212] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.464676] trim_completed: ATA_CMD_DSM took 210619370 cycles
-[ 1529.518619] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.630444] trim_completed: ATA_CMD_DSM took 241654712 cycles
-[ 1529.739335] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.829826] trim_completed: ATA_CMD_DSM took 195545233 cycles
-[ 1529.958442] ata_qc_issue: ATA_CMD_DSM starting
-[ 1530.028356] trim_completed: ATA_CMD_DSM took 151077251 cycles
+So I think we've iterated to the conclusion that it has to be a user
+space process which tries to identify idle periods and begin trimming.
 
-Next, with *four* extents per TRIM:
+> The overhead does vary by size of the TRIM operation (number of sectors
+> and extents), but even a single-sector TRIM has very high overhead.
 
-Beginning TRIM operations..
-Trimming 4 free extents encompassing 922 sectors (0 MB)
-Trimming 4 free extents encompassing 4392 sectors (2 MB)
-Trimming 4 free extents encompassing 2580 sectors (1 MB)
-Trimming 4 free extents encompassing 15908 sectors (8 MB)
-Done.
-[ 1728.923119] ata_qc_issue: ATA_CMD_DSM starting
-[ 1728.923343] trim_completed: ATA_CMD_DSM took 460590 cycles
-[ 1728.975082] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.087266] trim_completed: ATA_CMD_DSM took 242429200 cycles
-[ 1729.170167] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.282718] trim_completed: ATA_CMD_DSM took 243229428 cycles
-[ 1729.382328] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.481364] trim_completed: ATA_CMD_DSM took 214012942 cycles
+So it's something like X + nY (n == number of sectors).  If X is large,
+it still argues for batching .. it's just there's likely an upper bound
+to the batch where the benefit is no longer worth the cost.
 
-And with *eight* extents per TRIM:
-Beginning TRIM operations..
-Trimming 8 free extents encompassing 5314 sectors (3 MB)
-Trimming 8 free extents encompassing 18488 sectors (9 MB)
-Done.
-[ 1788.289669] ata_qc_issue: ATA_CMD_DSM starting
-[ 1788.290247] trim_completed: ATA_CMD_DSM took 1228539 cycles
-[ 1788.327223] ata_qc_issue: ATA_CMD_DSM starting
-[ 1788.440490] trim_completed: ATA_CMD_DSM took 244773243 cycles
+> Samsung also now has SSDs at retail with TRIM.
+> I don't have one of those here.
 
-And finally, with everything in a single TRIM:
+Heh, OS writers not having access to the devices is about par for the
+current course.
 
-Beginning TRIM operations..
-Trimming 16 free extents encompassing 23802 sectors (12 MB)
-Done.
-[ 1841.561147] ata_qc_issue: ATA_CMD_DSM starting
-[ 1841.563217] trim_completed: ATA_CMD_DSM took 4458480 cycles
+James
 
-Notice how the first TRIM of each group above shows an artificially
-short completion time, because the firmware seems to return "done"
-before it's really done.  Subsequent TRIMs seem to have to wait
-for the previous one to really complete, and thus give more reliable
-timing data for our purposes.
-
-Cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
