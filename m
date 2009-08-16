@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A9E6B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 18:12:24 -0400 (EDT)
-Received: from fe-sfbay-09.sun.com ([192.18.43.129])
-	by sca-es-mail-2.sun.com (8.13.7+Sun/8.12.9) with ESMTP id n7GMBxos018875
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 15:12:01 -0700 (PDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-disposition: inline
-Content-type: text/plain; CHARSET=US-ASCII
-Received: from conversion-daemon.fe-sfbay-09.sun.com by fe-sfbay-09.sun.com
- (Sun Java(tm) System Messaging Server 7u2-7.04 64bit (built Jul  2 2009))
- id <0KOH00500PGRL200@fe-sfbay-09.sun.com> for linux-mm@kvack.org; Sun,
- 16 Aug 2009 15:11:59 -0700 (PDT)
-Date: Sun, 16 Aug 2009 16:11:59 -0600
-From: Andreas Dilger <adilger@sun.com>
-Subject: Re: [rfc][patch] fs: turn iprune_mutex into rwsem
-In-reply-to: <20090815195742.GA14842@infradead.org>
-Message-id: <20090816221159.GR5931@webber.adilger.int>
-References: <20090814152504.GA19195@wotan.suse.de>
- <20090815195742.GA14842@infradead.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 40AB86B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 18:14:00 -0400 (EDT)
+Date: Sun, 16 Aug 2009 18:13:25 -0400
+From: Theodore Tso <tytso@mit.edu>
+Subject: Re: Discard support
+Message-ID: <20090816221325.GF17958@mit.edu>
+References: <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com> <20090814234539.GE27148@parisc-linux.org> <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <1250437927.3856.119.camel@mulgrave.site> <adavdkn2ztb.fsf@cisco.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <adavdkn2ztb.fsf@cisco.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Roland Dreier <rdreier@cisco.com>
+Cc: James Bottomley <James.Bottomley@suse.de>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Mark Lord <liml@rtr.ca>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Aug 15, 2009  15:57 -0400, Christoph Hellwig wrote:
-> On Fri, Aug 14, 2009 at 05:25:05PM +0200, Nick Piggin wrote:
-> > Now I think the main problem is having the filesystem block (and do IO
-> > in inode reclaim. The problem is that this doesn't get accounted well
-> > and penalizes a random allocator with a big latency spike caused by
-> > work generated from elsewhere.
-> > 
-> > I think the best idea would be to avoid this. By design if possible,
-> > or by deferring the hard work to an asynchronous context. If the latter,
-> > then the fs would probably want to throttle creation of new work with
-> > queue size of the deferred work, but let's not get into those details.
+On Sun, Aug 16, 2009 at 02:50:40PM -0700, Roland Dreier wrote:
 > 
-> I don't really see a good way to avoid this.  For any filesystem that
-> does some sort of preallocations we need to drop them in ->clear_inode.
+>  > Well, yes and no ... a lot of SSDs don't actually implement NCQ, so the
+>  > impact to them will be less ... although I think enterprise class SSDs
+>  > do implement NCQ.
+> 
+> Really?  Which SSDs don't implement NCQ?
 
-One of the problems I've seen in the past is that filesystem memory reclaim
-(in particular dentry/inode cleanup) cannot happen within filesystems due
-to potential deadlocks.  This is particularly problematic when there is a
-lot of memory pressure from within the kernel and very little from userspace
-(e.g. updatedb or find).
+The Intel X25-M was the first SSD to implement NCQ.  The OCZ Core V2
+advertised NCQ with a queue depth of 1, but even that was buggy, so
+Linux has a black list for the that SSD:
 
-However, many/most inodes/dentries in the filesystem could be discarded
-quite easily and would not deadlock the system.  I wonder if it makes
-sense to keep a mask in the inode that the filesystem could set that
-determines whether it is safe to clean up the inode even though __GFP_FS
-is not set?  That would potentially allow e.g. shrink_icache_memory()
-to free a large number of "non-tricky" inodes if needed (e.g. ones without
-locks/preallocation/expensive cleanup).
+      http://markmail.org/message/jvjpmcdqjwrmyl4w
 
-Cheers, Andreas
---
-Andreas Dilger
-Sr. Staff Engineer, Lustre Group
-Sun Microsystems of Canada, Inc.
+As far as I know, all of the SSD's using the crappy JMicron JMF602
+controllers don't support NCQ in any real way, which would includes
+most of the reasonably priced SSD's up until first half of this year.
+(The OCZ Summit SSD, which uses the Indilnx controller is an exception
+to this statement, but it's more expensive that the JMF602 based
+SSD's, although less expensive than the Intel SSD.)
+
+JMicron is trying to seek redemption with their JMF612 controllers,
+which were announced at the end of May of this year, and those
+controllers do support NCQ, and are claimed to not to have the
+disatrous small write latency problem of their '602 bretheren.  I'm
+not aware of any products using the JMF612 yet, though.  (According to
+reports the '612 controllers weren't going to hit mass production
+until July, so hopefully later this fall we'll start seeing products
+using the new JMicron controller.)
+
+      	  				- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
