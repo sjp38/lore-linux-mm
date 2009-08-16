@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 049816B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 06:05:23 -0400 (EDT)
-Date: Sun, 16 Aug 2009 12:05:21 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] fs: turn iprune_mutex into rwsem
-Message-ID: <20090816100521.GA8644@wotan.suse.de>
-References: <20090814152504.GA19195@wotan.suse.de> <20090815195742.GA14842@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 61B2B6B005A
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 06:18:05 -0400 (EDT)
+Received: by bwz8 with SMTP id 8so1803774bwz.4
+        for <linux-mm@kvack.org>; Sun, 16 Aug 2009 03:18:09 -0700 (PDT)
+From: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+Subject: Re: mm/ipw2200 regression (was: Re: linux-next: Tree for August 6)
+Date: Sun, 16 Aug 2009 12:17:12 +0200
+References: <20090806192209.513abec7.sfr@canb.auug.org.au> <200908151856.48596.bzolnier@gmail.com> <20090816173101.6e47b702.sfr@canb.auug.org.au>
+In-Reply-To: <20090816173101.6e47b702.sfr@canb.auug.org.au>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <20090815195742.GA14842@infradead.org>
+Message-Id: <200908161217.12963.bzolnier@gmail.com>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 15, 2009 at 03:57:42PM -0400, Christoph Hellwig wrote:
-> On Fri, Aug 14, 2009 at 05:25:05PM +0200, Nick Piggin wrote:
-> > Now I think the main problem is having the filesystem block (and do IO
-> > in inode reclaim. The problem is that this doesn't get accounted well
-> > and penalizes a random allocator with a big latency spike caused by
-> > work generated from elsewhere.
-> > 
-> > I think the best idea would be to avoid this. By design if possible,
-> > or by deferring the hard work to an asynchronous context. If the latter,
-> > then the fs would probably want to throttle creation of new work with
-> > queue size of the deferred work, but let's not get into those details.
+
+Hi,
+
+On Sunday 16 August 2009 09:31:01 Stephen Rothwell wrote:
+> Hi Bart,
 > 
-> I don't really see a good way to avoid this.  For any filesystem that
-> does some sort of preallocations we need to drop them in ->clear_inode.
+> On Sat, 15 Aug 2009 18:56:48 +0200 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com> wrote:
+> >
+> > The bug managed to slip into Linus' tree..
+> > 
+> > ipw2200: Firmware error detected.  Restarting.
+> > ipw2200/0: page allocation failure. order:6, mode:0x8020
+> > Pid: 945, comm: ipw2200/0 Not tainted 2.6.31-rc6-dirty #69
+>                                                    ^^^^^
+> So, this is rc6 plus what?  (just in case it is relevant).
 
-OK, I agree sometimes it is not going to be possible. Although if the
-preallocations are on-disk, do you still have to drop them? If not on
-disk, then no IO is required.
+In this case plus upcoming staging/rt{286,287,307}0 patches (irrelevant,
+they are not used on this machine and the problem happened many times
+with vanilla -next kernels in the past)..
 
-But anyway, I propose this patch exactly because it is not always
-possible to avoid slow/blocking ops (even in the vfs there are some).
-
-If it ever turns up to be a problem after that, I guess it might be
-possible to have another callback to schedule async slow work before
-dropping the inode. Or something like that.
+After going through mm commits in Linus' tree I think that the bug came
+the other way around, from akpm's tree to Linus' tree and then to -next
+(page allocator changes seem to match "the suspect's profile")..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
