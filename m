@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E1D6B6B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 19:06:07 -0400 (EDT)
-Message-ID: <4A8890B8.6070409@anonymous.org.uk>
-Date: Mon, 17 Aug 2009 00:05:28 +0100
-From: John Robinson <john.robinson@anonymous.org.uk>
-MIME-Version: 1.0
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-References: <200908122007.43522.ngupta@vflare.org>	<20090813151312.GA13559@linux.intel.com>	<20090813162621.GB1915@phenom2.trippelsdorf.de>	<alpine.DEB.1.10.0908130931400.28013@asgard.lang.hm>	<87f94c370908131115r680a7523w3cdbc78b9e82373c@mail.gmail.com>	<alpine.DEB.1.10.0908131342460.28013@asgard.lang.hm>	<3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com>	<4A85E0DC.9040101@rtr.ca>	<f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com>	<20090814234539.GE27148@parisc-linux.org>	<f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com>	<1250341176.4159.2.camel@mulgrave.site>	<4A86B69C.7090001@rtr.ca>	<1250344518.4159.4.camel@mulgrave.site>	<20090816150530.2bae6d1f@lxorguk.ukuu.org.uk>	<20090816083434.2ce69859@infradead.org> <20090816202905.59efa611@lxorguk.ukuu.org.uk>
-In-Reply-To: <20090816202905.59efa611@lxorguk.ukuu.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CD9C56B004D
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 21:10:45 -0400 (EDT)
+Subject: Re: [PATCH 4/4] hugetlb: add per node hstate attributes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.2.00.0908141649500.26836@chino.kir.corp.google.com>
+References: <20090729181139.23716.85986.sendpatchset@localhost.localdomain>
+	 <20090729181205.23716.25002.sendpatchset@localhost.localdomain>
+	 <9ec263480907301239i4f6a6973m494f4b44770660dc@mail.gmail.com>
+	 <20090731103632.GB28766@csn.ul.ie>
+	 <1249067452.4674.235.camel@useless.americas.hpqcorp.net>
+	 <alpine.DEB.2.00.0908141532510.23204@chino.kir.corp.google.com>
+	 <20090814160830.e301d68a.akpm@linux-foundation.org>
+	 <alpine.DEB.2.00.0908141649500.26836@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Sun, 16 Aug 2009 21:10:41 -0400
+Message-Id: <1250471441.4472.108.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Arjan van de Ven <arjan@infradead.org>, James Bottomley <James.Bottomley@suse.de>, Mark Lord <liml@rtr.ca>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>, nacc@us.ibm.com, Andi Kleen <andi@firstfloor.org>, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 16/08/2009 20:29, Alan Cox wrote:
->> trim is mostly for ssd's though, and those tend to not have the "goes
->> for a hike" behavior as much......
+On Fri, 2009-08-14 at 16:53 -0700, David Rientjes wrote:
+> On Fri, 14 Aug 2009, Andrew Morton wrote:
 > 
-> Bench one.
+> > On Fri, 14 Aug 2009 15:38:43 -0700 (PDT)
+> > David Rientjes <rientjes@google.com> wrote:
+> > 
+> > > Andrew, Lee, what's the status of this patchset?
+> > 
+> > All forgotten about as far as I'm concerned.  It was v1, it had "rfc"
+> > in there and had an "Ick, no, please don't do that" from Greg.  I
+> > assume Greg's OK with the fixed-up version.
+> > 
+> > 
 > 
->> I wonder if it's worse to batch stuff up, because then the trim itself
->> gets bigger and might take longer.....
+> I think Greg's concerns were addressed in the latest revision of the 
+> patchset, specifically http://marc.info/?l=linux-mm&m=124906676520398.
 > 
-> They seem to implement a sort of async single threaded trim, which can
-> only have one outstanding trim at a time.
+> Maybe the more appropriate question to ask is if Mel has any concerns 
+> about adding the per-node hstate attributes either as a substitution or as 
+> a complement to the mempolicy-based allocation approach.  Mel?
+> 
+> Lee, do you have plans to resend the patchset including the modified kobj 
+> handling?
 
-I'm slightly out of my depth here, but: if a single TRIM is issued, 
-which apparently returns quickly, can one then revert to issuing 
-ordinary commands like reads and writes and have them complete as 
-quickly as they normally do, or does any following command have to wait 
-until the trim completes? This could be useful if it turned out we won't 
-stall these devices as long as we don't issue more than one TRIM every 
-few seconds; we could keep a TRIM coalesce queue down to being (say) 5 
-seconds long (or at least, a configurable small number of seconds).
+Yes.  I had planned to ping you and Mel, as I hadn't heard back from you
+about the combined interfaces.  I think they mesh fairly well, and the
+per node attributes have the, perhaps desirable, property of ignoring
+any current task mempolicy.  But, I know that some folks don't like a
+proliferation of ways to do something.  I'll package up the series [I
+need to update the Documentation for the per node attributes] and send
+it out as soon as I can get to it.  This week, I'm pretty sure.
 
-Cheers,
-
-John.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
