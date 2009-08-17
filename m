@@ -1,69 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4D2D16B004D
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 02:34:44 -0400 (EDT)
-Date: Mon, 17 Aug 2009 08:34:38 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] fs: turn iprune_mutex into rwsem
-Message-ID: <20090817063438.GA9962@wotan.suse.de>
-References: <20090814152504.GA19195@wotan.suse.de> <20090815195742.GA14842@infradead.org> <20090816221159.GR5931@webber.adilger.int>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090816221159.GR5931@webber.adilger.int>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D0D556B004D
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 05:43:23 -0400 (EDT)
+Date: Mon, 17 Aug 2009 05:43:01 -0400
+From: Amerigo Wang <amwang@redhat.com>
+Message-Id: <20090817094525.6355.88682.sendpatchset@localhost.localdomain>
+Subject: [Patch] proc: drop write permission on 'timer_list' and 'slabinfo'
 Sender: owner-linux-mm@kvack.org
-To: Andreas Dilger <adilger@sun.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Vegard Nossum <vegard.nossum@gmail.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Amerigo Wang <amwang@redhat.com>, Matt Mackall <mpm@selenic.com>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 16, 2009 at 04:11:59PM -0600, Andreas Dilger wrote:
-> On Aug 15, 2009  15:57 -0400, Christoph Hellwig wrote:
-> > On Fri, Aug 14, 2009 at 05:25:05PM +0200, Nick Piggin wrote:
-> > > Now I think the main problem is having the filesystem block (and do IO
-> > > in inode reclaim. The problem is that this doesn't get accounted well
-> > > and penalizes a random allocator with a big latency spike caused by
-> > > work generated from elsewhere.
-> > > 
-> > > I think the best idea would be to avoid this. By design if possible,
-> > > or by deferring the hard work to an asynchronous context. If the latter,
-> > > then the fs would probably want to throttle creation of new work with
-> > > queue size of the deferred work, but let's not get into those details.
-> > 
-> > I don't really see a good way to avoid this.  For any filesystem that
-> > does some sort of preallocations we need to drop them in ->clear_inode.
-> 
-> One of the problems I've seen in the past is that filesystem memory reclaim
-> (in particular dentry/inode cleanup) cannot happen within filesystems due
-> to potential deadlocks.  This is particularly problematic when there is a
-> lot of memory pressure from within the kernel and very little from userspace
-> (e.g. updatedb or find).
 
-Hm OK. It should still kick off kswapd at least which can reclaim GFP_FS.
+/proc/timer_list and /proc/slabinfo are not supposed to be written,
+so there should be no write permissions on it.
 
+Signed-off-by: WANG Cong <amwang@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Arjan van de Ven <arjan@linux.intel.com>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+
+---
+diff --git a/kernel/time/timer_list.c b/kernel/time/timer_list.c
+index a999b92..fddd69d 100644
+--- a/kernel/time/timer_list.c
++++ b/kernel/time/timer_list.c
+@@ -286,7 +286,7 @@ static int __init init_timer_list_procfs(void)
+ {
+ 	struct proc_dir_entry *pe;
  
-> However, many/most inodes/dentries in the filesystem could be discarded
-> quite easily and would not deadlock the system.  I wonder if it makes
-> sense to keep a mask in the inode that the filesystem could set that
-> determines whether it is safe to clean up the inode even though __GFP_FS
-> is not set?  That would potentially allow e.g. shrink_icache_memory()
-> to free a large number of "non-tricky" inodes if needed (e.g. ones without
-> locks/preallocation/expensive cleanup).
-
-I guess it would be possible but even before calling into the FS it
-requires taking some locks. So we would need to make all existing
-~__GFP_FS allocations have all the FS bits clear, and then where safe
-they could be converted to just set some of the FS bits but not
-others.
-
-It's rather complex though. Do you have any specific workloads you
-can reproduce? Because we could also look at well this patch to start
-with but also maybe like another callback which can schedule slow
-work on tricky inodes.
-
-Hmm, I guess we could just trylock on the iprune_mutex and inode_lock
-if GFP_FS is not set, then the fs would have to work out what to do
-with the gfp_mask it has.
-
+-	pe = proc_create("timer_list", 0644, NULL, &timer_list_fops);
++	pe = proc_create("timer_list", 0444, NULL, &timer_list_fops);
+ 	if (!pe)
+ 		return -ENOMEM;
+ 	return 0;
+diff --git a/mm/slab.c b/mm/slab.c
+index 7b5d4de..a19e4be 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4473,7 +4473,7 @@ static const struct file_operations proc_slabstats_operations = {
+ 
+ static int __init slab_proc_init(void)
+ {
+-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
++	proc_create("slabinfo",S_IRUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+ #ifdef CONFIG_DEBUG_SLAB_LEAK
+ 	proc_create("slab_allocators", 0, NULL, &proc_slabstats_operations);
+ #endif
+diff --git a/mm/slub.c b/mm/slub.c
+index b9f1491..aba2c1b 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4726,7 +4726,7 @@ static const struct file_operations proc_slabinfo_operations = {
+ 
+ static int __init slab_proc_init(void)
+ {
+-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
++	proc_create("slabinfo",S_IRUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+ 	return 0;
+ }
+ module_init(slab_proc_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
