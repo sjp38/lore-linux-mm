@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 85FAB6B004D
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 17:35:20 -0400 (EDT)
-Date: Mon, 17 Aug 2009 14:34:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mv clear node_load[] to __build_all_zonelists()
-Message-Id: <20090817143447.b1ecf5c6.akpm@linux-foundation.org>
-In-Reply-To: <20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <COL115-W869FC30815A7D5B7A63339F0A0@phx.gbl>
-	<20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id F2A8A6B004D
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:24:06 -0400 (EDT)
+Date: Mon, 17 Aug 2009 23:24:09 +0100 (BST)
+From: Alexey Korolev <akorolev@infradead.org>
+Subject: [PATCH 0/3]HTLB mapping for drivers (take 2)
+Message-ID: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: bo-liu@hotmail.com, linux-mm@kvack.org, mel@csn.ul.ie, cl@linux-foundation.org
+To: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Aug 2009 19:50:37 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Hi,
 
-> On Thu, 6 Aug 2009 18:44:40 +0800
-> Bo Liu <bo-liu@hotmail.com> wrote:
-> 
-> > 
-> >  If node_load[] is cleared everytime build_zonelists() is called,node_load[]
-> >  will have no help to find the next node that should appear in the given node's
-> >  fallback list.
-> >  Signed-off-by: Bob Liu 
-> 
-> nice catch. (my old bug...sorry
-> 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> BTW, do you have special reasons to hide your mail address in commit log ?
-> 
-> I added proper CC: list.
-> Hmm, I think it's necessary to do total review/rewrite this function again..
-> 
-> 
-> > ---
-> >  mm/page_alloc.c |    2 +-
-> >  1 files changed, 1 insertions(+), 1 deletions(-)
-> >  
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index d052abb..72f7345 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
-> >  	prev_node = local_node;
-> >  	nodes_clear(used_mask);
-> >  
-> > -	memset(node_load, 0, sizeof(node_load));
-> >  	memset(node_order, 0, sizeof(node_order));
-> >  	j = 0;
-> >  
-> > @@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
-> >  {
-> >  	int nid;
-> >  
-> > +	memset(node_load, 0, sizeof(node_load));
-> >  	for_each_online_node(nid) {
-> >  		pg_data_t *pgdat = NODE_DATA(nid);
+The patch set listed below provides device drivers with the ability to
+map memory regions to user space via HTLB interfaces.
 
-What are the consequences of this bug?
+Why we need it? 
+Device drivers often need to map memory regions to user-space to allow
+efficient data handling in user mode. Involving hugetlb mapping may
+bring performance gain if mapped regions are relatively large. Our tests
+showed that it is possible to gain up to 7% performance if hugetlb
+mapping is enabled. In my case involving hugetlb starts to make sense if
+buffer is more or equal to 4MB. Since typically, device throughput
+increase over time there are more and more reasons to involve huge pages
+to remap large regions.
+For example hugetlb remapping could be important for performance of Data
+acquisition systems (logic analyzers, DSO), Network monitoring systems
+(packet capture), HD video capture/frame buffer  and probably other. 
 
-Is the fix needed in 2.6.31?  Earlier?
+How it is implemented?
+Implementation and idea is very close to what is already done in
+ipc/shm.c. 
+We create file on hugetlbfs vfsmount point and populate file with pages
+we want to mmap. Then we associate hugetlbfs file mapping with file
+mapping we want to access. 
 
-Thanks.
+So typical procedure for mapping of huge pages to userspace by drivers
+should be:
+1 Allocate some huge pages
+2 Create file on vfs mount of hugetlbfs
+3 Add pages to page cache of mapping associated with hugetlbfs file 
+4 Replace file's mapping with the hugetlbfs file mapping
+..............
+5 Remove pages from page cache
+6 Remove hugetlbfs file
+7 Free pages
+(Please find example in following messages)
+
+Detailed description is given in the following messages.
+Thanks a lot to Mel Gorman who gave good advice and code prototype and
+Stephen Donnelly for assistance in description composing.
+
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
