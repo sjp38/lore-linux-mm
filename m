@@ -1,38 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6F3C66B004F
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 14:06:13 -0400 (EDT)
-From: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
-Date: Mon, 17 Aug 2009 11:04:46 -0700
-Subject: RE: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <9EECC02A4CC333418C00A85D21E89326B6611E81@azsmsx502.amr.corp.intel.com>
-References: <20090813010356.GA7619@localhost> <4A843565.3010104@redhat.com>
- <4A843B72.6030204@redhat.com> <4A843EAE.6070200@redhat.com>
- <4A846581.2020304@redhat.com> <20090813211626.GA28274@cmpxchg.org>
- <4A850F4A.9020507@redhat.com> <20090814091055.GA29338@cmpxchg.org>
- <20090814095106.GA3345@localhost> <4A856467.6050102@redhat.com>
- <20090815054524.GB11387@localhost>
-In-Reply-To: <20090815054524.GB11387@localhost>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9A13F6B004F
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 14:14:38 -0400 (EDT)
+Message-ID: <4A899E73.6000505@redhat.com>
+Date: Mon, 17 Aug 2009 14:16:19 -0400
+From: Ric Wheeler <rwheeler@redhat.com>
 MIME-Version: 1.0
+Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
+ slot is freed)
+References: <200908122007.43522.ngupta@vflare.org>	 <1250344518.4159.4.camel@mulgrave.site>	 <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk>	 <20090816083434.2ce69859@infradead.org>	 <1250437927.3856.119.camel@mulgrave.site> <4A8834B6.2070104@rtr.ca>	 <1250446047.3856.273.camel@mulgrave.site> <4A884D9C.3060603@rtr.ca>	 <1250447052.3856.294.camel@mulgrave.site> <4A898752.9000205@tmr.com>	 <87f94c370908171008t44ff64ack2153e740128278e@mail.gmail.com> <1250529575.7858.31.camel@mulgrave.site>
+In-Reply-To: <1250529575.7858.31.camel@mulgrave.site>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Wu, Fengguang" <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: James Bottomley <James.Bottomley@suse.de>
+Cc: Greg Freemyer <greg.freemyer@gmail.com>, Bill Davidsen <davidsen@tmr.com>, Mark Lord <liml@rtr.ca>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Jeff, can you confirm if the mem cgroup's inactive list is small?
 
-Nope.  I have plenty on the inactive anon list, between 13K and 16K pages (=
-i.e. 52M to 64M).
+Chiming in here a bit late, but coalescing requests is also a good way 
+to prevent read-modify-write cycles.
 
-The inactive mapped list is much smaller - 0 to ~700 pages.
+Specifically, if I remember the concern correctly, for the WRITE_SAME 
+with unmap bit set, when the IO is not evenly aligned on the "erase 
+chunk" (whatever they call it) boundary the device can be forced to do a 
+read-modify-write (of zeroes) to the end or beginning of that region.
 
-The active lists are comparable in size, but larger - 16K - 19K pages for a=
-non and 60 - 450 pages for mapped.
+For a disk array, the WRITE_SAME with unmap bit when done cleanly on an 
+aligned boundary can be done entirely in the array's cache. The 
+read-modify-write can generate several reads to the back end disks which 
+are significantly slower....
 
-						Jeff
+ric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
