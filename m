@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE4C6B0055
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 16:28:19 -0400 (EDT)
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-From: James Bottomley <James.Bottomley@suse.de>
-In-Reply-To: <4A89BB5B.5060403@rtr.ca>
-References: <200908122007.43522.ngupta@vflare.org>
-	 <20090816083434.2ce69859@infradead.org>
-	 <1250437927.3856.119.camel@mulgrave.site> <4A8834B6.2070104@rtr.ca>
-	 <1250446047.3856.273.camel@mulgrave.site> <4A884D9C.3060603@rtr.ca>
-	 <1250447052.3856.294.camel@mulgrave.site> <4A898752.9000205@tmr.com>
-	 <87f94c370908171008t44ff64ack2153e740128278e@mail.gmail.com>
-	 <1250529575.7858.31.camel@mulgrave.site>
-	 <87f94c370908171121u5ee8016p253824b16851b48@mail.gmail.com>
-	 <1250536709.7858.43.camel@mulgrave.site>  <4A89BB5B.5060403@rtr.ca>
-Content-Type: text/plain
-Date: Mon, 17 Aug 2009 15:28:12 -0500
-Message-Id: <1250540892.7858.59.camel@mulgrave.site>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 85FAB6B004D
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 17:35:20 -0400 (EDT)
+Date: Mon, 17 Aug 2009 14:34:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mv clear node_load[] to __build_all_zonelists()
+Message-Id: <20090817143447.b1ecf5c6.akpm@linux-foundation.org>
+In-Reply-To: <20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <COL115-W869FC30815A7D5B7A63339F0A0@phx.gbl>
+	<20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mark Lord <liml@rtr.ca>
-Cc: Greg Freemyer <greg.freemyer@gmail.com>, Bill Davidsen <davidsen@tmr.com>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: bo-liu@hotmail.com, linux-mm@kvack.org, mel@csn.ul.ie, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-08-17 at 16:19 -0400, Mark Lord wrote:
-> James Bottomley wrote:
-> > On Mon, 2009-08-17 at 14:21 -0400, Greg Freemyer wrote:
-> >> On Mon, Aug 17, 2009 at 1:19 PM, James Bottomley<James.Bottomley@suse.de> wrote:
-> >>> On Mon, 2009-08-17 at 13:08 -0400, Greg Freemyer wrote:
-> ..
-> >>>> Non-coalescing is believed detrimental,
-> >>> It is?  Why?
-> >> For the only compliant SSD in the wild, Mark has shown it to be true
-> >> via testing.
-> > 
-> > He only said larger trims take longer.  As I said previously, if it's a
-> > X+nY relationship, then we still benefit from accumulation up to some
-> > value of n.
-> ..
+On Thu, 6 Aug 2009 19:50:37 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Thu, 6 Aug 2009 18:44:40 +0800
+> Bo Liu <bo-liu@hotmail.com> wrote:
 > 
-> Err, what I said was, "rm -rf /usr/src/linux" takes over half an hour
-> with uncoalesced TRIM, and only a scant few seconds in total *with*
-> coalesced TRIM.
+> > 
+> >  If node_load[] is cleared everytime build_zonelists() is called,node_load[]
+> >  will have no help to find the next node that should appear in the given node's
+> >  fallback list.
+> >  Signed-off-by: Bob Liu 
+> 
+> nice catch. (my old bug...sorry
+> 
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> BTW, do you have special reasons to hide your mail address in commit log ?
+> 
+> I added proper CC: list.
+> Hmm, I think it's necessary to do total review/rewrite this function again..
+> 
+> 
+> > ---
+> >  mm/page_alloc.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> >  
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index d052abb..72f7345 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
+> >  	prev_node = local_node;
+> >  	nodes_clear(used_mask);
+> >  
+> > -	memset(node_load, 0, sizeof(node_load));
+> >  	memset(node_order, 0, sizeof(node_order));
+> >  	j = 0;
+> >  
+> > @@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
+> >  {
+> >  	int nid;
+> >  
+> > +	memset(node_load, 0, sizeof(node_load));
+> >  	for_each_online_node(nid) {
+> >  		pg_data_t *pgdat = NODE_DATA(nid);
 
-Yes, sorry, missed the Non- when I read that sentence.
+What are the consequences of this bug?
 
-James
+Is the fix needed in 2.6.31?  Earlier?
 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
