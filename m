@@ -1,36 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CEC36B005C
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 12:56:39 -0400 (EDT)
-Message-ID: <4A898BC4.70704@hp.com>
-Date: Mon, 17 Aug 2009 12:56:36 -0400
-From: jim owens <jowens@hp.com>
+	by kanga.kvack.org (Postfix) with SMTP id 3437A6B004F
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 13:08:23 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so960733qwf.44
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2009 10:08:24 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <4A898752.9000205@tmr.com>
+References: <200908122007.43522.ngupta@vflare.org>
+	 <1250344518.4159.4.camel@mulgrave.site>
+	 <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk>
+	 <20090816083434.2ce69859@infradead.org>
+	 <1250437927.3856.119.camel@mulgrave.site> <4A8834B6.2070104@rtr.ca>
+	 <1250446047.3856.273.camel@mulgrave.site> <4A884D9C.3060603@rtr.ca>
+	 <1250447052.3856.294.camel@mulgrave.site> <4A898752.9000205@tmr.com>
+Date: Mon, 17 Aug 2009 13:08:23 -0400
+Message-ID: <87f94c370908171008t44ff64ack2153e740128278e@mail.gmail.com>
 Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-References: <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com> <4A85E0DC.9040101@rtr.ca> <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com> <20090814234539.GE27148@parisc-linux.org> <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <20090816154430.GE17958@mit.edu> <4A8841D7.10506@rtr.ca> <4A8843C3.3020409@rtr.ca> <4A8985B6.30103@tmr.com>
-In-Reply-To: <4A8985B6.30103@tmr.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+	slot is freed)
+From: Greg Freemyer <greg.freemyer@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Bill Davidsen <davidsen@tmr.com>
-Cc: Mark Lord <liml@rtr.ca>, Theodore Tso <tytso@mit.edu>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, James Bottomley <James.Bottomley@suse.de>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+Cc: James Bottomley <James.Bottomley@suse.de>, Mark Lord <liml@rtr.ca>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Bill Davidsen wrote:
-> 
-> I assume that it really is artificial, rather than the device really 
-> being ready for another operation (other than another TRIM). I lack the 
-> hardware, but the test would be the time to complete a read, trim and 
-> read, and two trim and read operations. Just my thought that the TRIM in 
-> progress may only block the next TRIM, rather than other operations.
+All,
 
-I don't know his test sequence but READ is not the likely command
-before and after TRIM unless we are talking about TRIM being issued
-only in delayed host garbage collection.  Filesystems send WRITES
-during delete.
+Seems like the high-level wrap-up of all this is:
 
-jim
+There are hopes that highly efficient SSDs will appear on the market
+that can leverage a passthru non-coalescing discard feature.  And that
+a whitelist should be created to allow those SSDs to see discards
+intermixed with the rest of the data i/o.
+
+For the other known cases:
+
+SSDs that meet the ata-8 spec, but don't exceed it
+Enterprise SCSI
+mdraid with SSD storage used to build raid5 / raid6 arrays
+
+Non-coalescing is believed detrimental, but a regular flushing of the
+unused blocks/sectors via a tool like Mark Lord has written should be
+acceptable.
+
+Mark, I don't believe your tool really addresses the mdraid situation,
+do you agree.  ie. Since your bypassing most of the block stack,
+mdraid has no way of snooping on / adjusting the discards you are
+sending out.
+
+Thus the 2 solutions that have been worked on already seem to address
+the needs of everything but mdraid.
+
+Also, there has been no discussion of dm based volumes.  (ie LVM2 based volumes)
+
+For mdraid or dm it seems we need to enhance Mark's script to pass the
+trim commands through the full block stack.  Mark, please cmiiw
+
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
