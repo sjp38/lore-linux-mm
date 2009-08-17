@@ -1,134 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A4CE96B0055
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:40:38 -0400 (EDT)
-Date: Mon, 17 Aug 2009 23:40:38 +0100 (BST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B98756B0055
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:46:26 -0400 (EDT)
+Date: Mon, 17 Aug 2009 23:46:29 +0100 (BST)
 From: Alexey Korolev <akorolev@infradead.org>
-Subject: [PATCH 2/3]HTLB mapping for drivers. Hstate for files with hugetlb
- mapping(take 2)
-Message-ID: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
+Subject: [PATCH 3/3]HTLB mapping for drivers. Hugetlb files identification
+ based on mapping(take 2)
+Message-ID: <alpine.LFD.2.00.0908172340430.32114@casper.infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch slightly modifies the procedure for getting hstate from inode.
-If inode correspond to hugetlbfs - the hugetlbfs hstate will be returned, otherwise 
-hstate of vfs mount. We need this since we can have files with hugetlb mapping which are 
-not part of hugetlbfs.
-
-Also this patch contains a function which reports hstate related to vfsmount as information
-about huge page size is much important for drivers.
+This patch changes the procedures of htlb file identification.
+Since we can have non htlbfs files with htlb mapping we need to have
+another approach for identification if mapping is hugetlb or not.
+Just checking of file operations seems to be a bad approach as drivers
+(as well as ipc/shm) need to have own file_operations. 
+Now we identify if maping is hugetlb by special mapping flag. 
+Since hugetlb identification is based on mapping flags, we no longer
+need the workaround made in ipc/shm.c
 
 Signed-off-by: Alexey Korolev <akorolev@infradead.org>
-
 ---
- fs/hugetlbfs/inode.c    |   16 +++++++++++-----
- include/linux/hugetlb.h |   16 ++++++++++++++--
- 2 files changed, 25 insertions(+), 7 deletions(-)
+ fs/hugetlbfs/inode.c    |    1 +
+ include/linux/hugetlb.h |    7 +------
+ include/linux/pagemap.h |   13 +++++++++++++
+ include/linux/shm.h     |    5 -----
+ ipc/shm.c               |   12 ------------
+ 5 files changed, 15 insertions(+), 23 deletions(-)
 
 diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index f53cf64..6510acc 100644
+index 6510acc..b92fb38 100644
 --- a/fs/hugetlbfs/inode.c
 +++ b/fs/hugetlbfs/inode.c
-@@ -34,9 +34,6 @@
- 
- #include <asm/uaccess.h>
- 
--/* some random number */
--#define HUGETLBFS_MAGIC	0x958458f6
--
- static const struct super_operations hugetlbfs_ops;
- static const struct address_space_operations hugetlbfs_aops;
- const struct file_operations hugetlbfs_file_operations;
-@@ -50,6 +47,8 @@ static struct backing_dev_info hugetlbfs_backing_dev_info = {
- 
- int sysctl_hugetlb_shm_group;
- 
-+struct vfsmount *hugetlbfs_vfsmount;
-+
- enum {
- 	Opt_size, Opt_nr_inodes,
- 	Opt_mode, Opt_uid, Opt_gid,
-@@ -928,13 +927,20 @@ static struct file_system_type hugetlbfs_fs_type = {
- 	.kill_sb	= kill_litter_super,
- };
- 
--static struct vfsmount *hugetlbfs_vfsmount;
--
- static int can_do_hugetlb_shm(void)
- {
- 	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
- }
- 
-+struct hstate *hugetlb_vfsmount_hstate(void)
-+{
-+	struct hugetlbfs_sb_info *hsb;
-+
-+	hsb = HUGETLBFS_SB(hugetlbfs_vfsmount->mnt_root->d_sb);
-+	return hsb->hstate;
-+}
-+EXPORT_SYMBOL(hugetlb_vfsmount_hstate);
-+
- struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
- {
- 	int error = -ENOMEM;
+@@ -513,6 +513,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
+ 		case S_IFREG:
+ 			inode->i_op = &hugetlbfs_inode_operations;
+ 			inode->i_fop = &hugetlbfs_file_operations;
++			mapping_set_hugetlb(inode->i_mapping);
+ 			break;
+ 		case S_IFDIR:
+ 			inode->i_op = &hugetlbfs_dir_inode_operations;
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index e42fa32..e132a61 100644
+index e132a61..1b71f1e 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -8,6 +8,7 @@
- #include <linux/mempolicy.h>
- #include <linux/shm.h>
- #include <asm/tlbflush.h>
-+#include <linux/mount.h>
+@@ -157,12 +157,7 @@ void hugetlb_put_quota(struct address_space *mapping, long delta);
  
- struct ctl_table;
- 
-@@ -110,6 +111,10 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #endif /* !CONFIG_HUGETLB_PAGE */
- 
- #ifdef CONFIG_HUGETLBFS
-+
-+/* some random number */
-+#define HUGETLBFS_MAGIC	0x958458f6
-+
- struct hugetlbfs_config {
- 	uid_t   uid;
- 	gid_t   gid;
-@@ -222,11 +227,17 @@ extern unsigned int default_hstate_idx;
- 
- #define default_hstate (hstates[default_hstate_idx])
- 
-+struct hstate *hugetlb_vfsmount_hstate(void);
-+
- static inline struct hstate *hstate_inode(struct inode *i)
+ static inline int is_file_hugepages(struct file *file)
  {
- 	struct hugetlbfs_sb_info *hsb;
--	hsb = HUGETLBFS_SB(i->i_sb);
--	return hsb->hstate;
-+
-+	if (i->i_sb->s_magic == HUGETLBFS_MAGIC) {
-+		hsb = HUGETLBFS_SB(i->i_sb);
-+		return hsb->hstate;
-+	}
-+	return hugetlb_vfsmount_hstate();
+-	if (file->f_op == &hugetlbfs_file_operations)
+-		return 1;
+-	if (is_file_shm_hugepages(file))
+-		return 1;
+-
+-	return 0;
++	return mapping_hugetlb(file->f_mapping);
  }
  
- static inline struct hstate *hstate_file(struct file *f)
-@@ -282,6 +293,7 @@ static inline struct hstate *page_hstate(struct page *page)
+ static inline void set_file_hugepages(struct file *file)
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index aec3252..0b27ede 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -23,6 +23,7 @@ enum mapping_flags {
+ 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
+ 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
+ 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
++	AS_HUGETLB	= __GFP_BITS_SHIFT + 4,	/* under HUGE TLB */
+ };
  
+ static inline void mapping_set_error(struct address_space *mapping, int error)
+@@ -52,6 +53,18 @@ static inline int mapping_unevictable(struct address_space *mapping)
+ 	return !!mapping;
+ }
+ 
++static inline void mapping_set_hugetlb(struct address_space *mapping)
++{
++	set_bit(AS_HUGETLB, &mapping->flags);
++}
++
++static inline int mapping_hugetlb(struct address_space *mapping)
++{
++	if (likely(mapping))
++		return test_bit(AS_HUGETLB, &mapping->flags);
++	return 0;
++}
++
+ static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
+ {
+ 	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index eca6235..590665f 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -105,17 +105,12 @@ struct shmid_kernel /* private to the kernel */
+ 
+ #ifdef CONFIG_SYSVIPC
+ long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr);
+-extern int is_file_shm_hugepages(struct file *file);
  #else
- struct hstate {};
-+#define hugetlb_vfsmount_hstate() NULL
- #define hugetlb_alloc_pages_immediate(h, n, m) NULL
- #define hugetlb_free_pages_immediate(h, p)
- #define alloc_bootmem_huge_page(h) NULL
+ static inline long do_shmat(int shmid, char __user *shmaddr,
+ 				int shmflg, unsigned long *addr)
+ {
+ 	return -ENOSYS;
+ }
+-static inline int is_file_shm_hugepages(struct file *file)
+-{
+-	return 0;
+-}
+ #endif
+ 
+ #endif /* __KERNEL__ */
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 15dd238..2bf065e 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -293,18 +293,6 @@ static unsigned long shm_get_unmapped_area(struct file *file,
+ 	return get_unmapped_area(sfd->file, addr, len, pgoff, flags);
+ }
+ 
+-int is_file_shm_hugepages(struct file *file)
+-{
+-	int ret = 0;
+-
+-	if (file->f_op == &shm_file_operations) {
+-		struct shm_file_data *sfd;
+-		sfd = shm_file_data(file);
+-		ret = is_file_hugepages(sfd->file);
+-	}
+-	return ret;
+-}
+-
+ static const struct file_operations shm_file_operations = {
+ 	.mmap		= shm_mmap,
+ 	.fsync		= shm_fsync,
 -- 
 
-Alternativelly the patch is available here:
-http://git.infradead.org/users/akorolev/mm-patches.git/commit/b3eca27294ae47e78234bd8ec87c356998be969a
+
+The patch also is available here:
+http://git.infradead.org/users/akorolev/mm-patches.git/commit/f2560584f31eab7c35625ff85d6421dab7bd1f5f
+
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
