@@ -1,170 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE186B004D
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:33:40 -0400 (EDT)
-Date: Mon, 17 Aug 2009 23:33:38 +0100 (BST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A4CE96B0055
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:40:38 -0400 (EDT)
+Date: Mon, 17 Aug 2009 23:40:38 +0100 (BST)
 From: Alexey Korolev <akorolev@infradead.org>
-Subject: [PATCH 1/3]HTLB mapping for drivers. Alloc functions & some export
- symbols(take 2)
-Message-ID: <alpine.LFD.2.00.0908172324130.32114@casper.infradead.org>
+Subject: [PATCH 2/3]HTLB mapping for drivers. Hstate for files with hugetlb
+ mapping(take 2)
+Message-ID: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch contains definitions of the hugetlb_alloc_pages_immediate & 
-hugetlb_free_pages_immediate functions. The function hugetlb_alloc_pages_immediate 
-allocates a single huge page. The allocation allows the selection of gfp mask and numa 
-node. The allocation is immediate, i.e. it is not processed by hugetlbfs counting, 
-because otherwise user must specify how much memory should be allocated, in case of 
-a driver it could be hard to do. 
+This patch slightly modifies the procedure for getting hstate from inode.
+If inode correspond to hugetlbfs - the hugetlbfs hstate will be returned, otherwise 
+hstate of vfs mount. We need this since we can have files with hugetlb mapping which are 
+not part of hugetlbfs.
 
-Also this patch adds some symbol exports. Since drivers need to create and 
-populate/depopulate hugetlb file pg cache with pages we need to add export of 
-hugetlb_file_setup and remove_from_page_cache. 
+Also this patch contains a function which reports hstate related to vfsmount as information
+about huge page size is much important for drivers.
 
 Signed-off-by: Alexey Korolev <akorolev@infradead.org>
 
 ---
- fs/hugetlbfs/inode.c    |    1 +
- include/linux/hugetlb.h |    5 ++++
- mm/filemap.c            |    1 +
- mm/hugetlb.c            |   60 ++++++++++++++++++++++++++++++++++++----------
- 4 files changed, 54 insertions(+), 13 deletions(-)
+ fs/hugetlbfs/inode.c    |   16 +++++++++++-----
+ include/linux/hugetlb.h |   16 ++++++++++++++--
+ 2 files changed, 25 insertions(+), 7 deletions(-)
 
 diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 941c842..f53cf64 100644
+index f53cf64..6510acc 100644
 --- a/fs/hugetlbfs/inode.c
 +++ b/fs/hugetlbfs/inode.c
-@@ -1000,6 +1000,7 @@ out_shm_unlock:
- 		user_shm_unlock(size, user);
- 	return ERR_PTR(error);
- }
-+EXPORT_SYMBOL(hugetlb_file_setup);
+@@ -34,9 +34,6 @@
  
- static int __init init_hugetlbfs_fs(void)
- {
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 2723513..e42fa32 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -204,6 +204,9 @@ struct huge_bootmem_page {
- 	struct hstate *hstate;
+ #include <asm/uaccess.h>
+ 
+-/* some random number */
+-#define HUGETLBFS_MAGIC	0x958458f6
+-
+ static const struct super_operations hugetlbfs_ops;
+ static const struct address_space_operations hugetlbfs_aops;
+ const struct file_operations hugetlbfs_file_operations;
+@@ -50,6 +47,8 @@ static struct backing_dev_info hugetlbfs_backing_dev_info = {
+ 
+ int sysctl_hugetlb_shm_group;
+ 
++struct vfsmount *hugetlbfs_vfsmount;
++
+ enum {
+ 	Opt_size, Opt_nr_inodes,
+ 	Opt_mode, Opt_uid, Opt_gid,
+@@ -928,13 +927,20 @@ static struct file_system_type hugetlbfs_fs_type = {
+ 	.kill_sb	= kill_litter_super,
  };
  
-+struct page *hugetlb_alloc_pages_immediate(struct hstate *h, int nid, gfp_t gfp_mask);
-+void hugetlb_free_pages_immediate(struct hstate *h, struct page *page);
-+
- /* arch callback */
- int __init alloc_bootmem_huge_page(struct hstate *h);
+-static struct vfsmount *hugetlbfs_vfsmount;
+-
+ static int can_do_hugetlb_shm(void)
+ {
+ 	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+ }
  
-@@ -279,6 +282,8 @@ static inline struct hstate *page_hstate(struct page *page)
++struct hstate *hugetlb_vfsmount_hstate(void)
++{
++	struct hugetlbfs_sb_info *hsb;
++
++	hsb = HUGETLBFS_SB(hugetlbfs_vfsmount->mnt_root->d_sb);
++	return hsb->hstate;
++}
++EXPORT_SYMBOL(hugetlb_vfsmount_hstate);
++
+ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
+ {
+ 	int error = -ENOMEM;
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index e42fa32..e132a61 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -8,6 +8,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/shm.h>
+ #include <asm/tlbflush.h>
++#include <linux/mount.h>
+ 
+ struct ctl_table;
+ 
+@@ -110,6 +111,10 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ #endif /* !CONFIG_HUGETLB_PAGE */
+ 
+ #ifdef CONFIG_HUGETLBFS
++
++/* some random number */
++#define HUGETLBFS_MAGIC	0x958458f6
++
+ struct hugetlbfs_config {
+ 	uid_t   uid;
+ 	gid_t   gid;
+@@ -222,11 +227,17 @@ extern unsigned int default_hstate_idx;
+ 
+ #define default_hstate (hstates[default_hstate_idx])
+ 
++struct hstate *hugetlb_vfsmount_hstate(void);
++
+ static inline struct hstate *hstate_inode(struct inode *i)
+ {
+ 	struct hugetlbfs_sb_info *hsb;
+-	hsb = HUGETLBFS_SB(i->i_sb);
+-	return hsb->hstate;
++
++	if (i->i_sb->s_magic == HUGETLBFS_MAGIC) {
++		hsb = HUGETLBFS_SB(i->i_sb);
++		return hsb->hstate;
++	}
++	return hugetlb_vfsmount_hstate();
+ }
+ 
+ static inline struct hstate *hstate_file(struct file *f)
+@@ -282,6 +293,7 @@ static inline struct hstate *page_hstate(struct page *page)
  
  #else
  struct hstate {};
-+#define hugetlb_alloc_pages_immediate(h, n, m) NULL
-+#define hugetlb_free_pages_immediate(h, p)
++#define hugetlb_vfsmount_hstate() NULL
+ #define hugetlb_alloc_pages_immediate(h, n, m) NULL
+ #define hugetlb_free_pages_immediate(h, p)
  #define alloc_bootmem_huge_page(h) NULL
- #define hstate_file(f) NULL
- #define hstate_vma(v) NULL
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ccea3b6..dc6da1a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -146,6 +146,7 @@ void remove_from_page_cache(struct page *page)
- 	spin_unlock_irq(&mapping->tree_lock);
- 	mem_cgroup_uncharge_cache_page(page);
- }
-+EXPORT_SYMBOL(remove_from_page_cache);
- 
- static int sync_page(void *word)
- {
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index cafdcee..d278210 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -522,21 +522,9 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 
- static void update_and_free_page(struct hstate *h, struct page *page)
- {
--	int i;
--
--	VM_BUG_ON(h->order >= MAX_ORDER);
--
- 	h->nr_huge_pages--;
- 	h->nr_huge_pages_node[page_to_nid(page)]--;
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
--				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
--				1 << PG_private | 1<< PG_writeback);
--	}
--	set_compound_page_dtor(page, NULL);
--	set_page_refcounted(page);
--	arch_release_hugepage(page);
--	__free_pages(page, huge_page_order(h));
-+	hugetlb_free_pages_immediate(h, page);
- }
- 
- struct hstate *size_to_hstate(unsigned long size)
-@@ -639,6 +627,52 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
- }
- 
- /*
-+ * alloc_huge_pages_immediate - Allocate a single huge page for use
-+ * with a driver
-+ * @nid: The node to allocate memory on
-+ * @gfp_mask: GFP flags for the allocation
-+ * alloc_huge_page() is intended for use by device drivers that want to
-+ * back regions of memory with huge pages that will be later mapped to
-+ * userspace. Allocation are immediate. They done directly from the
-+ * buddy allocator without touching hugepage pool reservations.
-+ */
-+struct page *hugetlb_alloc_pages_immediate(struct hstate *h,
-+					int nid, gfp_t gfp_mask)
-+{
-+	struct page *page;
-+
-+	if (huge_page_order(h) >= MAX_ORDER)
-+		return NULL;
-+
-+	page = alloc_pages_exact_node(nid, gfp_mask|__GFP_COMP,
-+					huge_page_order(h));
-+	if (page && arch_prepare_hugepage(page)) {
-+		__free_pages(page, huge_page_order(h));
-+		return NULL;
-+	}
-+	return page;
-+}
-+EXPORT_SYMBOL(hugetlb_alloc_pages_immediate);
-+
-+void hugetlb_free_pages_immediate(struct hstate *h, struct page *page)
-+{
-+	int i;
-+
-+	VM_BUG_ON(huge_page_order(h) >= MAX_ORDER);
-+
-+	for (i = 0; i < pages_per_huge_page(h); i++) {
-+		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
-+			1 << PG_referenced | 1 << PG_dirty | 1 << PG_active |
-+			1 << PG_reserved | 1 << PG_private | 1 << PG_writeback);
-+	}
-+	set_compound_page_dtor(page, NULL);
-+	set_page_refcounted(page);
-+	arch_release_hugepage(page);
-+	__free_pages(page, huge_page_order(h));
-+}
-+EXPORT_SYMBOL(hugetlb_free_pages_immediate);
-+
-+/*
-  * Use a helper variable to find the next node and then
-  * copy it back to hugetlb_next_nid afterwards:
-  * otherwise there's a window in which a racer might
 -- 
 
-
-Alternativelly the patch could be taken from git:
-http://git.infradead.org/users/akorolev/mm-patches.git/commit/7746e1c5d826d90286ae797a2551e232e8057a0e
+Alternativelly the patch is available here:
+http://git.infradead.org/users/akorolev/mm-patches.git/commit/b3eca27294ae47e78234bd8ec87c356998be969a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
