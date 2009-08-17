@@ -1,103 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BAC726B004F
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 14:21:15 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so978671qwf.44
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2009 11:21:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1250529575.7858.31.camel@mulgrave.site>
-References: <200908122007.43522.ngupta@vflare.org>
-	 <20090816083434.2ce69859@infradead.org>
-	 <1250437927.3856.119.camel@mulgrave.site> <4A8834B6.2070104@rtr.ca>
-	 <1250446047.3856.273.camel@mulgrave.site> <4A884D9C.3060603@rtr.ca>
-	 <1250447052.3856.294.camel@mulgrave.site> <4A898752.9000205@tmr.com>
-	 <87f94c370908171008t44ff64ack2153e740128278e@mail.gmail.com>
-	 <1250529575.7858.31.camel@mulgrave.site>
-Date: Mon, 17 Aug 2009 14:21:21 -0400
-Message-ID: <87f94c370908171121u5ee8016p253824b16851b48@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A3F5A6B004F
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 15:13:14 -0400 (EDT)
+Date: Mon, 17 Aug 2009 15:12:50 -0400
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
 	slot is freed)
-From: Greg Freemyer <greg.freemyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20090817191250.GA1816@infradead.org>
+References: <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <1250437927.3856.119.camel@mulgrave.site> <20090816165943.GA26983@infradead.org> <1250517372.3844.3.camel@mulgrave.site> <20090817141038.GB11966@parisc-linux.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090817141038.GB11966@parisc-linux.org>
 Sender: owner-linux-mm@kvack.org
-To: James Bottomley <James.Bottomley@suse.de>
-Cc: Bill Davidsen <davidsen@tmr.com>, Mark Lord <liml@rtr.ca>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Chris Worley <worleys@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: James Bottomley <James.Bottomley@suse.de>, Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Mark Lord <liml@rtr.ca>, Chris Worley <worleys@gmail.com>, Bryan Donlan <bdonlan@gmail.com>, david@lang.hm, Greg Freemyer <greg.freemyer@gmail.com>, Markus Trippelsdorf <markus@trippelsdorf.de>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nitin Gupta <ngupta@vflare.org>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-ide@vger.kernel.org, Linux RAID <linux-raid@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 17, 2009 at 1:19 PM, James Bottomley<James.Bottomley@suse.de> w=
-rote:
-> On Mon, 2009-08-17 at 13:08 -0400, Greg Freemyer wrote:
->> All,
->>
->> Seems like the high-level wrap-up of all this is:
->>
->> There are hopes that highly efficient SSDs will appear on the market
->> that can leverage a passthru non-coalescing discard feature. =A0And that
->> a whitelist should be created to allow those SSDs to see discards
->> intermixed with the rest of the data i/o.
->
-> That's not my conclusion. =A0Mine was the NCQ drain would still be
-> detremental to interleaved trim even if the drive could do it for zero
-> cost.
+On Mon, Aug 17, 2009 at 08:10:38AM -0600, Matthew Wilcox wrote:
+> On Mon, Aug 17, 2009 at 08:56:12AM -0500, James Bottomley wrote:
+> > The testing was initially done to see if the initial maximal discard
+> > proposal from LSF09 was a viable approach (which it wasn't given the
+> > time taken to UNMAP).
+> 
+> It would be nice if that feedback could be made public instead of it
+> leaking out in dribs and drabs like this.
 
-Maybe I misunderstood Jim Owens previous comment that designing for
-devices that only meet the spec. was not his / Linus'es preference.
-
-Instead they want to have a whitelist enabled list of drives that
-support trim / ncq without having to drain the queue.
-
-I just re-read his post and he did not explicitly say that, so maybe
-I'm mis-representing it.
-
->> For the other known cases:
->>
->> SSDs that meet the ata-8 spec, but don't exceed it
->> Enterprise SCSI
->
-> No, SCSI will do WRITE_SAME/UNMAP as currently drafted in SBC3
->
->> mdraid with SSD storage used to build raid5 / raid6 arrays
->>
->> Non-coalescing is believed detrimental,
->
-> It is? =A0Why?
-
-For the only compliant SSD in the wild, Mark has shown it to be true
-via testing.
-
-For Enterprise SCSI, I thought you said a coalescing solution is
-preferred.  (I took that to mean non-coalescing is detremental.  Not
-true?).
-
-For mdraid, if the trims are not coalesced mdraid will have to either
-ignore them, or coalesce them themselves. Having them come in bigger
-discard ranges is clearly better.  (ie. At least the size of a stripe,
-so it can adjust the start / end sector to a stripe boundary.)
-
->> =A0but a regular flushing of the
->> unused blocks/sectors via a tool like Mark Lord has written should be
->> acceptable.
->>
->> Mark, I don't believe your tool really addresses the mdraid situation,
->> do you agree. =A0ie. Since your bypassing most of the block stack,
->> mdraid has no way of snooping on / adjusting the discards you are
->> sending out.
->>
->> Thus the 2 solutions that have been worked on already seem to address
->> the needs of everything but mdraid.
->
-> I count three: =A0Mark Lord script via SG_IO. =A0hch enhanced script via
-> XFS_TRIM and willy current discard inline which he's considering
-> coalescing for.
-
-I missed XFS_TRIM somehow.  What benefit does XFS_TRIM provide at a
-high level?  Is it part of the realtime delete file process, or an
-after the fact scanner?
-
-> James
-
-Greg
+Yeah, I don't remember hearing about anything like this either.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
