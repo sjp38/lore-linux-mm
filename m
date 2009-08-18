@@ -1,93 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5D16B0055
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 13A276B005C
 	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 07:16:03 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [RFC PATCH 0/3] Reduce searching in the page allocator fast-path
-Date: Tue, 18 Aug 2009 12:15:59 +0100
-Message-Id: <1250594162-17322-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/3] page-allocoator: Maintain rolling count of pages to free from the PCP
+Date: Tue, 18 Aug 2009 12:16:01 +0100
+Message-Id: <1250594162-17322-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1250594162-17322-1-git-send-email-mel@csn.ul.ie>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Linux Memory Management List <linux-mm@kvack.org>
 Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-The following three patches are a revisit of the proposal to remove searching
-in the page allocator fast-path by maintaining multiple free-lists in the
-per-cpu structure. At the time the search was introduced, increasing the
-per-cpu structures would waste a lot of memory as per-cpu structures were
-statically allocated at compile-time. This is no longer the case.
+When round-robin freeing pages from the PCP lists, empty lists may be
+encountered. In the event one of the lists has more pages than another,
+there may be numerous checks for list_empty() which is undesirable. This
+patch maintains a count of pages to free which is incremented when empty
+lists are encountered. The intention is that more pages will then be freed
+from fuller lists than the empty ones reducing the number of empty list
+checks in the free path.
 
-These patches have been brought up before but the results as to whether
-they helped or not were inconclusive and I was worried about the pcpu drain
-path. While the patches in various guises have been ACKd, they were never
-merged because the performance results were always shaky. I beefed up the
-of the testing methodology and the results indicate either no improvements
-or small gains with two exceptionally large gains. I'm marginally happier
-with the free path than I was previously.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |   23 ++++++++++++++---------
+ 1 files changed, 14 insertions(+), 9 deletions(-)
 
-The patches are as follows. They are based on mmotm-2009-08-12.
-
-Patch 1 adds multiple lists to struct per_cpu_pages, one per
-	migratetype that can be stored on the PCP lists.
-
-Patch 2 notes that the pcpu drain path check empty lists multiple times. The
-	patch  reduces the number of checks by maintaining a count of free
-	lists encountered. Lists containing pages will then free multiple
-	pages in batch
-
-Patch 3 notes that the per-cpu structure is larger than it needs to be because
-	pcpu->high and batch are read-mostly variables shared by the
-	zone. The patch moves those fields to struct zone.
-
-The patches were tested with kernbench, aim9, netperf udp/tcp, hackbench and
-sysbench.  The netperf tests were not bound to any CPU in particular and
-were run such that the results should be 99% confidence that the reported
-results are within 1% of the estimated mean. sysbench was run with a
-postgres background and read-only tests. Similar to netperf, it was run
-multiple times so that it's 99% confidence results are within 1%. The
-patches were tested on x86, x86-64 and ppc64 as
-
-x86:	Intel Pentium D 3GHz with 8G RAM (no-brand machine)
-	kernbench	- No significant difference, variance well within noise
-	aim9		- 3-6% gain on page_test and brk_test
-	netperf-udp	- No significant differences
-	netperf-tcp	- Small variances, very close to noise
-	hackbench	- Small variances, very close to noise
-	sysbench	- Small gains, very close to noise
-
-x86-64:	AMD Phenom 9950 1.3GHz with 8G RAM (no-brand machine)
-	kernbench	- No significant difference, variance well within noise
-	aim9		- No significant difference
-	netperf-udp	- No difference until buffer >= PAGE_SIZE
-				4096	+1.39%
-				8192	+6.80%
-				16384	+9.55%
-	netperf-tcp	- No difference until buffer >= PAGE_SIZE
-				4096	+14.14%
-				8192	+ 0.23% (not significant)
-				16384	-12.56%
-	hackbench	- Small gains, very close to noise
-	sysbench	- Small gains/losses, very close to noise
-
-ppc64:	PPC970MP 2.5GHz with 10GB RAM (it's a terrasoft powerstation)
-	kernbench	- No significant difference, variance well within noise
-	aim9		- No significant difference
-	netperf-udp	- 2-3% gain for almost all buffer sizes tested
-	netperf-tcp	- losses on small buffers, gains on larger buffers
-			  possibly indicates some bad caching effect. Suspect
-			  struct zone could be laid out much better
-	hackbench	- Small 1-2% gains
-	sysbench	- 5-7% gain
-
-For the most part, performance differences are marginal with some noticeable
-exceptions. netperf-udp on x86-64 gained heavily as did sysbench on ppc64. I
-suspect the TCP results, particularly for small buffers, point to some
-cache line bouncing effect which I haven't pinned down yet.
-
- include/linux/mmzone.h |   10 ++-
- mm/page_alloc.c        |  162 +++++++++++++++++++++++++++---------------------
- mm/vmstat.c            |    4 +-
- 3 files changed, 100 insertions(+), 76 deletions(-)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a06ddf0..dd3f306 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -536,32 +536,37 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 					struct per_cpu_pages *pcp)
+ {
+ 	int migratetype = 0;
++	int batch_free = 0;
+ 
+ 	spin_lock(&zone->lock);
+ 	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+ 	zone->pages_scanned = 0;
+ 
+ 	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+-	while (count--) {
++	while (count) {
+ 		struct page *page;
+ 		struct list_head *list;
+ 
+ 		/*
+-		 * Remove pages from lists in a round-robin fashion. This spinning
+-		 * around potentially empty lists is bloody awful, alternatives that
+-		 * don't suck are welcome
++		 * Remove pages from lists in a round-robin fashion. A batch_free
++		 * count is maintained that is incremented when an empty list is
++		 * encountered. This is so more pages are freed off fuller lists
++		 * instead of spinning excessively around empty lists
+ 		 */
+ 		do {
++			batch_free++;
+ 			if (++migratetype == MIGRATE_PCPTYPES)
+ 				migratetype = 0;
+ 			list = &pcp->lists[migratetype];
+ 		} while (list_empty(list));
+ 
+-		page = list_entry(list->prev, struct page, lru);
+-		/* have to delete it as __free_one_page list manipulates */
+-		list_del(&page->lru);
+-		trace_mm_page_pcpu_drain(page, 0, migratetype);
+-		__free_one_page(page, zone, 0, migratetype);
++		do {
++			page = list_entry(list->prev, struct page, lru);
++			/* must delete as __free_one_page list manipulates */
++			list_del(&page->lru);
++			__free_one_page(page, zone, 0, migratetype);
++			trace_mm_page_pcpu_drain(page, 0, migratetype);
++		} while (--count && --batch_free && !list_empty(list));
+ 	}
+ 	spin_unlock(&zone->lock);
+ }
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
