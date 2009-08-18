@@ -1,227 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C35AE6B0055
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 18:57:20 -0400 (EDT)
-Date: Mon, 17 Aug 2009 23:57:26 +0100 (BST)
-From: Alexey Korolev <akorolev@infradead.org>
-Subject: HTLB mapping for drivers. Driver example
-Message-ID: <alpine.LFD.2.00.0908172346460.32114@casper.infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 08E606B004D
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2009 20:13:50 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7I0DqTJ016810
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 18 Aug 2009 09:13:52 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CA8D45DE54
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 09:13:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7997945DE53
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 09:13:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F7901DB8037
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 09:13:52 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 19D321DB8038
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 09:13:52 +0900 (JST)
+Date: Tue, 18 Aug 2009 09:12:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mv clear node_load[] to __build_all_zonelists()
+Message-Id: <20090818091203.20341635.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090817143447.b1ecf5c6.akpm@linux-foundation.org>
+References: <COL115-W869FC30815A7D5B7A63339F0A0@phx.gbl>
+	<20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090817143447.b1ecf5c6.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: bo-liu@hotmail.com, linux-mm@kvack.org, mel@csn.ul.ie, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-This message contains driver example which mmaps huge pages to user level applications. 
-The Init procedure does the the following:
-* Allocates several hugepages, 
-* Creates hugetlbfs file on vfs mount. When we create file we specify VM_NORESERVE flag in order to prevent memory reservation 
-by hugetlbfs as pages will be added by driver. (It is also possible to use pages reserved by hugetlbfs in this case we need ask to reservation)
-* Add allocated pages to page cache mapping of hugetlbfs file. So page_fault procedure can find and provide these pages to user level.
+On Mon, 17 Aug 2009 14:34:47 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-File operations of /dev/hpage_map do the following:
+> On Thu, 6 Aug 2009 19:50:37 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Thu, 6 Aug 2009 18:44:40 +0800
+> > Bo Liu <bo-liu@hotmail.com> wrote:
+> > 
+> > > 
+> > >  If node_load[] is cleared everytime build_zonelists() is called,node_load[]
+> > >  will have no help to find the next node that should appear in the given node's
+> > >  fallback list.
+> > >  Signed-off-by: Bob Liu 
+> > 
+> > nice catch. (my old bug...sorry
+> > 
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > BTW, do you have special reasons to hide your mail address in commit log ?
+> > 
+> > I added proper CC: list.
+> > Hmm, I think it's necessary to do total review/rewrite this function again..
+> > 
+> > 
+> > > ---
+> > >  mm/page_alloc.c |    2 +-
+> > >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > >  
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index d052abb..72f7345 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
+> > >  	prev_node = local_node;
+> > >  	nodes_clear(used_mask);
+> > >  
+> > > -	memset(node_load, 0, sizeof(node_load));
+> > >  	memset(node_order, 0, sizeof(node_order));
+> > >  	j = 0;
+> > >  
+> > > @@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
+> > >  {
+> > >  	int nid;
+> > >  
+> > > +	memset(node_load, 0, sizeof(node_load));
+> > >  	for_each_online_node(nid) {
+> > >  		pg_data_t *pgdat = NODE_DATA(nid);
+> 
+> What are the consequences of this bug?
+> 
+> Is the fix needed in 2.6.31?  Earlier?
+> 
+I think this should be on fast-track as bugfix.
 
-In file open we  associate mappings of /dev/xxx with the file on hugetlbfs (like it is done in ipc/shm.c)
-	file->f_mapping = h_file->f_mapping;
+By this bug, zonelist's node_order is not calculated as expected.
+This bug affects on big machine, which has asynmetric node distance.
 
-In get_unmapped_area we should tell about addressing constraints in case of huge pages by calling hugetlbfs procedures. (as in ipc/shm.c)
-	return get_unmapped_area(h_file, addr, len, pgoff, flags);
+[synmetric NUMA's node distance]
+     0    1    2
+0   10   12   12
+1   12   10   12
+2   12   12   10
 
-We need to let hugetlbfs do architecture specific operations with mapping in mmap call. This driver does not reserve any memory for private mappings 
-so driver requests reservation from hugetlbfs. (Actually driver can do this as well but it will make it more complex)
-
-The exit procedure:
-* removes memory from page cache
-* deletes file on hugetlbfs vfs mount
-*  free pages
-
-Application example is not shown here but it is very simple. It does the following: open file /dev/hpage_map, mmap a region, read/write memory, unmap file, close file.
-
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/hugetlb.h>
-#include <linux/pagevec.h>
-#include <linux/miscdevice.h>
-
-#define NUM_HPAGES 10
-
-static struct page	*data_pages[NUM_HPAGES];
-static struct file	*h_file;
-static struct hstate	*h;
-
-static int hpage_map_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	int ret;
-	struct inode* host = h_file->f_mapping->host;
-	unsigned long vsize, off;
-
-	/* Check offsets and len */
-	off = vma->vm_pgoff * huge_page_size(h);
-	vsize = vma->vm_end - vma->vm_start;
-	if (off + vsize > host->i_size) {
-		return -EINVAL;
-	}
-	/* Do not reserve memory from hugetlb pools for shared mappings
-	 * because pages from page cache will be used*/
-	if (vma->vm_flags & VM_SHARED)
-		vma->vm_flags |= VM_NORESERVE;
-	ret = h_file->f_op->mmap(h_file, vma);
-	return ret;
-}
+[asynmetric NUMA's node distance]
+     0    1    2
+0   10   12   20
+1   12   10   14
+2   20   14   10
 
 
-static unsigned long hpage_map_get_unmapped_area(struct file *file,
-	unsigned long addr, unsigned long len, unsigned long pgoff,
-	unsigned long flags)
-{
-	/* Tell about addressing constrains in case of huge pages, 
-	 * hugetlbfs knows how to do this */
-	return get_unmapped_area(h_file, addr, len, pgoff, flags);
-}
+This (my bug) is very old..but no one have reported this for a long time.
+Maybe because the number of asynmetric NUMA is very small and they use cpuset
+for customizing node memory allocation fallback.
 
-static int hpage_map_open(struct inode * inode, struct file * file)
-{
-	/* Associate mappings of /dev/xxx with the file on hugetlbfs 
-	 * like it is done in ipc/shm.c */
-	file->f_mapping = h_file->f_mapping;
-	return 0;
-}
-
-/*
- * The file operations for /dev/hpage_map
- */
-static const struct file_operations hpage_map_fops = {
-	.owner		= THIS_MODULE,
-	.mmap		= hpage_map_mmap,
-	.open 		= hpage_map_open,
-	.release	= hpage_map_release,
-	.get_unmapped_area	= hpage_map_get_unmapped_area,
-};
-
-static struct miscdevice hpage_map_dev = {
-	MISC_DYNAMIC_MINOR,
-	"hpage_map",
-	&hpage_map_fops
-};
-
-static int hpage_map_alloc(void)
-{
-	int cnt;
-
-	/* Just allocates some hugetlb pages for further mapping */
-	memset(data_pages, 0x0, sizeof(data_pages));
-	for (cnt = 0; cnt < NUM_HPAGES; cnt++ ) {
-		if (!(data_pages[cnt] = hugetlb_alloc_pages_immediate(h, 0, GFP_KERNEL)))
-			return -ENOMEM;
-	}
-	return 0;
-}
-
-static int hpage_map_add_pgcache(void)
-{
-	int cnt, ret = -EIO;
-
-	/* Add our pages to page cache manualy */
-	for (cnt = 0; cnt < NUM_HPAGES; cnt++ ) {
-		ret = add_to_page_cache(data_pages[cnt], 
-				h_file->f_mapping, cnt, GFP_KERNEL);
-		if (ret) 
-			goto out_failed;
-		SetPageUptodate(data_pages[cnt]);
-		unlock_page(data_pages[cnt]);
-	} mapping based
-	return 0;
-
-out_failed:
-	while (cnt > 0) {
-		cnt--;
-		lock_page(data_pages[cnt]);
-		remove_from_page_cache(data_pages[cnt]);
-		unlock_page(data_pages[cnt]);
-	}
-	return ret;
-}
-
-static void hpage_map_free()
-{
-	int cnt;
-
-	for (cnt = 0; cnt < NUM_HPAGES; cnt++ ) {
-	if (data_pages[cnt]) 
-		hugetlb_free_pages_immediate(h, data_pages[cnt]);
-	}
-}
-
-static void hpage_map_remove_pgcache(void)
-{
-	int cnt;
-	struct page *page;    
-	/* Clean up page cache */
-	for (cnt = 0; cnt < NUM_HPAGES; cnt++ ) {
-		page = data_pages[cnt];
-		lock_page(page);
-		remove_from_page_cache(page);
-		unlock_page(page);
-	}
-}
-
-static int __init
-hpage_map_init(void)
-{
-	int ret;
-	/* Obtain hstate correspondent to hugetlbfs vfs mount*/
-	h = hugetlb_vfsmount_hstate();
-
-	/* Check if order is suitable for driver use */
-	if (!h || huge_page_order(h) > (MAX_ORDER - 1) )
-		return -EIO;
-
-	/* Create the device in the /sys/class/misc directory. */
-	if ((ret = misc_register(&hpage_map_dev)))
-		return ret;
-
-	/* Allocate some memory */
-	if ((ret = hpage_map_alloc()))
-		goto out_mem;
-
-	/* Create file on hugetlbfs */
-	h_file = hugetlb_file_setup("hpage_map_dev",
-			huge_page_size(h) * NUM_HPAGES, VM_NORESERVE);
-	if (IS_ERR(h_file)) {
-		ret = -ENOENT;
-		goto out_mem;
-	}
-
-	/* Add allocated pages to page cache */
-	if ((ret = hpage_map_add_pgcache())
-		goto out_file
-out_file:
-	fput(h_file);
-out_mem:
-	hpage_map_free();
-	return ret;
-}
-
-module_init(hpage_map_init);
-
-static void __exit
-hpage_map_exit(void)
-{
-	hpage_map_remove_pgcache();
-	fput(h_file);
-	hpage_map_free();
-	misc_deregister(&hpage_map_dev);
-}
-
-module_exit(hpage_map_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alexey Korolev");
-MODULE_DESCRIPTION("Example of driver with hugetlb mapping");
-MODULE_VERSION("1.0");
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
