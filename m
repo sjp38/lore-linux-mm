@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7906B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:10:45 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7IM9YXU020466
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:09:34 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7IMAdEx178550
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:10:42 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7IM7k3K028915
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:07:46 -0400
-Subject: Re: [PATCH 2/3]HTLB mapping for drivers. Hstate for files with
- hugetlb mapping(take 2)
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
-References: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
-Content-Type: text/plain
-Date: Tue, 18 Aug 2009 15:10:38 -0700
-Message-Id: <1250633438.7335.1146.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 169E66B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:34:31 -0400 (EDT)
+Date: Tue, 18 Aug 2009 15:57:00 -0700 (PDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: Re: [PATCH 1/3] page-allocator: Split per-cpu list into
+ one-list-per-migrate-type
+In-Reply-To: <1250594162-17322-2-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.00.0908181550450.31547@mail.selltech.ca>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-2-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolev@infradead.org>
-Cc: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-08-17 at 23:40 +0100, Alexey Korolev wrote:
-> 
-> @@ -110,6 +111,10 @@ static inline void hugetlb_report_meminfo(struct
-> seq_file *m)
->  #endif /* !CONFIG_HUGETLB_PAGE */
-> 
->  #ifdef CONFIG_HUGETLBFS
+On Tue, 18 Aug 2009, Mel Gorman wrote:
+
+> +	/*
+> +	 * We only track unreclaimable, reclaimable and movable on pcp lists.
+			 ^^^^^^^^^^^^^  
+Is it unmovable? I don't see unreclaimable migrate type on pcp lists. 
+Just ask to make sure I undsterstand the comment right.
+
+> +	 * Free ISOLATE pages back to the allocator because they are being
+> +	 * offlined but treat RESERVE as movable pages so we can get those
+> +	 * areas back if necessary. Otherwise, we may have to free
+> +	 * excessively into the page allocator
+> +	 */
+> +	if (migratetype >= MIGRATE_PCPTYPES) {
+> +		if (unlikely(migratetype == MIGRATE_ISOLATE)) {
+> +			free_one_page(zone, page, 0, migratetype);
+> +			goto out;
+> +		}
+> +		migratetype = MIGRATE_MOVABLE;
+> +	}
 > +
-> +/* some random number */
-> +#define HUGETLBFS_MAGIC        0x958458f6
 
-Doesn't this belong in include/linux/magic.h?
-
--- Dave
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
