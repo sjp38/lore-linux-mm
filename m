@@ -1,121 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8C8406B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 00:18:16 -0400 (EDT)
-Received: by pxi33 with SMTP id 33so1540180pxi.11
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2009 21:18:20 -0700 (PDT)
-Date: Tue, 18 Aug 2009 13:17:34 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-Id: <20090818131734.3d5bceb2.minchan.kim@barrios-desktop>
-In-Reply-To: <20090818023438.GB7958@localhost>
-References: <20090806102057.GQ23385@random.random>
-	<20090806105932.GA1569@localhost>
-	<4A7AC201.4010202@redhat.com>
-	<20090806130631.GB6162@localhost>
-	<20090806210955.GA14201@c2.user-mode-linux.org>
-	<20090816031827.GA6888@localhost>
-	<4A87829C.4090908@redhat.com>
-	<20090816051502.GB13740@localhost>
-	<20090816112910.GA3208@localhost>
-	<28c262360908170733q4bc5ddb8ob2fc976b6a468d6e@mail.gmail.com>
-	<20090818023438.GB7958@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id EFB8E6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 02:29:41 -0400 (EDT)
+Message-ID: <4A8A4ABB.70003@redhat.com>
+Date: Tue, 18 Aug 2009 14:31:23 +0800
+From: Amerigo Wang <amwang@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
+References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain>	<m1bpmk8l1g.fsf@fess.ebiederm.org>	<4A83893D.50707@redhat.com>	<m1eirg5j9i.fsf@fess.ebiederm.org>	<4A83CD84.8040609@redhat.com>	<m1tz0avy4h.fsf@fess.ebiederm.org>	<4A8927DD.6060209@redhat.com> <20090818092939.2efbe158.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090818092939.2efbe158.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Aug 2009 10:34:38 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Mon, 17 Aug 2009 17:50:21 +0800
+> Amerigo Wang <amwang@redhat.com> wrote:
+>
+>   
+>> Eric W. Biederman wrote:
+>>     
+>>> Amerigo Wang <amwang@redhat.com> writes:
+>>>
+>>>   
+>>>       
+>>>> Not that simple, marking it as "__init" means it uses some "__init" data which
+>>>> will be dropped after initialization.
+>>>>     
+>>>>         
+>>> If we start with the assumption that we will be reserving to much and
+>>> will free the memory once we know how much we really need I see a very
+>>> simple way to go about this. We ensure that the reservation of crash
+>>> kernel memory is done through a normal allocation so that we have
+>>> struct page entries for every page.  On 32bit x86 that is an extra 1MB
+>>> for a 128MB allocation.
+>>>
+>>> Then when it comes time to release that memory we clear whatever magic
+>>> flags we have on the page (like PG_reserve) and call free_page.
+>>>   
+>>>       
+>> Hmm, my MM knowledge is not good enough to judge if this works...
+>> I need to check more MM source code.
+>>
+>> Can any MM people help?
+>>
+>>     
+> Hm, memory-hotplug guy is here.
+>   
 
-> Minchan,
-> 
-> On Mon, Aug 17, 2009 at 10:33:54PM +0800, Minchan Kim wrote:
-> > On Sun, Aug 16, 2009 at 8:29 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > > On Sun, Aug 16, 2009 at 01:15:02PM +0800, Wu Fengguang wrote:
-> > >> On Sun, Aug 16, 2009 at 11:53:00AM +0800, Rik van Riel wrote:
-> > >> > Wu Fengguang wrote:
-> > >> > > On Fri, Aug 07, 2009 at 05:09:55AM +0800, Jeff Dike wrote:
-> > >> > >> Side question -
-> > >> > >> A Is there a good reason for this to be in shrink_active_list()
-> > >> > >> as opposed to __isolate_lru_page?
-> > >> > >>
-> > >> > >> A  A  A  A  A if (unlikely(!page_evictable(page, NULL))) {
-> > >> > >> A  A  A  A  A  A  A  A  A putback_lru_page(page);
-> > >> > >> A  A  A  A  A  A  A  A  A continue;
-> > >> > >> A  A  A  A  A }
-> > >> > >>
-> > >> > >> Maybe we want to minimize the amount of code under the lru lock or
-> > >> > >> avoid duplicate logic in the isolate_page functions.
-> > >> > >
-> > >> > > I guess the quick test means to avoid the expensive page_referenced()
-> > >> > > call that follows it. But that should be mostly one shot cost - the
-> > >> > > unevictable pages are unlikely to cycle in active/inactive list again
-> > >> > > and again.
-> > >> >
-> > >> > Please read what putback_lru_page does.
-> > >> >
-> > >> > It moves the page onto the unevictable list, so that
-> > >> > it will not end up in this scan again.
-> > >>
-> > >> Yes it does. I said 'mostly' because there is a small hole that an
-> > >> unevictable page may be scanned but still not moved to unevictable
-> > >> list: when a page is mapped in two places, the first pte has the
-> > >> referenced bit set, the _second_ VMA has VM_LOCKED bit set, then
-> > >> page_referenced() will return 1 and shrink_page_list() will move it
-> > >> into active list instead of unevictable list. Shall we fix this rare
-> > >> case?
-> > 
-> > I think it's not a big deal.
-> 
-> Maybe, otherwise I should bring up this issue long time before :)
-> 
-> > As you mentioned, it's rare case so there would be few pages in active
-> > list instead of unevictable list.
-> 
-> Yes.
-> 
-> > When next time to scan comes, we can try to move the pages into
-> > unevictable list, again.
-> 
-> Will PG_mlocked be set by then? Otherwise the situation is not likely 
-> to change and the VM_LOCKED pages may circulate in active/inactive
-> list for countless times.
+Hi, thank you!
+> Can I have a question ?
+>
+>   - How crash kernel's memory is preserved at boot ?
+>   
 
-PG_mlocked is not important in that case. 
-Important thing is VM_LOCKED vma. 
-I think below annotaion can help you to understand my point. :)
+Use bootmem, I think.
 
-----
+>     It's hidden from the system before mem_init() ?
+>   
 
-/*
- * called from munlock()/munmap() path with page supposedly on the LRU.
- *
- * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
- * [in try_to_munlock()] and then attempt to isolate the page.  We must
- * isolate the page to keep others from messing with its unevictable
- * and mlocked state while trying to munlock.  However, we pre-clear the
- * mlocked state anyway as we might lose the isolation race and we might
- * not get another chance to clear PageMlocked.  If we successfully
- * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
- * mapping the page, it will restore the PageMlocked state, unless the page
- * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
- * perhaps redundantly.
- * If we lose the isolation race, and the page is mapped by other VM_LOCKED
- * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
- * either of which will restore the PageMlocked state by calling
- * mlock_vma_page() above, if it can grab the vma's mmap sem.
- */
-static void munlock_vma_page(struct page *page)
-{
-...
+Not sure, but probably yes. It is reserved in setup_arch() which is 
+before mm_init() which calls mem_init().
 
--- 
-Kind regards,
-Minchan Kim
+Do you have any advice to free that reserved memory after boot? :)
+
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
