@@ -1,33 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB3F6B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 12:42:15 -0400 (EDT)
-Date: Tue, 18 Aug 2009 17:42:17 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0542B6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 12:53:33 -0400 (EDT)
+Date: Tue, 18 Aug 2009 17:53:41 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] page-allocator: Move pcp static fields for high
-	and batch off-pcp and onto the zone
-Message-ID: <20090818164216.GA13435@csn.ul.ie>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181015420.32284@gentwo.org>
+Subject: Re: [RFC PATCH 0/3] Reduce searching in the page allocator
+	fast-path
+Message-ID: <20090818165340.GB13435@csn.ul.ie>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181019130.32284@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0908181015420.32284@gentwo.org>
+In-Reply-To: <alpine.DEB.1.10.0908181019130.32284@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 10:18:48AM -0400, Christoph Lameter wrote:
+On Tue, Aug 18, 2009 at 10:22:01AM -0400, Christoph Lameter wrote:
 > 
-> This will increase the cache footprint for the hot code path. Could these
-> new variable be moved next to zone fields that are already in use there?
-> The pageset array is used f.e.
+> This could be combined with the per cpu ops patch that makes the page
+> allocator use alloc_percpu for its per cpu data needs. That in turn would
+> allow the use of per cpu atomics in the hot paths, maybe we can
+> get to a point where we can drop the irq disable there.
 > 
 
-pageset is ____cacheline_aligned_in_smp so putting pcp->high/batch near
-it won't help in terms of cache footprint. This is why I located it near
-watermarks because it's known they'll be needed at roughly the same time
-pcp->high/batch would be normally accessed.
+It would appear that getting rid of IRQ disabling and using per-cpu-atomics
+would be a problem independent of searching the free lists. Either would
+be good, both would be better or am I missing something that makes them
+mutually exclusive?
+
+Can you point me to which patchset you are talking about specifically that
+uses per-cpu atomics in the hot path? There are a lot of per-cpu patches
+related to you that have been posted in the last few months and I'm not sure
+what any of their merge status' is.
 
 -- 
 Mel Gorman
