@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 74E806B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 15:05:31 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 546C282C7EF
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 15:05:42 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id LT8ZBQhnc7+k for <linux-mm@kvack.org>;
-	Tue, 18 Aug 2009 15:05:38 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 53BC182C7AC
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 15:05:38 -0400 (EDT)
-Date: Tue, 18 Aug 2009 15:05:25 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/3] Reduce searching in the page allocator
- fast-path
-In-Reply-To: <20090818165340.GB13435@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0908181357100.3840@gentwo.org>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181019130.32284@gentwo.org> <20090818165340.GB13435@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4A46B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 16:50:44 -0400 (EDT)
+Date: Tue, 18 Aug 2009 21:50:50 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/3] page-allocator: Move pcp static fields for high
+	and batch off-pcp and onto the zone
+Message-ID: <20090818205050.GA756@csn.ul.ie>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181015420.32284@gentwo.org> <20090818164216.GA13435@csn.ul.ie> <alpine.DEB.1.10.0908181355490.3840@gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0908181355490.3840@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Aug 2009, Mel Gorman wrote:
+On Tue, Aug 18, 2009 at 01:56:22PM -0400, Christoph Lameter wrote:
+> On Tue, 18 Aug 2009, Mel Gorman wrote:
+> 
+> > On Tue, Aug 18, 2009 at 10:18:48AM -0400, Christoph Lameter wrote:
+> > >
+> > > This will increase the cache footprint for the hot code path. Could these
+> > > new variable be moved next to zone fields that are already in use there?
+> > > The pageset array is used f.e.
+> > >
+> >
+> > pageset is ____cacheline_aligned_in_smp so putting pcp->high/batch near
+> > it won't help in terms of cache footprint. This is why I located it near
+> > watermarks because it's known they'll be needed at roughly the same time
+> > pcp->high/batch would be normally accessed.
+> 
+> watermarks are not accessed from the hot code path in free_hot_cold page.
+> 
 
-> Can you point me to which patchset you are talking about specifically that
-> uses per-cpu atomics in the hot path? There are a lot of per-cpu patches
-> related to you that have been posted in the last few months and I'm not sure
-> what any of their merge status' is.
+They are used in a commonly-used path for allocation so there is some
+advantage. Put beside pageset, there is no advantage as that structure
+is already aligned to a cache-line.
 
-The following patch just moved the page allocator to use the new per cpu
-allocator. It does not use per cpu atomic yet but its possible then.
-
-http://marc.info/?l=linux-mm&m=124527414206546&w=2
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
