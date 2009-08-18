@@ -1,171 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CBAF86B005C
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 11:58:34 -0400 (EDT)
-Date: Wed, 19 Aug 2009 00:57:54 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-In-Reply-To: <20090816112910.GA3208@localhost>
-References: <20090816051502.GB13740@localhost> <20090816112910.GA3208@localhost>
-Message-Id: <20090818234310.A64B.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BAD216B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 12:12:48 -0400 (EDT)
+Message-ID: <4A8AD2E6.8090703@cs.helsinki.fi>
+Date: Tue, 18 Aug 2009 19:12:22 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [Patch] proc: drop write permission on 'timer_list' and 'slabinfo'
+References: <20090817094525.6355.88682.sendpatchset@localhost.localdomain>  <20090817094822.GA17838@elte.hu> <1250502847.5038.16.camel@penberg-laptop> <alpine.DEB.1.10.0908171228300.16267@gentwo.org> <4A8986BB.80409@cs.helsinki.fi> <alpine.DEB.1.10.0908171240370.16267@gentwo.org> <4A8A0B0D.6080400@redhat.com> <4A8A0B14.8040700@cn.fujitsu.com>
+In-Reply-To: <4A8A0B14.8040700@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Amerigo Wang <amwang@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, Vegard Nossum <vegard.nossum@gmail.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Yes it does. I said 'mostly' because there is a small hole that an
-> > unevictable page may be scanned but still not moved to unevictable
-> > list: when a page is mapped in two places, the first pte has the
-> > referenced bit set, the _second_ VMA has VM_LOCKED bit set, then
-> > page_referenced() will return 1 and shrink_page_list() will move it
-> > into active list instead of unevictable list. Shall we fix this rare
-> > case?
+Li Zefan wrote:
+>>  static int __init slab_proc_init(void)
+>>  {
+>> -	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+>> +	proc_create("slabinfo",S_IRUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
 > 
-> How about this fix?
-
-Good spotting.
-Yes, this is rare case. but I also don't think your patch introduce
-performance degression.
-
-However, I think your patch have one bug.
-
+> S_IRUSR|S_IRUGO == S_IRUGO
 > 
-> ---
-> mm: stop circulating of referenced mlocked pages
+>>  	return 0;
+>>  }
+>>  module_init(slab_proc_init);
 > 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
-> 
-> --- linux.orig/mm/rmap.c	2009-08-16 19:11:13.000000000 +0800
-> +++ linux/mm/rmap.c	2009-08-16 19:22:46.000000000 +0800
-> @@ -358,6 +358,7 @@ static int page_referenced_one(struct pa
->  	 */
->  	if (vma->vm_flags & VM_LOCKED) {
->  		*mapcount = 1;	/* break early from loop */
-> +		*vm_flags |= VM_LOCKED;
->  		goto out_unmap;
->  	}
->  
-> @@ -482,6 +483,8 @@ static int page_referenced_file(struct p
->  	}
->  
->  	spin_unlock(&mapping->i_mmap_lock);
-> +	if (*vm_flags & VM_LOCKED)
-> +		referenced = 0;
->  	return referenced;
->  }
->  
 
-page_referenced_file?
-I think we should change page_referenced().
-
-
-Instead, How about this?
-==============================================
-
-Subject: [PATCH] mm: stop circulating of referenced mlocked pages
-
-Currently, mlock() systemcall doesn't gurantee to mark the page PG_Mlocked
-because some race prevent page grabbing.
-In that case, instead vmscan move the page to unevictable lru.
-
-However, Recently Wu Fengguang pointed out current vmscan logic isn't so
-efficient.
-mlocked page can move circulatly active and inactive list because
-vmscan check the page is referenced _before_ cull mlocked page.
-
-Plus, vmscan should mark PG_Mlocked when cull mlocked page.
-Otherwise vm stastics show strange number.
-
-This patch does that.
-
-Reported-by: Wu Fengguang <fengguang.wu@intel.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/internal.h |    5 +++--
- mm/rmap.c     |    8 +++++++-
- mm/vmscan.c   |    2 +-
- 3 files changed, 11 insertions(+), 4 deletions(-)
-
-Index: b/mm/internal.h
-===================================================================
---- a/mm/internal.h	2009-06-26 21:06:43.000000000 +0900
-+++ b/mm/internal.h	2009-08-18 23:31:11.000000000 +0900
-@@ -91,7 +91,8 @@ static inline void unevictable_migrate_p
-  * to determine if it's being mapped into a LOCKED vma.
-  * If so, mark page as mlocked.
-  */
--static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
-+static inline int try_set_page_mlocked(struct vm_area_struct *vma,
-+				       struct page *page)
- {
- 	VM_BUG_ON(PageLRU(page));
- 
-@@ -144,7 +145,7 @@ static inline void mlock_migrate_page(st
- }
- 
- #else /* CONFIG_HAVE_MLOCKED_PAGE_BIT */
--static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
-+static inline int try_set_page_mlocked(struct vm_area_struct *v, struct page *p)
- {
- 	return 0;
- }
-Index: b/mm/rmap.c
-===================================================================
---- a/mm/rmap.c	2009-08-18 19:48:14.000000000 +0900
-+++ b/mm/rmap.c	2009-08-18 23:47:34.000000000 +0900
-@@ -362,7 +362,9 @@ static int page_referenced_one(struct pa
- 	 * unevictable list.
- 	 */
- 	if (vma->vm_flags & VM_LOCKED) {
--		*mapcount = 1;	/* break early from loop */
-+		*mapcount = 1;		/* break early from loop */
-+		*vm_flags |= VM_LOCKED;	/* for prevent to move active list */
-+		try_set_page_mlocked(vma, page);
- 		goto out_unmap;
- 	}
- 
-@@ -531,6 +533,9 @@ int page_referenced(struct page *page,
- 	if (page_test_and_clear_young(page))
- 		referenced++;
- 
-+	if (unlikely(*vm_flags & VM_LOCKED))
-+		referenced = 0;
-+
- 	return referenced;
- }
- 
-@@ -784,6 +789,7 @@ static int try_to_unmap_one(struct page 
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
- 		if (vma->vm_flags & VM_LOCKED) {
-+			try_set_page_mlocked(vma, page);
- 			ret = SWAP_MLOCK;
- 			goto out_unmap;
- 		}
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c	2009-08-18 19:48:14.000000000 +0900
-+++ b/mm/vmscan.c	2009-08-18 23:30:51.000000000 +0900
-@@ -2666,7 +2666,7 @@ int page_evictable(struct page *page, st
- 	if (mapping_unevictable(page_mapping(page)))
- 		return 0;
- 
--	if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
-+	if (PageMlocked(page) || (vma && try_set_page_mlocked(vma, page)))
- 		return 0;
- 
- 	return 1;
-
-
-
-
-
-
-
+I went ahead and fixed that. Applied, thanks everyone!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
