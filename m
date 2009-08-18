@@ -1,82 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5A6856B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 04:49:45 -0400 (EDT)
-Message-ID: <4A8A6B8F.7000604@redhat.com>
-Date: Tue, 18 Aug 2009 16:51:27 +0800
-From: Amerigo Wang <amwang@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4D6B36B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 05:28:04 -0400 (EDT)
+Message-ID: <COL115-W22347A02D3AD5F81F16D2D9FFF0@phx.gbl>
+From: Bo Liu <bo-liu@hotmail.com>
+Subject: RE: [PATCH] mv clear node_load[] to __build_all_zonelists()
+Date: Tue, 18 Aug 2009 17:28:09 +0800
+In-Reply-To: <20090818091203.20341635.kamezawa.hiroyu@jp.fujitsu.com>
+References: <COL115-W869FC30815A7D5B7A63339F0A0@phx.gbl>
+	<20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
+ 	<20090817143447.b1ecf5c6.akpm@linux-foundation.org>
+ <20090818091203.20341635.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
-References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain>	<m1bpmk8l1g.fsf@fess.ebiederm.org>	<4A83893D.50707@redhat.com>	<m1eirg5j9i.fsf@fess.ebiederm.org>	<4A83CD84.8040609@redhat.com>	<m1tz0avy4h.fsf@fess.ebiederm.org>	<4A8927DD.6060209@redhat.com>	<20090818092939.2efbe158.kamezawa.hiroyu@jp.fujitsu.com>	<4A8A4ABB.70003@redhat.com> <20090818172552.779d0768.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090818172552.779d0768.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
+To: kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+
+ 
+On Tue, 18 Aug 2009 09:12:03 +0900
 KAMEZAWA Hiroyuki wrote:
-> On Tue, 18 Aug 2009 14:31:23 +0800
-> Amerigo Wang <amwang@redhat.com> wrote:
->   
->> Hi, thank you!
->>     
->>> Can I have a question ?
+>
+> On Mon, 17 Aug 2009 14:34:47 -0700
+> Andrew Morton wrote:
+>
+>> On Thu, 6 Aug 2009 19:50:37 +0900
+>> KAMEZAWA Hiroyuki wrote:
+>>
+>>> On Thu, 6 Aug 2009 18:44:40 +0800
+>>> Bo Liu wrote:
 >>>
->>>   - How crash kernel's memory is preserved at boot ?
->>>   
->>>       
->> Use bootmem, I think.
+>>>>
+>>>> If node_load[] is cleared everytime build_zonelists() is called,node_load[]
+>>>> will have no help to find the next node that should appear in the given node's
+>>>> fallback list.
+>>>> Signed-off-by: Bob Liu
+>>>
+>>> nice catch. (my old bug...sorry
+>>>
+>>> Reviewed-by: KAMEZAWA Hiroyuki 
+>>>
+>>> BTW, do you have special reasons to hide your mail address in commit log ?
+>>>
+>>> I added proper CC: list.
+>>> Hmm, I think it's necessary to do total review/rewrite this function again..
+>>>
+>>>
+>>>> ---
+>>>> mm/page_alloc.c | 2 +-
+>>>> 1 files changed, 1 insertions(+), 1 deletions(-)
+>>>>
+>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>>> index d052abb..72f7345 100644
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
+>>>> prev_node = local_node;
+>>>> nodes_clear(used_mask);
+>>>>
+>>>> - memset(node_load, 0, sizeof(node_load));
+>>>> memset(node_order, 0, sizeof(node_order));
+>>>> j = 0;
+>>>>
+>>>> @@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
+>>>> {
+>>>> int nid;
+>>>>
+>>>> + memset(node_load, 0, sizeof(node_load));
+>>>> for_each_online_node(nid) {
+>>>> pg_data_t *pgdat = NODE_DATA(nid);
 >>
->>     
-> I see.
->
-> In x86,
->  
->   setup_arch()
-> 	-> reserve_crashkernel()
-> 		-> find_and_reserve_crashkernel()
-> 			-> reserve_bootmem_generic()
->
-> Then, all "active range" is already registered and there are memmap.
->
->
->   
->>>     It's hidden from the system before mem_init() ?
->>>   
->>>       
->> Not sure, but probably yes. It is reserved in setup_arch() which is 
->> before mm_init() which calls mem_init().
+>> What are the consequences of this bug?
 >>
->> Do you have any advice to free that reserved memory after boot? :)
+>> Is the fix needed in 2.6.31? Earlier?
 >>
->>     
+> I think this should be on fast-track as bugfix.
 >
-> Let's see arch/x86/mm/init.c::free_initmem()
+> By this bug, zonelist's node_order is not calculated as expected.
+> This bug affects on big machine, which has asynmetric node distance.
 >
-> Maybe it's all you want.
+> [synmetric NUMA's node distance]
+> 0 1 2
+> 0 10 12 12
+> 1 12 10 12
+> 2 12 12 10
 >
-> 	- ClearPageReserved()
-> 	- init_page_count()
-> 	- free_page()
-> 	- totalram_pages++
+> [asynmetric NUMA's node distance]
+> 0 1 2
+> 0 10 12 20
+> 1 12 10 14
+> 2 20 14 10
 >
-> But it has no argumetns. Maybe you need your own function or modification.
-> online_pages() does very similar. But, hmm,.. writing something open coded one
-> for crashkernel is not very bad, I think.
->   
+ 
+Thanks for your explanations.
+Actually,
+When I submited this patch I didn't think so clearly about the consequences.
+I just knew the node_load[] will be nouse because of the memset() clear it every time.
 
-Nice help!
-
-Yeah, I think we can make that be a generic wrapper function so that 
-both free_initmem() and shrink_crash_memory() can use it.
-
-Then I will update and resend the whole patchset.
-
-Thank you!
-
-
+>
+> This (my bug) is very old..but no one have reported this for a long time.
+> Maybe because the number of asynmetric NUMA is very small and they use cpuset
+> for customizing node memory allocation fallback.
+ 
+ 
+ 
+_________________________________________________________________
+With Windows Live, you can organize, edit, and share your photos.
+http://www.microsoft.com/middleeast/windows/windowslive/products/photo-gallery-edit.aspx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
