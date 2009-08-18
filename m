@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 61AAB6B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 11:38:21 -0400 (EDT)
-Date: Tue, 18 Aug 2009 17:38:15 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] replace various uses of num_physpages by totalram_pages
-Message-ID: <20090818153815.GA11913@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5055A6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 11:48:09 -0400 (EDT)
+Message-Id: <4A8AE95C020000780001055F@vpn.id2.novell.com>
+Date: Tue, 18 Aug 2009 16:48:12 +0100
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: Re: [PATCH] replace various uses of num_physpages by
+	 totalram_pages
 References: <4A8AE6280200007800010539@vpn.id2.novell.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+ <20090818153815.GA11913@elte.hu>
+In-Reply-To: <20090818153815.GA11913@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <4A8AE6280200007800010539@vpn.id2.novell.com>
 Sender: owner-linux-mm@kvack.org
-To: Jan Beulich <JBeulich@novell.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+>>> Ingo Molnar <mingo@elte.hu> 18.08.09 17:38 >>>
+>
+>* Jan Beulich <JBeulich@novell.com> wrote:
+>
+>> Sizing of memory allocations shouldn't depend on the number of=20
+>> physical pages found in a system, as that generally includes=20
+>> (perhaps a huge amount of) non-RAM pages. The amount of what=20
+>> actually is usable as storage should instead be used as a basis=20
+>> here.
+>>=20
+>> Some of the calculations (i.e. those not intending to use high=20
+>> memory) should likely even use (totalram_pages -=20
+>> totalhigh_pages).
+>>=20
+>> Signed-off-by: Jan Beulich <jbeulich@novell.com>
+>> Acked-by: Rusty Russell <rusty@rustcorp.com.au>
+>>=20
+>> ---
+>>  arch/x86/kernel/microcode_core.c  |    4 ++--
+>
+>Acked-by: Ingo Molnar <mingo@elte.hu>
+>
+>Just curious: how did you find this bug? Did you find this by=20
+>experiencing problems on a system with a lot of declared non-RAM=20
+>memory?
 
-* Jan Beulich <JBeulich@novell.com> wrote:
+Actually, I noticed this on Xen (non-pv-ops) when booting a domain with
+a sufficiently large initial balloon. Under that condition, booting would
+frequently fail due to various table sizes being calculated way too large.
 
-> Sizing of memory allocations shouldn't depend on the number of 
-> physical pages found in a system, as that generally includes 
-> (perhaps a huge amount of) non-RAM pages. The amount of what 
-> actually is usable as storage should instead be used as a basis 
-> here.
-> 
-> Some of the calculations (i.e. those not intending to use high 
-> memory) should likely even use (totalram_pages - 
-> totalhigh_pages).
-> 
-> Signed-off-by: Jan Beulich <jbeulich@novell.com>
-> Acked-by: Rusty Russell <rusty@rustcorp.com.au>
-> 
-> ---
->  arch/x86/kernel/microcode_core.c  |    4 ++--
-
-Acked-by: Ingo Molnar <mingo@elte.hu>
-
-Just curious: how did you find this bug? Did you find this by 
-experiencing problems on a system with a lot of declared non-RAM 
-memory?
-
-	Ingo
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
