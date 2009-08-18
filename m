@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0542B6B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 12:53:33 -0400 (EDT)
-Date: Tue, 18 Aug 2009 17:53:41 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Reduce searching in the page allocator
-	fast-path
-Message-ID: <20090818165340.GB13435@csn.ul.ie>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181019130.32284@gentwo.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4D9936B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 13:56:21 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0D08782C813
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 13:56:39 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id B43s2rqfF9ZV for <linux-mm@kvack.org>;
+	Tue, 18 Aug 2009 13:56:34 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6476082C651
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 13:56:34 -0400 (EDT)
+Date: Tue, 18 Aug 2009 13:56:22 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 3/3] page-allocator: Move pcp static fields for high and
+ batch off-pcp and onto the zone
+In-Reply-To: <20090818164216.GA13435@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0908181355490.3840@gentwo.org>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181015420.32284@gentwo.org> <20090818164216.GA13435@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0908181019130.32284@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 10:22:01AM -0400, Christoph Lameter wrote:
-> 
-> This could be combined with the per cpu ops patch that makes the page
-> allocator use alloc_percpu for its per cpu data needs. That in turn would
-> allow the use of per cpu atomics in the hot paths, maybe we can
-> get to a point where we can drop the irq disable there.
-> 
+On Tue, 18 Aug 2009, Mel Gorman wrote:
 
-It would appear that getting rid of IRQ disabling and using per-cpu-atomics
-would be a problem independent of searching the free lists. Either would
-be good, both would be better or am I missing something that makes them
-mutually exclusive?
+> On Tue, Aug 18, 2009 at 10:18:48AM -0400, Christoph Lameter wrote:
+> >
+> > This will increase the cache footprint for the hot code path. Could these
+> > new variable be moved next to zone fields that are already in use there?
+> > The pageset array is used f.e.
+> >
+>
+> pageset is ____cacheline_aligned_in_smp so putting pcp->high/batch near
+> it won't help in terms of cache footprint. This is why I located it near
+> watermarks because it's known they'll be needed at roughly the same time
+> pcp->high/batch would be normally accessed.
 
-Can you point me to which patchset you are talking about specifically that
-uses per-cpu atomics in the hot path? There are a lot of per-cpu patches
-related to you that have been posted in the last few months and I'm not sure
-what any of their merge status' is.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+watermarks are not accessed from the hot code path in free_hot_cold page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
