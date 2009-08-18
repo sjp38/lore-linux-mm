@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C4A46B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 16:50:44 -0400 (EDT)
-Date: Tue, 18 Aug 2009 21:50:50 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] page-allocator: Move pcp static fields for high
-	and batch off-pcp and onto the zone
-Message-ID: <20090818205050.GA756@csn.ul.ie>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-4-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181015420.32284@gentwo.org> <20090818164216.GA13435@csn.ul.ie> <alpine.DEB.1.10.0908181355490.3840@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0908181355490.3840@gentwo.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7906B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:10:45 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7IM9YXU020466
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:09:34 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7IMAdEx178550
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:10:42 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7IM7k3K028915
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 18:07:46 -0400
+Subject: Re: [PATCH 2/3]HTLB mapping for drivers. Hstate for files with
+ hugetlb mapping(take 2)
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
+References: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
+Content-Type: text/plain
+Date: Tue, 18 Aug 2009 15:10:38 -0700
+Message-Id: <1250633438.7335.1146.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Alexey Korolev <akorolev@infradead.org>
+Cc: mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 01:56:22PM -0400, Christoph Lameter wrote:
-> On Tue, 18 Aug 2009, Mel Gorman wrote:
+On Mon, 2009-08-17 at 23:40 +0100, Alexey Korolev wrote:
 > 
-> > On Tue, Aug 18, 2009 at 10:18:48AM -0400, Christoph Lameter wrote:
-> > >
-> > > This will increase the cache footprint for the hot code path. Could these
-> > > new variable be moved next to zone fields that are already in use there?
-> > > The pageset array is used f.e.
-> > >
-> >
-> > pageset is ____cacheline_aligned_in_smp so putting pcp->high/batch near
-> > it won't help in terms of cache footprint. This is why I located it near
-> > watermarks because it's known they'll be needed at roughly the same time
-> > pcp->high/batch would be normally accessed.
+> @@ -110,6 +111,10 @@ static inline void hugetlb_report_meminfo(struct
+> seq_file *m)
+>  #endif /* !CONFIG_HUGETLB_PAGE */
 > 
-> watermarks are not accessed from the hot code path in free_hot_cold page.
-> 
+>  #ifdef CONFIG_HUGETLBFS
+> +
+> +/* some random number */
+> +#define HUGETLBFS_MAGIC        0x958458f6
 
-They are used in a commonly-used path for allocation so there is some
-advantage. Put beside pageset, there is no advantage as that structure
-is already aligned to a cache-line.
+Doesn't this belong in include/linux/magic.h?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
