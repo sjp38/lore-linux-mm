@@ -1,115 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4D6B36B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 05:28:04 -0400 (EDT)
-Message-ID: <COL115-W22347A02D3AD5F81F16D2D9FFF0@phx.gbl>
-From: Bo Liu <bo-liu@hotmail.com>
-Subject: RE: [PATCH] mv clear node_load[] to __build_all_zonelists()
-Date: Tue, 18 Aug 2009 17:28:09 +0800
-In-Reply-To: <20090818091203.20341635.kamezawa.hiroyu@jp.fujitsu.com>
-References: <COL115-W869FC30815A7D5B7A63339F0A0@phx.gbl>
-	<20090806195037.06e768f5.kamezawa.hiroyu@jp.fujitsu.com>
- 	<20090817143447.b1ecf5c6.akpm@linux-foundation.org>
- <20090818091203.20341635.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: 8bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id DB56D6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 05:38:59 -0400 (EDT)
+Date: Tue, 18 Aug 2009 17:31:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+Message-ID: <20090818093119.GA12679@localhost>
+References: <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost> <20090806210955.GA14201@c2.user-mode-linux.org> <20090816031827.GA6888@localhost> <4A87829C.4090908@redhat.com> <20090816051502.GB13740@localhost> <20090816112910.GA3208@localhost> <28c262360908170733q4bc5ddb8ob2fc976b6a468d6e@mail.gmail.com> <20090818023438.GB7958@localhost> <20090818131734.3d5bceb2.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090818131734.3d5bceb2.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, cl@linux-foundation.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Aug 18, 2009 at 12:17:34PM +0800, Minchan Kim wrote:
+> On Tue, 18 Aug 2009 10:34:38 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
+> 
+> > Minchan,
+> > 
+> > On Mon, Aug 17, 2009 at 10:33:54PM +0800, Minchan Kim wrote:
+> > > On Sun, Aug 16, 2009 at 8:29 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
+> > > > On Sun, Aug 16, 2009 at 01:15:02PM +0800, Wu Fengguang wrote:
+> > > >> On Sun, Aug 16, 2009 at 11:53:00AM +0800, Rik van Riel wrote:
+> > > >> > Wu Fengguang wrote:
+> > > >> > > On Fri, Aug 07, 2009 at 05:09:55AM +0800, Jeff Dike wrote:
+> > > >> > >> Side question -
+> > > >> > >> A Is there a good reason for this to be in shrink_active_list()
+> > > >> > >> as opposed to __isolate_lru_page?
+> > > >> > >>
+> > > >> > >> A  A  A  A  A if (unlikely(!page_evictable(page, NULL))) {
+> > > >> > >> A  A  A  A  A  A  A  A  A putback_lru_page(page);
+> > > >> > >> A  A  A  A  A  A  A  A  A continue;
+> > > >> > >> A  A  A  A  A }
+> > > >> > >>
+> > > >> > >> Maybe we want to minimize the amount of code under the lru lock or
+> > > >> > >> avoid duplicate logic in the isolate_page functions.
+> > > >> > >
+> > > >> > > I guess the quick test means to avoid the expensive page_referenced()
+> > > >> > > call that follows it. But that should be mostly one shot cost - the
+> > > >> > > unevictable pages are unlikely to cycle in active/inactive list again
+> > > >> > > and again.
+> > > >> >
+> > > >> > Please read what putback_lru_page does.
+> > > >> >
+> > > >> > It moves the page onto the unevictable list, so that
+> > > >> > it will not end up in this scan again.
+> > > >>
+> > > >> Yes it does. I said 'mostly' because there is a small hole that an
+> > > >> unevictable page may be scanned but still not moved to unevictable
+> > > >> list: when a page is mapped in two places, the first pte has the
+> > > >> referenced bit set, the _second_ VMA has VM_LOCKED bit set, then
+> > > >> page_referenced() will return 1 and shrink_page_list() will move it
+> > > >> into active list instead of unevictable list. Shall we fix this rare
+> > > >> case?
+> > > 
+> > > I think it's not a big deal.
+> > 
+> > Maybe, otherwise I should bring up this issue long time before :)
+> > 
+> > > As you mentioned, it's rare case so there would be few pages in active
+> > > list instead of unevictable list.
+> > 
+> > Yes.
+> > 
+> > > When next time to scan comes, we can try to move the pages into
+> > > unevictable list, again.
+> > 
+> > Will PG_mlocked be set by then? Otherwise the situation is not likely 
+> > to change and the VM_LOCKED pages may circulate in active/inactive
+> > list for countless times.
+> 
+> PG_mlocked is not important in that case. 
+> Important thing is VM_LOCKED vma. 
+> I think below annotaion can help you to understand my point. :)
 
- 
-On Tue, 18 Aug 2009 09:12:03 +0900
-KAMEZAWA Hiroyuki wrote:
->
-> On Mon, 17 Aug 2009 14:34:47 -0700
-> Andrew Morton wrote:
->
->> On Thu, 6 Aug 2009 19:50:37 +0900
->> KAMEZAWA Hiroyuki wrote:
->>
->>> On Thu, 6 Aug 2009 18:44:40 +0800
->>> Bo Liu wrote:
->>>
->>>>
->>>> If node_load[] is cleared everytime build_zonelists() is called,node_load[]
->>>> will have no help to find the next node that should appear in the given node's
->>>> fallback list.
->>>> Signed-off-by: Bob Liu
->>>
->>> nice catch. (my old bug...sorry
->>>
->>> Reviewed-by: KAMEZAWA Hiroyuki 
->>>
->>> BTW, do you have special reasons to hide your mail address in commit log ?
->>>
->>> I added proper CC: list.
->>> Hmm, I think it's necessary to do total review/rewrite this function again..
->>>
->>>
->>>> ---
->>>> mm/page_alloc.c | 2 +-
->>>> 1 files changed, 1 insertions(+), 1 deletions(-)
->>>>
->>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>> index d052abb..72f7345 100644
->>>> --- a/mm/page_alloc.c
->>>> +++ b/mm/page_alloc.c
->>>> @@ -2544,7 +2544,6 @@ static void build_zonelists(pg_data_t *pgdat)
->>>> prev_node = local_node;
->>>> nodes_clear(used_mask);
->>>>
->>>> - memset(node_load, 0, sizeof(node_load));
->>>> memset(node_order, 0, sizeof(node_order));
->>>> j = 0;
->>>>
->>>> @@ -2653,6 +2652,7 @@ static int __build_all_zonelists(void *dummy)
->>>> {
->>>> int nid;
->>>>
->>>> + memset(node_load, 0, sizeof(node_load));
->>>> for_each_online_node(nid) {
->>>> pg_data_t *pgdat = NODE_DATA(nid);
->>
->> What are the consequences of this bug?
->>
->> Is the fix needed in 2.6.31? Earlier?
->>
-> I think this should be on fast-track as bugfix.
->
-> By this bug, zonelist's node_order is not calculated as expected.
-> This bug affects on big machine, which has asynmetric node distance.
->
-> [synmetric NUMA's node distance]
-> 0 1 2
-> 0 10 12 12
-> 1 12 10 12
-> 2 12 12 10
->
-> [asynmetric NUMA's node distance]
-> 0 1 2
-> 0 10 12 20
-> 1 12 10 14
-> 2 20 14 10
->
- 
-Thanks for your explanations.
-Actually,
-When I submited this patch I didn't think so clearly about the consequences.
-I just knew the node_load[] will be nouse because of the memset() clear it every time.
+Hmm, it looks like pages under VM_LOCKED vma is guaranteed to have
+PG_mlocked set, and so will be caught by page_evictable(). Is it?
+Then I was worrying about a null problem. Sorry for the confusion!
 
->
-> This (my bug) is very old..but no one have reported this for a long time.
-> Maybe because the number of asynmetric NUMA is very small and they use cpuset
-> for customizing node memory allocation fallback.
- 
- 
- 
-_________________________________________________________________
-With Windows Live, you can organize, edit, and share your photos.
-http://www.microsoft.com/middleeast/windows/windowslive/products/photo-gallery-edit.aspx
+Thanks,
+Fengguang
+
+> ----
+> 
+> /*
+>  * called from munlock()/munmap() path with page supposedly on the LRU.
+>  *
+>  * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
+>  * [in try_to_munlock()] and then attempt to isolate the page.  We must
+>  * isolate the page to keep others from messing with its unevictable
+>  * and mlocked state while trying to munlock.  However, we pre-clear the
+>  * mlocked state anyway as we might lose the isolation race and we might
+>  * not get another chance to clear PageMlocked.  If we successfully
+>  * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
+>  * mapping the page, it will restore the PageMlocked state, unless the page
+>  * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
+>  * perhaps redundantly.
+>  * If we lose the isolation race, and the page is mapped by other VM_LOCKED
+>  * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
+>  * either of which will restore the PageMlocked state by calling
+>  * mlock_vma_page() above, if it can grab the vma's mmap sem.
+>  */
+> static void munlock_vma_page(struct page *page)
+> {
+> ...
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
