@@ -1,156 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D159F6B005A
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 06:01:12 -0400 (EDT)
-Date: Tue, 18 Aug 2009 18:00:32 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090818100031.GC16298@localhost>
-References: <20090806210955.GA14201@c2.user-mode-linux.org> <20090816031827.GA6888@localhost> <4A87829C.4090908@redhat.com> <20090816051502.GB13740@localhost> <20090816112910.GA3208@localhost> <28c262360908170733q4bc5ddb8ob2fc976b6a468d6e@mail.gmail.com> <20090818023438.GB7958@localhost> <20090818131734.3d5bceb2.minchan.kim@barrios-desktop> <20090818093119.GA12679@localhost> <20090818185247.a4516389.minchan.kim@barrios-desktop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F2C426B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 06:29:44 -0400 (EDT)
+Received: by ewy22 with SMTP id 22so3969166ewy.4
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 03:29:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20090818185247.a4516389.minchan.kim@barrios-desktop>
+In-Reply-To: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
+References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
+Date: Tue, 18 Aug 2009 11:29:43 +0100
+Message-ID: <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
+Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
+From: Eric Munson <linux-mm@mgebm.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Alexey Korolev <akorolev@infradead.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 05:52:47PM +0800, Minchan Kim wrote:
-> On Tue, 18 Aug 2009 17:31:19 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Tue, Aug 18, 2009 at 12:17:34PM +0800, Minchan Kim wrote:
-> > > On Tue, 18 Aug 2009 10:34:38 +0800
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > Minchan,
-> > > > 
-> > > > On Mon, Aug 17, 2009 at 10:33:54PM +0800, Minchan Kim wrote:
-> > > > > On Sun, Aug 16, 2009 at 8:29 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > > > > > On Sun, Aug 16, 2009 at 01:15:02PM +0800, Wu Fengguang wrote:
-> > > > > >> On Sun, Aug 16, 2009 at 11:53:00AM +0800, Rik van Riel wrote:
-> > > > > >> > Wu Fengguang wrote:
-> > > > > >> > > On Fri, Aug 07, 2009 at 05:09:55AM +0800, Jeff Dike wrote:
-> > > > > >> > >> Side question -
-> > > > > >> > >> A Is there a good reason for this to be in shrink_active_list()
-> > > > > >> > >> as opposed to __isolate_lru_page?
-> > > > > >> > >>
-> > > > > >> > >> A  A  A  A  A if (unlikely(!page_evictable(page, NULL))) {
-> > > > > >> > >> A  A  A  A  A  A  A  A  A putback_lru_page(page);
-> > > > > >> > >> A  A  A  A  A  A  A  A  A continue;
-> > > > > >> > >> A  A  A  A  A }
-> > > > > >> > >>
-> > > > > >> > >> Maybe we want to minimize the amount of code under the lru lock or
-> > > > > >> > >> avoid duplicate logic in the isolate_page functions.
-> > > > > >> > >
-> > > > > >> > > I guess the quick test means to avoid the expensive page_referenced()
-> > > > > >> > > call that follows it. But that should be mostly one shot cost - the
-> > > > > >> > > unevictable pages are unlikely to cycle in active/inactive list again
-> > > > > >> > > and again.
-> > > > > >> >
-> > > > > >> > Please read what putback_lru_page does.
-> > > > > >> >
-> > > > > >> > It moves the page onto the unevictable list, so that
-> > > > > >> > it will not end up in this scan again.
-> > > > > >>
-> > > > > >> Yes it does. I said 'mostly' because there is a small hole that an
-> > > > > >> unevictable page may be scanned but still not moved to unevictable
-> > > > > >> list: when a page is mapped in two places, the first pte has the
-> > > > > >> referenced bit set, the _second_ VMA has VM_LOCKED bit set, then
-> > > > > >> page_referenced() will return 1 and shrink_page_list() will move it
-> > > > > >> into active list instead of unevictable list. Shall we fix this rare
-> > > > > >> case?
-> > > > > 
-> > > > > I think it's not a big deal.
-> > > > 
-> > > > Maybe, otherwise I should bring up this issue long time before :)
-> > > > 
-> > > > > As you mentioned, it's rare case so there would be few pages in active
-> > > > > list instead of unevictable list.
-> > > > 
-> > > > Yes.
-> > > > 
-> > > > > When next time to scan comes, we can try to move the pages into
-> > > > > unevictable list, again.
-> > > > 
-> > > > Will PG_mlocked be set by then? Otherwise the situation is not likely 
-> > > > to change and the VM_LOCKED pages may circulate in active/inactive
-> > > > list for countless times.
-> > > 
-> > > PG_mlocked is not important in that case. 
-> > > Important thing is VM_LOCKED vma. 
-> > > I think below annotaion can help you to understand my point. :)
-> > 
-> > Hmm, it looks like pages under VM_LOCKED vma is guaranteed to have
-> > PG_mlocked set, and so will be caught by page_evictable(). Is it?
-> 
-> No. I am sorry for making my point not clear. 
-> I meant following as. 
-> When the next time to scan,
-> 
-> shrink_page_list 
-  -> 
-                referenced = page_referenced(page, 1,
-                                                sc->mem_cgroup, &vm_flags);
-                /* In active use or really unfreeable?  Activate it. */
-                if (sc->order <= PAGE_ALLOC_COSTLY_ORDER &&
-                                        referenced && page_mapping_inuse(page))
-                        goto activate_locked;
-  
-> -> try_to_unmap
-     ~~~~~~~~~~~~ this line won't be reached if page is found to be
-     referenced in the above lines?
+On Mon, Aug 17, 2009 at 11:24 PM, Alexey Korolev<akorolev@infradead.org> wr=
+ote:
+> Hi,
+>
+> The patch set listed below provides device drivers with the ability to
+> map memory regions to user space via HTLB interfaces.
+>
+> Why we need it?
+> Device drivers often need to map memory regions to user-space to allow
+> efficient data handling in user mode. Involving hugetlb mapping may
+> bring performance gain if mapped regions are relatively large. Our tests
+> showed that it is possible to gain up to 7% performance if hugetlb
+> mapping is enabled. In my case involving hugetlb starts to make sense if
+> buffer is more or equal to 4MB. Since typically, device throughput
+> increase over time there are more and more reasons to involve huge pages
+> to remap large regions.
+> For example hugetlb remapping could be important for performance of Data
+> acquisition systems (logic analyzers, DSO), Network monitoring systems
+> (packet capture), HD video capture/frame buffer =A0and probably other.
+>
+> How it is implemented?
+> Implementation and idea is very close to what is already done in
+> ipc/shm.c.
+> We create file on hugetlbfs vfsmount point and populate file with pages
+> we want to mmap. Then we associate hugetlbfs file mapping with file
+> mapping we want to access.
+>
+> So typical procedure for mapping of huge pages to userspace by drivers
+> should be:
+> 1 Allocate some huge pages
+> 2 Create file on vfs mount of hugetlbfs
+> 3 Add pages to page cache of mapping associated with hugetlbfs file
+> 4 Replace file's mapping with the hugetlbfs file mapping
+> ..............
+> 5 Remove pages from page cache
+> 6 Remove hugetlbfs file
+> 7 Free pages
+> (Please find example in following messages)
+>
+> Detailed description is given in the following messages.
+> Thanks a lot to Mel Gorman who gave good advice and code prototype and
+> Stephen Donnelly for assistance in description composing.
+>
+> Alexey
 
-Thanks,
-Fengguang
+It sounds like this patch set working towards the same goal as my
+MAP_HUGETLB set.  The only difference I see is you allocate huge page
+at a time and (if I am understanding the patch) fault the page in
+immediately, where MAP_HUGETLB only faults pages as needed.  Does the
+MAP_HUGETLB patch set provide the functionality that you need, and if
+not, what can be done to provide what you need?
 
-> 	-> try_to_unmap_xxx
-> 		-> if (vma->vm_flags & VM_LOCKED)
-> 		-> try_to_mlock_page
-> 			-> TestSetPageMlocked
-> 			-> putback_lru_page
-> 
-> So at last, the page will be located in unevictable list. 
-> 
-> > Then I was worrying about a null problem. Sorry for the confusion!
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> > > ----
-> > > 
-> > > /*
-> > >  * called from munlock()/munmap() path with page supposedly on the LRU.
-> > >  *
-> > >  * Note:  unlike mlock_vma_page(), we can't just clear the PageMlocked
-> > >  * [in try_to_munlock()] and then attempt to isolate the page.  We must
-> > >  * isolate the page to keep others from messing with its unevictable
-> > >  * and mlocked state while trying to munlock.  However, we pre-clear the
-> > >  * mlocked state anyway as we might lose the isolation race and we might
-> > >  * not get another chance to clear PageMlocked.  If we successfully
-> > >  * isolate the page and try_to_munlock() detects other VM_LOCKED vmas
-> > >  * mapping the page, it will restore the PageMlocked state, unless the page
-> > >  * is mapped in a non-linear vma.  So, we go ahead and SetPageMlocked(),
-> > >  * perhaps redundantly.
-> > >  * If we lose the isolation race, and the page is mapped by other VM_LOCKED
-> > >  * vmas, we'll detect this in vmscan--via try_to_munlock() or try_to_unmap()
-> > >  * either of which will restore the PageMlocked state by calling
-> > >  * mlock_vma_page() above, if it can grab the vma's mmap sem.
-> > >  */
-> > > static void munlock_vma_page(struct page *page)
-> > > {
-> > > ...
-> > > 
-> > > -- 
-> > > Kind regards,
-> > > Minchan Kim
-> 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
