@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id F2C426B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 06:29:44 -0400 (EDT)
-Received: by ewy22 with SMTP id 22so3969166ewy.4
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 03:29:43 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 048506B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 06:40:21 -0400 (EDT)
+Message-ID: <4A8A83F4.6010408@redhat.com>
+Date: Tue, 18 Aug 2009 18:35:32 +0800
+From: Amerigo Wang <amwang@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
-Date: Tue, 18 Aug 2009 11:29:43 +0100
-Message-ID: <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
-Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-From: Eric Munson <linux-mm@mgebm.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
+References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain>	<m1bpmk8l1g.fsf@fess.ebiederm.org>	<4A83893D.50707@redhat.com>	<m1eirg5j9i.fsf@fess.ebiederm.org>	<4A83CD84.8040609@redhat.com>	<m1tz0avy4h.fsf@fess.ebiederm.org>	<4A8927DD.6060209@redhat.com>	<20090818092939.2efbe158.kamezawa.hiroyu@jp.fujitsu.com>	<4A8A4ABB.70003@redhat.com> <20090818172552.779d0768.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090818172552.779d0768.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolev@infradead.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 17, 2009 at 11:24 PM, Alexey Korolev<akorolev@infradead.org> wr=
-ote:
-> Hi,
+KAMEZAWA Hiroyuki wrote:
+> On Tue, 18 Aug 2009 14:31:23 +0800
+> Amerigo Wang <amwang@redhat.com> wrote:
+>   
+>>>     It's hidden from the system before mem_init() ?
+>>>   
+>>>       
+>> Not sure, but probably yes. It is reserved in setup_arch() which is 
+>> before mm_init() which calls mem_init().
+>>
+>> Do you have any advice to free that reserved memory after boot? :)
+>>
+>>     
 >
-> The patch set listed below provides device drivers with the ability to
-> map memory regions to user space via HTLB interfaces.
+> Let's see arch/x86/mm/init.c::free_initmem()
 >
-> Why we need it?
-> Device drivers often need to map memory regions to user-space to allow
-> efficient data handling in user mode. Involving hugetlb mapping may
-> bring performance gain if mapped regions are relatively large. Our tests
-> showed that it is possible to gain up to 7% performance if hugetlb
-> mapping is enabled. In my case involving hugetlb starts to make sense if
-> buffer is more or equal to 4MB. Since typically, device throughput
-> increase over time there are more and more reasons to involve huge pages
-> to remap large regions.
-> For example hugetlb remapping could be important for performance of Data
-> acquisition systems (logic analyzers, DSO), Network monitoring systems
-> (packet capture), HD video capture/frame buffer =A0and probably other.
+> Maybe it's all you want.
 >
-> How it is implemented?
-> Implementation and idea is very close to what is already done in
-> ipc/shm.c.
-> We create file on hugetlbfs vfsmount point and populate file with pages
-> we want to mmap. Then we associate hugetlbfs file mapping with file
-> mapping we want to access.
->
-> So typical procedure for mapping of huge pages to userspace by drivers
-> should be:
-> 1 Allocate some huge pages
-> 2 Create file on vfs mount of hugetlbfs
-> 3 Add pages to page cache of mapping associated with hugetlbfs file
-> 4 Replace file's mapping with the hugetlbfs file mapping
-> ..............
-> 5 Remove pages from page cache
-> 6 Remove hugetlbfs file
-> 7 Free pages
-> (Please find example in following messages)
->
-> Detailed description is given in the following messages.
-> Thanks a lot to Mel Gorman who gave good advice and code prototype and
-> Stephen Donnelly for assistance in description composing.
->
-> Alexey
+> 	- ClearPageReserved()
+> 	- init_page_count()
+> 	- free_page()
+> 	- totalram_pages++
+>   
 
-It sounds like this patch set working towards the same goal as my
-MAP_HUGETLB set.  The only difference I see is you allocate huge page
-at a time and (if I am understanding the patch) fault the page in
-immediately, where MAP_HUGETLB only faults pages as needed.  Does the
-MAP_HUGETLB patch set provide the functionality that you need, and if
-not, what can be done to provide what you need?
+Just FYI: calling ClearPageReserved() caused an oops: "Unable to handle 
+paging request".
 
-Eric
+I am trying to figure out why...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
