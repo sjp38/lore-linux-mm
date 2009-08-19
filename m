@@ -1,114 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CD5F46B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 09:06:52 -0400 (EDT)
-Date: Wed, 19 Aug 2009 16:04:17 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090819130417.GB3080@redhat.com>
-References: <cover.1250187913.git.mst@redhat.com> <200908141340.36176.arnd@arndb.de> <20090816065110.GA3008@redhat.com> <200908191104.50672.arnd@arndb.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9E0576B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 09:19:42 -0400 (EDT)
+Received: by gxk12 with SMTP id 12so6043703gxk.4
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2009 06:19:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200908191104.50672.arnd@arndb.de>
+In-Reply-To: <28c262360908190525i6e56ead0mb8dcb01c3d1a69f1@mail.gmail.com>
+References: <20090816051502.GB13740@localhost>
+	 <20090816112910.GA3208@localhost>
+	 <20090818234310.A64B.A69D9226@jp.fujitsu.com>
+	 <20090819120117.GB7306@localhost>
+	 <2f11576a0908190505h6da96280xf67c962aa3f5ba07@mail.gmail.com>
+	 <20090819121017.GA8226@localhost>
+	 <28c262360908190525i6e56ead0mb8dcb01c3d1a69f1@mail.gmail.com>
+Date: Wed, 19 Aug 2009 22:19:46 +0900
+Message-ID: <2f11576a0908190619t9951959o3841091e51324c8@mail.gmail.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 11:04:50AM +0200, Arnd Bergmann wrote:
-> On Sunday 16 August 2009, Michael S. Tsirkin wrote:
-> > On Fri, Aug 14, 2009 at 01:40:36PM +0200, Arnd Bergmann wrote:
-> > > 
-> > > * most of the transports are sockets, tap uses a character device.
-> > >   This could be dealt with by having both a struct socket * in
-> > >   struct vhost_net *and* a struct file *, or by always keeping the
-> > >   struct file and calling vfs_readv/vfs_writev for the data transport
-> > >   in both cases.
-> > 
-> > I am concerned that character devices might have weird side effects with
-> > read/write operations and that calling them from kernel thread the way I
-> > do might have security implications. Can't point at anything specific
-> > though at the moment.
-> 
-> I understand your feelings about passing a chardev fd into your driver
-> and I agree that we need to be very careful if we want to allow it.
-> 
-> Maybe we could instead extend the 'splice' system call to work on a
-> vhost_net file descriptor.  If we do that, we can put the access back
-> into a user thread (or two) that stays in splice indefinetely
+2009/8/19 Minchan Kim <minchan.kim@gmail.com>:
+> On Wed, Aug 19, 2009 at 9:10 PM, Wu Fengguang<fengguang.wu@intel.com> wro=
+te:
+>> On Wed, Aug 19, 2009 at 08:05:19PM +0800, KOSAKI Motohiro wrote:
+>>> >> page_referenced_file?
+>>> >> I think we should change page_referenced().
+>>> >
+>>> > Yeah, good catch.
+>>> >
+>>> >>
+>>> >> Instead, How about this?
+>>> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>>> >>
+>>> >> Subject: [PATCH] mm: stop circulating of referenced mlocked pages
+>>> >>
+>>> >> Currently, mlock() systemcall doesn't gurantee to mark the page PG_M=
+locked
+>>> >
+>>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mark PG_mlocked
+>>> >
+>>> >> because some race prevent page grabbing.
+>>> >> In that case, instead vmscan move the page to unevictable lru.
+>>> >>
+>>> >> However, Recently Wu Fengguang pointed out current vmscan logic isn'=
+t so
+>>> >> efficient.
+>>> >> mlocked page can move circulatly active and inactive list because
+>>> >> vmscan check the page is referenced _before_ cull mlocked page.
+>>> >>
+>>> >> Plus, vmscan should mark PG_Mlocked when cull mlocked page.
+>>> >
+>>> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 PG_mlocked
+>>> >
+>>> >> Otherwise vm stastics show strange number.
+>>> >>
+>>> >> This patch does that.
+>>> >
+>>> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+>>>
+>>> Thanks.
+>>>
+>>>
+>>>
+>>> >> Index: b/mm/rmap.c
+>>> >> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>>> >> --- a/mm/rmap.c =A0 =A0 =A0 2009-08-18 19:48:14.000000000 +0900
+>>> >> +++ b/mm/rmap.c =A0 =A0 =A0 2009-08-18 23:47:34.000000000 +0900
+>>> >> @@ -362,7 +362,9 @@ static int page_referenced_one(struct pa
+>>> >> =A0 =A0 =A0 =A0* unevictable list.
+>>> >> =A0 =A0 =A0 =A0*/
+>>> >> =A0 =A0 =A0 if (vma->vm_flags & VM_LOCKED) {
+>>> >> - =A0 =A0 =A0 =A0 =A0 =A0 *mapcount =3D 1; =A0/* break early from lo=
+op */
+>>> >> + =A0 =A0 =A0 =A0 =A0 =A0 *mapcount =3D 1; =A0 =A0 =A0 =A0 =A0/* bre=
+ak early from loop */
+>>> >> + =A0 =A0 =A0 =A0 =A0 =A0 *vm_flags |=3D VM_LOCKED; /* for prevent t=
+o move active list */
+>>> >
+>>> >> + =A0 =A0 =A0 =A0 =A0 =A0 try_set_page_mlocked(vma, page);
+>>> >
+>>> > That call is not absolutely necessary?
+>>>
+>>> Why? I haven't catch your point.
+>>
+>> Because we'll eventually hit another try_set_page_mlocked() when
+>> trying to unmap the page. Ie. duplicated with another call you added
+>> in this patch.
 
-An issue with exposing internal threading model to userspace
-in this way is that we lose control of e.g. CPU locality -
-and it is very hard for userspace to get it right.
+Correct.
 
-> to
-> avoid some of the implications of kernel threads like the missing
-> ability to handle transfer errors in user space.
 
-Are you talking about TCP here?
-Transfer errors are typically asynchronous - possibly eventfd
-as I expose for vhost net is sufficient there.
+> Yes. we don't have to call it and we can make patch simple.
+> I already sent patch on yesterday.
+>
+> http://marc.info/?l=3Dlinux-mm&m=3D125059325722370&w=3D2
+>
+> I think It's more simple than KOSAKI's idea.
+> Is any problem in my patch ?
 
-> > I wonder - can we expose the underlying socket used by tap, or will that
-> > create complex lifetime issues?
-> 
-> I think this could get more messy in the long run than calling vfs_readv
-> on a random fd. It would mean deep internal knowledge of the tap driver
-> in vhost_net, which I really would prefer to avoid.
+Hmm, I think
 
-No, what I had in mind is adding a GET_SOCKET ioctl to tap.
-vhost would then just use the socket.
-
-> > > * Each transport has a slightly different header, we have
-> > >   - raw ethernet frames (raw, udp multicast, tap)
-> > >   - 32-bit length + raw frames, possibly fragmented (tcp)
-> > >   - 80-bit header + raw frames, possibly fragmented (tap with vnet_hdr)
-> > >   To handle these three cases, we need either different ioctl numbers
-> > >   so that vhost_net can choose the right one, or a flags field in
-> > >   VHOST_NET_SET_SOCKET, like
-> > > 
-> > >   #define VHOST_NET_RAW		1
-> > >   #define VHOST_NET_LEN_HDR	2
-> > >   #define VHOST_NET_VNET_HDR	4
-> > > 
-> > >   struct vhost_net_socket {
-> > > 	unsigned int flags;
-> > > 	int fd;
-> > >   };
-> > >   #define VHOST_NET_SET_SOCKET _IOW(VHOST_VIRTIO, 0x30, struct vhost_net_socket)
-> > 
-> > It seems we can query the socket to find out the type, 
-> 
-> yes, I understand that you can do that, but I still think that decision
-> should be left to user space. Adding a length header for TCP streams but
-> not for UDP is something that we would normally want to do, but IMHO
-> vhost_net should not need to know about this.
-> 
-> > or use the features ioctl.
-> 
-> Right, I had forgotten about that one. It's probably equivalent
-> to the flags I suggested, except that one allows you to set features
-> after starting the communication, while the other one prevents
-> you from doing that.
-> 
-> > > Qemu could then automatically try to use vhost_net, if it's available
-> > > in the kernel, or just fall back on software vlan otherwise.
-> > > Does that make sense?
-> > 
-> > I agree, long term it should be enabled automatically when possible.
-> 
-> So how about making the qemu command line interface an extension to
-> what Or Gerlitz has done for the raw packet sockets?
-> 
-> 	Arnd <><
-
-Not sure I see the connection, but I have not thought about qemu
-side of things too much yet - trying to get kernel bits in place
-first so that there's a stable ABI to work with.
-
--- 
-MST
+1. Anyway, we need turn on PG_mlock.
+2. PG_mlock prevent livelock because page_evictable() check is called
+at very early in shrink_page_list().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
