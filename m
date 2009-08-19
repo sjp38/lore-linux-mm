@@ -1,175 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 864BE6B0055
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 08:06:41 -0400 (EDT)
-Received: by ywh41 with SMTP id 41so5991811ywh.23
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:06:41 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 51FB36B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 08:08:55 -0400 (EDT)
+Date: Wed, 19 Aug 2009 20:08:35 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+Message-ID: <20090819120835.GC7306@localhost>
+References: <4A856467.6050102@redhat.com> <20090815054524.GB11387@localhost> <20090818224230.A648.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090819105829.GH24809@csn.ul.ie>
-References: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com>
-	 <20090819114408.ab9c8a78.minchan.kim@barrios-desktop>
-	 <4A8B7508.4040001@vflare.org>
-	 <20090819135105.e6b69a8d.minchan.kim@barrios-desktop>
-	 <18eba5a10908182324x45261d06y83e0f042e9ee6b20@mail.gmail.com>
-	 <20090819154958.18a34aa5.minchan.kim@barrios-desktop>
-	 <20090819103611.GG24809@csn.ul.ie>
-	 <20090819195242.4454a35f.minchan.kim@barrios-desktop>
-	 <20090819105829.GH24809@csn.ul.ie>
-Date: Wed, 19 Aug 2009 21:06:41 +0900
-Message-ID: <18eba5a10908190506y4dfd08auf29a7919dd88be4f@mail.gmail.com>
-Subject: Re: abnormal OOM killer message
-From: Chungki woo <chungki.woo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090818224230.A648.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Minchan Kim <minchan.kim@gmail.com>, ngupta@vflare.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, riel@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 7:58 PM, Mel Gorman<mel@csn.ul.ie> wrote:
-> On Wed, Aug 19, 2009 at 07:52:42PM +0900, Minchan Kim wrote:
->> Thanks for good comment, Mel.
->>
->> On Wed, 19 Aug 2009 11:36:11 +0100
->> Mel Gorman <mel@csn.ul.ie> wrote:
->>
->> > On Wed, Aug 19, 2009 at 03:49:58PM +0900, Minchan Kim wrote:
->> > > On Wed, 19 Aug 2009 15:24:54 +0900
->> > > ????????? <chungki.woo@gmail.com> wrote:
->> > >
->> > > > Thank you very much for replys.
->> > > >
->> > > > But I think it seems not to relate with stale data problem in comp=
-cache.
->> > > > My question was why last chance to allocate memory was failed.
->> > > > When OOM killer is executed, memory state is not a condition to
->> > > > execute OOM killer.
->> > > > Specially, there are so many pages of order 0. And allocating orde=
-r is zero.
->> > > > I think that last allocating memory should have succeeded.
->> > > > That's my worry.
->> > >
->> > > Yes. I agree with you.
->> > > Mel. Could you give some comment in this situation ?
->> > > Is it possible that order 0 allocation is failed
->> > > even there are many pages in buddy ?
->> > >
->> >
->> > Not ordinarily. If it happens, I tend to suspect that the free list da=
-ta
->> > is corrupted and would put a check in __rmqueue() that looked like
->> >
->> > =C2=A0 =C2=A0 BUG_ON(list_empty(&area->free_list) && area->nr_free);
->>
->> If memory is corrupt, it would be not satisfied with both condition.
->> It would be better to ORed condition.
->>
->> BUG_ON(list_empty(&area->free_list) || area->nr_free);
->>
->
-> But it's perfectly reasonable to have nr_free a positive value. The
-> point of the check is ensure the counters make sense. If nr_free > 0 and
-> the list is empty, it means accounting is all messed up and the values
-> reported for "free" in the OOM message are fiction.
->
->> > The second question is, why are we in direct reclaim this far above th=
-e
->> > watermark? It should only be kswapd that is doing any reclaim at that
->> > point. That makes me wonder again are the free lists corrupted.
->>
->> It does make sense!
->
+On Tue, Aug 18, 2009 at 11:57:52PM +0800, KOSAKI Motohiro wrote:
+> 
+> > > This one of the reasons why we unconditionally deactivate
+> > > the active anon pages, and do background scanning of the
+> > > active anon list when reclaiming page cache pages.
+> > > 
+> > > We want to always move some pages to the inactive anon
+> > > list, so it does not get too small.
+> > 
+> > Right, the current code tries to pull inactive list out of
+> > smallish-size state as long as there are vmscan activities.
+> > 
+> > However there is a possible (and tricky) hole: mem cgroups
+> > don't do batched vmscan. shrink_zone() may call shrink_list()
+> > with nr_to_scan=1, in which case shrink_list() _still_ calls
+> > isolate_pages() with the much larger SWAP_CLUSTER_MAX.
+> > 
+> > It effectively scales up the inactive list scan rate by 10 times when
+> > it is still small, and may thus prevent it from growing up for ever.
+> > 
+> > In that case, LRU becomes FIFO.
+> > 
+> > Jeff, can you confirm if the mem cgroup's inactive list is small?
+> > If so, this patch should help.
+> 
+> This patch does right thing.
+> However, I would explain why I and memcg folks didn't do that in past days.
+> 
+> Strangely, some memcg struct declaration is hide in *.c. Thus we can't
+> make inline function and we hesitated to introduce many function calling
+> overhead.
+> 
+> So, Can we move some memcg structure declaration to *.h and make 
+> mem_cgroup_get_saved_scan() inlined function?
 
-'Corrupted free list' makes sense. Thank you very much.
-Inserting BUG_ON code is also good idea to check corruption of free list.
+Good idea, I'll do that btw.
 
-I have one more question.
-As you know, before and after executing direct reclaim
-routine(try_to_free_pages)
-cond_resched() routine is also executed.
-In other words, it can be scheduled at that time.
-Is there no possibility executing kswapd or try_to_free_pages at other
-context at that time?
-I think this fact maybe can explain that gap(between watermark and
-free memory) also.
-How do you think about this?
-But I know this can't explain why last chance to allocate memory was failed=
-.
-I think your idea makes sense.
+> 
+> > 
+> > Thanks,
+> > Fengguang
+> > ---
+> > 
+> > mm: do batched scans for mem_cgroup
+> > 
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  include/linux/memcontrol.h |    3 +++
+> >  mm/memcontrol.c            |   12 ++++++++++++
+> >  mm/vmscan.c                |    9 +++++----
+> >  3 files changed, 20 insertions(+), 4 deletions(-)
+> > 
+> > --- linux.orig/include/linux/memcontrol.h	2009-08-15 13:12:49.000000000 +0800
+> > +++ linux/include/linux/memcontrol.h	2009-08-15 13:18:13.000000000 +0800
+> > @@ -98,6 +98,9 @@ int mem_cgroup_inactive_file_is_low(stru
+> >  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+> >  				       struct zone *zone,
+> >  				       enum lru_list lru);
+> > +unsigned long *mem_cgroup_get_saved_scan(struct mem_cgroup *memcg,
+> > +					 struct zone *zone,
+> > +					 enum lru_list lru);
+> >  struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+> >  						      struct zone *zone);
+> >  struct zone_reclaim_stat*
+> > --- linux.orig/mm/memcontrol.c	2009-08-15 13:07:34.000000000 +0800
+> > +++ linux/mm/memcontrol.c	2009-08-15 13:17:56.000000000 +0800
+> > @@ -115,6 +115,7 @@ struct mem_cgroup_per_zone {
+> >  	 */
+> >  	struct list_head	lists[NR_LRU_LISTS];
+> >  	unsigned long		count[NR_LRU_LISTS];
+> > +	unsigned long		nr_saved_scan[NR_LRU_LISTS];
+> >  
+> >  	struct zone_reclaim_stat reclaim_stat;
+> >  };
+> > @@ -597,6 +598,17 @@ unsigned long mem_cgroup_zone_nr_pages(s
+> >  	return MEM_CGROUP_ZSTAT(mz, lru);
+> >  }
+> >  
+> > +unsigned long *mem_cgroup_get_saved_scan(struct mem_cgroup *memcg,
+> > +					 struct zone *zone,
+> > +					 enum lru_list lru)
+> > +{
+> > +	int nid = zone->zone_pgdat->node_id;
+> > +	int zid = zone_idx(zone);
+> > +	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+> > +
+> > +	return &mz->nr_saved_scan[lru];
+> > +}
+> 
+> I think this fuction is a bit strange.
+> shrink_zone don't hold any lock. so, shouldn't we case memcg removing race?
 
-Anyway, I will try to test again with following BUG_ON code.
+We've been doing that racy computation for long time. It may hurt a
+bit balancing. But the balanced vmscan was never perfect, and required
+to perfect. So let's just go with it?
+ 
+Thanks,
+Fengguang
 
-BUG_ON(list_empty(&area->free_list) && area->nr_free);
-
-Thanks
-Mel, Minchan
-
->> > The other possibility is that the zonelist used for allocation in the
->> > troubled path contains no populated zones. I would put a BUG_ON check =
-in
->> > get_page_from_freelist() to check if the first zone in the zonelist ha=
-s no
->> > pages. If that bug triggers, it might explain why OOMs are triggering =
-for
->> > no good reason.
->>
->> Yes. Chungki. Could you put the both BUG_ON in each function and
->> try to reproduce the problem ?
->>
->> > I consider both of those possibilities abnormal though.
->> >
->> > > >
->> > > > ------------------------------------------------------------------=
----------------------------------------------------------------------------=
---
->> > > > =C2=A0 =C2=A0 =C2=A0 page =3D get_page_from_freelist(gfp_mask|__GF=
-P_HARDWALL, order,
->> > > > <=3D=3D this is last chance
->> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
->> > > > <=3D=3D uses ALLOC_WMARK_HIGH
->> > > > =C2=A0 =C2=A0 =C2=A0 if (page)
->> > > > =C2=A0 =C2=A0 =C2=A0 goto got_pg;
->> > > >
->> > > > =C2=A0 =C2=A0 =C2=A0 out_of_memory(zonelist, gfp_mask, order);
->> > > > =C2=A0 =C2=A0 =C2=A0 goto restart;
->> > > > ------------------------------------------------------------------=
----------------------------------------------------------------------------=
---
->> > > >
->> > > > > Let me have a question.
->> > > > > Now the system has 79M as total swap.
->> > > > > It's bigger than system memory size.
->> > > > > Is it possible in compcache?
->> > > > > Can we believe the number?
->> > > >
->> > > > Yeah, It's possible. 79Mbyte is data size can be swap.
->> > > > It's not compressed data size. It's just original data size.
->> > >
->> > > You means your pages with 79M are swap out in compcache's reserved
->> > > memory?
->> > >
->> >
->> > --
->> > Mel Gorman
->> > Part-time Phd Student =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linux Technology Center
->> > University of Limerick =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 IBM Dublin Software Lab
->>
->>
->> --
->> Kind regards,
->> Minchan Kim
->>
->
-> --
-> Mel Gorman
-> Part-time Phd Student =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linux Technology Center
-> University of Limerick =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 IBM Dublin Software Lab
->
+> 
+> > +
+> >  struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+> >  						      struct zone *zone)
+> >  {
+> > --- linux.orig/mm/vmscan.c	2009-08-15 13:04:54.000000000 +0800
+> > +++ linux/mm/vmscan.c	2009-08-15 13:19:03.000000000 +0800
+> > @@ -1534,6 +1534,7 @@ static void shrink_zone(int priority, st
+> >  	for_each_evictable_lru(l) {
+> >  		int file = is_file_lru(l);
+> >  		unsigned long scan;
+> > +		unsigned long *saved_scan;
+> >  
+> >  		scan = zone_nr_pages(zone, sc, l);
+> >  		if (priority || noswap) {
+> > @@ -1541,11 +1542,11 @@ static void shrink_zone(int priority, st
+> >  			scan = (scan * percent[file]) / 100;
+> >  		}
+> >  		if (scanning_global_lru(sc))
+> > -			nr[l] = nr_scan_try_batch(scan,
+> > -						  &zone->lru[l].nr_saved_scan,
+> > -						  swap_cluster_max);
+> > +			saved_scan = &zone->lru[l].nr_saved_scan;
+> >  		else
+> > -			nr[l] = scan;
+> > +			saved_scan = mem_cgroup_get_saved_scan(sc->mem_cgroup,
+> > +							       zone, l);
+> > +		nr[l] = nr_scan_try_batch(scan, saved_scan, swap_cluster_max);
+> >  	}
+> >  
+> >  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
