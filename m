@@ -1,105 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 15FB56B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 06:38:13 -0400 (EDT)
-Message-ID: <4A8BD67F.8020007@redhat.com>
-Date: Wed, 19 Aug 2009 18:39:59 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 817726B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 06:45:09 -0400 (EDT)
+Message-ID: <4A8BD824.9060404@redhat.com>
+Date: Wed, 19 Aug 2009 18:47:00 +0800
 From: Amerigo Wang <amwang@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [Patch] proc: drop write permission on 'timer_list' and	'slabinfo'
-References: <20090817094822.GA17838@elte.hu> <1250502847.5038.16.camel@penberg-laptop> <alpine.DEB.1.10.0908171228300.16267@gentwo.org> <4A8986BB.80409@cs.helsinki.fi> <alpine.DEB.1.10.0908171240370.16267@gentwo.org> <4A8A0B0D.6080400@redhat.com> <4A8A0B14.8040700@cn.fujitsu.com> <4A8A1B2E.20505@redhat.com> <20090818120032.GA22152@localhost> <4A8B652E.40905@redhat.com> <20090819023737.GA17710@localhost>
-In-Reply-To: <20090819023737.GA17710@localhost>
-Content-Type: multipart/mixed;
- boundary="------------030905000202030905000704"
-Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ingo Molnar <mingo@elte.hu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@gmail.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Arjan van de Ven <arjan@linux.intel.com>
-List-ID: <linux-mm.kvack.org>
-
-This is a multi-part message in MIME format.
---------------030905000202030905000704
+Subject: Re: [Patch 8/8] kexec: allow to shrink reserved memory
+References: <20090812081731.5757.25254.sendpatchset@localhost.localdomain>	<20090812081906.5757.39417.sendpatchset@localhost.localdomain>	<m1bpmk8l1g.fsf@fess.ebiederm.org>	<4A83893D.50707@redhat.com>	<m1eirg5j9i.fsf@fess.ebiederm.org>	<4A83CD84.8040609@redhat.com>	<m1tz0avy4h.fsf@fess.ebiederm.org>	<4A8927DD.6060209@redhat.com>	<20090818092939.2efbe158.kamezawa.hiroyu@jp.fujitsu.com>	<4A8A4ABB.70003@redhat.com>	<20090818172552.779d0768.kamezawa.hiroyu@jp.fujitsu.com>	<4A8A83F4.6010408@redhat.com>	<20090819085703.ccf9992a.kamezawa.hiroyu@jp.fujitsu.com>	<4A8B6649.3080103@redhat.com> <20090819171346.aadfeb2c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090819171346.aadfeb2c.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Neil Horman <nhorman@redhat.com>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, bernhard.walle@gmx.de, Fenghua Yu <fenghua.yu@intel.com>, Ingo Molnar <mingo@elte.hu>, Anton Vorontsov <avorontsov@ru.mvista.com>
+List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> On Wed, Aug 19, 2009 at 10:36:30AM +0800, Amerigo Wang wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 19 Aug 2009 10:41:13 +0800
+> Amerigo Wang <amwang@redhat.com> wrote:
+>
 >   
->> Wu Fengguang wrote:
+>> KAMEZAWA Hiroyuki wrote:
 >>     
->>> On Tue, Aug 18, 2009 at 11:08:30AM +0800, Amerigo Wang wrote:
+>>> On Tue, 18 Aug 2009 18:35:32 +0800
+>>> Amerigo Wang <amwang@redhat.com> wrote:
 >>>
 >>>   
 >>>       
->>>> -	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
->>>> +	proc_create("slabinfo",S_IRUGO,NULL,&proc_slabinfo_operations);
+>>>> KAMEZAWA Hiroyuki wrote:
 >>>>     
 >>>>         
->>> Style nitpick. The spaces were packed to fit into 80-col I guess.
->>>
+>>>>> On Tue, 18 Aug 2009 14:31:23 +0800
+>>>>> Amerigo Wang <amwang@redhat.com> wrote:
+>>>>>   
+>>>>>       
+>>>>>           
+>>>>>>>     It's hidden from the system before mem_init() ?
+>>>>>>>   
+>>>>>>>       
+>>>>>>>           
+>>>>>>>               
+>>>>>> Not sure, but probably yes. It is reserved in setup_arch() which is 
+>>>>>> before mm_init() which calls mem_init().
+>>>>>>
+>>>>>> Do you have any advice to free that reserved memory after boot? :)
+>>>>>>
+>>>>>>     
+>>>>>>         
+>>>>>>             
+>>>>> Let's see arch/x86/mm/init.c::free_initmem()
+>>>>>
+>>>>> Maybe it's all you want.
+>>>>>
+>>>>> 	- ClearPageReserved()
+>>>>> 	- init_page_count()
+>>>>> 	- free_page()
+>>>>> 	- totalram_pages++
+>>>>>   
+>>>>>       
+>>>>>           
+>>>> Just FYI: calling ClearPageReserved() caused an oops: "Unable to handle 
+>>>> paging request".
+>>>>
+>>>> I am trying to figure out why...
+>>>>
+>>>>     
+>>>>         
+>>> Hmm...then....memmap is not there.
+>>> pfn_valid() check will help you. What arch ? x86-64 ?
 >>>   
 >>>       
->> Yeah, I noticed this too, the reason I didn't fix this is that I don't 
->> want to mix coding style fix with this one. We can fix it in another 
->> patch, if you want. :)
+>> Hmm, yes, x86_64, but this code is arch-independent, I mean it should 
+>> work or not work on all arch, no?
+>>
+>> So I am afraid we need to use other API to free it...
+>>
 >>     
->
-> Why not? This don't hurt readability of the patch, hehe.
+> The, problem is whether memmap is there or not. That's all.
+> plz see init sequence and check there are memmap.
+> If memory-for-crash is obtained via bootmem,
+> Don't you try to free memory hole ?
 >   
 
-Here we go.
-
-Pekka, could you please also take the patch attached below? It is just a 
-trivial coding style fix. And it is based on the my previous patch.
-
-Thanks!
-
-
-Signed-off-by: WANG Cong <amwang@redhat.com>
-
-
-
-
---------------030905000202030905000704
-Content-Type: text/plain;
- name="mm-slub_c-style-fix.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="mm-slub_c-style-fix.diff"
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 61398c0..1cd60ff 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1109,8 +1109,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	}
- 
- 	if (kmemcheck_enabled
--		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS)))
--	{
-+		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
- 		int pages = 1 << oo_order(oo);
- 
- 		kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
-@@ -2001,7 +2000,7 @@ static inline int calculate_order(int size)
- 				return order;
- 			fraction /= 2;
- 		}
--		min_objects --;
-+		min_objects--;
- 	}
- 
- 	/*
-@@ -4726,7 +4725,7 @@ static const struct file_operations proc_slabinfo_operations = {
- 
- static int __init slab_proc_init(void)
- {
--	proc_create("slabinfo",S_IRUGO,NULL,&proc_slabinfo_operations);
-+	proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
- 	return 0;
- }
- module_init(slab_proc_init);
-
---------------030905000202030905000704--
+Yes, I am checking the code. Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
