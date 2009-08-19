@@ -1,153 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 51FB36B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 08:08:55 -0400 (EDT)
-Date: Wed, 19 Aug 2009 20:08:35 +0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DB3F96B0055
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 08:10:27 -0400 (EDT)
+Date: Wed, 19 Aug 2009 20:10:18 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <20090819120835.GC7306@localhost>
-References: <4A856467.6050102@redhat.com> <20090815054524.GB11387@localhost> <20090818224230.A648.A69D9226@jp.fujitsu.com>
+Message-ID: <20090819121017.GA8226@localhost>
+References: <20090816051502.GB13740@localhost> <20090816112910.GA3208@localhost> <20090818234310.A64B.A69D9226@jp.fujitsu.com> <20090819120117.GB7306@localhost> <2f11576a0908190505h6da96280xf67c962aa3f5ba07@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20090818224230.A648.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <2f11576a0908190505h6da96280xf67c962aa3f5ba07@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 11:57:52PM +0800, KOSAKI Motohiro wrote:
+On Wed, Aug 19, 2009 at 08:05:19PM +0800, KOSAKI Motohiro wrote:
+> >> page_referenced_file?
+> >> I think we should change page_referenced().
+> >
+> > Yeah, good catch.
+> >
+> >>
+> >> Instead, How about this?
+> >> ==============================================
+> >>
+> >> Subject: [PATCH] mm: stop circulating of referenced mlocked pages
+> >>
+> >> Currently, mlock() systemcall doesn't gurantee to mark the page PG_Mlocked
+> >
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A mark PG_mlocked
+> >
+> >> because some race prevent page grabbing.
+> >> In that case, instead vmscan move the page to unevictable lru.
+> >>
+> >> However, Recently Wu Fengguang pointed out current vmscan logic isn't so
+> >> efficient.
+> >> mlocked page can move circulatly active and inactive list because
+> >> vmscan check the page is referenced _before_ cull mlocked page.
+> >>
+> >> Plus, vmscan should mark PG_Mlocked when cull mlocked page.
+> >
+> > A  A  A  A  A  A  A  A  A  A  A  A  A  PG_mlocked
+> >
+> >> Otherwise vm stastics show strange number.
+> >>
+> >> This patch does that.
+> >
+> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 > 
-> > > This one of the reasons why we unconditionally deactivate
-> > > the active anon pages, and do background scanning of the
-> > > active anon list when reclaiming page cache pages.
-> > > 
-> > > We want to always move some pages to the inactive anon
-> > > list, so it does not get too small.
-> > 
-> > Right, the current code tries to pull inactive list out of
-> > smallish-size state as long as there are vmscan activities.
-> > 
-> > However there is a possible (and tricky) hole: mem cgroups
-> > don't do batched vmscan. shrink_zone() may call shrink_list()
-> > with nr_to_scan=1, in which case shrink_list() _still_ calls
-> > isolate_pages() with the much larger SWAP_CLUSTER_MAX.
-> > 
-> > It effectively scales up the inactive list scan rate by 10 times when
-> > it is still small, and may thus prevent it from growing up for ever.
-> > 
-> > In that case, LRU becomes FIFO.
-> > 
-> > Jeff, can you confirm if the mem cgroup's inactive list is small?
-> > If so, this patch should help.
+> Thanks.
 > 
-> This patch does right thing.
-> However, I would explain why I and memcg folks didn't do that in past days.
 > 
-> Strangely, some memcg struct declaration is hide in *.c. Thus we can't
-> make inline function and we hesitated to introduce many function calling
-> overhead.
 > 
-> So, Can we move some memcg structure declaration to *.h and make 
-> mem_cgroup_get_saved_scan() inlined function?
+> >> Index: b/mm/rmap.c
+> >> ===================================================================
+> >> --- a/mm/rmap.c A  A  A  2009-08-18 19:48:14.000000000 +0900
+> >> +++ b/mm/rmap.c A  A  A  2009-08-18 23:47:34.000000000 +0900
+> >> @@ -362,7 +362,9 @@ static int page_referenced_one(struct pa
+> >> A  A  A  A * unevictable list.
+> >> A  A  A  A */
+> >> A  A  A  if (vma->vm_flags & VM_LOCKED) {
+> >> - A  A  A  A  A  A  *mapcount = 1; A /* break early from loop */
+> >> + A  A  A  A  A  A  *mapcount = 1; A  A  A  A  A /* break early from loop */
+> >> + A  A  A  A  A  A  *vm_flags |= VM_LOCKED; /* for prevent to move active list */
+> >
+> >> + A  A  A  A  A  A  try_set_page_mlocked(vma, page);
+> >
+> > That call is not absolutely necessary?
+> 
+> Why? I haven't catch your point.
 
-Good idea, I'll do that btw.
+Because we'll eventually hit another try_set_page_mlocked() when
+trying to unmap the page. Ie. duplicated with another call you added
+in this patch.
 
-> 
-> > 
-> > Thanks,
-> > Fengguang
-> > ---
-> > 
-> > mm: do batched scans for mem_cgroup
-> > 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  include/linux/memcontrol.h |    3 +++
-> >  mm/memcontrol.c            |   12 ++++++++++++
-> >  mm/vmscan.c                |    9 +++++----
-> >  3 files changed, 20 insertions(+), 4 deletions(-)
-> > 
-> > --- linux.orig/include/linux/memcontrol.h	2009-08-15 13:12:49.000000000 +0800
-> > +++ linux/include/linux/memcontrol.h	2009-08-15 13:18:13.000000000 +0800
-> > @@ -98,6 +98,9 @@ int mem_cgroup_inactive_file_is_low(stru
-> >  unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-> >  				       struct zone *zone,
-> >  				       enum lru_list lru);
-> > +unsigned long *mem_cgroup_get_saved_scan(struct mem_cgroup *memcg,
-> > +					 struct zone *zone,
-> > +					 enum lru_list lru);
-> >  struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-> >  						      struct zone *zone);
-> >  struct zone_reclaim_stat*
-> > --- linux.orig/mm/memcontrol.c	2009-08-15 13:07:34.000000000 +0800
-> > +++ linux/mm/memcontrol.c	2009-08-15 13:17:56.000000000 +0800
-> > @@ -115,6 +115,7 @@ struct mem_cgroup_per_zone {
-> >  	 */
-> >  	struct list_head	lists[NR_LRU_LISTS];
-> >  	unsigned long		count[NR_LRU_LISTS];
-> > +	unsigned long		nr_saved_scan[NR_LRU_LISTS];
-> >  
-> >  	struct zone_reclaim_stat reclaim_stat;
-> >  };
-> > @@ -597,6 +598,17 @@ unsigned long mem_cgroup_zone_nr_pages(s
-> >  	return MEM_CGROUP_ZSTAT(mz, lru);
-> >  }
-> >  
-> > +unsigned long *mem_cgroup_get_saved_scan(struct mem_cgroup *memcg,
-> > +					 struct zone *zone,
-> > +					 enum lru_list lru)
-> > +{
-> > +	int nid = zone->zone_pgdat->node_id;
-> > +	int zid = zone_idx(zone);
-> > +	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
-> > +
-> > +	return &mz->nr_saved_scan[lru];
-> > +}
-> 
-> I think this fuction is a bit strange.
-> shrink_zone don't hold any lock. so, shouldn't we case memcg removing race?
-
-We've been doing that racy computation for long time. It may hurt a
-bit balancing. But the balanced vmscan was never perfect, and required
-to perfect. So let's just go with it?
- 
 Thanks,
 Fengguang
-
-> 
-> > +
-> >  struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-> >  						      struct zone *zone)
-> >  {
-> > --- linux.orig/mm/vmscan.c	2009-08-15 13:04:54.000000000 +0800
-> > +++ linux/mm/vmscan.c	2009-08-15 13:19:03.000000000 +0800
-> > @@ -1534,6 +1534,7 @@ static void shrink_zone(int priority, st
-> >  	for_each_evictable_lru(l) {
-> >  		int file = is_file_lru(l);
-> >  		unsigned long scan;
-> > +		unsigned long *saved_scan;
-> >  
-> >  		scan = zone_nr_pages(zone, sc, l);
-> >  		if (priority || noswap) {
-> > @@ -1541,11 +1542,11 @@ static void shrink_zone(int priority, st
-> >  			scan = (scan * percent[file]) / 100;
-> >  		}
-> >  		if (scanning_global_lru(sc))
-> > -			nr[l] = nr_scan_try_batch(scan,
-> > -						  &zone->lru[l].nr_saved_scan,
-> > -						  swap_cluster_max);
-> > +			saved_scan = &zone->lru[l].nr_saved_scan;
-> >  		else
-> > -			nr[l] = scan;
-> > +			saved_scan = mem_cgroup_get_saved_scan(sc->mem_cgroup,
-> > +							       zone, l);
-> > +		nr[l] = nr_scan_try_batch(scan, saved_scan, swap_cluster_max);
-> >  	}
-> >  
-> >  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
