@@ -1,131 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 78DD46B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 10:22:07 -0400 (EDT)
-Date: Wed, 19 Aug 2009 17:20:38 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090819142038.GA3862@redhat.com>
-References: <cover.1250187913.git.mst@redhat.com> <200908191104.50672.arnd@arndb.de> <20090819130417.GB3080@redhat.com> <200908191546.44193.arnd@arndb.de>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7497A6B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 10:31:27 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp06.au.ibm.com (8.14.3/8.13.1) with ESMTP id n7JEVCAm008407
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 00:31:12 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7JEVI1v319646
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 00:31:21 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7JEVHYV010048
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 00:31:18 +1000
+Date: Wed, 19 Aug 2009 19:57:05 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC] memcg: move definitions to .h and inline some functions
+Message-ID: <20090819142705.GN22626@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <4A856467.6050102@redhat.com> <20090815054524.GB11387@localhost> <20090818224230.A648.A69D9226@jp.fujitsu.com> <20090819134036.GA7267@localhost> <f4131456fc4b1dd4f5b8d060e0cbef80.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <200908191546.44193.arnd@arndb.de>
+In-Reply-To: <f4131456fc4b1dd4f5b8d060e0cbef80.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 03:46:44PM +0200, Arnd Bergmann wrote:
-> On Wednesday 19 August 2009, Michael S. Tsirkin wrote:
-> > > Maybe we could instead extend the 'splice' system call to work on a
-> > > vhost_net file descriptor.  If we do that, we can put the access back
-> > > into a user thread (or two) that stays in splice indefinetely
-> > 
-> > An issue with exposing internal threading model to userspace
-> > in this way is that we lose control of e.g. CPU locality -
-> > and it is very hard for userspace to get it right.
-> 
-> Good point, I hadn't thought about that in this context.
-> 
-> For macvtap, my idea was to open the same tap char device multiple
-> times and use each fd exclusively on one *guest* CPU. I'm not sure
-> if virtio-net can already handle SMP guests efficiently. We might
-> actually need to extend it to have more pairs of virtqueues, one
-> for each guest CPU, which can then be bound to a host queue (or queue
-> pair) in the physical nic.
-> 
-> Leaving that aside for now, you could replace VHOST_NET_SET_SOCKET,
-> VHOST_SET_OWNER, VHOST_RESET_OWNER
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-19 23:18:01]:
 
-SET/RESET OWNER is still needed: otherwise if you share a descriptor
-with another process, it can corrupt your memory.
-
-> and your kernel thread with a new
-> VHOST_NET_SPLICE blocking ioctl that does all the transfers in the
-> context of the calling thread.
-
-For one, you'd want a thread per virtqueue.  Second, an incoming traffic
-might arrive on another CPU, we want to keep it local.  I guess you
-would also want ioctls to wake up the threads spuriously ...
-
-> This would improve the driver on various fronts:
-> 
-> - no need for playing tricks with use_mm/unuse_mm
-> - possibly fewer global TLB flushes from switch_mm, which
->   may improve performance.
-
-Why would there be less flushes?
-
-> - ability to pass down error codes from socket or guest to
->   user space by returning from ioctl
-
-virtio can not pass error codes. translation errors are
-simple enough to just have a counter.
-
-> - based on that, the ability to use any kind of file
->   descriptor that can do writev/readv or sendmsg/recvmsg
->   without the nastiness you mentioned.
-
-Yes, it's an interesting approach. As I said, need to tread very
-carefully though, I don't think all issues are figured out. For example:
-what happens if we pass our own fd here? Will refcount on file ever get
-to 0 on exit?  There may be others ...
-
-> The disadvantage of course is that you need to add a user
-> thread for each guest device to make up for the workqueue
-> that you save.
-
-More importantly, you lose control of CPU locality.  Simply put, a
-natural threading model in virtualization is one thread per guest vcpu.
-Asking applications to add multiple helper threads just so they can
-block forever is wrong, IMO, as userspace has no idea which CPU
-they should be on, what priority to use, etc.
-
-
-> > > to
-> > > avoid some of the implications of kernel threads like the missing
-> > > ability to handle transfer errors in user space.
-> > 
-> > Are you talking about TCP here?
-> > Transfer errors are typically asynchronous - possibly eventfd
-> > as I expose for vhost net is sufficient there.
-> 
-> I mean errors in general if we allow random file descriptors to be used.
-> E.g. tun_chr_aio_read could return EBADFD, EINVAL, EFAULT, ERESTARTSYS,
-> EIO, EAGAIN and possibly others. We can handle some in kernel, others
-> should never happen with vhost_net, but if something unexpected happens
-> it would be nice to just bail out to user space.
-
-And note that there might be more than one error.  I guess, that's
-another problem with trying to layer on top of vfs.
-
-> > > > I wonder - can we expose the underlying socket used by tap, or will that
-> > > > create complex lifetime issues?
-> > > 
-> > > I think this could get more messy in the long run than calling vfs_readv
-> > > on a random fd. It would mean deep internal knowledge of the tap driver
-> > > in vhost_net, which I really would prefer to avoid.
-> > 
-> > No, what I had in mind is adding a GET_SOCKET ioctl to tap.
-> > vhost would then just use the socket.
-> 
-> Right, that would work with tun/tap at least. It sounds a bit fishy
-> but I can't see a reason why it would be hard to do.
-> I'd have to think about how to get it working with macvtap, or if
-> there is much value left in macvtap after that anyway.
-> 
-> > > So how about making the qemu command line interface an extension to
-> > > what Or Gerlitz has done for the raw packet sockets?
+> Wu Fengguang ?$B$5$s$O=q$-$^$7$?!'
+> > On Tue, Aug 18, 2009 at 11:57:52PM +0800, KOSAKI Motohiro wrote:
+> >>
+> >> > > This one of the reasons why we unconditionally deactivate
+> >> > > the active anon pages, and do background scanning of the
+> >> > > active anon list when reclaiming page cache pages.
+> >> > >
+> >> > > We want to always move some pages to the inactive anon
+> >> > > list, so it does not get too small.
+> >> >
+> >> > Right, the current code tries to pull inactive list out of
+> >> > smallish-size state as long as there are vmscan activities.
+> >> >
+> >> > However there is a possible (and tricky) hole: mem cgroups
+> >> > don't do batched vmscan. shrink_zone() may call shrink_list()
+> >> > with nr_to_scan=1, in which case shrink_list() _still_ calls
+> >> > isolate_pages() with the much larger SWAP_CLUSTER_MAX.
+> >> >
+> >> > It effectively scales up the inactive list scan rate by 10 times when
+> >> > it is still small, and may thus prevent it from growing up for ever.
+> >> >
+> >> > In that case, LRU becomes FIFO.
+> >> >
+> >> > Jeff, can you confirm if the mem cgroup's inactive list is small?
+> >> > If so, this patch should help.
+> >>
+> >> This patch does right thing.
+> >> However, I would explain why I and memcg folks didn't do that in past
+> >> days.
+> >>
+> >> Strangely, some memcg struct declaration is hide in *.c. Thus we can't
+> >> make inline function and we hesitated to introduce many function calling
+> >> overhead.
+> >>
+> >> So, Can we move some memcg structure declaration to *.h and make
+> >> mem_cgroup_get_saved_scan() inlined function?
 > >
-> > Not sure I see the connection, but I have not thought about qemu
-> > side of things too much yet - trying to get kernel bits in place
-> > first so that there's a stable ABI to work with.
+> > OK here it is. I have to move big chunks to make it compile, and it
+> > does reduced a dozen lines of code :)
+> >
+> > Is this big copy&paste acceptable? (memcg developers CCed).
+> >
+> > Thanks,
+> > Fengguang
 > 
-> Ok, fair enough. The kernel bits are obviously more time critical
-> right now, since they should get into 2.6.32.
-> 
-> 	Arnd <><
+> I don't like this. plz add hooks to necessary places, at this stage.
+> This will be too big for inlined function, anyway.
+> plz move this after you find overhead is too big.
+
+Me too.. I want to abstract the implementation within memcontrol.c to
+be honest (I am concerned that someone might include memcontrol.h and
+access its structure members, which scares me). Hiding it within
+memcontrol.c provides the right level of abstraction.
+
+Could you please explain your motivation for this change? I got cc'ed
+on to a few emails, is this for the patch that export nr_save_scanned
+approach?
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
