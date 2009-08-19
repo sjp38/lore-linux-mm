@@ -1,57 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D16036B0055
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 04:57:06 -0400 (EDT)
-Date: Wed, 19 Aug 2009 09:57:14 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] page-allocator: Split per-cpu list into
-	one-list-per-migrate-type
-Message-ID: <20090819085714.GA24809@csn.ul.ie>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <1250594162-17322-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.00.0908181550450.31547@mail.selltech.ca>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B71666B0055
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:06:06 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
+Date: Wed, 19 Aug 2009 11:04:50 +0200
+References: <cover.1250187913.git.mst@redhat.com> <200908141340.36176.arnd@arndb.de> <20090816065110.GA3008@redhat.com>
+In-Reply-To: <20090816065110.GA3008@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0908181550450.31547@mail.selltech.ca>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200908191104.50672.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Vincent Li <macli@brc.ubc.ca>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 03:57:00PM -0700, Vincent Li wrote:
-> On Tue, 18 Aug 2009, Mel Gorman wrote:
+On Sunday 16 August 2009, Michael S. Tsirkin wrote:
+> On Fri, Aug 14, 2009 at 01:40:36PM +0200, Arnd Bergmann wrote:
+> > 
+> > * most of the transports are sockets, tap uses a character device.
+> >   This could be dealt with by having both a struct socket * in
+> >   struct vhost_net *and* a struct file *, or by always keeping the
+> >   struct file and calling vfs_readv/vfs_writev for the data transport
+> >   in both cases.
 > 
-> > +	/*
-> > +	 * We only track unreclaimable, reclaimable and movable on pcp lists.
-> 			 ^^^^^^^^^^^^^  
-> Is it unmovable? I don't see unreclaimable migrate type on pcp lists. 
-> Just ask to make sure I undsterstand the comment right.
-> 
+> I am concerned that character devices might have weird side effects with
+> read/write operations and that calling them from kernel thread the way I
+> do might have security implications. Can't point at anything specific
+> though at the moment.
 
-It should have said unmovable. Sorry
+I understand your feelings about passing a chardev fd into your driver
+and I agree that we need to be very careful if we want to allow it.
 
-> > +	 * Free ISOLATE pages back to the allocator because they are being
-> > +	 * offlined but treat RESERVE as movable pages so we can get those
-> > +	 * areas back if necessary. Otherwise, we may have to free
-> > +	 * excessively into the page allocator
-> > +	 */
-> > +	if (migratetype >= MIGRATE_PCPTYPES) {
-> > +		if (unlikely(migratetype == MIGRATE_ISOLATE)) {
-> > +			free_one_page(zone, page, 0, migratetype);
-> > +			goto out;
-> > +		}
-> > +		migratetype = MIGRATE_MOVABLE;
-> > +	}
-> > +
-> 
-> Vincent Li
-> Biomedical Research Center
-> University of British Columbia
-> 
+Maybe we could instead extend the 'splice' system call to work on a
+vhost_net file descriptor. If we do that, we can put the access back
+into a user thread (or two) that stays in splice indefinetely to
+avoid some of the implications of kernel threads like the missing
+ability to handle transfer errors in user space.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> I wonder - can we expose the underlying socket used by tap, or will that
+> create complex lifetime issues?
+
+I think this could get more messy in the long run than calling vfs_readv
+on a random fd. It would mean deep internal knowledge of the tap driver
+in vhost_net, which I really would prefer to avoid.
+
+> > * Each transport has a slightly different header, we have
+> >   - raw ethernet frames (raw, udp multicast, tap)
+> >   - 32-bit length + raw frames, possibly fragmented (tcp)
+> >   - 80-bit header + raw frames, possibly fragmented (tap with vnet_hdr)
+> >   To handle these three cases, we need either different ioctl numbers
+> >   so that vhost_net can choose the right one, or a flags field in
+> >   VHOST_NET_SET_SOCKET, like
+> > 
+> >   #define VHOST_NET_RAW		1
+> >   #define VHOST_NET_LEN_HDR	2
+> >   #define VHOST_NET_VNET_HDR	4
+> > 
+> >   struct vhost_net_socket {
+> > 	unsigned int flags;
+> > 	int fd;
+> >   };
+> >   #define VHOST_NET_SET_SOCKET _IOW(VHOST_VIRTIO, 0x30, struct vhost_net_socket)
+> 
+> It seems we can query the socket to find out the type, 
+
+yes, I understand that you can do that, but I still think that decision
+should be left to user space. Adding a length header for TCP streams but
+not for UDP is something that we would normally want to do, but IMHO
+vhost_net should not need to know about this.
+
+> or use the features ioctl.
+
+Right, I had forgotten about that one. It's probably equivalent
+to the flags I suggested, except that one allows you to set features
+after starting the communication, while the other one prevents
+you from doing that.
+
+> > Qemu could then automatically try to use vhost_net, if it's available
+> > in the kernel, or just fall back on software vlan otherwise.
+> > Does that make sense?
+> 
+> I agree, long term it should be enabled automatically when possible.
+
+So how about making the qemu command line interface an extension to
+what Or Gerlitz has done for the raw packet sockets?
+
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
