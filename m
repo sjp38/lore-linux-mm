@@ -1,42 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D2F6B005D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:08:41 -0400 (EDT)
-Date: Wed, 19 Aug 2009 10:08:44 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC1D6B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:39:03 -0400 (EDT)
+Date: Wed, 19 Aug 2009 10:39:05 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Reduce searching in the page allocator
-	fast-path
-Message-ID: <20090819090843.GB24809@csn.ul.ie>
-References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181019130.32284@gentwo.org> <20090818165340.GB13435@csn.ul.ie> <alpine.DEB.1.10.0908181357100.3840@gentwo.org>
+Subject: Re: HTLB mapping for drivers. Driver example
+Message-ID: <20090819093905.GD24809@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172346460.32114@casper.infradead.org> <20090818083024.GB31469@csn.ul.ie> <202cde0e0908190201p4c2e2701xf18bdecbc53df905@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0908181357100.3840@gentwo.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <202cde0e0908190201p4c2e2701xf18bdecbc53df905@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Alexey Korolev <akorolex@gmail.com>
+Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 18, 2009 at 03:05:25PM -0400, Christoph Lameter wrote:
-> On Tue, 18 Aug 2009, Mel Gorman wrote:
+On Wed, Aug 19, 2009 at 09:01:17PM +1200, Alexey Korolev wrote:
+> > This seems a lot of burden to put on a device driver, particularly with
+> > respect to the reservations.
 > 
-> > Can you point me to which patchset you are talking about specifically that
-> > uses per-cpu atomics in the hot path? There are a lot of per-cpu patches
-> > related to you that have been posted in the last few months and I'm not sure
-> > what any of their merge status' is.
-> 
-> The following patch just moved the page allocator to use the new per cpu
-> allocator. It does not use per cpu atomic yet but its possible then.
-> 
-> http://marc.info/?l=linux-mm&m=124527414206546&w=2
+> Thanks a lot for review you did. That is right.  I don't like this
+> burden as well.
+> >
+> >> File operations of /dev/hpage_map do the following:
+> >>
+> >> In file open we  associate mappings of /dev/xxx with the file on hugetlbfs (like it is done in ipc/shm.c)
+> >>       file->f_mapping = h_file->f_mapping;
+> >>
+> >> In get_unmapped_area we should tell about addressing constraints in case of huge pages by calling hugetlbfs procedures. (as in ipc/shm.c)
+> >>       return get_unmapped_area(h_file, addr, len, pgoff, flags);
+> >>
+> >> We need to let hugetlbfs do architecture specific operations with mapping in mmap call. This driver does not reserve any memory for private mappings
+> >> so driver requests reservation from hugetlbfs. (Actually driver can do this as well but it will make it more complex)
+> >>
+> >> The exit procedure:
+> >> * removes memory from page cache
+> >> * deletes file on hugetlbfs vfs mount
+> >> *  free pages
+> >>
+> >> Application example is not shown here but it is very simple. It does the following: open file /dev/hpage_map, mmap a region, read/write memory, unmap file, close file.
+> >>
+> >
+> > For the use-model you have in mind, could you look at Eric Munson's patches
+> > and determine if the target application would have been happy to call the
+> > following please?
+> >
+> > mmap(0, len, prot, MAP_ANONYMOUS|MAP_HUGETLB, 0, 0)
+> >
+> Hmm. But how can I at least identify which driver this call is addressed to?
 > 
 
-Ok, I don't see this particular patch merged, is it in a merge queue somewhere?
+The example you gave was for /dev/hpage_map so in this specific case, it
+would have appeared that the application didn't want hugepages belonging to
+a particular driver, but huge pages in general. Furthermore, your example
+driver was not populating the hugepages with data so in this case, calling
+mmap(MAP_ANONYMOUS|MAP_HUGETLB) would have been sufficient. If all the data
+in your target application is populated from userspace, it's worth considering
+instead of a different driver.
 
-After glancing through, I can see how it might help.  I'm going to drop patch
-3 of this set that shuffles data from the PCP to the zone and take a closer
-look at those patches. Patch 1 and 2 of this set should still go ahead. Do
-you agree?
+However, lets assume you have a driver that provides the data from
+somewher. The implementation for MAP_HUGETLB is basically a call to a
+hugetlbfs_file_setup()-like function that is very straight-forward. It
+creates a hugetlbfs file and ensures that the reservations are there which
+is important and tricky to get right.
+
+Would it be possible for your driver to do
+
+On file open
+	Create hugetlbfs-backed-file using helper similar to Eric's
+		or maybe even Eric's helper for MAP_HUGETLB
+	Copy get_unmapped_area handle from hugetlbfs-file so mappings
+		are properly placed on mmap()
+
+On file mmap
+	Use a new helper to get a reference to each page within the
+		file and populate it with driver-specific data. You
+		would need a new patch for this helper because it
+		doesn't exist.
+	Call h_file->f_op->mmap(h_file, vma)
+
+On file fault
+	The data is already in the page cache so the normal hugetlbfs
+		handlers should do the job
+
+On file close
+	Drop the hugetlbfs inode
+
+Using the helper for getting a reference to a hugetlbfs-file, your driver
+would no longer be responsible for placing the mapping, handling reservations
+or handling page cache manipulations.
 
 -- 
 Mel Gorman
