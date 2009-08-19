@@ -1,150 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BA2796B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 06:35:50 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id 22so1023629fge.4
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2009 03:35:50 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B2ADE6B0055
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 06:36:09 -0400 (EDT)
+Date: Wed, 19 Aug 2009 11:36:11 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: abnormal OOM killer message
+Message-ID: <20090819103611.GG24809@csn.ul.ie>
+References: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com> <20090819114408.ab9c8a78.minchan.kim@barrios-desktop> <4A8B7508.4040001@vflare.org> <20090819135105.e6b69a8d.minchan.kim@barrios-desktop> <18eba5a10908182324x45261d06y83e0f042e9ee6b20@mail.gmail.com> <20090819154958.18a34aa5.minchan.kim@barrios-desktop>
 MIME-Version: 1.0
-In-Reply-To: <20090819100553.GE24809@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
-	 <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
-	 <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com>
-	 <20090819100553.GE24809@csn.ul.ie>
-Date: Wed, 19 Aug 2009 11:35:50 +0100
-Message-ID: <56e00de0908190335n6b120114kb6ece4623f024319@mail.gmail.com>
-Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-From: Eric B Munson <linux-mm@mgebm.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090819154958.18a34aa5.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Alexey Korolev <akorolex@gmail.com>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: ????????? <chungki.woo@gmail.com>, ngupta@vflare.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, riel@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 11:05 AM, Mel Gorman<mel@csn.ul.ie> wrote:
-> On Wed, Aug 19, 2009 at 05:48:11PM +1200, Alexey Korolev wrote:
->> Hi,
->> >
->> > It sounds like this patch set working towards the same goal as my
->> > MAP_HUGETLB set. =A0The only difference I see is you allocate huge pag=
-e
->> > at a time and (if I am understanding the patch) fault the page in
->> > immediately, where MAP_HUGETLB only faults pages as needed. =A0Does th=
-e
->> > MAP_HUGETLB patch set provide the functionality that you need, and if
->> > not, what can be done to provide what you need?
->> >
->>
->> Thanks a lot for willing to help. I'll be much appreciate if you have
->> an interesting idea how HTLB mapping for drivers can be done.
->>
->> It is better to describe use case in order to make it clear what needs
->> to be done.
->> Driver provides mapping of device DMA buffers to user level
->> applications.
->
-> Ok, so the buffer is in normal memory. When mmap() is called, the buffer
-> is already populated by data DMA'd from the device. That scenario rules o=
-ut
-> calling mmap(MAP_ANONYMOUS|MAP_HUGETLB) because userspace has access to t=
-he
-> buffer before it is populated by data from the device.
->
-> However, it does not rule out mmap(MAP_ANONYMOUS|MAP_HUGETLB) when usersp=
-ace
-> is responsible for populating a buffer for sending to a device. i.e. whet=
-her it
-> is suitable or not depends on when the buffer is populated and who is doi=
-ng it.
->
->> User level applications process the data.
->> Device is using a master DMA to send data to the user buffer, buffer
->> size can be >1GB and performance is very important. (So huge pages
->> mapping really makes sense.)
->>
->
-> Ok, so the DMA may be faster because you have to do less scatter/gather
-> and can DMA in larger chunks and and reading from userspace may be faster
-> because there is less translation overhead. Right?
->
->> In addition we have to mention that:
->> 1. It is hard for user to tell how much huge pages needs to be
->> =A0 =A0reserved by the driver.
->
-> I think you have this problem either way. If the buffer is allocated and
-> populated before mmap(), then the driver is going to have to guess how ma=
-ny
-> pages it needs. If the DMA occurs as a result of mmap(), it's easier beca=
-use
-> you know the number of huge pages to be reserved at that point and you ha=
-ve
-> the option of falling back to small pages if necessary.
->
->> 2. Devices add constrains on memory regions. For example it needs to
->> =A0 =A0be contiguous with in the physical address space. It is necessary=
- to
->> =A0 have ability to specify special gfp flags.
->
-> The contiguity constraints are the same for huge pages. Do you mean there
-> are zone restrictions? If so, the hugetlbfs_file_setup() function could b=
-e
-> extended to specify a GFP mask that is used for the allocation of hugepag=
-es
-> and associated with the hugetlbfs inode. Right now, there is a htlb_alloc=
-_mask
-> mask that is applied to some additional flags so htlb_alloc_mask would be
-> the default mask unless otherwise specified.
->
->> 3 The HW needs to access physical memory before the user level
->> software can access it. (Hugetlbfs picks up pages on page fault from
->> pool).
->> It means memory allocation needs to be driven by device driver.
->>
->
-> How about;
->
-> =A0 =A0 =A0 =A0o Extend Eric's helper slightly to take a GFP mask that is
-> =A0 =A0 =A0 =A0 =A0associated with the inode and used for allocations fro=
-m
-> =A0 =A0 =A0 =A0 =A0outside the hugepage pool
-> =A0 =A0 =A0 =A0o A helper that returns the page at a given offset within
-> =A0 =A0 =A0 =A0 =A0a hugetlbfs file for population before the page has be=
-en
-> =A0 =A0 =A0 =A0 =A0faulted.
->
-> I know this is a bit hand-wavy, but it would allow significant sharing
-> of the existing code and remove much of the hugetlbfs-awareness from
-> your current driver.
->
->> Original idea was: create hugetlbfs file which has common mapping with
->> device file. Allocate memory. Populate page cache of hugetlbfs file
->> with allocated pages.
->> When fault occurs, page will be taken from page cache and then
->> remapped to user space by hugetlbfs.
->>
->> Another possible approach is described here:
->> http://marc.info/?l=3Dlinux-mm&m=3D125065257431410&w=3D2
->> But currently not sure =A0will it work or not.
->>
->>
->> Thanks,
->> Alexey
->>
->
-> --
-> Mel Gorman
-> Part-time Phd Student =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-Linux Technology Center
-> University of Limerick =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 IB=
-M Dublin Software Lab
->
+On Wed, Aug 19, 2009 at 03:49:58PM +0900, Minchan Kim wrote:
+> On Wed, 19 Aug 2009 15:24:54 +0900
+> ????????? <chungki.woo@gmail.com> wrote:
+> 
+> > Thank you very much for replys.
+> > 
+> > But I think it seems not to relate with stale data problem in compcache.
+> > My question was why last chance to allocate memory was failed.
+> > When OOM killer is executed, memory state is not a condition to
+> > execute OOM killer.
+> > Specially, there are so many pages of order 0. And allocating order is zero.
+> > I think that last allocating memory should have succeeded.
+> > That's my worry.
+> 
+> Yes. I agree with you.
+> Mel. Could you give some comment in this situation ?
+> Is it possible that order 0 allocation is failed 
+> even there are many pages in buddy ?
+> 
 
-Alexey,
+Not ordinarily. If it happens, I tend to suspect that the free list data
+is corrupted and would put a check in __rmqueue() that looked like
 
-I'd be willing to take a stab at a prototype of Mel's suggestion based
-on my patch set if you this it would be useful to you.
+	BUG_ON(list_empty(&area->free_list) && area->nr_free);
 
-Eric
+The second question is, why are we in direct reclaim this far above the
+watermark? It should only be kswapd that is doing any reclaim at that
+point. That makes me wonder again are the free lists corrupted.
+
+The other possibility is that the zonelist used for allocation in the
+troubled path contains no populated zones. I would put a BUG_ON check in
+get_page_from_freelist() to check if the first zone in the zonelist has no
+pages. If that bug triggers, it might explain why OOMs are triggering for
+no good reason.
+
+I consider both of those possibilities abnormal though.
+
+> > 
+> > -----------------------------------------------------------------------------------------------------------------------------------------------
+> >       page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+> > <== this is last chance
+> >                            zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
+> > <== uses ALLOC_WMARK_HIGH
+> >       if (page)
+> >       goto got_pg;
+> > 
+> >       out_of_memory(zonelist, gfp_mask, order);
+> >       goto restart;
+> > -----------------------------------------------------------------------------------------------------------------------------------------------
+> > 
+> > > Let me have a question.
+> > > Now the system has 79M as total swap.
+> > > It's bigger than system memory size.
+> > > Is it possible in compcache?
+> > > Can we believe the number?
+> > 
+> > Yeah, It's possible. 79Mbyte is data size can be swap.
+> > It's not compressed data size. It's just original data size.
+> 
+> You means your pages with 79M are swap out in compcache's reserved
+> memory?
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
