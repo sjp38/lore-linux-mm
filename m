@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F7176B005A
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:08:26 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id c3so1662734ana.26
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2009 02:07:28 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F3D2F6B005D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 05:08:41 -0400 (EDT)
+Date: Wed, 19 Aug 2009 10:08:44 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/3] Reduce searching in the page allocator
+	fast-path
+Message-ID: <20090819090843.GB24809@csn.ul.ie>
+References: <1250594162-17322-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0908181019130.32284@gentwo.org> <20090818165340.GB13435@csn.ul.ie> <alpine.DEB.1.10.0908181357100.3840@gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20090818083024.GB31469@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172346460.32114@casper.infradead.org>
-	 <20090818083024.GB31469@csn.ul.ie>
-Date: Wed, 19 Aug 2009 21:01:17 +1200
-Message-ID: <202cde0e0908190201p4c2e2701xf18bdecbc53df905@mail.gmail.com>
-Subject: Re: HTLB mapping for drivers. Driver example
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0908181357100.3840@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel,
+On Tue, Aug 18, 2009 at 03:05:25PM -0400, Christoph Lameter wrote:
+> On Tue, 18 Aug 2009, Mel Gorman wrote:
+> 
+> > Can you point me to which patchset you are talking about specifically that
+> > uses per-cpu atomics in the hot path? There are a lot of per-cpu patches
+> > related to you that have been posted in the last few months and I'm not sure
+> > what any of their merge status' is.
+> 
+> The following patch just moved the page allocator to use the new per cpu
+> allocator. It does not use per cpu atomic yet but its possible then.
+> 
+> http://marc.info/?l=linux-mm&m=124527414206546&w=2
+> 
 
+Ok, I don't see this particular patch merged, is it in a merge queue somewhere?
 
->
-> This seems a lot of burden to put on a device driver, particularly with
-> respect to the reservations.
+After glancing through, I can see how it might help.  I'm going to drop patch
+3 of this set that shuffles data from the PCP to the zone and take a closer
+look at those patches. Patch 1 and 2 of this set should still go ahead. Do
+you agree?
 
-Thanks a lot for review you did. That is right.  I don't like this
-burden as well.
->
->> File operations of /dev/hpage_map do the following:
->>
->> In file open we =C2=A0associate mappings of /dev/xxx with the file on hu=
-getlbfs (like it is done in ipc/shm.c)
->> =C2=A0 =C2=A0 =C2=A0 file->f_mapping =3D h_file->f_mapping;
->>
->> In get_unmapped_area we should tell about addressing constraints in case=
- of huge pages by calling hugetlbfs procedures. (as in ipc/shm.c)
->> =C2=A0 =C2=A0 =C2=A0 return get_unmapped_area(h_file, addr, len, pgoff, =
-flags);
->>
->> We need to let hugetlbfs do architecture specific operations with mappin=
-g in mmap call. This driver does not reserve any memory for private mapping=
-s
->> so driver requests reservation from hugetlbfs. (Actually driver can do t=
-his as well but it will make it more complex)
->>
->> The exit procedure:
->> * removes memory from page cache
->> * deletes file on hugetlbfs vfs mount
->> * =C2=A0free pages
->>
->> Application example is not shown here but it is very simple. It does the=
- following: open file /dev/hpage_map, mmap a region, read/write memory, unm=
-ap file, close file.
->>
->
-> For the use-model you have in mind, could you look at Eric Munson's patch=
-es
-> and determine if the target application would have been happy to call the
-> following please?
->
-> mmap(0, len, prot, MAP_ANONYMOUS|MAP_HUGETLB, 0, 0)
->
-Hmm. But how can I at least identify which driver this call is addressed to=
-?
-
-Thanks,
-Alexey
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
