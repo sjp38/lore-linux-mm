@@ -1,35 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 399D16B004D
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 23:31:42 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id c3so1624434ana.26
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 20:31:41 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4916D6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 23:44:28 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id l33so956286rvb.26
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 20:44:31 -0700 (PDT)
+Message-ID: <4A8B7508.4040001@vflare.org>
+Date: Wed, 19 Aug 2009 09:14:08 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-In-Reply-To: <1250633438.7335.1146.camel@nimitz>
-References: <alpine.LFD.2.00.0908172333410.32114@casper.infradead.org>
-	 <1250633438.7335.1146.camel@nimitz>
-Date: Wed, 19 Aug 2009 15:31:39 +1200
-Message-ID: <202cde0e0908182031r7068416amfb1cd48f4e91ddc4@mail.gmail.com>
-Subject: Re: [PATCH 2/3]HTLB mapping for drivers. Hstate for files with
-	hugetlb mapping(take 2)
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: abnormal OOM killer message
+References: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com> <20090819114408.ab9c8a78.minchan.kim@barrios-desktop>
+In-Reply-To: <20090819114408.ab9c8a78.minchan.kim@barrios-desktop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Alexey Korolev <akorolev@infradead.org>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: =?UTF-8?B?7Jqw7Lap6riw?= <chungki.woo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, riel@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
->> =C2=A0#ifdef CONFIG_HUGETLBFS
->> +
->> +/* some random number */
->> +#define HUGETLBFS_MAGIC =C2=A0 =C2=A0 =C2=A0 =C2=A00x958458f6
+On 08/19/2009 08:14 AM, Minchan Kim wrote:
+> On Wed, 19 Aug 2009 10:41:51 +0900
+> i??i?(C)e,?<chungki.woo@gmail.com>  wrote:
 >
-> Doesn't this belong in include/linux/magic.h?
+>> Hi all~
+>> I have got a log message with OOM below. I don't know why this
+>> phenomenon was happened.
+>> When direct reclaim routine(try_to_free_pages) in __alloc_pages which
+>> allocates kernel memory was failed,
+>> one last chance is given to allocate memory before OOM routine is executed.
+>> And that time, allocator uses ALLOC_WMARK_HIGH to limit watermark.
+>> Then, zone_watermark_ok function test this value with current memory
+>> state and decide 'can allocate' or 'cannot allocate'.
+>>
+>> Here is some kernel source code in __alloc_pages function to understand easily.
+>> Kernel version is 2.6.18 for arm11. Memory size is 32Mbyte. And I use
+>> compcache(0.5.2).
+
+<snip>
+
+>>
+>> In my case, you can see free pages(6804KB) is much more higher than
+>> high watermark value(1084KB) in OOM message.
+>> And order of allocating is also zero.(order=0)
+>> In buddy system, the number of 4kbyte page is 867.
+>> So, I think OOM can't be happend.
+>>
 >
-> -- Dave
+> Yes. I think so.
 >
-Right. Thank you! Will be corrected.
+> In that case, even we can also avoid zone defensive algorithm.
+>
+>> How do you think about this?
+>> Is this side effect of compcache?
+>
+
+compcache can be storing lot of stale data and this memory space cannot be
+reclaimed (unless overwritten by some other swap data). This is because
+compcache does not know when a swap slot has been freed and hence does not know 
+when its safe to free corresponding memory. You can check current memory usage 
+with /proc/ramzswap (see MemUsedTotal).
+
+BTW, with compcache-0.6 there is an experimental kernel patch that gets rid of 
+all this stale data:
+http://patchwork.kernel.org/patch/41083/
+
+However, this compcache version needs at least kernel 2.6.28. This version also 
+fixes all known problems on ARM. compcache-0.5.3 or earlier is known to crash on 
+ARM (see: http://code.google.com/p/compcache/issues/detail?id=33).
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
