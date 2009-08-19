@@ -1,50 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9BECE6B004D
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 03:29:36 -0400 (EDT)
-Received: by ywh41 with SMTP id 41so5877565ywh.23
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2009 00:29:35 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 483136B004D
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2009 03:48:08 -0400 (EDT)
+Message-ID: <2772.77.126.108.1.1250667713.squirrel@webmail.cs.biu.ac.il>
+In-Reply-To: <4A8B40DD.6020304@redhat.com>
+References: <4353.132.70.1.75.1249546446.squirrel@webmail.cs.biu.ac.il>
+    <1249548768.32113.68.camel@twins>
+    <1466.77.126.168.195.1249763409.squirrel@webmail.cs.biu.ac.il>
+    <4A7E03B4.8010503@redhat.com>
+    <1085.77.126.199.142.1249842457.squirrel@webmail.cs.biu.ac.il>
+    <4A803F62.2050006@redhat.com>
+    <1703.77.126.199.142.1249923286.squirrel@webmail.cs.biu.ac.il>
+    <4A805FFF.7090805@redhat.com>
+    <2844.77.125.85.118.1249966912.squirrel@webmail.cs.biu.ac.il>
+    <4A8B40DD.6020304@redhat.com>
+Date: Wed, 19 Aug 2009 10:41:53 +0300 (IDT)
+Subject: FW: New patch for Linux
+From: "Yair Wiseman" <wiseman@macs.biu.ac.il>
+Reply-To: wiseman@macs.biu.ac.il
 MIME-Version: 1.0
-In-Reply-To: <18eba5a10908190014q6f903399y30478b4c0a7f256b@mail.gmail.com>
-References: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com>
-	 <20090819114408.ab9c8a78.minchan.kim@barrios-desktop>
-	 <4A8B7508.4040001@vflare.org>
-	 <20090819135105.e6b69a8d.minchan.kim@barrios-desktop>
-	 <18eba5a10908182324x45261d06y83e0f042e9ee6b20@mail.gmail.com>
-	 <20090819154958.18a34aa5.minchan.kim@barrios-desktop>
-	 <18eba5a10908190014q6f903399y30478b4c0a7f256b@mail.gmail.com>
-Date: Wed, 19 Aug 2009 16:29:35 +0900
-Message-ID: <28c262360908190029j1153b00fva11c4a215d5932d6@mail.gmail.com>
-Subject: Re: abnormal OOM killer message
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=windows-1255
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Chungki woo <chungki.woo@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, ngupta@vflare.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, riel@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: moreuben@gmail.com, Rik van Riel <riel@redhat.com>
+Cc: wiseman@macs.biu.ac.il, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 4:14 PM, Chungki woo<chungki.woo@gmail.com> wrote:
->> You means your pages with 79M are swap out in compcache's reserved
->> memory?
+Hi Moses,
+
+How are you doing?
+
+I had a discussion with Rik van Riel from Linux about the patch you had written for your MSc thesis. Rik would be
+happy to have a more update version than we have at:
+http://u.cs.biu.ac.il/~wiseman/moses.html
+
+Can you please send us such a version?
+
+Thanks,
+
+-Yair.
+-------------------------------------------------------------------------
+Dr. Yair Wiseman, Ph.D.
+Computer Science Department
+Bar-Ilan University
+Ramat-Gan 52900
+Israel
+Tel: 972-3-5317015
+Fax: 972-3-7384056
+http://www.cs.biu.ac.il/~wiseman
+
+>From the keyboard of Rik van Riel
+> Yair Wiseman wrote:
+>> We discussed interactive processes in sections 4.5 and 5.5 of our paper and show that it works well, so there is no
+>> problem to have even slice time of one minute.
 >
-> Compcache don't have reserved memory.
-> When it needs memory, and then allocate memory.
-
-Okay. reserved is not important. :)
-My point was that 79M with pages are swap out in compcache swap device ?
-Is the number real ?
-Can we believe it ?
-
+> Makes sense.  Do you, or any of your students or colleagues,
+> have plans to forward port the code to the current upstream
+> kernel?
 >
-> Thanks.
+> --
+> All rights reversed.
 >
 
-
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
