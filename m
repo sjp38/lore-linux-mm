@@ -1,190 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 13A526B005A
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 22:45:11 -0400 (EDT)
-Received: by pxi33 with SMTP id 33so2173845pxi.11
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 19:45:15 -0700 (PDT)
-Date: Wed, 19 Aug 2009 11:44:08 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: abnormal OOM killer message
-Message-Id: <20090819114408.ab9c8a78.minchan.kim@barrios-desktop>
-In-Reply-To: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com>
-References: <18eba5a10908181841t145e4db1wc2daf90f7337aa6e@mail.gmail.com>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DA4BF6B004D
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2009 23:29:29 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id c3so1624065ana.26
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2009 20:29:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090818082247.GA31469@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172324130.32114@casper.infradead.org>
+	 <20090818082247.GA31469@csn.ul.ie>
+Date: Wed, 19 Aug 2009 15:29:27 +1200
+Message-ID: <202cde0e0908182029k73292ee9k6d2782b40beaaa1c@mail.gmail.com>
+Subject: Re: [PATCH 1/3]HTLB mapping for drivers. Alloc functions & some
+	export symbols(take 2)
+From: Alexey Korolev <akorolex@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?B?7Jqw7Lap6riw?= <chungki.woo@gmail.com>, Nitin Gupta <ngupta@vflare.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, riel@redhat.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, Mel Gorman <mel@csn.ul.ie>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Aug 2009 10:41:51 +0900
-i??i?(C)e,? <chungki.woo@gmail.com> wrote:
+Hi,
 
-> Hi all~
-> I have got a log message with OOM below. I don't know why this
-> phenomenon was happened.
-> When direct reclaim routine(try_to_free_pages) in __alloc_pages which
-> allocates kernel memory was failed,
-> one last chance is given to allocate memory before OOM routine is executed.
-> And that time, allocator uses ALLOC_WMARK_HIGH to limit watermark.
-> Then, zone_watermark_ok function test this value with current memory
-> state and decide 'can allocate' or 'cannot allocate'.
-> 
-> Here is some kernel source code in __alloc_pages function to understand easily.
-> Kernel version is 2.6.18 for arm11. Memory size is 32Mbyte. And I use
-> compcache(0.5.2).
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------
->         ...
->         did_some_progress = try_to_free_pages(zonelist->zones,
-> gfp_mask);            <== direct page reclaim
-> 
->         p->reclaim_state = NULL;
->         p->flags &= ~PF_MEMALLOC;
-> 
->         cond_resched();
-> 
->         if (likely(did_some_progress)) {
->                 page = get_page_from_freelist(gfp_mask, order,
->                                                 zonelist, alloc_flags);
->                 if (page)
->                         goto got_pg;
->         } else if ((gfp_mask & __GFP_FS) && !(gfp_mask &
-> __GFP_NORETRY)) {    <== when fail to reclaim
->                 /*
->                  * Go through the zonelist yet one more time, keep
->                  * very high watermark here, this is only to catch
->                  * a parallel oom killing, we must fail if we're still
->                  * under heavy pressure.
->                  */
->                 page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL,
-> order,  <== this is last chance
->                                 zonelist,
-> ALLOC_WMARK_HIGH|ALLOC_CPUSET);               <== uses
-> ALLOC_WMARK_HIGH
->                 if (page)
->                         goto got_pg;
-> 
->                 out_of_memory(zonelist, gfp_mask, order);
->                 goto restart;
->         }
->         ...
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------
-> 
-> In my case, you can see free pages(6804KB) is much more higher than
-> high watermark value(1084KB) in OOM message.
-> And order of allocating is also zero.(order=0)
-> In buddy system, the number of 4kbyte page is 867.
-> So, I think OOM can't be happend.
-> 
+>> =C2=A0 * Use a helper variable to find the next node and then
+>> =C2=A0 * copy it back to hugetlb_next_nid afterwards:
+>> =C2=A0 * otherwise there's a window in which a racer might
+>
+> I haven't read through the whole patchset properly yet, but at this
+> point it's looking like you are going to expect drivers to create a file
+> and then manually populate the page cache with hugepages they allocate
+> directly from here. That would appear to put a large burden of VM
+> knowledge upon a device driver author. The patch would also appear to
+> expose a lot of hugetlbfs internals.
+>
+> Have you looked at Eric Munson's patches on the implementation of
+> MAP_HUGETLB in the patch set
+>
+> http://marc.info/?l=3Dlinux-mm&m=3D125025895815115&w=3D2
+>
+> ?
+Right. Simplicity is very important here and I just haven't find a
+good way to make it simpler yet.
+Thanks for the link neat approach is a thing I really need now. I've
+studied the code and it has quite nice approach which could be
+helpful.
 
-Yes. I think so. 
+>
+> In that patchset, it was a very small number of changes required to
+> expose a mapping private or shared to userspace.
+>
+> Would it make more sense to take an approach like that and instead add
+> an additional helper within hugetlbfs (instead of the driver) that would
+> return a pinned page at a given offset within a hugetlbfs file?
+>
+I believe it possible to to have a helper. The main problem here is
+this: we need to
+have a file which provides hugetlb mapping and which is not a part of
+Hugetlbfs. So
+the file does not have hugetlbfs file operations.It means it is
+necessary to call somehow
+hugetlb_get_unmapped_area & hugetlbfs_file_mmap for the file on
+hugetlbfs associated
+with the file related to device.
 
-In that case, even we can also avoid zone defensive algorithm.
+Probably, if we have non-hugetlbfs file and want to have huge pages
+mappings it could make sense to have this approach:
 
-> How do you think about this?
-> Is this side effect of compcache?
+add the following lines to mmap.c/get_unmapped_area function:
 
-I don't know compcache well.
-But I doubt it. Let's Cced Nitin. 
+         get_area =3D current->mm->get_unmapped_area;
+         if (file && file->f_op && file->f_op->get_unmapped_area)
+                get_area =3D file->f_op->get_unmapped_area;
++       /* Call hugetlb_get_unmapped_area If non hugetlbfs file has
+huge page mapping */
++       if (file && mapping_hugetlb(file->f_mapping) &&
+!is_file_hugepages(file))
++               get_area =3D hugetlb_get_unmapped_area;
+        addr =3D get_area(file, addr, len, pgoff, flags);
+        if (IS_ERR_VALUE(addr))
+                return addr;
 
-> Please explain me.
-> Thanks.
-> 
-> This is OOM message.
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------
-> oom-killer: gfp_mask=0x201d2, order=0       (==> __GFP_HIGHMEM,
-> __GFP_WAIT, __GFP_IO, __GFP_FS, __GFP_COLD)
-> [<c00246c0>] (dump_stack+0x0/0x14) from [<c006ba68>] (out_of_memory+0x38/0x1d0)
-> [<c006ba30>] (out_of_memory+0x0/0x1d0) from [<c006d4cc>]
-> (__alloc_pages+0x244/0x2c4)
-> [<c006d288>] (__alloc_pages+0x0/0x2c4) from [<c006f054>]
-> (__do_page_cache_readahead+0x12c/0x2d4)
-> [<c006ef28>] (__do_page_cache_readahead+0x0/0x2d4) from [<c006f594>]
-> (do_page_cache_readahead+0x60/0x64)
-> [<c006f534>] (do_page_cache_readahead+0x0/0x64) from [<c006ac24>]
-> (filemap_nopage+0x1b4/0x438)
->  r7 = C0D8C320  r6 = C1422000  r5 = 00000001  r4 = 00000000
-> [<c006aa70>] (filemap_nopage+0x0/0x438) from [<c0075684>]
-> (__handle_mm_fault+0x398/0xb84)
-> [<c00752ec>] (__handle_mm_fault+0x0/0xb84) from [<c0027614>]
-> (do_page_fault+0xe8/0x224)
-> [<c002752c>] (do_page_fault+0x0/0x224) from [<c0027900>]
-> (do_DataAbort+0x3c/0xa0)
-> [<c00278c4>] (do_DataAbort+0x0/0xa0) from [<c001fde0>]
-> (ret_from_exception+0x0/0x10)
->  r8 = BE9894B8  r7 = 00000078  r6 = 00000130  r5 = 00000000
->  r4 = FFFFFFFF
-> Mem-info:
-> DMA per-cpu:
-> cpu 0 hot: high 6, batch 1 used:0
-> cpu 0 cold: high 2, batch 1 used:1
-> DMA32 per-cpu: empty
-> Normal per-cpu: empty
-> HighMem per-cpu: empty
-> Free pages:        6804kB (0kB HighMem)
-> Active:101 inactive:1527 dirty:0 writeback:0 unstable:0 free:1701
-> slab:936 mapped:972 pagetables:379
-> DMA free:6804kB min:724kB low:904kB high:1084kB active:404kB
-> inactive:6108kB present:32768kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> DMA32 free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB
-> present:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> Normal free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB
-> present:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> HighMem free:0kB min:128kB low:128kB high:128kB active:0kB
-> inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0 0
-> DMA: 867*4kB 273*8kB 36*16kB 2*32kB 0*64kB 0*128kB 0*256kB 1*512kB
-> 0*1024kB 0*2048kB 0*4096kB = 6804kB
-> DMA32: empty
-> Normal: empty
-> HighMem: empty
-> Swap cache: add 4597, delete 4488, find 159/299, race 0+0
-> Free swap  = 67480kB
-> Total swap = 81916kB
+add the following lines to mmap.c/mmap_region function:
+                }
+                vma->vm_file =3D file;
+                get_file(file);
+                error =3D file->f_op->mmap(file, vma);
+                if (error)
+                        goto unmap_and_free_vma;
++               /*
++                * If non non hugetlbfs file has huge page mapping
+mmap must be called twice
++                * first time for proceeding file->fops->mmap second
+time we must call hugetlbfs mmap
++               */
++               if (mapping_hugetlb(file->f_mapping) &&
+!is_file_hugepages(file))
++                       error =3Dhugetlbfs_file_mmap(file, vma);
++                if (error)
++                        goto unmap_and_free_vma;
 
-In addition, total swap : 79M?? 
+                if (vm_flags & VM_EXECUTABLE)
 
-> Free swap:        67480kB
-> 8192 pages of RAM
-> 1960 free pages
-> 978 reserved pages
-> 936 slab pages
-> 1201 pages shared
-> 109 pages swap cached
+Where mapping_hugetlb is
++static inline int mapping_hugetlb(struct address_space *mapping)
++{
++	if (likely(mapping))
++		return test_bit(AS_HUGETLB, &mapping->flags);
++	return 0;
++}
++
+In addition we also need to introduce hugetlbfs_sb_info getting macro
+to avoid issues in hugetlb_get_quota/hugetlb_put_quota functions.
 
-free page : 6M
-page table + slab + reserved : 8M
-active + inacive : 6M
+In this case a driver just need to announce that file has huge page
+mapping (mapping_set_hugetlb(file->f_mapping)), add some pages to page
+cache and set-up proper VM flag in flie->f_ops->mmap.
 
-Where is 12M? 
+Do you see anything really important being missed in this approach?
 
-> Out of Memory: Kill process 47 (rc.local) score 849737 and children.
-> Out of memory: Killed process 49 (CTaskManager).
-> Killed
-> SW image is stopped..
-> script in BOOT is stopped...
-> Starting pid 348, console /dev/ttyS1: '/bin/sh'
-> -sh: id: not found
-> #
-> -------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-As you mentioned, your memory size is 32M and you use compcache.
-How is swap size bigger than your memory size ?
-Is the result of compression of swap pages ? 
-Nitin. Could you answer the question?
-
-I can't imagine whey order 0 allocation failed although there are
-many pages in buddy. 
-
-What do you mm guys think about this problem ?
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
