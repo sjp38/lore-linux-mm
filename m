@@ -1,38 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 26E5C6B004F
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 11:13:17 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
-Date: Thu, 20 Aug 2009 17:10:31 +0200
-References: <cover.1250187913.git.mst@redhat.com> <200908201631.37285.arnd@arndb.de> <20090820144256.GB8338@redhat.com>
-In-Reply-To: <20090820144256.GB8338@redhat.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200908201710.31723.arnd@arndb.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 018006B004D
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 14:42:52 -0400 (EDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: [PATCH] mm/vmscan: rename zone_nr_pages() to zone_lru_nr_pages()
+Date: Thu, 20 Aug 2009 11:42:54 -0700
+Message-Id: <1250793774-7969-1-git-send-email-macli@brc.ubc.ca>
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vincent Li <macli@brc.ubc.ca>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 20 August 2009, Michael S. Tsirkin wrote:
-> 
-> > The errors from the socket (or chardev, as that was the
-> > start of the argument) should still fit into the categories
-> > that I mentioned, either they can be handled by the host
-> > kernel, or they are fatal.
-> 
-> Hmm, are you sure? Imagine a device going away while socket is bound to
-> it.  You get -ENXIO. It's not fatal in a sense that you can bind the
-> socket to another device and go on, right?
+Name zone_nr_pages can be mis-read as zone's (total) number pages, but it actually returns
+zone's LRU list number pages.
 
-Right. Not fatal in that sense, but fatal in the sense that I
-can no longer transmit other frames until you recover. I think
-we both meant the same here.
+I know reading the code would clear the name confusion, want to know if patch making sense.
+ 
+Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+---
+ mm/vmscan.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
 
-	Arnd <><
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 00596b9..9a55cb3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -148,7 +148,7 @@ static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+ 	return &zone->reclaim_stat;
+ }
+ 
+-static unsigned long zone_nr_pages(struct zone *zone, struct scan_control *sc,
++static unsigned long zone_lru_nr_pages(struct zone *zone, struct scan_control *sc,
+ 				   enum lru_list lru)
+ {
+ 	if (!scanning_global_lru(sc))
+@@ -1479,10 +1479,10 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
+ 	unsigned long ap, fp;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+-	anon  = zone_nr_pages(zone, sc, LRU_ACTIVE_ANON) +
+-		zone_nr_pages(zone, sc, LRU_INACTIVE_ANON);
+-	file  = zone_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
+-		zone_nr_pages(zone, sc, LRU_INACTIVE_FILE);
++	anon  = zone_lru_nr_pages(zone, sc, LRU_ACTIVE_ANON) +
++		zone_lru_nr_pages(zone, sc, LRU_INACTIVE_ANON);
++	file  = zone_lru_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
++		zone_lru_nr_pages(zone, sc, LRU_INACTIVE_FILE);
+ 
+ 	if (scanning_global_lru(sc)) {
+ 		free  = zone_page_state(zone, NR_FREE_PAGES);
+@@ -1590,7 +1590,7 @@ static void shrink_zone(int priority, struct zone *zone,
+ 		int file = is_file_lru(l);
+ 		unsigned long scan;
+ 
+-		scan = zone_nr_pages(zone, sc, l);
++		scan = zone_lru_nr_pages(zone, sc, l);
+ 		if (priority || noswap) {
+ 			scan >>= priority;
+ 			scan = (scan * percent[file]) / 100;
+-- 
+1.6.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
