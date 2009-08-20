@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E6B8F6B004F
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 00:08:54 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7K48svO007372
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 20 Aug 2009 13:08:54 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0355C45DE56
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 13:08:54 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BDC1245DE4E
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 13:08:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9968D1DB8062
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 13:08:53 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FAB81DB803F
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 13:08:53 +0900 (JST)
-Date: Thu, 20 Aug 2009 13:06:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5416B004F
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 01:17:07 -0400 (EDT)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7K5BU9R028770
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 10:41:30 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7K5Gx7R1847540
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 10:47:01 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7K5GwJt012030
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 15:16:58 +1000
+Date: Thu, 20 Aug 2009 10:46:56 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH -v2] mm: do batched scans for mem_cgroup
-Message-Id: <20090820130655.7b5e460c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20090820051656.GB26265@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090820024929.GA19793@localhost> <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com> <20090820040533.GA27540@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 In-Reply-To: <20090820040533.GA27540@localhost>
-References: <20090820024929.GA19793@localhost>
-	<20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090820040533.GA27540@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Aug 2009 12:05:33 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+* Wu Fengguang <fengguang.wu@intel.com> [2009-08-20 12:05:33]:
 
 > On Thu, Aug 20, 2009 at 11:13:47AM +0800, KAMEZAWA Hiroyuki wrote:
 > > On Thu, 20 Aug 2009 10:49:29 +0800
@@ -79,11 +70,6 @@ Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
 > Good idea, full patch updated with your signed-off-by :)
 > 
-looks nice :)
-thanks,
--Kame
-
-
 > Thanks,
 > Fengguang
 > ---
@@ -109,105 +95,15 @@ thanks,
 > 
 > It could possibly be a problem for some tiny mem_cgroup (which may be
 > _full_ scanned too much times in order to accumulate up nr_saved_scan).
-> 
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Minchan Kim <minchan.kim@gmail.com>
-> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/mmzone.h |    6 +++++-
->  mm/page_alloc.c        |    2 +-
->  mm/vmscan.c            |   20 +++++++++++---------
->  3 files changed, 17 insertions(+), 11 deletions(-)
-> 
-> --- linux.orig/include/linux/mmzone.h	2009-07-30 10:45:15.000000000 +0800
-> +++ linux/include/linux/mmzone.h	2009-08-20 11:51:08.000000000 +0800
-> @@ -269,6 +269,11 @@ struct zone_reclaim_stat {
->  	 */
->  	unsigned long		recent_rotated[2];
->  	unsigned long		recent_scanned[2];
-> +
-> +	/*
-> +	 * accumulated for batching
-> +	 */
-> +	unsigned long		nr_saved_scan[NR_LRU_LISTS];
->  };
->  
->  struct zone {
-> @@ -323,7 +328,6 @@ struct zone {
->  	spinlock_t		lru_lock;	
->  	struct zone_lru {
->  		struct list_head list;
-> -		unsigned long nr_saved_scan;	/* accumulated for batching */
->  	} lru[NR_LRU_LISTS];
->  
->  	struct zone_reclaim_stat reclaim_stat;
-> --- linux.orig/mm/vmscan.c	2009-08-20 11:48:46.000000000 +0800
-> +++ linux/mm/vmscan.c	2009-08-20 12:00:55.000000000 +0800
-> @@ -1521,6 +1521,7 @@ static void shrink_zone(int priority, st
->  	enum lru_list l;
->  	unsigned long nr_reclaimed = sc->nr_reclaimed;
->  	unsigned long swap_cluster_max = sc->swap_cluster_max;
-> +	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
->  	int noswap = 0;
->  
->  	/* If we have no swap space, do not bother scanning anon pages. */
-> @@ -1540,12 +1541,9 @@ static void shrink_zone(int priority, st
->  			scan >>= priority;
->  			scan = (scan * percent[file]) / 100;
->  		}
-> -		if (scanning_global_lru(sc))
-> -			nr[l] = nr_scan_try_batch(scan,
-> -						  &zone->lru[l].nr_saved_scan,
-> -						  swap_cluster_max);
-> -		else
-> -			nr[l] = scan;
-> +		nr[l] = nr_scan_try_batch(scan,
-> +					  &reclaim_stat->nr_saved_scan[l],
-> +					  swap_cluster_max);
->  	}
->  
->  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> @@ -2128,6 +2126,7 @@ static void shrink_all_zones(unsigned lo
->  {
->  	struct zone *zone;
->  	unsigned long nr_reclaimed = 0;
-> +	struct zone_reclaim_stat *reclaim_stat;
->  
->  	for_each_populated_zone(zone) {
->  		enum lru_list l;
-> @@ -2144,11 +2143,14 @@ static void shrink_all_zones(unsigned lo
->  						l == LRU_ACTIVE_FILE))
->  				continue;
->  
-> -			zone->lru[l].nr_saved_scan += (lru_pages >> prio) + 1;
-> -			if (zone->lru[l].nr_saved_scan >= nr_pages || pass > 3) {
-> +			reclaim_stat = get_reclaim_stat(zone, sc);
-> +			reclaim_stat->nr_saved_scan[l] +=
-> +						(lru_pages >> prio) + 1;
-> +			if (reclaim_stat->nr_saved_scan[l]
-> +						>= nr_pages || pass > 3) {
->  				unsigned long nr_to_scan;
->  
-> -				zone->lru[l].nr_saved_scan = 0;
-> +				reclaim_stat->nr_saved_scan[l] = 0;
->  				nr_to_scan = min(nr_pages, lru_pages);
->  				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
->  								sc, prio);
-> --- linux.orig/mm/page_alloc.c	2009-08-20 11:57:54.000000000 +0800
-> +++ linux/mm/page_alloc.c	2009-08-20 11:58:39.000000000 +0800
-> @@ -3716,7 +3716,7 @@ static void __paginginit free_area_init_
->  		zone_pcp_init(zone);
->  		for_each_lru(l) {
->  			INIT_LIST_HEAD(&zone->lru[l].list);
-> -			zone->lru[l].nr_saved_scan = 0;
-> +			zone->reclaim_stat.nr_saved_scan[l] = 0;
->  		}
->  		zone->reclaim_stat.recent_rotated[0] = 0;
->  		zone->reclaim_stat.recent_rotated[1] = 0;
-> 
+>
+
+Looks good to me, how did you test it?
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+ 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
