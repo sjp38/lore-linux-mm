@@ -1,34 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2669F6B004F
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 06:32:47 -0400 (EDT)
-Message-ID: <4A8D26BF.8090806@redhat.com>
-Date: Thu, 20 Aug 2009 18:34:39 +0800
-From: Amerigo Wang <amwang@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id F05816B004F
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 07:01:24 -0400 (EDT)
+Received: by yxe14 with SMTP id 14so6483953yxe.12
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2009 04:01:24 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [Patch] proc: drop write permission on 'timer_list' and	'slabinfo'
-References: <20090817094822.GA17838@elte.hu> <1250502847.5038.16.camel@penberg-laptop> <alpine.DEB.1.10.0908171228300.16267@gentwo.org> <4A8986BB.80409@cs.helsinki.fi> <alpine.DEB.1.10.0908171240370.16267@gentwo.org> <4A8A0B0D.6080400@redhat.com> <4A8A0B14.8040700@cn.fujitsu.com> <4A8A1B2E.20505@redhat.com> <20090818120032.GA22152@localhost> <4A8B652E.40905@redhat.com> <20090819023737.GA17710@localhost> <4A8BD67F.8020007@redhat.com> <4A8C48AB.1030700@cs.helsinki.fi>
-In-Reply-To: <4A8C48AB.1030700@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090820040533.GA27540@localhost>
+References: <20090820024929.GA19793@localhost>
+	 <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090820040533.GA27540@localhost>
+Date: Thu, 20 Aug 2009 20:01:21 +0900
+Message-ID: <28c262360908200401t41c03ad3n114b24e03b61de08@mail.gmail.com>
+Subject: Re: [PATCH -v2] mm: do batched scans for mem_cgroup
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Li Zefan <lizf@cn.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@gmail.com>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Matt Mackall <mpm@selenic.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> Amerigo Wang wrote:
->> Pekka, could you please also take the patch attached below? It is 
->> just a trivial coding style fix. And it is based on the my previous 
->> patch.
+Hi, Wu.
+
+On Thu, Aug 20, 2009 at 1:05 PM, Wu Fengguang<fengguang.wu@intel.com> wrote=
+:
+> On Thu, Aug 20, 2009 at 11:13:47AM +0800, KAMEZAWA Hiroyuki wrote:
+>> On Thu, 20 Aug 2009 10:49:29 +0800
+>> Wu Fengguang <fengguang.wu@intel.com> wrote:
+>>
+>> > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=
+=3D1,
+>> > in which case shrink_list() _still_ calls isolate_pages() with the muc=
+h
+>> > larger SWAP_CLUSTER_MAX. =C2=A0It effectively scales up the inactive l=
+ist
+>> > scan rate by up to 32 times.
+>> >
+>> > For example, with 16k inactive pages and DEF_PRIORITY=3D12, (16k >> 12=
+)=3D4.
+>> > So when shrink_zone() expects to scan 4 pages in the active/inactive
+>> > list, it will be scanned SWAP_CLUSTER_MAX=3D32 pages in effect.
+>> >
+>> > The accesses to nr_saved_scan are not lock protected and so not 100%
+>> > accurate, however we can tolerate small errors and the resulted small
+>> > imbalanced scan rates between zones.
+>> >
+>> > This batching won't blur up the cgroup limits, since it is driven by
+>> > "pages reclaimed" rather than "pages scanned". When shrink_zone()
+>> > decides to cancel (and save) one smallish scan, it may well be called
+>> > again to accumulate up nr_saved_scan.
+>> >
+>> > It could possibly be a problem for some tiny mem_cgroup (which may be
+>> > _full_ scanned too much times in order to accumulate up nr_saved_scan)=
+.
+>> >
+>> > CC: Rik van Riel <riel@redhat.com>
+>> > CC: Minchan Kim <minchan.kim@gmail.com>
+>> > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+>> > ---
+>>
+>> Hmm, how about this ?
+>> =3D=3D
+>> Now, nr_saved_scan is tied to zone's LRU.
+>> But, considering how vmscan works, it should be tied to reclaim_stat.
+>>
+>> By this, memcg can make use of nr_saved_scan information seamlessly.
 >
-> The last hunk was already in slab.git because I fixed your patch up by 
-> hand. I applied the rest but can you please send proper patches in the 
-> future? That is, no attachments and a "git am" friendly subject line. 
-> Thanks!
+> Good idea, full patch updated with your signed-off-by :)
+>
+> Thanks,
+> Fengguang
+> ---
+> mm: do batched scans for mem_cgroup
+>
+> For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=3D1,
+> in which case shrink_list() _still_ calls isolate_pages() with the much
+> larger SWAP_CLUSTER_MAX. =C2=A0It effectively scales up the inactive list
+> scan rate by up to 32 times.
 
-Nice. Thanks!
+Yes. It can scan 32 times pages in only inactive list, not active list.
 
+> For example, with 16k inactive pages and DEF_PRIORITY=3D12, (16k >> 12)=
+=3D4.
+> So when shrink_zone() expects to scan 4 pages in the active/inactive
+> list, it will be scanned SWAP_CLUSTER_MAX=3D32 pages in effect.
+
+Active list scan would be scanned in 4,  inactive list  is 32.
+
+>
+> The accesses to nr_saved_scan are not lock protected and so not 100%
+> accurate, however we can tolerate small errors and the resulted small
+> imbalanced scan rates between zones.
+
+Yes.
+
+> This batching won't blur up the cgroup limits, since it is driven by
+> "pages reclaimed" rather than "pages scanned". When shrink_zone()
+> decides to cancel (and save) one smallish scan, it may well be called
+> again to accumulate up nr_saved_scan.
+
+You mean nr_scan_try_batch logic ?
+But that logic works for just global reclaim?
+Now am I missing something?
+
+Could you elaborate more? :)
+
+> It could possibly be a problem for some tiny mem_cgroup (which may be
+> _full_ scanned too much times in order to accumulate up nr_saved_scan).
+>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Minchan Kim <minchan.kim@gmail.com>
+> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+> =C2=A0include/linux/mmzone.h | =C2=A0 =C2=A06 +++++-
+> =C2=A0mm/page_alloc.c =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 =C2=A02 +-
+> =C2=A0mm/vmscan.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 20 ++=
++++++++++---------
+> =C2=A03 files changed, 17 insertions(+), 11 deletions(-)
+>
+> --- linux.orig/include/linux/mmzone.h =C2=A0 2009-07-30 10:45:15.00000000=
+0 +0800
+> +++ linux/include/linux/mmzone.h =C2=A0 =C2=A0 =C2=A0 =C2=A02009-08-20 11=
+:51:08.000000000 +0800
+> @@ -269,6 +269,11 @@ struct zone_reclaim_stat {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 recent_rotated[2];
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 recent_scanned[2];
+> +
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* accumulated for batching
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 unsigned long =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 n=
+r_saved_scan[NR_LRU_LISTS];
+> =C2=A0};
+>
+> =C2=A0struct zone {
+> @@ -323,7 +328,6 @@ struct zone {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0spinlock_t =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0lru_lock;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone_lru {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct list_head l=
+ist;
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long nr_saved=
+_scan; =C2=A0 =C2=A0/* accumulated for batching */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0} lru[NR_LRU_LISTS];
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone_reclaim_stat reclaim_stat;
+> --- linux.orig/mm/vmscan.c =C2=A0 =C2=A0 =C2=A02009-08-20 11:48:46.000000=
+000 +0800
+> +++ linux/mm/vmscan.c =C2=A0 2009-08-20 12:00:55.000000000 +0800
+> @@ -1521,6 +1521,7 @@ static void shrink_zone(int priority, st
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0enum lru_list l;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_reclaimed =3D sc->nr_reclaime=
+d;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long swap_cluster_max =3D sc->swap_cl=
+uster_max;
+> + =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat =3D get_rec=
+laim_stat(zone, sc);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0int noswap =3D 0;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* If we have no swap space, do not bother sca=
+nning anon pages. */
+> @@ -1540,12 +1541,9 @@ static void shrink_zone(int priority, st
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0scan >>=3D priority;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0scan =3D (scan * percent[file]) / 100;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (scanning_global_lr=
+u(sc))
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 nr[l] =3D nr_scan_try_batch(scan,
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 &zone->lru[l].nr_saved_scan,
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 swap_cluster_max);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 nr[l] =3D scan;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 nr[l] =3D nr_scan_try_=
+batch(scan,
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 &recl=
+aim_stat->nr_saved_scan[l],
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 swap_=
+cluster_max);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_=
+FILE] ||
+> @@ -2128,6 +2126,7 @@ static void shrink_all_zones(unsigned lo
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0struct zone *zone;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_reclaimed =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 struct zone_reclaim_stat *reclaim_stat;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0for_each_populated_zone(zone) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0enum lru_list l;
+> @@ -2144,11 +2143,14 @@ static void shrink_all_zones(unsigned lo
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0l =3D=3D LRU_ACTIVE_FILE))
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0continue;
+>
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 zone->lru[l].nr_saved_scan +=3D (lru_pages >> prio) + 1;
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 if (zone->lru[l].nr_saved_scan >=3D nr_pages || pass > 3) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 reclaim_stat =3D get_reclaim_stat(zone, sc);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 reclaim_stat->nr_saved_scan[l] +=3D
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 (lru_pages >> prio) + 1;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 if (reclaim_stat->nr_saved_scan[l]
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 >=3D nr_pages || pass > 3) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long nr_to_scan;
+>
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 zone->lru[l].nr_saved_scan =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 reclaim_stat->nr_saved_scan[l] =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_to_scan =3D min(nr_pages, lru_page=
+s);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0nr_reclaimed +=3D shrink_list(l, nr_t=
+o_scan, zone,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0sc, prio);
+> --- linux.orig/mm/page_alloc.c =C2=A02009-08-20 11:57:54.000000000 +0800
+> +++ linux/mm/page_alloc.c =C2=A0 =C2=A0 =C2=A0 2009-08-20 11:58:39.000000=
+000 +0800
+> @@ -3716,7 +3716,7 @@ static void __paginginit free_area_init_
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone_pcp_init(zone=
+);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0for_each_lru(l) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0INIT_LIST_HEAD(&zone->lru[l].list);
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 zone->lru[l].nr_saved_scan =3D 0;
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 zone->reclaim_stat.nr_saved_scan[l] =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone->reclaim_stat=
+.recent_rotated[0] =3D 0;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0zone->reclaim_stat=
+.recent_rotated[1] =3D 0;
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
