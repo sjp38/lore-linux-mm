@@ -1,303 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 442266B004F
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 08:32:23 -0400 (EDT)
-Date: Thu, 20 Aug 2009 20:32:06 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH -v2] mm: do batched scans for mem_cgroup
-Message-ID: <20090820123206.GA9770@localhost>
-References: <20090820024929.GA19793@localhost> <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com> <20090820040533.GA27540@localhost> <28c262360908200401t41c03ad3n114b24e03b61de08@mail.gmail.com> <20090820114933.GB7359@localhost> <28c262360908200513y3fee675do4e1f0204ffb8df63@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 146536B004F
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 09:13:30 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
+Date: Thu, 20 Aug 2009 15:10:54 +0200
+References: <cover.1250187913.git.mst@redhat.com> <200908191727.07681.arnd@arndb.de> <20090820083155.GB5448@redhat.com>
+In-Reply-To: <20090820083155.GB5448@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <28c262360908200513y3fee675do4e1f0204ffb8df63@mail.gmail.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200908201510.54482.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 20, 2009 at 08:13:59PM +0800, Minchan Kim wrote:
-> On Thu, Aug 20, 2009 at 8:49 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> > On Thu, Aug 20, 2009 at 07:01:21PM +0800, Minchan Kim wrote:
-> >> Hi, Wu.
-> >>
-> >> On Thu, Aug 20, 2009 at 1:05 PM, Wu Fengguang<fengguang.wu@intel.com> wrote:
-> >> > On Thu, Aug 20, 2009 at 11:13:47AM +0800, KAMEZAWA Hiroyuki wrote:
-> >> >> On Thu, 20 Aug 2009 10:49:29 +0800
-> >> >> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> >> >>
-> >> >> > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
-> >> >> > in which case shrink_list() _still_ calls isolate_pages() with the much
-> >> >> > larger SWAP_CLUSTER_MAX. A It effectively scales up the inactive list
-> >> >> > scan rate by up to 32 times.
-> >> >> >
-> >> >> > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
-> >> >> > So when shrink_zone() expects to scan 4 pages in the active/inactive
-> >> >> > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
-> >> >> >
-> >> >> > The accesses to nr_saved_scan are not lock protected and so not 100%
-> >> >> > accurate, however we can tolerate small errors and the resulted small
-> >> >> > imbalanced scan rates between zones.
-> >> >> >
-> >> >> > This batching won't blur up the cgroup limits, since it is driven by
-> >> >> > "pages reclaimed" rather than "pages scanned". When shrink_zone()
-> >> >> > decides to cancel (and save) one smallish scan, it may well be called
-> >> >> > again to accumulate up nr_saved_scan.
-> >> >> >
-> >> >> > It could possibly be a problem for some tiny mem_cgroup (which may be
-> >> >> > _full_ scanned too much times in order to accumulate up nr_saved_scan).
-> >> >> >
-> >> >> > CC: Rik van Riel <riel@redhat.com>
-> >> >> > CC: Minchan Kim <minchan.kim@gmail.com>
-> >> >> > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> >> >> > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >> >> > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> >> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> >> >> > ---
-> >> >>
-> >> >> Hmm, how about this ?
-> >> >> ==
-> >> >> Now, nr_saved_scan is tied to zone's LRU.
-> >> >> But, considering how vmscan works, it should be tied to reclaim_stat.
-> >> >>
-> >> >> By this, memcg can make use of nr_saved_scan information seamlessly.
-> >> >
-> >> > Good idea, full patch updated with your signed-off-by :)
-> >> >
-> >> > Thanks,
-> >> > Fengguang
-> >> > ---
-> >> > mm: do batched scans for mem_cgroup
-> >> >
-> >> > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
-> >> > in which case shrink_list() _still_ calls isolate_pages() with the much
-> >> > larger SWAP_CLUSTER_MAX. A It effectively scales up the inactive list
-> >> > scan rate by up to 32 times.
-> >>
-> >> Yes. It can scan 32 times pages in only inactive list, not active list.
-> >
-> > Yes and no ;)
-> >
-> > inactive anon list over scanned => inactive_anon_is_low() == TRUE
-> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A => shrink_active_list()
-> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A => active anon list over scanned
+On Thursday 20 August 2009, Michael S. Tsirkin wrote:
+> On Wed, Aug 19, 2009 at 05:27:07PM +0200, Arnd Bergmann wrote:
+> > On Wednesday 19 August 2009, Michael S. Tsirkin wrote:
+> > > On Wed, Aug 19, 2009 at 03:46:44PM +0200, Arnd Bergmann wrote:
+> > > > On Wednesday 19 August 2009, Michael S. Tsirkin wrote:
+> > > >
+> > > > Leaving that aside for now, you could replace VHOST_NET_SET_SOCKET,
+> > > > VHOST_SET_OWNER, VHOST_RESET_OWNER
+> > > 
+> > > SET/RESET OWNER is still needed: otherwise if you share a descriptor
+> > > with another process, it can corrupt your memory.
+> > 
+> > How? The point of using user threads is that you only ever access the
+> > address space of the thread that called the ioctl.
 > 
-> Why inactive anon list is overscanned in case mem_cgroup ?
+> Think about this example with processes A and B sharing an fd:
+> A does SET_USED_ADDRESS
+> B does SET_USED_ADDRESS
+> A does VHOST_NET_SPLICE
+> See how stuff gets written into a random place in memory of A?
+
+Yes, I didn't think of that. It doesn't seem like a big problem
+though, because it's a clear misuse of the API (I guess your
+current code returns an error for one of the SET_USED_ADDRESS
+ioctls), so I would see it as a classic garbage-in garbage-out
+case.
+
+It may even work in the case that the sharing of the fd resulted
+from a fork, where the address contains the same buffer in both
+processes. I can't think of a reason why you would want to use
+it like that though.
+
+> > Why would I wake up the threads spuriously? Do you mean for
+> > stopping the transmission or something else? I guess a pthread_kill
+> > would be enough for shutting it down.
 > 
-> in shrink_zone,
-> 1) The vm doesn't accumulate nr[l].
-> 2) Below routine store min value to nr_to_scan.
-> nr_to_scan = min(nr[l], swap_cluster_max);
-> ex) if nr[l] = 4, vm calls shrink_active_list with 4 as nr_to_scan.
+> If you kill and restart them you lost priority etc parameters, but maybe.
 
-It's not over scanned here, but at end of shrink_zone():
+If you want to restart it, just send a nonfatal signal (SIGUSR1,
+SIGRTMIN, ...) instead of a SIGKILL.
 
-        /* 
-         * Even if we did not try to evict anon pages at all, we want to
-         * rebalance the anon lru active/inactive ratio.
-         */
-        if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
-                shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
-
-as well as balance_pgdat():
-
-                        /*
-                         * Do some background aging of the anon list, to give
-                         * pages a chance to be referenced before reclaiming.
-                         */
-                        if (inactive_anon_is_low(zone, &sc))
-                                shrink_active_list(SWAP_CLUSTER_MAX, zone,
-                                                        &sc, priority, 0);
-
-So the anon lists are over scanned compared to the active file list.
-
-> So I think overscan doesn't occur in active list.
+> > > More importantly, you lose control of CPU locality.  Simply put, a
+> > > natural threading model in virtualization is one thread per guest vcpu.
+> > > Asking applications to add multiple helper threads just so they can
+> > > block forever is wrong, IMO, as userspace has no idea which CPU
+> > > they should be on, what priority to use, etc.
+> > 
+> > But the kernel also doesn't know this, you get the same problem in
+> > another way. If you have multiple guests running at different priorities,
+> > the kernel will use those priorities to do the more important transfers
+> > first, while with a global workqueue every guest gets the same priority.
 > 
-> > So the end result may be
-> >
-> > - anon inactive A => over scanned
-> > - anon active A  A => over scanned (maybe not as much)
-> > - file inactive A => over scanned
-> > - file active A  A => under scanned (relatively)
-> >
-> >> > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
-> >> > So when shrink_zone() expects to scan 4 pages in the active/inactive
-> >> > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
-> >>
-> >> Active list scan would be scanned in 4, A inactive list A is 32.
-> >
-> > Exactly.
-> >
-> >> >
-> >> > The accesses to nr_saved_scan are not lock protected and so not 100%
-> >> > accurate, however we can tolerate small errors and the resulted small
-> >> > imbalanced scan rates between zones.
-> >>
-> >> Yes.
-> >>
-> >> > This batching won't blur up the cgroup limits, since it is driven by
-> >> > "pages reclaimed" rather than "pages scanned". When shrink_zone()
-> >> > decides to cancel (and save) one smallish scan, it may well be called
-> >> > again to accumulate up nr_saved_scan.
-> >>
-> >> You mean nr_scan_try_batch logic ?
-> >> But that logic works for just global reclaim?
-> >> Now am I missing something?
-> >>
-> >> Could you elaborate more? :)
-> >
-> > Sorry for the confusion. The above paragraph originates from Balbir's
-> > concern:
-> >
-> > A  A  A  A This might be a concern (although not a big ATM), since we can't
-> > A  A  A  A afford to miss limits by much. If a cgroup is near its limit and we
-> > A  A  A  A drop scanning it. We'll have to work out what this means for the end
+> We could create more threads if this becomes a problem. I just think it
+> should be transparent to userspace. Possibly it's useful to look at the
+> packet header as well to decide on priority: this is something userspace
+> can't do.
+
+Being transparent to user space would be nice, I agree. Letting user space
+choose would also be nice, e.g. if you want to distribute eight available
+hardware queue pairs to three guests in a non-obvious way. The
+implementation depends to some degree on how we want to do multiqueue
+RX/TX in virtio-net in the long run. For best cache locality and NUMA
+behaviour, we might want to have one virtqueue per guest CPU and control
+them independently from the host.
+
+Priorities of the packets are dealt with in the packet scheduler for
+external interfaces, I guess that is sufficient. I'm not sure if we
+need to honor the same priorities for guest-to-guest communication,
+my feeling is that we don't need to.
+
+> > You say that the natural model is to have one thread per guest
+> > CPU,
 > 
-> Why does mem_cgroup drops scanning ?
+> Sorry I was not clear. I think userspace should create thread per guest.
+> We can create as many as we need for networking but I think this should
+> be behind the scenes, so userspace shouldn't bother with host CPUs, it
+> will just get it wrong. Think of CPU hotplug, interrupts migrating
+> between CPUs, etc ...
 
-Right, it has no reason to drop scanning, as long as it has not
-reclaimed enough pages.
+Yes, I hope we can avoid letting qemu know about host CPUs.
+I'm not sure we can avoid it completely, because something needs
+to set physical IRQ affinity and such for the virtual devices
+if you want to get the best locality.
 
-> It's because nr_scan_try_batch? or something ?
-
-nr_scan_try_batch may only make this invocation of shrink_zone() drop scanning.
-But balance_pgdat() etc. will re-call shrink_zone() to make progress.
-
-> Sorry. Still, I can't understand your point. :(
-
-It's _nothing_ wrong with you to not able to understand it :)
-Sorry, I was explaining a null issue indeed. I'd better just remove that paragraph..
- 
-Thanks,
-Fengguang
-
-> > A  A  A  A user. May be more fundamental look through is required at the priority
-> > A  A  A  A based logic of exposing how much to scan, I don't know.
-> >
-> > Thanks,
-> > Fengguang
-> >
-> >> > It could possibly be a problem for some tiny mem_cgroup (which may be
-> >> > _full_ scanned too much times in order to accumulate up nr_saved_scan).
-> >> >
-> >> > CC: Rik van Riel <riel@redhat.com>
-> >> > CC: Minchan Kim <minchan.kim@gmail.com>
-> >> > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> >> > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> >> > ---
-> >> > A include/linux/mmzone.h | A  A 6 +++++-
-> >> > A mm/page_alloc.c A  A  A  A | A  A 2 +-
-> >> > A mm/vmscan.c A  A  A  A  A  A | A  20 +++++++++++---------
-> >> > A 3 files changed, 17 insertions(+), 11 deletions(-)
-> >> >
-> >> > --- linux.orig/include/linux/mmzone.h A  2009-07-30 10:45:15.000000000 +0800
-> >> > +++ linux/include/linux/mmzone.h A  A  A  A 2009-08-20 11:51:08.000000000 +0800
-> >> > @@ -269,6 +269,11 @@ struct zone_reclaim_stat {
-> >> > A  A  A  A  */
-> >> > A  A  A  A unsigned long A  A  A  A  A  recent_rotated[2];
-> >> > A  A  A  A unsigned long A  A  A  A  A  recent_scanned[2];
-> >> > +
-> >> > + A  A  A  /*
-> >> > + A  A  A  A * accumulated for batching
-> >> > + A  A  A  A */
-> >> > + A  A  A  unsigned long A  A  A  A  A  nr_saved_scan[NR_LRU_LISTS];
-> >> > A };
-> >> >
-> >> > A struct zone {
-> >> > @@ -323,7 +328,6 @@ struct zone {
-> >> > A  A  A  A spinlock_t A  A  A  A  A  A  A lru_lock;
-> >> > A  A  A  A struct zone_lru {
-> >> > A  A  A  A  A  A  A  A struct list_head list;
-> >> > - A  A  A  A  A  A  A  unsigned long nr_saved_scan; A  A /* accumulated for batching */
-> >> > A  A  A  A } lru[NR_LRU_LISTS];
-> >> >
-> >> > A  A  A  A struct zone_reclaim_stat reclaim_stat;
-> >> > --- linux.orig/mm/vmscan.c A  A  A 2009-08-20 11:48:46.000000000 +0800
-> >> > +++ linux/mm/vmscan.c A  2009-08-20 12:00:55.000000000 +0800
-> >> > @@ -1521,6 +1521,7 @@ static void shrink_zone(int priority, st
-> >> > A  A  A  A enum lru_list l;
-> >> > A  A  A  A unsigned long nr_reclaimed = sc->nr_reclaimed;
-> >> > A  A  A  A unsigned long swap_cluster_max = sc->swap_cluster_max;
-> >> > + A  A  A  struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-> >> > A  A  A  A int noswap = 0;
-> >> >
-> >> > A  A  A  A /* If we have no swap space, do not bother scanning anon pages. */
-> >> > @@ -1540,12 +1541,9 @@ static void shrink_zone(int priority, st
-> >> > A  A  A  A  A  A  A  A  A  A  A  A scan >>= priority;
-> >> > A  A  A  A  A  A  A  A  A  A  A  A scan = (scan * percent[file]) / 100;
-> >> > A  A  A  A  A  A  A  A }
-> >> > - A  A  A  A  A  A  A  if (scanning_global_lru(sc))
-> >> > - A  A  A  A  A  A  A  A  A  A  A  nr[l] = nr_scan_try_batch(scan,
-> >> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  &zone->lru[l].nr_saved_scan,
-> >> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  swap_cluster_max);
-> >> > - A  A  A  A  A  A  A  else
-> >> > - A  A  A  A  A  A  A  A  A  A  A  nr[l] = scan;
-> >> > + A  A  A  A  A  A  A  nr[l] = nr_scan_try_batch(scan,
-> >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  &reclaim_stat->nr_saved_scan[l],
-> >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  swap_cluster_max);
-> >> > A  A  A  A }
-> >> >
-> >> > A  A  A  A while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> >> > @@ -2128,6 +2126,7 @@ static void shrink_all_zones(unsigned lo
-> >> > A {
-> >> > A  A  A  A struct zone *zone;
-> >> > A  A  A  A unsigned long nr_reclaimed = 0;
-> >> > + A  A  A  struct zone_reclaim_stat *reclaim_stat;
-> >> >
-> >> > A  A  A  A for_each_populated_zone(zone) {
-> >> > A  A  A  A  A  A  A  A enum lru_list l;
-> >> > @@ -2144,11 +2143,14 @@ static void shrink_all_zones(unsigned lo
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A l == LRU_ACTIVE_FILE))
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A continue;
-> >> >
-> >> > - A  A  A  A  A  A  A  A  A  A  A  zone->lru[l].nr_saved_scan += (lru_pages >> prio) + 1;
-> >> > - A  A  A  A  A  A  A  A  A  A  A  if (zone->lru[l].nr_saved_scan >= nr_pages || pass > 3) {
-> >> > + A  A  A  A  A  A  A  A  A  A  A  reclaim_stat = get_reclaim_stat(zone, sc);
-> >> > + A  A  A  A  A  A  A  A  A  A  A  reclaim_stat->nr_saved_scan[l] +=
-> >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  (lru_pages >> prio) + 1;
-> >> > + A  A  A  A  A  A  A  A  A  A  A  if (reclaim_stat->nr_saved_scan[l]
-> >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  >= nr_pages || pass > 3) {
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A unsigned long nr_to_scan;
-> >> >
-> >> > - A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  zone->lru[l].nr_saved_scan = 0;
-> >> > + A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  reclaim_stat->nr_saved_scan[l] = 0;
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A nr_to_scan = min(nr_pages, lru_pages);
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A nr_reclaimed += shrink_list(l, nr_to_scan, zone,
-> >> > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A sc, prio);
-> >> > --- linux.orig/mm/page_alloc.c A 2009-08-20 11:57:54.000000000 +0800
-> >> > +++ linux/mm/page_alloc.c A  A  A  2009-08-20 11:58:39.000000000 +0800
-> >> > @@ -3716,7 +3716,7 @@ static void __paginginit free_area_init_
-> >> > A  A  A  A  A  A  A  A zone_pcp_init(zone);
-> >> > A  A  A  A  A  A  A  A for_each_lru(l) {
-> >> > A  A  A  A  A  A  A  A  A  A  A  A INIT_LIST_HEAD(&zone->lru[l].list);
-> >> > - A  A  A  A  A  A  A  A  A  A  A  zone->lru[l].nr_saved_scan = 0;
-> >> > + A  A  A  A  A  A  A  A  A  A  A  zone->reclaim_stat.nr_saved_scan[l] = 0;
-> >> > A  A  A  A  A  A  A  A }
-> >> > A  A  A  A  A  A  A  A zone->reclaim_stat.recent_rotated[0] = 0;
-> >> > A  A  A  A  A  A  A  A zone->reclaim_stat.recent_rotated[1] = 0;
-> >> >
-> >> > --
-> >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> > the body to majordomo@kvack.org. A For more info on Linux MM,
-> >> > see: http://www.linux-mm.org/ .
-> >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >> >
-> >>
-> >>
-> >>
-> >> --
-> >> Kind regards,
-> >> Minchan Kim
-> >
+> > but you have a thread per host CPU instead. If the numbers
+> > are different, you probably lose either way.
 > 
+> The trick I used is to keep as much as possible local
+> TX done on the CPU that runs the guest,
+> RX done on the CPU that runs the NIC interrupt.
+> a smart SMP guest sees which cpu gets interrupts
+> from NIC and schedules RX there, and it shouldn't matter
+> if the numbers of CPUs are different.
+
+yes, that sounds good.
+
+> > It gets worse if you try to apply NUMA policies.
 > 
+> I believe the best we could do is avoid switching CPUs
+> until we know the actual destination.
+
+My point is that the RX data in the guest address space
+should be on the same NUMA node that gets the interrupt.
+
+> > > And note that there might be more than one error.  I guess, that's
+> > > another problem with trying to layer on top of vfs.
+> > 
+> > Why is that different from any other system call?
 > 
-> -- 
-> Kind regards,
-> Minchan Kim
+> With other system calls nothing happens while you process the error.
+> Here, the guest (other queues) and the network keep running (unless
+> there is a thread per queue, maybe we can block a queue, but we both
+> agreed above we don't want that).
+
+Well, I would expect error conditions to be fatal for the connections
+normally, so blocking the queue is totally fine here IMHO. The ioctl
+would never return while a guest is running and connected to a
+working NIC.
+
+> > We just return when
+> > we hit the first error condition.
+> 
+> If you assume losing the code for the second error condition is OK, why
+> is the first one so important?  That's why I used a counter (eventfd)
+> per virtqueue, on error userspace can scan the ring and poll the socket
+> and discover what's wrong, and counter ensures we can detect that error
+> happened while we were not looking.
+
+I guess we were talking about different kinds of errors here, and I'm
+still not sure which one you are talking about.
+
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
