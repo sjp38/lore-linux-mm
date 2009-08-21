@@ -1,39 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 21CF16B005A
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 14:41:17 -0400 (EDT)
-Date: Fri, 21 Aug 2009 20:41:12 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH mmotm] ksm: antidote to MADV_MERGEABLE HWPOISON
-Message-ID: <20090821184112.GB18623@basil.fritz.box>
-References: <Pine.LNX.4.64.0908211912330.14259@sister.anvils>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 18E606B005D
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 15:19:56 -0400 (EDT)
+Received: by ewy22 with SMTP id 22so894732ewy.4
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2009 12:19:27 -0700 (PDT)
+Date: Fri, 21 Aug 2009 23:19:25 +0400
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: [PATCH] oom: move oom_killer_enable()/oom_killer_disable to where
+	they belong
+Message-ID: <20090821191925.GA5367@x200.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0908211912330.14259@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.com>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, Helge Deller <deller@gmx.de>, Chris Zankel <chris@zankel.net>, Rik van RIel <riel@redhat.com>, Balbir Singh <balbir@in.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Avi Kivity <avi@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 21, 2009 at 07:30:15PM +0100, Hugh Dickins wrote:
-> linux-next is now sporting MADV_HWPOISON at 12, which would have a very
-> nasty effect on KSM if you had CONFIG_MEMORY_FAILURE=y with CONFIG_KSM=y.
-> Shift MADV_MERGEABLE and MADV_UNMERGEABLE down two - two to reduce the
-> confusion if old and new userspace and kernel are mismatched.
-> 
-> Personally I'd prefer the MADV_HWPOISON testing feature to shift; but
-> linux-next comes first in the mmotm lineup, and I can't be sure that
-> madvise KSM already has more users than there are HWPOISON testers:
-> so unless Andi is happy to shift MADV_HWPOISON, mmotm needs this.
+Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+---
 
-Thanks for catching.
+ include/linux/gfp.h    |   12 ------------
+ include/linux/oom.h    |   11 +++++++++++
+ kernel/power/process.c |    1 +
+ 3 files changed, 12 insertions(+), 12 deletions(-)
 
-Shifting is fine, but I would prefer then if it was to some
-value that is not reused (like 100) so that I can probe for it 
-in the test programs.
-
--Andi
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -336,18 +336,6 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
+ void drain_all_pages(void);
+ void drain_local_pages(void *dummy);
+ 
+-extern bool oom_killer_disabled;
+-
+-static inline void oom_killer_disable(void)
+-{
+-	oom_killer_disabled = true;
+-}
+-
+-static inline void oom_killer_enable(void)
+-{
+-	oom_killer_disabled = false;
+-}
+-
+ extern gfp_t gfp_allowed_mask;
+ 
+ static inline void set_gfp_allowed_mask(gfp_t mask)
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -30,5 +30,16 @@ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
+ 
++extern bool oom_killer_disabled;
++
++static inline void oom_killer_disable(void)
++{
++	oom_killer_disabled = true;
++}
++
++static inline void oom_killer_enable(void)
++{
++	oom_killer_disabled = false;
++}
+ #endif /* __KERNEL__*/
+ #endif /* _INCLUDE_LINUX_OOM_H */
+--- a/kernel/power/process.c
++++ b/kernel/power/process.c
+@@ -9,6 +9,7 @@
+ #undef DEBUG
+ 
+ #include <linux/interrupt.h>
++#include <linux/oom.h>
+ #include <linux/suspend.h>
+ #include <linux/module.h>
+ #include <linux/syscalls.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
