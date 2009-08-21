@@ -1,78 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CA5196B0085
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:21:55 -0400 (EDT)
-Received: by ywh41 with SMTP id 41so1054214ywh.23
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2009 08:21:56 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 559F26B0088
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:22:39 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp03.au.ibm.com (8.14.3/8.13.1) with ESMTP id n7LFKLHv014430
+	for <linux-mm@kvack.org>; Sat, 22 Aug 2009 01:20:21 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7L5T9pO528636
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 15:31:59 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7L5T8DJ031929
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 15:29:09 +1000
+Date: Fri, 21 Aug 2009 10:58:58 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: Scalability fixes -- 2.6.31 candidate?
+Message-ID: <20090821052858.GB29572@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090820190941.GA29572@balbir.in.ibm.com> <20090820161325.562b255e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <28c262360908190628i3f323714kf011f9b0fd4cd15@mail.gmail.com>
-References: <20090816051502.GB13740@localhost>
-	 <20090816112910.GA3208@localhost>
-	 <20090818234310.A64B.A69D9226@jp.fujitsu.com>
-	 <20090819120117.GB7306@localhost>
-	 <2f11576a0908190505h6da96280xf67c962aa3f5ba07@mail.gmail.com>
-	 <20090819121017.GA8226@localhost>
-	 <28c262360908190525i6e56ead0mb8dcb01c3d1a69f1@mail.gmail.com>
-	 <2f11576a0908190619t9951959o3841091e51324c8@mail.gmail.com>
-	 <28c262360908190628i3f323714kf011f9b0fd4cd15@mail.gmail.com>
-Date: Fri, 21 Aug 2009 20:17:51 +0900
-Message-ID: <2f11576a0908210417y340f7017r20d87d81c6243184@mail.gmail.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090820161325.562b255e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Jeff Dike <jdike@addtoit.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, prarit@redhat.com, andi.kleen@intel.com, m-kosaki@ceres.dti.ne.jp, dmiyakawa@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
->> Hmm, I think
->>
->> 1. Anyway, we need turn on PG_mlock.
->
-> I add my patch again to explain.
->
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index ed63894..283266c 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -358,6 +358,7 @@ static int page_referenced_one(struct page *page,
-> =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0if (vma->vm_flags & VM_LOCKED) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*mapcount =3D 1; =A0/* break early from lo=
-op */
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 *vm_flags |=3D VM_LOCKED;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto out_unmap;
-> =A0 =A0 =A0 =A0}
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d224b28..d156e1d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -632,7 +632,8 @@ static unsigned long shrink_page_list(struct
-> list_head *page_list,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0sc->mem_cgroup, &vm_flags);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* In active use or really unfreeable? =A0=
-Activate it. */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (sc->order <=3D PAGE_ALLOC_COSTLY_ORDER=
- &&
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 referenced && page_mapping_inuse(page))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 referenced && page_mapping_inuse(page)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 && !(vm_flags & VM_LOCKED))
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0goto activate_locked;
->
-> By this check, the page can be reached at try_to_unmap after
-> page_referenced in shrink_page_list. At that time PG_mlocked will be
-> set.
+* Andrew Morton <akpm@linux-foundation.org> [2009-08-20 16:13:25]:
 
-You are right.
-Please add my Reviewed-by sign to your patch.
+> On Fri, 21 Aug 2009 00:39:42 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > Hi, Andrew,
+> > 
+> > I've been wondering if the scalability fixes for root overhead in
+> > memory cgroup is a candidate for 2.6.31?
+> 
+> These?
+> 
+> memcg-improve-resource-counter-scalability.patch
+> memcg-improve-resource-counter-scalability-checkpatch-fixes.patch
+> memcg-improve-resource-counter-scalability-v5.patch
+> 
+> 
+> > They don't change
+> > functionality but help immensely using existing accounting features.
+> > 
+> > Opening up the email for more debate and discussion and thoughts.
+> > 
+> 
+> They don't apply terribly well to mainline:
+> 
+> patching file mm/memcontrol.c
+> Hunk #1 FAILED at 70.
+> Hunk #2 FAILED at 479.
+> Hunk #3 FAILED at 1295.
+> Hunk #4 FAILED at 1359.
+> Hunk #5 FAILED at 1432.
+> Hunk #6 FAILED at 1514.
+> Hunk #7 FAILED at 1534.
+> Hunk #8 FAILED at 1605.
+> Hunk #9 FAILED at 1798.
+> Hunk #10 FAILED at 1826.
+> Hunk #11 FAILED at 1883.
+> Hunk #12 FAILED at 1981.
+> Hunk #13 succeeded at 2091 (offset -405 lines).
+> 12 out of 13 hunks FAILED -- saving rejects to file mm/memcontrol.c.rej
+> Failed to apply memcg-improve-resource-counter-scalability
+> 
+> so maybe you're referring to these:
+> 
+> memcg-remove-the-overhead-associated-with-the-root-cgroup.patch
+> memcg-remove-the-overhead-associated-with-the-root-cgroup-fix.patch
+> memcg-remove-the-overhead-associated-with-the-root-cgroup-fix-2.patch
+> 
+> as well.
+>
 
-Thanks.
+Yes, I was referring to those
+ 
+> But then memcg-improve-resource-counter-scalability.patch still doesn't
+> apply.  Maybe memcg-improve-resource-counter-scalability.patch depends
+> on memory-controller-soft-limit-*.patch too.  I stopped looking.
+> 
+
+Yes, there is some diffs that get picked up due to the soft_limit
+feature.
+
+
+> It's a lot of material and a lot of churn.  I'd be more inclined to
+> proceed with a 2.6.32 merge and then perhaps you can see if you can
+> come up with a minimal patchset for -stable, see if the -stable
+> maintainers can be talked into merging it.
+> 
+
+Fair enough.. I do have a backport to 2.6.31-rc5 mainline, but going
+the stable route would also work.
+
+Thanks!
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
