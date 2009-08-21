@@ -1,116 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5175B6B0095
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:33:37 -0400 (EDT)
-Received: from rcpt-expgw.biglobe.ne.jp
-	by rcpt-mqugw.biglobe.ne.jp (kbkr/4512300408) with ESMTP id n7LAeaji001320
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 19:40:36 +0900
-Date: Fri, 21 Aug 2009 19:39:58 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH -mmotm] memcg: show swap usage in stat file
-Message-Id: <20090821193958.05a771de.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20090821093548.GD29572@balbir.in.ibm.com>
-References: <20090821152549.038e6953.nishimura@mxp.nes.nec.co.jp>
-	<20090821093548.GD29572@balbir.in.ibm.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E4CAD6B0098
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:33:44 -0400 (EDT)
+Date: Fri, 21 Aug 2009 09:39:26 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH -v2] mm: do batched scans for mem_cgroup
+Message-ID: <20090821013926.GA30823@localhost>
+References: <20090820024929.GA19793@localhost> <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com> <20090820040533.GA27540@localhost> <20090820051656.GB26265@balbir.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090820051656.GB26265@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Aug 2009 15:05:48 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-08-21 15:25:49]:
+On Thu, Aug 20, 2009 at 01:16:56PM +0800, Balbir Singh wrote:
+> * Wu Fengguang <fengguang.wu@intel.com> [2009-08-20 12:05:33]:
 > 
-> > We now count MEM_CGROUP_STAT_SWAPOUT, so we can show swap usage.
-> > It would be useful for users to show swap usage in memory.stat file,
-> > because they don't need calculate memsw.usage - res.usage to know swap usage.
+> > On Thu, Aug 20, 2009 at 11:13:47AM +0800, KAMEZAWA Hiroyuki wrote:
+> > > On Thu, 20 Aug 2009 10:49:29 +0800
+> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > > 
+> > > > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
+> > > > in which case shrink_list() _still_ calls isolate_pages() with the much
+> > > > larger SWAP_CLUSTER_MAX.  It effectively scales up the inactive list
+> > > > scan rate by up to 32 times.
+> > > > 
+> > > > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
+> > > > So when shrink_zone() expects to scan 4 pages in the active/inactive
+> > > > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
+> > > > 
+> > > > The accesses to nr_saved_scan are not lock protected and so not 100%
+> > > > accurate, however we can tolerate small errors and the resulted small
+> > > > imbalanced scan rates between zones.
+> > > > 
+> > > > This batching won't blur up the cgroup limits, since it is driven by
+> > > > "pages reclaimed" rather than "pages scanned". When shrink_zone()
+> > > > decides to cancel (and save) one smallish scan, it may well be called
+> > > > again to accumulate up nr_saved_scan.
+> > > > 
+> > > > It could possibly be a problem for some tiny mem_cgroup (which may be
+> > > > _full_ scanned too much times in order to accumulate up nr_saved_scan).
+> > > > 
+> > > > CC: Rik van Riel <riel@redhat.com>
+> > > > CC: Minchan Kim <minchan.kim@gmail.com>
+> > > > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > > > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > > ---
+> > > 
+> > > Hmm, how about this ? 
+> > > ==
+> > > Now, nr_saved_scan is tied to zone's LRU.
+> > > But, considering how vmscan works, it should be tied to reclaim_stat.
+> > > 
+> > > By this, memcg can make use of nr_saved_scan information seamlessly.
 > > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > Good idea, full patch updated with your signed-off-by :)
+> > 
+> > Thanks,
+> > Fengguang
 > > ---
-> >  mm/memcontrol.c |   17 ++++++++++++++---
-> >  1 files changed, 14 insertions(+), 3 deletions(-)
+> > mm: do batched scans for mem_cgroup
 > > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 8b06c05..ae80de0 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2663,6 +2663,7 @@ enum {
-> >  	MCS_MAPPED_FILE,
-> >  	MCS_PGPGIN,
-> >  	MCS_PGPGOUT,
-> > +	MCS_SWAP,
-> >  	MCS_INACTIVE_ANON,
-> >  	MCS_ACTIVE_ANON,
-> >  	MCS_INACTIVE_FILE,
-> > @@ -2684,6 +2685,7 @@ struct {
-> >  	{"mapped_file", "total_mapped_file"},
-> >  	{"pgpgin", "total_pgpgin"},
-> >  	{"pgpgout", "total_pgpgout"},
-> > +	{"swap", "total_swap"},
-> >  	{"inactive_anon", "total_inactive_anon"},
-> >  	{"active_anon", "total_active_anon"},
-> >  	{"inactive_file", "total_inactive_file"},
-> > @@ -2708,6 +2710,10 @@ static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
-> >  	s->stat[MCS_PGPGIN] += val;
-> >  	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_PGPGOUT_COUNT);
-> >  	s->stat[MCS_PGPGOUT] += val;
-> > +	if (do_swap_account) {
-> > +		val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_SWAPOUT);
-> > +		s->stat[MCS_SWAP] += val;
-> > +	}
+> > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
+> > in which case shrink_list() _still_ calls isolate_pages() with the much
+> > larger SWAP_CLUSTER_MAX.  It effectively scales up the inactive list
+> > scan rate by up to 32 times.
 > > 
-> >  	/* per zone stat */
-> >  	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
-> > @@ -2739,8 +2745,11 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
-> >  	memset(&mystat, 0, sizeof(mystat));
-> >  	mem_cgroup_get_local_stat(mem_cont, &mystat);
+> > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
+> > So when shrink_zone() expects to scan 4 pages in the active/inactive
+> > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
 > > 
-> > -	for (i = 0; i < NR_MCS_STAT; i++)
-> > +	for (i = 0; i < NR_MCS_STAT; i++) {
-> > +		if (i == MCS_SWAP && !do_swap_account)
-> > +			continue;
+> > The accesses to nr_saved_scan are not lock protected and so not 100%
+> > accurate, however we can tolerate small errors and the resulted small
+> > imbalanced scan rates between zones.
+> > 
+> > This batching won't blur up the cgroup limits, since it is driven by
+> > "pages reclaimed" rather than "pages scanned". When shrink_zone()
+> > decides to cancel (and save) one smallish scan, it may well be called
+> > again to accumulate up nr_saved_scan.
+> > 
+> > It could possibly be a problem for some tiny mem_cgroup (which may be
+> > _full_ scanned too much times in order to accumulate up nr_saved_scan).
+> >
 > 
-> May be worth encapsulating in a function like memcg_show_swapout
-> 
-I tried it first, but I think it would be overkill a bit
-and writing in open-coded would be more simple and making it
-clear what we are doing.
-So, I went this direction.
+> Looks good to me, how did you test it?
 
-> >  		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
-> > +	}
-> > 
-> >  	/* Hierarchical information */
-> >  	{
-> > @@ -2753,9 +2762,11 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
-> > 
-> >  	memset(&mystat, 0, sizeof(mystat));
-> >  	mem_cgroup_get_total_stat(mem_cont, &mystat);
-> > -	for (i = 0; i < NR_MCS_STAT; i++)
-> > +	for (i = 0; i < NR_MCS_STAT; i++) {
-> > +		if (i == MCS_SWAP && !do_swap_account)
-> > +			continue;
-> >  		cb->fill(cb, memcg_stat_strings[i].total_name, mystat.stat[i]);
-> > -
-> > +	}
-> > 
-> >  #ifdef CONFIG_DEBUG_VM
-> >  	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
-> 
-> Overall, looks good
-> 
-> 
-> Reviewed-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->  
-Thank you.
+I observed the shrink_inactive_list() calls with this patch:
 
+        @@ -1043,6 +1043,13 @@ static unsigned long shrink_inactive_lis
+                struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+                int lumpy_reclaim = 0;
 
-Daisuke Nishimura.
+        +       if (!scanning_global_lru(sc))
+        +               printk("shrink inactive %s count=%lu scan=%lu\n",
+        +                      file ? "file" : "anon",
+        +                      mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone,
+        +                                               LRU_INACTIVE_ANON + 2 * !!file),
+        +                      max_scan);
+
+and these commands:
+
+        mkdir /cgroup/0
+        echo 100M > /cgroup/0/memory.limit_in_bytes
+        echo $$ > /cgroup/0/tasks
+        cp /tmp/10G /dev/null
+
+before patch:
+
+        [ 3682.646008] shrink inactive file count=25535 scan=6
+        [ 3682.661548] shrink inactive file count=25535 scan=6
+        [ 3682.666933] shrink inactive file count=25535 scan=6
+        [ 3682.682865] shrink inactive file count=25535 scan=6
+        [ 3682.688572] shrink inactive file count=25535 scan=6
+        [ 3682.703908] shrink inactive file count=25535 scan=6
+        [ 3682.709431] shrink inactive file count=25535 scan=6
+
+after patch:
+
+        [  223.146544] shrink inactive file count=25531 scan=32
+        [  223.152060] shrink inactive file count=25507 scan=10
+        [  223.167503] shrink inactive file count=25531 scan=32
+        [  223.173426] shrink inactive file count=25507 scan=10
+        [  223.188764] shrink inactive file count=25531 scan=32
+        [  223.194270] shrink inactive file count=25507 scan=10
+        [  223.209885] shrink inactive file count=25531 scan=32
+        [  223.215388] shrink inactive file count=25507 scan=10
+
+Before patch, the inactive list is over scanned by 30/6=5 times;
+After patch, it is over scanned by 64/42=1.5 times. It's much better,
+and can be further improved if necessary.
+
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
