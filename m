@@ -1,80 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 18E606B005D
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 15:19:56 -0400 (EDT)
-Received: by ewy22 with SMTP id 22so894732ewy.4
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2009 12:19:27 -0700 (PDT)
-Date: Fri, 21 Aug 2009 23:19:25 +0400
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH] oom: move oom_killer_enable()/oom_killer_disable to where
-	they belong
-Message-ID: <20090821191925.GA5367@x200.localdomain>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7B9576B006A
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 15:24:22 -0400 (EDT)
+Date: Fri, 21 Aug 2009 20:23:51 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH mmotm] ksm: antidote to MADV_MERGEABLE HWPOISON
+In-Reply-To: <20090821184112.GB18623@basil.fritz.box>
+Message-ID: <Pine.LNX.4.64.0908212003190.24376@sister.anvils>
+References: <Pine.LNX.4.64.0908211912330.14259@sister.anvils>
+ <20090821184112.GB18623@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Izik Eidus <ieidus@redhat.com>, Chris Wright <chrisw@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Ralf Baechle <ralf@linux-mips.org>, Kyle McMartin <kyle@mcmartin.ca>, Helge Deller <deller@gmx.de>, Chris Zankel <chris@zankel.net>, Rik van RIel <riel@redhat.com>, Balbir Singh <balbir@in.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Avi Kivity <avi@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
+On Fri, 21 Aug 2009, Andi Kleen wrote:
+> On Fri, Aug 21, 2009 at 07:30:15PM +0100, Hugh Dickins wrote:
+> > linux-next is now sporting MADV_HWPOISON at 12, which would have a very
+> > nasty effect on KSM if you had CONFIG_MEMORY_FAILURE=y with CONFIG_KSM=y.
+> > Shift MADV_MERGEABLE and MADV_UNMERGEABLE down two - two to reduce the
+> > confusion if old and new userspace and kernel are mismatched.
+> > 
+> > Personally I'd prefer the MADV_HWPOISON testing feature to shift; but
+> > linux-next comes first in the mmotm lineup, and I can't be sure that
+> > madvise KSM already has more users than there are HWPOISON testers:
+> > so unless Andi is happy to shift MADV_HWPOISON, mmotm needs this.
+> 
+> Thanks for catching.
+> 
+> Shifting is fine, but I would prefer then if it was to some
+> value that is not reused (like 100) so that I can probe for it 
+> in the test programs.
+
+Thanks a lot for conceding so generously, Andi.
+
+Okay, let's forget that first patch I posted: here's its replacement,
+fix to linux-next.patch in mmotm, but you'll put into your tree to be
+picked up by linux-next in due course?  Thanks again.  (patch ends up
+with the 100 line in between the 11 line and the 12 line, but doesn't
+matter, it'll be easier to tidy that up with another patch afterwards.)
+
+
+[PATCH] hwpoison: shift MADV_HWPOISON to 100
+
+mm assigns KSM's MADV_MERGEABLE to 12: shift MADV_HWPOISON from 12 to 100,
+out of the way so that poisoning test programs can safely probe for it.
+
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
 
- include/linux/gfp.h    |   12 ------------
- include/linux/oom.h    |   11 +++++++++++
- kernel/power/process.c |    1 +
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ include/asm-generic/mman-common.h |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -336,18 +336,6 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
- void drain_all_pages(void);
- void drain_local_pages(void *dummy);
- 
--extern bool oom_killer_disabled;
--
--static inline void oom_killer_disable(void)
--{
--	oom_killer_disabled = true;
--}
--
--static inline void oom_killer_enable(void)
--{
--	oom_killer_disabled = false;
--}
--
- extern gfp_t gfp_allowed_mask;
- 
- static inline void set_gfp_allowed_mask(gfp_t mask)
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -30,5 +30,16 @@ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
- extern int register_oom_notifier(struct notifier_block *nb);
- extern int unregister_oom_notifier(struct notifier_block *nb);
- 
-+extern bool oom_killer_disabled;
+--- next/include/asm-generic/mman-common.h	2009-08-21 19:51:15.000000000 +0100
++++ mmotm/include/asm-generic/mman-common.h	2009-08-21 19:53:21.000000000 +0100
+@@ -34,7 +34,8 @@
+ #define MADV_REMOVE	9		/* remove these pages & resources */
+ #define MADV_DONTFORK	10		/* don't inherit across fork */
+ #define MADV_DOFORK	11		/* do inherit across fork */
+-#define MADV_HWPOISON	12		/* poison a page for testing */
 +
-+static inline void oom_killer_disable(void)
-+{
-+	oom_killer_disabled = true;
-+}
-+
-+static inline void oom_killer_enable(void)
-+{
-+	oom_killer_disabled = false;
-+}
- #endif /* __KERNEL__*/
- #endif /* _INCLUDE_LINUX_OOM_H */
---- a/kernel/power/process.c
-+++ b/kernel/power/process.c
-@@ -9,6 +9,7 @@
- #undef DEBUG
++#define MADV_HWPOISON	100		/* poison a page for testing */
  
- #include <linux/interrupt.h>
-+#include <linux/oom.h>
- #include <linux/suspend.h>
- #include <linux/module.h>
- #include <linux/syscalls.h>
+ /* compatibility flags */
+ #define MAP_FILE	0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
