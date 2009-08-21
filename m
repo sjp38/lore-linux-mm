@@ -1,143 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E4CAD6B0098
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:33:44 -0400 (EDT)
-Date: Fri, 21 Aug 2009 09:39:26 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH -v2] mm: do batched scans for mem_cgroup
-Message-ID: <20090821013926.GA30823@localhost>
-References: <20090820024929.GA19793@localhost> <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com> <20090820040533.GA27540@localhost> <20090820051656.GB26265@balbir.in.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E54776B009A
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:37:29 -0400 (EDT)
+Received: by gxk12 with SMTP id 12so1148926gxk.4
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2009 08:37:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090820051656.GB26265@balbir.in.ibm.com>
+In-Reply-To: <20090821072743.GA1808@localhost>
+References: <20090820024929.GA19793@localhost>
+	 <20090820121347.8a886e4b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090820040533.GA27540@localhost>
+	 <28c262360908202055u2744879cic989e007867d0599@mail.gmail.com>
+	 <20090821072743.GA1808@localhost>
+Date: Fri, 21 Aug 2009 19:57:24 +0900
+Message-ID: <2f11576a0908210357j72a0c5b4v16997dff137bd738@mail.gmail.com>
+Subject: Re: [PATCH -v2 changelog updated] mm: do batched scans for mem_cgroup
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 20, 2009 at 01:16:56PM +0800, Balbir Singh wrote:
-> * Wu Fengguang <fengguang.wu@intel.com> [2009-08-20 12:05:33]:
-> 
-> > On Thu, Aug 20, 2009 at 11:13:47AM +0800, KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 20 Aug 2009 10:49:29 +0800
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
-> > > > in which case shrink_list() _still_ calls isolate_pages() with the much
-> > > > larger SWAP_CLUSTER_MAX.  It effectively scales up the inactive list
-> > > > scan rate by up to 32 times.
-> > > > 
-> > > > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
-> > > > So when shrink_zone() expects to scan 4 pages in the active/inactive
-> > > > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
-> > > > 
-> > > > The accesses to nr_saved_scan are not lock protected and so not 100%
-> > > > accurate, however we can tolerate small errors and the resulted small
-> > > > imbalanced scan rates between zones.
-> > > > 
-> > > > This batching won't blur up the cgroup limits, since it is driven by
-> > > > "pages reclaimed" rather than "pages scanned". When shrink_zone()
-> > > > decides to cancel (and save) one smallish scan, it may well be called
-> > > > again to accumulate up nr_saved_scan.
-> > > > 
-> > > > It could possibly be a problem for some tiny mem_cgroup (which may be
-> > > > _full_ scanned too much times in order to accumulate up nr_saved_scan).
-> > > > 
-> > > > CC: Rik van Riel <riel@redhat.com>
-> > > > CC: Minchan Kim <minchan.kim@gmail.com>
-> > > > CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > ---
-> > > 
-> > > Hmm, how about this ? 
-> > > ==
-> > > Now, nr_saved_scan is tied to zone's LRU.
-> > > But, considering how vmscan works, it should be tied to reclaim_stat.
-> > > 
-> > > By this, memcg can make use of nr_saved_scan information seamlessly.
-> > 
-> > Good idea, full patch updated with your signed-off-by :)
-> > 
-> > Thanks,
-> > Fengguang
-> > ---
-> > mm: do batched scans for mem_cgroup
-> > 
-> > For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=1,
-> > in which case shrink_list() _still_ calls isolate_pages() with the much
-> > larger SWAP_CLUSTER_MAX.  It effectively scales up the inactive list
-> > scan rate by up to 32 times.
-> > 
-> > For example, with 16k inactive pages and DEF_PRIORITY=12, (16k >> 12)=4.
-> > So when shrink_zone() expects to scan 4 pages in the active/inactive
-> > list, it will be scanned SWAP_CLUSTER_MAX=32 pages in effect.
-> > 
-> > The accesses to nr_saved_scan are not lock protected and so not 100%
-> > accurate, however we can tolerate small errors and the resulted small
-> > imbalanced scan rates between zones.
-> > 
-> > This batching won't blur up the cgroup limits, since it is driven by
-> > "pages reclaimed" rather than "pages scanned". When shrink_zone()
-> > decides to cancel (and save) one smallish scan, it may well be called
-> > again to accumulate up nr_saved_scan.
-> > 
-> > It could possibly be a problem for some tiny mem_cgroup (which may be
-> > _full_ scanned too much times in order to accumulate up nr_saved_scan).
-> >
-> 
-> Looks good to me, how did you test it?
+2009/8/21 Wu Fengguang <fengguang.wu@intel.com>:
+> For mem_cgroup, shrink_zone() may call shrink_list() with nr_to_scan=3D1,
+> in which case shrink_list() _still_ calls isolate_pages() with the much
+> larger SWAP_CLUSTER_MAX. =A0It effectively scales up the inactive list
+> scan rate by up to 32 times.
+>
+> For example, with 16k inactive pages and DEF_PRIORITY=3D12, (16k >> 12)=
+=3D4.
+> So when shrink_zone() expects to scan 4 pages in the active/inactive
+> list, the active list will be scanned 4 pages, while the inactive list
+> will be (over) scanned SWAP_CLUSTER_MAX=3D32 pages in effect. And that
+> could break the balance between the two lists.
+>
+> It can further impact the scan of anon active list, due to the anon
+> active/inactive ratio rebalance logic in balance_pgdat()/shrink_zone():
+>
+> inactive anon list over scanned =3D> inactive_anon_is_low() =3D=3D TRUE
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D> shrin=
+k_active_list()
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=3D> activ=
+e anon list over scanned
+>
+> So the end result may be
+>
+> - anon inactive =A0=3D> over scanned
+> - anon active =A0 =A0=3D> over scanned (maybe not as much)
+> - file inactive =A0=3D> over scanned
+> - file active =A0 =A0=3D> under scanned (relatively)
+>
+> The accesses to nr_saved_scan are not lock protected and so not 100%
+> accurate, however we can tolerate small errors and the resulted small
+> imbalanced scan rates between zones.
+>
 
-I observed the shrink_inactive_list() calls with this patch:
-
-        @@ -1043,6 +1043,13 @@ static unsigned long shrink_inactive_lis
-                struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-                int lumpy_reclaim = 0;
-
-        +       if (!scanning_global_lru(sc))
-        +               printk("shrink inactive %s count=%lu scan=%lu\n",
-        +                      file ? "file" : "anon",
-        +                      mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone,
-        +                                               LRU_INACTIVE_ANON + 2 * !!file),
-        +                      max_scan);
-
-and these commands:
-
-        mkdir /cgroup/0
-        echo 100M > /cgroup/0/memory.limit_in_bytes
-        echo $$ > /cgroup/0/tasks
-        cp /tmp/10G /dev/null
-
-before patch:
-
-        [ 3682.646008] shrink inactive file count=25535 scan=6
-        [ 3682.661548] shrink inactive file count=25535 scan=6
-        [ 3682.666933] shrink inactive file count=25535 scan=6
-        [ 3682.682865] shrink inactive file count=25535 scan=6
-        [ 3682.688572] shrink inactive file count=25535 scan=6
-        [ 3682.703908] shrink inactive file count=25535 scan=6
-        [ 3682.709431] shrink inactive file count=25535 scan=6
-
-after patch:
-
-        [  223.146544] shrink inactive file count=25531 scan=32
-        [  223.152060] shrink inactive file count=25507 scan=10
-        [  223.167503] shrink inactive file count=25531 scan=32
-        [  223.173426] shrink inactive file count=25507 scan=10
-        [  223.188764] shrink inactive file count=25531 scan=32
-        [  223.194270] shrink inactive file count=25507 scan=10
-        [  223.209885] shrink inactive file count=25531 scan=32
-        [  223.215388] shrink inactive file count=25507 scan=10
-
-Before patch, the inactive list is over scanned by 30/6=5 times;
-After patch, it is over scanned by 64/42=1.5 times. It's much better,
-and can be further improved if necessary.
-
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
-Thanks!
+Looks good to me.
+  Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
