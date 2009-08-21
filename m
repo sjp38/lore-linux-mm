@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC316B004D
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2009 15:09:51 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7KJ9i7b010811
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 00:39:44 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7KJ9iqZ2359348
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 00:39:44 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7KJ9h7U010467
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 00:39:44 +0530
-Date: Fri, 21 Aug 2009 00:39:42 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Scalability fixes -- 2.6.31 candidate?
-Message-ID: <20090820190941.GA29572@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+	by kanga.kvack.org (Postfix) with ESMTP id 056CF6B005A
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:18:15 -0400 (EDT)
+Received: from imap1.linux-foundation.org (imap1.linux-foundation.org [140.211.169.55])
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id n7LFIIm0001931
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 08:18:19 -0700
+Date: Thu, 20 Aug 2009 17:22:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/vmscan: rename zone_nr_pages() to
+ zone_lru_nr_pages()
+Message-Id: <20090820172239.061c0de0.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.1.00.0908201707520.2172@mail.selltech.ca>
+References: <1250793774-7969-1-git-send-email-macli@brc.ubc.ca>
+	<20090820160024.6e24dbb7.akpm@linux-foundation.org>
+	<alpine.DEB.1.00.0908201707520.2172@mail.selltech.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, prarit@redhat.com, andi.kleen@intel.com, KOSAKI Motohiro <m-kosaki@ceres.dti.ne.jp>, Daisuke Miyakawa <dmiyakawa@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Vincent Li <macli@brc.ubc.ca>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Andrew,
+On Thu, 20 Aug 2009 17:19:28 -0700 (PDT)
+Vincent Li <macli@brc.ubc.ca> wrote:
 
-I've been wondering if the scalability fixes for root overhead in
-memory cgroup is a candidate for 2.6.31? They don't change
-functionality but help immensely using existing accounting features.
+> On Thu, 20 Aug 2009, Andrew Morton wrote:
+> 
+> > On Thu, 20 Aug 2009 11:42:54 -0700
+> > Vincent Li <macli@brc.ubc.ca> wrote:
+> > 
+> > > Name zone_nr_pages can be mis-read as zone's (total) number pages, but it actually returns
+> > > zone's LRU list number pages.
+> > 
+> > Fair enough.
+> > 
+> > > -static unsigned long zone_nr_pages(struct zone *zone, struct scan_control *sc,
+> > > +static unsigned long zone_lru_nr_pages(struct zone *zone, struct scan_control *sc,
+> > 
+> > Wouldn't zone_nr_lru_pages() be better?
+> 
+> I see name isolate_lru_page and the meaning of number of lru pages. your suggestion is better.
+> should I resend the patch with your suggestion? I ask because I saw you already put the patch in 
+> the mmotm tree before you send this email out.
+> 
 
-Opening up the email for more debate and discussion and thoughts.
-
--- 
-	Balbir
+I edited the diff ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
