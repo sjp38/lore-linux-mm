@@ -1,121 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E79A96B009C
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:39:29 -0400 (EDT)
-Received: from fgwmail7.fujitsu.co.jp (fgwmail7.fujitsu.co.jp [192.51.44.37])
-	by fgwmail8.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7L784Ew005718
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 21 Aug 2009 16:08:04 +0900
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7L77TlF010635
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 21 Aug 2009 16:07:29 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3151E45DE51
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 16:07:29 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 04D0E45DE4F
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 16:07:29 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E46431DB803C
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 16:07:28 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 99E221DB805E
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 16:07:28 +0900 (JST)
-Date: Fri, 21 Aug 2009 16:05:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm] memcg: show swap usage in stat file
-Message-Id: <20090821160542.542a490b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090821152549.038e6953.nishimura@mxp.nes.nec.co.jp>
-References: <20090821152549.038e6953.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A3B946B009E
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:39:50 -0400 (EDT)
+Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id n7LFdqO9013924
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2009 11:39:52 -0400
+Date: Fri, 21 Aug 2009 16:20:22 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCHv3 2/2] vhost_net: a kernel-level virtio server
+Message-ID: <20090821132022.GA6966@redhat.com>
+References: <cover.1250187913.git.mst@redhat.com>
+ <200908191727.07681.arnd@arndb.de>
+ <20090820083155.GB5448@redhat.com>
+ <200908201510.54482.arnd@arndb.de>
+ <20090820133817.GA7834@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090820133817.GA7834@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Or Gerlitz <ogerlitz@voltaire.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Aug 2009 15:25:49 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> We now count MEM_CGROUP_STAT_SWAPOUT, so we can show swap usage.
-> It would be useful for users to show swap usage in memory.stat file,
-> because they don't need calculate memsw.usage - res.usage to know swap usage.
+On Thu, Aug 20, 2009 at 04:38:17PM +0300, Michael S. Tsirkin wrote:
+> On Thu, Aug 20, 2009 at 03:10:54PM +0200, Arnd Bergmann wrote:
+> > On Thursday 20 August 2009, Michael S. Tsirkin wrote:
+> > > On Wed, Aug 19, 2009 at 05:27:07PM +0200, Arnd Bergmann wrote:
+> > > > On Wednesday 19 August 2009, Michael S. Tsirkin wrote:
+> > > > > On Wed, Aug 19, 2009 at 03:46:44PM +0200, Arnd Bergmann wrote:
+> > > > > > On Wednesday 19 August 2009, Michael S. Tsirkin wrote:
+> > > > > >
+> > > > > > Leaving that aside for now, you could replace VHOST_NET_SET_SOCKET,
+> > > > > > VHOST_SET_OWNER, VHOST_RESET_OWNER
+> > > > > 
+> > > > > SET/RESET OWNER is still needed: otherwise if you share a descriptor
+> > > > > with another process, it can corrupt your memory.
+> > > > 
+> > > > How? The point of using user threads is that you only ever access the
+> > > > address space of the thread that called the ioctl.
+> > > 
+> > > Think about this example with processes A and B sharing an fd:
+> > > A does SET_USED_ADDRESS
+> > > B does SET_USED_ADDRESS
+> > > A does VHOST_NET_SPLICE
+> > > See how stuff gets written into a random place in memory of A?
+> > 
+> > Yes, I didn't think of that. It doesn't seem like a big problem
+> > though, because it's a clear misuse of the API (I guess your
+> > current code returns an error for one of the SET_USED_ADDRESS
+> > ioctls), so I would see it as a classic garbage-in garbage-out
+> > case.
+> > 
+> > It may even work in the case that the sharing of the fd resulted
+> > from a fork, where the address contains the same buffer in both
+> > processes. I can't think of a reason why you would want to use
+> > it like that though.
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-Indeed.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-Thanks,
--Kame
-
-
-> ---
->  mm/memcontrol.c |   17 ++++++++++++++---
->  1 files changed, 14 insertions(+), 3 deletions(-)
+> It doesn't matter that I don't want this: allowing 1 process corrupt
+> another's memory is a security issue.  Once you get an fd, you want to
+> be able to use it without worrying that a bug in another process will
+> crash yours.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8b06c05..ae80de0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2663,6 +2663,7 @@ enum {
->  	MCS_MAPPED_FILE,
->  	MCS_PGPGIN,
->  	MCS_PGPGOUT,
-> +	MCS_SWAP,
->  	MCS_INACTIVE_ANON,
->  	MCS_ACTIVE_ANON,
->  	MCS_INACTIVE_FILE,
-> @@ -2684,6 +2685,7 @@ struct {
->  	{"mapped_file", "total_mapped_file"},
->  	{"pgpgin", "total_pgpgin"},
->  	{"pgpgout", "total_pgpgout"},
-> +	{"swap", "total_swap"},
->  	{"inactive_anon", "total_inactive_anon"},
->  	{"active_anon", "total_active_anon"},
->  	{"inactive_file", "total_inactive_file"},
-> @@ -2708,6 +2710,10 @@ static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
->  	s->stat[MCS_PGPGIN] += val;
->  	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_PGPGOUT_COUNT);
->  	s->stat[MCS_PGPGOUT] += val;
-> +	if (do_swap_account) {
-> +		val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_SWAPOUT);
-> +		s->stat[MCS_SWAP] += val;
-> +	}
->  
->  	/* per zone stat */
->  	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
-> @@ -2739,8 +2745,11 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  	memset(&mystat, 0, sizeof(mystat));
->  	mem_cgroup_get_local_stat(mem_cont, &mystat);
->  
-> -	for (i = 0; i < NR_MCS_STAT; i++)
-> +	for (i = 0; i < NR_MCS_STAT; i++) {
-> +		if (i == MCS_SWAP && !do_swap_account)
-> +			continue;
->  		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
-> +	}
->  
->  	/* Hierarchical information */
->  	{
-> @@ -2753,9 +2762,11 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
->  
->  	memset(&mystat, 0, sizeof(mystat));
->  	mem_cgroup_get_total_stat(mem_cont, &mystat);
-> -	for (i = 0; i < NR_MCS_STAT; i++)
-> +	for (i = 0; i < NR_MCS_STAT; i++) {
-> +		if (i == MCS_SWAP && !do_swap_account)
-> +			continue;
->  		cb->fill(cb, memcg_stat_strings[i].total_name, mystat.stat[i]);
-> -
-> +	}
->  
->  #ifdef CONFIG_DEBUG_VM
->  	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
-> 
+If B's SET_USED_ADDRESS fails how one process can corrupt a memory of
+other process?
+
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
