@@ -1,103 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6187C6B011A
+	by kanga.kvack.org (Postfix) with SMTP id 942696B011D
 	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:45:13 -0400 (EDT)
-Date: Sun, 23 Aug 2009 15:22:46 +0800
+Date: Sun, 23 Aug 2009 21:00:56 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Bad page state (was Re: Linux 2.6.31-rc7)
-Message-ID: <20090823072246.GA20028@localhost>
-References: <alpine.LFD.2.01.0908211810390.3158@localhost.localdomain> <200908212248.40987.gene.heskett@verizon.net> <alpine.LFD.2.01.0908212055140.3158@localhost.localdomain>
+Subject: Re: +
+	mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-c
+	ache-references.patch added to -mm tree
+Message-ID: <20090823130056.GA10596@localhost>
+References: <200908212250.n7LMox3g029154@imap1.linux-foundation.org> <20090822025150.GB7798@localhost> <1251020013.2270.24.camel@castor>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.01.0908212055140.3158@localhost.localdomain>
+In-Reply-To: <1251020013.2270.24.camel@castor>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Gene Heskett <gene.heskett@verizon.net>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Richard Kennedy <richard@rsk.demon.co.uk>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>, "mbligh@mbligh.org" <mbligh@mbligh.org>, "miklos@szeredi.hu" <miklos@szeredi.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 22, 2009 at 12:17:48PM +0800, Linus Torvalds wrote:
+On Sun, Aug 23, 2009 at 05:33:33PM +0800, Richard Kennedy wrote:
+> On Sat, 2009-08-22 at 10:51 +0800, Wu Fengguang wrote:
 > 
-> 
-> On Fri, 21 Aug 2009, Gene Heskett wrote:
+> > > 
+> > >  mm/page-writeback.c |  116 +++++++++++++++---------------------------
+> > >  1 file changed, 43 insertions(+), 73 deletions(-)
+> > > 
+> > > diff -puN mm/page-writeback.c~mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-cache-references mm/page-writeback.c
+> > > --- a/mm/page-writeback.c~mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-cache-references
+> > > +++ a/mm/page-writeback.c
+> > > @@ -249,32 +249,6 @@ static void bdi_writeout_fraction(struct
+> > >  	}
+> > >  }
+> > >  
+> > > -/*
+> > > - * Clip the earned share of dirty pages to that which is actually available.
+> > > - * This avoids exceeding the total dirty_limit when the floating averages
+> > > - * fluctuate too quickly.
+> > > - */
+> > > -static void clip_bdi_dirty_limit(struct backing_dev_info *bdi,
+> > > -		unsigned long dirty, unsigned long *pbdi_dirty)
+> > > -{
+> > > -	unsigned long avail_dirty;
+> > > -
+> > > -	avail_dirty = global_page_state(NR_FILE_DIRTY) +
+> > > -		 global_page_state(NR_WRITEBACK) +
+> > > -		 global_page_state(NR_UNSTABLE_NFS) +
+> > > -		 global_page_state(NR_WRITEBACK_TEMP);
+> > > -
+> > > -	if (avail_dirty < dirty)
+> > > -		avail_dirty = dirty - avail_dirty;
+> > > -	else
+> > > -		avail_dirty = 0;
+> > > -
+> > > -	avail_dirty += bdi_stat(bdi, BDI_RECLAIMABLE) +
+> > > -		bdi_stat(bdi, BDI_WRITEBACK);
+> > > -
+> > > -	*pbdi_dirty = min(*pbdi_dirty, avail_dirty);
+> > > -}
+> > > -
+> > >  static inline void task_dirties_fraction(struct task_struct *tsk,
+> > >  		long *numerator, long *denominator)
+> > >  {
+> > > @@ -465,7 +439,6 @@ get_dirty_limits(unsigned long *pbackgro
+> > >  			bdi_dirty = dirty * bdi->max_ratio / 100;
+> > >  
+> > >  		*pbdi_dirty = bdi_dirty;
+> > > -		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
+> > >  		task_dirty_limit(current, pbdi_dirty);
+> > >  	}
+> > >  }
+> > > @@ -499,45 +472,12 @@ static void balance_dirty_pages(struct a
+> > >  		};
+> > >  
+> > >  		get_dirty_limits(&background_thresh, &dirty_thresh,
+> > > -				&bdi_thresh, bdi);
+> > > +				 &bdi_thresh, bdi);
+> > >  
+> > >  		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+> > > -					global_page_state(NR_UNSTABLE_NFS);
+> > > -		nr_writeback = global_page_state(NR_WRITEBACK);
+> > > -
+> > > -		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+> > > -		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
+> > > -
+> > > -		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+> > > -			break;
+> > > -
+> > > -		/*
+> > > -		 * Throttle it only when the background writeback cannot
+> > > -		 * catch-up. This avoids (excessively) small writeouts
+> > > -		 * when the bdi limits are ramping up.
+> > > -		 */
+> > > -		if (nr_reclaimable + nr_writeback <
+> > > -				(background_thresh + dirty_thresh) / 2)
+> > > -			break;
+> > > -
+> > > -		if (!bdi->dirty_exceeded)
+> > > -			bdi->dirty_exceeded = 1;
+> > > -
+> > > -		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
+> > > -		 * Unstable writes are a feature of certain networked
+> > > -		 * filesystems (i.e. NFS) in which data may have been
+> > > -		 * written to the server's write cache, but has not yet
+> > > -		 * been flushed to permanent storage.
+> > > -		 * Only move pages to writeback if this bdi is over its
+> > > -		 * threshold otherwise wait until the disk writes catch
+> > > -		 * up.
+> > > -		 */
+> > > -		if (bdi_nr_reclaimable > bdi_thresh) {
+> > > -			generic_sync_bdi_inodes(NULL, &wbc);
+> > > -			pages_written += write_chunk - wbc.nr_to_write;
+> > > -			get_dirty_limits(&background_thresh, &dirty_thresh,
+> > > -				       &bdi_thresh, bdi);
+> > > -		}
+> > > +			global_page_state(NR_UNSTABLE_NFS);
+> > > +		nr_writeback = global_page_state(NR_WRITEBACK) +
+> > > +			global_page_state(NR_WRITEBACK_TEMP);
+> > >  
+> > >  		/*
+> > >  		 * In order to avoid the stacked BDI deadlock we need
+> > > @@ -557,16 +497,48 @@ static void balance_dirty_pages(struct a
+> > >  			bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
+> > >  		}
+> > >  
+> > > -		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+> > > -			break;
+> > > -		if (pages_written >= write_chunk)
+> > > -			break;		/* We've done our duty */
 > > 
-> > From messages, I already have a problem with lzma too:
+> > > +		/* always throttle if over threshold */
+> > > +		if (nr_reclaimable + nr_writeback < dirty_thresh) {
+> > 
+> > That 'if' is a big behavior change. It effectively blocks every one
+> > and canceled Peter's proportional throttling work: the less a process
+> > dirtied, the less it should be throttled.
+> > 
+> I don't think it does. the code ends up looking like
 > 
-> And for this too, can you tell what the last working kernel was?
+> FOR
+> 	IF less than dirty_thresh THEN
+> 		check bdi limits etc	
+> 	ENDIF
 > 
-> Does the problem happen consistently? (And btw, it's not probably so much 
-> lzma, but something random that released a page without clearing some of 
-> the page flags or something).
+> 	thottle
+> ENDFOR
 > 
-> Wu - I'm not seeing a lot of changes to compund page handling except for 
-> commit 20a0307c0396c2edb651401d2f2db193dda2f3c9 ("mm: introduce PageHuge() 
-> for testing huge/gigantic pages").
+> Therefore we always throttle when over the threshold otherwise we apply
+> the per bdi limits to decide if we throttle.
 > 
-> That one removed the
+> In the existing code clip_bdi_dirty_limit modified the bdi_thresh so
+> that it would not let a bdi dirty enough pages to go over the
+> dirty_threshold. All I've done is to bring the check of dirty_thresh up
+> into balance_dirty_pages.
 > 
-> 	set_compound_page_dtor(page, free_compound_page);
+> So isn't this effectively the same ?
+
+Yes and no. For the bdi_thresh part it somehow makes the
+clip_bdi_dirty_limit() logic more simple and obvious. Which I tend to
+agree with you and Peter on doing something like this:
+
+        if (nr_reclaimable + nr_writeback < dirty_thresh) {
+                /* compute bdi_* */
+                if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+         		break;
+        }
+
+For other two 'if's..
+ 
+> > I'd propose to remove the above 'if' and liberate the following three 'if's.
+> > 
+> > > +
+> > > +			if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
+> > > +				break;
+> > > +
+> > > +			/*
+> > > +			 * Throttle it only when the background writeback cannot
+> > > +			 * catch-up. This avoids (excessively) small writeouts
+> > > +			 * when the bdi limits are ramping up.
+> > > +			 */
+> > > +			if (nr_reclaimable + nr_writeback <
+> > > +			    (background_thresh + dirty_thresh) / 2)
+> > > +				break;
+
+That 'if' can be trivially moved out.
+
+> > > +
+> > > +			/* done enough? */
+> > > +			if (pages_written >= write_chunk)
+> > > +				break;
+
+That 'if' must be moved out, otherwise it can block a light writer
+for ever, as long as there is another heavy dirtier keeps the dirty
+numbers high.
+
+> > > +		}
+> > > +		if (!bdi->dirty_exceeded)
+> > > +			bdi->dirty_exceeded = 1;
+> > >  
+> > > +		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
+> > > +		 * Unstable writes are a feature of certain networked
+> > > +		 * filesystems (i.e. NFS) in which data may have been
+> > > +		 * written to the server's write cache, but has not yet
+> > > +		 * been flushed to permanent storage.
+
+> > > +		 * Only move pages to writeback if this bdi is over its
+> > > +		 * threshold otherwise wait until the disk writes catch
+> > > +		 * up.
+> > > +		 */
+> > > +		if (bdi_nr_reclaimable > bdi_thresh) {
+
+I'd much prefer its original form
+
+                if (bdi_nr_reclaimable) {
+
+Let's push dirty pages to disk ASAP :)
+
+> > > +			writeback_inodes(&wbc);
+> > > +			pages_written += write_chunk - wbc.nr_to_write;
+> > 
+> > > +			if (wbc.nr_to_write == 0)
+> > > +				continue;
+> > 
+> > What's the purpose of the above 2 lines?
 > 
-> thing from prep_compound_gigantic_page(), which looks a bit odd and 
-> suspicious (the commit message only talks about _moving_ it). But I don't 
-> know the hugetlb code.
-
-Sorry for not describing the remove in changelog.  Remove of that line
-was proposed by Mel and I think it changed nothing in behavior.
-Because the only possible call train is:
-
-        gather_bootmem_prealloc()
-                prep_compound_huge_page()
-                        prep_compound_gigantic_page()
-==>                             set_compound_page_dtor(page, free_compound_page);
-                prep_new_huge_page()
-==>                     set_compound_page_dtor(page, free_huge_page);
-
-So obviously the first set_compound_page_dtor() call is extraordinary.
-
-> But that commit went into -rc1 already.  Gene, I know you sent me email 
-> about a later -rc release, but maybe you didn't test it on that machine or 
-> with that config?
+> This is to try to replicate the existing code as closely as possible.
 > 
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152737] BUG: Bad page state in process lzma  pfn:a1093
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152743] page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152747] Pid: 17927, comm: lzma Not tainted 2.6.31-rc7 #1
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152750] Call Trace:
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152758]  [<c130e363>] ? printk+0x23/0x40
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152763]  [<c108404f>] bad_page+0xcf/0x150
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152767]  [<c10850ed>] get_page_from_freelist+0x37d/0x480
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152771]  [<c10853cf>] __alloc_pages_nodemask+0xdf/0x520
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152775]  [<c1096b19>] handle_mm_fault+0x4a9/0x9f0
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152780]  [<c1020d61>] do_page_fault+0x141/0x290
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152784]  [<c1020c20>] ? do_page_fault+0x0/0x290
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152787]  [<c1311bcb>] error_code+0x73/0x78
-> > Aug 21 22:37:47 coyote kernel: [ 1030.152789] Disabling lock debugging due to kernel taint
-> 
-> It looks like 'flags' is the one that causes this problem at allocation 
-> time (count, mapcount, mapping and index all look nicely zeroed).
-> 
-> In particular, it's the 0x4000 bit (the high bit, which is also set, is 
-> the upper field bits for page section/node/zone numbers etc), which is 
-> either PG_head or PG_compound depending on CONFIG_PAGEFLAGS_EXTENDED.
-> 
-> And in your case, since you have CONFIG_PAGEFLAGS_EXTENDED=y, it would be 
-> PG_head.
+> If writeback_inodes wrote write_chunk pages in one pass then skip to the
+> top of the loop to recheck the limits and decide if we can let the
+> application continue. Otherwise it's not making enough forward progress
+> due to congestion so do the congestion_wait & loop. 
 
-Right. btw it takes time to reverse engineer the page flag names each
-time it oops. Does it make sense to print a more readable form, eg.
-
-        flags:80004000 (MOVABLE,head)
-
-?
-
-> Btw guys, why don't we check PG_head etc at free time when we add the page 
-> to the free list? Now we get that annoying error only when it is way too 
-> late, and have no way to know who screwed up..
-
-And what puzzled me is that PG_head should have been cleared by
-free_pages_check():
-
-        if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-                page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+It makes sense. We have wbc.encountered_congestion for that purpose.
+However it may not able to write enough pages for other reasons like
+lock contention. So I'd suggest to test (wbc.nr_to_write <= 0).
 
 Thanks,
 Fengguang
