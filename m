@@ -1,62 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 403226B010F
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 22:02:41 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7Q22dPN006410
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 26 Aug 2009 11:02:39 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5153645DE79
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:02:39 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FDA945DE6E
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:02:39 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 18DB2E18004
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:02:39 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C4CE7E18001
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:02:38 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm/vmscan: remove page_queue_congested() comment
-In-Reply-To: <1251226422-17878-1-git-send-email-macli@brc.ubc.ca>
-References: <1251226422-17878-1-git-send-email-macli@brc.ubc.ca>
-Message-Id: <20090826111156.9A23.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 26 Aug 2009 11:02:38 +0900 (JST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8405C6B0110
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 22:15:53 -0400 (EDT)
+Received: from coyote.coyote.den ([141.153.112.139]) by vms173001.mailsrvcs.net
+ (Sun Java(tm) System Messaging Server 6.3-7.04 (built Sep 26 2008; 32bit))
+ with ESMTPA id <0KOU00008A3OY600@vms173001.mailsrvcs.net> for
+ linux-mm@kvack.org; Sun, 23 Aug 2009 12:04:37 -0500 (CDT)
+From: Gene Heskett <gene.heskett@verizon.net>
+Subject: Re: Bad page state (was Re: Linux 2.6.31-rc7)
+Date: Sun, 23 Aug 2009 13:04:36 -0400
+References: <alpine.LFD.2.01.0908211810390.3158@localhost.localdomain>
+ <200908230420.46228.gene.heskett@verizon.net>
+ <alpine.LFD.2.01.0908230943490.3158@localhost.localdomain>
+In-reply-to: <alpine.LFD.2.01.0908230943490.3158@localhost.localdomain>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=iso-8859-1
+Content-transfer-encoding: 7bit
+Content-disposition: inline
+Message-id: <200908231304.36261.gene.heskett@verizon.net>
 Sender: owner-linux-mm@kvack.org
-To: Vincent Li <macli@brc.ubc.ca>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Commit 084f71ae5c(kill page_queue_congested()) removed page_queue_congested().
-> Remove the page_queue_congested() comment in vmscan pageout() too.
-> 
-> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
-> ---
->  mm/vmscan.c |    1 -
->  1 files changed, 0 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 848689a..1219ceb 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -366,7 +366,6 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
->  	 * block, for some throttling. This happens by accident, because
->  	 * swap_backing_dev_info is bust: it doesn't reflect the
->  	 * congestion state of the swapdevs.  Easy to fix, if needed.
-> -	 * See swapfile.c:page_queue_congested().
->  	 */
->  	if (!is_page_cache_freeable(page))
->  		return PAGE_KEEP;
+On Sunday 23 August 2009, Linus Torvalds wrote:
+>Gene - good news and bad news.
+>
+>The good news is that this is almost certainly not a kernel bug.
+>
+>The bad news is that your machine is almost certainly buggy and you'll
+>need to replace your RAM (although it's possible that just removing it
+>and re-seating it could fix things). See for details below.
+>
+>On Sun, 23 Aug 2009, Gene Heskett wrote:
+>> I changed the vmlinuz compression to gzip and rebooted to it last night,
+>> and got this shortly after the bootup to -rc7 with the kernal cli
+>> argument that makes sensors work on an asus board again:
+>>
+>> Aug 22 22:29:07 coyote kernel: [ 2449.053652] BUG: Bad page state in
+>> process python  pfn:a0e93 Aug 22 22:29:07 coyote kernel: [ 2449.053658]
+>> page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
+>> Aug 22 22:29:07 coyote kernel: [ 2449.053662] Pid: 4818, comm: python Not
+>> tainted 2.6.31-rc7 #3 Aug 22 22:29:07 coyote kernel: [ 2449.053664] Call
+>> Trace:
+>> Aug 22 22:29:07 coyote kernel: [ 2449.053672]  [<c130fb33>] ?
+>> printk+0x23/0x40 Aug 22 22:29:07 coyote kernel: [ 2449.053678] 
+>> [<c108352f>] bad_page+0xcf/0x150 Aug 22 22:29:07 coyote kernel: [
+>> 2449.053682]  [<c10845cd>] get_page_from_freelist+0x37d/0x480 Aug 22
+>> 22:29:07 coyote kernel: [ 2449.053686]  [<c10848af>]
+>> __alloc_pages_nodemask+0xdf/0x520 Aug 22 22:29:07 coyote kernel: [
+>> 2449.053691]  [<c1095ff9>] handle_mm_fault+0x4a9/0x9f0 Aug 22 22:29:07
+>> coyote kernel: [ 2449.053695]  [<c105ca83>] ?
+>> tick_dev_program_event+0x43/0xf0 Aug 22 22:29:07 coyote kernel: [
+>> 2449.053699]  [<c105cbd6>] ? tick_program_event+0x36/0x60 Aug 22 22:29:07
+>> coyote kernel: [ 2449.053703]  [<c1020d61>] do_page_fault+0x141/0x290 Aug
+>> 22 22:29:07 coyote kernel: [ 2449.053707]  [<c1020c20>] ?
+>> do_page_fault+0x0/0x290 Aug 22 22:29:07 coyote kernel: [ 2449.053710] 
+>> [<c131339b>] error_code+0x73/0x78 Aug 22 22:29:07 coyote kernel: [
+>> 2449.053712] Disabling lock debugging due to kernel taint
+>>
+>> This doesn't look exactly like the previous one but the result is
+>> similar.
+>
+>Actually, it looks _too_ much like the previous one in one very specific
+>regard: that 'page' pointer is identical. Anf that is where the 'flags'
+>came from.
+>
+>Look here:
+>> Aug 21 22:37:47 coyote kernel: [ 1030.152737] BUG: Bad page state in
+>> process lzma  pfn:a1093 Aug 21 22:37:47 coyote kernel: [ 1030.152743]
+>> page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
+>>
+>> Aug 22 22:29:07 coyote kernel: [ 2449.053652] BUG: Bad page state in
+>> process python  pfn:a0e93 Aug 22 22:29:07 coyote kernel: [ 2449.053658]
+>> page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
+>
+>and notice how "page:c28fc260" is the same, even though 'pfn' is not.
+>
+>Gene - I can almost guarantee that you have bad memory. Why?
+>
+> - 'pfn' is the Linux kernel "page index" - so when the two 'pfn' numbers
+>    are different, that means that we're talking about different
+>    physical pages, and indexes into the 'struct page[]' array.
+>
+> - but because the page array was allocated at different addresses
+>   (probably because of slightly different configurations and timings
+>   during boot), the actual physical memory location that describes those
+>   different pages happens to be the same.
+>
+> - and I can almost guarantee that you have a bit that is stuck to 1 in
+>   that RAM location. The 'flags' field is the first one in 'struct page',
+>   and so it's the memory location at kernel virtual address c28fc260 that
+>   is corrupt - and the way the kernel mappings work on x86, that's
+>   physical address 28fc260 (at around the 40MB mark).
+>
+>There is almost certainly no way that this is a kernel bug - that memory
+>location is smack dab in the middle of that 'struct page[]' array, and
+>there is absolutely no reason why two different kernels with clearly
+>different allocations would set the same incorrect bug. I mean - it
+>_could_ happen, and maybe there's some really subtle idiotic thing going
+>on, but it's really unlikely.
+>
+>The address is just so random, and so non-special - and yet it's exactly
+>the same physical address in both cases, even though it actually describes
+>different things as far as the kernel is concerned. That's an almost 100%
+>sure sign of a hard-error in your memory.
+>
+>And depending on kernel config options, that bad RAM location will be used
+>for different things. In your two cases, it's been used for the 'struct
+>page[]' array both times, but in other cases it could have been used for
+>something else - and maybe resulted in random crashes or other odd things,
+>rather than happen to get noticed by a debug test.
+>
+>The good news about hard memory errors is that if you boot into a memory
+>tester like memtest86, it's going to find it. So we're not going to have
+>to guess about whether I'm right or not - I would suggest you go download
+>memtest86+ from www.memtest.org and run it. I'd just get the bootable ISO
+>image of memtest86+ v2.11 and burn it to a CD, and boot it, but there are
+>other ways to run that thing.
+>
+I have several copies of it already since I'm always checking out old boxes 
+for use with emc.  Since its been almost a year since I checked it when I 
+built the machine, I'll give it a few loops and see what falls out, thanks.
 
-Thanks for carefully review and followup fixes.
+>It's even possible that depending on which distro you have, you may
+>already have a "memtest" entry in your LILO or grub setup. I think SuSE
+>installs memtest as one of the bootable options, for example.
+>
+>			Linus
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
+-- 
+Cheers, Gene
+"There are four boxes to be used in defense of liberty:
+ soap, ballot, jury, and ammo. Please use in that order."
+-Ed Howdershelt (Author)
+The NRA is offering FREE Associate memberships to anyone who wants them.
+<https://www.nrahq.org/nrabonus/accept-membership.asp>
+
+  I marvel at the strength of human weakness.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
