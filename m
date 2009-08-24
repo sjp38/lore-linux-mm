@@ -1,118 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1AD6B0085
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:37:33 -0400 (EDT)
-Received: from imap1.linux-foundation.org (imap1.linux-foundation.org [140.211.169.55])
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id n7PJbUkG016764
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 12:37:32 -0700
-Date: Sun, 23 Aug 2009 09:44:14 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Bad page state (was Re: Linux 2.6.31-rc7)
-In-Reply-To: <200908230420.46228.gene.heskett@verizon.net>
-Message-ID: <alpine.LFD.2.01.0908230943490.3158@localhost.localdomain>
-References: <alpine.LFD.2.01.0908211810390.3158@localhost.localdomain> <alpine.LFD.2.01.0908212055140.3158@localhost.localdomain> <20090823072246.GA20028@localhost> <200908230420.46228.gene.heskett@verizon.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4666B0087
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:39:02 -0400 (EDT)
+Received: from rgminet15.oracle.com (rcsinet15.oracle.com [148.87.113.117])
+	by acsinet11.oracle.com (Switch-3.3.1/Switch-3.3.1) with ESMTP id n7PJdnKj007769
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 19:39:51 GMT
+Date: Mon, 24 Aug 2009 09:01:21 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [PATCH 0/4] compcache: compressed in-memory swapping
+Message-Id: <20090824090121.61c6f0ea.randy.dunlap@oracle.com>
+In-Reply-To: <200908241007.33844.ngupta@vflare.org>
+References: <200908241007.33844.ngupta@vflare.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gene Heskett <gene.heskett@verizon.net>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: ngupta@vflare.org
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 24 Aug 2009 10:07:33 +0530 Nitin Gupta wrote:
 
-Gene - good news and bad news.
-
-The good news is that this is almost certainly not a kernel bug.
-
-The bad news is that your machine is almost certainly buggy and you'll 
-need to replace your RAM (although it's possible that just removing it 
-and re-seating it could fix things). See for details below.
-
-On Sun, 23 Aug 2009, Gene Heskett wrote:
+> (Sorry for long patch[2/4] but its now very hard to split it up).
 > 
-> I changed the vmlinuz compression to gzip and rebooted to it last night, and 
-> got this shortly after the bootup to -rc7 with the kernal cli argument that 
-> makes sensors work on an asus board again:
-> 
-> Aug 22 22:29:07 coyote kernel: [ 2449.053652] BUG: Bad page state in process python  pfn:a0e93                                            
-> Aug 22 22:29:07 coyote kernel: [ 2449.053658] page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0                      
-> Aug 22 22:29:07 coyote kernel: [ 2449.053662] Pid: 4818, comm: python Not tainted 2.6.31-rc7 #3                                           
-> Aug 22 22:29:07 coyote kernel: [ 2449.053664] Call Trace:                                                                                 
-> Aug 22 22:29:07 coyote kernel: [ 2449.053672]  [<c130fb33>] ? printk+0x23/0x40                                                            
-> Aug 22 22:29:07 coyote kernel: [ 2449.053678]  [<c108352f>] bad_page+0xcf/0x150                                                           
-> Aug 22 22:29:07 coyote kernel: [ 2449.053682]  [<c10845cd>] get_page_from_freelist+0x37d/0x480                                            
-> Aug 22 22:29:07 coyote kernel: [ 2449.053686]  [<c10848af>] __alloc_pages_nodemask+0xdf/0x520                                             
-> Aug 22 22:29:07 coyote kernel: [ 2449.053691]  [<c1095ff9>] handle_mm_fault+0x4a9/0x9f0                                                   
-> Aug 22 22:29:07 coyote kernel: [ 2449.053695]  [<c105ca83>] ? tick_dev_program_event+0x43/0xf0                                            
-> Aug 22 22:29:07 coyote kernel: [ 2449.053699]  [<c105cbd6>] ? tick_program_event+0x36/0x60                                                
-> Aug 22 22:29:07 coyote kernel: [ 2449.053703]  [<c1020d61>] do_page_fault+0x141/0x290                                                     
-> Aug 22 22:29:07 coyote kernel: [ 2449.053707]  [<c1020c20>] ? do_page_fault+0x0/0x290                                                     
-> Aug 22 22:29:07 coyote kernel: [ 2449.053710]  [<c131339b>] error_code+0x73/0x78                                                          
-> Aug 22 22:29:07 coyote kernel: [ 2449.053712] Disabling lock debugging due to kernel taint
-> 
-> This doesn't look exactly like the previous one but the result is similar.
+>  Documentation/blockdev/00-INDEX       |    2 +
+>  Documentation/blockdev/ramzswap.txt   |   52 ++
+>  drivers/block/Kconfig                 |   22 +
+>  drivers/block/Makefile                |    1 +
+>  drivers/block/ramzswap/Makefile       |    2 +
 
-Actually, it looks _too_ much like the previous one in one very specific 
-regard: that 'page' pointer is identical. Anf that is where the 'flags' 
-came from.
+I can't find drivers/block/ramzswap/Makefile in the patches...
 
-Look here:
+>  drivers/block/ramzswap/ramzswap.c     | 1511 +++++++++++++++++++++++++++++++++
+>  drivers/block/ramzswap/ramzswap.h     |  182 ++++
+>  drivers/block/ramzswap/xvmalloc.c     |  556 ++++++++++++
+>  drivers/block/ramzswap/xvmalloc.h     |   30 +
+>  drivers/block/ramzswap/xvmalloc_int.h |   86 ++
+>  include/linux/ramzswap_ioctl.h        |   51 ++
+>  include/linux/swap.h                  |    5 +
+>  mm/swapfile.c                         |   33 +
+>  13 files changed, 2533 insertions(+), 0 deletions(-)
 
-> Aug 21 22:37:47 coyote kernel: [ 1030.152737] BUG: Bad page state in process lzma  pfn:a1093
-> Aug 21 22:37:47 coyote kernel: [ 1030.152743] page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
 
-> Aug 22 22:29:07 coyote kernel: [ 2449.053652] BUG: Bad page state in process python  pfn:a0e93
-> Aug 22 22:29:07 coyote kernel: [ 2449.053658] page:c28fc260 flags:80004000 count:0 mapcount:0 mapping:(null) index:0
-
-and notice how "page:c28fc260" is the same, even though 'pfn' is not. 
-
-Gene - I can almost guarantee that you have bad memory. Why? 
-
- - 'pfn' is the Linux kernel "page index" - so when the two 'pfn' numbers 
-    are different, that means that we're talking about different 
-    physical pages, and indexes into the 'struct page[]' array.
-
- - but because the page array was allocated at different addresses
-   (probably because of slightly different configurations and timings
-   during boot), the actual physical memory location that describes those 
-   different pages happens to be the same.
-
- - and I can almost guarantee that you have a bit that is stuck to 1 in 
-   that RAM location. The 'flags' field is the first one in 'struct page', 
-   and so it's the memory location at kernel virtual address c28fc260 that 
-   is corrupt - and the way the kernel mappings work on x86, that's 
-   physical address 28fc260 (at around the 40MB mark).
-
-There is almost certainly no way that this is a kernel bug - that memory 
-location is smack dab in the middle of that 'struct page[]' array, and 
-there is absolutely no reason why two different kernels with clearly 
-different allocations would set the same incorrect bug. I mean - it 
-_could_ happen, and maybe there's some really subtle idiotic thing going 
-on, but it's really unlikely.
-
-The address is just so random, and so non-special - and yet it's exactly 
-the same physical address in both cases, even though it actually describes 
-different things as far as the kernel is concerned. That's an almost 100% 
-sure sign of a hard-error in your memory.
-
-And depending on kernel config options, that bad RAM location will be used 
-for different things. In your two cases, it's been used for the 'struct 
-page[]' array both times, but in other cases it could have been used for 
-something else - and maybe resulted in random crashes or other odd things, 
-rather than happen to get noticed by a debug test.
-
-The good news about hard memory errors is that if you boot into a memory 
-tester like memtest86, it's going to find it. So we're not going to have 
-to guess about whether I'm right or not - I would suggest you go download 
-memtest86+ from www.memtest.org and run it. I'd just get the bootable ISO 
-image of memtest86+ v2.11 and burn it to a CD, and boot it, but there are 
-other ways to run that thing.
-
-It's even possible that depending on which distro you have, you may 
-already have a "memtest" entry in your LILO or grub setup. I think SuSE 
-installs memtest as one of the bootable options, for example.
-
-			Linus
+---
+~Randy
+LPC 2009, Sept. 23-25, Portland, Oregon
+http://linuxplumbersconf.org/2009/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
