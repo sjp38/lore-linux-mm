@@ -1,288 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CD2BF6B011E
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:54:37 -0400 (EDT)
-Date: Mon, 24 Aug 2009 09:41:44 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: +
-	mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-c
-	ache-references.patch added to -mm tree
-Message-ID: <20090824014144.GB7346@localhost>
-References: <200908212250.n7LMox3g029154@imap1.linux-foundation.org> <20090822025150.GB7798@localhost> <1251020013.2270.24.camel@castor> <20090823130056.GA10596@localhost> <1251035196.2270.50.camel@castor>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BE8176B0122
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:10:54 -0400 (EDT)
+Received: by pzk36 with SMTP id 36so2064132pzk.12
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 21:10:57 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+Subject: [PATCH 0/4] compcache: compressed in-memory swapping
+Date: Mon, 24 Aug 2009 10:07:33 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1251035196.2270.50.camel@castor>
+Content-Type: Text/Plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200908241007.33844.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "chris.mason@oracle.com" <chris.mason@oracle.com>, "jens.axboe@oracle.com" <jens.axboe@oracle.com>, "mbligh@mbligh.org" <mbligh@mbligh.org>, "miklos@szeredi.hu" <miklos@szeredi.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 23, 2009 at 09:46:36PM +0800, Richard Kennedy wrote:
-> On Sun, 2009-08-23 at 21:00 +0800, Wu Fengguang wrote:
-> > On Sun, Aug 23, 2009 at 05:33:33PM +0800, Richard Kennedy wrote:
-> > > On Sat, 2009-08-22 at 10:51 +0800, Wu Fengguang wrote:
-> > > 
-> > > > > 
-> > > > >  mm/page-writeback.c |  116 +++++++++++++++---------------------------
-> > > > >  1 file changed, 43 insertions(+), 73 deletions(-)
-> > > > > 
-> > > > > diff -puN mm/page-writeback.c~mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-cache-references mm/page-writeback.c
-> > > > > --- a/mm/page-writeback.c~mm-balance_dirty_pages-reduce-calls-to-global_page_state-to-reduce-cache-references
-> > > > > +++ a/mm/page-writeback.c
-> > > > > @@ -249,32 +249,6 @@ static void bdi_writeout_fraction(struct
-> > > > >  	}
-> > > > >  }
-> > > > >  
-> > > > > -/*
-> > > > > - * Clip the earned share of dirty pages to that which is actually available.
-> > > > > - * This avoids exceeding the total dirty_limit when the floating averages
-> > > > > - * fluctuate too quickly.
-> > > > > - */
-> > > > > -static void clip_bdi_dirty_limit(struct backing_dev_info *bdi,
-> > > > > -		unsigned long dirty, unsigned long *pbdi_dirty)
-> > > > > -{
-> > > > > -	unsigned long avail_dirty;
-> > > > > -
-> > > > > -	avail_dirty = global_page_state(NR_FILE_DIRTY) +
-> > > > > -		 global_page_state(NR_WRITEBACK) +
-> > > > > -		 global_page_state(NR_UNSTABLE_NFS) +
-> > > > > -		 global_page_state(NR_WRITEBACK_TEMP);
-> > > > > -
-> > > > > -	if (avail_dirty < dirty)
-> > > > > -		avail_dirty = dirty - avail_dirty;
-> > > > > -	else
-> > > > > -		avail_dirty = 0;
-> > > > > -
-> > > > > -	avail_dirty += bdi_stat(bdi, BDI_RECLAIMABLE) +
-> > > > > -		bdi_stat(bdi, BDI_WRITEBACK);
-> > > > > -
-> > > > > -	*pbdi_dirty = min(*pbdi_dirty, avail_dirty);
-> > > > > -}
-> > > > > -
-> > > > >  static inline void task_dirties_fraction(struct task_struct *tsk,
-> > > > >  		long *numerator, long *denominator)
-> > > > >  {
-> > > > > @@ -465,7 +439,6 @@ get_dirty_limits(unsigned long *pbackgro
-> > > > >  			bdi_dirty = dirty * bdi->max_ratio / 100;
-> > > > >  
-> > > > >  		*pbdi_dirty = bdi_dirty;
-> > > > > -		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
-> > > > >  		task_dirty_limit(current, pbdi_dirty);
-> > > > >  	}
-> > > > >  }
-> > > > > @@ -499,45 +472,12 @@ static void balance_dirty_pages(struct a
-> > > > >  		};
-> > > > >  
-> > > > >  		get_dirty_limits(&background_thresh, &dirty_thresh,
-> > > > > -				&bdi_thresh, bdi);
-> > > > > +				 &bdi_thresh, bdi);
-> > > > >  
-> > > > >  		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
-> > > > > -					global_page_state(NR_UNSTABLE_NFS);
-> > > > > -		nr_writeback = global_page_state(NR_WRITEBACK);
-> > > > > -
-> > > > > -		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
-> > > > > -		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
-> > > > > -
-> > > > > -		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> > > > > -			break;
-> > > > > -
-> > > > > -		/*
-> > > > > -		 * Throttle it only when the background writeback cannot
-> > > > > -		 * catch-up. This avoids (excessively) small writeouts
-> > > > > -		 * when the bdi limits are ramping up.
-> > > > > -		 */
-> > > > > -		if (nr_reclaimable + nr_writeback <
-> > > > > -				(background_thresh + dirty_thresh) / 2)
-> > > > > -			break;
-> > > > > -
-> > > > > -		if (!bdi->dirty_exceeded)
-> > > > > -			bdi->dirty_exceeded = 1;
-> > > > > -
-> > > > > -		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
-> > > > > -		 * Unstable writes are a feature of certain networked
-> > > > > -		 * filesystems (i.e. NFS) in which data may have been
-> > > > > -		 * written to the server's write cache, but has not yet
-> > > > > -		 * been flushed to permanent storage.
-> > > > > -		 * Only move pages to writeback if this bdi is over its
-> > > > > -		 * threshold otherwise wait until the disk writes catch
-> > > > > -		 * up.
-> > > > > -		 */
-> > > > > -		if (bdi_nr_reclaimable > bdi_thresh) {
-> > > > > -			generic_sync_bdi_inodes(NULL, &wbc);
-> > > > > -			pages_written += write_chunk - wbc.nr_to_write;
-> > > > > -			get_dirty_limits(&background_thresh, &dirty_thresh,
-> > > > > -				       &bdi_thresh, bdi);
-> > > > > -		}
-> > > > > +			global_page_state(NR_UNSTABLE_NFS);
-> > > > > +		nr_writeback = global_page_state(NR_WRITEBACK) +
-> > > > > +			global_page_state(NR_WRITEBACK_TEMP);
-> > > > >  
-> > > > >  		/*
-> > > > >  		 * In order to avoid the stacked BDI deadlock we need
-> > > > > @@ -557,16 +497,48 @@ static void balance_dirty_pages(struct a
-> > > > >  			bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
-> > > > >  		}
-> > > > >  
-> > > > > -		if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> > > > > -			break;
-> > > > > -		if (pages_written >= write_chunk)
-> > > > > -			break;		/* We've done our duty */
-> > > > 
-> > > > > +		/* always throttle if over threshold */
-> > > > > +		if (nr_reclaimable + nr_writeback < dirty_thresh) {
-> > > > 
-> > > > That 'if' is a big behavior change. It effectively blocks every one
-> > > > and canceled Peter's proportional throttling work: the less a process
-> > > > dirtied, the less it should be throttled.
-> > > > 
-> > > I don't think it does. the code ends up looking like
-> > > 
-> > > FOR
-> > > 	IF less than dirty_thresh THEN
-> > > 		check bdi limits etc	
-> > > 	ENDIF
-> > > 
-> > > 	thottle
-> > > ENDFOR
-> > > 
-> > > Therefore we always throttle when over the threshold otherwise we apply
-> > > the per bdi limits to decide if we throttle.
-> > > 
-> > > In the existing code clip_bdi_dirty_limit modified the bdi_thresh so
-> > > that it would not let a bdi dirty enough pages to go over the
-> > > dirty_threshold. All I've done is to bring the check of dirty_thresh up
-> > > into balance_dirty_pages.
-> > > 
-> > > So isn't this effectively the same ?
-> > 
-> > Yes and no. For the bdi_thresh part it somehow makes the
-> > clip_bdi_dirty_limit() logic more simple and obvious. Which I tend to
-> > agree with you and Peter on doing something like this:
-> > 
-> >         if (nr_reclaimable + nr_writeback < dirty_thresh) {
-> >                 /* compute bdi_* */
-> >                 if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> >          		break;
-> >         }
-> > 
-> > For other two 'if's..
-> >  
-> > > > I'd propose to remove the above 'if' and liberate the following three 'if's.
-> > > > 
-> > > > > +
-> > > > > +			if (bdi_nr_reclaimable + bdi_nr_writeback <= bdi_thresh)
-> > > > > +				break;
-> > > > > +
-> > > > > +			/*
-> > > > > +			 * Throttle it only when the background writeback cannot
-> > > > > +			 * catch-up. This avoids (excessively) small writeouts
-> > > > > +			 * when the bdi limits are ramping up.
-> > > > > +			 */
-> > > > > +			if (nr_reclaimable + nr_writeback <
-> > > > > +			    (background_thresh + dirty_thresh) / 2)
-> > > > > +				break;
-> > 
-> > That 'if' can be trivially moved out.
-> 
-> OK, 
-> > > > > +
-> > > > > +			/* done enough? */
-> > > > > +			if (pages_written >= write_chunk)
-> > > > > +				break;
-> > 
-> > That 'if' must be moved out, otherwise it can block a light writer
-> > for ever, as long as there is another heavy dirtier keeps the dirty
-> > numbers high.
-> 
-> Yes, I see. But I was worried about a failing device that gets stuck.
-> Doesn't this let the application keep dirtying pages forever if the
-> pages aren't get written to the device?
+Hi,
 
-In that case every task will be granted up to 8 dirty pages and then
-get blocked here, because it will never get big enough pages_written.
+Project home: http://compcache.googlecode.com/
 
-That is not perfect, but should be acceptable for a relatively rare case.
+It creates RAM based block devices which can be used (only) as swap disks.
+Pages swapped to this device are compressed and stored in memory itself. This
+is a big win over swapping to slow hard-disk which are typically used as swap
+disk. For flash, these suffer from wear-leveling issues when used as swap disk
+- so again its helpful. For swapless systems, it allows more apps to run for a
+given amount of memory.
 
-> Maybe something like this ?
-> 
-> if ( nr_writeback < background_thresh && pages_written >= write_chunk)
-> 	break;
-> 
-> or bdi_nr_writeback < bdi_thresh/2 ?
+It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
+Each of these devices can have separate backing swap (file or disk partition)
+which is used when incompressible page is found or memory limit for device is
+reached.
 
-Does that improve _anything_ on a failing device?
-That 8-pages-per-task will still be granted..
+A separate userspace utility called rzscontrol is used to manage individual
+ramzswap devices.
 
-> > > > > +		}
-> > > > > +		if (!bdi->dirty_exceeded)
-> > > > > +			bdi->dirty_exceeded = 1;
-> > > > >  
-> > > > > +		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
-> > > > > +		 * Unstable writes are a feature of certain networked
-> > > > > +		 * filesystems (i.e. NFS) in which data may have been
-> > > > > +		 * written to the server's write cache, but has not yet
-> > > > > +		 * been flushed to permanent storage.
-> > 
-> > > > > +		 * Only move pages to writeback if this bdi is over its
-> > > > > +		 * threshold otherwise wait until the disk writes catch
-> > > > > +		 * up.
-> > > > > +		 */
-> > > > > +		if (bdi_nr_reclaimable > bdi_thresh) {
-> > 
-> > I'd much prefer its original form
-> > 
-> >                 if (bdi_nr_reclaimable) {
-> > 
-> > Let's push dirty pages to disk ASAP :)
-> 
-> That change comes from my previous patch, and it's to stop this code
-> over reacting and pushing all the available dirty pages to the writeback
-> list.
+* Testing notes
 
-This is the fs guys' expectation. The background sync logic will
-also try to push all available dirty pages all the way down to 0.
-There may be fat IO pipes and we want to fill them as much as we can
-once IO is started, to achieve better IO efficiency.
+Tested on x86, x64, ARM
+ARM:
+ - Cortex-A8 (Beagleboard)
+ - ARM11 (Android G1)
+ - OMAP2420 (Nokia N810)
 
-> > > > > +			writeback_inodes(&wbc);
-> > > > > +			pages_written += write_chunk - wbc.nr_to_write;
-> > > > 
-> > > > > +			if (wbc.nr_to_write == 0)
-> > > > > +				continue;
-> > > > 
-> > > > What's the purpose of the above 2 lines?
-> > > 
-> > > This is to try to replicate the existing code as closely as possible.
-> > > 
-> > > If writeback_inodes wrote write_chunk pages in one pass then skip to the
-> > > top of the loop to recheck the limits and decide if we can let the
-> > > application continue. Otherwise it's not making enough forward progress
-> > > due to congestion so do the congestion_wait & loop. 
-> > 
-> > It makes sense. We have wbc.encountered_congestion for that purpose.
-> > However it may not able to write enough pages for other reasons like
-> > lock contention. So I'd suggest to test (wbc.nr_to_write <= 0).
-> > Thanks,
-> > Fengguang
-> 
-> 
-> I didn't test the congestion flag directly because we don't care about
-> it if writeback_inodes did enough. If write_chunk pages get moved to
-> writeback then we don't need to do the congestion_wait.
+* Performance
 
-Right. (wbc.nr_to_write <= 0) indicates no congestion encountered.
+All performance numbers/plots can be found at:
+http://code.google.com/p/compcache/wiki/Performance
 
-> Can writeback_inodes do more work than it was asked to do?
+Below is a summary of this data:
 
-Maybe not. But all existing code check for inequality instead of '== 0' ;)
+General:
+ - Swap R/W times are reduced from milliseconds (in case of hard disks)
+down to microseconds.
 
-> But OK, I can make that change if you think it worthwhile.
+Positive cases:
+ - Shows 33% improvement in 'scan' benchmark which allocates given amount
+of memory and linearly reads/writes to this region. This benchmark also
+exposes *bottlenecks* in ramzswap code (global mutex) due to which this gain
+is so small.
+ - On Linux thin clients, it gives the effect of nearly doubling the amount of
+memory.
 
-OK, thanks!
+Negative cases:
+Any workload that has active working set w.r.t. filesystem cache that is
+nearly equal to amount of RAM while has minimal anonymous memory requirement,
+is expected to suffer maximum loss in performance with ramzswap enabled.
 
-Fengguang
+Iozone filesystem benchmark can simulate exactly this kind of workload.
+As expected, this test shows performance loss of ~25% with ramzswap.
+
+
+(Sorry for long patch[2/4] but its now very hard to split it up).
+
+ Documentation/blockdev/00-INDEX       |    2 +
+ Documentation/blockdev/ramzswap.txt   |   52 ++
+ drivers/block/Kconfig                 |   22 +
+ drivers/block/Makefile                |    1 +
+ drivers/block/ramzswap/Makefile       |    2 +
+ drivers/block/ramzswap/ramzswap.c     | 1511 +++++++++++++++++++++++++++++++++
+ drivers/block/ramzswap/ramzswap.h     |  182 ++++
+ drivers/block/ramzswap/xvmalloc.c     |  556 ++++++++++++
+ drivers/block/ramzswap/xvmalloc.h     |   30 +
+ drivers/block/ramzswap/xvmalloc_int.h |   86 ++
+ include/linux/ramzswap_ioctl.h        |   51 ++
+ include/linux/swap.h                  |    5 +
+ mm/swapfile.c                         |   33 +
+ 13 files changed, 2533 insertions(+), 0 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
