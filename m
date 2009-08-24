@@ -1,161 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id F3E0D6B0106
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 21:04:47 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7Q14klg022760
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 26 Aug 2009 10:04:47 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AB5B745DE52
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 10:04:46 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8742845DE4C
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 10:04:46 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 71E2C1DB803F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 10:04:46 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 10BBC1DB803C
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 10:04:43 +0900 (JST)
-Date: Wed, 26 Aug 2009 10:02:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][preview] memcg: reduce lock contention at uncharge by
- batching
-Message-Id: <20090826100256.5f0fb2a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6CE9C6B0108
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 21:11:03 -0400 (EDT)
+Received: by gxk12 with SMTP id 12so5038791gxk.4
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:11:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090824105139.c2ab8403.kamezawa.hiroyu@jp.fujitsu.com>
+References: <82e12e5f0908220954p7019fb3dg15f9b99bb7e55a8c@mail.gmail.com>
+	 <28c262360908231844o3df95b14v15b2d4424465f033@mail.gmail.com>
+	 <20090824105139.c2ab8403.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 24 Aug 2009 11:23:21 +0900
+Message-ID: <28c262360908231923q354281a6yca3b43019af3c40e@mail.gmail.com>
+Subject: Re: [PATCH] mm: make munlock fast when mlock is canceled by sigkill
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: Hiroaki Wakabayashi <primulaelatior@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Paul Menage <menage@google.com>, Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-With attached patch below, per-cpu-precharge,
+On Mon, Aug 24, 2009 at 10:51 AM, KAMEZAWA
+Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 24 Aug 2009 10:44:41 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> On Sun, Aug 23, 2009 at 1:54 AM, Hiroaki
+>> Wakabayashi<primulaelatior@gmail.com> wrote:
+>> > From 27b2fde0222c59049026e7d0bdc4a2a68d0720f5 Mon Sep 17 00:00:00 2001
+>> > From: Hiroaki Wakabayashi <primulaelatior@gmail.com>
+>> > Date: Sat, 22 Aug 2009 19:14:53 +0900
+>> > Subject: [PATCH] mm: make munlock fast when mlock is canceled by sigki=
+ll
+>> >
+>> > This patch is for making commit 4779280d1e (mm: make get_user_pages()
+>> > interruptible) complete.
+>> >
+>> > At first, munlock() assumes that all pages in vma are pinned,
+>> >
+>> > Now, by the commit, mlock() can be interrupted by SIGKILL, etc =C2=A0S=
+o, part of
+>> > pages are not pinned.
+>> > If SIGKILL, In exit() path, munlock is called for unlocking pinned pag=
+es
+>> > in vma.
+>> >
+>> > But, there, get_user_pages(write) is used for munlock(). Then, pages a=
+re
+>> > allocated via page-fault for exsiting process !!! This is problem at c=
+anceling
+>> > big mlock.
+>> > This patch tries to avoid allocating new pages at munlock().
+>> >
+>> > =C2=A0 mlock( big area )
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0<=3D=3D=3D=3D=3D sig kill
+>> > =C2=A0 do_exit()
+>> > =C2=A0 =C2=A0->mmput()
+>> > =C2=A0 =C2=A0 =C2=A0 -> do_munlock()
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 -> get_user_pages()
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 <allocate *never used=
+* memory>
+>> > =C2=A0 =C2=A0 =C2=A0 ->.....freeing allocated memory.
+>> >
+>> > * Test program
+>> > % cat run.sh
+>> > #!/bin/sh
+>> >
+>> > ./mlock_test 2000000000 &
+>> > sleep 2
+>> > kill -9 $!
+>> > wait
+>> >
+>> > % cat mlock_test.c
+>> > #include <stdio.h>
+>> > #include <stdlib.h>
+>> > #include <string.h>
+>> > #include <sys/mman.h>
+>> > #include <sys/types.h>
+>> > #include <sys/stat.h>
+>> > #include <fcntl.h>
+>> > #include <errno.h>
+>> > #include <time.h>
+>> > #include <unistd.h>
+>> > #include <sys/time.h>
+>> >
+>> > int main(int argc, char **argv)
+>> > {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0size_t length =3D 50 * 1024 * 1024;
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0void *addr;
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0time_t timer;
+>> >
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0if (argc >=3D 2)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0length =3D strt=
+oul(argv[1], NULL, 10);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0printf("PID =3D %d\n", getpid());
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0addr =3D mmap(NULL, length, PROT_READ | PRO=
+T_WRITE,
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0MAP_PRIVATE | MAP_ANONYMOUS, -1, 0=
+);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0if (addr =3D=3D MAP_FAILED) {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fprintf(stderr,=
+ "mmap failed: %s, length=3D%lu\n",
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0strerror(errno), length);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0exit(EXIT_FAILU=
+RE);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0printf("try mlock length=3D%lu\n", length);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0timer =3D time(NULL);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0if (mlock(addr, length) < 0) {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fprintf(stderr,=
+ "mlock failed: %s, time=3D%lu[sec]\n",
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0strerror(errno), time(NULL) - time=
+r);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0exit(EXIT_FAILU=
+RE);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0printf("mlock succeed, time=3D%lu[sec]\n\n"=
+, time(NULL) - timer);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0printf("try munlock length=3D%lu\n", length=
+);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0timer =3D time(NULL);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0if (munlock(addr, length) < 0) {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fprintf(stderr,=
+ "munlock failed: %s, time=3D%lu[sec]\n",
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0strerror(errno), time(NULL)-timer)=
+;
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0exit(EXIT_FAILU=
+RE);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0printf("munlock succeed, time=3D%lu[sec]\n\=
+n", time(NULL) - timer);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0if (munmap(addr, length) < 0) {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fprintf(stderr,=
+ "munmap failed: %s\n", strerror(errno));
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0exit(EXIT_FAILU=
+RE);
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
+>> > }
+>> >
+>> > * Executed Result
+>> > -- Original executed result
+>> > % time ./run.sh
+>> >
+>> > PID =3D 2678
+>> > try mlock length=3D2000000000
+>> > ./run.sh: line 6: =C2=A02678 Killed =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0./mlock_test 2000000000
+>> > ./run.sh =C2=A00.00s user 2.59s system 13% cpu 18.781 total
+>> > %
+>> >
+>> > -- After applied this patch
+>> > % time ./run.sh
+>> >
+>> > PID =3D 2512
+>> > try mlock length=3D2000000000
+>> > ./run.sh: line 6: =C2=A02512 Killed =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0./mlock_test 2000000000
+>> > ./run.sh =C2=A00.00s user 1.15s system 45% cpu 2.507 total
+>> > %
+>> >
+>> > Signed-off-by: Hiroaki Wakabayashi <primulaelatior@gmail.com>
+>> > ---
+>> > =C2=A0mm/internal.h | =C2=A0 =C2=A01 +
+>> > =C2=A0mm/memory.c =C2=A0 | =C2=A0 =C2=A09 +++++++--
+>> > =C2=A0mm/mlock.c =C2=A0 =C2=A0| =C2=A0 35 +++++++++++++++++++---------=
+-------
+>> > =C2=A03 files changed, 27 insertions(+), 18 deletions(-)
+>> >
+>> > diff --git a/mm/internal.h b/mm/internal.h
+>> > index f290c4d..4ab5b24 100644
+>> > --- a/mm/internal.h
+>> > +++ b/mm/internal.h
+>> > @@ -254,6 +254,7 @@ static inline void
+>> > mminit_validate_memmodel_limits(unsigned long *start_pfn,
+>> > =C2=A0#define GUP_FLAGS_FORCE =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A00x2
+>> > =C2=A0#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
+>> > =C2=A0#define GUP_FLAGS_IGNORE_SIGKILL =C2=A0 =C2=A0 =C2=A0 =C2=A0 0x8
+>> > +#define GUP_FLAGS_ALLOW_NULL =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 0x10
+>> >
+>>
+>> I am worried about adding new flag whenever we need it.
+>> But I think this case makes sense to me.
+>> In addition, I guess ZERO page can also use this flag.
+>>
+>> Kame. What do you think about it?
+>>
+> I do welcome this !
+> Then, I don't have to take care of mlock/munlock in ZERO_PAGE patch.
+>
+> And without this patch, munlock() does copy-on-write just for unpinning m=
+emory.
+> So, this patch shows some right direction, I think.
+>
+> One concern is flag name, ALLOW_NULL sounds not very good.
+>
+> =C2=A0GUP_FLAGS_NOFAULT ?
+>
+> I wonder we can remove a hack of FOLL_ANON for core-dump by this flag, to=
+o.
 
-I got this number,
+That's a good point.
+It can remove little cache footprint and
+unnecessary calls[flush_xxx_page in GUP].
 
-[Before] linux-2.6.31-rc7
-real    2m46.491s
-user    4m47.008s
-sys     3m32.954s
-
-
-lock_stat version 0.3
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                              class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-                          &counter->lock:       1167034        1196935           0.52       16291.34      829793.69       18742433       45050576           0.42       30788.81     9490908.36
-                          --------------
-                          &counter->lock         638151          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
-                          &counter->lock         558784          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
-                          --------------
-                          &counter->lock         679567          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
-                          &counter->lock         517368          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
-
-[After] precharge+batched uncharge
-real    2m46.799s
-user    4m49.523s
-sys     3m18.916s
-                         &counter->lock:         12785          12984           0.71          34.87        6768.24
-       967813        4937090           0.47       20257.57      953289.67
-                          --------------
-                          &counter->lock          11117          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
-                          &counter->lock           1867          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
-                          --------------
-                          &counter->lock          10691          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
-                          &counter->lock           2293          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
-
-I think patch below is enough simple. (but I need to support flush&cpu-hotplug)
-I'd like to rebase this onto mmotom. 
-Main difference with percpu_counter is that this is pre-charge and never goes over limit.
-
---
-Index: linux-2.6.31-rc7/mm/memcontrol.c
-===================================================================
---- linux-2.6.31-rc7.orig/mm/memcontrol.c	2009-08-26 09:11:57.000000000 +0900
-+++ linux-2.6.31-rc7/mm/memcontrol.c	2009-08-26 09:46:51.000000000 +0900
-@@ -67,6 +67,7 @@
- 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
- 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
- 
-+	MEM_CGROUP_STAT_PRECHARGE, /* # of charges pre-allocated for future */
- 	MEM_CGROUP_STAT_NSTATS,
- };
- 
-@@ -959,6 +960,32 @@
- 	unlock_page_cgroup(pc);
- }
- 
-+#define CHARGE_SIZE	(4 * ((NR_CPUS >> 5)+1) * PAGE_SIZE)
-+
-+bool use_precharge(struct mem_cgroup *mem)
-+{
-+	struct mem_cgroup_stat_cpu *cstat;
-+	int cpu = get_cpu();
-+	bool ret = true;
-+
-+	cstat = &mem->stat.cpustat[cpu];
-+	if (cstat->count[MEM_CGROUP_STAT_PRECHARGE])
-+		cstat->count[MEM_CGROUP_STAT_PRECHARGE] -= PAGE_SIZE;
-+	else
-+		ret = false;
-+	put_cpu();
-+	return ret;
-+}
-+
-+void do_precharge(struct mem_cgroup *mem, int val)
-+{
-+	struct mem_cgroup_stat_cpu *cstat;
-+	int cpu = get_cpu();
-+	cstat = &mem->stat.cpustat[cpu];
-+	__mem_cgroup_stat_add_safe(cstat, MEM_CGROUP_STAT_PRECHARGE, val);
-+	put_cpu();
-+}
-+
- /*
-  * Unlike exported interface, "oom" parameter is added. if oom==true,
-  * oom-killer can be invoked.
-@@ -995,20 +1022,24 @@
- 
- 	VM_BUG_ON(css_is_removed(&mem->css));
- 
-+	/* can we use precharge ? */
-+	if (use_precharge(mem))
-+		goto got;
-+
- 	while (1) {
- 		int ret;
- 		bool noswap = false;
- 
--		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
-+		ret = res_counter_charge(&mem->res, CHARGE_SIZE, &fail_res);
- 		if (likely(!ret)) {
- 			if (!do_swap_account)
- 				break;
--			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
-+			ret = res_counter_charge(&mem->memsw, CHARGE_SIZE,
- 							&fail_res);
- 			if (likely(!ret))
- 				break;
- 			/* mem+swap counter fails */
--			res_counter_uncharge(&mem->res, PAGE_SIZE);
-+			res_counter_uncharge(&mem->res, CHARGE_SIZE);
- 			noswap = true;
- 			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
- 									memsw);
-@@ -1046,6 +1077,8 @@
- 			goto nomem;
- 		}
- 	}
-+	do_precharge(mem, CHARGE_SIZE-PAGE_SIZE);
-+got:
- 	return 0;
- nomem:
- 	css_put(&mem->css);
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
