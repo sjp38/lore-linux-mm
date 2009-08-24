@@ -1,73 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC946B0125
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:55:05 -0400 (EDT)
-Date: Wed, 26 Aug 2009 06:55:01 +0200
-From: Pierre Ossman <drzeus-list@drzeus.cx>
-Subject: Re: Page allocation failures in guest
-Message-ID: <20090826065501.7ab677b9@mjolnir.ossman.eu>
-In-Reply-To: <200908261147.17838.rusty@rustcorp.com.au>
-References: <20090713115158.0a4892b0@mjolnir.ossman.eu>
-	<200908121501.53167.rusty@rustcorp.com.au>
-	<20090813222548.5e0743dd@mjolnir.ossman.eu>
-	<200908261147.17838.rusty@rustcorp.com.au>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.ossman.eu-655-1251262508-0001-2"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BC2F76B0128
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 01:03:22 -0400 (EDT)
+Received: by pzk36 with SMTP id 36so2092401pzk.12
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 22:03:22 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+Subject: [PATCH 4/4] compcache: documentation
+Date: Mon, 24 Aug 2009 10:08:02 +0530
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200908241008.02184.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+Short guide on how to setup and use ramzswap.
 
---=_freyr.ossman.eu-655-1251262508-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+---
 
-On Wed, 26 Aug 2009 11:47:17 +0930
-Rusty Russell <rusty@rustcorp.com.au> wrote:
+ Documentation/blockdev/00-INDEX     |    2 +
+ Documentation/blockdev/ramzswap.txt |   52 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 0 deletions(-)
 
-> On Fri, 14 Aug 2009 05:55:48 am Pierre Ossman wrote:
-> > On Wed, 12 Aug 2009 15:01:52 +0930
-> > Rusty Russell <rusty@rustcorp.com.au> wrote:
-> > > Subject: virtio: net refill on out-of-memory
-> ...=20
-> > Patch applied. Now we wait. :)
->=20
-> Any results?
->=20
-
-It's been up for 12 days, so I'd say it works. But there is nothing in
-dmesg, which suggests I haven't triggered the condition yet.
-
-I wonder if there might be something broken with Fedora's kernel. :/
-(I am running the same upstream version, and their conf, for this test,
-but not all of their patches)
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.ossman.eu-655-1251262508-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkqUwCkACgkQ7b8eESbyJLhvfgCeJdWl6lSQa8Zi7CGsSLbjyr4x
-1+EAnjLeYeg7bXuVqJ3AACXj23IMc+uk
-=tuHm
------END PGP SIGNATURE-----
-
---=_freyr.ossman.eu-655-1251262508-0001-2--
+diff --git a/Documentation/blockdev/00-INDEX b/Documentation/blockdev/00-INDEX
+index c08df56..c1cb074 100644
+--- a/Documentation/blockdev/00-INDEX
++++ b/Documentation/blockdev/00-INDEX
+@@ -16,3 +16,5 @@ paride.txt
+ 	- information about the parallel port IDE subsystem.
+ ramdisk.txt
+ 	- short guide on how to set up and use the RAM disk.
++ramzswap.txt
++	- short guide on how to setup compressed in-memory swap device.
+diff --git a/Documentation/blockdev/ramzswap.txt b/Documentation/blockdev/ramzswap.txt
+new file mode 100644
+index 0000000..463dd2d
+--- /dev/null
++++ b/Documentation/blockdev/ramzswap.txt
+@@ -0,0 +1,52 @@
++ramzswap: Compressed RAM based swap device
++-------------------------------------------
++
++Project home: http://compcache.googlecode.com/
++
++* Introduction
++
++It creates RAM based block devices which can be used (only) as swap disks.
++Pages swapped to these devices are compressed and stored in memory itself.
++See project home for use cases, performance numbers and a lot more.
++
++It consists of three modules:
++ - xvmalloc.ko: memory allocator
++ - ramzswap.ko: virtual block device driver
++ - rzscontrol userspace utility: to control individual ramzswap devices
++
++* Usage
++
++Following shows a typical sequence of steps for using ramzswap.
++
++1) Load Modules:
++	modprobe ramzswap NUM_DEVICES=4
++	This creates 4 (uninitialized) devices: /dev/ramzswap{0,1,2,3}
++	(NUM_DEVICES parameter is optional. Default: 1)
++
++2) Initialize:
++	Use rzscontrol utility to configure and initialize individual
++	ramzswap devices. Example:
++	rzscontrol /dev/ramzswap2 --init # uses default value of disksize_kb
++
++	*See rzscontrol manpage for more details and examples*
++
++3) Activate:
++	swapon /dev/ramzswap2 # or any other initialized ramzswap device
++
++4) Stats:
++	rzscontrol /dev/ramzswap2 --stats
++
++5) Deactivate:
++	swapoff /dev/ramzswap2
++
++6) Reset:
++	rzscontrol /dev/ramzswap2 --reset
++	(This frees all the memory allocated for this device).
++
++
++Please report any problems at:
++ - Mailing list: linux-mm-cc at laptop dot org
++ - Issue tracker: http://code.google.com/p/compcache/issues/list
++
++Nitin Gupta
++ngupta@vflare.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
