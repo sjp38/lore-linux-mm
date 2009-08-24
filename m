@@ -1,68 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2B03C6B00C0
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:49:52 -0400 (EDT)
-Received: by ywh14 with SMTP id 14so4731575ywh.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:49:57 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 9641E6B00C3
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:03:24 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so2522546fxm.38
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 14:03:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <200908241007.58273.ngupta@vflare.org>
-References: <200908241007.58273.ngupta@vflare.org>
-Date: Mon, 24 Aug 2009 12:10:20 +0530
-Message-ID: <d760cf2d0908232340pd8bef7byc76c4d07f09e7d63@mail.gmail.com>
-Subject: Re: [PATCH 3/4] compcache: send callback when swap slot is freed
-From: Nitin Gupta <ngupta@vflare.org>
+In-Reply-To: <4A92EBB4.1070101@vflare.org>
+References: <200908241007.47910.ngupta@vflare.org>
+	 <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
+	 <4A92EBB4.1070101@vflare.org>
+Date: Mon, 24 Aug 2009 22:43:53 +0300
+Message-ID: <84144f020908241243y11f10e8eudc758b61527e0e9c@mail.gmail.com>
+Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: ngupta@vflare.org
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 24, 2009 at 10:07 AM, Nitin Gupta<ngupta@vflare.org> wrote:
+Hi Nitin,
 
-<snip>
+On Mon, Aug 24, 2009 at 10:36 PM, Nitin Gupta<ngupta@vflare.org> wrote:
+> On 08/24/2009 11:03 PM, Pekka Enberg wrote:
+>
+> <snip>
+>
+>> On Mon, Aug 24, 2009 at 7:37 AM, Nitin Gupta<ngupta@vflare.org> =A0wrote=
+:
+>>>
+>>> +/**
+>>> + * xv_malloc - Allocate block of given size from pool.
+>>> + * @pool: pool to allocate from
+>>> + * @size: size of block to allocate
+>>> + * @pagenum: page no. that holds the object
+>>> + * @offset: location of object within pagenum
+>>> + *
+>>> + * On success,<pagenum, offset> =A0identifies block allocated
+>>> + * and 0 is returned. On failure,<pagenum, offset> =A0is set to
+>>> + * 0 and -ENOMEM is returned.
+>>> + *
+>>> + * Allocation requests with size> =A0XV_MAX_ALLOC_SIZE will fail.
+>>> + */
+>>> +int xv_malloc(struct xv_pool *pool, u32 size, u32 *pagenum, u32 *offse=
+t,
+>>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 gfp_t flags)
+>
+> <snip>
+>
+>>
+>> What's the purpose of passing PFNs around? There's quite a lot of PFN
+>> to struct page conversion going on because of it. Wouldn't it make
+>> more sense to return (and pass) a pointer to struct page instead?
+>
+> PFNs are 32-bit on all archs while for 'struct page *', we require 32-bit=
+ or
+> 64-bit depending on arch. ramzswap allocates a table entry <pagenum, offs=
+et>
+> corresponding to every swap slot. So, the size of table will unnecessaril=
+y
+> increase on 64-bit archs. Same is the argument for xvmalloc free list siz=
+es.
+>
+> Also, xvmalloc and ramzswap itself does PFN -> 'struct page *' conversion
+> only when freeing the page or to get a deferencable pointer.
 
-> +/*
-> + * Sets callback for event when swap_map[offset] =3D=3D 0
-> + * i.e. page at this swap offset is no longer used.
-> + */
-> +void set_swap_free_notify(struct block_device *bdev,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 swap_free_notify_fn *notify=
-_fn)
-> +{
-> + =A0 =A0 =A0 unsigned int i;
-> + =A0 =A0 =A0 struct swap_info_struct *sis;
-> +
-> + =A0 =A0 =A0 spin_lock(&swap_lock);
-> + =A0 =A0 =A0 for (i =3D 0; i <=3D nr_swapfiles; i++) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sis =3D &swap_info[i];
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!(sis->flags & SWP_USED))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (sis->bdev =3D=3D bdev)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> + =A0 =A0 =A0 }
-> +
+I still don't see why the APIs have work on PFNs. You can obviously do
+the conversion once for store and load. Look at what the code does,
+it's converting struct page to PFN just to do the reverse for kmap().
+I think that could be cleaned by passing struct page around.
 
-> + =A0 =A0 =A0 /* swap device not found */
-> + =A0 =A0 =A0 if (i > nr_swapfiles)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
-
-How could I miss this! We need to unlock before this return. I will
-send revised diffs once I get additional reviews.
-
-
-> +
-> + =A0 =A0 =A0 BUG_ON(!sis || sis->swap_free_notify_fn);
-> + =A0 =A0 =A0 sis->swap_free_notify_fn =3D notify_fn;
-> + =A0 =A0 =A0 spin_unlock(&swap_lock);
-> +
-> + =A0 =A0 =A0 return;
-> +}
-> +EXPORT_SYMBOL_GPL(set_swap_free_notify);
-> +
-
-
-Nitin
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
