@@ -1,86 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A8006B00BD
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:49:36 -0400 (EDT)
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090825133516.GE21335@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
-	 <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
-	 <20090825133516.GE21335@csn.ul.ie>
-Content-Type: text/plain
-Date: Tue, 25 Aug 2009 16:49:40 -0400
-Message-Id: <1251233380.16229.3.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2B03C6B00C0
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:49:52 -0400 (EDT)
+Received: by ywh14 with SMTP id 14so4731575ywh.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:49:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <200908241007.58273.ngupta@vflare.org>
+References: <200908241007.58273.ngupta@vflare.org>
+Date: Mon, 24 Aug 2009 12:10:20 +0530
+Message-ID: <d760cf2d0908232340pd8bef7byc76c4d07f09e7d63@mail.gmail.com>
+Subject: Re: [PATCH 3/4] compcache: send callback when swap slot is freed
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-08-25 at 14:35 +0100, Mel Gorman wrote:
-> On Mon, Aug 24, 2009 at 03:29:02PM -0400, Lee Schermerhorn wrote:
-> > <SNIP>
-> >
-> > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h
-> > ===================================================================
-> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/node.h	2009-08-24 12:12:44.000000000 -0400
-> > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h	2009-08-24 12:12:56.000000000 -0400
-> > @@ -21,9 +21,12 @@
-> >  
-> >  #include <linux/sysdev.h>
-> >  #include <linux/cpumask.h>
-> > +#include <linux/hugetlb.h>
-> >  
-> 
-> Is this header inclusion necessary? It does not appear to be required by
-> the structure modification (which is iffy in itself as discussed in the
-> earlier mail) and it breaks build on x86-64.
+On Mon, Aug 24, 2009 at 10:07 AM, Nitin Gupta<ngupta@vflare.org> wrote:
 
-Hi, Mel:
+<snip>
 
-I recall that it is necessary to build.  You can try w/o it.
+> +/*
+> + * Sets callback for event when swap_map[offset] =3D=3D 0
+> + * i.e. page at this swap offset is no longer used.
+> + */
+> +void set_swap_free_notify(struct block_device *bdev,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 swap_free_notify_fn *notify=
+_fn)
+> +{
+> + =A0 =A0 =A0 unsigned int i;
+> + =A0 =A0 =A0 struct swap_info_struct *sis;
+> +
+> + =A0 =A0 =A0 spin_lock(&swap_lock);
+> + =A0 =A0 =A0 for (i =3D 0; i <=3D nr_swapfiles; i++) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 sis =3D &swap_info[i];
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!(sis->flags & SWP_USED))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (sis->bdev =3D=3D bdev)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+> + =A0 =A0 =A0 }
+> +
 
-> 
->  CC      arch/x86/kernel/setup_percpu.o
-> In file included from include/linux/pagemap.h:10,
->                  from include/linux/mempolicy.h:62,
->                  from include/linux/hugetlb.h:8,
->                  from include/linux/node.h:24,
->                  from include/linux/cpu.h:23,
->                  from /usr/local/autobench/var/tmp/build/arch/x86/include/asm/cpu.h:5,
->                  from arch/x86/kernel/setup_percpu.c:19:
-> include/linux/highmem.h:53: error: static declaration of kmap follows non-static declaration
-> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:60: error: previous declaration of kmap was here
-> include/linux/highmem.h:59: error: static declaration of kunmap follows non-static declaration
-> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:61: error: previous declaration of kunmap was here
-> include/linux/highmem.h:63: error: static declaration of kmap_atomic follows non-static declaration
-> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:63: error: previous declaration of kmap_atomic was here
-> make[2]: *** [arch/x86/kernel/setup_percpu.o] Error 1
-> make[1]: *** [arch/x86/kernel] Error 2
+> + =A0 =A0 =A0 /* swap device not found */
+> + =A0 =A0 =A0 if (i > nr_swapfiles)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;
+
+How could I miss this! We need to unlock before this return. I will
+send revised diffs once I get additional reviews.
 
 
-I saw this.  I've been testing on x86_64.  I *thought* that it only
-started showing up in a recent mmotm from changes in the linux-next
-patch--e.g., a failure to set ARCH_HAS_KMAP or to handle appropriately
-!ARCH_HAS_KMAP in highmem.h  But maybe that was coincidental with my
-adding the include.
+> +
+> + =A0 =A0 =A0 BUG_ON(!sis || sis->swap_free_notify_fn);
+> + =A0 =A0 =A0 sis->swap_free_notify_fn =3D notify_fn;
+> + =A0 =A0 =A0 spin_unlock(&swap_lock);
+> +
+> + =A0 =A0 =A0 return;
+> +}
+> +EXPORT_SYMBOL_GPL(set_swap_free_notify);
+> +
 
 
-Lee
-
-> 
-> 
-> 
-> >  struct node {
-> >  	struct sys_device	sysdev;
-> > +	struct kobject		*hugepages_kobj;
-> > +	struct kobject		*hstate_kobjs[HUGE_MAX_HSTATE];
-> >  };
-> >  
-> >  struct memory_block;
-> > 
-> 
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
