@@ -1,96 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E3E4F6B0115
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 22:32:46 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7Q2Wk12019320
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 26 Aug 2009 11:32:46 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DB54245DE58
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:32:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B278745DE4C
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:32:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 850D51DB8041
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:32:45 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E1191DB803F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 11:32:45 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: make munlock fast when mlock is canceled by sigkill
-In-Reply-To: <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
-References: <82e12e5f0908242146uad0f314hcbb02fcc999a1d32@mail.gmail.com> <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
-Message-Id: <20090826113622.9A29.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id ED1F76B0118
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:27:02 -0400 (EDT)
+Received: by pxi15 with SMTP id 15so6495253pxi.23
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 20:27:11 -0700 (PDT)
+Message-ID: <4A92DEA2.7050000@vflare.org>
+Date: Tue, 25 Aug 2009 00:10:34 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 26 Aug 2009 11:32:43 +0900 (JST)
+Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
+References: <200908241007.47910.ngupta@vflare.org>	 <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>	 <4A92D35F.50604@vflare.org>	 <84144f020908241108o4d9d6e38wba7806977b8b6073@mail.gmail.com>	 <4A92D7D4.7020807@vflare.org> <84144f020908241127vc8dafa4l340d000097cf5548@mail.gmail.com>
+In-Reply-To: <84144f020908241127vc8dafa4l340d000097cf5548@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Hiroaki Wakabayashi <primulaelatior@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Paul Menage <menage@google.com>, Ying Han <yinghan@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-> > > Yeah, GUP_FLAGS_NOFAULT is better.
-> > 
-> > Me too.
-> > I will change this flag name.
-> >... 
-> > When I try to change __get_user_pages(), I got problem.
-> > If remove NULLs from pages,
-> > __mlock_vma_pages_range() cannot know how long __get_user_pages() readed.
-> > So, I have to get the virtual address of the page from vma and page.
-> > Because __mlock_vma_pages_range() have to call
-> > __get_user_pages() many times with different `start' argument.
-> > 
-> > I try to use page_address_in_vma(), but it failed.
-> > (page_address_in_vma() returned -EFAULT)
-> > I cannot find way to solve this problem.
-> > Are there good ideas?
-> > Please give me some ideas.
-> 
-> I agree that this munlock issue needs to be addressed: it's not just a
-> matter of speedup, I hit it when testing what happens when mlock takes
-> you to OOM - which is currently a hanging disaster because munlock'ing
-> in the exiting OOM-killed process gets stuck trying to fault in all
-> those pages that couldn't be locked in the first place.
+On 08/24/2009 11:57 PM, Pekka Enberg wrote:
+> On Mon, Aug 24, 2009 at 9:11 PM, Nitin Gupta<ngupta@vflare.org>  wrote:
+>>> Is the name rzmalloc() too similar to kzalloc() which stands for
+>>> zeroing allocator, though? I think I suggested
+>>> ramzswap_alloc()/ramzswap_free() in the past to avoid confusion. I'd
+>>> rather go with that if we can't come up with a nice generic name that
+>>> stands for alloc_part_of_page_including_highmem().
+>>
+>> rzs_malloc()/rzs_free() ?
+>
+> I am not sure what we gain from the shorter and more cryptic "rzs"
+> prefix compared to "ramzswap" but yeah, it's less likely to be
+> confused with kzalloc() so I'm okay with that.
+>
 
-I agree too.
+Perhaps, I'm just too bad with naming :)
 
+xvmalloc -> ramzswap_alloc() (compiled with ramzswap instead of as a separate 
+module).
 
-> I had intended to fix it by being more careful about splitting/merging
-> vmas, noting how far the mlock had got, and munlocking just up to there.
-> However, now that I've got in there, that looks wrong to me, given the
-> traditional behaviour that mlock does its best, but pretends success
-> to allow for later instantiation of the pages if necessary.
-> 
-> You ask for ideas.  My main idea is that so far we have added
-> GUP_FLAGS_IGNORE_VMA_PERMISSIONS (Kosaki-san, what was that about?
->                                   we already had the force flag),
+BTW, [rzs]control is the name of userspace utility to send ioctl()s to ramzswap.
+Somehow, I am happy with rzscontrol name atleast.
 
-MAY_WRITE and MAY_READ might be turned off at some special case.
-but munlock should turn off PG_mlock bit. otherwise the page never be reclaimed.
-This problem was explained by Lee about a year ago.
-
-However, To use follow_page() solove this issue and we will be able to
-remove this ugly flag.
-
-> GUP_FLAGS_IGNORE_SIGKILL, and now you propose
-> GUP_FLAGS_NOFAULT, all for the sole use of munlock.
-> 
-> How about GUP_FLAGS_MUNLOCK, or more to the point, GUP_FLAGS_DONT_BE_GUP?
-> By which I mean, don't all these added flags suggest that almost
-> everything __get_user_pages() does is unsuited to the munlock case?
-> 
-> My advice (but I sure hate giving advice before I've tried it myself)
-> is to put __mlock_vma_pages_range() back to handling just the mlock
-> case, and do your own follow_page() loop in munlock_vma_pages_range().
-
-Agreed. follow_page() is better.
-
-
-
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
