@@ -1,134 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id ED35E6B00D5
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:54:19 -0400 (EDT)
-Received: by pxi15 with SMTP id 15so6323117pxi.23
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 14:54:06 -0700 (PDT)
-Date: Tue, 25 Aug 2009 14:39:12 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] mm: make munlock fast when mlock is canceled by sigkill
-Message-Id: <20090825143912.48b63131.minchan.kim@barrios-desktop>
-In-Reply-To: <82e12e5f0908242146uad0f314hcbb02fcc999a1d32@mail.gmail.com>
-References: <82e12e5f0908220954p7019fb3dg15f9b99bb7e55a8c@mail.gmail.com>
-	<28c262360908231844o3df95b14v15b2d4424465f033@mail.gmail.com>
-	<20090824105139.c2ab8403.kamezawa.hiroyu@jp.fujitsu.com>
-	<2f11576a0908232113w71676aatf22eb6d431501fd0@mail.gmail.com>
-	<82e12e5f0908242146uad0f314hcbb02fcc999a1d32@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 30ADD6B00D7
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:54:20 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so2548608fxm.38
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 14:54:26 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <200908241007.47910.ngupta@vflare.org>
+References: <200908241007.47910.ngupta@vflare.org>
+Date: Mon, 24 Aug 2009 20:33:25 +0300
+Message-ID: <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
+Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hiroaki Wakabayashi <primulaelatior@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Paul Menage <menage@google.com>, Ying Han <yinghan@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: ngupta@vflare.org
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Aug 2009 13:46:19 +0900
-Hiroaki Wakabayashi <primulaelatior@gmail.com> wrote:
+Hi Nitin,
 
-> Thank you for reviews.
-> 
-> >>> > @@ -254,6 +254,7 @@ static inline void
-> >>> > mminit_validate_memmodel_limits(unsigned long *start_pfn,
-> >>> > A #define GUP_FLAGS_FORCE A  A  A  A  A  A  A  A  A 0x2
-> >>> > A #define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
-> >>> > A #define GUP_FLAGS_IGNORE_SIGKILL A  A  A  A  0x8
-> >>> > +#define GUP_FLAGS_ALLOW_NULL A  A  A  A  A  A  0x10
-> >>> >
-> >>>
-> >>> I am worried about adding new flag whenever we need it.
-> >>> But I think this case makes sense to me.
-> >>> In addition, I guess ZERO page can also use this flag.
-> >>>
-> >>> Kame. What do you think about it?
-> >>>
-> >> I do welcome this !
-> >> Then, I don't have to take care of mlock/munlock in ZERO_PAGE patch.
-> >>
-> >> And without this patch, munlock() does copy-on-write just for unpinning memory.
-> >> So, this patch shows some right direction, I think.
-> >>
-> >> One concern is flag name, ALLOW_NULL sounds not very good.
-> >>
-> >> A GUP_FLAGS_NOFAULT ?
-> >>
-> >> I wonder we can remove a hack of FOLL_ANON for core-dump by this flag, too.
-> >
-> > Yeah, GUP_FLAGS_NOFAULT is better.
-> 
-> Me too.
-> I will change this flag name.
-> 
-> > Plus, this patch change __get_user_pages() return value meaning IOW.
-> > after this patch, it can return following value,
-> >
-> > A return value: 3
-> > A pages[0]: hoge-page
-> > A pages[1]: null
-> > A pages[2]: fuga-page
-> >
-> > but, it can be
-> >
-> > A return value: 2
-> > A pages[0]: hoge-page
-> > A pages[1]: fuga-page
-> >
-> > no?
-> 
-> I did misunderstand mean of get_user_pages()'s return value.
-> 
-> When I try to change __get_user_pages(), I got problem.
-> If remove NULLs from pages,
-> __mlock_vma_pages_range() cannot know how long __get_user_pages() readed.
-> So, I have to get the virtual address of the page from vma and page.
-> Because __mlock_vma_pages_range() have to call
-> __get_user_pages() many times with different `start' argument.
-> 
-> I try to use page_address_in_vma(), but it failed.
-> (page_address_in_vma() returned -EFAULT)
-> I cannot find way to solve this problem.
-> Are there good ideas?
-> Please give me some ideas.
+[ Nit: the name xmalloc() is usually reserved for non-failing allocators in
+  user-space which is why xvmalloc() looks so confusing to me. Can we
+  get a better name for the thing? Also, I'm not sure why xvmalloc is a
+  separate module. Can't you just make it in-kernel or compile it in to the
+  ramzswap module? ]
 
+On Mon, Aug 24, 2009 at 7:37 AM, Nitin Gupta<ngupta@vflare.org> wrote:
+> +/**
+> + * xv_malloc - Allocate block of given size from pool.
+> + * @pool: pool to allocate from
+> + * @size: size of block to allocate
+> + * @pagenum: page no. that holds the object
+> + * @offset: location of object within pagenum
+> + *
+> + * On success, <pagenum, offset> identifies block allocated
+> + * and 0 is returned. On failure, <pagenum, offset> is set to
+> + * 0 and -ENOMEM is returned.
+> + *
+> + * Allocation requests with size > XV_MAX_ALLOC_SIZE will fail.
+> + */
+> +int xv_malloc(struct xv_pool *pool, u32 size, u32 *pagenum, u32 *offset,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 gfp_t flags)
+> +{
+> + =A0 =A0 =A0 int error;
+> + =A0 =A0 =A0 u32 index, tmpsize, origsize, tmpoffset;
+> + =A0 =A0 =A0 struct block_header *block, *tmpblock;
+> +
+> + =A0 =A0 =A0 *pagenum =3D 0;
+> + =A0 =A0 =A0 *offset =3D 0;
+> + =A0 =A0 =A0 origsize =3D size;
+> +
+> + =A0 =A0 =A0 if (unlikely(!size || size > XV_MAX_ALLOC_SIZE))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
+> +
+> + =A0 =A0 =A0 size =3D ALIGN(size, XV_ALIGN);
+> +
+> + =A0 =A0 =A0 spin_lock(&pool->lock);
+> +
+> + =A0 =A0 =A0 index =3D find_block(pool, size, pagenum, offset);
+> +
+> + =A0 =A0 =A0 if (!*pagenum) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&pool->lock);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (flags & GFP_NOWAIT)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 error =3D grow_pool(pool, flags);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (unlikely(error))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&pool->lock);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 index =3D find_block(pool, size, pagenum, o=
+ffset);
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 if (!*pagenum) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&pool->lock);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 block =3D get_ptr_atomic(*pagenum, *offset, KM_USER0);
+> +
+> + =A0 =A0 =A0 remove_block_head(pool, block, index);
+> +
+> + =A0 =A0 =A0 /* Split the block if required */
+> + =A0 =A0 =A0 tmpoffset =3D *offset + size + XV_ALIGN;
+> + =A0 =A0 =A0 tmpsize =3D block->size - size;
+> + =A0 =A0 =A0 tmpblock =3D (struct block_header *)((char *)block + size +=
+ XV_ALIGN);
+> + =A0 =A0 =A0 if (tmpsize) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 tmpblock->size =3D tmpsize - XV_ALIGN;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_flag(tmpblock, BLOCK_FREE);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 clear_flag(tmpblock, PREV_FREE);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_blockprev(tmpblock, *offset);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (tmpblock->size >=3D XV_MIN_ALLOC_SIZE)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 insert_block(pool, *pagenum=
+, tmpoffset, tmpblock);
+> +
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (tmpoffset + XV_ALIGN + tmpblock->size !=
+=3D PAGE_SIZE) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 tmpblock =3D BLOCK_NEXT(tmp=
+block);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_blockprev(tmpblock, tmp=
+offset);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> + =A0 =A0 =A0 } else {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* This block is exact fit */
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (tmpoffset !=3D PAGE_SIZE)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 clear_flag(tmpblock, PREV_F=
+REE);
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 block->size =3D origsize;
+> + =A0 =A0 =A0 clear_flag(block, BLOCK_FREE);
+> +
+> + =A0 =A0 =A0 put_ptr_atomic(block, KM_USER0);
+> + =A0 =A0 =A0 spin_unlock(&pool->lock);
+> +
+> + =A0 =A0 =A0 *offset +=3D XV_ALIGN;
+> +
+> + =A0 =A0 =A0 return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(xv_malloc);
 
-Could you satisfy your needs with this ?
+What's the purpose of passing PFNs around? There's quite a lot of PFN
+to struct page conversion going on because of it. Wouldn't it make
+more sense to return (and pass) a pointer to struct page instead?
 
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -217,6 +217,11 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 
-                lru_add_drain();        /* push cached pages to LRU */
- 
-+               /*
-+                * here we assume that get_user_pages() has given us
-+                * a list of virtually contiguous pages.
-+                */
-+               addr += PAGE_SIZE * ret; /* for next get_user_pages() */
-                for (i = 0; i < ret; i++) {
-                        struct page *page = pages[i];
- 
-@@ -234,12 +239,6 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-                        }
-                        unlock_page(page);
-                        put_page(page);         /* ref from get_user_pages() */
--
--                       /*
--                        * here we assume that get_user_pages() has given us
--                        * a list of virtually contiguous pages.
--                        */
--                       addr += PAGE_SIZE;      /* for next get_user_pages() */
-                        nr_pages--;
-                }
-                ret = 0;
-
-> 
-> Thanks.
-> --
-> Hiroaki Wakabayashi
-
-
--- 
-Kind regards,
-Minchan Kim
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
