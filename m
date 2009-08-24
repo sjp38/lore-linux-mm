@@ -1,105 +1,35 @@
-From: Mark Lord <liml@rtr.ca>
-Subject: Re: Discard support (was Re: [PATCH] swap: send callback when swap
- slot is freed)
-Date: Sun, 16 Aug 2009 13:37:07 -0400
-Message-ID: <4A8843C3.3020409__25584.1895741925$1250444255$gmane$org@rtr.ca>
-References: <3e8340490908131354q167840fcv124ec56c92bbb830@mail.gmail.com> <4A85E0DC.9040101@rtr.ca> <f3177b9e0908141621j15ea96c0s26124d03fc2b0acf@mail.gmail.com> <20090814234539.GE27148@parisc-linux.org> <f3177b9e0908141719s658dc79eye92ab46558a97260@mail.gmail.com> <1250341176.4159.2.camel@mulgrave.site> <4A86B69C.7090001@rtr.ca> <1250344518.4159.4.camel@mulgrave.site> <20090816150530.2bae6d1f@lxorguk.ukuu.org.uk> <20090816083434.2ce69859@infradead.org> <20090816154430.GE17958@mit.edu> <4A8841D7.10506@rtr.ca>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 451466B004D
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2009 13:37:09 -0400 (EDT)
-In-Reply-To: <4A8841D7.10506@rtr.ca>
-Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@mit.edu>, Arjan van de Ven <arjan@infradead.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, James Bottomley <James.Bottomley@suse.de>, Mark Lord <liml@rtr.ca>, Chris
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Subject: [PATCH 0/5] hugetlb: numa control of persistent huge pages alloc/free
+Date: Mon, 24 Aug 2009 15:24:37 -0400
+Message-ID: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
+Return-path: <linux-numa-owner@vger.kernel.org>
+Sender: linux-numa-owner@vger.kernel.org
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-Id: linux-mm.kvack.org
 
-Mark Lord wrote:
-..
-> As you can see, we're now into the 100 millisecond range
-> for successive TRIM-followed-by-TRIM commands.
-> 
-> Those are all for single extents.  I will follow-up with a small
-> amount of similar data for TRIMs with multiple extents.
-..
+PATCH 0/5 hugetlb: numa control of persistent huge pages alloc/free
 
-Here's the exact same TRIM ranges, but issued with *two* extents
-per TRIM command, and again *without* the "sleep 1" between them:
+Against:  2.6.31-rc6-mmotm-090820-1918
 
-Beginning TRIM operations..
-Trimming 2 free extents encompassing 686 sectors (0 MB)
-Trimming 2 free extents encompassing 236 sectors (0 MB)
-Trimming 2 free extents encompassing 2186 sectors (1 MB)
-Trimming 2 free extents encompassing 2206 sectors (1 MB)
-Trimming 2 free extents encompassing 1494 sectors (1 MB)
-Trimming 2 free extents encompassing 1086 sectors (1 MB)
-Trimming 2 free extents encompassing 1658 sectors (1 MB)
-Trimming 2 free extents encompassing 14250 sectors (7 MB)
-Done.
-[ 1528.761626] ata_qc_issue: ATA_CMD_DSM starting
-[ 1528.761825] trim_completed: ATA_CMD_DSM took 419952 cycles
-[ 1528.807158] ata_qc_issue: ATA_CMD_DSM starting
-[ 1528.919035] trim_completed: ATA_CMD_DSM took 241772908 cycles
-[ 1528.956048] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.068536] trim_completed: ATA_CMD_DSM took 243085505 cycles
-[ 1529.156661] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.266377] trim_completed: ATA_CMD_DSM took 237098927 cycles
-[ 1529.367212] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.464676] trim_completed: ATA_CMD_DSM took 210619370 cycles
-[ 1529.518619] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.630444] trim_completed: ATA_CMD_DSM took 241654712 cycles
-[ 1529.739335] ata_qc_issue: ATA_CMD_DSM starting
-[ 1529.829826] trim_completed: ATA_CMD_DSM took 195545233 cycles
-[ 1529.958442] ata_qc_issue: ATA_CMD_DSM starting
-[ 1530.028356] trim_completed: ATA_CMD_DSM took 151077251 cycles
+This is V4 of a series of patches to provide control over the location
+of the allocation and freeing of persistent huge pages on a NUMA
+platform.    This series uses the task NUMA mempolicy of the task
+modifying "nr_hugepages" to constrain the affected nodes.  This
+method is based on Mel Gorman's suggestion to use task mempolicy.
+One of the benefits of this method is that it does not *require*
+modification to hugeadm(8) to use this feature.  One of the possible
+downsides is that task mempolicy is limited by cpuset constraints.
 
-Next, with *four* extents per TRIM:
+V4 add a subset of the hugepages sysfs attributes to each per
+node system device directory under:
 
-Beginning TRIM operations..
-Trimming 4 free extents encompassing 922 sectors (0 MB)
-Trimming 4 free extents encompassing 4392 sectors (2 MB)
-Trimming 4 free extents encompassing 2580 sectors (1 MB)
-Trimming 4 free extents encompassing 15908 sectors (8 MB)
-Done.
-[ 1728.923119] ata_qc_issue: ATA_CMD_DSM starting
-[ 1728.923343] trim_completed: ATA_CMD_DSM took 460590 cycles
-[ 1728.975082] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.087266] trim_completed: ATA_CMD_DSM took 242429200 cycles
-[ 1729.170167] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.282718] trim_completed: ATA_CMD_DSM took 243229428 cycles
-[ 1729.382328] ata_qc_issue: ATA_CMD_DSM starting
-[ 1729.481364] trim_completed: ATA_CMD_DSM took 214012942 cycles
+	/sys/devices/node/node[0-9]*/hugepages.
 
-And with *eight* extents per TRIM:
-Beginning TRIM operations..
-Trimming 8 free extents encompassing 5314 sectors (3 MB)
-Trimming 8 free extents encompassing 18488 sectors (9 MB)
-Done.
-[ 1788.289669] ata_qc_issue: ATA_CMD_DSM starting
-[ 1788.290247] trim_completed: ATA_CMD_DSM took 1228539 cycles
-[ 1788.327223] ata_qc_issue: ATA_CMD_DSM starting
-[ 1788.440490] trim_completed: ATA_CMD_DSM took 244773243 cycles
+The per node attibutes allow direct assignment of a huge page
+count on a specific node, regardless of the task's mempolicy or
+cpuset constraints.
 
-And finally, with everything in a single TRIM:
-
-Beginning TRIM operations..
-Trimming 16 free extents encompassing 23802 sectors (12 MB)
-Done.
-[ 1841.561147] ata_qc_issue: ATA_CMD_DSM starting
-[ 1841.563217] trim_completed: ATA_CMD_DSM took 4458480 cycles
-
-Notice how the first TRIM of each group above shows an artificially
-short completion time, because the firmware seems to return "done"
-before it's really done.  Subsequent TRIMs seem to have to wait
-for the previous one to really complete, and thus give more reliable
-timing data for our purposes.
-
-Cheers
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Note, I haven't implemented a boot time parameter to constrain the
+boot time allocation of huge pages.  This can be added if anyone feels
+strongly that it is required.
