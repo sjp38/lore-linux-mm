@@ -1,49 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id ED1F76B0118
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:27:02 -0400 (EDT)
-Received: by pxi15 with SMTP id 15so6495253pxi.23
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 20:27:11 -0700 (PDT)
-Message-ID: <4A92DEA2.7050000@vflare.org>
-Date: Tue, 25 Aug 2009 00:10:34 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 555EB6B0119
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:34:17 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so2661360fxm.38
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 20:34:16 -0700 (PDT)
+Message-ID: <4A929BF5.2050105@gmail.com>
+Date: Mon, 24 Aug 2009 15:56:05 +0200
+From: Stefan Huber <shuber2@gmail.com>
+Reply-To: shuber2@gmail.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
-References: <200908241007.47910.ngupta@vflare.org>	 <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>	 <4A92D35F.50604@vflare.org>	 <84144f020908241108o4d9d6e38wba7806977b8b6073@mail.gmail.com>	 <4A92D7D4.7020807@vflare.org> <84144f020908241127vc8dafa4l340d000097cf5548@mail.gmail.com>
-In-Reply-To: <84144f020908241127vc8dafa4l340d000097cf5548@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] mm: fix hugetlb bug due to user_shm_unlock call (fwd)
+References: <alpine.LRH.2.00.0908241110420.21562@tundra.namei.org> <Pine.LNX.4.64.0908241258070.27704@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908241258070.27704@sister.anvils>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="------------enigE64C7769F176B869D162D009"
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Meerwald <pmeerw@cosy.sbg.ac.at>, James Morris <jmorris@namei.org>, William Irwin <wli@movementarian.org>, Mel Gorman <mel@csn.ul.ie>, Ravikiran G Thirumalai <kiran@scalex86.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/24/2009 11:57 PM, Pekka Enberg wrote:
-> On Mon, Aug 24, 2009 at 9:11 PM, Nitin Gupta<ngupta@vflare.org>  wrote:
->>> Is the name rzmalloc() too similar to kzalloc() which stands for
->>> zeroing allocator, though? I think I suggested
->>> ramzswap_alloc()/ramzswap_free() in the past to avoid confusion. I'd
->>> rather go with that if we can't come up with a nice generic name that
->>> stands for alloc_part_of_page_including_highmem().
->>
->> rzs_malloc()/rzs_free() ?
->
-> I am not sure what we gain from the shorter and more cryptic "rzs"
-> prefix compared to "ramzswap" but yeah, it's less likely to be
-> confused with kzalloc() so I'm okay with that.
->
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enigE64C7769F176B869D162D009
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Perhaps, I'm just too bad with naming :)
+> However, though I can well believe that your patch works well for you,
+> I don't think it's general enough: there is no guarantee that the tests=
 
-xvmalloc -> ramzswap_alloc() (compiled with ramzswap instead of as a separate 
-module).
+> in can_do_hugetlb_shm() will give the same answer to the user who ends
+> up calling shm_destroy() as it did once upon a time to the user who
+> called hugetlb_file_setup().
+>=20
+> So, please could you try this alternative patch below, to see if it
+> passes your testing too, and let us know the result?  I'm sure we'd
+> like to get a fix into 2.6.31, and into 2.6.30-stable.
 
-BTW, [rzs]control is the name of userspace utility to send ioctl()s to ramzswap.
-Somehow, I am happy with rzscontrol name atleast.
 
-Thanks,
-Nitin
+Yes, your observation is right and your modified patch works good for
+me.
+
+So long
+Stefan
+
+
+
+
+--------------enigE64C7769F176B869D162D009
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+
+iEYEAREIAAYFAkqSm/oACgkQluL3b44/h0ofQwCeJ6vUjbAZZc13APFOUMZNOTbI
+eqYAoKhtPiHynuffJAKHZFYjEDRgEpTQ
+=mRoT
+-----END PGP SIGNATURE-----
+
+--------------enigE64C7769F176B869D162D009--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
