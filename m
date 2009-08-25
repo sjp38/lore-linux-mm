@@ -1,91 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FE26B016E
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:21:12 -0400 (EDT)
-Date: Wed, 26 Aug 2009 11:05:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-Message-ID: <20090826100518.GC10955@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org> <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com> <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com> <20090819100553.GE24809@csn.ul.ie> <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com> <20090825104731.GA21335@csn.ul.ie> <1251198054.15197.40.camel@pasglop> <20090825111031.GD21335@csn.ul.ie> <1251280685.1379.67.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1251280685.1379.67.camel@pasglop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AF06B0170
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:22:37 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7Q5Z7ns001448
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:35:07 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7PBF1NS165588
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 05:17:51 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7PBF0VB021861
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 05:15:01 -0600
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: [PATCH 2/3] Add MAP_HUGETLB for mmaping pseudo-anonymous huge page regions
+Date: Tue, 25 Aug 2009 12:14:53 +0100
+Message-Id: <8504342f7be19e416ef769d1edd24b8549f8dc39.1251197514.git.ebmunson@us.ibm.com>
+In-Reply-To: <25614b0d0581e2d49e1024dc1671b282f193e139.1251197514.git.ebmunson@us.ibm.com>
+References: <cover.1251197514.git.ebmunson@us.ibm.com>
+ <25614b0d0581e2d49e1024dc1671b282f193e139.1251197514.git.ebmunson@us.ibm.com>
+In-Reply-To: <cover.1251197514.git.ebmunson@us.ibm.com>
+References: <cover.1251197514.git.ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 26, 2009 at 07:58:05PM +1000, Benjamin Herrenschmidt wrote:
-> On Tue, 2009-08-25 at 12:10 +0100, Mel Gorman wrote:
-> > On Tue, Aug 25, 2009 at 09:00:54PM +1000, Benjamin Herrenschmidt wrote:
-> > > On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
-> > > 
-> > > > Why? One hugepage of default size will be one TLB entry. Each hugepage
-> > > > after that will be additional TLB entries so there is no savings on
-> > > > translation overhead.
-> > > > 
-> > > > Getting contiguous pages beyond the hugepage boundary is not a matter
-> > > > for GFP flags.
-> > > 
-> > > Note: This patch reminds me of something else I had on the backburner
-> > > for a while and never got a chance to actually implement...
-> > > 
-> > > There's various cases of drivers that could have good uses of hugetlb
-> > > mappings of device memory. For example, framebuffers.
-> > > 
-> > 
-> > Where is the buffer located? If it's in kernel space, than any contiguous
-> > allocation will be automatically backed by huge PTEs. As framebuffer allocation
-> > is probably happening early in boot, just calling alloc_pages() might do?
-> 
-> It's not a memory buffer, it's MMIO space (device memory, off your PCI
-> bus for example).
-> 
+This patch adds a flag for mmap that will be used to request a huge
+page region that will look like anonymous memory to user space.  This
+is accomplished by using a file on the internal vfsmount.  MAP_HUGETLB
+is a modifier of MAP_ANONYMOUS and so must be specified with it.  The
+region will behave the same as a MAP_ANONYMOUS region using small pages.
 
-Ah right, so you just want to set up huge PTEs within the MMIO space?
+Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+---
+ include/asm-generic/mman-common.h |    1 +
+ include/linux/hugetlb.h           |    7 +++++++
+ mm/mmap.c                         |   19 +++++++++++++++++++
+ 3 files changed, 27 insertions(+), 0 deletions(-)
 
-> > Adam Litke at one point posted a pagetable-abstraction that would have
-> > been the first step on a path like this. It hurt the normal fastpath
-> > though and was ultimately put aside.
-> 
-> Which is why I think we should stick to just splitting hugetlb which
-> will not affect the normal path at all. Normal path for normal page,
-> HUGETLB VMAs for other sizes, whether they are backed with memory or by
-> anything else.
-> 
-
-Yeah, in this case I see why you want a hugetlbfs VMA, a huge-pte-backed VMA
-and everything else. They are treated differently. I don't think it's exactly
-what is required in the thread there though because there is a RAM-backed
-buffer. For that, hugetlbfs still makes sense just to ensure the reservations
-exist so that faults do not spuriously fail.  MMIO doesn't care because the
-physical backing exists and is vaguely similar to MAP_SHARED.
-
-> > It's the sort of thing that has been resisted in the past, largely
-> > because the only user at the time was about transparent hugepage
-> > promotion/demotion. It would need to be a really strong incentive to
-> > revive the effort.
-> 
-> Why ? I'm not proposing to hack the normal path. Just splitting
-> hugetlbfs in two which is reasonably easy to do, to allow drivers who
-> map large chunks of MMIO space to use larger page sizes.
-> 
-
-That is a bit more reasonable. It would help the case of MMIO for sure.
-
-> This is the case of pretty much any discrete video card, a chunk of
-> RDMA-style devices, and possibly more.
-> 
-> It's a reasonably simple change that has 0 effect on the non-hugetlb
-> path. I think I'll just have to bite the bullet and send a demo patch
-> when I'm no longer bogged down :-)
-> 
-
+diff --git a/include/asm-generic/mman-common.h b/include/asm-generic/mman-common.h
+index 3b69ad3..12f5982 100644
+--- a/include/asm-generic/mman-common.h
++++ b/include/asm-generic/mman-common.h
+@@ -19,6 +19,7 @@
+ #define MAP_TYPE	0x0f		/* Mask for type of mapping */
+ #define MAP_FIXED	0x10		/* Interpret addr exactly */
+ #define MAP_ANONYMOUS	0x20		/* don't use a file */
++#define MAP_HUGETLB	0x40		/* create a huge page mapping */
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_INVALIDATE	2		/* invalidate the caches */
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 38bb552..b0bc0fd 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -110,12 +110,19 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ 
+ #endif /* !CONFIG_HUGETLB_PAGE */
+ 
++#define HUGETLB_ANON_FILE "anon_hugepage"
++
+ enum {
+ 	/*
+ 	 * The file will be used as an shm file so shmfs accounting rules
+ 	 * apply
+ 	 */
+ 	HUGETLB_SHMFS_INODE     = 1,
++	/*
++	 * The file is being created on the internal vfs mount and shmfs
++	 * accounting rules do not apply
++	 */
++	HUGETLB_ANONHUGE_INODE  = 2,
+ };
+ 
+ #ifdef CONFIG_HUGETLBFS
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8101de4..9ca4f26 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -29,6 +29,7 @@
+ #include <linux/rmap.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/perf_counter.h>
++#include <linux/hugetlb.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -951,6 +952,24 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	if (mm->map_count > sysctl_max_map_count)
+ 		return -ENOMEM;
+ 
++	if (flags & MAP_HUGETLB) {
++		struct user_struct *user = NULL;
++		if (file)
++			return -EINVAL;
++
++		/*
++		 * VM_NORESERVE is used because the reservations will be
++		 * taken when vm_ops->mmap() is called
++		 * A dummy user value is used because we are not locking
++		 * memory so no accounting is necessary
++		 */
++		len = ALIGN(len, huge_page_size(&default_hstate));
++		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
++						&user, HUGETLB_ANONHUGE_INODE);
++		if (IS_ERR(file))
++			return PTR_ERR(file);
++	}
++
+ 	/* Obtain the address to map to. we verify (or select) it and ensure
+ 	 * that it represents a valid section of the address space.
+ 	 */
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.6.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
