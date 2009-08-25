@@ -1,187 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B62D6B00BD
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:49:31 -0400 (EDT)
-Subject: Re: [PATCH 2/5] hugetlb:  add nodemask arg to huge page alloc,
- free and surplus adjust fcns
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8006B00BD
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:49:36 -0400 (EDT)
+Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.2.00.0908250112510.23660@chino.kir.corp.google.com>
+In-Reply-To: <20090825133516.GE21335@csn.ul.ie>
 References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
-	 <20090824192637.10317.31039.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.2.00.0908250112510.23660@chino.kir.corp.google.com>
+	 <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
+	 <20090825133516.GE21335@csn.ul.ie>
 Content-Type: text/plain
-Date: Tue, 25 Aug 2009 16:49:34 -0400
-Message-Id: <1251233374.16229.2.camel@useless.americas.hpqcorp.net>
+Date: Tue, 25 Aug 2009 16:49:40 -0400
+Message-Id: <1251233380.16229.3.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-08-25 at 01:16 -0700, David Rientjes wrote:
-> On Mon, 24 Aug 2009, Lee Schermerhorn wrote:
-> 
-> > [PATCH 2/4] hugetlb:  add nodemask arg to huge page alloc, free and surplus adjust fcns
-> > 
-> > Against: 2.6.31-rc6-mmotm-090820-1918
-> > 
-> > V3:
-> > + moved this patch to after the "rework" of hstate_next_node_to_...
-> >   functions as this patch is more specific to using task mempolicy
-> >   to control huge page allocation and freeing.
-> > 
-> > In preparation for constraining huge page allocation and freeing by the
-> > controlling task's numa mempolicy, add a "nodes_allowed" nodemask pointer
-> > to the allocate, free and surplus adjustment functions.  For now, pass
-> > NULL to indicate default behavior--i.e., use node_online_map.  A
-> > subsqeuent patch will derive a non-default mask from the controlling 
-> > task's numa mempolicy.
-> > 
-> > Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > 
-> >  mm/hugetlb.c |  102 ++++++++++++++++++++++++++++++++++++++---------------------
-> >  1 file changed, 67 insertions(+), 35 deletions(-)
-> > 
-> > Index: linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c
+On Tue, 2009-08-25 at 14:35 +0100, Mel Gorman wrote:
+> On Mon, Aug 24, 2009 at 03:29:02PM -0400, Lee Schermerhorn wrote:
+> > <SNIP>
+> >
+> > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h
 > > ===================================================================
-> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/mm/hugetlb.c	2009-08-24 12:12:46.000000000 -0400
-> > +++ linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c	2009-08-24 12:12:50.000000000 -0400
-> > @@ -622,19 +622,29 @@ static struct page *alloc_fresh_huge_pag
-> >  }
+> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/node.h	2009-08-24 12:12:44.000000000 -0400
+> > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h	2009-08-24 12:12:56.000000000 -0400
+> > @@ -21,9 +21,12 @@
 > >  
-> >  /*
-> > - * common helper function for hstate_next_node_to_{alloc|free}.
-> > - * return next node in node_online_map, wrapping at end.
-> > + * common helper functions for hstate_next_node_to_{alloc|free}.
-> > + * We may have allocated or freed a huge pages based on a different
-> > + * nodes_allowed, previously, so h->next_node_to_{alloc|free} might
-> > + * be outside of *nodes_allowed.  Ensure that we use the next
-> > + * allowed node for alloc or free.
-> >   */
-> > -static int next_node_allowed(int nid)
-> > +static int next_node_allowed(int nid, nodemask_t *nodes_allowed)
-> >  {
-> > -	nid = next_node(nid, node_online_map);
-> > +	nid = next_node(nid, *nodes_allowed);
-> >  	if (nid == MAX_NUMNODES)
-> > -		nid = first_node(node_online_map);
-> > +		nid = first_node(*nodes_allowed);
-> >  	VM_BUG_ON(nid >= MAX_NUMNODES);
+> >  #include <linux/sysdev.h>
+> >  #include <linux/cpumask.h>
+> > +#include <linux/hugetlb.h>
 > >  
-> >  	return nid;
-> >  }
-> >  
-> > +static int this_node_allowed(int nid, nodemask_t *nodes_allowed)
-> > +{
-> > +	if (!node_isset(nid, *nodes_allowed))
-> > +		nid = next_node_allowed(nid, nodes_allowed);
-> > +	return nid;
-> > +}
 > 
-> Awkward name considering this doesn't simply return true or false as 
-> expected, it returns a nid.
+> Is this header inclusion necessary? It does not appear to be required by
+> the structure modification (which is iffy in itself as discussed in the
+> earlier mail) and it breaks build on x86-64.
 
-Well, it's not a predicate function so I wouldn't expect true or false
-return, but I can see how the trailing "allowed" can sound like we're
-asking the question "Is this node allowed?".  Maybe,
-"get_this_node_allowed()" or "get_start_node_allowed" [we return the nid
-to "startnid"], ...  Or, do you have a suggestion?  
+Hi, Mel:
+
+I recall that it is necessary to build.  You can try w/o it.
 
 > 
-> > +
-> >  /*
-> >   * Use a helper variable to find the next node and then
-> >   * copy it back to next_nid_to_alloc afterwards:
-> > @@ -642,28 +652,34 @@ static int next_node_allowed(int nid)
-> >   * pass invalid nid MAX_NUMNODES to alloc_pages_exact_node.
-> >   * But we don't need to use a spin_lock here: it really
-> >   * doesn't matter if occasionally a racer chooses the
-> > - * same nid as we do.  Move nid forward in the mask even
-> > - * if we just successfully allocated a hugepage so that
-> > - * the next caller gets hugepages on the next node.
-> > + * same nid as we do.  Move nid forward in the mask whether
-> > + * or not we just successfully allocated a hugepage so that
-> > + * the next allocation addresses the next node.
-> >   */
-> > -static int hstate_next_node_to_alloc(struct hstate *h)
-> > +static int hstate_next_node_to_alloc(struct hstate *h,
-> > +					nodemask_t *nodes_allowed)
-> >  {
-> >  	int nid, next_nid;
-> >  
-> > -	nid = h->next_nid_to_alloc;
-> > -	next_nid = next_node_allowed(nid);
-> > +	if (!nodes_allowed)
-> > +		nodes_allowed = &node_online_map;
-> > +
-> > +	nid = this_node_allowed(h->next_nid_to_alloc, nodes_allowed);
-> > +
-> > +	next_nid = next_node_allowed(nid, nodes_allowed);
-> >  	h->next_nid_to_alloc = next_nid;
-> > +
-> >  	return nid;
-> >  }
-> 
-> Don't need next_nid.
+>  CC      arch/x86/kernel/setup_percpu.o
+> In file included from include/linux/pagemap.h:10,
+>                  from include/linux/mempolicy.h:62,
+>                  from include/linux/hugetlb.h:8,
+>                  from include/linux/node.h:24,
+>                  from include/linux/cpu.h:23,
+>                  from /usr/local/autobench/var/tmp/build/arch/x86/include/asm/cpu.h:5,
+>                  from arch/x86/kernel/setup_percpu.c:19:
+> include/linux/highmem.h:53: error: static declaration of kmap follows non-static declaration
+> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:60: error: previous declaration of kmap was here
+> include/linux/highmem.h:59: error: static declaration of kunmap follows non-static declaration
+> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:61: error: previous declaration of kunmap was here
+> include/linux/highmem.h:63: error: static declaration of kmap_atomic follows non-static declaration
+> /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:63: error: previous declaration of kmap_atomic was here
+> make[2]: *** [arch/x86/kernel/setup_percpu.o] Error 1
+> make[1]: *** [arch/x86/kernel] Error 2
 
-Well, the pre-existing comment block indicated that the use of the
-apparently spurious next_nid variable is necessary to close a race.  Not
-sure whether that comment still applies with this rework.  What do you
-think?  
 
-> 
-> > -static int alloc_fresh_huge_page(struct hstate *h)
-> > +static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
-> >  {
-> >  	struct page *page;
-> >  	int start_nid;
-> >  	int next_nid;
-> >  	int ret = 0;
-> >  
-> > -	start_nid = hstate_next_node_to_alloc(h);
-> > +	start_nid = hstate_next_node_to_alloc(h, nodes_allowed);
-> >  	next_nid = start_nid;
-> >  
-> >  	do {
-> > @@ -672,7 +688,7 @@ static int alloc_fresh_huge_page(struct
-> >  			ret = 1;
-> >  			break;
-> >  		}
-> > -		next_nid = hstate_next_node_to_alloc(h);
-> > +		next_nid = hstate_next_node_to_alloc(h, nodes_allowed);
-> >  	} while (next_nid != start_nid);
-> >  
-> >  	if (ret)
-> > @@ -689,13 +705,18 @@ static int alloc_fresh_huge_page(struct
-> >   * whether or not we find a free huge page to free so that the
-> >   * next attempt to free addresses the next node.
-> >   */
-> > -static int hstate_next_node_to_free(struct hstate *h)
-> > +static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
-> >  {
-> >  	int nid, next_nid;
-> >  
-> > -	nid = h->next_nid_to_free;
-> > -	next_nid = next_node_allowed(nid);
-> > +	if (!nodes_allowed)
-> > +		nodes_allowed = &node_online_map;
-> > +
-> > +	nid = this_node_allowed(h->next_nid_to_free, nodes_allowed);
-> > +
-> > +	next_nid = next_node_allowed(nid, nodes_allowed);
-> >  	h->next_nid_to_free = next_nid;
-> > +
-> >  	return nid;
-> >  }
-> 
-> Same.
+I saw this.  I've been testing on x86_64.  I *thought* that it only
+started showing up in a recent mmotm from changes in the linux-next
+patch--e.g., a failure to set ARCH_HAS_KMAP or to handle appropriately
+!ARCH_HAS_KMAP in highmem.h  But maybe that was coincidental with my
+adding the include.
 
-Yes, and I modeled this on "next to alloc", with the extra next_nid for
-the same reason.  Do we dare remove it?
 
 Lee
+
+> 
+> 
+> 
+> >  struct node {
+> >  	struct sys_device	sysdev;
+> > +	struct kobject		*hugepages_kobj;
+> > +	struct kobject		*hstate_kobjs[HUGE_MAX_HSTATE];
+> >  };
+> >  
+> >  struct memory_block;
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
