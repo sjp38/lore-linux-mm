@@ -1,144 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BBE536B0100
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 20:33:05 -0400 (EDT)
-Received: by pxi15 with SMTP id 15so6400730pxi.23
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:33:05 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 193166B0102
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 20:38:25 -0400 (EDT)
+Received: by pxi15 with SMTP id 15so6403348pxi.23
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:38:17 -0700 (PDT)
+Message-ID: <4A93FAA5.5000001@vflare.org>
+Date: Tue, 25 Aug 2009 20:22:21 +0530
 From: Nitin Gupta <ngupta@vflare.org>
 Reply-To: ngupta@vflare.org
-Subject: [PATCH 3/4] compcache: send callback when swap slot is freed
-Date: Mon, 24 Aug 2009 10:07:58 +0530
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
+References: <200908241007.47910.ngupta@vflare.org> <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com> <4A92EBB4.1070101@vflare.org> <Pine.LNX.4.64.0908242132320.8144@sister.anvils> <4A930313.9070404@vflare.org> <Pine.LNX.4.64.0908242224530.10534@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908242224530.10534@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200908241007.58273.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, hugh.dickins@tiscali.co.uk
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-Currently, we have "swap discard" mechanism which sends a discard bio request
-when we find a free cluster during scan_swap_map(). This callback can come a
-long time after swap slots are actually freed.
+On 08/25/2009 03:16 AM, Hugh Dickins wrote:
+> On Tue, 25 Aug 2009, Nitin Gupta wrote:
+>> On 08/25/2009 02:09 AM, Hugh Dickins wrote:
+>>> On Tue, 25 Aug 2009, Nitin Gupta wrote:
+>>>> On 08/24/2009 11:03 PM, Pekka Enberg wrote:
+>>>>>
+>>>>> What's the purpose of passing PFNs around? There's quite a lot of PFN
+>>>>> to struct page conversion going on because of it. Wouldn't it make
+>>>>> more sense to return (and pass) a pointer to struct page instead?
+>>>>
+>>>> PFNs are 32-bit on all archs
+>>>
+>>> Are you sure?  If it happens to be so for all machines built today,
+>>> I think it can easily change tomorrow.  We consistently use unsigned long
+>>> for pfn (there, now I've said that, I bet you'll find somewhere we don't!)
+>>>
+>>> x86_64 says MAX_PHYSMEM_BITS 46 and ia64 says MAX_PHYSMEM_BITS 50 and
+>>> mm/sparse.c says
+>>> unsigned long max_sparsemem_pfn = 1UL<<   (MAX_PHYSMEM_BITS-PAGE_SHIFT);
+>>>
+>>
+>> For PFN to exceed 32-bit we need to have physical memory>  16TB (2^32 * 4KB).
+>> So, maybe I can simply add a check in ramzswap module load to make sure that
+>> RAM is indeed<  16TB and then safely use 32-bit for PFN?
+>
+> Others know much more about it, but I believe that with sparsemem you
+> may be handling vast holes in physical memory: so a relatively small
+> amount of physical memory might in part be mapped with gigantic pfns.
+>
+> So if you go that route, I think you'd rather have to refuse pages
+> with oversized pfns (or refuse configurations with any oversized pfns),
+> than base it upon the quantity of physical memory in the machine.
+>
+> Seems ugly to me, as it did to Pekka; but I can understand that you're
+> very much in the business of saving memory, so doubling the size of some
+> of your tables (I may be oversimplifying) would be repugnant to you.
+>
+> You could add a CONFIG option, rather like CONFIG_LBDAF, to switch on
+> u64-sized pfns; but you'd still have to handle what happens when the
+> pfn is too big to fit in u32 without that option; and if distros always
+> switch the option on, to accomodate the larger machines, then there may
+> have been no point to adding it.
+>
 
-This delay in callback is a great problem when (compressed) RAM [1] is used
-as a swap device. So, this change adds a callback which is called as
-soon as a swap slot becomes free. For above mentioned case of swapping
-over compressed RAM device, this is very useful since we can immediately
-free memory allocated for this swap page.
+Thanks for these details.
 
-This callback does not replace swap discard support. It is called with
-swap_lock held, so it is meant to trigger action that finishes quickly.
-However, swap discard is an I/O request and can be used for taking longer
-actions.
+Now I understand that use of 32-bit PFN on 64-bit archs is unsafe. So,
+there is no option but to include extra bits for PFNs or use struct page.
 
-It is preferred to use this callback for ramzswap case even if discard
-mechanism could be improved such that it can be called as often as required.
-This is because, allocation of 'bio'(s) is undesirable since ramzswap always
-operates under low memory conditions (its a swap device). Also, batching of
-discard bio requests is not optimal since stale data can accumulate very
-quickly in ramzswap devices, pushing system further into low memory state.
+* Solution of ramzswap block device:
 
-Links:
-[1] http://compcache.googlecode.com/
+Use 48 bit PFNs (32 + 8) and have a compile time error to make sure that
+that MAX_PHYSMEM_BITS is < 48 + PAGE_SHIFT. The ramzswap table can accommodate
+48-bits without any increase in table size.
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
----
+--- ramzswap_new.h	2009-08-25 20:10:38.054033804 +0530
++++ ramzswap.h	2009-08-25 20:09:28.386069100 +0530
+@@ -110,9 +110,9 @@
 
- include/linux/swap.h |    5 +++++
- mm/swapfile.c        |   33 +++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+), 0 deletions(-)
+  /* Indexed by page no. */
+  struct table {
+-	u32 pagenum_1;
++	u32 pagenum;
+  	u16 offset;
+-	u8 pagenum_2;
++	u8 count;	/* object ref count (not yet used) */
+  	u8 flags;
+  };
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7c15334..64796fc 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -8,6 +8,7 @@
- #include <linux/memcontrol.h>
- #include <linux/sched.h>
- #include <linux/node.h>
-+#include <linux/blkdev.h>
 
- #include <asm/atomic.h>
- #include <asm/page.h>
-@@ -20,6 +21,8 @@ struct bio;
- #define SWAP_FLAG_PRIO_MASK	0x7fff
- #define SWAP_FLAG_PRIO_SHIFT	0
+(removal for 'count' field will hurt later when we implement
+memory defragmentation support).
 
-+typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
-+
- static inline int current_is_kswapd(void)
- {
- 	return current->flags & PF_KSWAPD;
-@@ -155,6 +158,7 @@ struct swap_info_struct {
- 	unsigned int max;
- 	unsigned int inuse_pages;
- 	unsigned int old_block_size;
-+	swap_free_notify_fn *swap_free_notify_fn;
- };
 
- struct swap_list_t {
-@@ -295,6 +299,7 @@ extern sector_t swapdev_block(int, pgoff_t);
- extern struct swap_info_struct *get_swap_info_struct(unsigned);
- extern int reuse_swap_page(struct page *);
- extern int try_to_free_swap(struct page *);
-+extern void set_swap_free_notify(struct block_device *, swap_free_notify_fn *);
- struct backing_dev_info;
+* Solution for allocator:
 
- /* linux/mm/thrash.c */
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8ffdc0d..d75729a 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -552,6 +552,37 @@ out:
- 	return NULL;
- }
+Use struct page instead of PFN. This is better than always using 64-bit PFNs
+since we get rid of all casts. Use of 48-bit PFNs as above will create too
+much mess. However, use of struct page increases per-pool overhead by 4K on
+64-bit systems. This should be okay.
 
-+/*
-+ * Sets callback for event when swap_map[offset] == 0
-+ * i.e. page at this swap offset is no longer used.
-+ */
-+void set_swap_free_notify(struct block_device *bdev,
-+			swap_free_notify_fn *notify_fn)
-+{
-+	unsigned int i;
-+	struct swap_info_struct *sis;
-+
-+	spin_lock(&swap_lock);
-+	for (i = 0; i <= nr_swapfiles; i++) {
-+		sis = &swap_info[i];
-+		if (!(sis->flags & SWP_USED))
-+			continue;
-+		if (sis->bdev == bdev)
-+			break;
-+	}
-+
-+	/* swap device not found */
-+	if (i > nr_swapfiles)
-+		return;
-+
-+	BUG_ON(!sis || sis->swap_free_notify_fn);
-+	sis->swap_free_notify_fn = notify_fn;
-+	spin_unlock(&swap_lock);
-+
-+	return;
-+}
-+EXPORT_SYMBOL_GPL(set_swap_free_notify);
-+
- static int swap_entry_free(struct swap_info_struct *p,
- 			   swp_entry_t ent, int cache)
- {
-@@ -583,6 +614,8 @@ static int swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p - swap_info;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
-+		if (p->swap_free_notify_fn)
-+			p->swap_free_notify_fn(p->bdev, offset);
- 	}
- 	if (!swap_count(count))
- 		mem_cgroup_uncharge_swap(ent);
+
+Please let me know if you have any comments. I will make these changes in next
+revision.
+
+There is still some problem with memory allocator naming. Its no longer a
+separate module, the symbols are not exported and its now compiled with ramzswap
+block driver itself. So, I am hoping xv_malloc() does not causes any confusion
+with any existing name now. It really should not cause any confustion. I would
+love to retain this name for allocator.
+
+Thanks,
+Nitin
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
