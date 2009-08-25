@@ -1,85 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BD0516B0099
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:52:10 -0400 (EDT)
-Received: from fgwmail7.fujitsu.co.jp (fgwmail7.fujitsu.co.jp [192.51.44.37])
-	by fgwmail8.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7P2SEGa019691
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 25 Aug 2009 11:28:14 +0900
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7P2Rcfw006121
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 25 Aug 2009 11:27:38 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 937BD45DE50
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 11:27:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AA3B45DE4D
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 11:27:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 53348E08005
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 11:27:38 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E296A1DB803C
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 11:27:37 +0900 (JST)
-Date: Tue, 25 Aug 2009 11:25:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][preview] memcg: reduce lock contention at uncharge by
- batching
-Message-Id: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 346E26B004D
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:56:57 -0400 (EDT)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id n7PJug9s001992
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 12:57:01 -0700
+Received: from pxi39 (pxi39.prod.google.com [10.243.27.39])
+	by spaceape14.eur.corp.google.com with ESMTP id n7P8Abcx019730
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 01:12:33 -0700
+Received: by pxi39 with SMTP id 39so5720824pxi.8
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 01:10:37 -0700 (PDT)
+Date: Tue, 25 Aug 2009 01:10:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/5] hugetlb:  rework hstate_next_node_* functions
+In-Reply-To: <20090824192544.10317.6291.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.0908250110090.23660@chino.kir.corp.google.com>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192544.10317.6291.sendpatchset@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 24 Aug 2009, Lee Schermerhorn wrote:
 
-This is a preview of a patch for reduce lock contention for memcg->res_counter.
-This makes series of uncharge in batch and reduce critical lock contention in
-res_counter. This is still under developement and based on 2.6.31-rc7.
-I'll rebase this onto mmotm if I'm ready.
+> [PATCH 1/5] hugetlb:  rework hstate_next_node* functions
+> 
+> Against: 2.6.31-rc6-mmotm-090820-1918
+> 
+> V2:
+> + cleaned up comments, removed some deemed unnecessary,
+>   add some suggested by review
+> + removed check for !current in huge_mpol_nodes_allowed().
+> + added 'current->comm' to warning message in huge_mpol_nodes_allowed().
+> + added VM_BUG_ON() assertion in hugetlb.c next_node_allowed() to
+>   catch out of range node id.
+> + add examples to patch description
+> 
+> V3:
+> + factored this "cleanup" patch out of V2 patch 2/3
+> + moved ahead of patch to add nodes_allowed mask to alloc funcs
+>   as this patch is somewhat independent from using task mempolicy
+>   to control huge page allocation and freeing.
+> 
+> Modify the hstate_next_node* functions to allow them to be called to
+> obtain the "start_nid".  Then, whereas prior to this patch we
+> unconditionally called hstate_next_node_to_{alloc|free}(), whether
+> or not we successfully allocated/freed a huge page on the node,
+> now we only call these functions on failure to alloc/free to advance
+> to next allowed node.
+> 
+> Factor out the next_node_allowed() function to handle wrap at end
+> of node_online_map.  In this version, the allowed nodes include all 
+> of the online nodes.
+> 
+> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-I have only 8cpu(4core/2socket) system now. no significant speed up but good lock_stat.
-
-resutlt of kernel-make // time make -j 8
-[Before]
-real    2m46.491s
-user    4m47.008s
-sys     3m32.954s
-
-
-lock_stat version 0.3
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                              class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-                          &counter->lock:       1167034        1196935           0.52       16291.34      829793.69       18742433       45050576           0.42       30788.81     9490908.36
-                          --------------
-                          &counter->lock         638151          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
-                          &counter->lock         558784          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
-                          --------------
-                          &counter->lock         679567          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
-                          &counter->lock         517368          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
-
-[After]
-real    2m45.423s
-user    4m48.522s
-sys     3m29.183s
-lock_stat version 0.3
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                              class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-                          &counter->lock:        494955         500859           0.53        9601.11      293501.54       16311201       27502048           0.43       25483.56     6934715.75
-                          --------------
-                          &counter->lock         427024          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
-                          &counter->lock          73835          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
-                          --------------
-                          &counter->lock         435369          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
-                          &counter->lock          65490          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
