@@ -1,50 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AD3F6B004F
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:58:57 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp09.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7PJwrn7021637
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 01:28:53 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7P8PTAV438446
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:58:19 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7P8PT0U023259
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:25:29 +1000
-Date: Tue, 25 Aug 2009 13:55:26 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][preview] memcg: reduce lock contention at uncharge by
-	batching
-Message-ID: <20090825082526.GB29572@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 68A666B009A
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:02:49 -0400 (EDT)
+Received: by pzk36 with SMTP id 36so1823014pzk.12
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:02:44 -0700 (PDT)
+Message-ID: <4A94358C.6060708@vflare.org>
+Date: Wed, 26 Aug 2009 00:33:40 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
+References: <200908241007.47910.ngupta@vflare.org> <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com> <4A92EBB4.1070101@vflare.org> <Pine.LNX.4.64.0908242132320.8144@sister.anvils> <4A930313.9070404@vflare.org> <Pine.LNX.4.64.0908242224530.10534@sister.anvils> <4A93FAA5.5000001@vflare.org>
+In-Reply-To: <4A93FAA5.5000001@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: ngupta@vflare.org
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-25 11:25:47]:
-
-> Hi,
-> 
-> This is a preview of a patch for reduce lock contention for memcg->res_counter.
-> This makes series of uncharge in batch and reduce critical lock contention in
-> res_counter. This is still under developement and based on 2.6.31-rc7.
-> I'll rebase this onto mmotm if I'm ready.
-> 
-> I have only 8cpu(4core/2socket) system now. no significant speed up but good lock_stat.
+On 08/25/2009 08:22 PM, Nitin Gupta wrote:
+> On 08/25/2009 03:16 AM, Hugh Dickins wrote:
+>> On Tue, 25 Aug 2009, Nitin Gupta wrote:
+>>> On 08/25/2009 02:09 AM, Hugh Dickins wrote:
+>>>> On Tue, 25 Aug 2009, Nitin Gupta wrote:
+>>>>> On 08/24/2009 11:03 PM, Pekka Enberg wrote:
+>>>>>>
+>>>>>> What's the purpose of passing PFNs around? There's quite a lot of PFN
+>>>>>> to struct page conversion going on because of it. Wouldn't it make
+>>>>>> more sense to return (and pass) a pointer to struct page instead?
+>>>>>
+>>>>> PFNs are 32-bit on all archs
+>>>>
+>>>> Are you sure? If it happens to be so for all machines built today,
+>>>> I think it can easily change tomorrow. We consistently use unsigned
+>>>> long
+>>>> for pfn (there, now I've said that, I bet you'll find somewhere we
+>>>> don't!)
+>>>>
+>>>> x86_64 says MAX_PHYSMEM_BITS 46 and ia64 says MAX_PHYSMEM_BITS 50 and
+>>>> mm/sparse.c says
+>>>> unsigned long max_sparsemem_pfn = 1UL<< (MAX_PHYSMEM_BITS-PAGE_SHIFT);
+>>>>
+>>>
+>>> For PFN to exceed 32-bit we need to have physical memory> 16TB (2^32
+>>> * 4KB).
+>>> So, maybe I can simply add a check in ramzswap module load to make
+>>> sure that
+>>> RAM is indeed< 16TB and then safely use 32-bit for PFN?
+>>
+>> Others know much more about it, but I believe that with sparsemem you
+>> may be handling vast holes in physical memory: so a relatively small
+>> amount of physical memory might in part be mapped with gigantic pfns.
+>>
+>> So if you go that route, I think you'd rather have to refuse pages
+>> with oversized pfns (or refuse configurations with any oversized pfns),
+>> than base it upon the quantity of physical memory in the machine.
+>>
+>> Seems ugly to me, as it did to Pekka; but I can understand that you're
+>> very much in the business of saving memory, so doubling the size of some
+>> of your tables (I may be oversimplifying) would be repugnant to you.
+>>
+>> You could add a CONFIG option, rather like CONFIG_LBDAF, to switch on
+>> u64-sized pfns; but you'd still have to handle what happens when the
+>> pfn is too big to fit in u32 without that option; and if distros always
+>> switch the option on, to accomodate the larger machines, then there may
+>> have been no point to adding it.
+>>
+>
+> Thanks for these details.
+>
+> Now I understand that use of 32-bit PFN on 64-bit archs is unsafe. So,
+> there is no option but to include extra bits for PFNs or use struct page.
+>
+> * Solution of ramzswap block device:
+>
+> Use 48 bit PFNs (32 + 8) and have a compile time error to make sure that
+> that MAX_PHYSMEM_BITS is < 48 + PAGE_SHIFT. The ramzswap table can
+> accommodate
+> 48-bits without any increase in table size.
 >
 
 
-I'll test this on a 24 way that I have and check. I think these
-patches + resource counter per cpu locking should give good results.
- 
--- 
-	Balbir
+I went crazy. I meant 40 bits for PFN -- not 48. This 40-bit PFN should be 
+sufficient for all archs. For archs where 40 + PAGE_SHIFT < MAX_PHYSMEM_BITS
+ramzswap will just issue a compiler error.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
