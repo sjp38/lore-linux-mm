@@ -1,143 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5151D6B00F6
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 19:39:24 -0400 (EDT)
-Received: by pxi15 with SMTP id 15so6375389pxi.23
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:39:26 -0700 (PDT)
-Message-ID: <4A90AADE.20307@gmail.com>
-Date: Sun, 23 Aug 2009 10:35:10 +0800
-From: Xiao Guangrong <ericxiao.gr@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] x86: reuse the boot-time mappings of fixed_addresses
-Content-Type: text/plain; charset=UTF-8
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0BAE96B00F8
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 19:47:02 -0400 (EDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp [192.51.44.35])
+	by fgwmail9.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7P8j7gv005027
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 25 Aug 2009 17:45:07 +0900
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7P8iVN1007740
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 25 Aug 2009 17:44:32 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B753645DE4F
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:44:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9675A45DE4D
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:44:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 767321DB803A
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:44:31 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 72A59E08009
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 17:44:27 +0900 (JST)
+Date: Tue, 25 Aug 2009 17:42:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][preview] memcg: reduce lock contention at uncharge by
+ batching
+Message-Id: <20090825174240.f925d924.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090825082526.GB29572@balbir.in.ibm.com>
+References: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090825082526.GB29572@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Rusty Russell <rusty@rustcorp.com.au>, Jens Axboe <jens.axboe@oracle.com>, Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, x86@kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-From: Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
+On Tue, 25 Aug 2009 13:55:26 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Some fixed_addresses items are only used when system boot, after
-boot, they are free but no way to use, like early ioremap area.
-They are wasted for us, we can reuse them after system boot.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-25 11:25:47]:
+> 
+> > Hi,
+> > 
+> > This is a preview of a patch for reduce lock contention for memcg->res_counter.
+> > This makes series of uncharge in batch and reduce critical lock contention in
+> > res_counter. This is still under developement and based on 2.6.31-rc7.
+> > I'll rebase this onto mmotm if I'm ready.
+> > 
+> > I have only 8cpu(4core/2socket) system now. no significant speed up but good lock_stat.
+> >
+> 
+> 
+> I'll test this on a 24 way that I have and check. I think these
+> patches + resource counter per cpu locking should give good results.
+>  
+Thank you.
 
-In this patch, we put them in permanent kmap's area and expand
-vmalloc's address range. In boot time, reserve them in
-permanent_kmaps_init() to avoid multiple used, after system boot,
-we unreserved them then user can use it.
+yes. I'm trying re-considering res_counter-percpu, too.
+But, hmm, accuracy of counter trade-off is our final trouble if we select it.
 
-Signed-off-by: Xiao Guangrong <xiaoguangrong@cn.fujitsu.com>
----
- arch/x86/include/asm/fixmap.h           |    2 ++
- arch/x86/include/asm/pgtable_32_types.h |    4 ++--
- arch/x86/mm/init_32.c                   |    8 ++++++++
- include/linux/highmem.h                 |    2 ++
- mm/highmem.c                            |   26 ++++++++++++++++++++++++++
- 5 files changed, 40 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
-index 7b2d71d..604f135 100644
---- a/arch/x86/include/asm/fixmap.h
-+++ b/arch/x86/include/asm/fixmap.h
-@@ -142,6 +142,8 @@ extern void reserve_top_address(unsigned long reserve);
- #define FIXADDR_BOOT_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
- #define FIXADDR_START		(FIXADDR_TOP - FIXADDR_SIZE)
- #define FIXADDR_BOOT_START	(FIXADDR_TOP - FIXADDR_BOOT_SIZE)
-+#define FIXMAP_REUSE		(__end_of_fixed_addresses - 	\
-+				 __end_of_permanent_fixed_addresses)
- 
- extern int fixmaps_set;
- 
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 5e67c15..328b8af 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -37,8 +37,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- #define LAST_PKMAP 1024
- #endif
- 
--#define PKMAP_BASE ((FIXADDR_BOOT_START - PAGE_SIZE * (LAST_PKMAP + 1))	\
--		    & PMD_MASK)
-+#define PKMAP_BASE ((FIXADDR_BOOT_START - PAGE_SIZE * (LAST_PKMAP -	\
-+		    FIXMAP_REUSE + 1)) & PMD_MASK)
- 
- #ifdef CONFIG_HIGHMEM
- # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 3cd7711..595e485 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -410,8 +410,16 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
- 	pmd = pmd_offset(pud, vaddr);
- 	pte = pte_offset_kernel(pmd, vaddr);
- 	pkmap_page_table = pte;
-+	kmaps_reserve(LAST_PKMAP-FIXMAP_REUSE, LAST_PKMAP-1);
- }
- 
-+static int __init permanent_kmaps_unreserve(void)
-+{
-+	kmaps_unreserve(LAST_PKMAP-FIXMAP_REUSE, LAST_PKMAP-1);
-+	return 0;
-+}
-+late_initcall(permanent_kmaps_unreserve);
-+
- static void __init add_one_highpage_init(struct page *page, int pfn)
- {
- 	ClearPageReserved(page);
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 211ff44..984c4c9 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -41,6 +41,8 @@ unsigned int nr_free_highpages(void);
- extern unsigned long totalhigh_pages;
- 
- void kmap_flush_unused(void);
-+void kmaps_reserve(int start, int end);
-+void kmaps_unreserve(int start, int end);
- 
- #else /* CONFIG_HIGHMEM */
- 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 25878cc..a481fa7 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -85,6 +85,32 @@ static DECLARE_WAIT_QUEUE_HEAD(pkmap_map_wait);
- 		do { spin_unlock(&kmap_lock); (void)(flags); } while (0)
- #endif
- 
-+void kmaps_reserve(int start, int end)
-+{
-+	int i;
-+
-+	lock_kmap();
-+	for (i = start; i <= end; i++) {
-+		BUG_ON(pkmap_count[i]);
-+		pkmap_count[i] = -1;
-+	}
-+	unlock_kmap();
-+}
-+
-+void kmaps_unreserve(int start, int end)
-+{
-+	int i;
-+
-+	lock_kmap();
-+	for (i = start; i <= end; i++) {
-+		BUG_ON(pkmap_count[i] != -1);
-+		pkmap_count[i] = 0;
-+	}
-+
-+	flush_tlb_kernel_range(PKMAP_ADDR(start), PKMAP_ADDR(end));
-+	unlock_kmap();
-+}
-+
- static void flush_all_zero_pkmaps(void)
- {
- 	int i;
--- 
-1.6.0.4
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
