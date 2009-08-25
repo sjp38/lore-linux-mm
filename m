@@ -1,135 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9484E6B0162
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:11:18 -0400 (EDT)
-Received: by iwn13 with SMTP id 13so12250iwn.12
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2009 04:11:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
-References: <82e12e5f0908220954p7019fb3dg15f9b99bb7e55a8c@mail.gmail.com>
-	 <28c262360908231844o3df95b14v15b2d4424465f033@mail.gmail.com>
-	 <20090824105139.c2ab8403.kamezawa.hiroyu@jp.fujitsu.com>
-	 <2f11576a0908232113w71676aatf22eb6d431501fd0@mail.gmail.com>
-	 <82e12e5f0908242146uad0f314hcbb02fcc999a1d32@mail.gmail.com>
-	 <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
-Date: Wed, 26 Aug 2009 20:11:21 +0900
-Message-ID: <82e12e5f0908260411y4d211bf2v6242dd50b713c544@mail.gmail.com>
-Subject: Re: [PATCH] mm: make munlock fast when mlock is canceled by sigkill
-From: Hiroaki Wakabayashi <primulaelatior@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A5A76B0083
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:14:12 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7QBIPjX012504
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:18:25 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7PBF1du252256
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 07:17:51 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7PBF1jn023883
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 07:15:01 -0400
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: [PATCH 0/3] Add pseudo-anonymous huge page mappings V4
+Date: Tue, 25 Aug 2009 12:14:51 +0100
+Message-Id: <cover.1251197514.git.ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Paul Menage <menage@google.com>, Ying Han <yinghan@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Thank you for ideas and advices!
+This patch set adds a flag to mmap that allows the user to request
+a mapping to be backed with huge pages.  This mapping will borrow
+functionality from the huge page shm code to create a file on the
+kernel internal mount and use it to approximate an anonymous mapping.
+The MAP_HUGETLB flag is a modifier to MAP_ANONYMOUS and will not work
+without both flags being preset.
 
-2009/8/25 Hugh Dickins <hugh.dickins@tiscali.co.uk>:
-> On Tue, 25 Aug 2009, Hiroaki Wakabayashi wrote:
->> Thank you for reviews.
->>
->> >>> > @@ -254,6 +254,7 @@ static inline void
->> >>> > mminit_validate_memmodel_limits(unsigned long *start_pfn,
->> >>> > =A0#define GUP_FLAGS_FORCE =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00x2
->> >>> > =A0#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
->> >>> > =A0#define GUP_FLAGS_IGNORE_SIGKILL =A0 =A0 =A0 =A0 0x8
->> >>> > +#define GUP_FLAGS_ALLOW_NULL =A0 =A0 =A0 =A0 =A0 =A0 0x10
->> >>> >
->> >>>
->> >>> I am worried about adding new flag whenever we need it.
->
-> Indeed! =A0See my comments below.
->
->> >>> But I think this case makes sense to me.
->> >>> In addition, I guess ZERO page can also use this flag.
->> >>>
->> >>> Kame. What do you think about it?
->> >>>
->> >> I do welcome this !
->> >> Then, I don't have to take care of mlock/munlock in ZERO_PAGE patch.
->
-> I _think_ there's nothing to do for it (the page->mapping checks suit
-> the ZERO_PAGE); but I've not started testing my version, so may soon
-> be proved wrong.
->
->> >>
->> >> And without this patch, munlock() does copy-on-write just for unpinni=
-ng memory.
->> >> So, this patch shows some right direction, I think.
->> >>
->> >> One concern is flag name, ALLOW_NULL sounds not very good.
->> >>
->> >> =A0GUP_FLAGS_NOFAULT ?
->> >>
->> >> I wonder we can remove a hack of FOLL_ANON for core-dump by this flag=
-, too.
->
-> No, the considerations there a different (it can only point to a ZERO_PAG=
-E
-> where faulting would anyway present a page of zeroes); it should be dealt
-> with by a coredump-specific flag, rather than sowing confusion elsewhere.
-> As above, I've done that but not yet tested it.
->
->> >
->> > Yeah, GUP_FLAGS_NOFAULT is better.
->>
->> Me too.
->> I will change this flag name.
->>...
->> When I try to change __get_user_pages(), I got problem.
->> If remove NULLs from pages,
->> __mlock_vma_pages_range() cannot know how long __get_user_pages() readed=
-.
->> So, I have to get the virtual address of the page from vma and page.
->> Because __mlock_vma_pages_range() have to call
->> __get_user_pages() many times with different `start' argument.
->>
->> I try to use page_address_in_vma(), but it failed.
->> (page_address_in_vma() returned -EFAULT)
->> I cannot find way to solve this problem.
->> Are there good ideas?
->> Please give me some ideas.
->
-> I agree that this munlock issue needs to be addressed: it's not just a
-> matter of speedup, I hit it when testing what happens when mlock takes
-> you to OOM - which is currently a hanging disaster because munlock'ing
-> in the exiting OOM-killed process gets stuck trying to fault in all
-> those pages that couldn't be locked in the first place.
+A new flag is necessary because there is no other way to hook into
+huge pages without creating a file on a hugetlbfs mount which
+wouldn't be MAP_ANONYMOUS.
 
-I'm sorry, it too difficult for me to understand.
-I will learn and consider.
+To userspace, this mapping will behave just like an anonymous mapping
+because the file is not accessible outside of the kernel.
 
-> I had intended to fix it by being more careful about splitting/merging
-> vmas, noting how far the mlock had got, and munlocking just up to there.
-> However, now that I've got in there, that looks wrong to me, given the
-> traditional behaviour that mlock does its best, but pretends success
-> to allow for later instantiation of the pages if necessary.
->
-> You ask for ideas. =A0My main idea is that so far we have added
-> GUP_FLAGS_IGNORE_VMA_PERMISSIONS (Kosaki-san, what was that about?
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0we alr=
-eady had the force flag),
-> GUP_FLAGS_IGNORE_SIGKILL, and now you propose
-> GUP_FLAGS_NOFAULT, all for the sole use of munlock.
->
-> How about GUP_FLAGS_MUNLOCK, or more to the point, GUP_FLAGS_DONT_BE_GUP?
-> By which I mean, don't all these added flags suggest that almost
-> everything __get_user_pages() does is unsuited to the munlock case?
->
-> My advice (but I sure hate giving advice before I've tried it myself)
-> is to put __mlock_vma_pages_range() back to handling just the mlock
-> case, and do your own follow_page() loop in munlock_vma_pages_range().
->
-> Hugh
+This patch set is meant to simplify the programming model, presently
+there is a large chunk of boiler plate code, contained in libhugetlbfs,
+required to create private, hugepage backed mappings.  This patch set
+would allow use of hugepages without linking to libhugetlbfs or having
+hugetblfs mounted.
 
-Me, too. I agree __get_user_pages() unsuited to the munlock.
-I let try to make follow_page() loop, and remove
- GUP_FLAGS_IGNORE_VMA_PERMISSIONS and GUP_FLAGS_IGNORE_SIGKILL.
+Unification of the VM code would provide these same benefits, but it
+has been resisted each time that it has been suggested for several
+reasons: it would break PAGE_SIZE assumptions across the kernel, it
+makes page-table abstractions really expensive, and it does not
+provide any benefit on architectures that do not support huge pages,
+incurring fast path penalties without providing any benefit on these
+architectures.
 
-Thanks!
---
-Hiroaki Wakabayashi
+Eric B Munson (3):
+  hugetlbfs: Allow the creation of files suitable for MAP_PRIVATE on
+    the vfs internal mount
+  Add MAP_HUGETLB for mmaping pseudo-anonymous huge page regions
+  Add MAP_HUGETLB example
+
+ Documentation/vm/00-INDEX         |    2 +
+ Documentation/vm/hugetlbpage.txt  |   14 ++++---
+ Documentation/vm/map_hugetlb.c    |   77 +++++++++++++++++++++++++++++++++++++
+ fs/hugetlbfs/inode.c              |   21 ++++++++--
+ include/asm-generic/mman-common.h |    1 +
+ include/linux/hugetlb.h           |   19 ++++++++-
+ ipc/shm.c                         |    2 +-
+ mm/mmap.c                         |   19 +++++++++
+ 8 files changed, 142 insertions(+), 13 deletions(-)
+ create mode 100644 Documentation/vm/map_hugetlb.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
