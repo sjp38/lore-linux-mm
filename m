@@ -1,65 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1D4C66B00ED
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:32:02 -0400 (EDT)
-Received: by pxi15 with SMTP id 15so6342226pxi.23
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 15:31:54 -0700 (PDT)
-Message-ID: <4A92EBB4.1070101@vflare.org>
-Date: Tue, 25 Aug 2009 01:06:20 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2634F6B00F0
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:45:52 -0400 (EDT)
+Date: Tue, 25 Aug 2009 15:45:44 -0700 (PDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: Re: [PATCH] mm/vmscan: change generic_file_write() comment to
+ do_sync_write()
+In-Reply-To: <20090825222237.GA27240@lst.de>
+Message-ID: <alpine.DEB.2.00.0908251535070.20886@kernelhack.brc.ubc.ca>
+References: <1251238688-20751-1-git-send-email-macli@brc.ubc.ca> <20090825222237.GA27240@lst.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
-References: <200908241007.47910.ngupta@vflare.org> <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
-In-Reply-To: <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Vincent Li <macli@brc.ubc.ca>, linux-mm@kvack.org, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Pekka,
+On Wed, 26 Aug 2009, Christoph Hellwig wrote:
 
-On 08/24/2009 11:03 PM, Pekka Enberg wrote:
+> On Tue, Aug 25, 2009 at 03:18:08PM -0700, Vincent Li wrote:
+> > Commit 543ade1fc9 (Streamline generic_file_* interfaces and filemap cleanups)
+> > removed generic_file_write() in filemap. For consistency, change the comment in
+> > vmscan pageout() to do_sync_write().
+> 
+> I think the right replacement would be __generic_file_aio_write.  But
 
-<snip>
+There is no __generic_file_aio_write, but __generic_file_aio_write_nolock, 
+generic_file_aio_write and generic_file_aio_write_nolock. 
 
-> On Mon, Aug 24, 2009 at 7:37 AM, Nitin Gupta<ngupta@vflare.org>  wrote:
->> +/**
->> + * xv_malloc - Allocate block of given size from pool.
->> + * @pool: pool to allocate from
->> + * @size: size of block to allocate
->> + * @pagenum: page no. that holds the object
->> + * @offset: location of object within pagenum
->> + *
->> + * On success,<pagenum, offset>  identifies block allocated
->> + * and 0 is returned. On failure,<pagenum, offset>  is set to
->> + * 0 and -ENOMEM is returned.
->> + *
->> + * Allocation requests with size>  XV_MAX_ALLOC_SIZE will fail.
->> + */
->> +int xv_malloc(struct xv_pool *pool, u32 size, u32 *pagenum, u32 *offset,
->> +                                                       gfp_t flags)
+I read the commit 543ade1fc9, it seems it replaced all .write = generic_file_write to 
+.write = do_sync_write. I thought they are the same.
 
-<snip>
+> from a quick glance over the code don't have the slightest idea what it
+> is referring to.
 
->
-> What's the purpose of passing PFNs around? There's quite a lot of PFN
-> to struct page conversion going on because of it. Wouldn't it make
-> more sense to return (and pass) a pointer to struct page instead?
+I read the code  over and over again, still no clue about the comment :-(. 
 
-
-PFNs are 32-bit on all archs while for 'struct page *', we require 32-bit or
-64-bit depending on arch. ramzswap allocates a table entry <pagenum, offset>
-corresponding to every swap slot. So, the size of table will unnecessarily
-increase on 64-bit archs. Same is the argument for xvmalloc free list sizes.
-
-Also, xvmalloc and ramzswap itself does PFN -> 'struct page *' conversion
-only when freeing the page or to get a deferencable pointer.
-
-Thanks,
-Nitin
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
