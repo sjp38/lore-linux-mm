@@ -1,87 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7CE1F6B00A6
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:16:22 -0400 (EDT)
-Received: from int-mx03.intmail.prod.int.phx2.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id n7PKGQmk028362
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:16:26 -0400
-Date: Tue, 25 Aug 2009 17:22:17 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 25ECE6B00A8
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:16:24 -0400 (EDT)
+Received: from int-mx04.intmail.prod.int.phx2.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.17])
+	by mx1.redhat.com (8.13.8/8.13.8) with ESMTP id n7PKGSj3026312
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:16:28 -0400
+Date: Tue, 25 Aug 2009 19:47:30 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 13/12] ksm: fix munlock during exit_mmap deadlock
-Message-ID: <20090825152217.GQ14722@random.random>
+Subject: Re: [PATCH 9/12] ksm: fix oom deadlock
+Message-ID: <20090825174730.GR14722@random.random>
 References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
  <Pine.LNX.4.64.0908031317190.16754@sister.anvils>
  <20090825145832.GP14722@random.random>
+ <Pine.LNX.4.64.0908251738070.30372@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090825145832.GP14722@random.random>
+In-Reply-To: <Pine.LNX.4.64.0908251738070.30372@sister.anvils>
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, "Justin M. Forbes" <jmforbes@linuxtx.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+On Tue, Aug 25, 2009 at 06:35:56PM +0100, Hugh Dickins wrote:
+> "make munlock fast when mlock is canceled by sigkill".  It's just
+> idiotic that munlock (in this case, munlocking pages on exit) should
+> be trying to fault in pages, and that causes its own problems when
 
-We can't stop page faults from happening during exit_mmap or munlock
-fails. The fundamental issue is the absolute lack of serialization
-after mm_users reaches 0. mmap_sem should be hot in the cache as we
-just released it a few nanoseconds before in exit_mm, we just need to
-take it one last time after mm_users is 0 to allow drivers to
-serialize safely against it so that taking mmap_sem and checking
-mm_users > 0 is enough for ksm to serialize against exit_mmap while
-still noticing when oom killer or something else wants to release all
-memory of the mm. When ksm notices it bails out and it allows memory
-to be released.
+I also pondered if to address the thing by fixing automatic munlock,
+but then I think the same way it's asking for troubles to cause page
+faults with mm_users == 0 in munlock, it's also asking for troubles to
+cause page faults with mm_users == 0 in ksm. So if munlock is wrong
+ksm was also wrong, and I tried to fix ksm not to do that, while
+leaving munlock fixage for later/others.. ;)
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
+> I have now made a patch with munlock_vma_pages_range() doing a
+> follow_page() loop instead of faulting in; but I've not yet tested
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 9a16c21..f5af0d3 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -515,7 +515,18 @@ void mmput(struct mm_struct *mm)
- 
- 	if (atomic_dec_and_test(&mm->mm_users)) {
- 		exit_aio(mm);
-+
-+		/*
-+		 * Allow drivers tracking mm without pinning mm_users
-+		 * (so that mm_users is allowed to reach 0 while they
-+		 * do their tracking) to serialize against exit_mmap
-+		 * by taking mmap_sem and checking mm_users is still >
-+		 * 0 before working on the mm they're tracking.
-+		 */
-+		down_read(&mm->mmap_sem);
-+		up_read(&mm->mmap_sem);
- 		exit_mmap(mm);
-+
- 		set_mm_exe_file(mm, NULL);
- 		if (!list_empty(&mm->mmlist)) {
- 			spin_lock(&mmlist_lock);
-diff --git a/mm/memory.c b/mm/memory.c
-index 4a2c60d..025431e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2603,7 +2603,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
--	if (!pte_none(*page_table) || ksm_test_exit(mm))
-+	if (!pte_none(*page_table))
- 		goto release;
- 
- 	inc_mm_counter(mm, anon_rss);
-@@ -2753,7 +2753,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * handle that later.
- 	 */
- 	/* Only go through if we didn't race with anybody else... */
--	if (likely(pte_same(*page_table, orig_pte) && !ksm_test_exit(mm))) {
-+	if (likely(pte_same(*page_table, orig_pte))) {
- 		flush_icache_page(vma, page);
- 		entry = mk_pte(page, vma->vm_page_prot);
- 		if (flags & FAULT_FLAG_WRITE)
+That is a separate problem in my view.
+
+> I'd prefer not to have them too, but haven't yet worked out how to
+> get along safely without them.
+
+ok.
+
+> But the mmap_sem is not enough to exclude the mm exiting
+> (until __ksm_exit does its little down_write,up_write dance):
+> break_cow etc. do the ksm_test_exit check on mm_users before
+> proceeding any further, but that's just not enough to prevent
+> break_ksm's handle_pte_fault racing with exit_mmap - hence the
+> ksm_test_exits in mm/memory.c, to stop ptes being instantiated
+> after the final zap thinks it's wiped the pagetables.
+> 
+> Let's look at your actual patch...
+
+I tried to work out how to get along safely without them, in short my
+patch makes mmap_sem + ksm_test_exit check on mm_users before
+proceeding any further "enough" (while still allowing ksm loop to bail
+out if mm_users suddenly reaches zero because of oom killer).
+
+Furthermore the mmap_sem is already guaranteed l1 hot and exclusive
+because we wrote to it a few nanoseconds before calling mmput (to be
+fair locked ops are not cheap but I'd rather add two locked op to the
+last exit syscall of a thread group than a new branch to every single
+page fault as there are tons more page faults than exit syscalls).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
