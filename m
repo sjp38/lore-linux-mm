@@ -1,38 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B35E46B00DD
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:04:36 -0400 (EDT)
-Date: Mon, 24 Aug 2009 21:39:02 +0100 (BST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CDDD66B00DE
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 18:04:37 -0400 (EDT)
+Date: Tue, 25 Aug 2009 18:35:56 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
-In-Reply-To: <4A92EBB4.1070101@vflare.org>
-Message-ID: <Pine.LNX.4.64.0908242132320.8144@sister.anvils>
-References: <200908241007.47910.ngupta@vflare.org>
- <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
- <4A92EBB4.1070101@vflare.org>
+Subject: Re: [PATCH 9/12] ksm: fix oom deadlock
+In-Reply-To: <20090825145832.GP14722@random.random>
+Message-ID: <Pine.LNX.4.64.0908251738070.30372@sister.anvils>
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils>
+ <Pine.LNX.4.64.0908031317190.16754@sister.anvils> <20090825145832.GP14722@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, "Justin M. Forbes" <jmforbes@linuxtx.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Aug 2009, Nitin Gupta wrote:
-> On 08/24/2009 11:03 PM, Pekka Enberg wrote:
-> >
-> > What's the purpose of passing PFNs around? There's quite a lot of PFN
-> > to struct page conversion going on because of it. Wouldn't it make
-> > more sense to return (and pass) a pointer to struct page instead?
+On Tue, 25 Aug 2009, Andrea Arcangeli wrote:
+> On Mon, Aug 03, 2009 at 01:18:16PM +0100, Hugh Dickins wrote:
+> > tables which have been freed for reuse; and even do_anonymous_page
+> > and __do_fault need to check they're not being called by break_ksm
+> > to reinstate a pte after zap_pte_range has zapped that page table.
 > 
-> PFNs are 32-bit on all archs
+> This deadlocks exit_mmap in an infinite loop when there's some region
+> locked. mlock calls gup and pretends to page fault successfully if
+> there's a vma existing on the region, but it doesn't page fault
+> anymore because of the mm_count being 0 already, so follow_page fails
+> and gup retries the page fault forever.
 
-Are you sure?  If it happens to be so for all machines built today,
-I think it can easily change tomorrow.  We consistently use unsigned long
-for pfn (there, now I've said that, I bet you'll find somewhere we don't!)
+That's right.  Justin alerted me to this issue last night, and at first
+I was utterly mystified (and couldn't reproduce).  But a look at the
+.jpg in the Fedora bugzilla, and another look at KSM 9/12, brought
+me to the same conclusion that you've reached.
 
-x86_64 says MAX_PHYSMEM_BITS 46 and ia64 says MAX_PHYSMEM_BITS 50 and
-mm/sparse.c says
-unsigned long max_sparsemem_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
+The _right_ solution (without even knowing of this problem) is
+coincidentally being discussed currently in a different thread,
+"make munlock fast when mlock is canceled by sigkill".  It's just
+idiotic that munlock (in this case, munlocking pages on exit) should
+be trying to fault in pages, and that causes its own problems when
+mlock of a large area goes OOM and invokes the OOM killer on itself
+(the munlock hangs trying to fault in what the mlock failed to do:
+at this instant I forget whether that deadlocks the system, or
+causes the wrong processes to be killed - I've several other OOM
+fixes to make).
+
+I have now made a patch with munlock_vma_pages_range() doing a
+follow_page() loop instead of faulting in; but I've not yet tested
+it properly, and it's rather mixed up with three other topics
+(a coredump GUP flag to __get_user_pages to govern the ZERO_PAGE
+shortcut, instead of confused guesses; reinstating do_anonymous
+ZERO_PAGE; cleaning away unnecessary GUP flags).  It's something
+that will need exposure in mmotm before going any further, whereas
+this ksm_test_exit() issue needs a safe fix quicker than that.
+
+I was pondering what to do when you wrote in.
+
+> And generally I don't like to add those checks to page fault fast path.
+
+I'd prefer not to have them too, but haven't yet worked out how to
+get along safely without them.
+
+> 
+> Given we check mm_users == 0 (ksm_test_exit) after taking mmap_sem in
+> unmerge_and_remove_all_rmap_items, why do we actually need to care
+> that a page fault happens? We hold mmap_sem so we're guaranteed to see
+> mm_users == 0 and we won't ever break COW on that mm with mm_users ==
+> 0 so I think those troublesome checks from page fault can be simply
+> removed.
+
+break_ksm called from madvise(,,MADV_UNMERGEABLE) does have down_write
+of mmap_sem.  break_ksm called from "echo 2 >/sys/kernel/mm/ksm/run"
+has down_read of mmap_sem (taken in unmerge_and_remove_all_rmap_items).
+break_ksm called from any of ksmd's break_cows has down_read of mmap_sem.
+
+But the mmap_sem is not enough to exclude the mm exiting
+(until __ksm_exit does its little down_write,up_write dance):
+break_cow etc. do the ksm_test_exit check on mm_users before
+proceeding any further, but that's just not enough to prevent
+break_ksm's handle_pte_fault racing with exit_mmap - hence the
+ksm_test_exits in mm/memory.c, to stop ptes being instantiated
+after the final zap thinks it's wiped the pagetables.
+
+Let's look at your actual patch...
 
 Hugh
 
