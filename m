@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BE8176B0122
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:10:54 -0400 (EDT)
-Received: by pzk36 with SMTP id 36so2064132pzk.12
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 21:10:57 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-Subject: [PATCH 0/4] compcache: compressed in-memory swapping
-Date: Mon, 24 Aug 2009 10:07:33 +0530
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: Text/Plain;
-  charset="us-ascii"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4156B0124
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:36:55 -0400 (EDT)
+Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090825104731.GA21335@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
+	 <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
+	 <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com>
+	 <20090819100553.GE24809@csn.ul.ie>
+	 <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com>
+	 <20090825104731.GA21335@csn.ul.ie>
+Content-Type: text/plain
+Date: Tue, 25 Aug 2009 21:00:54 +1000
+Message-Id: <1251198054.15197.40.camel@pasglop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Message-Id: <200908241007.33844.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
 
-Project home: http://compcache.googlecode.com/
+> Why? One hugepage of default size will be one TLB entry. Each hugepage
+> after that will be additional TLB entries so there is no savings on
+> translation overhead.
+> 
+> Getting contiguous pages beyond the hugepage boundary is not a matter
+> for GFP flags.
 
-It creates RAM based block devices which can be used (only) as swap disks.
-Pages swapped to this device are compressed and stored in memory itself. This
-is a big win over swapping to slow hard-disk which are typically used as swap
-disk. For flash, these suffer from wear-leveling issues when used as swap disk
-- so again its helpful. For swapless systems, it allows more apps to run for a
-given amount of memory.
+Note: This patch reminds me of something else I had on the backburner
+for a while and never got a chance to actually implement...
 
-It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
-Each of these devices can have separate backing swap (file or disk partition)
-which is used when incompressible page is found or memory limit for device is
-reached.
+There's various cases of drivers that could have good uses of hugetlb
+mappings of device memory. For example, framebuffers.
 
-A separate userspace utility called rzscontrol is used to manage individual
-ramzswap devices.
+I looked at it a while back and it occured to me (and Nick) that
+ideally, we should split hugetlb and hugetlbfs.
 
-* Testing notes
+Basically, on one side, we have the (mostly arch specific) populating
+and walking of page tables with hugetlb translations, associated huge
+VMAs, etc... 
 
-Tested on x86, x64, ARM
-ARM:
- - Cortex-A8 (Beagleboard)
- - ARM11 (Android G1)
- - OMAP2420 (Nokia N810)
+On the other side, hugetlbfs is backing that with memory.
 
-* Performance
+Ideally, the former would have some kind of "standard" ops that
+hugetlbfs can hook into for the existing case (moving some stuff out of
+the common data structure and splitting it in two), allowing the driver
+to instanciate hugetlb VMAs that are backed up by something else,
+typically a simple mapping of IOs.
 
-All performance numbers/plots can be found at:
-http://code.google.com/p/compcache/wiki/Performance
+Anybody wants to do that or I keep it on my back burner until the time I
+finally get to do it ? :-)
 
-Below is a summary of this data:
-
-General:
- - Swap R/W times are reduced from milliseconds (in case of hard disks)
-down to microseconds.
-
-Positive cases:
- - Shows 33% improvement in 'scan' benchmark which allocates given amount
-of memory and linearly reads/writes to this region. This benchmark also
-exposes *bottlenecks* in ramzswap code (global mutex) due to which this gain
-is so small.
- - On Linux thin clients, it gives the effect of nearly doubling the amount of
-memory.
-
-Negative cases:
-Any workload that has active working set w.r.t. filesystem cache that is
-nearly equal to amount of RAM while has minimal anonymous memory requirement,
-is expected to suffer maximum loss in performance with ramzswap enabled.
-
-Iozone filesystem benchmark can simulate exactly this kind of workload.
-As expected, this test shows performance loss of ~25% with ramzswap.
-
-
-(Sorry for long patch[2/4] but its now very hard to split it up).
-
- Documentation/blockdev/00-INDEX       |    2 +
- Documentation/blockdev/ramzswap.txt   |   52 ++
- drivers/block/Kconfig                 |   22 +
- drivers/block/Makefile                |    1 +
- drivers/block/ramzswap/Makefile       |    2 +
- drivers/block/ramzswap/ramzswap.c     | 1511 +++++++++++++++++++++++++++++++++
- drivers/block/ramzswap/ramzswap.h     |  182 ++++
- drivers/block/ramzswap/xvmalloc.c     |  556 ++++++++++++
- drivers/block/ramzswap/xvmalloc.h     |   30 +
- drivers/block/ramzswap/xvmalloc_int.h |   86 ++
- include/linux/ramzswap_ioctl.h        |   51 ++
- include/linux/swap.h                  |    5 +
- mm/swapfile.c                         |   33 +
- 13 files changed, 2533 insertions(+), 0 deletions(-)
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
