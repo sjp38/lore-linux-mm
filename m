@@ -1,150 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB386B017B
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:41:16 -0400 (EDT)
-Date: Tue, 25 Aug 2009 12:05:14 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3A96B004D
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:46:14 -0400 (EDT)
+Date: Tue, 25 Aug 2009 12:10:32 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3]HTLB mapping for drivers. Alloc functions & some
-	export symbols(take 2)
-Message-ID: <20090825110514.GC21335@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172324130.32114@casper.infradead.org> <20090818082247.GA31469@csn.ul.ie> <202cde0e0908182029k73292ee9k6d2782b40beaaa1c@mail.gmail.com>
+Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
+Message-ID: <20090825111031.GD21335@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org> <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com> <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com> <20090819100553.GE24809@csn.ul.ie> <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com> <20090825104731.GA21335@csn.ul.ie> <1251198054.15197.40.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <202cde0e0908182029k73292ee9k6d2782b40beaaa1c@mail.gmail.com>
+In-Reply-To: <1251198054.15197.40.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolex@gmail.com>
-Cc: Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 19, 2009 at 03:29:27PM +1200, Alexey Korolev wrote:
-> >>   * Use a helper variable to find the next node and then
-> >>   * copy it back to hugetlb_next_nid afterwards:
-> >>   * otherwise there's a window in which a racer might
-> >
-> > I haven't read through the whole patchset properly yet, but at this
-> > point it's looking like you are going to expect drivers to create a file
-> > and then manually populate the page cache with hugepages they allocate
-> > directly from here. That would appear to put a large burden of VM
-> > knowledge upon a device driver author. The patch would also appear to
-> > expose a lot of hugetlbfs internals.
-> >
-> > Have you looked at Eric Munson's patches on the implementation of
-> > MAP_HUGETLB in the patch set
-> >
-> > http://marc.info/?l=linux-mm&m=125025895815115&w=2
-> >
-> > ?
->
-> Right. Simplicity is very important here and I just haven't find a
-> good way to make it simpler yet.
-> Thanks for the link neat approach is a thing I really need now. I've
-> studied the code and it has quite nice approach which could be
-> helpful.
+On Tue, Aug 25, 2009 at 09:00:54PM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
 > 
-> >
-> > In that patchset, it was a very small number of changes required to
-> > expose a mapping private or shared to userspace.
-> >
-> > Would it make more sense to take an approach like that and instead add
-> > an additional helper within hugetlbfs (instead of the driver) that would
-> > return a pinned page at a given offset within a hugetlbfs file?
-> >
->
-> I believe it possible to to have a helper. The main problem here is
-> this: we need to
-> have a file which provides hugetlb mapping and which is not a part of
-> Hugetlbfs.
-
-So you have a
-
-device_file_ops
-	o Have mapping between device_file and a hugetlbfs file
-	  complete with hugetlb_fops already setup.
-	o device->get_unmapped_area calls
-	  hugetlb_fops->get_unmapped_area
-
-> So
-> the file does not have hugetlbfs file operations.It means it is
-> necessary to call somehow
-> hugetlb_get_unmapped_area & hugetlbfs_file_mmap for the file on
-> hugetlbfs associated
-> with the file related to device.
+> > Why? One hugepage of default size will be one TLB entry. Each hugepage
+> > after that will be additional TLB entries so there is no savings on
+> > translation overhead.
+> > 
+> > Getting contiguous pages beyond the hugepage boundary is not a matter
+> > for GFP flags.
+> 
+> Note: This patch reminds me of something else I had on the backburner
+> for a while and never got a chance to actually implement...
+> 
+> There's various cases of drivers that could have good uses of hugetlb
+> mappings of device memory. For example, framebuffers.
 > 
 
-The fact I haven't prototyped anything doesn't help, but if a device driver
-calls hugetlb_file_setup(), I don't see why your devices get_unmapped_area()
-hook cannot call the hugetlbfs mappings get_unmapped_area() hook. Maybe I'm
-missing something obvious.
+Where is the buffer located? If it's in kernel space, than any contiguous
+allocation will be automatically backed by huge PTEs. As framebuffer allocation
+is probably happening early in boot, just calling alloc_pages() might do?
 
-> Probably, if we have non-hugetlbfs file and want to have huge pages
-> mappings it could make sense to have this approach:
-> 
-> add the following lines to mmap.c/get_unmapped_area function:
-> 
->          get_area = current->mm->get_unmapped_area;
->          if (file && file->f_op && file->f_op->get_unmapped_area)
->                 get_area = file->f_op->get_unmapped_area;
-> +       /* Call hugetlb_get_unmapped_area If non hugetlbfs file has
-> huge page mapping */
-> +       if (file && mapping_hugetlb(file->f_mapping) &&
-> !is_file_hugepages(file))
-> +               get_area = hugetlb_get_unmapped_area;
-
-Again, I'm not seeing why the file->f_op that represents your device file
-cannot remember where it's hugetlbfs file is and simply call down to its
-get_unmapped_area.
-
->         addr = get_area(file, addr, len, pgoff, flags);
->         if (IS_ERR_VALUE(addr))
->                 return addr;
-> 
-> add the following lines to mmap.c/mmap_region function:
->                 }
->                 vma->vm_file = file;
->                 get_file(file);
->                 error = file->f_op->mmap(file, vma);
->                 if (error)
->                         goto unmap_and_free_vma;
-> +               /*
-> +                * If non non hugetlbfs file has huge page mapping
-> mmap must be called twice
-> +                * first time for proceeding file->fops->mmap second
-> time we must call hugetlbfs mmap
-> +               */
-> +               if (mapping_hugetlb(file->f_mapping) &&
-> !is_file_hugepages(file))
-> +                       error =hugetlbfs_file_mmap(file, vma);
-> +                if (error)
-> +                        goto unmap_and_free_vma;
-> 
->                 if (vm_flags & VM_EXECUTABLE)
-> 
-> Where mapping_hugetlb is
-> +static inline int mapping_hugetlb(struct address_space *mapping)
-> +{
-> +	if (likely(mapping))
-> +		return test_bit(AS_HUGETLB, &mapping->flags);
-> +	return 0;
-> +}
-> +
-> In addition we also need to introduce hugetlbfs_sb_info getting macro
-> to avoid issues in hugetlb_get_quota/hugetlb_put_quota functions.
+> I looked at it a while back and it occured to me (and Nick) that
+> ideally, we should split hugetlb and hugetlbfs.
 > 
 
-What is the quota difficulty? shm manages to use the internal mount
-without quota-related difficulty so why is your driver different?
+Yeah, you're not the first to come to that conclusion :)
 
-> In this case a driver just need to announce that file has huge page
-> mapping (mapping_set_hugetlb(file->f_mapping)), add some pages to page
-> cache and set-up proper VM flag in flie->f_ops->mmap.
+> Basically, on one side, we have the (mostly arch specific) populating
+> and walking of page tables with hugetlb translations, associated huge
+> VMAs, etc... 
 > 
-> Do you see anything really important being missed in this approach?
+> On the other side, hugetlbfs is backing that with memory.
+> 
+> Ideally, the former would have some kind of "standard" ops that
+> hugetlbfs can hook into for the existing case (moving some stuff out of
+> the common data structure and splitting it in two),
+
+Adam Litke at one point posted a pagetable-abstraction that would have
+been the first step on a path like this. It hurt the normal fastpath
+though and was ultimately put aside.
+
+> allowing the driver
+> to instanciate hugetlb VMAs that are backed up by something else,
+> typically a simple mapping of IOs.
+> 
+> Anybody wants to do that or I keep it on my back burner until the time I
+> finally get to do it ? :-)
 > 
 
-Just that it still seems too complicated with a large amount of
-hugetlbfs internals being exposed.
+It's the sort of thing that has been resisted in the past, largely
+because the only user at the time was about transparent hugepage
+promotion/demotion. It would need to be a really strong incentive to
+revive the effort.
 
 -- 
 Mel Gorman
