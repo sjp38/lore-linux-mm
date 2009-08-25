@@ -1,93 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 68A666B009A
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:02:49 -0400 (EDT)
-Received: by pzk36 with SMTP id 36so1823014pzk.12
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:02:44 -0700 (PDT)
-Message-ID: <4A94358C.6060708@vflare.org>
-Date: Wed, 26 Aug 2009 00:33:40 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+	by kanga.kvack.org (Postfix) with ESMTP id EA88C6B00A0
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 16:05:24 -0400 (EDT)
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id n7PK5NFS004589
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 13:05:23 -0700
+Received: from pzk36 (pzk36.prod.google.com [10.243.19.164])
+	by spaceape8.eur.corp.google.com with ESMTP id n7P8GSwP019964
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2009 01:18:22 -0700
+Received: by pzk36 with SMTP id 36so1455272pzk.12
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 01:16:27 -0700 (PDT)
+Date: Tue, 25 Aug 2009 01:16:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/5] hugetlb:  add nodemask arg to huge page alloc, free
+ and surplus adjust fcns
+In-Reply-To: <20090824192637.10317.31039.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.0908250112510.23660@chino.kir.corp.google.com>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192637.10317.31039.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
-References: <200908241007.47910.ngupta@vflare.org> <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com> <4A92EBB4.1070101@vflare.org> <Pine.LNX.4.64.0908242132320.8144@sister.anvils> <4A930313.9070404@vflare.org> <Pine.LNX.4.64.0908242224530.10534@sister.anvils> <4A93FAA5.5000001@vflare.org>
-In-Reply-To: <4A93FAA5.5000001@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 08/25/2009 08:22 PM, Nitin Gupta wrote:
-> On 08/25/2009 03:16 AM, Hugh Dickins wrote:
->> On Tue, 25 Aug 2009, Nitin Gupta wrote:
->>> On 08/25/2009 02:09 AM, Hugh Dickins wrote:
->>>> On Tue, 25 Aug 2009, Nitin Gupta wrote:
->>>>> On 08/24/2009 11:03 PM, Pekka Enberg wrote:
->>>>>>
->>>>>> What's the purpose of passing PFNs around? There's quite a lot of PFN
->>>>>> to struct page conversion going on because of it. Wouldn't it make
->>>>>> more sense to return (and pass) a pointer to struct page instead?
->>>>>
->>>>> PFNs are 32-bit on all archs
->>>>
->>>> Are you sure? If it happens to be so for all machines built today,
->>>> I think it can easily change tomorrow. We consistently use unsigned
->>>> long
->>>> for pfn (there, now I've said that, I bet you'll find somewhere we
->>>> don't!)
->>>>
->>>> x86_64 says MAX_PHYSMEM_BITS 46 and ia64 says MAX_PHYSMEM_BITS 50 and
->>>> mm/sparse.c says
->>>> unsigned long max_sparsemem_pfn = 1UL<< (MAX_PHYSMEM_BITS-PAGE_SHIFT);
->>>>
->>>
->>> For PFN to exceed 32-bit we need to have physical memory> 16TB (2^32
->>> * 4KB).
->>> So, maybe I can simply add a check in ramzswap module load to make
->>> sure that
->>> RAM is indeed< 16TB and then safely use 32-bit for PFN?
->>
->> Others know much more about it, but I believe that with sparsemem you
->> may be handling vast holes in physical memory: so a relatively small
->> amount of physical memory might in part be mapped with gigantic pfns.
->>
->> So if you go that route, I think you'd rather have to refuse pages
->> with oversized pfns (or refuse configurations with any oversized pfns),
->> than base it upon the quantity of physical memory in the machine.
->>
->> Seems ugly to me, as it did to Pekka; but I can understand that you're
->> very much in the business of saving memory, so doubling the size of some
->> of your tables (I may be oversimplifying) would be repugnant to you.
->>
->> You could add a CONFIG option, rather like CONFIG_LBDAF, to switch on
->> u64-sized pfns; but you'd still have to handle what happens when the
->> pfn is too big to fit in u32 without that option; and if distros always
->> switch the option on, to accomodate the larger machines, then there may
->> have been no point to adding it.
->>
->
-> Thanks for these details.
->
-> Now I understand that use of 32-bit PFN on 64-bit archs is unsafe. So,
-> there is no option but to include extra bits for PFNs or use struct page.
->
-> * Solution of ramzswap block device:
->
-> Use 48 bit PFNs (32 + 8) and have a compile time error to make sure that
-> that MAX_PHYSMEM_BITS is < 48 + PAGE_SHIFT. The ramzswap table can
-> accommodate
-> 48-bits without any increase in table size.
->
+On Mon, 24 Aug 2009, Lee Schermerhorn wrote:
 
+> [PATCH 2/4] hugetlb:  add nodemask arg to huge page alloc, free and surplus adjust fcns
+> 
+> Against: 2.6.31-rc6-mmotm-090820-1918
+> 
+> V3:
+> + moved this patch to after the "rework" of hstate_next_node_to_...
+>   functions as this patch is more specific to using task mempolicy
+>   to control huge page allocation and freeing.
+> 
+> In preparation for constraining huge page allocation and freeing by the
+> controlling task's numa mempolicy, add a "nodes_allowed" nodemask pointer
+> to the allocate, free and surplus adjustment functions.  For now, pass
+> NULL to indicate default behavior--i.e., use node_online_map.  A
+> subsqeuent patch will derive a non-default mask from the controlling 
+> task's numa mempolicy.
+> 
+> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> 
+>  mm/hugetlb.c |  102 ++++++++++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 67 insertions(+), 35 deletions(-)
+> 
+> Index: linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c
+> ===================================================================
+> --- linux-2.6.31-rc6-mmotm-090820-1918.orig/mm/hugetlb.c	2009-08-24 12:12:46.000000000 -0400
+> +++ linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c	2009-08-24 12:12:50.000000000 -0400
+> @@ -622,19 +622,29 @@ static struct page *alloc_fresh_huge_pag
+>  }
+>  
+>  /*
+> - * common helper function for hstate_next_node_to_{alloc|free}.
+> - * return next node in node_online_map, wrapping at end.
+> + * common helper functions for hstate_next_node_to_{alloc|free}.
+> + * We may have allocated or freed a huge pages based on a different
+> + * nodes_allowed, previously, so h->next_node_to_{alloc|free} might
+> + * be outside of *nodes_allowed.  Ensure that we use the next
+> + * allowed node for alloc or free.
+>   */
+> -static int next_node_allowed(int nid)
+> +static int next_node_allowed(int nid, nodemask_t *nodes_allowed)
+>  {
+> -	nid = next_node(nid, node_online_map);
+> +	nid = next_node(nid, *nodes_allowed);
+>  	if (nid == MAX_NUMNODES)
+> -		nid = first_node(node_online_map);
+> +		nid = first_node(*nodes_allowed);
+>  	VM_BUG_ON(nid >= MAX_NUMNODES);
+>  
+>  	return nid;
+>  }
+>  
+> +static int this_node_allowed(int nid, nodemask_t *nodes_allowed)
+> +{
+> +	if (!node_isset(nid, *nodes_allowed))
+> +		nid = next_node_allowed(nid, nodes_allowed);
+> +	return nid;
+> +}
 
-I went crazy. I meant 40 bits for PFN -- not 48. This 40-bit PFN should be 
-sufficient for all archs. For archs where 40 + PAGE_SHIFT < MAX_PHYSMEM_BITS
-ramzswap will just issue a compiler error.
+Awkward name considering this doesn't simply return true or false as 
+expected, it returns a nid.
 
-Thanks,
-Nitin
+> +
+>  /*
+>   * Use a helper variable to find the next node and then
+>   * copy it back to next_nid_to_alloc afterwards:
+> @@ -642,28 +652,34 @@ static int next_node_allowed(int nid)
+>   * pass invalid nid MAX_NUMNODES to alloc_pages_exact_node.
+>   * But we don't need to use a spin_lock here: it really
+>   * doesn't matter if occasionally a racer chooses the
+> - * same nid as we do.  Move nid forward in the mask even
+> - * if we just successfully allocated a hugepage so that
+> - * the next caller gets hugepages on the next node.
+> + * same nid as we do.  Move nid forward in the mask whether
+> + * or not we just successfully allocated a hugepage so that
+> + * the next allocation addresses the next node.
+>   */
+> -static int hstate_next_node_to_alloc(struct hstate *h)
+> +static int hstate_next_node_to_alloc(struct hstate *h,
+> +					nodemask_t *nodes_allowed)
+>  {
+>  	int nid, next_nid;
+>  
+> -	nid = h->next_nid_to_alloc;
+> -	next_nid = next_node_allowed(nid);
+> +	if (!nodes_allowed)
+> +		nodes_allowed = &node_online_map;
+> +
+> +	nid = this_node_allowed(h->next_nid_to_alloc, nodes_allowed);
+> +
+> +	next_nid = next_node_allowed(nid, nodes_allowed);
+>  	h->next_nid_to_alloc = next_nid;
+> +
+>  	return nid;
+>  }
+
+Don't need next_nid.
+
+> -static int alloc_fresh_huge_page(struct hstate *h)
+> +static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+>  {
+>  	struct page *page;
+>  	int start_nid;
+>  	int next_nid;
+>  	int ret = 0;
+>  
+> -	start_nid = hstate_next_node_to_alloc(h);
+> +	start_nid = hstate_next_node_to_alloc(h, nodes_allowed);
+>  	next_nid = start_nid;
+>  
+>  	do {
+> @@ -672,7 +688,7 @@ static int alloc_fresh_huge_page(struct
+>  			ret = 1;
+>  			break;
+>  		}
+> -		next_nid = hstate_next_node_to_alloc(h);
+> +		next_nid = hstate_next_node_to_alloc(h, nodes_allowed);
+>  	} while (next_nid != start_nid);
+>  
+>  	if (ret)
+> @@ -689,13 +705,18 @@ static int alloc_fresh_huge_page(struct
+>   * whether or not we find a free huge page to free so that the
+>   * next attempt to free addresses the next node.
+>   */
+> -static int hstate_next_node_to_free(struct hstate *h)
+> +static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
+>  {
+>  	int nid, next_nid;
+>  
+> -	nid = h->next_nid_to_free;
+> -	next_nid = next_node_allowed(nid);
+> +	if (!nodes_allowed)
+> +		nodes_allowed = &node_online_map;
+> +
+> +	nid = this_node_allowed(h->next_nid_to_free, nodes_allowed);
+> +
+> +	next_nid = next_node_allowed(nid, nodes_allowed);
+>  	h->next_nid_to_free = next_nid;
+> +
+>  	return nid;
+>  }
+
+Same.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
