@@ -1,74 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3A96B004D
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:46:14 -0400 (EDT)
-Date: Tue, 25 Aug 2009 12:10:32 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB8D6B00D8
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:51:13 -0400 (EDT)
+Date: Tue, 25 Aug 2009 14:35:16 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-Message-ID: <20090825111031.GD21335@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org> <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com> <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com> <20090819100553.GE24809@csn.ul.ie> <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com> <20090825104731.GA21335@csn.ul.ie> <1251198054.15197.40.camel@pasglop>
+Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
+Message-ID: <20090825133516.GE21335@csn.ul.ie>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1251198054.15197.40.camel@pasglop>
+In-Reply-To: <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 25, 2009 at 09:00:54PM +1000, Benjamin Herrenschmidt wrote:
-> On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
-> 
-> > Why? One hugepage of default size will be one TLB entry. Each hugepage
-> > after that will be additional TLB entries so there is no savings on
-> > translation overhead.
-> > 
-> > Getting contiguous pages beyond the hugepage boundary is not a matter
-> > for GFP flags.
-> 
-> Note: This patch reminds me of something else I had on the backburner
-> for a while and never got a chance to actually implement...
-> 
-> There's various cases of drivers that could have good uses of hugetlb
-> mappings of device memory. For example, framebuffers.
-> 
+On Mon, Aug 24, 2009 at 03:29:02PM -0400, Lee Schermerhorn wrote:
+> <SNIP>
+>
+> Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h
+> ===================================================================
+> --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/node.h	2009-08-24 12:12:44.000000000 -0400
+> +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h	2009-08-24 12:12:56.000000000 -0400
+> @@ -21,9 +21,12 @@
+>  
+>  #include <linux/sysdev.h>
+>  #include <linux/cpumask.h>
+> +#include <linux/hugetlb.h>
+>  
 
-Where is the buffer located? If it's in kernel space, than any contiguous
-allocation will be automatically backed by huge PTEs. As framebuffer allocation
-is probably happening early in boot, just calling alloc_pages() might do?
+Is this header inclusion necessary? It does not appear to be required by
+the structure modification (which is iffy in itself as discussed in the
+earlier mail) and it breaks build on x86-64.
 
-> I looked at it a while back and it occured to me (and Nick) that
-> ideally, we should split hugetlb and hugetlbfs.
+ CC      arch/x86/kernel/setup_percpu.o
+In file included from include/linux/pagemap.h:10,
+                 from include/linux/mempolicy.h:62,
+                 from include/linux/hugetlb.h:8,
+                 from include/linux/node.h:24,
+                 from include/linux/cpu.h:23,
+                 from /usr/local/autobench/var/tmp/build/arch/x86/include/asm/cpu.h:5,
+                 from arch/x86/kernel/setup_percpu.c:19:
+include/linux/highmem.h:53: error: static declaration of kmap follows non-static declaration
+/usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:60: error: previous declaration of kmap was here
+include/linux/highmem.h:59: error: static declaration of kunmap follows non-static declaration
+/usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:61: error: previous declaration of kunmap was here
+include/linux/highmem.h:63: error: static declaration of kmap_atomic follows non-static declaration
+/usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:63: error: previous declaration of kmap_atomic was here
+make[2]: *** [arch/x86/kernel/setup_percpu.o] Error 1
+make[1]: *** [arch/x86/kernel] Error 2
+
+
+
+>  struct node {
+>  	struct sys_device	sysdev;
+> +	struct kobject		*hugepages_kobj;
+> +	struct kobject		*hstate_kobjs[HUGE_MAX_HSTATE];
+>  };
+>  
+>  struct memory_block;
 > 
-
-Yeah, you're not the first to come to that conclusion :)
-
-> Basically, on one side, we have the (mostly arch specific) populating
-> and walking of page tables with hugetlb translations, associated huge
-> VMAs, etc... 
-> 
-> On the other side, hugetlbfs is backing that with memory.
-> 
-> Ideally, the former would have some kind of "standard" ops that
-> hugetlbfs can hook into for the existing case (moving some stuff out of
-> the common data structure and splitting it in two),
-
-Adam Litke at one point posted a pagetable-abstraction that would have
-been the first step on a path like this. It hurt the normal fastpath
-though and was ultimately put aside.
-
-> allowing the driver
-> to instanciate hugetlb VMAs that are backed up by something else,
-> typically a simple mapping of IOs.
-> 
-> Anybody wants to do that or I keep it on my back burner until the time I
-> finally get to do it ? :-)
-> 
-
-It's the sort of thing that has been resisted in the past, largely
-because the only user at the time was about transparent hugepage
-promotion/demotion. It would need to be a really strong incentive to
-revive the effort.
 
 -- 
 Mel Gorman
