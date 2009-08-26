@@ -1,229 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B40516B0055
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 08:18:59 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: Page allocation failures in guest
-Date: Wed, 26 Aug 2009 21:48:58 +0930
-References: <20090713115158.0a4892b0@mjolnir.ossman.eu> <200908261147.17838.rusty@rustcorp.com.au> <20090826065501.7ab677b9@mjolnir.ossman.eu>
-In-Reply-To: <20090826065501.7ab677b9@mjolnir.ossman.eu>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9216B004D
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 09:12:03 -0400 (EDT)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id n7Q5XLve016160
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 14:33:21 +0900 (JST)
+Date: Wed, 26 Aug 2009 14:25:20 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][preview] memcg: reduce lock contention at uncharge by
+ batching
+Message-Id: <20090826142520.d27b2e91.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090826100256.5f0fb2a7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090825112547.c2692965.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090826100256.5f0fb2a7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200908262148.59664.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus-list@drzeus.cx>
-Cc: Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Aug 2009 02:25:01 pm Pierre Ossman wrote:
-> On Wed, 26 Aug 2009 11:47:17 +0930
-> Rusty Russell <rusty@rustcorp.com.au> wrote:
+On Wed, 26 Aug 2009 10:02:56 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> With attached patch below, per-cpu-precharge,
 > 
-> > On Fri, 14 Aug 2009 05:55:48 am Pierre Ossman wrote:
-> > > On Wed, 12 Aug 2009 15:01:52 +0930
-> > > Rusty Russell <rusty@rustcorp.com.au> wrote:
-> > > > Subject: virtio: net refill on out-of-memory
-> > ... 
-> > > Patch applied. Now we wait. :)
-> > 
-> > Any results?
-> > 
+> I got this number,
 > 
-> It's been up for 12 days, so I'd say it works. But there is nothing in
-> dmesg, which suggests I haven't triggered the condition yet.
+> [Before] linux-2.6.31-rc7
+> real    2m46.491s
+> user    4m47.008s
+> sys     3m32.954s
+> 
+> 
+> lock_stat version 0.3
+> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+>                               class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
+> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+> 
+>                           &counter->lock:       1167034        1196935           0.52       16291.34      829793.69       18742433       45050576           0.42       30788.81     9490908.36
+>                           --------------
+>                           &counter->lock         638151          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
+>                           &counter->lock         558784          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
+>                           --------------
+>                           &counter->lock         679567          [<ffffffff81090fd5>] res_counter_charge+0x45/0xe0
+>                           &counter->lock         517368          [<ffffffff81090f5d>] res_counter_uncharge+0x2d/0x60
+> 
+> [After] precharge+batched uncharge
+> real    2m46.799s
+> user    4m49.523s
+> sys     3m18.916s
+>                          &counter->lock:         12785          12984           0.71          34.87        6768.24
+>        967813        4937090           0.47       20257.57      953289.67
+>                           --------------
+>                           &counter->lock          11117          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
+>                           &counter->lock           1867          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
+>                           --------------
+>                           &counter->lock          10691          [<ffffffff81090f3d>] res_counter_uncharge+0x2d/0x60
+>                           &counter->lock           2293          [<ffffffff81090fb5>] res_counter_charge+0x45/0xe0
+> 
+> I think patch below is enough simple. (but I need to support flush&cpu-hotplug)
+> I'd like to rebase this onto mmotom. 
+> Main difference with percpu_counter is that this is pre-charge and never goes over limit.
+> 
+I basically agree to this direction, but I have one question.
 
-No, that's totally expected.  I wouldn't expect a GFP_ATOMIC order 0 alloc
-failure to be noted, and the patch doesn't add any printks.
-
-Dave, can you push this to Linus ASAP?
+What do you mean by "flush" ? I suppose "discard precharges when hitting the limit", right ?
 
 Thanks,
-Rusty.
+Daisuke Nishimura.
 
-Subject: virtio: net refill on out-of-memory
-
-If we run out of memory, use keventd to fill the buffer.  There's a
-report of this happening: "Page allocation failures in guest",
-Message-ID: <20090713115158.0a4892b0@mjolnir.ossman.eu>
-
-Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
----
- drivers/net/virtio_net.c |   61 +++++++++++++++++++++++++++++++++++------------
- 1 file changed, 46 insertions(+), 15 deletions(-)
-
-diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
---- a/drivers/net/virtio_net.c
-+++ b/drivers/net/virtio_net.c
-@@ -71,6 +71,9 @@ struct virtnet_info
- 	struct sk_buff_head recv;
- 	struct sk_buff_head send;
- 
-+	/* Work struct for refilling if we run low on memory. */
-+	struct delayed_work refill;
-+
- 	/* Chain pages by the private ptr. */
- 	struct page *pages;
- };
-@@ -274,19 +277,22 @@ drop:
- 	dev_kfree_skb(skb);
- }
- 
--static void try_fill_recv_maxbufs(struct virtnet_info *vi)
-+static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
- {
- 	struct sk_buff *skb;
- 	struct scatterlist sg[2+MAX_SKB_FRAGS];
- 	int num, err, i;
-+	bool oom = false;
- 
- 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
- 	for (;;) {
- 		struct virtio_net_hdr *hdr;
- 
- 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
--		if (unlikely(!skb))
-+		if (unlikely(!skb)) {
-+			oom = true;
- 			break;
-+		}
- 
- 		skb_reserve(skb, NET_IP_ALIGN);
- 		skb_put(skb, MAX_PACKET_LEN);
-@@ -297,7 +303,7 @@ static void try_fill_recv_maxbufs(struct
- 		if (vi->big_packets) {
- 			for (i = 0; i < MAX_SKB_FRAGS; i++) {
- 				skb_frag_t *f = &skb_shinfo(skb)->frags[i];
--				f->page = get_a_page(vi, GFP_ATOMIC);
-+				f->page = get_a_page(vi, gfp);
- 				if (!f->page)
- 					break;
- 
-@@ -326,31 +332,35 @@ static void try_fill_recv_maxbufs(struct
- 	if (unlikely(vi->num > vi->max))
- 		vi->max = vi->num;
- 	vi->rvq->vq_ops->kick(vi->rvq);
-+	return !oom;
- }
- 
--static void try_fill_recv(struct virtnet_info *vi)
-+/* Returns false if we couldn't fill entirely (OOM). */
-+static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
- {
- 	struct sk_buff *skb;
- 	struct scatterlist sg[1];
- 	int err;
-+	bool oom = false;
- 
--	if (!vi->mergeable_rx_bufs) {
--		try_fill_recv_maxbufs(vi);
--		return;
--	}
-+	if (!vi->mergeable_rx_bufs)
-+		return try_fill_recv_maxbufs(vi, gfp);
- 
- 	for (;;) {
- 		skb_frag_t *f;
- 
- 		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
--		if (unlikely(!skb))
-+		if (unlikely(!skb)) {
-+			oom = true;
- 			break;
-+		}
- 
- 		skb_reserve(skb, NET_IP_ALIGN);
- 
- 		f = &skb_shinfo(skb)->frags[0];
--		f->page = get_a_page(vi, GFP_ATOMIC);
-+		f->page = get_a_page(vi, gfp);
- 		if (!f->page) {
-+			oom = true;
- 			kfree_skb(skb);
- 			break;
- 		}
-@@ -374,6 +384,7 @@ static void try_fill_recv(struct virtnet
- 	if (unlikely(vi->num > vi->max))
- 		vi->max = vi->num;
- 	vi->rvq->vq_ops->kick(vi->rvq);
-+	return !oom;
- }
- 
- static void skb_recv_done(struct virtqueue *rvq)
-@@ -386,6 +397,23 @@ static void skb_recv_done(struct virtque
- 	}
- }
- 
-+static void refill_work(struct work_struct *work)
-+{
-+	struct virtnet_info *vi;
-+	bool still_empty;
-+
-+	vi = container_of(work, struct virtnet_info, refill.work);
-+	napi_disable(&vi->napi);
-+	try_fill_recv(vi, GFP_KERNEL);
-+	still_empty = (vi->num == 0);
-+	napi_enable(&vi->napi);
-+
-+	/* In theory, this can happen: if we don't get any buffers in
-+	 * we will *never* try to fill again. */
-+	if (still_empty)
-+		schedule_delayed_work(&vi->refill, HZ/2);
-+}
-+
- static int virtnet_poll(struct napi_struct *napi, int budget)
- {
- 	struct virtnet_info *vi = container_of(napi, struct virtnet_info, napi);
-@@ -401,10 +429,10 @@ again:
- 		received++;
- 	}
- 
--	/* FIXME: If we oom and completely run out of inbufs, we need
--	 * to start a timer trying to fill more. */
--	if (vi->num < vi->max / 2)
--		try_fill_recv(vi);
-+	if (vi->num < vi->max / 2) {
-+		if (!try_fill_recv(vi, GFP_ATOMIC))
-+			schedule_delayed_work(&vi->refill, 0);
-+	}
- 
- 	/* Out of packets? */
- 	if (received < budget) {
-@@ -894,6 +922,7 @@ static int virtnet_probe(struct virtio_d
- 	vi->vdev = vdev;
- 	vdev->priv = vi;
- 	vi->pages = NULL;
-+	INIT_DELAYED_WORK(&vi->refill, refill_work);
- 
- 	/* If they give us a callback when all buffers are done, we don't need
- 	 * the timer. */
-@@ -942,7 +971,7 @@ static int virtnet_probe(struct virtio_d
- 	}
- 
- 	/* Last of all, set up some receive buffers. */
--	try_fill_recv(vi);
-+	try_fill_recv(vi, GFP_KERNEL);
- 
- 	/* If we didn't even get one input buffer, we're useless. */
- 	if (vi->num == 0) {
-@@ -959,6 +988,7 @@ static int virtnet_probe(struct virtio_d
- 
- unregister:
- 	unregister_netdev(dev);
-+	cancel_delayed_work_sync(&vi->refill);
- free_vqs:
- 	vdev->config->del_vqs(vdev);
- free:
-@@ -987,6 +1017,7 @@ static void virtnet_remove(struct virtio
- 	BUG_ON(vi->num != 0);
- 
- 	unregister_netdev(vi->dev);
-+	cancel_delayed_work_sync(&vi->refill);
- 
- 	vdev->config->del_vqs(vi->vdev);
- 
+> --
+> Index: linux-2.6.31-rc7/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.31-rc7.orig/mm/memcontrol.c	2009-08-26 09:11:57.000000000 +0900
+> +++ linux-2.6.31-rc7/mm/memcontrol.c	2009-08-26 09:46:51.000000000 +0900
+> @@ -67,6 +67,7 @@
+>  	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
+>  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
+>  
+> +	MEM_CGROUP_STAT_PRECHARGE, /* # of charges pre-allocated for future */
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+> @@ -959,6 +960,32 @@
+>  	unlock_page_cgroup(pc);
+>  }
+>  
+> +#define CHARGE_SIZE	(4 * ((NR_CPUS >> 5)+1) * PAGE_SIZE)
+> +
+> +bool use_precharge(struct mem_cgroup *mem)
+> +{
+> +	struct mem_cgroup_stat_cpu *cstat;
+> +	int cpu = get_cpu();
+> +	bool ret = true;
+> +
+> +	cstat = &mem->stat.cpustat[cpu];
+> +	if (cstat->count[MEM_CGROUP_STAT_PRECHARGE])
+> +		cstat->count[MEM_CGROUP_STAT_PRECHARGE] -= PAGE_SIZE;
+> +	else
+> +		ret = false;
+> +	put_cpu();
+> +	return ret;
+> +}
+> +
+> +void do_precharge(struct mem_cgroup *mem, int val)
+> +{
+> +	struct mem_cgroup_stat_cpu *cstat;
+> +	int cpu = get_cpu();
+> +	cstat = &mem->stat.cpustat[cpu];
+> +	__mem_cgroup_stat_add_safe(cstat, MEM_CGROUP_STAT_PRECHARGE, val);
+> +	put_cpu();
+> +}
+> +
+>  /*
+>   * Unlike exported interface, "oom" parameter is added. if oom==true,
+>   * oom-killer can be invoked.
+> @@ -995,20 +1022,24 @@
+>  
+>  	VM_BUG_ON(css_is_removed(&mem->css));
+>  
+> +	/* can we use precharge ? */
+> +	if (use_precharge(mem))
+> +		goto got;
+> +
+>  	while (1) {
+>  		int ret;
+>  		bool noswap = false;
+>  
+> -		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
+> +		ret = res_counter_charge(&mem->res, CHARGE_SIZE, &fail_res);
+>  		if (likely(!ret)) {
+>  			if (!do_swap_account)
+>  				break;
+> -			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
+> +			ret = res_counter_charge(&mem->memsw, CHARGE_SIZE,
+>  							&fail_res);
+>  			if (likely(!ret))
+>  				break;
+>  			/* mem+swap counter fails */
+> -			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> +			res_counter_uncharge(&mem->res, CHARGE_SIZE);
+>  			noswap = true;
+>  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+>  									memsw);
+> @@ -1046,6 +1077,8 @@
+>  			goto nomem;
+>  		}
+>  	}
+> +	do_precharge(mem, CHARGE_SIZE-PAGE_SIZE);
+> +got:
+>  	return 0;
+>  nomem:
+>  	css_put(&mem->css);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
