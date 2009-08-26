@@ -1,109 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 47BDA6B012E
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 03:29:37 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7Q7TYR8004475
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 26 Aug 2009 16:29:35 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BFD5745DE51
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:29:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A107E45DE4F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:29:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89F251DB8038
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:29:34 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 484071DB803E
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:29:34 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] oom: move oom_killer_enable()/oom_killer_disable to where they belong
-In-Reply-To: <20090821191925.GA5367@x200.localdomain>
-References: <20090821191925.GA5367@x200.localdomain>
-Message-Id: <20090826162812.3964.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 26 Aug 2009 16:29:33 +0900 (JST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F776B004D
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 04:28:45 -0400 (EDT)
+Date: Wed, 26 Aug 2009 10:27:41 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bug #14016] mm/ipw2200 regression
+Message-ID: <20090826082741.GA25955@cmpxchg.org>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <_yaHeGjHEzG.A.FIH.7sGlKB@chimera> <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
-> ---
+[Cc netdev]
 
-Please write proper patch description...
-
-However, I think the code itself is right.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+On Wed, Aug 26, 2009 at 09:09:44AM +0300, Pekka Enberg wrote:
+> On Tue, Aug 25, 2009 at 11:34 PM, Rafael J. Wysocki<rjw@sisk.pl> wrote:
+> > This message has been generated automatically as a part of a report
+> > of recent regressions.
+> >
+> > The following bug entry is on the current list of known regressions
+> > from 2.6.30. A Please verify if it still should be listed and let me know
+> > (either way).
+> >
+> > Bug-Entry A  A  A  : http://bugzilla.kernel.org/show_bug.cgi?id=14016
+> > Subject A  A  A  A  : mm/ipw2200 regression
+> > Submitter A  A  A  : Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+> > Date A  A  A  A  A  A : 2009-08-15 16:56 (11 days old)
+> > References A  A  A : http://marc.info/?l=linux-kernel&m=125036437221408&w=4
 > 
->  include/linux/gfp.h    |   12 ------------
->  include/linux/oom.h    |   11 +++++++++++
->  kernel/power/process.c |    1 +
->  3 files changed, 12 insertions(+), 12 deletions(-)
-> 
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -336,18 +336,6 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
->  void drain_all_pages(void);
->  void drain_local_pages(void *dummy);
->  
-> -extern bool oom_killer_disabled;
-> -
-> -static inline void oom_killer_disable(void)
-> -{
-> -	oom_killer_disabled = true;
-> -}
-> -
-> -static inline void oom_killer_enable(void)
-> -{
-> -	oom_killer_disabled = false;
-> -}
-> -
->  extern gfp_t gfp_allowed_mask;
->  
->  static inline void set_gfp_allowed_mask(gfp_t mask)
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -30,5 +30,16 @@ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
->  extern int register_oom_notifier(struct notifier_block *nb);
->  extern int unregister_oom_notifier(struct notifier_block *nb);
->  
-> +extern bool oom_killer_disabled;
-> +
-> +static inline void oom_killer_disable(void)
-> +{
-> +	oom_killer_disabled = true;
-> +}
-> +
-> +static inline void oom_killer_enable(void)
-> +{
-> +	oom_killer_disabled = false;
-> +}
->  #endif /* __KERNEL__*/
->  #endif /* _INCLUDE_LINUX_OOM_H */
-> --- a/kernel/power/process.c
-> +++ b/kernel/power/process.c
-> @@ -9,6 +9,7 @@
->  #undef DEBUG
->  
->  #include <linux/interrupt.h>
-> +#include <linux/oom.h>
->  #include <linux/suspend.h>
->  #include <linux/module.h>
->  #include <linux/syscalls.h>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> If am reading the page allocator dump correctly, there's plenty of
+> pages left but we're unable to satisfy an order 6 allocation. There's
+> no slab allocator involved so the page allocator changes that went
+> into 2.6.31 seem likely. Mel, ideas?
 
+It's an atomic order-6 allocation, the chances for this to succeed
+after some uptime become infinitesimal.  The chunks > order-2 are
+pretty much exhausted on this dump.
 
+64 pages, presumably 256k, for fw->boot_size while current ipw
+firmware images have ~188k.  I don't know jack squat about this
+driver, but given the field name and the struct:
+
+	struct ipw_fw {
+		__le32 ver;
+		__le32 boot_size;
+		__le32 ucode_size;
+		__le32 fw_size;
+		u8 data[0];
+	};
+
+fw->boot_size alone being that big sounds a bit fishy to me.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
