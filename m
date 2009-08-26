@@ -1,71 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 55E216B004F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 20:20:39 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7R0KiZp001536
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 27 Aug 2009 09:20:44 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E49D445DE57
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 09:20:43 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 66C2645DE60
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 09:20:43 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C48781DB803F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 09:20:42 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F7EDE08013
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 09:20:41 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] mm: remove unnecessary loop inside shrink_inactive_list()
-In-Reply-To: <20090821112228.GA6457@localhost>
-References: <2f11576a0908210409p3f1551a4i194887abbad94e9b@mail.gmail.com> <20090821112228.GA6457@localhost>
-Message-Id: <20090827091834.397F.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 27 Aug 2009 09:20:35 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 22E616B004F
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 22:23:54 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7R2MJfY002624
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 22:22:39 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7QAj0VT220288
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 06:47:50 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7QAg2If023822
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 06:42:02 -0400
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: [PATCH 3/3] Add MAP_HUGETLB example
+Date: Wed, 26 Aug 2009 11:44:53 +0100
+Message-Id: <745880949456dd59ee098722614dc329081100ee.1251282769.git.ebmunson@us.ibm.com>
+In-Reply-To: <1721a3e8bdf8f311d2388951ec65a24d37b513b1.1251282769.git.ebmunson@us.ibm.com>
+References: <cover.1251282769.git.ebmunson@us.ibm.com>
+ <1c66a9e98a73d61c611e5cf09b276e954965046e.1251282769.git.ebmunson@us.ibm.com>
+ <1721a3e8bdf8f311d2388951ec65a24d37b513b1.1251282769.git.ebmunson@us.ibm.com>
+In-Reply-To: <cover.1251282769.git.ebmunson@us.ibm.com>
+References: <cover.1251282769.git.ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, Aug 21, 2009 at 07:09:17PM +0800, KOSAKI Motohiro wrote:
-> > 2009/8/20 Wu Fengguang <fengguang.wu@intel.com>:
-> > > shrink_inactive_list() won't be called to scan too much pages
-> > > (unless in hibernation code which is fine) or too few pages (ie.
-> > > batching is taken care of by the callers). A So we can just remove the
-> > > big loop and isolate the exact number of pages requested.
-> > >
-> > > Just a RFC, and a scratch patch to show the basic idea.
-> > > Please kindly NAK quick if you don't like it ;)
-> > 
-> > Hm, I think this patch taks only cleanups. right?
-> > if so, I don't find any objection reason.
-> 
-> Mostly cleanups, but one behavior change here: 
-> 
-> > > - A  A  A  A  A  A  A  nr_taken = sc->isolate_pages(sc->swap_cluster_max,
-> > > + A  A  A  A  A  A  A  nr_taken = sc->isolate_pages(nr_to_scan,
-> > > A  A  A  A  A  A  A  A  A  A  A  A  A  A  &page_list, &nr_scan, sc->order, mode,
-> > > A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A zone, sc->mem_cgroup, 0, file);
-> 
-> The new behavior is to scan exactly the number of pages that
-> shrink_zone() or other callers tell it. It won't try to "round it up"
-> to 32 pages. This new behavior is in line with shrink_active_list()'s
-> current status as well as shrink_zone()'s expectation.
-> 
-> shrink_zone() may still submit scan requests for <32 pages, which is
-> suboptimal. I'll try to eliminate that totally with more patches.
+This patch adds an example of how to use the MAP_HUGETLB flag to the
+vm documentation directory and a reference to the example in
+hugetlbpage.txt.
 
-Your explanation seems makes sense.
-I'll wait your next spin :)
+Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+Acked-by: David Rientjes <rientjes@google.com>
+---
+ Documentation/vm/00-INDEX        |    2 +
+ Documentation/vm/hugetlbpage.txt |   14 ++++---
+ Documentation/vm/map_hugetlb.c   |   77 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 6 deletions(-)
+ create mode 100644 Documentation/vm/map_hugetlb.c
 
-
-
-
+diff --git a/Documentation/vm/00-INDEX b/Documentation/vm/00-INDEX
+index 2f77ced..aabd973 100644
+--- a/Documentation/vm/00-INDEX
++++ b/Documentation/vm/00-INDEX
+@@ -20,3 +20,5 @@ slabinfo.c
+ 	- source code for a tool to get reports about slabs.
+ slub.txt
+ 	- a short users guide for SLUB.
++map_hugetlb.c
++	- an example program that uses the MAP_HUGETLB mmap flag.
+diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+index ea8714f..6a8feab 100644
+--- a/Documentation/vm/hugetlbpage.txt
++++ b/Documentation/vm/hugetlbpage.txt
+@@ -146,12 +146,14 @@ Regular chown, chgrp, and chmod commands (with right permissions) could be
+ used to change the file attributes on hugetlbfs.
+ 
+ Also, it is important to note that no such mount command is required if the
+-applications are going to use only shmat/shmget system calls.  Users who
+-wish to use hugetlb page via shared memory segment should be a member of
+-a supplementary group and system admin needs to configure that gid into
+-/proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+-applications to use any combination of mmaps and shm* calls, though the
+-mount of filesystem will be required for using mmap calls.
++applications are going to use only shmat/shmget system calls or mmap with
++MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
++should be a member of a supplementary group and system admin needs to
++configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
++same or different applications to use any combination of mmaps and shm*
++calls, though the mount of filesystem will be required for using mmap calls
++without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
++map_hugetlb.c.
+ 
+ *******************************************************************
+ 
+diff --git a/Documentation/vm/map_hugetlb.c b/Documentation/vm/map_hugetlb.c
+new file mode 100644
+index 0000000..e2bdae3
+--- /dev/null
++++ b/Documentation/vm/map_hugetlb.c
+@@ -0,0 +1,77 @@
++/*
++ * Example of using hugepage memory in a user application using the mmap
++ * system call with MAP_HUGETLB flag.  Before running this program make
++ * sure the administrator has allocated enough default sized huge pages
++ * to cover the 256 MB allocation.
++ *
++ * For ia64 architecture, Linux kernel reserves Region number 4 for hugepages.
++ * That means the addresses starting with 0x800000... will need to be
++ * specified.  Specifying a fixed address is not required on ppc64, i386
++ * or x86_64.
++ */
++#include <stdlib.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/mman.h>
++#include <fcntl.h>
++
++#define LENGTH (256UL*1024*1024)
++#define PROTECTION (PROT_READ | PROT_WRITE)
++
++#ifndef MAP_HUGETLB
++#define MAP_HUGETLB 0x40
++#endif
++
++/* Only ia64 requires this */
++#ifdef __ia64__
++#define ADDR (void *)(0x8000000000000000UL)
++#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_FIXED)
++#else
++#define ADDR (void *)(0x0UL)
++#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
++#endif
++
++void check_bytes(char *addr)
++{
++	printf("First hex is %x\n", *((unsigned int *)addr));
++}
++
++void write_bytes(char *addr)
++{
++	unsigned long i;
++
++	for (i = 0; i < LENGTH; i++)
++		*(addr + i) = (char)i;
++}
++
++void read_bytes(char *addr)
++{
++	unsigned long i;
++
++	check_bytes(addr);
++	for (i = 0; i < LENGTH; i++)
++		if (*(addr + i) != (char)i) {
++			printf("Mismatch at %lu\n", i);
++			break;
++		}
++}
++
++int main(void)
++{
++	void *addr;
++
++	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
++	if (addr == MAP_FAILED) {
++		perror("mmap");
++		exit(1);
++	}
++
++	printf("Returned address is %p\n", addr);
++	check_bytes(addr);
++	write_bytes(addr);
++	read_bytes(addr);
++
++	munmap(addr, LENGTH);
++
++	return 0;
++}
+-- 
+1.6.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
