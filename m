@@ -1,78 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 19FE36B004D
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 09:59:58 -0400 (EDT)
-Date: Wed, 26 Aug 2009 16:58:00 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv4 2/2] vhost_net: a kernel-level virtio server
-Message-ID: <20090826135759.GA21988@redhat.com>
-References: <cover.1250693417.git.mst@redhat.com> <200908252140.41295.rusty@rustcorp.com.au> <20090825175016.GA15790@redhat.com> <200908261540.59900.arnd@arndb.de>
+	by kanga.kvack.org (Postfix) with SMTP id 6CE016B004D
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 10:36:46 -0400 (EDT)
+Message-ID: <4A954876.4070406@redhat.com>
+Date: Wed, 26 Aug 2009 10:36:38 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200908261540.59900.arnd@arndb.de>
+Subject: Re: [PATCH mmotm] mm: introduce page_lru_base_type fix
+References: <Pine.LNX.4.64.0908261050080.18633@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908261050080.18633@sister.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, kvm@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, mingo@elte.hu, akpm@linux-foundation.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 26, 2009 at 03:40:59PM +0200, Arnd Bergmann wrote:
-> On Tuesday 25 August 2009, Michael S. Tsirkin wrote:
-> > >  I'd like to avoid that here,
-> > > though it's kind of ugly.  We'd need VHOST_GET_FEATURES (and ACK) to take a
-> > > struct like:
-> > > 
-> > >       u32 feature_size;
-> > >       u32 features[];
+Hugh Dickins wrote:
+> My usual tmpfs swapping loads on recent mmotms have oddly
+> aroused the OOM killer after an hour or two.  Bisection led to
+> mm-return-boolean-from-page_is_file_cache.patch, but really it's
+> the prior mm-introduce-page_lru_base_type.patch that's at fault.
 > 
-> Hmm, variable length ioctl arguments, I'd rather not go there.
-> The ioctl infrastructure already has a length argument encoded
-> in the ioctl number. We can use that if we need more, e.g.
+> It converted page_lru() to use page_lru_base_type(), but forgot
+> to convert del_page_from_lru() - which then decremented the wrong
+> stats once page_is_file_cache() was changed to a boolean.
 > 
-> /* now */
-> #define VHOST_GET_FEATURES     _IOR(VHOST_VIRTIO, 0x00, __u64)
-> /*
->  * uncomment if we run out of feature bits:
+> Fix that, move page_lru_base_type() before del_page_from_lru(),
+> and mark it "inline" like the other mm_inline.h functions.
 > 
-> struct vhost_get_features2 {
-> 	__u64 bits[2];
-> };
-> #define VHOST_GET_FEATURES2     _IOR(VHOST_VIRTIO, 0x00, \
-> 			struct  vhost_get_features2)
->  */
-> 
-> > Thinking about this proposal some more, how will the guest
-> > determine the size to supply the GET_FEATURES ioctl?
-> 
-> Wait, the *guest*?
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-Sorry. the userspace hypervisor.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-> Maybe I misunderstood something in a major way here, but
-> I expected the features to be negotiated between host
-> user space (qemu) and host kernel, as well as between
-> guest and qemu (as they are already), but never between
-> guest and kernel.
-
-Yes.
-
-> I would certainly expect the bits to be distinct from
-> the virtio-net feature bits. E.g. stuff like TAP frame
-> format opposed to TCP socket frame format (length+date)
-> is something we need to negotiate here but that the
-> guest does not care about.
-
-My idea is to use virtio format for things I share with virtio (e.g.
-mergeable buffers).  Since we are a kind of transport, I thought that I
-will use the transport bits, that is bits 28 and up for vhost things.
-
-> > Since we are a bit tight in 32 bit space already,
-> > let's just use a 64 bit integer and be done with it?
-> 
-> Can't hurt, but don't use a struct unless you think
-> we are going to need more than 64 bits.
-> 
-> 	Arnd <><
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
