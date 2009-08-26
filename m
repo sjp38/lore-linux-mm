@@ -1,123 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C40456B004F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:46:40 -0400 (EDT)
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
-	 <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
-	 <20090825101906.GB4427@csn.ul.ie>
-	 <1251233369.16229.1.camel@useless.americas.hpqcorp.net>
-	 <20090826101122.GD10955@csn.ul.ie>
-	 <1251309747.4409.45.camel@useless.americas.hpqcorp.net>
-	 <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Wed, 26 Aug 2009 16:46:43 -0400
-Message-Id: <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6FD016B0055
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 16:47:03 -0400 (EDT)
+Message-ID: <4A95A10C.5040008@redhat.com>
+Date: Wed, 26 Aug 2009 23:54:36 +0300
+From: Izik Eidus <ieidus@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 13/12] ksm: fix munlock during exit_mmap deadlock
+References: <Pine.LNX.4.64.0908031304430.16449@sister.anvils> <Pine.LNX.4.64.0908031317190.16754@sister.anvils> <20090825145832.GP14722@random.random> <20090825152217.GQ14722@random.random> <Pine.LNX.4.64.0908251836050.30372@sister.anvils> <20090825181019.GT14722@random.random> <Pine.LNX.4.64.0908251958170.5871@sister.anvils> <20090825194530.GU14722@random.random> <Pine.LNX.4.64.0908261910530.15622@sister.anvils> <20090826194444.GB14722@random.random> <Pine.LNX.4.64.0908262048270.21188@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908262048270.21188@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, "Justin M. Forbes" <jmforbes@linuxtx.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-08-26 at 12:47 -0700, David Rientjes wrote:
-> On Wed, 26 Aug 2009, Lee Schermerhorn wrote:
-> 
-> > Against: 2.6.31-rc6-mmotm-090820-1918
-> > 
-> > Introduce nodemask macro to allocate a nodemask and 
-> > initialize it to contain a single node, using existing
-> > nodemask_of_node() macro.  Coded as a macro to avoid header
-> > dependency hell.
-> > 
-> > This will be used to construct the huge pages "nodes_allowed"
-> > nodemask for a single node when a persistent huge page
-> > pool page count is modified via a per node sysfs attribute.
-> > 
-> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > 
-> >  include/linux/nodemask.h |   10 ++++++++++
-> >  1 file changed, 10 insertions(+)
-> > 
-> > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h
-> > ===================================================================
-> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/nodemask.h	2009-08-24 10:16:56.000000000 -0400
-> > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h	2009-08-26 12:38:31.000000000 -0400
-> > @@ -257,6 +257,16 @@ static inline int __next_node(int n, con
-> >  	m;								\
-> >  })
-> >  
-> > +#define alloc_nodemask_of_node(node)					\
-> > +({									\
-> > +	typeof(_unused_nodemask_arg_) *nmp;				\
-> > +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
-> > +	if (nmp)							\
-> > +		*nmp = nodemask_of_node(node);				\
-> > +	nmp;								\
-> > +})
-> > +
-> > +
-> >  #define first_unset_node(mask) __first_unset_node(&(mask))
-> >  static inline int __first_unset_node(const nodemask_t *maskp)
-> >  {
-> 
-> I think it would probably be better to use the generic NODEMASK_ALLOC() 
-> interface by requiring it to pass the entire type (including "struct") as 
-> part of the first parameter.  Then it automatically takes care of 
-> dynamically allocating large nodemasks vs. allocating them on the stack.
-> 
-> Would it work by redefining NODEMASK_ALLOC() in the NODES_SHIFT > 8 case 
-> to be this:
-> 
-> 	#define NODEMASK_ALLOC(x, m) x *m = kmalloc(sizeof(*m), GFP_KERNEL);
-> 
-> and converting NODEMASK_SCRATCH(x) to NODEMASK_ALLOC(struct 
-> nodemask_scratch, x), and then doing this in your code:
-> 
-> 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
-> 	if (nodes_allowed)
-> 		*nodes_allowed = nodemask_of_node(node);
-> 
-> The NODEMASK_{ALLOC,SCRATCH}() interface is in its infancy so it can 
-> probably be made more general to handle cases like this.
+Hugh Dickins wrote:
+> On Wed, 26 Aug 2009, Andrea Arcangeli wrote:
+>   
+>> All is left to address is to teach page_alloc.c that the mm is going
+>> away in a second patch. That might also help when it's aio triggering
+>> gup page allocations or other kernel threads with use_mm just like ksm
+>> and the oom killer selected those "mm" for release.
+>>
+>> Having ksm using use_mm before triggering the handle_mm_fault (so
+>> tsk->mm points to the mm of the task) and adding a MMF_MEMDIE to
+>> mm->flags checked by page_alloc would work just fine and should solve
+>> the double task killed... but then I'm unsure.. this is just the first
+>> idea I had.
+>>     
+>
+> Yes, I began to have thoughts along those lines too as I was writing
+> my reply.  It is a different angle on the problem, I hadn't looked at
+> it that way before, and it does seem worth pursuing.  MMF_MEMDIE, yes,
+> that might be useful.  But KSM_RUN_UNMERGE wouldn't be able to use_mm
+> since it's coming from a normal user process - perhaps it should be a
+> kill-me-first like swapoff via PF_SWAPOFF.
+>
+> Hugh
+>   
+About the KSM case:
+The oom should work on problomatic processes, such that allocate big 
+amount of memory.
+But then as we now plane it to be, what might be a just fine application 
+that used ksm and told it to stop merge it pages, might be what 
+considered "bad application that need to be killed"
 
-I just don't know what that would accomplish.  Heck, I'm not all that
-happy with the alloc_nodemask_from_node() because it's allocating both a
-hidden nodemask_t and a pointer thereto on the stack just to return a
-pointer to a kmalloc()ed nodemask_t--which is what I want/need here.
+Is this what we really want?
 
-One issue I have with NODEMASK_ALLOC() [and nodemask_of_node(), et al]
-is that it declares the pointer variable as well as initializing it,
-perhaps with kmalloc(), ...   Indeed, it's purpose is to replace on
-stack nodemask declarations.
+But before getting into this, why is it so important to break the ksm 
+pages when madvise(UNMERGEABLE) get called?
 
-So, to use it at the start of, e.g., set_max_huge_pages() where I can
-safely use it throughout the function, I'll end up allocating the
-nodes_allowed mask on every call, whether or not a node is specified or
-there is a non-default mempolicy.   If it turns out that no node was
-specified and we have default policy, we need to free the mask and NULL
-out nodes_allowed up front so that we get default behavior.  That seems
-uglier to me that only allocating the nodemask when we know we need one.
-
-I'm not opposed to using a generic function/macro where one exists that
-suits my purposes.   I just don't see one.  I tried to create
-one--alloc_nodemask_from_node(), and to keep Mel happy, I tried to reuse
-nodemask_from_node() to initialize it.  I'm really not happy with the
-results--because of those extra, hidden stack variables.  I could
-eliminate those by creating a out of line function, but there's no good
-place to put a generic nodemask function--no nodemask.c.  
-
-I'm leaning towards going back to my original hugetlb-private
-"nodes_allowed_from_node()" or such.  I can use nodemask_from_node to
-initialize it, if that will make Mel happy, but trying to force fit an
-existing "generic" function just because it's generic seems pointless.
-
-So, I'm going to let this series rest until I hear back from you and Mel
-on how to proceed with this. 
-
-Lee
+When thinking about it, lets say I want to use ksm to scan 2 
+applications and merged their STATIC identical data, and then i want to 
+stop scanning them after i know ksm merged the pages, as soon as i will 
+try to unregister this 2 applications ksm will unmerge the pages, so we 
+dont allow such thing for the user (we can tell him ofcurse for such 
+case to use normal way of sharing, so this isnt a really strong case for 
+this)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
