@@ -1,180 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1046B0161
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9484E6B0162
 	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:11:18 -0400 (EDT)
-Date: Tue, 25 Aug 2009 08:36:38 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: fix hugetlb bug due to user_shm_unlock call
-Message-ID: <20090825073637.GA4427@csn.ul.ie>
-References: <alpine.LRH.2.00.0908241110420.21562@tundra.namei.org> <Pine.LNX.4.64.0908241258070.27704@sister.anvils> <4A929BF5.2050105@gmail.com> <Pine.LNX.4.64.0908241532470.9322@sister.anvils>
+Received: by iwn13 with SMTP id 13so12250iwn.12
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2009 04:11:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0908241532470.9322@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
+References: <82e12e5f0908220954p7019fb3dg15f9b99bb7e55a8c@mail.gmail.com>
+	 <28c262360908231844o3df95b14v15b2d4424465f033@mail.gmail.com>
+	 <20090824105139.c2ab8403.kamezawa.hiroyu@jp.fujitsu.com>
+	 <2f11576a0908232113w71676aatf22eb6d431501fd0@mail.gmail.com>
+	 <82e12e5f0908242146uad0f314hcbb02fcc999a1d32@mail.gmail.com>
+	 <Pine.LNX.4.64.0908250947400.2872@sister.anvils>
+Date: Wed, 26 Aug 2009 20:11:21 +0900
+Message-ID: <82e12e5f0908260411y4d211bf2v6242dd50b713c544@mail.gmail.com>
+Subject: Re: [PATCH] mm: make munlock fast when mlock is canceled by sigkill
+From: Hiroaki Wakabayashi <primulaelatior@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Stefan Huber <shuber2@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Meerwald <pmeerw@cosy.sbg.ac.at>, James Morris <jmorris@namei.org>, William Irwin <wli@movementarian.org>, Ravikiran G Thirumalai <kiran@scalex86.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Paul Menage <menage@google.com>, Ying Han <yinghan@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 24, 2009 at 04:30:28PM +0100, Hugh Dickins wrote:
-> 2.6.30's commit 8a0bdec194c21c8fdef840989d0d7b742bb5d4bc removed
-> user_shm_lock() calls in hugetlb_file_setup() but left the
-> user_shm_unlock call in shm_destroy().
-> 
-> In detail:
-> Assume that can_do_hugetlb_shm() returns true and hence user_shm_lock()
-> is not called in hugetlb_file_setup(). However, user_shm_unlock() is
-> called in any case in shm_destroy() and in the following
-> atomic_dec_and_lock(&up->__count) in free_uid() is executed and if
-> up->__count gets zero, also cleanup_user_struct() is scheduled.
-> 
-> Note that sched_destroy_user() is empty if CONFIG_USER_SCHED is not set.
-> However, the ref counter up->__count gets unexpectedly non-positive and
-> the corresponding structs are freed even though there are live
-> references to them, resulting in a kernel oops after a lots of
-> shmget(SHM_HUGETLB)/shmctl(IPC_RMID) cycles and CONFIG_USER_SCHED set.
-> 
-> Hugh changed Stefan's suggested patch: can_do_hugetlb_shm() at the
-> time of shm_destroy() may give a different answer from at the time
-> of hugetlb_file_setup().  And fixed newseg()'s no_id error path,
-> which has missed user_shm_unlock() ever since it came in 2.6.9.
-> 
-> Reported-by: Stefan Huber <shuber2@gmail.com>
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Tested-by: Stefan Huber <shuber2@gmail.com>
-> Cc: stable@kernel.org
+Thank you for ideas and advices!
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+2009/8/25 Hugh Dickins <hugh.dickins@tiscali.co.uk>:
+> On Tue, 25 Aug 2009, Hiroaki Wakabayashi wrote:
+>> Thank you for reviews.
+>>
+>> >>> > @@ -254,6 +254,7 @@ static inline void
+>> >>> > mminit_validate_memmodel_limits(unsigned long *start_pfn,
+>> >>> > =A0#define GUP_FLAGS_FORCE =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00x2
+>> >>> > =A0#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
+>> >>> > =A0#define GUP_FLAGS_IGNORE_SIGKILL =A0 =A0 =A0 =A0 0x8
+>> >>> > +#define GUP_FLAGS_ALLOW_NULL =A0 =A0 =A0 =A0 =A0 =A0 0x10
+>> >>> >
+>> >>>
+>> >>> I am worried about adding new flag whenever we need it.
+>
+> Indeed! =A0See my comments below.
+>
+>> >>> But I think this case makes sense to me.
+>> >>> In addition, I guess ZERO page can also use this flag.
+>> >>>
+>> >>> Kame. What do you think about it?
+>> >>>
+>> >> I do welcome this !
+>> >> Then, I don't have to take care of mlock/munlock in ZERO_PAGE patch.
+>
+> I _think_ there's nothing to do for it (the page->mapping checks suit
+> the ZERO_PAGE); but I've not started testing my version, so may soon
+> be proved wrong.
+>
+>> >>
+>> >> And without this patch, munlock() does copy-on-write just for unpinni=
+ng memory.
+>> >> So, this patch shows some right direction, I think.
+>> >>
+>> >> One concern is flag name, ALLOW_NULL sounds not very good.
+>> >>
+>> >> =A0GUP_FLAGS_NOFAULT ?
+>> >>
+>> >> I wonder we can remove a hack of FOLL_ANON for core-dump by this flag=
+, too.
+>
+> No, the considerations there a different (it can only point to a ZERO_PAG=
+E
+> where faulting would anyway present a page of zeroes); it should be dealt
+> with by a coredump-specific flag, rather than sowing confusion elsewhere.
+> As above, I've done that but not yet tested it.
+>
+>> >
+>> > Yeah, GUP_FLAGS_NOFAULT is better.
+>>
+>> Me too.
+>> I will change this flag name.
+>>...
+>> When I try to change __get_user_pages(), I got problem.
+>> If remove NULLs from pages,
+>> __mlock_vma_pages_range() cannot know how long __get_user_pages() readed=
+.
+>> So, I have to get the virtual address of the page from vma and page.
+>> Because __mlock_vma_pages_range() have to call
+>> __get_user_pages() many times with different `start' argument.
+>>
+>> I try to use page_address_in_vma(), but it failed.
+>> (page_address_in_vma() returned -EFAULT)
+>> I cannot find way to solve this problem.
+>> Are there good ideas?
+>> Please give me some ideas.
+>
+> I agree that this munlock issue needs to be addressed: it's not just a
+> matter of speedup, I hit it when testing what happens when mlock takes
+> you to OOM - which is currently a hanging disaster because munlock'ing
+> in the exiting OOM-killed process gets stuck trying to fault in all
+> those pages that couldn't be locked in the first place.
 
-Thanks Hugh.
+I'm sorry, it too difficult for me to understand.
+I will learn and consider.
 
-> ---
-> Stefan, thanks a lot for reporting and testing and reporting back.
-> No need for you to retest, but in preparing to send this out, I've
-> noticed another error here, dating back to 2.6.9 (see comment above),
-> so added in the fix to that (rare case) too.
-> 
->  fs/hugetlbfs/inode.c    |   20 ++++++++++++--------
->  include/linux/hugetlb.h |    6 ++++--
->  ipc/shm.c               |    8 +++++---
->  3 files changed, 21 insertions(+), 13 deletions(-)
-> 
-> --- 2.6.31-rc7/fs/hugetlbfs/inode.c	2009-06-25 05:18:06.000000000 +0100
-> +++ linux/fs/hugetlbfs/inode.c	2009-08-24 12:32:01.000000000 +0100
-> @@ -935,26 +935,28 @@ static int can_do_hugetlb_shm(void)
->  	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
->  }
->  
-> -struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
-> +struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
-> +						struct user_struct **user)
->  {
->  	int error = -ENOMEM;
-> -	int unlock_shm = 0;
->  	struct file *file;
->  	struct inode *inode;
->  	struct dentry *dentry, *root;
->  	struct qstr quick_string;
-> -	struct user_struct *user = current_user();
->  
-> +	*user = NULL;
->  	if (!hugetlbfs_vfsmount)
->  		return ERR_PTR(-ENOENT);
->  
->  	if (!can_do_hugetlb_shm()) {
-> -		if (user_shm_lock(size, user)) {
-> -			unlock_shm = 1;
-> +		*user = current_user();
-> +		if (user_shm_lock(size, *user)) {
->  			WARN_ONCE(1,
->  			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
-> -		} else
-> +		} else {
-> +			*user = NULL;
->  			return ERR_PTR(-EPERM);
-> +		}
->  	}
->  
->  	root = hugetlbfs_vfsmount->mnt_root;
-> @@ -996,8 +998,10 @@ out_inode:
->  out_dentry:
->  	dput(dentry);
->  out_shm_unlock:
-> -	if (unlock_shm)
-> -		user_shm_unlock(size, user);
-> +	if (*user) {
-> +		user_shm_unlock(size, *user);
-> +		*user = NULL;
-> +	}
->  	return ERR_PTR(error);
->  }
->  
-> --- 2.6.31-rc7/include/linux/hugetlb.h	2009-06-25 05:18:08.000000000 +0100
-> +++ linux/include/linux/hugetlb.h	2009-08-24 12:32:01.000000000 +0100
-> @@ -10,6 +10,7 @@
->  #include <asm/tlbflush.h>
->  
->  struct ctl_table;
-> +struct user_struct;
->  
->  int PageHuge(struct page *page);
->  
-> @@ -146,7 +147,8 @@ static inline struct hugetlbfs_sb_info *
->  
->  extern const struct file_operations hugetlbfs_file_operations;
->  extern struct vm_operations_struct hugetlb_vm_ops;
-> -struct file *hugetlb_file_setup(const char *name, size_t, int);
-> +struct file *hugetlb_file_setup(const char *name, size_t size, int acct,
-> +						struct user_struct **user);
->  int hugetlb_get_quota(struct address_space *mapping, long delta);
->  void hugetlb_put_quota(struct address_space *mapping, long delta);
->  
-> @@ -168,7 +170,7 @@ static inline void set_file_hugepages(st
->  
->  #define is_file_hugepages(file)			0
->  #define set_file_hugepages(file)		BUG()
-> -#define hugetlb_file_setup(name,size,acctflag)	ERR_PTR(-ENOSYS)
-> +#define hugetlb_file_setup(name,size,acct,user)	ERR_PTR(-ENOSYS)
->  
->  #endif /* !CONFIG_HUGETLBFS */
->  
-> --- 2.6.31-rc7/ipc/shm.c	2009-06-25 05:18:09.000000000 +0100
-> +++ linux/ipc/shm.c	2009-08-24 16:06:30.000000000 +0100
-> @@ -174,7 +174,7 @@ static void shm_destroy(struct ipc_names
->  	shm_unlock(shp);
->  	if (!is_file_hugepages(shp->shm_file))
->  		shmem_lock(shp->shm_file, 0, shp->mlock_user);
-> -	else
-> +	else if (shp->mlock_user)
->  		user_shm_unlock(shp->shm_file->f_path.dentry->d_inode->i_size,
->  						shp->mlock_user);
->  	fput (shp->shm_file);
-> @@ -369,8 +369,8 @@ static int newseg(struct ipc_namespace *
->  		/* hugetlb_file_setup applies strict accounting */
->  		if (shmflg & SHM_NORESERVE)
->  			acctflag = VM_NORESERVE;
-> -		file = hugetlb_file_setup(name, size, acctflag);
-> -		shp->mlock_user = current_user();
-> +		file = hugetlb_file_setup(name, size, acctflag,
-> +							&shp->mlock_user);
->  	} else {
->  		/*
->  		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
-> @@ -410,6 +410,8 @@ static int newseg(struct ipc_namespace *
->  	return error;
->  
->  no_id:
-> +	if (shp->mlock_user)	/* shmflg & SHM_HUGETLB case */
-> +		user_shm_unlock(size, shp->mlock_user);
->  	fput(file);
->  no_file:
->  	security_shm_free(shp);
-> 
+> I had intended to fix it by being more careful about splitting/merging
+> vmas, noting how far the mlock had got, and munlocking just up to there.
+> However, now that I've got in there, that looks wrong to me, given the
+> traditional behaviour that mlock does its best, but pretends success
+> to allow for later instantiation of the pages if necessary.
+>
+> You ask for ideas. =A0My main idea is that so far we have added
+> GUP_FLAGS_IGNORE_VMA_PERMISSIONS (Kosaki-san, what was that about?
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0we alr=
+eady had the force flag),
+> GUP_FLAGS_IGNORE_SIGKILL, and now you propose
+> GUP_FLAGS_NOFAULT, all for the sole use of munlock.
+>
+> How about GUP_FLAGS_MUNLOCK, or more to the point, GUP_FLAGS_DONT_BE_GUP?
+> By which I mean, don't all these added flags suggest that almost
+> everything __get_user_pages() does is unsuited to the munlock case?
+>
+> My advice (but I sure hate giving advice before I've tried it myself)
+> is to put __mlock_vma_pages_range() back to handling just the mlock
+> case, and do your own follow_page() loop in munlock_vma_pages_range().
+>
+> Hugh
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Me, too. I agree __get_user_pages() unsuited to the munlock.
+I let try to make follow_page() loop, and remove
+ GUP_FLAGS_IGNORE_VMA_PERMISSIONS and GUP_FLAGS_IGNORE_SIGKILL.
+
+Thanks!
+--
+Hiroaki Wakabayashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
