@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F29F6B0144
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:16:14 -0400 (EDT)
-Date: Wed, 26 Aug 2009 10:58:35 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id 79FE26B016E
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 07:21:12 -0400 (EDT)
+Date: Wed, 26 Aug 2009 11:05:19 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] hugetlb:  add nodemask arg to huge page alloc,
-	free and surplus adjust fcns
-Message-ID: <20090826095835.GB10955@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192637.10317.31039.sendpatchset@localhost.localdomain> <alpine.DEB.2.00.0908250112510.23660@chino.kir.corp.google.com> <1251233374.16229.2.camel@useless.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
+Message-ID: <20090826100518.GC10955@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org> <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com> <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com> <20090819100553.GE24809@csn.ul.ie> <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com> <20090825104731.GA21335@csn.ul.ie> <1251198054.15197.40.camel@pasglop> <20090825111031.GD21335@csn.ul.ie> <1251280685.1379.67.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1251233374.16229.2.camel@useless.americas.hpqcorp.net>
+In-Reply-To: <1251280685.1379.67.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 25, 2009 at 04:49:34PM -0400, Lee Schermerhorn wrote:
-> > > <SNIP>
-> > > +static int hstate_next_node_to_alloc(struct hstate *h,
-> > > +					nodemask_t *nodes_allowed)
-> > >  {
-> > >  	int nid, next_nid;
-> > >  
-> > > -	nid = h->next_nid_to_alloc;
-> > > -	next_nid = next_node_allowed(nid);
-> > > +	if (!nodes_allowed)
-> > > +		nodes_allowed = &node_online_map;
-> > > +
-> > > +	nid = this_node_allowed(h->next_nid_to_alloc, nodes_allowed);
-> > > +
-> > > +	next_nid = next_node_allowed(nid, nodes_allowed);
-> > >  	h->next_nid_to_alloc = next_nid;
-> > > +
-> > >  	return nid;
-> > >  }
+On Wed, Aug 26, 2009 at 07:58:05PM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2009-08-25 at 12:10 +0100, Mel Gorman wrote:
+> > On Tue, Aug 25, 2009 at 09:00:54PM +1000, Benjamin Herrenschmidt wrote:
+> > > On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
+> > > 
+> > > > Why? One hugepage of default size will be one TLB entry. Each hugepage
+> > > > after that will be additional TLB entries so there is no savings on
+> > > > translation overhead.
+> > > > 
+> > > > Getting contiguous pages beyond the hugepage boundary is not a matter
+> > > > for GFP flags.
+> > > 
+> > > Note: This patch reminds me of something else I had on the backburner
+> > > for a while and never got a chance to actually implement...
+> > > 
+> > > There's various cases of drivers that could have good uses of hugetlb
+> > > mappings of device memory. For example, framebuffers.
+> > > 
 > > 
-> > Don't need next_nid.
+> > Where is the buffer located? If it's in kernel space, than any contiguous
+> > allocation will be automatically backed by huge PTEs. As framebuffer allocation
+> > is probably happening early in boot, just calling alloc_pages() might do?
 > 
-> Well, the pre-existing comment block indicated that the use of the
-> apparently spurious next_nid variable is necessary to close a race.  Not
-> sure whether that comment still applies with this rework.  What do you
-> think?  
+> It's not a memory buffer, it's MMIO space (device memory, off your PCI
+> bus for example).
 > 
 
-The original intention was not to return h->next_nid_to_alloc because
-there is a race window where it's MAX_NUMNODES.
+Ah right, so you just want to set up huge PTEs within the MMIO space?
 
-nid is a stack-local variable here, it should not become MAX_NUMNODES by
-accident because this_node_allowed() and next_node_allowed() are both taking
-care not to return MAX_NUMNODES so it's safe as a return value. Even in the
-presense of races with the code structure you currently have. I think it's
-safe to have
+> > Adam Litke at one point posted a pagetable-abstraction that would have
+> > been the first step on a path like this. It hurt the normal fastpath
+> > though and was ultimately put aside.
+> 
+> Which is why I think we should stick to just splitting hugetlb which
+> will not affect the normal path at all. Normal path for normal page,
+> HUGETLB VMAs for other sizes, whether they are backed with memory or by
+> anything else.
+> 
 
-nid = this_node_allowed(h->next_nid_to_alloc, nodes_allowed);
-h->next_nid_to_alloc = next_node_allowed(nid, nodes_allowed);
+Yeah, in this case I see why you want a hugetlbfs VMA, a huge-pte-backed VMA
+and everything else. They are treated differently. I don't think it's exactly
+what is required in the thread there though because there is a RAM-backed
+buffer. For that, hugetlbfs still makes sense just to ensure the reservations
+exist so that faults do not spuriously fail.  MMIO doesn't care because the
+physical backing exists and is vaguely similar to MAP_SHARED.
 
-return nid;
+> > It's the sort of thing that has been resisted in the past, largely
+> > because the only user at the time was about transparent hugepage
+> > promotion/demotion. It would need to be a really strong incentive to
+> > revive the effort.
+> 
+> Why ? I'm not proposing to hack the normal path. Just splitting
+> hugetlbfs in two which is reasonably easy to do, to allow drivers who
+> map large chunks of MMIO space to use larger page sizes.
+> 
 
-because at worse in the presense of races, h->next_nid_to_alloc gets
-assigned to the same value twice, but never MAX_NUMNODES.
+That is a bit more reasonable. It would help the case of MMIO for sure.
+
+> This is the case of pretty much any discrete video card, a chunk of
+> RDMA-style devices, and possibly more.
+> 
+> It's a reasonably simple change that has 0 effect on the non-hugetlb
+> path. I think I'll just have to bite the bullet and send a demo patch
+> when I'm no longer bogged down :-)
+> 
 
 -- 
 Mel Gorman
