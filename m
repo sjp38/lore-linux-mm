@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4156B0124
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:36:55 -0400 (EDT)
-Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090825104731.GA21335@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
-	 <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
-	 <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com>
-	 <20090819100553.GE24809@csn.ul.ie>
-	 <202cde0e0908200003w43b91ac3v8a149ec1ace45d6d@mail.gmail.com>
-	 <20090825104731.GA21335@csn.ul.ie>
-Content-Type: text/plain
-Date: Tue, 25 Aug 2009 21:00:54 +1000
-Message-Id: <1251198054.15197.40.camel@pasglop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC946B0125
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 00:55:05 -0400 (EDT)
+Date: Wed, 26 Aug 2009 06:55:01 +0200
+From: Pierre Ossman <drzeus-list@drzeus.cx>
+Subject: Re: Page allocation failures in guest
+Message-ID: <20090826065501.7ab677b9@mjolnir.ossman.eu>
+In-Reply-To: <200908261147.17838.rusty@rustcorp.com.au>
+References: <20090713115158.0a4892b0@mjolnir.ossman.eu>
+	<200908121501.53167.rusty@rustcorp.com.au>
+	<20090813222548.5e0743dd@mjolnir.ossman.eu>
+	<200908261147.17838.rusty@rustcorp.com.au>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.ossman.eu-655-1251262508-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Alexey Korolev <akorolex@gmail.com>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Avi Kivity <avi@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-08-25 at 11:47 +0100, Mel Gorman wrote:
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-> Why? One hugepage of default size will be one TLB entry. Each hugepage
-> after that will be additional TLB entries so there is no savings on
-> translation overhead.
-> 
-> Getting contiguous pages beyond the hugepage boundary is not a matter
-> for GFP flags.
+--=_freyr.ossman.eu-655-1251262508-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Note: This patch reminds me of something else I had on the backburner
-for a while and never got a chance to actually implement...
+On Wed, 26 Aug 2009 11:47:17 +0930
+Rusty Russell <rusty@rustcorp.com.au> wrote:
 
-There's various cases of drivers that could have good uses of hugetlb
-mappings of device memory. For example, framebuffers.
+> On Fri, 14 Aug 2009 05:55:48 am Pierre Ossman wrote:
+> > On Wed, 12 Aug 2009 15:01:52 +0930
+> > Rusty Russell <rusty@rustcorp.com.au> wrote:
+> > > Subject: virtio: net refill on out-of-memory
+> ...=20
+> > Patch applied. Now we wait. :)
+>=20
+> Any results?
+>=20
 
-I looked at it a while back and it occured to me (and Nick) that
-ideally, we should split hugetlb and hugetlbfs.
+It's been up for 12 days, so I'd say it works. But there is nothing in
+dmesg, which suggests I haven't triggered the condition yet.
 
-Basically, on one side, we have the (mostly arch specific) populating
-and walking of page tables with hugetlb translations, associated huge
-VMAs, etc... 
+I wonder if there might be something broken with Fedora's kernel. :/
+(I am running the same upstream version, and their conf, for this test,
+but not all of their patches)
 
-On the other side, hugetlbfs is backing that with memory.
+Rgds
+--=20
+     -- Pierre Ossman
 
-Ideally, the former would have some kind of "standard" ops that
-hugetlbfs can hook into for the existing case (moving some stuff out of
-the common data structure and splitting it in two), allowing the driver
-to instanciate hugetlb VMAs that are backed up by something else,
-typically a simple mapping of IOs.
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
 
-Anybody wants to do that or I keep it on my back burner until the time I
-finally get to do it ? :-)
+--=_freyr.ossman.eu-655-1251262508-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
 
-Cheers,
-Ben.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+
+iEYEARECAAYFAkqUwCkACgkQ7b8eESbyJLhvfgCeJdWl6lSQa8Zi7CGsSLbjyr4x
+1+EAnjLeYeg7bXuVqJ3AACXj23IMc+uk
+=tuHm
+-----END PGP SIGNATURE-----
+
+--=_freyr.ossman.eu-655-1251262508-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
