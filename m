@@ -1,101 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BC2F76B0128
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 01:03:22 -0400 (EDT)
-Received: by pzk36 with SMTP id 36so2092401pzk.12
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 22:03:22 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-Subject: [PATCH 4/4] compcache: documentation
-Date: Mon, 24 Aug 2009 10:08:02 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5EEE06B012A
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 02:09:44 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so2390202bwz.38
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2009 23:09:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200908241008.02184.ngupta@vflare.org>
+In-Reply-To: <_yaHeGjHEzG.A.FIH.7sGlKB@chimera>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera>
+	 <_yaHeGjHEzG.A.FIH.7sGlKB@chimera>
+Date: Wed, 26 Aug 2009 09:09:44 +0300
+Message-ID: <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com>
+Subject: Re: [Bug #14016] mm/ipw2200 regression
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Short guide on how to setup and use ramzswap.
+On Tue, Aug 25, 2009 at 11:34 PM, Rafael J. Wysocki<rjw@sisk.pl> wrote:
+> This message has been generated automatically as a part of a report
+> of recent regressions.
+>
+> The following bug entry is on the current list of known regressions
+> from 2.6.30. =A0Please verify if it still should be listed and let me kno=
+w
+> (either way).
+>
+> Bug-Entry =A0 =A0 =A0 : http://bugzilla.kernel.org/show_bug.cgi?id=3D1401=
+6
+> Subject =A0 =A0 =A0 =A0 : mm/ipw2200 regression
+> Submitter =A0 =A0 =A0 : Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+> Date =A0 =A0 =A0 =A0 =A0 =A0: 2009-08-15 16:56 (11 days old)
+> References =A0 =A0 =A0: http://marc.info/?l=3Dlinux-kernel&m=3D1250364372=
+21408&w=3D4
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
----
+If am reading the page allocator dump correctly, there's plenty of
+pages left but we're unable to satisfy an order 6 allocation. There's
+no slab allocator involved so the page allocator changes that went
+into 2.6.31 seem likely. Mel, ideas?
 
- Documentation/blockdev/00-INDEX     |    2 +
- Documentation/blockdev/ramzswap.txt |   52 +++++++++++++++++++++++++++++++++++
- 2 files changed, 54 insertions(+), 0 deletions(-)
+Bartlomiej, can we see your .config, please?
 
-diff --git a/Documentation/blockdev/00-INDEX b/Documentation/blockdev/00-INDEX
-index c08df56..c1cb074 100644
---- a/Documentation/blockdev/00-INDEX
-+++ b/Documentation/blockdev/00-INDEX
-@@ -16,3 +16,5 @@ paride.txt
- 	- information about the parallel port IDE subsystem.
- ramdisk.txt
- 	- short guide on how to set up and use the RAM disk.
-+ramzswap.txt
-+	- short guide on how to setup compressed in-memory swap device.
-diff --git a/Documentation/blockdev/ramzswap.txt b/Documentation/blockdev/ramzswap.txt
-new file mode 100644
-index 0000000..463dd2d
---- /dev/null
-+++ b/Documentation/blockdev/ramzswap.txt
-@@ -0,0 +1,52 @@
-+ramzswap: Compressed RAM based swap device
-+-------------------------------------------
-+
-+Project home: http://compcache.googlecode.com/
-+
-+* Introduction
-+
-+It creates RAM based block devices which can be used (only) as swap disks.
-+Pages swapped to these devices are compressed and stored in memory itself.
-+See project home for use cases, performance numbers and a lot more.
-+
-+It consists of three modules:
-+ - xvmalloc.ko: memory allocator
-+ - ramzswap.ko: virtual block device driver
-+ - rzscontrol userspace utility: to control individual ramzswap devices
-+
-+* Usage
-+
-+Following shows a typical sequence of steps for using ramzswap.
-+
-+1) Load Modules:
-+	modprobe ramzswap NUM_DEVICES=4
-+	This creates 4 (uninitialized) devices: /dev/ramzswap{0,1,2,3}
-+	(NUM_DEVICES parameter is optional. Default: 1)
-+
-+2) Initialize:
-+	Use rzscontrol utility to configure and initialize individual
-+	ramzswap devices. Example:
-+	rzscontrol /dev/ramzswap2 --init # uses default value of disksize_kb
-+
-+	*See rzscontrol manpage for more details and examples*
-+
-+3) Activate:
-+	swapon /dev/ramzswap2 # or any other initialized ramzswap device
-+
-+4) Stats:
-+	rzscontrol /dev/ramzswap2 --stats
-+
-+5) Deactivate:
-+	swapoff /dev/ramzswap2
-+
-+6) Reset:
-+	rzscontrol /dev/ramzswap2 --reset
-+	(This frees all the memory allocated for this device).
-+
-+
-+Please report any problems at:
-+ - Mailing list: linux-mm-cc at laptop dot org
-+ - Issue tracker: http://code.google.com/p/compcache/issues/list
-+
-+Nitin Gupta
-+ngupta@vflare.org
+                                 Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
