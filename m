@@ -1,79 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 616C26B0087
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A1E2E6B0093
 	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 06:56:12 -0400 (EDT)
-Date: Wed, 26 Aug 2009 11:12:03 +0100
+Date: Wed, 26 Aug 2009 10:37:49 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-Message-ID: <20090826101202.GE10955@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain> <20090825133516.GE21335@csn.ul.ie> <1251233380.16229.3.camel@useless.americas.hpqcorp.net>
+Subject: Re: [Bug #14016] mm/ipw2200 regression
+Message-ID: <20090826093747.GA10955@csn.ul.ie>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <_yaHeGjHEzG.A.FIH.7sGlKB@chimera> <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com> <20090826082741.GA25955@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1251233380.16229.3.camel@useless.americas.hpqcorp.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090826082741.GA25955@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mel Gorman <mel@skynet.ie>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 25, 2009 at 04:49:40PM -0400, Lee Schermerhorn wrote:
-> On Tue, 2009-08-25 at 14:35 +0100, Mel Gorman wrote:
-> > On Mon, Aug 24, 2009 at 03:29:02PM -0400, Lee Schermerhorn wrote:
-> > > <SNIP>
+On Wed, Aug 26, 2009 at 10:27:41AM +0200, Johannes Weiner wrote:
+> [Cc netdev]
+> 
+> On Wed, Aug 26, 2009 at 09:09:44AM +0300, Pekka Enberg wrote:
+> > On Tue, Aug 25, 2009 at 11:34 PM, Rafael J. Wysocki<rjw@sisk.pl> wrote:
+> > > This message has been generated automatically as a part of a report
+> > > of recent regressions.
 > > >
-> > > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h
-> > > ===================================================================
-> > > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/node.h	2009-08-24 12:12:44.000000000 -0400
-> > > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h	2009-08-24 12:12:56.000000000 -0400
-> > > @@ -21,9 +21,12 @@
-> > >  
-> > >  #include <linux/sysdev.h>
-> > >  #include <linux/cpumask.h>
-> > > +#include <linux/hugetlb.h>
-> > >  
+> > > The following bug entry is on the current list of known regressions
+> > > from 2.6.30.  Please verify if it still should be listed and let me know
+> > > (either way).
+> > >
+> > > Bug-Entry       : http://bugzilla.kernel.org/show_bug.cgi?id=14016
+> > > Subject         : mm/ipw2200 regression
+> > > Submitter       : Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+> > > Date            : 2009-08-15 16:56 (11 days old)
+> > > References      : http://marc.info/?l=linux-kernel&m=125036437221408&w=4
 > > 
-> > Is this header inclusion necessary? It does not appear to be required by
-> > the structure modification (which is iffy in itself as discussed in the
-> > earlier mail) and it breaks build on x86-64.
+> > If am reading the page allocator dump correctly, there's plenty of
+> > pages left but we're unable to satisfy an order 6 allocation. There's
+> > no slab allocator involved so the page allocator changes that went
+> > into 2.6.31 seem likely. Mel, ideas?
 > 
-> Hi, Mel:
+> It's an atomic order-6 allocation, the chances for this to succeed
+> after some uptime become infinitesimal.  The chunks > order-2 are
+> pretty much exhausted on this dump.
 > 
-> I recall that it is necessary to build.  You can try w/o it.
+> 64 pages, presumably 256k, for fw->boot_size while current ipw
+> firmware images have ~188k.  I don't know jack squat about this
+> driver, but given the field name and the struct:
 > 
-
-I did, it appeared to work but I didn't dig deep as to why.
-
-> > 
-> >  CC      arch/x86/kernel/setup_percpu.o
-> > In file included from include/linux/pagemap.h:10,
-> >                  from include/linux/mempolicy.h:62,
-> >                  from include/linux/hugetlb.h:8,
-> >                  from include/linux/node.h:24,
-> >                  from include/linux/cpu.h:23,
-> >                  from /usr/local/autobench/var/tmp/build/arch/x86/include/asm/cpu.h:5,
-> >                  from arch/x86/kernel/setup_percpu.c:19:
-> > include/linux/highmem.h:53: error: static declaration of kmap follows non-static declaration
-> > /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:60: error: previous declaration of kmap was here
-> > include/linux/highmem.h:59: error: static declaration of kunmap follows non-static declaration
-> > /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:61: error: previous declaration of kunmap was here
-> > include/linux/highmem.h:63: error: static declaration of kmap_atomic follows non-static declaration
-> > /usr/local/autobench/var/tmp/build/arch/x86/include/asm/highmem.h:63: error: previous declaration of kmap_atomic was here
-> > make[2]: *** [arch/x86/kernel/setup_percpu.o] Error 1
-> > make[1]: *** [arch/x86/kernel] Error 2
+> 	struct ipw_fw {
+> 		__le32 ver;
+> 		__le32 boot_size;
+> 		__le32 ucode_size;
+> 		__le32 fw_size;
+> 		u8 data[0];
+> 	};
 > 
-> I saw this.  I've been testing on x86_64.  I *thought* that it only
-> started showing up in a recent mmotm from changes in the linux-next
-> patch--e.g., a failure to set ARCH_HAS_KMAP or to handle appropriately
-> !ARCH_HAS_KMAP in highmem.h  But maybe that was coincidental with my
-> adding the include.
+> fw->boot_size alone being that big sounds a bit fishy to me.
 > 
 
-Maybe we were looking at different mmotm's
+Agreed. While there are a low number of order-6 pages free in the page
+allocation failure dump, there are not enough for watermarks to be
+satisified. As it's atomic, there is little that can be done from a VM
+perspective and it's the responsibility of the driver. I'm no driver expert
+but I'll have a go at fixing it anyway.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+My reading of this is that the firmware is being loaded from a workqueue and
+I am failing to see any restriction on sleeping in the path. It would appear
+that the driver just used the most convenient *_alloc_coherent function
+available forgetting that it assumes GFP_ATOMIC. Can someone who does know
+which way is up with a driver tell me why the patch below might not
+work?
+
+Bartlomiej, any chance you could give this a spin? Preferably, you'd
+have preempt enabled and CONFIG_DEBUG_SPINLOCK_SLEEP on as well because
+that combination will complain loudly if we really can't sleep in this
+path.
+
+=====
+ipw2200: Avoid large GFP_ATOMIC allocation during firmware loading
+
+ipw2200 uses pci_alloc_consistent() to allocate a large coherent buffer for
+the loading of firmware which is an order-6 allocation of GFP_ATOMIC. At
+system start-up time, this is not a problem. However, the firmware on the
+card can get confused and the corrective action taken is to reload the
+firmware and reinit the card. High-order GFP_ATOMIC allocations of this
+type can and will fail when the system is already up and running.
+
+As the firmware is loaded from a workqueue, it should be possible for
+the driver to go to sleep. This patch converts the call of
+pci_alloc_consistent() which assumes GFP_ATOMIC to dma_alloc_coherent()
+which can specify its own flags.
+
+The big downside with this patch is that it uses GFP_REPEAT to avoid the
+driver unloading. There is potential that this will cause a reclaim
+storm as the machine tries to find a free order-6 buffer. A suggested
+alternative for the driver owner is in the comments.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ drivers/net/wireless/ipw2x00/ipw2200.c |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ipw2x00/ipw2200.c b/drivers/net/wireless/ipw2x00/ipw2200.c
+index 44c29b3..f2e251e 100644
+--- a/drivers/net/wireless/ipw2x00/ipw2200.c
++++ b/drivers/net/wireless/ipw2x00/ipw2200.c
+@@ -3167,7 +3167,19 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
+ 	u8 *shared_virt;
+ 
+ 	IPW_DEBUG_TRACE("<< : \n");
+-	shared_virt = pci_alloc_consistent(priv->pci_dev, len, &shared_phys);
++
++	/*
++	 * This is a whopping large allocation, in or around order-6 so
++	 * dma_alloc_coherent is used to specify the GFP_KERNEL|__GFP_REPEAT
++	 * flags. Note that this action means the system could go into a
++	 * reclaim loop until it cannot reclaim any more trying to satisfy
++	 * the allocation. It would be preferable if one buffer is allocated
++	 * at driver initialisation and reused when the firmware needs to
++	 * be reloaded, overwriting the existing firmware each time
++	 */
++	shared_virt = dma_alloc_coherent(
++			priv->pci_dev == NULL ? NULL : &priv->pci_dev->dev, 
++			len, &shared_phys, GFP_KERNEL|__GFP_REPEAT);
+ 
+ 	if (!shared_virt)
+ 		return -ENOMEM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
