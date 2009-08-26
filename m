@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 082D96B006A
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 12:19:35 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so261799bwz.38
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2009 09:19:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 3F6BA6B004D
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 12:58:26 -0400 (EDT)
+Date: Wed, 26 Aug 2009 19:56:55 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv4 2/2] vhost_net: a kernel-level virtio server
+Message-ID: <20090826165655.GA23632@redhat.com>
+References: <cover.1250693417.git.mst@redhat.com> <20090819150309.GC4236@redhat.com> <200908252140.41295.rusty@rustcorp.com.au> <20090825131634.GA13949@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0908261209240.9933@gentwo.org>
-References: <200908241007.47910.ngupta@vflare.org>
-	 <84144f020908241033l4af09e7h9caac47d8d9b7841@mail.gmail.com>
-	 <4A92EBB4.1070101@vflare.org>
-	 <Pine.LNX.4.64.0908242132320.8144@sister.anvils>
-	 <4A930313.9070404@vflare.org>
-	 <Pine.LNX.4.64.0908242224530.10534@sister.anvils>
-	 <4A93FAA5.5000001@vflare.org> <4A94358C.6060708@vflare.org>
-	 <alpine.DEB.1.10.0908261209240.9933@gentwo.org>
-Date: Wed, 26 Aug 2009 19:19:40 +0300
-Message-ID: <84144f020908260919ke9d6c34qb47c3015ee0ca89b@mail.gmail.com>
-Subject: Re: [PATCH 1/4] compcache: xvmalloc memory allocator
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090825131634.GA13949@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Aug 2009, Nitin Gupta wrote:
->> I went crazy. I meant 40 bits for PFN -- not 48. This 40-bit PFN should be
->> sufficient for all archs. For archs where 40 + PAGE_SHIFT < MAX_PHYSMEM_BITS
->> ramzswap will just issue a compiler error.
+On Tue, Aug 25, 2009 at 04:16:34PM +0300, Michael S. Tsirkin wrote:
+> > > +	/* If they don't want an interrupt, don't send one, unless empty. */
+> > > +	if ((flags & VRING_AVAIL_F_NO_INTERRUPT) && vq->inflight)
+> > > +		return;
+> > 
+> > And I wouldn't support notify on empty at all, TBH.
+> 
+> If I don't, virtio net in guest uses a timer, which might be expensive.
+> Will need to check what this does.
+> 
+> >  It should
+> > definitely be conditional on the guest accepting the NOTIFY_ON_EMPTY
+> > feature.
 
-On Wed, Aug 26, 2009 at 7:10 PM, Christoph
-Lameter<cl@linux-foundation.org> wrote:
-> How about restricting the xvmalloc memory allocator to 32 bit? If I
-> understand correctly xvmalloc main use in on 32 bit in order to be
-> able to use HIGHMEM?
-
-That was the main reason for a specialized allocator rather than
-trying to use SLOB. However, if "xvmalloc" is merged with ramzswap, it
-makes sense to use it on desktop class 64-bit machines as well.
-
-                                Pekka
+lguest does not do it this way though, do it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
