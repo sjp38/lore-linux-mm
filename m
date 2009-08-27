@@ -1,133 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 74CF96B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 05:52:03 -0400 (EDT)
-Date: Thu, 27 Aug 2009 10:52:10 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-Message-ID: <20090827095210.GB21183@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain> <20090825101906.GB4427@csn.ul.ie> <1251233369.16229.1.camel@useless.americas.hpqcorp.net> <20090826101122.GD10955@csn.ul.ie> <1251309747.4409.45.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com> <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3093A6B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 05:59:29 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCHv4 2/2] vhost_net: a kernel-level virtio server
+Date: Thu, 27 Aug 2009 19:29:22 +0930
+References: <cover.1250693417.git.mst@redhat.com> <20090825131634.GA13949@redhat.com> <20090826165655.GA23632@redhat.com>
+In-Reply-To: <20090826165655.GA23632@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
+Message-Id: <200908271929.23454.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 26, 2009 at 04:46:43PM -0400, Lee Schermerhorn wrote:
-> On Wed, 2009-08-26 at 12:47 -0700, David Rientjes wrote:
-> > On Wed, 26 Aug 2009, Lee Schermerhorn wrote:
-> > 
-> > > Against: 2.6.31-rc6-mmotm-090820-1918
+On Thu, 27 Aug 2009 02:26:55 am Michael S. Tsirkin wrote:
+> On Tue, Aug 25, 2009 at 04:16:34PM +0300, Michael S. Tsirkin wrote:
+> > > > +	/* If they don't want an interrupt, don't send one, unless empty. */
+> > > > +	if ((flags & VRING_AVAIL_F_NO_INTERRUPT) && vq->inflight)
+> > > > +		return;
 > > > 
-> > > Introduce nodemask macro to allocate a nodemask and 
-> > > initialize it to contain a single node, using existing
-> > > nodemask_of_node() macro.  Coded as a macro to avoid header
-> > > dependency hell.
-> > > 
-> > > This will be used to construct the huge pages "nodes_allowed"
-> > > nodemask for a single node when a persistent huge page
-> > > pool page count is modified via a per node sysfs attribute.
-> > > 
-> > > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > > 
-> > >  include/linux/nodemask.h |   10 ++++++++++
-> > >  1 file changed, 10 insertions(+)
-> > > 
-> > > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h
-> > > ===================================================================
-> > > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/nodemask.h	2009-08-24 10:16:56.000000000 -0400
-> > > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h	2009-08-26 12:38:31.000000000 -0400
-> > > @@ -257,6 +257,16 @@ static inline int __next_node(int n, con
-> > >  	m;								\
-> > >  })
-> > >  
-> > > +#define alloc_nodemask_of_node(node)					\
-> > > +({									\
-> > > +	typeof(_unused_nodemask_arg_) *nmp;				\
-> > > +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
-> > > +	if (nmp)							\
-> > > +		*nmp = nodemask_of_node(node);				\
-> > > +	nmp;								\
-> > > +})
-> > > +
-> > > +
-> > >  #define first_unset_node(mask) __first_unset_node(&(mask))
-> > >  static inline int __first_unset_node(const nodemask_t *maskp)
-> > >  {
+> > > And I wouldn't support notify on empty at all, TBH.
 > > 
-> > I think it would probably be better to use the generic NODEMASK_ALLOC() 
-> > interface by requiring it to pass the entire type (including "struct") as 
-> > part of the first parameter.  Then it automatically takes care of 
-> > dynamically allocating large nodemasks vs. allocating them on the stack.
+> > If I don't, virtio net in guest uses a timer, which might be expensive.
+> > Will need to check what this does.
 > > 
-> > Would it work by redefining NODEMASK_ALLOC() in the NODES_SHIFT > 8 case 
-> > to be this:
-> > 
-> > 	#define NODEMASK_ALLOC(x, m) x *m = kmalloc(sizeof(*m), GFP_KERNEL);
-> > 
-> > and converting NODEMASK_SCRATCH(x) to NODEMASK_ALLOC(struct 
-> > nodemask_scratch, x), and then doing this in your code:
-> > 
-> > 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
-> > 	if (nodes_allowed)
-> > 		*nodes_allowed = nodemask_of_node(node);
-> > 
-> > The NODEMASK_{ALLOC,SCRATCH}() interface is in its infancy so it can 
-> > probably be made more general to handle cases like this.
+> > >  It should
+> > > definitely be conditional on the guest accepting the NOTIFY_ON_EMPTY
+> > > feature.
 > 
-> I just don't know what that would accomplish.  Heck, I'm not all that
-> happy with the alloc_nodemask_from_node() because it's allocating both a
-> hidden nodemask_t and a pointer thereto on the stack just to return a
-> pointer to a kmalloc()ed nodemask_t--which is what I want/need here.
-> 
-> One issue I have with NODEMASK_ALLOC() [and nodemask_of_node(), et al]
-> is that it declares the pointer variable as well as initializing it,
-> perhaps with kmalloc(), ...   Indeed, it's purpose is to replace on
-> stack nodemask declarations.
-> 
-> So, to use it at the start of, e.g., set_max_huge_pages() where I can
-> safely use it throughout the function, I'll end up allocating the
-> nodes_allowed mask on every call, whether or not a node is specified or
-> there is a non-default mempolicy.   If it turns out that no node was
-> specified and we have default policy, we need to free the mask and NULL
-> out nodes_allowed up front so that we get default behavior.  That seems
-> uglier to me that only allocating the nodemask when we know we need one.
-> 
-> I'm not opposed to using a generic function/macro where one exists that
-> suits my purposes.   I just don't see one.  I tried to create
-> one--alloc_nodemask_from_node(), and to keep Mel happy, I tried to reuse
-> nodemask_from_node() to initialize it.  I'm really not happy with the
-> results--because of those extra, hidden stack variables.  I could
-> eliminate those by creating a out of line function, but there's no good
-> place to put a generic nodemask function--no nodemask.c.  
-> 
+> lguest does not do it this way though, do it?
 
-Ok. When I brought the subject up, it looked like you were creating a
-hugetlbfs-specific helper that looked like it would have generic helpers. While
-that is still the case, it's looking like generic helpers make things worse
-and hide side-effects in helper functions that might cause greater difficulty
-in the future. I'm happier to go with the existing code than I was before
-so consider my objection dropped.
+Does when a patch in my current queue is applied though.
 
-> I'm leaning towards going back to my original hugetlb-private
-> "nodes_allowed_from_node()" or such.  I can use nodemask_from_node to
-> initialize it, if that will make Mel happy, but trying to force fit an
-> existing "generic" function just because it's generic seems pointless.
-> 
-> So, I'm going to let this series rest until I hear back from you and Mel
-> on how to proceed with this. 
-> 
-
-I hate to do it to you, but at this point, I'm leaning towards your current
-approach.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
