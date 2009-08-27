@@ -1,46 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 732406B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 15:27:52 -0400 (EDT)
-Message-ID: <4A96DFFF.1040501@redhat.com>
-Date: Thu, 27 Aug 2009 22:35:27 +0300
-From: Izik Eidus <ieidus@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BD9876B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 15:35:29 -0400 (EDT)
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id n7RJZQPO000925
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 20:35:27 +0100
+Received: from pxi42 (pxi42.prod.google.com [10.243.27.42])
+	by spaceape8.eur.corp.google.com with ESMTP id n7RJZNuN011038
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:35:24 -0700
+Received: by pxi42 with SMTP id 42so1358594pxi.20
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:35:23 -0700 (PDT)
+Date: Thu, 27 Aug 2009 12:35:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
+In-Reply-To: <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.2.00.0908271228200.14815@chino.kir.corp.google.com>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain> <20090825101906.GB4427@csn.ul.ie> <1251233369.16229.1.camel@useless.americas.hpqcorp.net> <20090826101122.GD10955@csn.ul.ie>
+ <1251309747.4409.45.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com> <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/12] ksm: fix munlock during exit_mmap deadlock
-References: <20090825145832.GP14722@random.random> <20090825152217.GQ14722@random.random> <Pine.LNX.4.64.0908251836050.30372@sister.anvils> <20090825181019.GT14722@random.random> <Pine.LNX.4.64.0908251958170.5871@sister.anvils> <20090825194530.GU14722@random.random> <Pine.LNX.4.64.0908261910530.15622@sister.anvils> <20090826194444.GB14722@random.random> <Pine.LNX.4.64.0908262048270.21188@sister.anvils> <4A95A10C.5040008@redhat.com> <20090826211400.GE14722@random.random> <4A95AE06.305@redhat.com> <Pine.LNX.4.64.0908271958330.1973@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0908271958330.1973@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, "Justin M. Forbes" <jmforbes@linuxtx.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
->
-> It may be that MADV_UNMERGEABLE isn't really needed (I think I even
-> admitted once that probably nobody would use it other than we testing
-> it).  Yet I hesitate to rip it out: somehow it still seems right to
-> have it in there.  Why did you have unregistering in the /dev/ksm KSM?
->   
+On Wed, 26 Aug 2009, Lee Schermerhorn wrote:
 
-It was more to give possiblaty to applications save cpu cycles of ksmd 
-so it wont continue to scan memory regions that don`t need ksm anymore,
-As you said if someone will ever use it?, have no idea...
+> > I think it would probably be better to use the generic NODEMASK_ALLOC() 
+> > interface by requiring it to pass the entire type (including "struct") as 
+> > part of the first parameter.  Then it automatically takes care of 
+> > dynamically allocating large nodemasks vs. allocating them on the stack.
+> > 
+> > Would it work by redefining NODEMASK_ALLOC() in the NODES_SHIFT > 8 case 
+> > to be this:
+> > 
+> > 	#define NODEMASK_ALLOC(x, m) x *m = kmalloc(sizeof(*m), GFP_KERNEL);
+> > 
+> > and converting NODEMASK_SCRATCH(x) to NODEMASK_ALLOC(struct 
+> > nodemask_scratch, x), and then doing this in your code:
+> > 
+> > 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+> > 	if (nodes_allowed)
+> > 		*nodes_allowed = nodemask_of_node(node);
+> > 
+> > The NODEMASK_{ALLOC,SCRATCH}() interface is in its infancy so it can 
+> > probably be made more general to handle cases like this.
+> 
+> I just don't know what that would accomplish.  Heck, I'm not all that
+> happy with the alloc_nodemask_from_node() because it's allocating both a
+> hidden nodemask_t and a pointer thereto on the stack just to return a
+> pointer to a kmalloc()ed nodemask_t--which is what I want/need here.
+> 
+> One issue I have with NODEMASK_ALLOC() [and nodemask_of_node(), et al]
+> is that it declares the pointer variable as well as initializing it,
+> perhaps with kmalloc(), ...   Indeed, it's purpose is to replace on
+> stack nodemask declarations.
+> 
 
->   
-> I didn't seem idiotic to me, but I hadn't realized the ksmd timelapse
-> uncertainty Andrea points out.  Well, I'm not keen to change the way
-> it's working at present, but I do think you're right to question all
-> these aspects of unmerging.
->   
+Right, which is why I suggest we only have one such interface to 
+dynamically allocate nodemasks when NODES_SHIFT > 8.  That's what defines 
+NODEMASK_ALLOC() as being special: it's taking NODES_SHIFT into 
+consideration just like CPUMASK_ALLOC() would take NR_CPUS into 
+consideration.  Your use case is the intended purpose of NODEMASK_ALLOC() 
+and I see no reason why your code can't use the same interface with some 
+modification and it's in the best interest of a maintainability to not 
+duplicate specialized cases where pre-existing interfaces can be used (or 
+improved, in this case).
 
-Yes lets keep it like that, UNMERGEABLE sound anyway like something that 
-going to break the pages..., we can always add later STOPMERGE as a call 
-that tell ksm to stop merge the pages but not break the shared pages...
+> So, to use it at the start of, e.g., set_max_huge_pages() where I can
+> safely use it throughout the function, I'll end up allocating the
+> nodes_allowed mask on every call, whether or not a node is specified or
+> there is a non-default mempolicy.  If it turns out that no node was
+> specified and we have default policy, we need to free the mask and NULL
+> out nodes_allowed up front so that we get default behavior.  That seems
+> uglier to me that only allocating the nodemask when we know we need one.
+> 
 
-> Hugh
->   
+Not with my suggested code of disabling local irqs, getting a reference to 
+the mempolicy so it can't be freed, reenabling, and then only using 
+NODEMASK_ALLOC() in the switch statement on mpol->mode for MPOL_PREFERRED.
+
+> I'm not opposed to using a generic function/macro where one exists that
+> suits my purposes.   I just don't see one.  I tried to create
+> one--alloc_nodemask_from_node(), and to keep Mel happy, I tried to reuse
+> nodemask_from_node() to initialize it.  I'm really not happy with the
+> results--because of those extra, hidden stack variables.  I could
+> eliminate those by creating a out of line function, but there's no good
+> place to put a generic nodemask function--no nodemask.c.  
+> 
+
+Using NODEMASK_ALLOC(nodes_allowed) wouldn't really be a hidden stack 
+variable, would it?  I think most developers would assume that it is 
+some automatic variable called `nodes_allowed' since it's later referenced 
+(and only needs to be in the case of MPOL_PREFERRED if my mpol_get() 
+solution with disabled local irqs is used).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
