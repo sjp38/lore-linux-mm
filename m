@@ -1,58 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 18AE86B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 08:02:06 -0400 (EDT)
-Received: by ywh42 with SMTP id 42so1209865ywh.30
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2009 05:02:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090825105341.GB21335@csn.ul.ie>
-References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org>
-	 <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com>
-	 <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com>
-	 <20090819100553.GE24809@csn.ul.ie>
-	 <202cde0e0908232314j4b90aa61pb4bcd0223ffbc087@mail.gmail.com>
-	 <20090825105341.GB21335@csn.ul.ie>
-Date: Fri, 28 Aug 2009 00:02:05 +1200
-Message-ID: <202cde0e0908270502p3ea403ddr516945084372ffc4@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7DD6B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 08:50:39 -0400 (EDT)
+Date: Thu, 27 Aug 2009 13:50:44 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 0/3]HTLB mapping for drivers (take 2)
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <20090827125043.GD21183@csn.ul.ie>
+References: <alpine.LFD.2.00.0908172317470.32114@casper.infradead.org> <56e00de0908180329p2a37da3fp43ddcb8c2d63336a@mail.gmail.com> <202cde0e0908182248we01324em2d24b9e741727a7b@mail.gmail.com> <20090819100553.GE24809@csn.ul.ie> <202cde0e0908232314j4b90aa61pb4bcd0223ffbc087@mail.gmail.com> <20090825105341.GB21335@csn.ul.ie> <202cde0e0908270502p3ea403ddr516945084372ffc4@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <202cde0e0908270502p3ea403ddr516945084372ffc4@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Alexey Korolev <akorolex@gmail.com>
 Cc: Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Aug 28, 2009 at 12:02:05AM +1200, Alexey Korolev wrote:
+> > > If reservation only, then it is necessary to keep a gfp_mask for a
+> > > file somewhere. Would it be Ok to keep a gfp_mask for a file in
+> > > file->private_data?
+> > >
+> >
+> > I'm not seeing where this gfp mask is coming out of if you don't have zone
+> > limitations. GFP masks don't help you get contiguity beyond the hugepage
+> > boundary.
 >
->> If reservation only, then it is necessary to keep a gfp_mask for a
->> file somewhere. Would it be Ok to keep a gfp_mask for a file in
->> file->private_data?
->>
->
-> I'm not seeing where this gfp mask is coming out of if you don't have zone
-> limitations. GFP masks don't help you get contiguity beyond the hugepage
-> boundary.
-Contiguity is different. It is not related to GFP mask.
-Requirement to have large contigous buffer is dictated by h/w. Since
-this is very specific case it will need very specific solution. So if
-providing this, affects on usability of kernel interfaces it's better
-to left interfaces good.
-But large DMA buffers with large amount of sg regions is more common.
-DMA engine often requires 32 address space. Plus memory must be non
-movable.
-That raises another question: would it be correct assumiing that
-setting sysctl hugepages_treat_as_movable won't make huge pages
-movable?
->
-> If you did need the GFP mask, you could store it in hugetlbfs_inode_info
-> as you'd expect all users of that inode to have the same GFP
-> requirements, right?
-Correct. The same GFP per inode is quite enough.
-So that way works. I made a bit raw implementation, more testing and
-tuning and I'll send out another version.
+> Contiguity is different.
 
-Thanks,
-Alexey
+Ok, then contiguity is independant of any GFP mask considerations. Why
+do you need a GFP mask?
+
+> It is not related to GFP mask.
+> Requirement to have large contigous buffer is dictated by h/w. Since
+> this is very specific case it will need very specific solution. So if
+> providing this, affects on usability of kernel interfaces it's better
+> to left interfaces good.
+
+You are in a bit of a bind with regards to contiguous allocations that are
+larger than a huge page. Neither the huge page pools nor the buddy allocator
+helps you much in this regard. I think it would be worth considering contiguous
+allocations larger than a huge page size as a separate follow-on problem to
+huge pages being available to a driver.
+
+> But large DMA buffers with large amount of sg regions is more common.
+> DMA engine often requires 32 address space. Plus memory must be non
+> movable.
+> That raises another question: would it be correct assumiing that
+> setting sysctl hugepages_treat_as_movable won't make huge pages
+> movable?
+
+Correct, treating them as movable allows them to be allocated from
+ZONE_MOVABLE. It's unlikely that swap support will be implemented for
+huge pages. It's more likely that migration support would be implemented
+at some point but AFAIK, there is little or not demand for that feature.
+
+> > If you did need the GFP mask, you could store it in hugetlbfs_inode_info
+> > as you'd expect all users of that inode to have the same GFP
+> > requirements, right?
+>
+> Correct. The same GFP per inode is quite enough.
+> So that way works. I made a bit raw implementation, more testing and
+> tuning and I'll send out another version.
+> 
+
+Ok, but please keep the exposure of hugetlbfs internals to a minimum or
+at least have a strong justification. As it is, I'm not understanding why
+expanding Eric's helper for MAP_HUGETLB slightly and maintaining a mapping
+between your driver file and the underlying hugetlbfs file does not cover
+most of the problem.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
