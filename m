@@ -1,42 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 888046B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 04:39:35 -0400 (EDT)
-Message-ID: <4A96463E.5080002@corp.free.fr>
-Date: Thu, 27 Aug 2009 10:39:26 +0200
-From: Yohan <ytordjman@corp.free.fr>
-MIME-Version: 1.0
-Subject: Re: VM issue causing high CPU loads
-References: <4A92A25A.4050608@yohan.staff.proxad.net> <20090824162155.ce323f08.akpm@linux-foundation.org>
-In-Reply-To: <20090824162155.ce323f08.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 79F3A6B0055
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 05:11:29 -0400 (EDT)
+Subject: Re: [Bug #14016] mm/ipw2200 regression
+From: Zhu Yi <yi.zhu@intel.com>
+In-Reply-To: <20090826074409.606b5124.akpm@linux-foundation.org>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera>
+	 <_yaHeGjHEzG.A.FIH.7sGlKB@chimera>
+	 <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com>
+	 <20090826082741.GA25955@cmpxchg.org>	<20090826093747.GA10955@csn.ul.ie>
+	 <20090826074409.606b5124.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 27 Aug 2009 17:11:29 +0800
+Message-Id: <1251364289.3704.176.camel@debian>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Mon, 24 Aug 2009 16:23:22 +0200
-> Yohan <kernel@yohan.staff.proxad.net> wrote:
->   
->> Hi,
->>
->>     Is someone have an idea for that :
->>
->>         http://bugzilla.kernel.org/show_bug.cgi?id=14024
->>     
-> Please generate a kernel profile to work out where all the CPU tie is
-> being spent.  Documentation/basic_profiling.txt is a starting point.
->   
-I post some new reports, it seems that the problem is in  
-rpcauth_lookup_credcache ...
+On Wed, 2009-08-26 at 22:44 +0800, Andrew Morton wrote:
+> 
+> It is perhaps pretty simple to make the second (GFP_ATOMIC) allocation
+> go away.  The code is already conveniently structured to do this:
+> 
+>         do {
+>                 chunk = (struct fw_chunk *)(data + offset);
+>                 offset += sizeof(struct fw_chunk);
+>                 /* build DMA packet and queue up for sending */
+>                 /* dma to chunk->address, the chunk->length bytes from
+> data +
+>                  * offeset*/
+>                 /* Dma loading */
+>                 rc = ipw_fw_dma_add_buffer(priv, shared_phys + offset,
+> 
+> le32_to_cpu(chunk->address),
+> 
+> le32_to_cpu(chunk->length));
+>                 if (rc) {
+>                         IPW_DEBUG_INFO("dmaAddBuffer Failed\n");
+>                         goto out;
+>                 }
+> 
+>                 offset += le32_to_cpu(chunk->length);
+>         } while (offset < len);
+> 
+> what is the typical/expected value of chunk->length here?  If it's
+> significantly less than 4096*(2^6), could we convert this function to
+> use a separate DMAable allocation per fw_chunk?
 
-for information, this is an imap mail server that mounts ~10 netapp over 
-~300 mountpoints..
+Unfortunately, the largest chunk size for the latest 3.1 firmware is
+0x20040, which also requires order 6 page allocation. I'll try to use
+the firmware DMA command block (64 slots) to handle the image (each for
+4k, totally 256k).
 
-Thanks
-Yohan
+Thanks,
+-yi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
