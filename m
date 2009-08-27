@@ -1,99 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9876B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 15:35:29 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id n7RJZQPO000925
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 20:35:27 +0100
-Received: from pxi42 (pxi42.prod.google.com [10.243.27.42])
-	by spaceape8.eur.corp.google.com with ESMTP id n7RJZNuN011038
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:35:24 -0700
-Received: by pxi42 with SMTP id 42so1358594pxi.20
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:35:23 -0700 (PDT)
-Date: Thu, 27 Aug 2009 12:35:20 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4426B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 15:40:51 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id n7RJeo6v004623
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 20:40:50 +0100
+Received: from wa-out-1112.google.com (wafj32.prod.google.com [10.114.186.32])
+	by wpaz33.hot.corp.google.com with ESMTP id n7RJelqt013440
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:40:47 -0700
+Received: by wa-out-1112.google.com with SMTP id j32so303549waf.29
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:40:47 -0700 (PDT)
+Date: Thu, 27 Aug 2009 12:40:44 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-In-Reply-To: <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.2.00.0908271228200.14815@chino.kir.corp.google.com>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain> <20090825101906.GB4427@csn.ul.ie> <1251233369.16229.1.camel@useless.americas.hpqcorp.net> <20090826101122.GD10955@csn.ul.ie>
- <1251309747.4409.45.camel@useless.americas.hpqcorp.net> <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com> <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
+Subject: Re: [PATCH 3/5] hugetlb:  derive huge pages nodes allowed from task
+ mempolicy
+In-Reply-To: <1251233347.16229.0.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.2.00.0908271236190.14815@chino.kir.corp.google.com>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192752.10317.96125.sendpatchset@localhost.localdomain> <alpine.DEB.2.00.0908250126280.23660@chino.kir.corp.google.com>
+ <1251233347.16229.0.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Aug 2009, Lee Schermerhorn wrote:
+On Tue, 25 Aug 2009, Lee Schermerhorn wrote:
 
-> > I think it would probably be better to use the generic NODEMASK_ALLOC() 
-> > interface by requiring it to pass the entire type (including "struct") as 
-> > part of the first parameter.  Then it automatically takes care of 
-> > dynamically allocating large nodemasks vs. allocating them on the stack.
+> > > Index: linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c
+> > > ===================================================================
+> > > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/mm/hugetlb.c	2009-08-24 12:12:50.000000000 -0400
+> > > +++ linux-2.6.31-rc6-mmotm-090820-1918/mm/hugetlb.c	2009-08-24 12:12:53.000000000 -0400
+> > > @@ -1257,10 +1257,13 @@ static int adjust_pool_surplus(struct hs
+> > >  static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count)
+> > >  {
+> > >  	unsigned long min_count, ret;
+> > > +	nodemask_t *nodes_allowed;
+> > >  
+> > >  	if (h->order >= MAX_ORDER)
+> > >  		return h->max_huge_pages;
+> > >  
 > > 
-> > Would it work by redefining NODEMASK_ALLOC() in the NODES_SHIFT > 8 case 
-> > to be this:
+> > Why can't you simply do this?
 > > 
-> > 	#define NODEMASK_ALLOC(x, m) x *m = kmalloc(sizeof(*m), GFP_KERNEL);
+> > 	struct mempolicy *pol = NULL;
+> > 	nodemask_t *nodes_allowed = &node_online_map;
 > > 
-> > and converting NODEMASK_SCRATCH(x) to NODEMASK_ALLOC(struct 
-> > nodemask_scratch, x), and then doing this in your code:
+> > 	local_irq_disable();
+> > 	pol = current->mempolicy;
+> > 	mpol_get(pol);
+> > 	local_irq_enable();
+> > 	if (pol) {
+> > 		switch (pol->mode) {
+> > 		case MPOL_BIND:
+> > 		case MPOL_INTERLEAVE:
+> > 			nodes_allowed = pol->v.nodes;
+> > 			break;
+> > 		case MPOL_PREFERRED:
+> > 			... use NODEMASK_SCRATCH() ...
+> > 		default:
+> > 			BUG();
+> > 		}
+> > 	}
+> > 	mpol_put(pol);
 > > 
-> > 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
-> > 	if (nodes_allowed)
-> > 		*nodes_allowed = nodemask_of_node(node);
-> > 
-> > The NODEMASK_{ALLOC,SCRATCH}() interface is in its infancy so it can 
-> > probably be made more general to handle cases like this.
+> > and then use nodes_allowed throughout set_max_huge_pages()?
 > 
-> I just don't know what that would accomplish.  Heck, I'm not all that
-> happy with the alloc_nodemask_from_node() because it's allocating both a
-> hidden nodemask_t and a pointer thereto on the stack just to return a
-> pointer to a kmalloc()ed nodemask_t--which is what I want/need here.
 > 
-> One issue I have with NODEMASK_ALLOC() [and nodemask_of_node(), et al]
-> is that it declares the pointer variable as well as initializing it,
-> perhaps with kmalloc(), ...   Indeed, it's purpose is to replace on
-> stack nodemask declarations.
-> 
+> Well, I do use nodes_allowed [pointer] throughout set_max_huge_pages().
 
-Right, which is why I suggest we only have one such interface to 
-dynamically allocate nodemasks when NODES_SHIFT > 8.  That's what defines 
-NODEMASK_ALLOC() as being special: it's taking NODES_SHIFT into 
-consideration just like CPUMASK_ALLOC() would take NR_CPUS into 
-consideration.  Your use case is the intended purpose of NODEMASK_ALLOC() 
-and I see no reason why your code can't use the same interface with some 
-modification and it's in the best interest of a maintainability to not 
-duplicate specialized cases where pre-existing interfaces can be used (or 
-improved, in this case).
+Yeah, the above code would all be in set_max_huge_pages() and 
+huge_mpol_nodes_allowed() would be removed.
 
-> So, to use it at the start of, e.g., set_max_huge_pages() where I can
-> safely use it throughout the function, I'll end up allocating the
-> nodes_allowed mask on every call, whether or not a node is specified or
-> there is a non-default mempolicy.  If it turns out that no node was
-> specified and we have default policy, we need to free the mask and NULL
-> out nodes_allowed up front so that we get default behavior.  That seems
-> uglier to me that only allocating the nodemask when we know we need one.
-> 
+> NODEMASK_SCRATCH() didn't exist when I wrote this, and I can't be sure
+> it will return a kmalloc()'d nodemask, which I need because a NULL
+> nodemask pointer means "all online nodes" [really all nodes with memory,
+> I suppose] and I need a pointer to kmalloc()'d nodemask to return from
+> huge_mpol_nodes_allowed().  I want to keep the access to the internals
+> of mempolicy in mempolicy.[ch], thus the call out to
+> huge_mpol_nodes_allowed(), instead of open coding it.
 
-Not with my suggested code of disabling local irqs, getting a reference to 
-the mempolicy so it can't be freed, reenabling, and then only using 
-NODEMASK_ALLOC() in the switch statement on mpol->mode for MPOL_PREFERRED.
+Ok, so you could add a mempolicy.c helper function that returns
+nodemask_t * and either points to mpol->v.nodes for most cases after 
+getting a reference on mpol with mpol_get() or points to a dynamically 
+allocated NODEMASK_ALLOC() on a nodemask created for MPOL_PREFERRED.
 
-> I'm not opposed to using a generic function/macro where one exists that
-> suits my purposes.   I just don't see one.  I tried to create
-> one--alloc_nodemask_from_node(), and to keep Mel happy, I tried to reuse
-> nodemask_from_node() to initialize it.  I'm really not happy with the
-> results--because of those extra, hidden stack variables.  I could
-> eliminate those by creating a out of line function, but there's no good
-> place to put a generic nodemask function--no nodemask.c.  
-> 
+This works nicely because either way you still have a reference to mpol, 
+so you'll need to call into a mpol_nodemask_free() function which can use 
+the same switch statement:
 
-Using NODEMASK_ALLOC(nodes_allowed) wouldn't really be a hidden stack 
-variable, would it?  I think most developers would assume that it is 
-some automatic variable called `nodes_allowed' since it's later referenced 
-(and only needs to be in the case of MPOL_PREFERRED if my mpol_get() 
-solution with disabled local irqs is used).
+	void mpol_nodemask_free(struct mempolicy *mpol,
+				struct nodemask_t *nodes_allowed)
+	{
+		switch (mpol->mode) {
+		case MPOL_PREFERRED:
+			kfree(nodes_allowed);
+			break;
+		default:
+			break;
+		}
+		mpol_put(mpol);
+	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
