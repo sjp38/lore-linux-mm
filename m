@@ -1,306 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 86CFC6B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 12:52:08 -0400 (EDT)
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090827102338.GC21183@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
-	 <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
-	 <20090825101906.GB4427@csn.ul.ie>
-	 <1251233369.16229.1.camel@useless.americas.hpqcorp.net>
-	 <20090826101122.GD10955@csn.ul.ie>
-	 <1251309843.4409.48.camel@useless.americas.hpqcorp.net>
-	 <20090827102338.GC21183@csn.ul.ie>
-Content-Type: text/plain
-Date: Thu, 27 Aug 2009 12:52:10 -0400
-Message-Id: <1251391930.4374.89.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6BAAD6B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 15:11:40 -0400 (EDT)
+Date: Thu, 27 Aug 2009 20:11:05 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 13/12] ksm: fix munlock during exit_mmap deadlock
+In-Reply-To: <4A95AE06.305@redhat.com>
+Message-ID: <Pine.LNX.4.64.0908271958330.1973@sister.anvils>
+References: <20090825145832.GP14722@random.random> <20090825152217.GQ14722@random.random>
+ <Pine.LNX.4.64.0908251836050.30372@sister.anvils> <20090825181019.GT14722@random.random>
+ <Pine.LNX.4.64.0908251958170.5871@sister.anvils> <20090825194530.GU14722@random.random>
+ <Pine.LNX.4.64.0908261910530.15622@sister.anvils> <20090826194444.GB14722@random.random>
+ <Pine.LNX.4.64.0908262048270.21188@sister.anvils> <4A95A10C.5040008@redhat.com>
+ <20090826211400.GE14722@random.random> <4A95AE06.305@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Izik Eidus <ieidus@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Chris Wright <chrisw@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, "Justin M. Forbes" <jmforbes@linuxtx.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-08-27 at 11:23 +0100, Mel Gorman wrote:
-> On Wed, Aug 26, 2009 at 02:04:03PM -0400, Lee Schermerhorn wrote:
-> > <SNIP>
-> > This revised patch also removes the include of hugetlb.h from node.h.
-> > 
-> > Lee
-> > 
-> > ---
-> > 
-> > PATCH 5/6 hugetlb:  register per node hugepages attributes
-> > 
-> > Against: 2.6.31-rc6-mmotm-090820-1918
-> > 
-> > V2:  remove dependency on kobject private bitfield.  Search
-> >      global hstates then all per node hstates for kobject
-> >      match in attribute show/store functions.
-> > 
-> > V3:  rebase atop the mempolicy-based hugepage alloc/free;
-> >      use custom "nodes_allowed" to restrict alloc/free to
-> >      a specific node via per node attributes.  Per node
-> >      attribute overrides mempolicy.  I.e., mempolicy only
-> >      applies to global attributes.
-> > 
-> > V4:  Fix issues raised by Mel Gorman:
-> >      + add !NUMA versions of hugetlb_[un]register_node()
-> >      + rename 'hi' to 'i' in kobj_to_node_hstate()
-> >      + rename (count, input) to (len, count) in nr_hugepages_store()
-> >      + moved per node hugepages_kobj and hstate_kobjs[] from the
-> >        struct node [sysdev] to hugetlb.c private arrays.
-> >      + changed registration mechanism so that hugetlbfs [a module]
-> >        register its attributes registration callbacks with the node
-> >        driver, eliminating the dependency between the node driver
-> >        and hugetlbfs.  From it's init func, hugetlbfs will register
-> >        all on-line nodes' hugepage sysfs attributes along with
-> >        hugetlbfs' attributes register/unregister functions.  The
-> >        node driver will use these functions to [un]register nodes
-> >        with hugetlbfs on node hot-plug.
-> >      + replaced hugetlb.c private "nodes_allowed_from_node()" with
-> >        generic "alloc_nodemask_of_node()".
-> > 
-> > This patch adds the per huge page size control/query attributes
-> > to the per node sysdevs:
-> > 
-> > /sys/devices/system/node/node<ID>/hugepages/hugepages-<size>/
-> > 	nr_hugepages       - r/w
-> > 	free_huge_pages    - r/o
-> > 	surplus_huge_pages - r/o
-> > 
-> > The patch attempts to re-use/share as much of the existing
-> > global hstate attribute initialization and handling, and the
-> > "nodes_allowed" constraint processing as possible.
-> > Calling set_max_huge_pages() with no node indicates a change to
-> > global hstate parameters.  In this case, any non-default task
-> > mempolicy will be used to generate the nodes_allowed mask.  A
-> > valid node id indicates an update to that node's hstate 
-> > parameters, and the count argument specifies the target count
-> > for the specified node.  From this info, we compute the target
-> > global count for the hstate and construct a nodes_allowed node
-> > mask contain only the specified node.
-> > 
-> > Setting the node specific nr_hugepages via the per node attribute
-> > effectively ignores any task mempolicy or cpuset constraints.
-> > 
-<snip>
-> > Index: linux-2.6.31-rc6-mmotm-090820-1918/drivers/base/node.c
-> > ===================================================================
-> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/drivers/base/node.c	2009-08-26 12:37:03.000000000 -0400
-> > +++ linux-2.6.31-rc6-mmotm-090820-1918/drivers/base/node.c	2009-08-26 13:01:54.000000000 -0400
-> > @@ -177,6 +177,31 @@ static ssize_t node_read_distance(struct
-> >  }
-> >  static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
-> >  
-> > +/*
-> > + * hugetlbfs per node attributes registration interface
-> > + */
-> > +NODE_REGISTRATION_FUNC __hugetlb_register_node;
-> > +NODE_REGISTRATION_FUNC __hugetlb_unregister_node;
-> > +
-> > +static inline void hugetlb_register_node(struct node *node)
-> > +{
-> > +	if (__hugetlb_register_node)
-> > +		__hugetlb_register_node(node);
-> > +}
-> > +
-> > +static inline void hugetlb_unregister_node(struct node *node)
-> > +{
-> > +	if (__hugetlb_unregister_node)
-> > +		__hugetlb_unregister_node(node);
-> > +}
-> > +
-> > +void register_hugetlbfs_with_node(NODE_REGISTRATION_FUNC doregister,
-> > +                                  NODE_REGISTRATION_FUNC unregister)
-> > +{
-> > +	__hugetlb_register_node   = doregister;
-> > +	__hugetlb_unregister_node = unregister;
-> > +}
-> > +
-> >  
+On Thu, 27 Aug 2009, Izik Eidus wrote:
+> Andrea Arcangeli wrote:
+> > On Wed, Aug 26, 2009 at 11:54:36PM +0300, Izik Eidus wrote:
+> >   
+> > > But before getting into this, why is it so important to break the ksm
+> > > pages when madvise(UNMERGEABLE) get called?
+> > >     
+
+Good question.
+
+> >
+> > The moment ksm pages are swappable, there's no apparent reason why
+> > anybody should ask the kernel to break any ksm page if the application
+> > themselfs aren't writing to them in the first place (triggering
+> > copy-on-write in app context which already handles TIF_MEMDIE just
+> > fine).
+> >   
 > 
-> I think I get this. Basically, you want to avoid the functions being
-> called too early before sysfs is initialised and still work with hotplug
-> later. So early in boot, no registeration happens. sysfs and hugetlbfs
-> get initialised and at that point, these hooks become active, all nodes
-> registered and hotplug later continues to work.
+> I think I am the one that should be blamed for breaking the ksm pages when
+> running unmeregable (If I remember right),
+
+No, I think it was me to blame for that: looking back at the /dev/ksm KSM
+and your draft of madvise KSM, I don't see breaking on unmerge in either.
+
+> but I think Hugh had a good case why we want to keep it... ? (If I remember
+> right again...)
+
+There were several reasons for adding it, but all rather weak.
+
+The "good case" you're half-remembering is probably that if we didn't
+break ksm when doing madvise MADV_UNMERGEABLE, we'd lose track of any
+KSM pages in the vma we're removing VM_MERGEABLE from (since we only
+ever scan VM_MERGEABLEs), and so would be liable to build up more and
+more unswappable KSM pages, well beyond the limit which can be imposed
+by max_kernel_pages.
+
+It is important to keep that accounting right, at least for so long as
+they're unswappable; but it amounts to only a weak case, because we
+could perfectly well have two vm_flags, one to say actively try to
+merge here, and another to say there might still be KSM pages here.
+(Perhaps with some restructuring that could instead be driven from
+the stable tree end, rather than through the mm_slots and vmas.)
+
+Reasons for avoiding two vm_flags: simplicity; minimizing KSM
+footprint outside of ksm.c; and... VM_MERGEABLE has selfishly taken
+bit 31 of vm_flags, the next vm_flag is going to involve some thought
+on the best way to expand it (on 32-bit arches).  It's not an atomic
+field so it shouldn't be hard; we used to minimize the use of 64-bit
+on 32-bit but maybe gcc's unsigned long long handling is pretty good
+nowadays and it's no issue?  Or maybe the issue was always avoiding
+64-bit arithmetic, no issue with bitflags?  I don't know myself.
+
+Other reasons for breaking ksm when unmerging: my sense that we ought
+to provide a way to undo whatever is done (useful when testing, but
+does that make it worth the effort? particularly if much of the testing
+goes into testing precisely that feature!); and a notion that people
+worried about covert channels would want to be able to undo merging
+absolutely (but would they have been using MADV_MERGEABLE in the
+first place, even have KSM configured in and running? seems unlikely).
+
+It may be that MADV_UNMERGEABLE isn't really needed (I think I even
+admitted once that probably nobody would use it other than we testing
+it).  Yet I hesitate to rip it out: somehow it still seems right to
+have it in there.  Why did you have unregistering in the /dev/ksm KSM?
+
 > 
-> Is that accurate? Can it get a comment?
+> > In oom deadlock terms madvise(UNMERGEABLE) is the only place that is
+> > 100% fine at breaking KSM pages, because it runs with right tsk->mm
+> > and page allocation will notice TIF_MEMDIE set on tsk.
+> >
+> > If we remove "echo 2" only remaining "unsafe" spot is the break_cow in
+> > kksmd context when memcmp fails and similar during the scan.
+> >
+> >   
+> I didnt talk here about the bug..., I talked about the behavior...
+> It is the feeling that the oom will kill applications calling into
+> UNMERGEABLE, even thought this application shouldn't die, just because it had
+> big amount of memory shared and it unmerged it in the wrong time?...
 
-Yes, you got it, and yes, I'll add a comment.  I had explained it in the
-patch description [V4], but that's not too useful to someone coming
-along later...
+The OOM killer makes its choices based upon total_vm (and some other
+things): doesn't even consider rss, and certainly not KSM sharing.
+So whenever out-of-memory, the OOM killer might choose to kill a very
+highly KSM-merged process, freeing very little memory, just because
+it _appears_ big from the outside.  There's nothing special to the
+unmerging case, other than that being a good way to require lots of
+page allocations in a single system call.  I don't see anything
+unfair about it being killed at the point of unmerging: much more
+unfair that it be killed when highly merged.
 
-<snip>
-
-> > @@ -1253,7 +1255,21 @@ static unsigned long set_max_huge_pages(
-> >  	if (h->order >= MAX_ORDER)
-> >  		return h->max_huge_pages;
-> >  
-> > -	nodes_allowed = huge_mpol_nodes_allowed();
-> > +	if (nid == NO_NODEID_SPECIFIED)
-> > +		nodes_allowed = huge_mpol_nodes_allowed();
-> > +	else {
-> > +		/*
-> > +		 * incoming 'count' is for node 'nid' only, so
-> > +		 * adjust count to global, but restrict alloc/free
-> > +		 * to the specified node.
-> > +		 */
-> > +		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> > +		nodes_allowed = alloc_nodemask_of_node(nid);
 > 
-> alloc_nodemask_of_node() isn't defined anywhere.
-
-
-Well, that's because the patch that defines it is in a message that I
-meant to send before this one.  I see it's in my Drafts folder.  I'll
-attach that patch below.  I'm rebasing against the 0827 mmotm, and I'll
-resend the rebased series.  However, I wanted to get your opinion of the
-nodemask patch below.
-
-<snip>
-> >  
-> > +#ifdef CONFIG_NUMA
-> > +
-> > +struct node_hstate {
-> > +	struct kobject		*hugepages_kobj;
-> > +	struct kobject		*hstate_kobjs[HUGE_MAX_HSTATE];
-> > +};
-> > +struct node_hstate node_hstates[MAX_NUMNODES];
-> > +
-> > +static struct attribute *per_node_hstate_attrs[] = {
-> > +	&nr_hugepages_attr.attr,
-> > +	&free_hugepages_attr.attr,
-> > +	&surplus_hugepages_attr.attr,
-> > +	NULL,
-> > +};
-> > +
-> > +static struct attribute_group per_node_hstate_attr_group = {
-> > +	.attrs = per_node_hstate_attrs,
-> > +};
-> > +
-> > +static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
-> > +{
-> > +	int nid;
-> > +
-> > +	for (nid = 0; nid < nr_node_ids; nid++) {
-> > +		struct node_hstate *nhs = &node_hstates[nid];
-> > +		int i;
-> > +		for (i = 0; i < HUGE_MAX_HSTATE; i++)
-> > +			if (nhs->hstate_kobjs[i] == kobj) {
-> > +				if (nidp)
-> > +					*nidp = nid;
-> > +				return &hstates[i];
-> > +			}
-> > +	}
-> > +
-> > +	BUG();
-> > +	return NULL;
-> > +}
+> But probably this thoughts have no end, and we are better stick with something
+> practical that can work clean and simple...
 > 
-> Ok, this looks nicer in that the dependencies between hugetlbfs and base
-> node support are going the right direction.
-
-Agreed.  I removed that "issue" from the patch description.
-
-<snip>
-> > Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h
-> > ===================================================================
-> > --- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/node.h	2009-08-26 12:37:03.000000000 -0400
-> > +++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/node.h	2009-08-26 12:40:19.000000000 -0400
-> > @@ -28,6 +28,7 @@ struct node {
-> >  
-> >  struct memory_block;
-> >  extern struct node node_devices[];
-> > +typedef  void (*NODE_REGISTRATION_FUNC)(struct node *);
-> >  
-> >  extern int register_node(struct node *, int, struct node *);
-> >  extern void unregister_node(struct node *node);
-> > @@ -39,6 +40,8 @@ extern int unregister_cpu_under_node(uns
-> >  extern int register_mem_sect_under_node(struct memory_block *mem_blk,
-> >  						int nid);
-> >  extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk);
-> > +extern void register_hugetlbfs_with_node(NODE_REGISTRATION_FUNC doregister,
-> > +                                         NODE_REGISTRATION_FUNC unregister);
-> >  #else
-> >  static inline int register_one_node(int nid)
-> >  {
-> > @@ -65,6 +68,9 @@ static inline int unregister_mem_sect_un
-> >  {
-> >  	return 0;
-> >  }
-> > +
-> > +static inline void register_hugetlbfs_with_node(NODE_REGISTRATION_FUNC do,
-> > +                                                NODE_REGISTRATION_FUNC un) { }
+> So what I think is this:
+> echo 2 is something we want in this version beacuse we dont support swapping
+> of the shared pages, so we got to allow some how to break the pages...
 > 
-> "do" is a keyword. This won't compile on !NUMA. needs to be called
-> doregister and unregister or basically anything other than "do"
+> and echo 2 got to have UNMERGEABLE break the shared pages when its madvise get
+> called...
+> 
+> So maybe it is just better to leave it like that?
+> > > When thinking about it, lets say I want to use ksm to scan 2 applications
+> > > and merged their STATIC identical data, and then i want to stop scanning
+> > > them after i know ksm merged the pages, as soon as i will try to
+> > > unregister this 2 applications ksm will unmerge the pages, so we dont
+> > > allow such thing for the user (we can tell him ofcurse for such case to
+> > > use normal way of sharing, so this isnt a really strong case for this)
+> > >     
+> >
+> > For the app it will be tricky to know when the pages are merged
+> > though, right now it could only wait a "while"... so I don't really
+> > see madvise(UNMERGEABLE) as useful regardless how we implement
+> > it... but then this goes beyond the scope of this bug because as said
+> > madvise(UNMERGEABLE) is the only place that breaks ksm pages as safe
+> > as regular write fault in oom context because of it running in the
+> > process context (not echo 2 or kksmd context).
+> >   
+> Yea, I agree about that this case was idiotic :), Actually I thought about
+> case where application get little bit more info, but leave it, it is not worth
+> it, traditional sharing is much better for such cases.
 
-Sorry.  Last minute, obviously untested, addition.  I have built the
-reworked code with and without NUMA.
+I didn't seem idiotic to me, but I hadn't realized the ksmd timelapse
+uncertainty Andrea points out.  Well, I'm not keen to change the way
+it's working at present, but I do think you're right to question all
+these aspects of unmerging.
 
-Here's my current "alloc_nodemask_of_node()" patch.  What do you think
-about going with this? 
-
-PATCH 4/6 - hugetlb:  introduce alloc_nodemask_of_node()
-
-Against: 2.6.31-rc6-mmotm-090820-1918
-
-Introduce nodemask macro to allocate a nodemask and 
-initialize it to contain a single node, using existing
-nodemask_of_node() macro.  Coded as a macro to avoid header
-dependency hell.
-
-This will be used to construct the huge pages "nodes_allowed"
-nodemask for a single node when a persistent huge page
-pool page count is modified via a per node sysfs attribute.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- include/linux/nodemask.h |   17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
-
-Index: linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h
-===================================================================
---- linux-2.6.31-rc6-mmotm-090820-1918.orig/include/linux/nodemask.h	2009-08-27 09:16:39.000000000 -0400
-+++ linux-2.6.31-rc6-mmotm-090820-1918/include/linux/nodemask.h	2009-08-27 09:52:21.000000000 -0400
-@@ -245,18 +245,31 @@ static inline int __next_node(int n, con
- 	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
- }
- 
-+#define init_nodemask_of_nodes(mask, node)				\
-+	nodes_clear(*(mask));						\
-+	node_set((node), *(mask));
-+
- #define nodemask_of_node(node)						\
- ({									\
- 	typeof(_unused_nodemask_arg_) m;				\
- 	if (sizeof(m) == sizeof(unsigned long)) {			\
- 		m.bits[0] = 1UL<<(node);				\
- 	} else {							\
--		nodes_clear(m);						\
--		node_set((node), m);					\
-+		init_nodemask_of_nodes(&m, (node));			\
- 	}								\
- 	m;								\
- })
- 
-+#define alloc_nodemask_of_node(node)					\
-+({									\
-+	typeof(_unused_nodemask_arg_) *nmp;				\
-+	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
-+	if (nmp)							\
-+		init_nodemask_of_nodes(nmp, (node));			\
-+	nmp;								\
-+})
-+
-+
- #define first_unset_node(mask) __first_unset_node(&(mask))
- static inline int __first_unset_node(const nodemask_t *maskp)
- {
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
