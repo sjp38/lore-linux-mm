@@ -1,105 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C94466B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 11:20:59 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7RFKhOG013906
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 11:20:43 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7RFL4Ov235550
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 11:21:04 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7RFKxjF015261
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 11:21:04 -0400
-Date: Thu, 27 Aug 2009 16:20:50 +0100
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: hugetlbfs: Do not call user_shm_lock() for MAP_HUGETLB fix
-Message-ID: <20090827152050.GD6323@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="n/aVsWSeQ4JHkrmm"
-Content-Disposition: inline
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9D16B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 11:39:22 -0400 (EDT)
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
+Subject: [PATCH] SLUB: fix ARCH_KMALLOC_MINALIGN cases 64 and 256
+Date: Thu, 27 Aug 2009 18:38:11 +0300
+Message-Id: <1251387491-8417-1-git-send-email-aaro.koskinen@nokia.com>
+In-Reply-To: <>
+References: <>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mel@csn.ul.ie, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com
+To: mpm@selenic.com, penberg@cs.helsinki.fi, cl@linux-foundation.org, linux-mm@kvack.org
+Cc: Artem.Bityutskiy@nokia.com
 List-ID: <linux-mm.kvack.org>
 
+If the minalign is 64 bytes, then the 96 byte cache should not be created
+because it would conflict with the 128 byte cache.
 
---n/aVsWSeQ4JHkrmm
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+If the minalign is 256 bytes, patching the size_index table should not
+result in a buffer overrun.
 
-The patch
-hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-i=
-nternal-mount.patch
-alters can_do_hugetlb_shm() to check if a file is being created for shared
-memory or mmap(). If this returns false, we then unconditionally call
-user_shm_lock() triggering a warning. This block should never be entered
-for MAP_HUGETLB. This patch partially reverts the problem and fixes the che=
-ck.
-
-This patch should be considered a fix to
-hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-i=
-nternal-mount.patch.
-
-=46rom: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
 ---
- fs/hugetlbfs/inode.c |   12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 49d2bf9..c944cc1 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -910,15 +910,9 @@ static struct file_system_type hugetlbfs_fs_type =3D {
+The patch is against v2.6.31-rc7.
 
- static struct vfsmount *hugetlbfs_vfsmount;
+ include/linux/slub_def.h |    2 ++
+ mm/slub.c                |   15 ++++++++++++---
+ 2 files changed, 14 insertions(+), 3 deletions(-)
 
--static int can_do_hugetlb_shm(int creat_flags)
-+static int can_do_hugetlb_shm(void)
- {
--       if (creat_flags !=3D HUGETLB_SHMFS_INODE)
--               return 0;
--       if (capable(CAP_IPC_LOCK))
--               return 1;
--       if (in_group_p(sysctl_hugetlb_shm_group))
--               return 1;
--       return 0;
-+       return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group=
-);
- }
-
- struct file *hugetlb_file_setup(const char *name, size_t size, int acctfla=
-g,
-@@ -934,7 +928,7 @@ struct file *hugetlb_file_setup(const char *name, size_=
-t size, int acctflag,
-        if (!hugetlbfs_vfsmount)
-                return ERR_PTR(-ENOENT);
-
--       if (!can_do_hugetlb_shm(creat_flags)) {
-+       if (creat_flags =3D=3D HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()=
-) {
-                *user =3D current_user();
-                if (user_shm_lock(size, *user)) {
-                        WARN_ONCE(1,
-
-
---n/aVsWSeQ4JHkrmm
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAkqWpFIACgkQsnv9E83jkzolOwCdFLG8QBYR9XCjBM4bJ7jZHxJB
-CAsAn3snyXzDd+vrq+yvA9ye41bnV4o0
-=jnCm
------END PGP SIGNATURE-----
-
---n/aVsWSeQ4JHkrmm--
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index c1c862b..ed291c8 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -154,8 +154,10 @@ static __always_inline int kmalloc_index(size_t size)
+ 		return KMALLOC_SHIFT_LOW;
+ 
+ #if KMALLOC_MIN_SIZE <= 64
++#if KMALLOC_MIN_SIZE <= 32
+ 	if (size > 64 && size <= 96)
+ 		return 1;
++#endif
+ 	if (size > 128 && size <= 192)
+ 		return 2;
+ #endif
+diff --git a/mm/slub.c b/mm/slub.c
+index b9f1491..3d32ebf 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3156,10 +3156,12 @@ void __init kmem_cache_init(void)
+ 	slab_state = PARTIAL;
+ 
+ 	/* Caches that are not of the two-to-the-power-of size */
+-	if (KMALLOC_MIN_SIZE <= 64) {
++	if (KMALLOC_MIN_SIZE <= 32) {
+ 		create_kmalloc_cache(&kmalloc_caches[1],
+ 				"kmalloc-96", 96, GFP_NOWAIT);
+ 		caches++;
++	}
++	if (KMALLOC_MIN_SIZE <= 64) {
+ 		create_kmalloc_cache(&kmalloc_caches[2],
+ 				"kmalloc-192", 192, GFP_NOWAIT);
+ 		caches++;
+@@ -3186,10 +3188,17 @@ void __init kmem_cache_init(void)
+ 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
+ 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
+ 
+-	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
++	for (i = 8; i < min(KMALLOC_MIN_SIZE, 192 + 8); i += 8)
+ 		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
+ 
+-	if (KMALLOC_MIN_SIZE == 128) {
++	if (KMALLOC_MIN_SIZE == 64) {
++		/*
++		 * The 96 byte size cache is not used if the alignment
++		 * is 64 byte.
++		 */
++		for (i = 64 + 8; i <= 96; i += 8)
++			size_index[(i - 1) / 8] = 7;
++	} else if (KMALLOC_MIN_SIZE == 128) {
+ 		/*
+ 		 * The 192 byte sized cache is not used if the alignment
+ 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
