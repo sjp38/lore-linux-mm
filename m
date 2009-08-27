@@ -1,164 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E616B004F
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 22:23:54 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n7R2MJfY002624
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 22:22:39 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7QAj0VT220288
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 06:47:50 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n7QAg2If023822
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2009 06:42:02 -0400
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: [PATCH 3/3] Add MAP_HUGETLB example
-Date: Wed, 26 Aug 2009 11:44:53 +0100
-Message-Id: <745880949456dd59ee098722614dc329081100ee.1251282769.git.ebmunson@us.ibm.com>
-In-Reply-To: <1721a3e8bdf8f311d2388951ec65a24d37b513b1.1251282769.git.ebmunson@us.ibm.com>
-References: <cover.1251282769.git.ebmunson@us.ibm.com>
- <1c66a9e98a73d61c611e5cf09b276e954965046e.1251282769.git.ebmunson@us.ibm.com>
- <1721a3e8bdf8f311d2388951ec65a24d37b513b1.1251282769.git.ebmunson@us.ibm.com>
-In-Reply-To: <cover.1251282769.git.ebmunson@us.ibm.com>
-References: <cover.1251282769.git.ebmunson@us.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 347D26B004F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 00:39:02 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7R4d3qY030354
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 27 Aug 2009 13:39:03 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C32F745DE51
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 13:39:02 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 94EB845DE4F
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 13:39:02 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8059D1DB803E
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 13:39:02 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D72C1DB803A
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 13:39:02 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] vmscan: move PGDEACTIVATE modification to shrink_active_list()
+Message-Id: <20090827133727.398B.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 27 Aug 2009 13:39:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, Eric B Munson <ebmunson@us.ibm.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds an example of how to use the MAP_HUGETLB flag to the
-vm documentation directory and a reference to the example in
-hugetlbpage.txt.
+Pgmoved accounting in move_active_pages_to_lru() doesn't make any sense.
+it can be calculated in irq enabled area.
 
-Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
-Acked-by: David Rientjes <rientjes@google.com>
+This patch move #-of-deactivating-pages calcution to shrink_active_list().
+Fortunatelly, it also kill one branch.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- Documentation/vm/00-INDEX        |    2 +
- Documentation/vm/hugetlbpage.txt |   14 ++++---
- Documentation/vm/map_hugetlb.c   |   77 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 87 insertions(+), 6 deletions(-)
- create mode 100644 Documentation/vm/map_hugetlb.c
+ mm/vmscan.c |   20 ++++++++++----------
+ 1 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/vm/00-INDEX b/Documentation/vm/00-INDEX
-index 2f77ced..aabd973 100644
---- a/Documentation/vm/00-INDEX
-+++ b/Documentation/vm/00-INDEX
-@@ -20,3 +20,5 @@ slabinfo.c
- 	- source code for a tool to get reports about slabs.
- slub.txt
- 	- a short users guide for SLUB.
-+map_hugetlb.c
-+	- an example program that uses the MAP_HUGETLB mmap flag.
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-index ea8714f..6a8feab 100644
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -146,12 +146,14 @@ Regular chown, chgrp, and chmod commands (with right permissions) could be
- used to change the file attributes on hugetlbfs.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 848689a..9618170 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1270,7 +1270,6 @@ static void move_active_pages_to_lru(struct zone *zone,
+ 				     struct list_head *list,
+ 				     enum lru_list lru)
+ {
+-	unsigned long pgmoved = 0;
+ 	struct pagevec pvec;
+ 	struct page *page;
  
- Also, it is important to note that no such mount command is required if the
--applications are going to use only shmat/shmget system calls.  Users who
--wish to use hugetlb page via shared memory segment should be a member of
--a supplementary group and system admin needs to configure that gid into
--/proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
--applications to use any combination of mmaps and shm* calls, though the
--mount of filesystem will be required for using mmap calls.
-+applications are going to use only shmat/shmget system calls or mmap with
-+MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
-+should be a member of a supplementary group and system admin needs to
-+configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
-+same or different applications to use any combination of mmaps and shm*
-+calls, though the mount of filesystem will be required for using mmap calls
-+without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
-+map_hugetlb.c.
+@@ -1284,7 +1283,6 @@ static void move_active_pages_to_lru(struct zone *zone,
  
- *******************************************************************
+ 		list_move(&page->lru, &zone->lru[lru].list);
+ 		mem_cgroup_add_lru_list(page, lru);
+-		pgmoved++;
  
-diff --git a/Documentation/vm/map_hugetlb.c b/Documentation/vm/map_hugetlb.c
-new file mode 100644
-index 0000000..e2bdae3
---- /dev/null
-+++ b/Documentation/vm/map_hugetlb.c
-@@ -0,0 +1,77 @@
-+/*
-+ * Example of using hugepage memory in a user application using the mmap
-+ * system call with MAP_HUGETLB flag.  Before running this program make
-+ * sure the administrator has allocated enough default sized huge pages
-+ * to cover the 256 MB allocation.
-+ *
-+ * For ia64 architecture, Linux kernel reserves Region number 4 for hugepages.
-+ * That means the addresses starting with 0x800000... will need to be
-+ * specified.  Specifying a fixed address is not required on ppc64, i386
-+ * or x86_64.
-+ */
-+#include <stdlib.h>
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <sys/mman.h>
-+#include <fcntl.h>
+ 		if (!pagevec_add(&pvec, page) || list_empty(list)) {
+ 			spin_unlock_irq(&zone->lru_lock);
+@@ -1294,9 +1292,6 @@ static void move_active_pages_to_lru(struct zone *zone,
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+ 	}
+-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+-	if (!is_active_lru(lru))
+-		__count_vm_events(PGDEACTIVATE, pgmoved);
+ }
+ 
+ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+@@ -1311,6 +1306,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 	struct page *page;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	unsigned long nr_rotated = 0;
++	unsigned long nr_deactivated = 0;
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1365,12 +1361,18 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 
+ 		ClearPageActive(page);	/* we are de-activating */
+ 		list_add(&page->lru, &l_inactive);
++		nr_deactivated++;
+ 	}
+ 
+ 	/*
+ 	 * Move pages back to the lru list.
+ 	 */
+ 	spin_lock_irq(&zone->lru_lock);
++	move_active_pages_to_lru(zone, &l_active,
++						LRU_ACTIVE + file * LRU_FILE);
++	move_active_pages_to_lru(zone, &l_inactive,
++						LRU_BASE   + file * LRU_FILE);
 +
-+#define LENGTH (256UL*1024*1024)
-+#define PROTECTION (PROT_READ | PROT_WRITE)
-+
-+#ifndef MAP_HUGETLB
-+#define MAP_HUGETLB 0x40
-+#endif
-+
-+/* Only ia64 requires this */
-+#ifdef __ia64__
-+#define ADDR (void *)(0x8000000000000000UL)
-+#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_FIXED)
-+#else
-+#define ADDR (void *)(0x0UL)
-+#define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
-+#endif
-+
-+void check_bytes(char *addr)
-+{
-+	printf("First hex is %x\n", *((unsigned int *)addr));
-+}
-+
-+void write_bytes(char *addr)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < LENGTH; i++)
-+		*(addr + i) = (char)i;
-+}
-+
-+void read_bytes(char *addr)
-+{
-+	unsigned long i;
-+
-+	check_bytes(addr);
-+	for (i = 0; i < LENGTH; i++)
-+		if (*(addr + i) != (char)i) {
-+			printf("Mismatch at %lu\n", i);
-+			break;
-+		}
-+}
-+
-+int main(void)
-+{
-+	void *addr;
-+
-+	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
-+	if (addr == MAP_FAILED) {
-+		perror("mmap");
-+		exit(1);
-+	}
-+
-+	printf("Returned address is %p\n", addr);
-+	check_bytes(addr);
-+	write_bytes(addr);
-+	read_bytes(addr);
-+
-+	munmap(addr, LENGTH);
-+
-+	return 0;
-+}
+ 	/*
+ 	 * Count referenced pages from currently used mappings as rotated,
+ 	 * even though only some of them are actually re-activated.  This
+@@ -1378,12 +1380,10 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+ 	 * get_scan_ratio.
+ 	 */
+ 	reclaim_stat->recent_rotated[file] += nr_rotated;
+-
+-	move_active_pages_to_lru(zone, &l_active,
+-						LRU_ACTIVE + file * LRU_FILE);
+-	move_active_pages_to_lru(zone, &l_inactive,
+-						LRU_BASE   + file * LRU_FILE);
++	__count_vm_events(PGDEACTIVATE, nr_deactivated);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
++	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
++	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
+ 
 -- 
-1.6.3.2
+1.6.2.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
