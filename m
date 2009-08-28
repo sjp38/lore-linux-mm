@@ -1,45 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 456C16B004F
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 15:39:49 -0400 (EDT)
-Date: Fri, 28 Aug 2009 20:39:15 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH mmotm] vmscan move pgdeactivate modification to shrink_active_list
- fix
-Message-ID: <Pine.LNX.4.64.0908282034240.19475@sister.anvils>
+	by kanga.kvack.org (Postfix) with ESMTP id ABDCD6B004F
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 15:53:02 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp04.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7SJr5C4022297
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 01:23:05 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7SJr4YJ2551938
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 01:23:04 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7SJr4l8022859
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 05:53:04 +1000
+Date: Sat, 29 Aug 2009 01:23:03 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] compcache: documentation
+Message-ID: <20090828195303.GA4889@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <200908241008.02184.ngupta@vflare.org> <661de9470908251003y3db1fb3awb648f9340cd0beb4@mail.gmail.com> <4A94293A.2090103@vflare.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <4A94293A.2090103@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-mmotm 2009-08-27-16-51 lets the OOM killer loose on my loads even
-quicker than last time: one bug fixed but another bug introduced.
-vmscan-move-pgdeactivate-modification-to-shrink_active_list.patch
-forgot to add NR_LRU_BASE to lru index to make zone_page_state index.
+* Nitin Gupta <ngupta@vflare.org> [2009-08-25 23:41:06]:
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
+> On 08/25/2009 10:33 PM, Balbir Singh wrote:
+>
+>
+>>> +It consists of three modules:
+>>> + - xvmalloc.ko: memory allocator
+>>
+>> I've seen your case for a custom allocator, but why can't we
+>>
+>> 1) Refactor slob and use it
+>
+> SLOB is fundamentally a different allocator. It looked at it in detail
+> but could not image how can I make it suitable for the project. SLOB
+> really does not fit it.
+>
+>> 2) Do we care about the optimizations in SLUB w.r.t. scalability in
+>> your module? If so.. will xvmalloc meet those requirements?
+>>
+>
+> Scalability is desired which xvmalloc lacks in its current state. My
+> plan is to have a wrapper around xvmalloc that creates per-cpu pools
+> and leave xvmalloc core simple. Along with this, detailed profiling
+> needs to be done to see where the bottlenecks are in the core itself.
+>
 
- mm/vmscan.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+I've not yet tested the patches, but adding another allocator does
+worry me a bit. Do you intend to allow other users to consume the
+allocator routines?
 
---- mmotm/mm/vmscan.c	2009-08-28 10:07:57.000000000 +0100
-+++ linux/mm/vmscan.c	2009-08-28 18:30:33.000000000 +0100
-@@ -1381,8 +1381,10 @@ static void shrink_active_list(unsigned
- 	reclaim_stat->recent_rotated[file] += nr_rotated;
- 	__count_vm_events(PGDEACTIVATE, nr_deactivated);
- 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
--	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
--	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
-+	__mod_zone_page_state(zone, NR_ACTIVE_ANON + file * LRU_FILE,
-+							nr_rotated);
-+	__mod_zone_page_state(zone, NR_INACTIVE_ANON + file * LRU_FILE,
-+							nr_deactivated);
- 	spin_unlock_irq(&zone->lru_lock);
- }
- 
+>
+>>
+>> What level of compression have you observed? Any speed trade-offs?
+>>
+>
+> All the performance numbers can be found at:
+> http://code.google.com/p/compcache/wiki/Performance
+>
+> I also summarized these in patch [0/4]:
+> http://lkml.org/lkml/2009/8/24/8
+>
+> The compression ratio is highly workload dependent. On "generic" desktop
+> workload, stats show:
+>  - ~80% of pages compressing to PAGE_SIZE/2 or less.
+>  - ~1% incompressible pages.
+>
+>
+> For the speed part, please refer to performance numbers at link above.
+> It show cases where it help or hurts the performance.
+>
+
+Thanks, I'll take a look at the links
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
