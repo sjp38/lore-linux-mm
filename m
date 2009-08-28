@@ -1,60 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE906B00A6
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 06:09:17 -0400 (EDT)
-Date: Fri, 28 Aug 2009 11:09:20 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
-Message-ID: <20090828100919.GC5054@csn.ul.ie>
-References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain> <20090824192902.10317.94512.sendpatchset@localhost.localdomain> <20090825101906.GB4427@csn.ul.ie> <1251233369.16229.1.camel@useless.americas.hpqcorp.net> <20090826101122.GD10955@csn.ul.ie> <1251309843.4409.48.camel@useless.americas.hpqcorp.net> <20090827102338.GC21183@csn.ul.ie> <1251391930.4374.89.camel@useless.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1251391930.4374.89.camel@useless.americas.hpqcorp.net>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B80596B00A8
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 07:28:57 -0400 (EDT)
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
+Subject: [PATCH v2] SLUB: fix ARCH_KMALLOC_MINALIGN cases 64 and 256
+Date: Fri, 28 Aug 2009 14:28:54 +0300
+Message-Id: <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
+In-Reply-To: <>
+References: <>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: mpm@selenic.com, penberg@cs.helsinki.fi, cl@linux-foundation.org, linux-mm@kvack.org
+Cc: Artem.Bityutskiy@nokia.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 27, 2009 at 12:52:10PM -0400, Lee Schermerhorn wrote:
-> <snip>
-> 
-> > > @@ -1253,7 +1255,21 @@ static unsigned long set_max_huge_pages(
-> > >  	if (h->order >= MAX_ORDER)
-> > >  		return h->max_huge_pages;
-> > >  
-> > > -	nodes_allowed = huge_mpol_nodes_allowed();
-> > > +	if (nid == NO_NODEID_SPECIFIED)
-> > > +		nodes_allowed = huge_mpol_nodes_allowed();
-> > > +	else {
-> > > +		/*
-> > > +		 * incoming 'count' is for node 'nid' only, so
-> > > +		 * adjust count to global, but restrict alloc/free
-> > > +		 * to the specified node.
-> > > +		 */
-> > > +		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> > > +		nodes_allowed = alloc_nodemask_of_node(nid);
-> > 
-> > alloc_nodemask_of_node() isn't defined anywhere.
-> 
-> 
-> Well, that's because the patch that defines it is in a message that I
-> meant to send before this one.  I see it's in my Drafts folder.  I'll
-> attach that patch below.  I'm rebasing against the 0827 mmotm, and I'll
-> resend the rebased series.  However, I wanted to get your opinion of the
-> nodemask patch below.
-> 
+If the minalign is 64 bytes, then the 96 byte cache should not be created
+because it would conflict with the 128 byte cache.
 
-It looks very reasonable to my eye. The caller must know that kfree() is
-used to free it instead of free_nodemask_of_node() but it's not worth
-getting into a twist over.
+If the minalign is 256 bytes, patching the size_index table should not
+result in a buffer overrun.
 
-> <SNIP>
+The calculation "(i - 1) / 8" used to access size_index[] is moved to
+a separate function as suggested by Christoph Lameter.
 
+Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+---
+
+v2: Updated based on comments by Christoph Lameter.
+
+The patch is against v2.6.31-rc7.
+
+ include/linux/slub_def.h |    6 ++----
+ mm/slub.c                |   29 +++++++++++++++++++++++------
+ 2 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index c1c862b..ac58d10 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -153,12 +153,10 @@ static __always_inline int kmalloc_index(size_t size)
+ 	if (size <= KMALLOC_MIN_SIZE)
+ 		return KMALLOC_SHIFT_LOW;
+ 
+-#if KMALLOC_MIN_SIZE <= 64
+-	if (size > 64 && size <= 96)
++	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
+ 		return 1;
+-	if (size > 128 && size <= 192)
++	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
+ 		return 2;
+-#endif
+ 	if (size <=          8) return 3;
+ 	if (size <=         16) return 4;
+ 	if (size <=         32) return 5;
+diff --git a/mm/slub.c b/mm/slub.c
+index b9f1491..259df05 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2789,6 +2789,10 @@ static s8 size_index[24] = {
+ 	2,	/* 184 */
+ 	2	/* 192 */
+ };
++static inline int size_index_elem(size_t bytes)
++{
++	return (bytes - 1) / 8;
++}
+ 
+ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+ {
+@@ -2798,7 +2802,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+ 		if (!size)
+ 			return ZERO_SIZE_PTR;
+ 
+-		index = size_index[(size - 1) / 8];
++		index = size_index[size_index_elem(size)];
+ 	} else
+ 		index = fls(size - 1);
+ 
+@@ -3156,10 +3160,12 @@ void __init kmem_cache_init(void)
+ 	slab_state = PARTIAL;
+ 
+ 	/* Caches that are not of the two-to-the-power-of size */
+-	if (KMALLOC_MIN_SIZE <= 64) {
++	if (KMALLOC_MIN_SIZE <= 32) {
+ 		create_kmalloc_cache(&kmalloc_caches[1],
+ 				"kmalloc-96", 96, GFP_NOWAIT);
+ 		caches++;
++	}
++	if (KMALLOC_MIN_SIZE <= 64) {
+ 		create_kmalloc_cache(&kmalloc_caches[2],
+ 				"kmalloc-192", 192, GFP_NOWAIT);
+ 		caches++;
+@@ -3186,17 +3192,28 @@ void __init kmem_cache_init(void)
+ 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
+ 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
+ 
+-	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
+-		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
++	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
++		int elem = size_index_elem(i);
++		if (elem >= ARRAY_SIZE(size_index))
++			break;
++		size_index[elem] = KMALLOC_SHIFT_LOW;
++	}
+ 
+-	if (KMALLOC_MIN_SIZE == 128) {
++	if (KMALLOC_MIN_SIZE == 64) {
++		/*
++		 * The 96 byte size cache is not used if the alignment
++		 * is 64 byte.
++		 */
++		for (i = 64 + 8; i <= 96; i += 8)
++			size_index[size_index_elem(i)] = 7;
++	} else if (KMALLOC_MIN_SIZE == 128) {
+ 		/*
+ 		 * The 192 byte sized cache is not used if the alignment
+ 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
+ 		 * instead.
+ 		 */
+ 		for (i = 128 + 8; i <= 192; i += 8)
+-			size_index[(i - 1) / 8] = 8;
++			size_index[size_index_elem(i)] = 8;
+ 	}
+ 
+ 	slab_state = UP;
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
