@@ -1,222 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 338266B004F
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2009 23:42:32 -0400 (EDT)
-Subject: ipw2200: firmware DMA loading rework
-From: Zhu Yi <yi.zhu@intel.com>
-In-Reply-To: <20090826074409.606b5124.akpm@linux-foundation.org>
-References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera>
-	 <_yaHeGjHEzG.A.FIH.7sGlKB@chimera>
-	 <84144f020908252309u5cff8afdh2214577ca4db9b5d@mail.gmail.com>
-	 <20090826082741.GA25955@cmpxchg.org>	<20090826093747.GA10955@csn.ul.ie>
-	 <20090826074409.606b5124.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 28 Aug 2009 11:42:31 +0800
-Message-Id: <1251430951.3704.181.camel@debian>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 97BAA6B005A
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 00:22:29 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7S4MZHw013252
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 28 Aug 2009 13:22:35 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E6BB245DE52
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 13:22:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B405245DE50
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 13:22:34 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 90DBF1DB803F
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 13:22:34 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 31B0E1DB803C
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 13:22:34 +0900 (JST)
+Date: Fri, 28 Aug 2009 13:20:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/5] memcg: reduce lock conetion
+Message-Id: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Bartlomiej Zolnierkiewicz reported an atomic order-6 allocation failure
-for ipw2200 firmware loading in kernel 2.6.30. High order allocation is
-likely to fail and should always be avoided.
+Hi,
 
-The patch fixes this problem by replacing the original order-6
-pci_alloc_consistent() with an array of order-1 pages from a pci pool.
-This utilized the ipw2200 DMA command blocks (up to 64 slots). The
-maximum firmware size support remains the same (64*8K).
+Recently, memcg's res_counter->lock contention on big server is reported and
+Balbir wrote a workaround for root memcg.
+It's good but we need some fix for children, too.
 
-This patch fixes bug http://bugzilla.kernel.org/show_bug.cgi?id=14016
+This set is for reducing lock conetion of memcg's children cgroup based on mmotm-Aug27.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Zhu Yi <yi.zhu@intel.com>
----
- drivers/net/wireless/ipw2x00/ipw2200.c |  120 ++++++++++++++++++--------------
- 1 files changed, 67 insertions(+), 53 deletions(-)
+I'm sorry I have only 8cpu machine and can't reproduce very troublesome lock conention.
+Here is lock_stat of make -j 12 on my 8cpu box, befre-after this patch series.
 
-diff --git a/drivers/net/wireless/ipw2x00/ipw2200.c b/drivers/net/wireless/ipw2x00/ipw2200.c
-index 6dcac73..f593fbb 100644
---- a/drivers/net/wireless/ipw2x00/ipw2200.c
-+++ b/drivers/net/wireless/ipw2x00/ipw2200.c
-@@ -2874,45 +2874,27 @@ static int ipw_fw_dma_add_command_block(struct ipw_priv *priv,
- 	return 0;
- }
- 
--static int ipw_fw_dma_add_buffer(struct ipw_priv *priv,
--				 u32 src_phys, u32 dest_address, u32 length)
-+static int ipw_fw_dma_add_buffer(struct ipw_priv *priv, dma_addr_t *src_address,
-+				 int nr, u32 dest_address, u32 len)
- {
--	u32 bytes_left = length;
--	u32 src_offset = 0;
--	u32 dest_offset = 0;
--	int status = 0;
-+	int ret, i;
-+	u32 size;
-+
- 	IPW_DEBUG_FW(">> \n");
--	IPW_DEBUG_FW_INFO("src_phys=0x%x dest_address=0x%x length=0x%x\n",
--			  src_phys, dest_address, length);
--	while (bytes_left > CB_MAX_LENGTH) {
--		status = ipw_fw_dma_add_command_block(priv,
--						      src_phys + src_offset,
--						      dest_address +
--						      dest_offset,
--						      CB_MAX_LENGTH, 0, 0);
--		if (status) {
-+	IPW_DEBUG_FW_INFO("nr=%d dest_address=0x%x len=0x%x\n",
-+			  nr, dest_address, len);
-+
-+	for (i = 0; i < nr; i++) {
-+		size = min_t(u32, len - i * CB_MAX_LENGTH, CB_MAX_LENGTH);
-+		ret = ipw_fw_dma_add_command_block(priv, src_address[i],
-+						   dest_address +
-+						   i * CB_MAX_LENGTH, size,
-+						   0, 0);
-+		if (ret) {
- 			IPW_DEBUG_FW_INFO(": Failed\n");
- 			return -1;
- 		} else
- 			IPW_DEBUG_FW_INFO(": Added new cb\n");
--
--		src_offset += CB_MAX_LENGTH;
--		dest_offset += CB_MAX_LENGTH;
--		bytes_left -= CB_MAX_LENGTH;
--	}
--
--	/* add the buffer tail */
--	if (bytes_left > 0) {
--		status =
--		    ipw_fw_dma_add_command_block(priv, src_phys + src_offset,
--						 dest_address + dest_offset,
--						 bytes_left, 0, 0);
--		if (status) {
--			IPW_DEBUG_FW_INFO(": Failed on the buffer tail\n");
--			return -1;
--		} else
--			IPW_DEBUG_FW_INFO
--			    (": Adding new cb - the buffer tail\n");
- 	}
- 
- 	IPW_DEBUG_FW("<< \n");
-@@ -3160,59 +3142,91 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
- 
- static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
- {
--	int rc = -1;
-+	int ret = -1;
- 	int offset = 0;
- 	struct fw_chunk *chunk;
--	dma_addr_t shared_phys;
--	u8 *shared_virt;
-+	int total_nr = 0;
-+	int i;
-+	struct pci_pool *pool;
-+	u32 *virts[CB_NUMBER_OF_ELEMENTS_SMALL];
-+	dma_addr_t phys[CB_NUMBER_OF_ELEMENTS_SMALL];
- 
- 	IPW_DEBUG_TRACE("<< : \n");
--	shared_virt = pci_alloc_consistent(priv->pci_dev, len, &shared_phys);
- 
--	if (!shared_virt)
-+	pool = pci_pool_create("ipw2200", priv->pci_dev, CB_MAX_LENGTH, 0, 0);
-+	if (!pool) {
-+		IPW_ERROR("pci_pool_create failed\n");
- 		return -ENOMEM;
--
--	memmove(shared_virt, data, len);
-+	}
- 
- 	/* Start the Dma */
--	rc = ipw_fw_dma_enable(priv);
-+	ret = ipw_fw_dma_enable(priv);
- 
- 	/* the DMA is already ready this would be a bug. */
- 	BUG_ON(priv->sram_desc.last_cb_index > 0);
- 
- 	do {
-+		u32 chunk_len;
-+		u8 *start;
-+		int size;
-+		int nr = 0;
-+
- 		chunk = (struct fw_chunk *)(data + offset);
- 		offset += sizeof(struct fw_chunk);
-+		chunk_len = le32_to_cpu(chunk->length);
-+		start = data + offset;
-+
-+		nr = (chunk_len + CB_MAX_LENGTH - 1) / CB_MAX_LENGTH;
-+		for (i = 0; i < nr; i++) {
-+			virts[total_nr] = pci_pool_alloc(pool, GFP_KERNEL,
-+							 &phys[total_nr]);
-+			if (!virts[total_nr]) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+			size = min_t(u32, chunk_len - i * CB_MAX_LENGTH,
-+				     CB_MAX_LENGTH);
-+			memcpy(virts[total_nr], start, size);
-+			start += size;
-+			total_nr++;
-+			/* We don't support fw chunk larger than 64*8K */
-+			BUG_ON(total_nr > CB_NUMBER_OF_ELEMENTS_SMALL);
-+		}
-+
- 		/* build DMA packet and queue up for sending */
- 		/* dma to chunk->address, the chunk->length bytes from data +
- 		 * offeset*/
- 		/* Dma loading */
--		rc = ipw_fw_dma_add_buffer(priv, shared_phys + offset,
--					   le32_to_cpu(chunk->address),
--					   le32_to_cpu(chunk->length));
--		if (rc) {
-+		ret = ipw_fw_dma_add_buffer(priv, &phys[total_nr - nr],
-+					    nr, le32_to_cpu(chunk->address),
-+					    chunk_len);
-+		if (ret) {
- 			IPW_DEBUG_INFO("dmaAddBuffer Failed\n");
- 			goto out;
- 		}
- 
--		offset += le32_to_cpu(chunk->length);
-+		offset += chunk_len;
- 	} while (offset < len);
- 
- 	/* Run the DMA and wait for the answer */
--	rc = ipw_fw_dma_kick(priv);
--	if (rc) {
-+	ret = ipw_fw_dma_kick(priv);
-+	if (ret) {
- 		IPW_ERROR("dmaKick Failed\n");
- 		goto out;
- 	}
- 
--	rc = ipw_fw_dma_wait(priv);
--	if (rc) {
-+	ret = ipw_fw_dma_wait(priv);
-+	if (ret) {
- 		IPW_ERROR("dmaWaitSync Failed\n");
- 		goto out;
- 	}
--      out:
--	pci_free_consistent(priv->pci_dev, len, shared_virt, shared_phys);
--	return rc;
-+ out:
-+	for (i = 0; i < total_nr; i++)
-+		pci_pool_free(pool, virts[i], phys[i]);
-+
-+	pci_pool_destroy(pool);
-+
-+	return ret;
- }
- 
- /* stop nic */
--- 
-1.5.3.6
+[Before] time make -j 12 (Best time in 3 test)
+real    2m55.170s
+user    4m38.351s
+sys     6m40.694s
+lock_stat version 0.3
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                              class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                          &counter->lock:       1793728        1824383           0.90       16599.78     1255869.40       24879507       44909568           0.45       31183.88    19505982.15
+                          --------------
+                          &counter->lock         999561          [<ffffffff81099224>] res_counter_charge+0x94/0x140
+                          &counter->lock         824822          [<ffffffff8109911c>] res_counter_uncharge+0x3c/0xb0
+                          --------------
+                          &counter->lock         835597          [<ffffffff8109911c>] res_counter_uncharge+0x3c/0xb0
+                          &counter->lock         988786          [<ffffffff81099224>] res_counter_charge+0x94/0x140
+
+you can see this by "head" ;)
+
+[After] time make -j 12 (Best time in 3 test..but score was very stable.)
+real    2m52.612s
+user    4m45.450s
+sys     6m4.422s
+
+                          &counter->lock:         11159          11406           1.02          30.35        6707.74        1097940        3957860           0.47       17652.17     1534430.74
+                          --------------
+                          &counter->lock           2016          [<ffffffff810991bd>] res_counter_charge+0x4d/0x110
+                          &counter->lock           9390          [<ffffffff81099115>] res_counter_uncharge+0x35/0x90
+                          --------------
+                          &counter->lock           8962          [<ffffffff81099115>] res_counter_uncharge+0x35/0x90
+                          &counter->lock           2444          [<ffffffff810991bd>] res_counter_charge+0x4d/0x110
+
+dcache-lock, zone->lru_lock etc is much heavier than this.
+
+
+I expects good result on big servers.
+
+But this patch sereis is a  "big change". I (and memcg folks) have to be careful...
+
+
+Thanks,
+-Kame
+
 
 
 
