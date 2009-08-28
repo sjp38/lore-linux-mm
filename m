@@ -1,120 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DFC56B00B0
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 08:56:02 -0400 (EDT)
-Date: Fri, 28 Aug 2009 13:56:08 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] page-allocator: Split per-cpu list into
-	one-list-per-migrate-type
-Message-ID: <20090828125559.GD5054@csn.ul.ie>
-References: <1251449067-3109-1-git-send-email-mel@csn.ul.ie> <1251449067-3109-2-git-send-email-mel@csn.ul.ie> <20090828205241.fc8dfa51.minchan.kim@barrios-desktop> <28c262360908280500tb47685btc9f36ca81605d55@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <28c262360908280500tb47685btc9f36ca81605d55@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EF1E26B00B2
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 08:56:47 -0400 (EDT)
+Subject: Re: [PATCH 4/5] hugetlb:  add per node hstate attributes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.2.00.0908271228200.14815@chino.kir.corp.google.com>
+References: <20090824192437.10317.77172.sendpatchset@localhost.localdomain>
+	 <20090824192902.10317.94512.sendpatchset@localhost.localdomain>
+	 <20090825101906.GB4427@csn.ul.ie>
+	 <1251233369.16229.1.camel@useless.americas.hpqcorp.net>
+	 <20090826101122.GD10955@csn.ul.ie>
+	 <1251309747.4409.45.camel@useless.americas.hpqcorp.net>
+	 <alpine.DEB.2.00.0908261239440.4511@chino.kir.corp.google.com>
+	 <1251319603.4409.92.camel@useless.americas.hpqcorp.net>
+	 <alpine.DEB.2.00.0908271228200.14815@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Fri, 28 Aug 2009 08:56:52 -0400
+Message-Id: <1251464212.9989.52.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 28, 2009 at 09:00:25PM +0900, Minchan Kim wrote:
-> On Fri, Aug 28, 2009 at 8:52 PM, Minchan Kim<minchan.kim@gmail.com> wrote:
-> > Hi, Mel.
-> >
-> > On Fri, 28 Aug 2009 09:44:26 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> >
-> >> Currently the per-cpu page allocator searches the PCP list for pages of the
-> >> correct migrate-type to reduce the possibility of pages being inappropriate
-> >> placed from a fragmentation perspective. This search is potentially expensive
-> >> in a fast-path and undesirable. Splitting the per-cpu list into multiple
-> >> lists increases the size of a per-cpu structure and this was potentially
-> >> a major problem at the time the search was introduced. These problem has
-> >> been mitigated as now only the necessary number of structures is allocated
-> >> for the running system.
-> >>
-> >> This patch replaces a list search in the per-cpu allocator with one list per
-> >> migrate type. The potential snag with this approach is when bulk freeing
-> >> pages. We round-robin free pages based on migrate type which has little
-> >> bearing on the cache hotness of the page and potentially checks empty lists
-> >> repeatedly in the event the majority of PCP pages are of one type.
-> >>
-> >> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> >> Acked-by: Nick Piggin <npiggin@suse.de>
-> >> ---
-> >>  include/linux/mmzone.h |    5 ++-
-> >>  mm/page_alloc.c        |  106 ++++++++++++++++++++++++++---------------------
-> >>  2 files changed, 63 insertions(+), 48 deletions(-)
-> >>
-> >> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> >> index 008cdcd..045348f 100644
-> >> --- a/include/linux/mmzone.h
-> >> +++ b/include/linux/mmzone.h
-> >> @@ -38,6 +38,7 @@
-> >>  #define MIGRATE_UNMOVABLE     0
-> >>  #define MIGRATE_RECLAIMABLE   1
-> >>  #define MIGRATE_MOVABLE       2
-> >> +#define MIGRATE_PCPTYPES      3 /* the number of types on the pcp lists */
-> >>  #define MIGRATE_RESERVE       3
-> >>  #define MIGRATE_ISOLATE       4 /* can't allocate from here */
-> >>  #define MIGRATE_TYPES         5
-> >> @@ -169,7 +170,9 @@ struct per_cpu_pages {
-> >>       int count;              /* number of pages in the list */
-> >>       int high;               /* high watermark, emptying needed */
-> >>       int batch;              /* chunk size for buddy add/remove */
-> >> -     struct list_head list;  /* the list of pages */
-> >> +
-> >> +     /* Lists of pages, one per migrate type stored on the pcp-lists */
-> >> +     struct list_head lists[MIGRATE_PCPTYPES];
-> >>  };
-> >>
-> >>  struct per_cpu_pageset {
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index ac3afe1..65eedb5 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -522,7 +522,7 @@ static inline int free_pages_check(struct page *page)
-> >>  }
-> >>
-> >>  /*
-> >> - * Frees a list of pages.
-> >> + * Frees a number of pages from the PCP lists
-> >>   * Assumes all pages on list are in same zone, and of same order.
-> >>   * count is the number of pages to free.
-> >>   *
-> >> @@ -532,23 +532,36 @@ static inline int free_pages_check(struct page *page)
-> >>   * And clear the zone's pages_scanned counter, to hold off the "all pages are
-> >>   * pinned" detection logic.
-> >>   */
-> >> -static void free_pages_bulk(struct zone *zone, int count,
-> >> -                                     struct list_head *list, int order)
-> >> +static void free_pcppages_bulk(struct zone *zone, int count,
-> >> +                                     struct per_cpu_pages *pcp)
-> >>  {
-> >> +     int migratetype = 0;
-> >> +
-> >
-> > How about caching the last sucess migratetype
-> > with 'per_cpu_pages->last_alloc_type'?
->                                          ^^^^
->                                          free
-> > I think it could prevent a litte spinning empty list.
+On Thu, 2009-08-27 at 12:35 -0700, David Rientjes wrote:
+> On Wed, 26 Aug 2009, Lee Schermerhorn wrote:
 > 
-> Anyway, Ignore me.
-> I didn't see your next patch.
+> > > I think it would probably be better to use the generic NODEMASK_ALLOC() 
+> > > interface by requiring it to pass the entire type (including "struct") as 
+> > > part of the first parameter.  Then it automatically takes care of 
+> > > dynamically allocating large nodemasks vs. allocating them on the stack.
+> > > 
+> > > Would it work by redefining NODEMASK_ALLOC() in the NODES_SHIFT > 8 case 
+> > > to be this:
+> > > 
+> > > 	#define NODEMASK_ALLOC(x, m) x *m = kmalloc(sizeof(*m), GFP_KERNEL);
+> > > 
+> > > and converting NODEMASK_SCRATCH(x) to NODEMASK_ALLOC(struct 
+> > > nodemask_scratch, x), and then doing this in your code:
+> > > 
+> > > 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+> > > 	if (nodes_allowed)
+> > > 		*nodes_allowed = nodemask_of_node(node);
+> > > 
+> > > The NODEMASK_{ALLOC,SCRATCH}() interface is in its infancy so it can 
+> > > probably be made more general to handle cases like this.
+> > 
+> > I just don't know what that would accomplish.  Heck, I'm not all that
+> > happy with the alloc_nodemask_from_node() because it's allocating both a
+> > hidden nodemask_t and a pointer thereto on the stack just to return a
+> > pointer to a kmalloc()ed nodemask_t--which is what I want/need here.
+> > 
+> > One issue I have with NODEMASK_ALLOC() [and nodemask_of_node(), et al]
+> > is that it declares the pointer variable as well as initializing it,
+> > perhaps with kmalloc(), ...   Indeed, it's purpose is to replace on
+> > stack nodemask declarations.
+> > 
 > 
+> Right, which is why I suggest we only have one such interface to 
+> dynamically allocate nodemasks when NODES_SHIFT > 8.  That's what defines 
+> NODEMASK_ALLOC() as being special: it's taking NODES_SHIFT into 
+> consideration just like CPUMASK_ALLOC() would take NR_CPUS into 
+> consideration.  Your use case is the intended purpose of NODEMASK_ALLOC() 
+> and I see no reason why your code can't use the same interface with some 
+> modification and it's in the best interest of a maintainability to not 
+> duplicate specialized cases where pre-existing interfaces can be used (or 
+> improved, in this case).
+> 
+> > So, to use it at the start of, e.g., set_max_huge_pages() where I can
+> > safely use it throughout the function, I'll end up allocating the
+> > nodes_allowed mask on every call, whether or not a node is specified or
+> > there is a non-default mempolicy.  If it turns out that no node was
+> > specified and we have default policy, we need to free the mask and NULL
+> > out nodes_allowed up front so that we get default behavior.  That seems
+> > uglier to me that only allocating the nodemask when we know we need one.
+> > 
+> 
+> Not with my suggested code of disabling local irqs, getting a reference to 
+> the mempolicy so it can't be freed, reenabling, and then only using 
+> NODEMASK_ALLOC() in the switch statement on mpol->mode for MPOL_PREFERRED.
+> 
+> > I'm not opposed to using a generic function/macro where one exists that
+> > suits my purposes.   I just don't see one.  I tried to create
+> > one--alloc_nodemask_from_node(), and to keep Mel happy, I tried to reuse
+> > nodemask_from_node() to initialize it.  I'm really not happy with the
+> > results--because of those extra, hidden stack variables.  I could
+> > eliminate those by creating a out of line function, but there's no good
+> > place to put a generic nodemask function--no nodemask.c.  
+> > 
+> 
+> Using NODEMASK_ALLOC(nodes_allowed) wouldn't really be a hidden stack 
+> variable, would it?  I think most developers would assume that it is 
+> some automatic variable called `nodes_allowed' since it's later referenced 
+> (and only needs to be in the case of MPOL_PREFERRED if my mpol_get() 
+> solution with disabled local irqs is used).
 
-Nah, it's a reasonable suggestion. Patch 2 was one effort to reduce
-spinning but the comment was in patch 1 in case someone thought of
-something better. I tried what you suggested before but it didn't work
-out. For any sort of workload that varies the type of allocation (very
-frequent), it didn't reduce spinning significantly.
+David:  
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'm going to repost my series with the version of
+alloc_nodemask_of_node() that I sent our yesterday.  My entire
+implementation is based on nodes_allowed, in set_max_huge_pages() being
+a pointer to a nodemask.  nodes_allowed must be NULL for default
+behavior [NO_NODEID_SPECIFIED && default mempolicy].  It only gets
+allocated when nid >0 or task has non-default memory policy.  This seems
+to work fairly well for both the mempolicy based constraint and the per
+node attributes.  Please take a look at this series.  If you want to
+propose a patch to rework the nodes_allowed allocation, have at it.  I'm
+satisfied with the current implementation.
+
+Now, we have a couple of options:  Mel said he's willing to proceed with
+the mempolicy based constraint and leave the per node attributes to a
+follow up submit.  If you want to take over the per node attributes
+feature and rework it, I can extract it from the series, including the
+doc update and turn it over to you.  Or, we can try to submit the
+current implementation and follow up with patches to rework the generic
+nodemask support as you propose.
+
+Let me know how you want to proceed.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
