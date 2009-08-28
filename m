@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CC75A6B0092
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 12:03:47 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp02.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7SG3gq0020069
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 21:33:42 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7SG3gdr1802370
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 21:33:42 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7SG3fk8012587
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 21:33:42 +0530
-Date: Fri, 28 Aug 2009 21:33:40 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 2/5] memcg: uncharge in batched manner
-Message-ID: <20090828160340.GU4889@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com> <20090828132438.b33828bc.kamezawa.hiroyu@jp.fujitsu.com> <20090828151011.GS4889@balbir.in.ibm.com> <b9c52b465bda540da8dbcd434bff55be.squirrel@webmail-b.css.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 927516B004F
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 14:58:59 -0400 (EDT)
+Message-ID: <4A9828F4.4040905@zytor.com>
+Date: Fri, 28 Aug 2009 11:59:00 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <b9c52b465bda540da8dbcd434bff55be.squirrel@webmail-b.css.fujitsu.com>
+Subject: PG_uncached, CONFIG_EXTENDED_PAGEFLAGS and !NUMA
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+Cc: Suresh Siddha <suresh.b.siddha@intel.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>, LKML <linux-kernel@vger.kernel.org>, Jeremy Fitzhardinge <jeremy@goop.org>, Sam Ravnborg <sam@ravnborg.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-29 00:21:50]:
+Hi all,
 
-> > tof unmap_vmas, exit_mmap, etc so that we don't have to keep
-> > additional data structures around.
-> >
-> We can't. We uncharge when page->mapcount goes down to 0.
-> This is unknown until page_remove_rmap() decrement page->mapcount
-> by "atomic" ops.
-> 
-> My first version allocated memcg_batch_info on stack ...and..
-> I had to pass an extra argument to page_remove_rmap() etc....
-> That was very ugly ;(
-> Now, I adds per-task memcg_batch_info to task struct.
-> Because it will be always used at exit() and make exit() path
-> much faster, it's not very costly.
->
+I am looking at a patchset by Venkatesh Pallipadi which cleans up a lot
+of the corner cases in x86 PAT.
 
-Aaah.. I see that makes a lot of sense. Thanks for the clarification. 
+http://marc.info/?i=cover.1247162373.git.venkatesh.pallipadi@intel.com
 
--- 
-	Balbir
+This patchset pages PG_uncached available to other architectures than
+IA64 on an opt-in basis.  Unfortunately, it means we run out of page
+flags on X86_32+PAE+SPARSEMEM.
+
+Rather than increasing SECTION_SIZE_BITS further, it seems more
+reasonable to disable CONFIG_EXTENDED_PAGEFLAGS in this case:
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index c948d4c..fe221c7 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -153,7 +153,7 @@ config MEMORY_HOTREMOVE
+ #
+ config PAGEFLAGS_EXTENDED
+        def_bool y
+-       depends on 64BIT || SPARSEMEM_VMEMMAP || !NUMA || !SPARSEMEM
++       depends on 64BIT || SPARSEMEM_VMEMMAP || !SPARSEMEM
+
+ # Heavily threaded applications may benefit from splitting the mm-wide
+
+Dropping the !NUMA requirement here seems reasonable, since we already
+have generic code that handles removing the node number from the page
+flags when there are too many.
+
+We could make this an x86-specific change, but the above generic change
+would be cleaner in terms of Kconfig complexity.  Would people object to
+this as a general change?
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
