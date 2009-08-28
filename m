@@ -1,66 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AC9866B00C5
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 10:40:56 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7SEevxB021852
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 28 Aug 2009 23:40:58 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A5B8E45DE51
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:40:57 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F7AC45DE50
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:40:57 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6624FE08003
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:40:57 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 113DEE38001
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:40:57 +0900 (JST)
-Message-ID: <712c0209222358d9c7d1e33f93e21c30.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: 
-     <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828072007.GH4889@balbir.in.ibm.com>
-    <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828132643.GM4889@balbir.in.ibm.com>
-    <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
-Date: Fri, 28 Aug 2009 23:40:56 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id B62A56B004D
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 10:45:42 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7SEjfhC005251
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 20:15:41 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7SEjf912560204
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 20:15:41 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7SEjfF1020181
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:45:41 +1000
+Date: Fri, 28 Aug 2009 20:15:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC][PATCH 1/5] memcg: change for softlimit.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20090828144539.GN4889@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com> <20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com> <20090828072007.GH4889@balbir.in.ibm.com> <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com> <20090828132643.GM4889@balbir.in.ibm.com> <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28 23:29:09]:
+
 > Balbir Singh wrote:
->> But Bob and Mike might need to set soft limits between themselves. if
->> soft limit of gold is 1G and bob needs to be close to 750M and mike
->> 250M, how do we do it without supporting what we have today?
->>
-> Don't use hierarchy or don't use softlimit.
-> (I never think fine-grain  soft limit can be useful.)
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28
+> > 16:35:23]:
+> >
+> 
+> >>
+> >> Current soft-limit RB-tree will be easily broken i.e. not-sorted
+> >> correctly
+> >> if used under use_hierarchy=1.
+> >>
+> >
+> > Not true, I think the sorted-ness is delayed and is seen when we pick
+> > a tree for reclaim. Think of it as being lazy :)
+> >
+> plz explain how enexpectedly unsorted RB-tree can work sanely.
+> 
 >
-> Anyway, I have to modify unnecessary hacks for res_counter of softlimit.
-> plz allow modification. that's bad.
-> I postpone RB-tree breakage problem, plz explain it or fix it by yourself.
->
-I changed my mind....per-zone RB-tree is also broken ;)
 
-Why I don't like broken system is a function which a user can't
-know/calculate how-it-works is of no use in mission critical systems.
+There are two checks built-in
 
-I'd like to think how-to-fix it with better algorithm. Maybe RB-tree
-is not a choice.
+1. In the reclaim path (we see how much to reclaim, compared to the
+soft limit)
+2. In the dequeue path where we check if we really are over soft limit
 
-Thanks,
--Kame
+I did lot of testing with the time based approach and found no broken
+cases, I;ve been testing it with the mmotm (event based approach and I
+am yet to see a broken case so far).
+
+ 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
