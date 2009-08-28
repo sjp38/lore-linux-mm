@@ -1,37 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7407C6B00C2
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 09:49:58 -0400 (EDT)
-Received: by ywh42 with SMTP id 42so2539901ywh.30
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2009 06:50:03 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 220CD6B00C4
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 10:29:17 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7SETA2w009554
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 28 Aug 2009 23:29:10 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7593945DE70
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:29:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 52A6B45DE6E
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:29:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31CD91DB8044
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:29:10 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C82431DB8040
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 23:29:09 +0900 (JST)
+Message-ID: <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090828132643.GM4889@balbir.in.ibm.com>
+References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090828072007.GH4889@balbir.in.ibm.com>
+    <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090828132643.GM4889@balbir.in.ibm.com>
+Date: Fri, 28 Aug 2009 23:29:09 +0900 (JST)
+Subject: Re: [RFC][PATCH 1/5] memcg: change for softlimit.
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1251449067-3109-3-git-send-email-mel@csn.ul.ie>
-References: <1251449067-3109-1-git-send-email-mel@csn.ul.ie>
-	 <1251449067-3109-3-git-send-email-mel@csn.ul.ie>
-Date: Fri, 28 Aug 2009 22:49:59 +0900
-Message-ID: <28c262360908280649j2920445ekf5625eb0e86752a4@mail.gmail.com>
-Subject: Re: [PATCH 2/2] page-allocator: Maintain rolling count of pages to
-	free from the PCP
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 28, 2009 at 5:44 PM, Mel Gorman<mel@csn.ul.ie> wrote:
-> When round-robin freeing pages from the PCP lists, empty lists may be
-> encountered. In the event one of the lists has more pages than another,
-> there may be numerous checks for list_empty() which is undesirable. This
-> patch maintains a count of pages to free which is incremented when empty
-> lists are encountered. The intention is that more pages will then be freed
-> from fuller lists than the empty ones reducing the number of empty list
-> checks in the free path.
+Balbir Singh wrote:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28
+> 16:35:23]:
 >
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-I like this idea. :)
+>>
+>> Current soft-limit RB-tree will be easily broken i.e. not-sorted
+>> correctly
+>> if used under use_hierarchy=1.
+>>
+>
+> Not true, I think the sorted-ness is delayed and is seen when we pick
+> a tree for reclaim. Think of it as being lazy :)
+>
+plz explain how enexpectedly unsorted RB-tree can work sanely.
+
+
+>> My patch disallows set softlimit to Bob and Mike, just allows against
+>> Gold
+>> because there can be considered as the same class, hierarchy.
+>>
+>
+> But Bob and Mike might need to set soft limits between themselves. if
+> soft limit of gold is 1G and bob needs to be close to 750M and mike
+> 250M, how do we do it without supporting what we have today?
+>
+Don't use hierarchy or don't use softlimit.
+(I never think fine-grain  soft limit can be useful.)
+
+Anyway, I have to modify unnecessary hacks for res_counter of softlimit.
+plz allow modification. that's bad.
+I postpone RB-tree breakage problem, plz explain it or fix it by yourself.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
