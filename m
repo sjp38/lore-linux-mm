@@ -1,126 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0EE356B009C
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 03:37:17 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7S7bIJh031900
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 28 Aug 2009 16:37:18 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 10CF145DE79
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 16:37:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D7A5C45DE70
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 16:37:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD6261DB803A
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 16:37:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 675511DB8037
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 16:37:14 +0900 (JST)
-Date: Fri, 28 Aug 2009 16:35:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/5] memcg: change for softlimit.
-Message-Id: <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090828072007.GH4889@balbir.in.ibm.com>
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090828072007.GH4889@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 58C996B009E
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 04:44:26 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 0/3] Reduce searching in the page allocator fast-path
+Date: Fri, 28 Aug 2009 09:44:25 +0100
+Message-Id: <1251449067-3109-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Aug 2009 12:50:08 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+The following two patches remove searching in the page allocator fast-path
+by maintaining multiple free-lists in the per-cpu structure. At the time the
+search was introduced, increasing the per-cpu structures would waste a lot of
+memory as per-cpu structures were statically allocated at compile-time. This
+is no longer the case.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28 13:23:21]:
-> 
-> > This patch tries to modify softlimit handling in memcg/res_counter.
-> > There are 2 reasons in general.
-> > 
-> >  1. soft_limit can use only against sub-hierarchy root.
-> >     Because softlimit tree is sorted by usage, putting prural groups
-> >     under hierarchy (which shares usage) will just adds noise and unnecessary
-> >     mess. This patch limits softlimit feature only to hierarchy root.
-> >     This will make softlimit-tree maintainance better. 
-> > 
-> >  2. In these days, it's reported that res_counter can be bottleneck in
-> >     massively parallel enviroment. We need to reduce jobs under spinlock.
-> >     The reason we check softlimit at res_counter_charge() is that any member
-> >     in hierarchy can have softlimit.
-> >     But by chages in "1", only hierarchy root has soft_limit. We can omit
-> >     hierarchical check in res_counter.
-> > 
-> > After this patch, soft limit is avaliable only for root of sub-hierarchy.
-> > (Anyway, softlimit for hierarchy children just makes users confused, hard-to-use)
-> >
-> 
-> 
-> I need some time to digest this change, if the root is a hiearchy root
-> then only root can support soft limits? I think the change makes it
-> harder to use soft limits. Please help me understand better. 
-> 
-I poitned out this issue many many times while you wrote patch.
+The patches are as follows. They are based on mmotm-2009-08-27.
 
-memcg has "sub tree". hierarchy here means "sub tree" with use_hierarchy =1.
+Patch 1 adds multiple lists to struct per_cpu_pages, one per
+	migratetype that can be stored on the PCP lists.
 
-Assume
+Patch 2 notes that the pcpu drain path check empty lists multiple times. The
+	patch reduces the number of checks by maintaining a count of free
+	lists encountered. Lists containing pages will then free multiple
+	pages in batch
 
+The patches were tested with kernbench, netperf udp/tcp, hackbench and
+sysbench.  The netperf tests were not bound to any CPU in particular and
+were run such that the results should be 99% confidence that the reported
+results are within 1% of the estimated mean. sysbench was run with a postgres
+background and read-only tests. Similar to netperf, it was run multiple
+times so that it's 99% confidence results are within 1%. The patches were
+tested on x86, x86-64 and ppc64 as
 
-	/cgroup/Users/use_hierarchy=0
-		  Gold/ use_hierarchy=1 
-		     Bob
-		     Mike
-		  Silver/use_hierarchy=1
-		     
-		/System/use_hierarchy=1
-	
-In flat, there are 3 sub trees.
-	/cgroup/Users/Gold   (Gold has /cgroup/Users/Gold/Bog, /cgroup/Users/Gold/Mike)
-	/cgroup/Users/Silver .....
-	/cgroup/System	     .....
+x86:	Intel Pentium D 3GHz with 8G RAM (no-brand machine)
+	kernbench	- No significant difference, variance well within noise
+	netperf-udp	- 1.34% to 2.28% gain
+	netperf-tcp	- 0.45% to 1.22% gain
+	hackbench	- Small variances, very close to noise
+	sysbench	- Very small gains
 
-Then, subtrees means a group which inherits charges by use_hierarchy=1
+x86-64:	AMD Phenom 9950 1.3GHz with 8G RAM (no-brand machine)
+	kernbench	- No significant difference, variance well within noise
+	netperf-udp	- 1.83% to 10.42% gains
+	netperf-tcp	- No conclusive until buffer >= PAGE_SIZE
+				4096	+15.83%
+				8192	+ 0.34% (not significant)
+				16384	+ 1%
+	hackbench	- Small gains, very close to noise
+	sysbench	- 0.79% to 1.6% gain
 
-In current implementation, softlimit can be set to arbitrary cgroup. 
-Then, following ops are allowed.
-==
-	/cgroup/Users/Gold softlimit= 1G
-	/cgroup/Users/Gold/Bob  softlimit=800M
-	/cgroup/Users/Gold/Mike softlimit=800M
-==
+ppc64:	PPC970MP 2.5GHz with 10GB RAM (it's a terrasoft powerstation)
+	kernbench	- No significant difference, variance well within noise
+	netperf-udp	- 2-3% gain for almost all buffer sizes tested
+	netperf-tcp	- losses on small buffers, gains on larger buffers
+			  possibly indicates some bad caching effect.
+	hackbench	- No significant difference
+	sysbench	- 2-4% gain
 
-Then, how your RB-tree for softlimit management works ?
-
-When softlimit finds /cgroup/Users/Gold/, it will reclaim memory from
-all 3 groups by hierarchical_reclaim. If softlimit finds
-/cgroup/Users/Gold/Bob, reclaim from Bob means recalaim from Gold.
-
-Then, to keep the RB-tree neat, you have to extract all related cgroups and
-re-insert them all, every time.
-(But current code doesn't do that. It's broken.)
-
-Current soft-limit RB-tree will be easily broken i.e. not-sorted correctly
-if used under use_hierarchy=1.
-
-My patch disallows set softlimit to Bob and Mike, just allows against Gold
-because there can be considered as the same class, hierarchy.
-
-Thanks,
--Kame
-
-
-
-
-
-
-
-
-
+ include/linux/mmzone.h |    5 ++-
+ mm/page_alloc.c        |  119 +++++++++++++++++++++++++++--------------------
+ 2 files changed, 72 insertions(+), 52 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
