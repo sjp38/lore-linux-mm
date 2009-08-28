@@ -1,130 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B80596B00A8
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 07:28:57 -0400 (EDT)
-From: Aaro Koskinen <aaro.koskinen@nokia.com>
-Subject: [PATCH v2] SLUB: fix ARCH_KMALLOC_MINALIGN cases 64 and 256
-Date: Fri, 28 Aug 2009 14:28:54 +0300
-Message-Id: <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
-In-Reply-To: <>
-References: <>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 82A896B00AA
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 07:52:51 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so1845218pxi.22
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2009 04:52:57 -0700 (PDT)
+Date: Fri, 28 Aug 2009 20:52:41 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/2] page-allocator: Split per-cpu list into
+ one-list-per-migrate-type
+Message-Id: <20090828205241.fc8dfa51.minchan.kim@barrios-desktop>
+In-Reply-To: <1251449067-3109-2-git-send-email-mel@csn.ul.ie>
+References: <1251449067-3109-1-git-send-email-mel@csn.ul.ie>
+	<1251449067-3109-2-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: mpm@selenic.com, penberg@cs.helsinki.fi, cl@linux-foundation.org, linux-mm@kvack.org
-Cc: Artem.Bityutskiy@nokia.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-If the minalign is 64 bytes, then the 96 byte cache should not be created
-because it would conflict with the 128 byte cache.
+Hi, Mel. 
 
-If the minalign is 256 bytes, patching the size_index table should not
-result in a buffer overrun.
+On Fri, 28 Aug 2009 09:44:26 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-The calculation "(i - 1) / 8" used to access size_index[] is moved to
-a separate function as suggested by Christoph Lameter.
+> Currently the per-cpu page allocator searches the PCP list for pages of the
+> correct migrate-type to reduce the possibility of pages being inappropriate
+> placed from a fragmentation perspective. This search is potentially expensive
+> in a fast-path and undesirable. Splitting the per-cpu list into multiple
+> lists increases the size of a per-cpu structure and this was potentially
+> a major problem at the time the search was introduced. These problem has
+> been mitigated as now only the necessary number of structures is allocated
+> for the running system.
+> 
+> This patch replaces a list search in the per-cpu allocator with one list per
+> migrate type. The potential snag with this approach is when bulk freeing
+> pages. We round-robin free pages based on migrate type which has little
+> bearing on the cache hotness of the page and potentially checks empty lists
+> repeatedly in the event the majority of PCP pages are of one type.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Nick Piggin <npiggin@suse.de>
+> ---
+>  include/linux/mmzone.h |    5 ++-
+>  mm/page_alloc.c        |  106 ++++++++++++++++++++++++++---------------------
+>  2 files changed, 63 insertions(+), 48 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 008cdcd..045348f 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -38,6 +38,7 @@
+>  #define MIGRATE_UNMOVABLE     0
+>  #define MIGRATE_RECLAIMABLE   1
+>  #define MIGRATE_MOVABLE       2
+> +#define MIGRATE_PCPTYPES      3 /* the number of types on the pcp lists */
+>  #define MIGRATE_RESERVE       3
+>  #define MIGRATE_ISOLATE       4 /* can't allocate from here */
+>  #define MIGRATE_TYPES         5
+> @@ -169,7 +170,9 @@ struct per_cpu_pages {
+>  	int count;		/* number of pages in the list */
+>  	int high;		/* high watermark, emptying needed */
+>  	int batch;		/* chunk size for buddy add/remove */
+> -	struct list_head list;	/* the list of pages */
+> +
+> +	/* Lists of pages, one per migrate type stored on the pcp-lists */
+> +	struct list_head lists[MIGRATE_PCPTYPES];
+>  };
+>  
+>  struct per_cpu_pageset {
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ac3afe1..65eedb5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -522,7 +522,7 @@ static inline int free_pages_check(struct page *page)
+>  }
+>  
+>  /*
+> - * Frees a list of pages. 
+> + * Frees a number of pages from the PCP lists
+>   * Assumes all pages on list are in same zone, and of same order.
+>   * count is the number of pages to free.
+>   *
+> @@ -532,23 +532,36 @@ static inline int free_pages_check(struct page *page)
+>   * And clear the zone's pages_scanned counter, to hold off the "all pages are
+>   * pinned" detection logic.
+>   */
+> -static void free_pages_bulk(struct zone *zone, int count,
+> -					struct list_head *list, int order)
+> +static void free_pcppages_bulk(struct zone *zone, int count,
+> +					struct per_cpu_pages *pcp)
+>  {
+> +	int migratetype = 0;
+> +
 
-Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
----
+How about caching the last sucess migratetype
+with 'per_cpu_pages->last_alloc_type'?
+I think it could prevent a litte spinning empty list.
 
-v2: Updated based on comments by Christoph Lameter.
+>  	spin_lock(&zone->lock);
+>  	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+>  	zone->pages_scanned = 0;
+>  
+> -	__mod_zone_page_state(zone, NR_FREE_PAGES, count << order);
+> +	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+>  	while (count--) {
+>  		struct page *page;
+> +		struct list_head *list;
+> +
+> +		/*
+> +		 * Remove pages from lists in a round-robin fashion. This spinning
+> +		 * around potentially empty lists is bloody awful, alternatives that
+> +		 * don't suck are welcome
+> +		 */
+> +		do {
+> +			if (++migratetype == MIGRATE_PCPTYPES)
+> +				migratetype = 0;
+> +			list = &pcp->lists[migratetype];
+> +		} while (list_empty(list));
+>  
+> -		VM_BUG_ON(list_empty(list));
+>  		page = list_entry(list->prev, struct page, lru);
+>  		/* have to delete it as __free_one_page list manipulates */
+>  		list_del(&page->lru);
+> -		trace_mm_page_pcpu_drain(page, order, page_private(page));
+> -		__free_one_page(page, zone, order, page_private(page));
+> +		trace_mm_page_pcpu_drain(page, 0, migratetype);
+> +		__free_one_page(page, zone, 0, migratetype);
+>  	}
+>  	spin_unlock(&zone->lock);
+>  }
 
-The patch is against v2.6.31-rc7.
 
- include/linux/slub_def.h |    6 ++----
- mm/slub.c                |   29 +++++++++++++++++++++++------
- 2 files changed, 25 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index c1c862b..ac58d10 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -153,12 +153,10 @@ static __always_inline int kmalloc_index(size_t size)
- 	if (size <= KMALLOC_MIN_SIZE)
- 		return KMALLOC_SHIFT_LOW;
- 
--#if KMALLOC_MIN_SIZE <= 64
--	if (size > 64 && size <= 96)
-+	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
- 		return 1;
--	if (size > 128 && size <= 192)
-+	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
- 		return 2;
--#endif
- 	if (size <=          8) return 3;
- 	if (size <=         16) return 4;
- 	if (size <=         32) return 5;
-diff --git a/mm/slub.c b/mm/slub.c
-index b9f1491..259df05 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2789,6 +2789,10 @@ static s8 size_index[24] = {
- 	2,	/* 184 */
- 	2	/* 192 */
- };
-+static inline int size_index_elem(size_t bytes)
-+{
-+	return (bytes - 1) / 8;
-+}
- 
- static struct kmem_cache *get_slab(size_t size, gfp_t flags)
- {
-@@ -2798,7 +2802,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
- 		if (!size)
- 			return ZERO_SIZE_PTR;
- 
--		index = size_index[(size - 1) / 8];
-+		index = size_index[size_index_elem(size)];
- 	} else
- 		index = fls(size - 1);
- 
-@@ -3156,10 +3160,12 @@ void __init kmem_cache_init(void)
- 	slab_state = PARTIAL;
- 
- 	/* Caches that are not of the two-to-the-power-of size */
--	if (KMALLOC_MIN_SIZE <= 64) {
-+	if (KMALLOC_MIN_SIZE <= 32) {
- 		create_kmalloc_cache(&kmalloc_caches[1],
- 				"kmalloc-96", 96, GFP_NOWAIT);
- 		caches++;
-+	}
-+	if (KMALLOC_MIN_SIZE <= 64) {
- 		create_kmalloc_cache(&kmalloc_caches[2],
- 				"kmalloc-192", 192, GFP_NOWAIT);
- 		caches++;
-@@ -3186,17 +3192,28 @@ void __init kmem_cache_init(void)
- 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
- 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
- 
--	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
--		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
-+	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
-+		int elem = size_index_elem(i);
-+		if (elem >= ARRAY_SIZE(size_index))
-+			break;
-+		size_index[elem] = KMALLOC_SHIFT_LOW;
-+	}
- 
--	if (KMALLOC_MIN_SIZE == 128) {
-+	if (KMALLOC_MIN_SIZE == 64) {
-+		/*
-+		 * The 96 byte size cache is not used if the alignment
-+		 * is 64 byte.
-+		 */
-+		for (i = 64 + 8; i <= 96; i += 8)
-+			size_index[size_index_elem(i)] = 7;
-+	} else if (KMALLOC_MIN_SIZE == 128) {
- 		/*
- 		 * The 192 byte sized cache is not used if the alignment
- 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
- 		 * instead.
- 		 */
- 		for (i = 128 + 8; i <= 192; i += 8)
--			size_index[(i - 1) / 8] = 8;
-+			size_index[size_index_elem(i)] = 8;
- 	}
- 
- 	slab_state = UP;
 -- 
-1.5.4.3
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
