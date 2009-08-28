@@ -1,83 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1B2836B004D
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 11:06:25 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7SF6Oxx006583
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 29 Aug 2009 00:06:24 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 92E6445DE4F
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:06:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 73C2B45DE4E
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:06:24 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5859B1DB803F
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:06:24 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 13C491DB803A
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:06:24 +0900 (JST)
-Message-ID: <b2d13270df033cc94ec4387e01c88c82.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090828144648.GO4889@balbir.in.ibm.com>
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828072007.GH4889@balbir.in.ibm.com>
-    <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828132643.GM4889@balbir.in.ibm.com>
-    <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com>
-    <712c0209222358d9c7d1e33f93e21c30.squirrel@webmail-b.css.fujitsu.com>
-    <20090828144648.GO4889@balbir.in.ibm.com>
-Date: Sat, 29 Aug 2009 00:06:23 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EBFA6B004F
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 11:07:29 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp08.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7SF6doC016018
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 20:36:39 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7SF7PJl2511042
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 20:37:25 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7SF7OiW030629
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 01:07:24 +1000
+Date: Fri, 28 Aug 2009 20:37:23 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC][PATCH 1/5] memcg: change for softlimit.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20090828150723.GQ4889@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com> <20090828132321.e4a497bb.kamezawa.hiroyu@jp.fujitsu.com> <20090828072007.GH4889@balbir.in.ibm.com> <20090828163523.e51678be.kamezawa.hiroyu@jp.fujitsu.com> <20090828132643.GM4889@balbir.in.ibm.com> <bfd50d44ff730c2720b882a81b7446c6.squirrel@webmail-b.css.fujitsu.com> <20090828144539.GN4889@balbir.in.ibm.com> <d50640bcbd1bb174caaca9714bbe03e5.squirrel@webmail-b.css.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <d50640bcbd1bb174caaca9714bbe03e5.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28
-> 23:40:56]:
->
->> KAMEZAWA Hiroyuki wrote:
->> > Balbir Singh wrote:
->> >> But Bob and Mike might need to set soft limits between themselves. if
->> >> soft limit of gold is 1G and bob needs to be close to 750M and mike
->> >> 250M, how do we do it without supporting what we have today?
->> >>
->> > Don't use hierarchy or don't use softlimit.
->> > (I never think fine-grain  soft limit can be useful.)
->> >
->> > Anyway, I have to modify unnecessary hacks for res_counter of
->> softlimit.
->> > plz allow modification. that's bad.
->> > I postpone RB-tree breakage problem, plz explain it or fix it by
->> yourself.
->> >
->> I changed my mind....per-zone RB-tree is also broken ;)
->>
->> Why I don't like broken system is a function which a user can't
->> know/calculate how-it-works is of no use in mission critical systems.
->>
->> I'd like to think how-to-fix it with better algorithm. Maybe RB-tree
->> is not a choice.
->>
->
-> Soft limits are not meant for mission critical work :-) Soft limits is
-> best effort and not a guaranteed resource allocation mechanism. I've
-> mentioned in previous emails how we recover if we find the data is
-> stale
->
-yes. but can you explain how selection will be done to users ?
-I can't.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28 23:58:39]:
 
-Thanks,
--Kame
+> Balbir Singh wrote:
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28
+> > 23:29:09]:
+> >
+> >> Balbir Singh wrote:
+> >> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28
+> >> > 16:35:23]:
+> >> >
+> >>
+> >> >>
+> >> >> Current soft-limit RB-tree will be easily broken i.e. not-sorted
+> >> >> correctly
+> >> >> if used under use_hierarchy=1.
+> >> >>
+> >> >
+> >> > Not true, I think the sorted-ness is delayed and is seen when we pick
+> >> > a tree for reclaim. Think of it as being lazy :)
+> >> >
+> >> plz explain how enexpectedly unsorted RB-tree can work sanely.
+> >>
+> >>
+> >
+> > There are two checks built-in
+> >
+> > 1. In the reclaim path (we see how much to reclaim, compared to the
+> > soft limit)
+> > 2. In the dequeue path where we check if we really are over soft limit
+> >
+> that's not a point.
+> 
+> > I did lot of testing with the time based approach and found no broken
+> > cases, I;ve been testing it with the mmotm (event based approach and I
+> > am yet to see a broken case so far).
+> >
+> I'm sorry if I don't understand RB-tree.
+> I think RB-tree is a system which can sort inputs passed by caller
+> one by one and will be in broken state if value of nodes changed
+> while it's in tree. Wrong ?
+> While a subtree is
+>                7
+>               / \
+>              3   9
+> And, by some magic, the value can be changed without extract
+>                7
+>               / \
+>              13  9
+> The biggest is 13. But the biggest number which will be selecte will be "9".
+>
 
+This cannot happen today, we keep the values the same till we update
+the tree. I hope that clarifies. 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
