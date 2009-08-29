@@ -1,52 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 68CF46B004D
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 05:46:46 -0400 (EDT)
-Date: Sat, 29 Aug 2009 17:46:42 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm/memory-failure: remove CONFIG_UNEVICTABLE_LRU
-	config option
-Message-ID: <20090829094642.GB20128@localhost>
-References: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 04F8E6B004D
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 06:00:48 -0400 (EDT)
+Received: by ywh33 with SMTP id 33so3871383ywh.18
+        for <linux-mm@kvack.org>; Sat, 29 Aug 2009 03:00:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
+In-Reply-To: <Pine.LNX.4.64.0908282034240.19475@sister.anvils>
+References: <Pine.LNX.4.64.0908282034240.19475@sister.anvils>
+Date: Sat, 29 Aug 2009 19:00:47 +0900
+Message-ID: <2f11576a0908290300h155596e1y730c355ade7a671e@mail.gmail.com>
+Subject: Re: [PATCH mmotm] vmscan move pgdeactivate modification to
+	shrink_active_list fix
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Vincent Li <macli@brc.ubc.ca>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 29, 2009 at 03:09:13AM +0800, Vincent Li wrote:
-> Commit 683776596 (remove CONFIG_UNEVICTABLE_LRU config option) removed this config option.
-> Removed it from mm/memory-failure too.
+Hi Hugh
 
-Good catch!
+2009/8/29 Hugh Dickins <hugh.dickins@tiscali.co.uk>:
+> mmotm 2009-08-27-16-51 lets the OOM killer loose on my loads even
+> quicker than last time: one bug fixed but another bug introduced.
+> vmscan-move-pgdeactivate-modification-to-shrink_active_list.patch
+> forgot to add NR_LRU_BASE to lru index to make zone_page_state index.
+>
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Can I use your test case?
+Currently LRU_BASE is 0. it mean
 
-> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+LRU_BASE =3D=3D NR_INACTIVE_ANON =3D=3D 0
+LRU_ACTIVE =3D=3D NR_ACTIVE_ANON =3D=3D 1
+
+Therefore, I doubt there are another issue in current mmotm.
+Can I join your strange oom fixing works?
+
+
 > ---
->  mm/memory-failure.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index f78d9fc..2bc4c50 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -587,10 +587,8 @@ static struct page_state {
->  	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
->  	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
->  
-> -#ifdef CONFIG_UNEVICTABLE_LRU
->  	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
->  	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
-> -#endif
->  
->  #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
->  	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
-> -- 
-> 1.6.0.4
+>
+> =A0mm/vmscan.c | =A0 =A06 ++++--
+> =A01 file changed, 4 insertions(+), 2 deletions(-)
+>
+> --- mmotm/mm/vmscan.c =A0 2009-08-28 10:07:57.000000000 +0100
+> +++ linux/mm/vmscan.c =A0 2009-08-28 18:30:33.000000000 +0100
+> @@ -1381,8 +1381,10 @@ static void shrink_active_list(unsigned
+> =A0 =A0 =A0 =A0reclaim_stat->recent_rotated[file] +=3D nr_rotated;
+> =A0 =A0 =A0 =A0__count_vm_events(PGDEACTIVATE, nr_deactivated);
+> =A0 =A0 =A0 =A0__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_t=
+aken);
+> - =A0 =A0 =A0 __mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, n=
+r_rotated);
+> - =A0 =A0 =A0 __mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_=
+deactivated);
+> + =A0 =A0 =A0 __mod_zone_page_state(zone, NR_ACTIVE_ANON + file * LRU_FIL=
+E,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_rotated);
+> + =A0 =A0 =A0 __mod_zone_page_state(zone, NR_INACTIVE_ANON + file * LRU_F=
+ILE,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_deactivated);
+> =A0 =A0 =A0 =A0spin_unlock_irq(&zone->lru_lock);
+> =A0}
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
