@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 419696B004D
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:54:49 -0400 (EDT)
-Received: by ywh16 with SMTP id 16so2162763ywh.19
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2009 21:54:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 68CF46B004D
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 05:46:46 -0400 (EDT)
+Date: Sat, 29 Aug 2009 17:46:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm/memory-failure: remove CONFIG_UNEVICTABLE_LRU
+	config option
+Message-ID: <20090829094642.GB20128@localhost>
 References: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
-Date: Sat, 29 Aug 2009 13:54:56 +0900
-Message-ID: <2f11576a0908282154l6351d181s98cdae8829e80d6c@mail.gmail.com>
-Subject: Re: [PATCH] mm/memory-failure: remove CONFIG_UNEVICTABLE_LRU config
-	option
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
 Sender: owner-linux-mm@kvack.org
 To: Vincent Li <macli@brc.ubc.ca>
-Cc: linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-2009/8/29 Vincent Li <macli@brc.ubc.ca>:
-> Commit 683776596 (remove CONFIG_UNEVICTABLE_LRU config option) removed th=
-is config option.
+On Sat, Aug 29, 2009 at 03:09:13AM +0800, Vincent Li wrote:
+> Commit 683776596 (remove CONFIG_UNEVICTABLE_LRU config option) removed this config option.
 > Removed it from mm/memory-failure too.
->
+
+Good catch!
+
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+
 > Signed-off-by: Vincent Li <macli@brc.ubc.ca>
 > ---
-> =A0mm/memory-failure.c | =A0 =A02 --
-> =A01 files changed, 0 insertions(+), 2 deletions(-)
->
+>  mm/memory-failure.c |    2 --
+>  1 files changed, 0 insertions(+), 2 deletions(-)
+> 
 > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
 > index f78d9fc..2bc4c50 100644
 > --- a/mm/memory-failure.c
 > +++ b/mm/memory-failure.c
 > @@ -587,10 +587,8 @@ static struct page_state {
-> =A0 =A0 =A0 =A0{ sc|dirty, =A0 =A0 sc|dirty, =A0 =A0 =A0 "swapcache", =A0=
- =A0me_swapcache_dirty },
-> =A0 =A0 =A0 =A0{ sc|dirty, =A0 =A0 sc, =A0 =A0 =A0 =A0 =A0 =A0 "swapcache=
-", =A0 =A0me_swapcache_clean },
->
+>  	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
+>  	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
+>  
 > -#ifdef CONFIG_UNEVICTABLE_LRU
-> =A0 =A0 =A0 =A0{ unevict|dirty, unevict|dirty, "unevictable LRU", me_page=
-cache_dirty},
-> =A0 =A0 =A0 =A0{ unevict, =A0 =A0 =A0unevict, =A0 =A0 =A0 =A0"unevictable=
- LRU", me_pagecache_clean},
+>  	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
+>  	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
 > -#endif
-
-Looks good to me.
-     Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>  
+>  #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
+>  	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
+> -- 
+> 1.6.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
