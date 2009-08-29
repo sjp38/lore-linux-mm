@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 104CD6B004D
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2009 22:01:00 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so612909qwf.44
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2009 19:01:00 -0700 (PDT)
-Message-ID: <4A988BB4.1030005@vflare.org>
-Date: Sat, 29 Aug 2009 07:30:20 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 419696B004D
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2009 00:54:49 -0400 (EDT)
+Received: by ywh16 with SMTP id 16so2162763ywh.19
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2009 21:54:56 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] compcache: documentation
-References: <200908241008.02184.ngupta@vflare.org> <661de9470908251003y3db1fb3awb648f9340cd0beb4@mail.gmail.com> <4A94293A.2090103@vflare.org> <20090828195303.GA4889@balbir.in.ibm.com>
-In-Reply-To: <20090828195303.GA4889@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
+References: <1251486553-23181-1-git-send-email-macli@brc.ubc.ca>
+Date: Sat, 29 Aug 2009 13:54:56 +0900
+Message-ID: <2f11576a0908282154l6351d181s98cdae8829e80d6c@mail.gmail.com>
+Subject: Re: [PATCH] mm/memory-failure: remove CONFIG_UNEVICTABLE_LRU config
+	option
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
+To: Vincent Li <macli@brc.ubc.ca>
+Cc: linux-mm@kvack.org, Andi Kleen <ak@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 08/29/2009 01:23 AM, Balbir Singh wrote:
-> * Nitin Gupta<ngupta@vflare.org>  [2009-08-25 23:41:06]:
+2009/8/29 Vincent Li <macli@brc.ubc.ca>:
+> Commit 683776596 (remove CONFIG_UNEVICTABLE_LRU config option) removed th=
+is config option.
+> Removed it from mm/memory-failure too.
 >
->> On 08/25/2009 10:33 PM, Balbir Singh wrote:
->>
->>
->>>> +It consists of three modules:
->>>> + - xvmalloc.ko: memory allocator
->>>
->>> I've seen your case for a custom allocator, but why can't we
->>>
->>> 1) Refactor slob and use it
->>
->> SLOB is fundamentally a different allocator. It looked at it in detail
->> but could not image how can I make it suitable for the project. SLOB
->> really does not fit it.
->>
->>> 2) Do we care about the optimizations in SLUB w.r.t. scalability in
->>> your module? If so.. will xvmalloc meet those requirements?
->>>
->>
->> Scalability is desired which xvmalloc lacks in its current state. My
->> plan is to have a wrapper around xvmalloc that creates per-cpu pools
->> and leave xvmalloc core simple. Along with this, detailed profiling
->> needs to be done to see where the bottlenecks are in the core itself.
->>
+> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+> ---
+> =A0mm/memory-failure.c | =A0 =A02 --
+> =A01 files changed, 0 insertions(+), 2 deletions(-)
 >
-> I've not yet tested the patches, but adding another allocator does
-> worry me a bit. Do you intend to allow other users to consume the
-> allocator routines?
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index f78d9fc..2bc4c50 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -587,10 +587,8 @@ static struct page_state {
+> =A0 =A0 =A0 =A0{ sc|dirty, =A0 =A0 sc|dirty, =A0 =A0 =A0 "swapcache", =A0=
+ =A0me_swapcache_dirty },
+> =A0 =A0 =A0 =A0{ sc|dirty, =A0 =A0 sc, =A0 =A0 =A0 =A0 =A0 =A0 "swapcache=
+", =A0 =A0me_swapcache_clean },
 >
+> -#ifdef CONFIG_UNEVICTABLE_LRU
+> =A0 =A0 =A0 =A0{ unevict|dirty, unevict|dirty, "unevictable LRU", me_page=
+cache_dirty},
+> =A0 =A0 =A0 =A0{ unevict, =A0 =A0 =A0unevict, =A0 =A0 =A0 =A0"unevictable=
+ LRU", me_pagecache_clean},
+> -#endif
 
-No. This allocator is not compiled as separate module, does not export any
-symbol and is compiled with ramzswap. So, no one else can use it.
-
-Thanks,
-Nitin
+Looks good to me.
+     Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
