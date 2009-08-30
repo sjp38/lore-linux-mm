@@ -1,50 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 80B646B005A
-	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 08:58:25 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so1517859bwz.38
-        for <linux-mm@kvack.org>; Sun, 30 Aug 2009 05:58:33 -0700 (PDT)
-From: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
-Subject: Re: ipw2200: firmware DMA loading rework
-Date: Sun, 30 Aug 2009 14:37:42 +0200
-References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <20090826074409.606b5124.akpm@linux-foundation.org> <1251430951.3704.181.camel@debian>
-In-Reply-To: <1251430951.3704.181.camel@debian>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 99E906B005D
+	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 10:02:06 -0400 (EDT)
+Message-ID: <4A9A8656.5050804@cs.helsinki.fi>
+Date: Sun, 30 Aug 2009 17:01:58 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
+Subject: Re: [PATCH v2] SLUB: fix ARCH_KMALLOC_MINALIGN cases 64 and 256
+References: <> <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
+In-Reply-To: <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200908301437.42133.bzolnier@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Zhu Yi <yi.zhu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
+To: Aaro Koskinen <aaro.koskinen@nokia.com>
+Cc: mpm@selenic.com, cl@linux-foundation.org, linux-mm@kvack.org, Artem.Bityutskiy@nokia.com
 List-ID: <linux-mm.kvack.org>
 
-On Friday 28 August 2009 05:42:31 Zhu Yi wrote:
-> Bartlomiej Zolnierkiewicz reported an atomic order-6 allocation failure
-> for ipw2200 firmware loading in kernel 2.6.30. High order allocation is
-
-s/2.6.30/2.6.31-rc6/
-
-The issue has always been there but it was some recent change that
-explicitly triggered the allocation failures (after 2.6.31-rc1).
-
-> likely to fail and should always be avoided.
+Aaro Koskinen wrote:
+> If the minalign is 64 bytes, then the 96 byte cache should not be created
+> because it would conflict with the 128 byte cache.
 > 
-> The patch fixes this problem by replacing the original order-6
-> pci_alloc_consistent() with an array of order-1 pages from a pci pool.
-> This utilized the ipw2200 DMA command blocks (up to 64 slots). The
-> maximum firmware size support remains the same (64*8K).
+> If the minalign is 256 bytes, patching the size_index table should not
+> result in a buffer overrun.
 > 
-> This patch fixes bug http://bugzilla.kernel.org/show_bug.cgi?id=14016
+> The calculation "(i - 1) / 8" used to access size_index[] is moved to
+> a separate function as suggested by Christoph Lameter.
 > 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Zhu Yi <yi.zhu@intel.com>
+> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
 
-Thanks for the fix (also kudos to other people helping with the bugreport),
-it works fine so far and looks OK to me:
-
-Tested-and-reviewed-by: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
