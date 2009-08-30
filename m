@@ -1,34 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 99E906B005D
-	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 10:02:06 -0400 (EDT)
-Message-ID: <4A9A8656.5050804@cs.helsinki.fi>
-Date: Sun, 30 Aug 2009 17:01:58 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8E8B16B006A
+	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 12:19:47 -0400 (EDT)
+Received: by gxk12 with SMTP id 12so4609887gxk.4
+        for <linux-mm@kvack.org>; Sun, 30 Aug 2009 09:19:53 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+Subject: [PATCH] swap: Fix swap size in case of block devices
+Date: Sun, 30 Aug 2009 21:49:10 +0530
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] SLUB: fix ARCH_KMALLOC_MINALIGN cases 64 and 256
-References: <> <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
-In-Reply-To: <1251458934-25838-1-git-send-email-aaro.koskinen@nokia.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: Text/Plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200908302149.10981.ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Aaro Koskinen <aaro.koskinen@nokia.com>
-Cc: mpm@selenic.com, cl@linux-foundation.org, linux-mm@kvack.org, Artem.Bityutskiy@nokia.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aaro Koskinen wrote:
-> If the minalign is 64 bytes, then the 96 byte cache should not be created
-> because it would conflict with the 128 byte cache.
-> 
-> If the minalign is 256 bytes, patching the size_index table should not
-> result in a buffer overrun.
-> 
-> The calculation "(i - 1) / 8" used to access size_index[] is moved to
-> a separate function as suggested by Christoph Lameter.
-> 
-> Signed-off-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+During swapon, swap size is set to number of usable pages in the given
+swap file/block device minus 1 (for header page). In case of block devices,
+this size is incorrectly set as one page less than the actual due to an
+off-by-one error. For regular files, this size is set correctly.
 
-Applied, thanks!
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+---
+
+ mm/swapfile.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8ffdc0d..3d37b97 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1951,9 +1951,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	if (error)
+ 		goto bad_swap;
+
++	/* excluding header page */
+ 	nr_good_pages = swap_header->info.last_page -
+-			swap_header->info.nr_badpages -
+-			1 /* header page */;
++			swap_header->info.nr_badpages;
+
+ 	if (nr_good_pages) {
+ 		swap_map[0] = SWAP_MAP_BAD;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
