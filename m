@@ -1,51 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A17A6B004F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 08:37:12 -0400 (EDT)
-Date: Mon, 31 Aug 2009 08:37:10 -0400
-From: Theodore Tso <tytso@mit.edu>
-Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
-Message-ID: <20090831123710.GH20822@mit.edu>
-References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 744816B005A
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 08:49:24 -0400 (EDT)
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by e28smtp06.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7VCnOoj011228
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 18:19:24 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7VCnOmQ2613402
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 18:19:24 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7VCnNij017533
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 22:49:24 +1000
+Date: Mon, 31 Aug 2009 18:19:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 0/4] memcg: add support for hwpoison testing
+Message-ID: <20090831124920.GN4770@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090831102640.092092954@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090831104748.GT12579@kernel.dk>
+In-Reply-To: <20090831102640.092092954@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, lizf@cn.fujitsu.com, nishimura@mxp.nes.nec.co.jp, menage@google.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 31, 2009 at 12:47:49PM +0200, Jens Axboe wrote:
-> It's because ext4 writepages sets ->range_start and wb_writeback() is
-> range cyclic, then the next iteration will have the previous end point
-> as the starting point. Looks like we need to clear ->range_start in
-> wb_writeback(), the better place is probably to do that in
-> fs/fs-writeback.c:generic_sync_wb_inodes() right after the
-> writeback_single_inode() call. This, btw, should be no different than
-> the current code, weird/correct or not :-)
+* Wu Fengguang <fengguang.wu@intel.com> [2009-08-31 18:26:40]:
 
-Hmm, or we could have ext4_da_writepages save and restore
-->range_start.  One of the things that's never been well documented is
-exactly what the semantics are of the various fields in the wbc
-struct, and who is allowed to modify which fields when.
+> Hi all,
+> 
+> In hardware poison testing, we want to inject hwpoison errors to pages
+> of a collection of selected tasks, so that random tasks (eg. init) won't
+> be killed in stress tests and lead to test failure.
+> 
+> Memory cgroup provides an ideal tool for tracking and testing these target
+> process pages. All we have to do is to
+> - export the memory cgroup id via cgroupfs
+> - export two functions/structs for hwpoison_inject.c
+> 
+> This might be an unexpected usage of memory cgroup. The last patch and this
+> script demonstrates how the exported interfaces are to be used to limit the
+> scope of hwpoison injection.
+> 
+> 	test -d /cgroup/hwpoison && rmdir /cgroup/hwpoison
+> 	mkdir /cgroup/hwpoison
+> 
+> 	usemem -m 100 -s 100 &   # eat 100MB and sleep 100s
+> 	echo `pidof usemem` > /cgroup/hwpoison/tasks
+> 
+> ==>     memcg_id=$(</cgroup/hwpoison/memory.id)
+> ==>     echo $memcg_id > /debug/hwpoison/corrupt-filter-memcg
+> 
+> 	# hwpoison all pfn
+> 	pfn=0
+> 	while true
+> 	do      
+> 		let pfn=pfn+1
+> 		echo $pfn > /debug/hwpoison/corrupt-pfn
+> 		if [ $? -ne 0 ]; then
+> 			break
+> 		fi
+> 	done
+> 
+> Comments are welcome, thanks!
+>
 
-If you have some time, it would be great if you could document the
-rules filesystems should be following with respect to the wbc struct,
-and then we can audit each filesystem to make sure they follow those
-rules.  One of the things which is a bit scary about how the many wbc
-flags work is that each time a filesystem wants some particular
-behavior, it seems like we need to dive into writeback code, and
-figure out some combination of flags/settings that make the page
-writeback code do what we wants, and sometimes it's not clear whether
-that was a designed-in semantic of the interface, or just something
-that happened to work given the current implementation.
+I took a quick look and the patches seem OKAY to me, but I have
+question, can't we do all of this from user space? The bits about
+id export and import the ids look like they can be replaced by names
+in user space.
+ 
+> Cheers,
+> Fengguang
+> -- 
+> 
 
-In any case, if one of the rules is that the filesystems' writepages
-command shouldn't be modifying range_start, we can fix this problem up
-by saving and restore range_start inside ext4_da_writepages().
-
-							- Ted
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
