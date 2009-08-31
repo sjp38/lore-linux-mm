@@ -1,109 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8E36B0088
-	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 18:27:04 -0400 (EDT)
-Date: Sun, 30 Aug 2009 18:27:10 -0400
-From: Christoph Hellwig <hch@infradead.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE586B008A
+	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 23:08:16 -0400 (EDT)
+Date: Sun, 30 Aug 2009 23:08:15 -0400
+From: Theodore Tso <tytso@mit.edu>
 Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
-Message-ID: <20090830222710.GA9938@infradead.org>
-References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu>
+Message-ID: <20090831030815.GD20822@mit.edu>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090830181731.GA20822@mit.edu>
+In-Reply-To: <20090830222710.GA9938@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@mit.edu>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com, jens.axboe@oracle.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com, jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 30, 2009 at 02:17:31PM -0400, Theodore Tso wrote:
-> > 
-> > The current writeback sizes are defintively too small, we shoved in
-> > a hack into XFS to bump up nr_to_write to four times the value the
-> > VM sends us to be able to saturate medium sized RAID arrays in XFS.
-> 
-> Hmm, should we make it be a per-superblock tunable so that it can
-> either be tuned on a per-block device basis or the filesystem code can
-> adjust it to their liking?  I thought about it, but decided maybe it
-> was better to keeping it simple.
+On Sun, Aug 30, 2009 at 06:27:10PM -0400, Christoph Hellwig wrote:
+> I'm don't think tuning it on a per-filesystem basis is a good idea,
+> we had to resort to this for 2.6.30 as a quick hack, and we will ged
+> rid of it again in 2.6.31 one way or another.  I personally think we
+> should fight this cancer of per-filesystem hacks in the writeback code
+> as much as we can.  Right now people keep adding tuning hacks for
+> specific workloads there, and at least all the modern filesystems (ext4,
+> btrfs and XFS) have very similar requirements to the writeback code,
+> that is give the filesystem as much as possible to write at the same
+> time to do intelligent decisions based on that.  The VM writeback code
+> fails horribly at that right now.
 
-I'm don't think tuning it on a per-filesystem basis is a good idea,
-we had to resort to this for 2.6.30 as a quick hack, and we will ged
-rid of it again in 2.6.31 one way or another.  I personally think we
-should fight this cancer of per-filesystem hacks in the writeback code
-as much as we can.  Right now people keep adding tuning hacks for
-specific workloads there, and at least all the modern filesystems (ext4,
-btrfs and XFS) have very similar requirements to the writeback code,
-that is give the filesystem as much as possible to write at the same
-time to do intelligent decisions based on that.  The VM writeback code
-fails horribly at that right now.
+Yep; and Jens' patch doesn't change that.  It is still sending writes
+out to the filesystem a piddling 1024 pages at a time.
 
-> > Turns out this was not enough and at least for Chris Masons array
-> > we only started seaturating at * 16.  I suspect you patch will give
-> > a similar effect.
-> 
-> So you think 16384 would be a better default?  The reason why I picked
-> 32768 was because that was the size of the ext4 block group, but it
-> was otherwise it was totally arbitrary.  I haven't done any
-> benchmarking yet, which is one of the reasons why I thought about
-> making it a tunable.
+> My stance is to wait for this until about -rc2 at which points Jens'
+> code is hopefully in and we can start doing all the fine-tuning,
+> including lots of benchmarking.
 
-It was just another arbitrary number.  My suspicion is that the exact
-number does not matter, it just needs to be much much larger than the
-current one.  And the latency concerns are also over-rated as the block
-layer will tell us that we are congested if we push too much into a
-queue.
+Well, I've ported my patch so it applies on top of Jens' per-bdi
+patch.  It seems to be clearly needed; Jens, would you agree to add it
+to your per-bdi patch series?  We can choose a different default if
+you like, but making MAX_WRITEBACK_PAGES tunable seems to be clearly
+necessary.
 
-> > And the other big question is how this interacts with Jens' new per-bdi
-> > flushing code that we still hope to merge in 2.6.32.
-> 
-> Jens?  What do you think?  Fixing MAX_WRITEBACK_PAGES was something I
-> really wanted to merge in 2.6.32 since it makes a huge difference for
-> the block allocation layout for a "rsync -avH /old-fs /new-fs" when we
-> are copying bunch of large files (say, 800 meg iso images) and so the
-> fact that the writeback routine is writing out 4 megs at a time, means
-> that our files get horribly interleaved and thus get fragmented.
-> 
-> I initially thought about adding some massive workarounds in the
-> filesystem layer (which is I guess what XFS did),
+By the way, while I was testing my patch on top of v13 of the per-bdi
+patches, I found something *very* curious.  I did a test where ran the
+following commands on a freshly mkfs'ed ext4 filesystem:
 
-XFS is relatively good at doing the disk block layout even with smaller
-writeouts, so we do not have that fragmentation hack.  And the
-for-2.6.30 big hack is one liner:
+	dd if=/dev/zero of=test1 bs=1024k count=128
+	dd if=/dev/zero of=test2 bs=1024k count=128
+	sync
 
---- a/fs/xfs/linux-2.6/xfs_aops.c
-+++ b/fs/xfs/linux-2.6/xfs_aops.c
-@@ -1268,6 +1268,14 @@ xfs_vm_writepage(
- 	if (!page_has_buffers(page))
- 		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
- 
-+
-+	/*
-+	 *  VM calculation for nr_to_write seems off.  Bump it way
-+	 *  up, this gets simple streaming writes zippy again.
-+	 *  To be reviewed again after Jens' writeback changes.
-+	 */
-+	wbc->nr_to_write *= 4;
-+
- 	/*
- 	 * Convert delayed allocate, unwritten or unmapped space
- 	 * to real space and flush out to disk.
+I traced the calls to ext4_da_writepages() using ftrace, and found this:
 
-This also went past -fsdevel, but I didn' manage to get the flames for
-adding these hacks that I hoped to get ;-)
+      flush-8:16-1829  [001]    23.416351: ext4_da_writepages: dev sdb ino 12 nr_t_write 32759 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+      flush-8:16-1829  [000]    25.939354: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+      flush-8:16-1829  [000]    25.939486: ext4_da_writepages: dev sdb ino 13 nr_t_write 32759 pages_skipped 0 range_start 134180864 range_end 9223372036854775807 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+      flush-8:16-1829  [000]    27.055687: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+      flush-8:16-1829  [000]    27.055691: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+      flush-8:16-1829  [000]    27.878708: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
 
-My stance is to wait for this until about -rc2 at which points Jens'
-code is hopefully in and we can start doing all the fine-tuning,
-including lots of benchmarking.
+The *first* time the per-bdi code called writepages on the second file
+(test2, inode #13), range_start was 134180864 (which, curiously
+enough, is 4096*32759, which was the value of nr_to_write passed to
+ext4_da_writepages).  Given that the inode only had 32768 pages, the
+fact that apparently *some* codepath called ext4_da_writepages
+starting at logical block 32759, with nr_to_write set to 32759, seems
+very curious indeed.  That doesn't seem right at all.  It's late, so I
+won't try to trace it down now; plus which it's your code so I figure
+you can probably figure it out faster....
 
-Btw, one thing I would really see from one of the big companies or
-the LF is doing benchmarks like yours above or just a simple one or
-two stream dd on some big machines weekly so we can immediately see
-regressions once someones starts to tweak the VM again.  Preferably
-including seekwatcher data.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+     	     	       	    	    	       	  - Ted
