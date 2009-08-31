@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 699416B004D
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 17:03:40 -0400 (EDT)
-Date: Mon, 31 Aug 2009 17:03:37 -0400
-From: Theodore Tso <tytso@mit.edu>
-Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
-Message-ID: <20090831210337.GG23535@mit.edu>
-References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8468E6B004D
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 17:56:52 -0400 (EDT)
+Received: by ewy22 with SMTP id 22so4146409ewy.4
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2009 14:56:59 -0700 (PDT)
+Message-ID: <4A9C4723.5080309@codemonkey.ws>
+Date: Mon, 31 Aug 2009 16:56:51 -0500
+From: Anthony Liguori <anthony@codemonkey.ws>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090831104748.GT12579@kernel.dk>
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+References: <E88DD564E9DC5446A76B2B47C3BCCA150219600F9B@pdsmsx503.ccr.corp.intel.com> <C85CEDA13AB1CF4D9D597824A86D2B9006AEB944B8@PDSMSX501.ccr.corp.intel.com> <4A9C0DC2.6080704@redhat.com>
+In-Reply-To: <4A9C0DC2.6080704@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
+To: Avi Kivity <avi@redhat.com>
+Cc: "Xin, Xiaohui" <xiaohui.xin@intel.com>, "mst@redhat.com" <mst@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 31, 2009 at 12:47:49PM +0200, Jens Axboe wrote:
-> It's because ext4 writepages sets ->range_start and wb_writeback() is
-> range cyclic, then the next iteration will have the previous end point
-> as the starting point. Looks like we need to clear ->range_start in
-> wb_writeback(), the better place is probably to do that in
-> fs/fs-writeback.c:generic_sync_wb_inodes() right after the
-> writeback_single_inode() call. This, btw, should be no different than
-> the current code, weird/correct or not :-)
+Avi Kivity wrote:
+> On 08/31/2009 02:42 PM, Xin, Xiaohui wrote:
+>> Hi, Michael
+>> That's a great job. We are now working on support VMDq on KVM, and 
+>> since the VMDq hardware presents L2 sorting based on MAC addresses 
+>> and VLAN tags, our target is to implement a zero copy solution using 
+>> VMDq. We stared from the virtio-net architecture. What we want to 
+>> proposal is to use AIO combined with direct I/O:
+>> 1) Modify virtio-net Backend service in Qemu to submit aio requests 
+>> composed from virtqueue.
+>> 2) Modify TUN/TAP device to support aio operations and the user space 
+>> buffer directly mapping into the host kernel.
+>> 3) Let a TUN/TAP device binds to single rx/tx queue from the NIC.
+>> 4) Modify the net_dev and skb structure to permit allocated skb to 
+>> use user space directly mapped payload buffer address rather then 
+>> kernel allocated.
+>>
+>> As zero copy is also your goal, we are interested in what's in your 
+>> mind, and would like to collaborate with you if possible.
+>>    
+>
+> One way to share the effort is to make vmdq queues available as normal 
+> kernel interfaces.
 
-Thanks for pointing it out.  After staring at the code, I now believe
-this is the best fix for now.  What do other folks think?
+It may be possible to make vmdq appear like an sr-iov capable device 
+from userspace.  sr-iov provides the userspace interfaces to allocate 
+interfaces and assign mac addresses.  To make it useful, you would have 
+to handle tx multiplexing in the driver but that would be much easier to 
+consume for kvm.
 
-     	    	     	       	       - Ted
+Regards,
 
-commit 39cac8147479b48cd45b768d184aa6a80f23a2f7
-Author: Theodore Ts'o <tytso@mit.edu>
-Date:   Mon Aug 31 17:00:59 2009 -0400
-
-    ext4: Restore wbc->range_start in ext4_da_writepages()
-    
-    To solve a lock inversion problem, we implement part of the
-    range_cyclic algorithm in ext4_da_writepages().  (See commit 2acf2c26
-    for more details.)
-    
-    As part of that change wbc->range_start was modified by ext4's
-    writepages function, which causes its callers to get confused since
-    they aren't expecting the filesystem to modify it.  The simplest fix
-    is to save and restore wbc->range_start in ext4_da_writepages.
-    
-    Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
-
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index d61fb52..ff659e7 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -2749,6 +2749,7 @@ static int ext4_da_writepages(struct address_space *mapping,
- 	long pages_skipped;
- 	int range_cyclic, cycled = 1, io_done = 0;
- 	int needed_blocks, ret = 0, nr_to_writebump = 0;
-+	loff_t range_start = wbc->range_start;
- 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
- 
- 	trace_ext4_da_writepages(inode, wbc);
-@@ -2917,6 +2918,7 @@ out_writepages:
- 	if (!no_nrwrite_index_update)
- 		wbc->no_nrwrite_index_update = 0;
- 	wbc->nr_to_write -= nr_to_writebump;
-+	wbc->range_start = range_start;
- 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
- 	return ret;
- }
+Anthony Liguori
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
