@@ -1,38 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CF3F56B004D
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 16:11:53 -0400 (EDT)
-From: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
-Date: Mon, 31 Aug 2009 13:11:45 -0700
-Subject: RE: [RFC] respect the referenced bit of KVM guest pages?
-Message-ID: <9EECC02A4CC333418C00A85D21E893260184183346@azsmsx502.amr.corp.intel.com>
-References: <4A7AAE07.1010202@redhat.com>
- <20090806102057.GQ23385@random.random> <20090806105932.GA1569@localhost>
- <4A7AC201.4010202@redhat.com> <20090806130631.GB6162@localhost>
- <4A7AD79E.4020604@redhat.com> <20090816032822.GB6888@localhost>
- <4A878377.70502@redhat.com> <20090816045522.GA13740@localhost>
- <9EECC02A4CC333418C00A85D21E89326B6611F25@azsmsx502.amr.corp.intel.com>
- <20090821182439.GN29572@balbir.in.ibm.com>
- <9EECC02A4CC333418C00A85D21E8932601841832F9@azsmsx502.amr.corp.intel.com>
- <4A9C2A17.3080802@redhat.com>
- <9EECC02A4CC333418C00A85D21E893260184183339@azsmsx502.amr.corp.intel.com>
- <4A9C2E01.7080707@redhat.com>
-In-Reply-To: <4A9C2E01.7080707@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B1B86B004D
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 16:36:37 -0400 (EDT)
+Date: Mon, 31 Aug 2009 22:36:36 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
+Message-ID: <20090831203636.GD12579@kernel.dk>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk> <20090831155441.GB23535@mit.edu>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090831155441.GB23535@mit.edu>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Theodore Tso <tytso@mit.edu>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-> Page discards by the host, which are invisible to the guest
-> OS.
+On Mon, Aug 31 2009, Theodore Tso wrote:
+> At the risk of asking a stupid question, what *is* range_cyclic and
+> what is it trying to do?  I've been looking at the code and am I'm
+> getting myself very confused about what the code is trying to do and
+> what was its original intent.
 
-Duh.  Right - I can't keep my VM systems straight...
+Range cyclic means that the current writeback in ->writepages() should
+start where it left off the last time, non-range cyclic starts off at
+->range_start. ->writepages() can use mapping->writeback_index to store
+such information.
 
-					Jeff
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
