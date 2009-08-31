@@ -1,102 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 763AD6B004F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:26:40 -0400 (EDT)
-Date: Mon, 31 Aug 2009 19:26:43 +0900
-From: Paul Mundt <lethal@linux-sh.org>
-Subject: Re: page allocator regression on nommu
-Message-ID: <20090831102642.GA30264@linux-sh.org>
-References: <20090831074842.GA28091@linux-sh.org> <84144f020908310308i48790f78g5a7d73a60ea854f8@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 96B796B005A
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:29:12 -0400 (EDT)
+Date: Mon, 31 Aug 2009 12:29:09 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
+Message-ID: <20090831102909.GS12579@kernel.dk>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <84144f020908310308i48790f78g5a7d73a60ea854f8@mail.gmail.com>
+In-Reply-To: <20090831030815.GD20822@mit.edu>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <dave@linux.vnet.ibm.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Theodore Tso <tytso@mit.edu>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 31, 2009 at 01:08:19PM +0300, Pekka Enberg wrote:
-> On Mon, Aug 31, 2009 at 10:48 AM, Paul Mundt<lethal@linux-sh.org> wrote:
-> > modprobe: page allocation failure. order:7, mode:0xd0
+On Sun, Aug 30 2009, Theodore Tso wrote:
+> On Sun, Aug 30, 2009 at 06:27:10PM -0400, Christoph Hellwig wrote:
+> > I'm don't think tuning it on a per-filesystem basis is a good idea,
+> > we had to resort to this for 2.6.30 as a quick hack, and we will ged
+> > rid of it again in 2.6.31 one way or another.  I personally think we
+> > should fight this cancer of per-filesystem hacks in the writeback code
+> > as much as we can.  Right now people keep adding tuning hacks for
+> > specific workloads there, and at least all the modern filesystems (ext4,
+> > btrfs and XFS) have very similar requirements to the writeback code,
+> > that is give the filesystem as much as possible to write at the same
+> > time to do intelligent decisions based on that.  The VM writeback code
+> > fails horribly at that right now.
 > 
-> OK, so we have order 7 page allocation here...
+> Yep; and Jens' patch doesn't change that.  It is still sending writes
+> out to the filesystem a piddling 1024 pages at a time.
+
+Right, I didn't want to change too much of the logic, tuning is better
+left as follow up patches. There is one change, though - where the
+current logic splits ->nr_to_write between devices, with the writeback
+patches each get the "full" MAX_WRITEBACK_PAGES.
+
+> > My stance is to wait for this until about -rc2 at which points Jens'
+> > code is hopefully in and we can start doing all the fine-tuning,
+> > including lots of benchmarking.
 > 
-[snip]
-> > Active_anon:0 active_file:0 inactive_anon:0
-> > ?inactive_file:0 unevictable:323 dirty:0 writeback:0 unstable:0
-> > ?free:2967 slab:0 mapped:0 pagetables:0 bounce:0
-> > Normal free:11868kB min:0kB low:0kB high:0kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:1292kB present:16256kB pages_scanned:0 all_unreclaimable? no
-> > lowmem_reserve[]: 0 0
-> > Normal: 267*4kB 268*8kB 251*16kB 145*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB = 11868kB
+> Well, I've ported my patch so it applies on top of Jens' per-bdi
+> patch.  It seems to be clearly needed; Jens, would you agree to add it
+> to your per-bdi patch series?  We can choose a different default if
+> you like, but making MAX_WRITEBACK_PAGES tunable seems to be clearly
+> necessary.
+
+I don't mind adding it, but do we really want to export the value? If we
+plan on making this dynamically adaptable soon, then we'll be stuck with
+some proc file that doesn't really do much. I guess by then we can leave
+it as a 'maximum ever' type control, which at least would do
+something...
+
+> By the way, while I was testing my patch on top of v13 of the per-bdi
+> patches, I found something *very* curious.  I did a test where ran the
+> following commands on a freshly mkfs'ed ext4 filesystem:
 > 
-> ...but we seem to be all out of order > 3 pages. I'm not sure why
-> commit 49255c619fbd482d704289b5eb2795f8e3b7ff2e changes any of this,
-> though.
+> 	dd if=/dev/zero of=test1 bs=1024k count=128
+> 	dd if=/dev/zero of=test2 bs=1024k count=128
+> 	sync
 > 
-Nor am I, but it does. With it reverted, all of the order-7 allocations
-succeed just fine. With some debugging printks added:
-
-usbcore: registered new device driver usb
-alloc order 7 for 49000: pages 0c21c000
-alloc order 7 for 49000: pages 0c21c000
-...
-
-While with it applied:
-
-alloc order 7 for 49000:
-modprobe: page allocation failure. order:7, mode:0xd0
-...
-Mem-Info:
-Normal per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-Active_anon:0 active_file:0 inactive_anon:0
- inactive_file:0 unevictable:323 dirty:0 writeback:0 unstable:0
- free:2911 slab:0 mapped:0 pagetables:0 bounce:0
-Normal free:11644kB min:0kB low:0kB high:0kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:1292kB present:16256kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0
-Normal: 259*4kB 264*8kB 247*16kB 142*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB = 11644kB
-323 total pagecache pages
-4096 pages RAM
-662 pages reserved
-226 pages shared
-288 pages non-shared
-0 pages in pagetable cache
--ENOMEM
-Allocation of length 299008 from process 50 (modprobe) failed
-Normal per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-Active_anon:0 active_file:0 inactive_anon:0
- inactive_file:0 unevictable:323 dirty:0 writeback:0 unstable:0
- free:2911 slab:0 mapped:0 pagetables:0 bounce:0
-Normal free:11644kB min:0kB low:0kB high:0kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:1292kB present:16256kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0
-Normal: 259*4kB 264*8kB 247*16kB 142*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB = 11644kB
-323 total pagecache pages
-
-the -ENOMEM printk() I've placed in the alloc_pages() error path.
-
-> > ------------[ cut here ]------------
-> > kernel BUG at mm/nommu.c:598!
-> > Kernel BUG: 003e [#1]
-> > Modules linked in:
-> >
-> > Pid : 51, Comm: ? ? ? ? ? ? ? ? modprobe
-> > CPU : 0 ? ? ? ? ? ? ? ? Not tainted ?(2.6.31-rc7 #2835)
-> >
-> > PC is at __put_nommu_region+0xe/0xb0
-> > PR is at do_mmap_pgoff+0x8dc/0xa68
+> I traced the calls to ext4_da_writepages() using ftrace, and found this:
 > 
-> This looks to be a bug in nommu do_mmap_pgoff() error handling. I
-> guess we shouldn't call __put_nommu_region() if add_nommu_region()
-> hasn't been called?
+>       flush-8:16-1829  [001]    23.416351: ext4_da_writepages: dev sdb ino 12 nr_t_write 32759 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+>       flush-8:16-1829  [000]    25.939354: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+>       flush-8:16-1829  [000]    25.939486: ext4_da_writepages: dev sdb ino 13 nr_t_write 32759 pages_skipped 0 range_start 134180864 range_end 9223372036854775807 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+>       flush-8:16-1829  [000]    27.055687: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+>       flush-8:16-1829  [000]    27.055691: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
+>       flush-8:16-1829  [000]    27.878708: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
 > 
-Yeah, that looks a bit suspect. __put_nommu_region() is safe to be called
-without a call to add_nommu_region(), but we happen to trip over the BUG_ON()
-in this case because we've never made a single addition to the region tree.
+> The *first* time the per-bdi code called writepages on the second file
+> (test2, inode #13), range_start was 134180864 (which, curiously
+> enough, is 4096*32759, which was the value of nr_to_write passed to
+> ext4_da_writepages).  Given that the inode only had 32768 pages, the
+> fact that apparently *some* codepath called ext4_da_writepages
+> starting at logical block 32759, with nr_to_write set to 32759, seems
+> very curious indeed.  That doesn't seem right at all.  It's late, so I
+> won't try to trace it down now; plus which it's your code so I figure
+> you can probably figure it out faster....
 
-We probably ought to just up_write() and return if nommu_region_tree == RB_ROOT,
-which is what I'll do unless David objects.
+Interesting, needs checking up on. I've prepared a v14 patchset today,
+perhaps (if you have time), you can see if it reproduces there? I'm
+running some performance tests today, but will make a note to look into
+this after that.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
