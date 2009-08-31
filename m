@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 59F696B004F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 08:14:11 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n7VCECOD009484
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 31 Aug 2009 21:14:14 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 45BEB2AEA8F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:14:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 157E11EF084
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:14:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C096C1DB803F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:14:11 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 324B2E08009
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:14:11 +0900 (JST)
-Message-ID: <48d928bed22f20fc495e9ca1758dc7ed.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090831121008.GL4770@balbir.in.ibm.com>
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090828132438.b33828bc.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090831110204.GG4770@balbir.in.ibm.com>
-    <119e8331d1210b1f56d0f6416863bfbc.squirrel@webmail-b.css.fujitsu.com>
-    <20090831121008.GL4770@balbir.in.ibm.com>
-Date: Mon, 31 Aug 2009 21:14:10 +0900 (JST)
-Subject: Re: [RFC][PATCH 2/5] memcg: uncharge in batched manner
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A17A6B004F
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 08:37:12 -0400 (EDT)
+Date: Mon, 31 Aug 2009 08:37:10 -0400
+From: Theodore Tso <tytso@mit.edu>
+Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
+Message-ID: <20090831123710.GH20822@mit.edu>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090831104748.GT12579@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
->> > Does this effect deleting of a group and delay it by a large amount?
->> >
->> plz see what cgroup_release_and_xxxx  fixed. This is not for delay
->> but for race-condition, which makes rmdir sleep permanently.
->>
->
-> I've seen those patches, where rmdir() can hang. My conern was time
-> elapsed since we do css_get() and do a cgroup_release_and_wake_rmdir()
->
-plz read unmap() and truncate() code.
-The number of pages handled without cond_resched() is limited.
+On Mon, Aug 31, 2009 at 12:47:49PM +0200, Jens Axboe wrote:
+> It's because ext4 writepages sets ->range_start and wb_writeback() is
+> range cyclic, then the next iteration will have the previous end point
+> as the starting point. Looks like we need to clear ->range_start in
+> wb_writeback(), the better place is probably to do that in
+> fs/fs-writeback.c:generic_sync_wb_inodes() right after the
+> writeback_single_inode() call. This, btw, should be no different than
+> the current code, weird/correct or not :-)
 
-Thanks,
--Kame
+Hmm, or we could have ext4_da_writepages save and restore
+->range_start.  One of the things that's never been well documented is
+exactly what the semantics are of the various fields in the wbc
+struct, and who is allowed to modify which fields when.
 
+If you have some time, it would be great if you could document the
+rules filesystems should be following with respect to the wbc struct,
+and then we can audit each filesystem to make sure they follow those
+rules.  One of the things which is a bit scary about how the many wbc
+flags work is that each time a filesystem wants some particular
+behavior, it seems like we need to dive into writeback code, and
+figure out some combination of flags/settings that make the page
+writeback code do what we wants, and sometimes it's not clear whether
+that was a designed-in semantic of the interface, or just something
+that happened to work given the current implementation.
+
+In any case, if one of the rules is that the filesystems' writepages
+command shouldn't be modifying range_start, we can fix this problem up
+by saving and restore range_start inside ext4_da_writepages().
+
+							- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
