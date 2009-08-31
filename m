@@ -1,57 +1,65 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 1/4] memcg: show memory.id in cgroupfs
-Date: Mon, 31 Aug 2009 18:26:41 +0800
-Message-ID: <20090831104216.648065078@intel.com>
+Subject: [RFC][PATCH 3/4] memcg: add accessor to mem_cgroup.css
+Date: Mon, 31 Aug 2009 18:26:43 +0800
+Message-ID: <20090831104216.923421735@intel.com>
 References: <20090831102640.092092954@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B3E256B006A
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:43:32 -0400 (EDT)
-Content-Disposition: inline; filename=memcg-show-id.patch
+	by kanga.kvack.org (Postfix) with SMTP id 2B2BC6B007E
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:43:33 -0400 (EDT)
+Content-Disposition: inline; filename=memcg-mem_cgroup_css.patch
 Sender: owner-linux-mm@kvack.org
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
 Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, lizf@cn.fujitsu.com, nishimura@mxp.nes.nec.co.jp, menage@google.com, linux-mm <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-The hwpoison test suite need to selectively inject hwpoison to some
-targeted task pages, and must not kill important system processes
-such as init.
-
-The memory cgroup serves this purpose well. We can put the target
-processes under the control of a memory cgroup, tell the hwpoison
-injection code the id of that memory cgroup so that it will only
-poison pages associated with it.
+So that one can check its cgroup id and free the reference count
+grabbed by try_get_mem_cgroup_from_page().
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memcontrol.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
+ include/linux/memcontrol.h |    7 +++++++
+ mm/memcontrol.c            |    6 ++++++
+ 2 files changed, 13 insertions(+)
 
---- linux-mm.orig/mm/memcontrol.c	2009-08-31 15:27:34.000000000 +0800
-+++ linux-mm/mm/memcontrol.c	2009-08-31 15:41:50.000000000 +0800
-@@ -2510,6 +2510,11 @@ mem_cgroup_get_recursive_idx_stat(struct
- 	*val = d.val;
+--- linux-mm.orig/include/linux/memcontrol.h	2009-08-31 15:25:48.000000000 +0800
++++ linux-mm/include/linux/memcontrol.h	2009-08-31 15:27:00.000000000 +0800
+@@ -81,6 +81,8 @@ int mm_match_cgroup(const struct mm_stru
+ 	return cgroup == mem;
  }
  
-+static u64 mem_cgroup_id_read(struct cgroup *cont, struct cftype *cft)
++extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
++
+ extern int
+ mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
+ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+@@ -206,6 +208,11 @@ static inline int task_in_mem_cgroup(str
+ 	return 1;
+ }
+ 
++static inline struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
 +{
-+	return css_id(cgroup_subsys_state(cont, mem_cgroup_subsys_id));
++	return NULL;
 +}
 +
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ static inline int
+ mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
  {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-@@ -2842,6 +2847,10 @@ static int mem_cgroup_swappiness_write(s
+--- linux-mm.orig/mm/memcontrol.c	2009-08-31 15:25:48.000000000 +0800
++++ linux-mm/mm/memcontrol.c	2009-08-31 15:25:52.000000000 +0800
+@@ -282,6 +282,12 @@ mem_cgroup_zoneinfo(struct mem_cgroup *m
+ 	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
+ }
  
- static struct cftype mem_cgroup_files[] = {
- 	{
-+		.name = "id",
-+		.read_u64 = mem_cgroup_id_read,
-+	},
-+	{
- 		.name = "usage_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
- 		.read_u64 = mem_cgroup_read,
++struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
++{
++	return &mem->css;
++}
++EXPORT_SYMBOL(mem_cgroup_css);
++
+ static struct mem_cgroup_per_zone *
+ page_cgroup_zoneinfo(struct page_cgroup *pc)
+ {
 
 -- 
 
