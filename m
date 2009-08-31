@@ -1,47 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF8B6B0093
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 07:11:49 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp03.in.ibm.com (8.14.3/8.13.1) with ESMTP id n7VBBmB0008827
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 16:41:48 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n7VBBm3p2818198
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 16:41:48 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n7VBBlJ2009216
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:11:48 +1000
-Date: Mon, 31 Aug 2009 16:41:46 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 5/5] memcg: drain per cpu stock
-Message-ID: <20090831111146.GJ4770@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com> <20090828132809.ad7cfebc.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 917526B005A
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 07:28:17 -0400 (EDT)
+Date: Mon, 31 Aug 2009 12:27:32 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] swap: Fix swap size in case of block devices
+In-Reply-To: <200908302149.10981.ngupta@vflare.org>
+Message-ID: <Pine.LNX.4.64.0908311151190.16326@sister.anvils>
+References: <200908302149.10981.ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090828132809.ad7cfebc.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Karel Zak <kzak@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-28 13:28:09]:
+On Sun, 30 Aug 2009, Nitin Gupta wrote:
 
+> During swapon, swap size is set to number of usable pages in the given
+> swap file/block device minus 1 (for header page). In case of block devices,
+> this size is incorrectly set as one page less than the actual due to an
+> off-by-one error. For regular files, this size is set correctly.
 > 
-> Add function for dropping per-cpu stock of charges.
-> This is called when
-> 	- cpu is unplugged.
-> 	- force_empty
-> 	- recalim seems to be not easy.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
-The complexity of this patch and additional code make percpu_counter
-more attractive. Why not work on percpu_counter if that is not as good
-as we expect it to be and in turn help other exploiters as well.
--- 
-	Balbir
+I agree that there's an off-by-one disagreement between swapon and mkswap
+regarding last_page.  The kernel seems to interpret it as the index of
+what I'd call the end page, the first page beyond the swap area.
+
+I'd never noticed that until the beginning of this year, and out of
+caution I've done nothing about it.  I believe that the kernel has
+been wrong since Linux 2.2.? or 2.3.?, ever since swap header version 1
+was first introduced; and that mkswap has set it the same way all along.
+
+But I've not spent time on the research to establish that for sure.
+
+What if there used to be a version of mkswap which set last_page one
+greater as the kernel expects?  Neither Karel nor I think that's the
+case, but we're not absolutely certain.  And what if (I suppose I'm
+getting even more wildly cautious here!) someone has learnt that
+that page remains untouched and is now putting it to other use?
+or has compensated for the off-by-one and is setting it one greater,
+beyond the end of the partition, not using mkswap?
+
+Since nobody has been hurt by it in all these years, I felt safer
+to go on leaving that discrepancy as is.  Call me over cautious.
+
+Regarding your patch comment: I'm puzzled by the remark "For regular
+files, this size is set correctly".  Do you mean that mkswap is
+setting last_page one higher when dealing with a regular file rather
+than a block device (I was unaware of that, but never looked to see)?
+But your patch appears to be to code shared equally between block
+devices and regular files, so then you'd be introducing a bug on
+regular files?  And shouldn't mkswap be fixed to be consistent
+with itself?  Hopefully I've misunderstood: please explain further.
+
+And regarding the patch itself: my understanding is that the problem
+is with the interpretation of last_page, so I don't think one change
+to nr_good_pages would be enough to fix it - you'd need to change the
+other places where last_page is referred to too.
+
+I'm still disinclined to make any change here myself (beyond
+a comment noting the discrepancy); but tell me I'm a fool.
+
+Hugh
+
+> ---
+> 
+>  mm/swapfile.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 8ffdc0d..3d37b97 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1951,9 +1951,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  	if (error)
+>  		goto bad_swap;
+> 
+> +	/* excluding header page */
+>  	nr_good_pages = swap_header->info.last_page -
+> -			swap_header->info.nr_badpages -
+> -			1 /* header page */;
+> +			swap_header->info.nr_badpages;
+> 
+>  	if (nr_good_pages) {
+>  		swap_map[0] = SWAP_MAP_BAD;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
