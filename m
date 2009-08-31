@@ -1,41 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB0846B004F
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 13:51:44 -0400 (EDT)
-Message-ID: <4A9C0DC2.6080704@redhat.com>
-Date: Mon, 31 Aug 2009 20:52:02 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 189E06B004D
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 15:26:50 -0400 (EDT)
+Date: Mon, 31 Aug 2009 20:26:22 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] swap: Fix swap size in case of block devices
+In-Reply-To: <4A9C06B2.3040009@vflare.org>
+Message-ID: <Pine.LNX.4.64.0908311959460.13560@sister.anvils>
+References: <200908302149.10981.ngupta@vflare.org>
+ <Pine.LNX.4.64.0908311151190.16326@sister.anvils> <4A9C06B2.3040009@vflare.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <E88DD564E9DC5446A76B2B47C3BCCA150219600F9B@pdsmsx503.ccr.corp.intel.com> <C85CEDA13AB1CF4D9D597824A86D2B9006AEB944B8@PDSMSX501.ccr.corp.intel.com>
-In-Reply-To: <C85CEDA13AB1CF4D9D597824A86D2B9006AEB944B8@PDSMSX501.ccr.corp.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Xin, Xiaohui" <xiaohui.xin@intel.com>
-Cc: "mst@redhat.com" <mst@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Karel Zak <kzak@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/31/2009 02:42 PM, Xin, Xiaohui wrote:
-> Hi, Michael
-> That's a great job. We are now working on support VMDq on KVM, and since the VMDq hardware presents L2 sorting based on MAC addresses and VLAN tags, our target is to implement a zero copy solution using VMDq. We stared from the virtio-net architecture. What we want to proposal is to use AIO combined with direct I/O:
-> 1) Modify virtio-net Backend service in Qemu to submit aio requests composed from virtqueue.
-> 2) Modify TUN/TAP device to support aio operations and the user space buffer directly mapping into the host kernel.
-> 3) Let a TUN/TAP device binds to single rx/tx queue from the NIC.
-> 4) Modify the net_dev and skb structure to permit allocated skb to use user space directly mapped payload buffer address rather then kernel allocated.
->
-> As zero copy is also your goal, we are interested in what's in your mind, and would like to collaborate with you if possible.
->    
+On Mon, 31 Aug 2009, Nitin Gupta wrote:
+> 
+> mkswap sets last_page correctly: 0-based index of last usable
+> swap page. To explain why this bug affects only block swap devices,
+> some code walkthrough is done below:
+> (BTW, I only checked mkswap which is part of util-linux-ng 2.14.2).
+> 
+> swapon()
+> {
+>  ...
+>         nr_good_pages = swap_header->info.last_page -
+>                         swap_header->info.nr_badpages -
+>                         1 /* header page */;
+> 
+> ====
+> 	off-by-one error: for both regular and block device case, but...
+> ====
+> 
+>         if (nr_good_pages) {
+>                 swap_map[0] = SWAP_MAP_BAD;
+>                 p->max = maxpages;
+>                 p->pages = nr_good_pages;
+>                 nr_extents = setup_swap_extents(p, &span);
+> ====
+> For block devices, setup_swap_extents() leaves p->pages untouched.
+> For regular files, it sets p->pages
+> 	== total usable swap pages (including header page) - 1;
 
-One way to share the effort is to make vmdq queues available as normal 
-kernel interfaces.  It would take quite a bit of work, but the end 
-result is that no other components need to be change, and it makes vmdq 
-useful outside kvm.  It also greatly reduces the amount of integration 
-work needed throughout the stack (kvm/qemu/libvirt).
+I think you're overlooking the "page < sis->max" condition
+in setup_swap_extents()'s loop.  So at the end of the loop,
+if no pages were lost to fragmentation, we have
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+		sis->max = page_no;		/* no change */
+		sis->pages = page_no - 1;	/* no change */
+
+> ====
+>                 if (nr_extents < 0) {
+>                         error = nr_extents;
+>                         goto bad_swap;
+>                 }
+>                 nr_good_pages = p->pages;
+> 
+> ====
+> So, for block device, nr_good_pages == last_page - nr_badpages - 1
+> 				== (total pages - 1) - nr_badpages - 1 (error)
+> 			For regular files, nr_good_pages == total pages - 1
+> (correct)
+> ====
+> 
+>         }
+> ...
+> }
+> 
+> 
+> With this fix, block device case is corrected to last_page - nr_badpages - 1
+> while regular file case remain correct since setup_swap_extents() still gives
+> same correct value in p->pages (== total pages - 1).
+> 
+> 
+> > And regarding the patch itself: my understanding is that the problem
+> > is with the interpretation of last_page, so I don't think one change
+> > to nr_good_pages would be enough to fix it - you'd need to change the
+> > other places where last_page is referred to too.
+> >
+> 
+> I looked at other instances of last_page in swapon() -- all these other
+> instances looked correct to me.
+
+I believe they're all consistent with the off-by-oneness of nr_good_pages.
+p->max, for example, is consistently one more than p->pages, so long as
+there are no bad pages and no overflowing the swp_entry_t.
+
+Perhaps you're placing too much faith in your interpretation of "max"?
+I dislike several conventions in swapfile.c, it does lend itself to
+off-by-oneness.
+
+> 
+> > I'm still disinclined to make any change here myself (beyond
+> > a comment noting the discrepancy); but tell me I'm a fool.
+> >
+> 
+> I agree that nobody would bother losing 1 swap slot, so it might
+> not be desirable to have this fix. But IMHO, I don't see any reason
+> to leave this discrepancy between regular files and swap devices -- its
+> just so odd.
+
+Yes, I'd dislike that discrepancy between regular files and block
+devices, if I could see it.  Though I'd probably still be cautious
+about the disk partitions.
+
+dd if=/dev/zero of=/swap bs=200k	# says 204800 bytes (205kB)
+mkswap /swap				# says size = 196 KiB
+swapon /swap				# dmesg says Adding 192k swap
+
+which is what I've come to expect from the off-by-one,
+even on regular files.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
