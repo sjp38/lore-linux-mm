@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A41736B004D
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 16:42:42 -0400 (EDT)
-Received: by pxi7 with SMTP id 7so320247pxi.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2009 13:42:45 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 699416B004D
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 17:03:40 -0400 (EDT)
+Date: Mon, 31 Aug 2009 17:03:37 -0400
+From: Theodore Tso <tytso@mit.edu>
+Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
+Message-ID: <20090831210337.GG23535@mit.edu>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <9EECC02A4CC333418C00A85D21E893260184183346@azsmsx502.amr.corp.intel.com>
-References: <4A7AAE07.1010202@redhat.com> <4A878377.70502@redhat.com>
-	 <20090816045522.GA13740@localhost>
-	 <9EECC02A4CC333418C00A85D21E89326B6611F25@azsmsx502.amr.corp.intel.com>
-	 <20090821182439.GN29572@balbir.in.ibm.com>
-	 <9EECC02A4CC333418C00A85D21E8932601841832F9@azsmsx502.amr.corp.intel.com>
-	 <4A9C2A17.3080802@redhat.com>
-	 <9EECC02A4CC333418C00A85D21E893260184183339@azsmsx502.amr.corp.intel.com>
-	 <4A9C2E01.7080707@redhat.com>
-	 <9EECC02A4CC333418C00A85D21E893260184183346@azsmsx502.amr.corp.intel.com>
-Date: Tue, 1 Sep 2009 02:12:44 +0530
-Message-ID: <661de9470908311342gcdc3eb7v261951221212e549@mail.gmail.com>
-Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090831104748.GT12579@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 1, 2009 at 1:41 AM, Dike, Jeffrey G<jeffrey.g.dike@intel.com> w=
-rote:
->> Page discards by the host, which are invisible to the guest
->> OS.
->
-> Duh. =A0Right - I can't keep my VM systems straight...
->
+On Mon, Aug 31, 2009 at 12:47:49PM +0200, Jens Axboe wrote:
+> It's because ext4 writepages sets ->range_start and wb_writeback() is
+> range cyclic, then the next iteration will have the previous end point
+> as the starting point. Looks like we need to clear ->range_start in
+> wb_writeback(), the better place is probably to do that in
+> fs/fs-writeback.c:generic_sync_wb_inodes() right after the
+> writeback_single_inode() call. This, btw, should be no different than
+> the current code, weird/correct or not :-)
 
-Sounds like we need a way of indicating reference information. Guest
-page hinting (cough; cough) anyone? May be a simpler version?
+Thanks for pointing it out.  After staring at the code, I now believe
+this is the best fix for now.  What do other folks think?
 
-Balbir Singh.
+     	    	     	       	       - Ted
+
+commit 39cac8147479b48cd45b768d184aa6a80f23a2f7
+Author: Theodore Ts'o <tytso@mit.edu>
+Date:   Mon Aug 31 17:00:59 2009 -0400
+
+    ext4: Restore wbc->range_start in ext4_da_writepages()
+    
+    To solve a lock inversion problem, we implement part of the
+    range_cyclic algorithm in ext4_da_writepages().  (See commit 2acf2c26
+    for more details.)
+    
+    As part of that change wbc->range_start was modified by ext4's
+    writepages function, which causes its callers to get confused since
+    they aren't expecting the filesystem to modify it.  The simplest fix
+    is to save and restore wbc->range_start in ext4_da_writepages.
+    
+    Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
+
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index d61fb52..ff659e7 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -2749,6 +2749,7 @@ static int ext4_da_writepages(struct address_space *mapping,
+ 	long pages_skipped;
+ 	int range_cyclic, cycled = 1, io_done = 0;
+ 	int needed_blocks, ret = 0, nr_to_writebump = 0;
++	loff_t range_start = wbc->range_start;
+ 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
+ 
+ 	trace_ext4_da_writepages(inode, wbc);
+@@ -2917,6 +2918,7 @@ out_writepages:
+ 	if (!no_nrwrite_index_update)
+ 		wbc->no_nrwrite_index_update = 0;
+ 	wbc->nr_to_write -= nr_to_writebump;
++	wbc->range_start = range_start;
+ 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
