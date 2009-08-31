@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EE586B008A
-	for <linux-mm@kvack.org>; Sun, 30 Aug 2009 23:08:16 -0400 (EDT)
-Date: Sun, 30 Aug 2009 23:08:15 -0400
-From: Theodore Tso <tytso@mit.edu>
-Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
-Message-ID: <20090831030815.GD20822@mit.edu>
-References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id DFC7A6B0092
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 03:42:29 -0400 (EDT)
+Date: Mon, 31 Aug 2009 15:42:21 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] slqb: add common slab debug bits
+Message-ID: <20090831074221.GA10263@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090830222710.GA9938@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com, jens.axboe@oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 30, 2009 at 06:27:10PM -0400, Christoph Hellwig wrote:
-> I'm don't think tuning it on a per-filesystem basis is a good idea,
-> we had to resort to this for 2.6.30 as a quick hack, and we will ged
-> rid of it again in 2.6.31 one way or another.  I personally think we
-> should fight this cancer of per-filesystem hacks in the writeback code
-> as much as we can.  Right now people keep adding tuning hacks for
-> specific workloads there, and at least all the modern filesystems (ext4,
-> btrfs and XFS) have very similar requirements to the writeback code,
-> that is give the filesystem as much as possible to write at the same
-> time to do intelligent decisions based on that.  The VM writeback code
-> fails horribly at that right now.
+This is a simple copy&paste from slub.c:
 
-Yep; and Jens' patch doesn't change that.  It is still sending writes
-out to the filesystem a piddling 1024 pages at a time.
+- lockdep annotation
+- might sleep annotation
+- fault injection
 
-> My stance is to wait for this until about -rc2 at which points Jens'
-> code is hopefully in and we can start doing all the fine-tuning,
-> including lots of benchmarking.
+CC: Nick Piggin <nickpiggin@yahoo.com.au>
+CC: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/slqb.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-Well, I've ported my patch so it applies on top of Jens' per-bdi
-patch.  It seems to be clearly needed; Jens, would you agree to add it
-to your per-bdi patch series?  We can choose a different default if
-you like, but making MAX_WRITEBACK_PAGES tunable seems to be clearly
-necessary.
+--- linux-mm.orig/mm/slqb.c	2009-08-28 15:51:15.000000000 +0800
++++ linux-mm/mm/slqb.c	2009-08-28 16:05:33.000000000 +0800
+@@ -19,6 +19,7 @@
+ #include <linux/ctype.h>
+ #include <linux/kallsyms.h>
+ #include <linux/memory.h>
++#include <linux/fault-inject.h>
+ 
+ /*
+  * TODO
+@@ -1541,6 +1542,12 @@ static __always_inline void *slab_alloc(
+ 
+ 	gfpflags &= gfp_allowed_mask;
+ 
++	lockdep_trace_alloc(gfpflags);
++	might_sleep_if(gfpflags & __GFP_WAIT);
++
++	if (should_failslab(s->objsize, gfpflags))
++		return NULL;
++
+ again:
+ 	local_irq_save(flags);
+ 	object = __slab_alloc(s, gfpflags, node);
 
-By the way, while I was testing my patch on top of v13 of the per-bdi
-patches, I found something *very* curious.  I did a test where ran the
-following commands on a freshly mkfs'ed ext4 filesystem:
-
-	dd if=/dev/zero of=test1 bs=1024k count=128
-	dd if=/dev/zero of=test2 bs=1024k count=128
-	sync
-
-I traced the calls to ext4_da_writepages() using ftrace, and found this:
-
-      flush-8:16-1829  [001]    23.416351: ext4_da_writepages: dev sdb ino 12 nr_t_write 32759 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-      flush-8:16-1829  [000]    25.939354: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-      flush-8:16-1829  [000]    25.939486: ext4_da_writepages: dev sdb ino 13 nr_t_write 32759 pages_skipped 0 range_start 134180864 range_end 9223372036854775807 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-      flush-8:16-1829  [000]    27.055687: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-      flush-8:16-1829  [000]    27.055691: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-      flush-8:16-1829  [000]    27.878708: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-
-The *first* time the per-bdi code called writepages on the second file
-(test2, inode #13), range_start was 134180864 (which, curiously
-enough, is 4096*32759, which was the value of nr_to_write passed to
-ext4_da_writepages).  Given that the inode only had 32768 pages, the
-fact that apparently *some* codepath called ext4_da_writepages
-starting at logical block 32759, with nr_to_write set to 32759, seems
-very curious indeed.  That doesn't seem right at all.  It's late, so I
-won't try to trace it down now; plus which it's your code so I figure
-you can probably figure it out faster....
-
-     	     	       	    	    	       	  - Ted
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
