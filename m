@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 82F2F6B0062
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:47:46 -0400 (EDT)
-Date: Mon, 31 Aug 2009 12:47:49 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
-Message-ID: <20090831104748.GT12579@kernel.dk>
-References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E396B0062
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2009 06:59:53 -0400 (EDT)
+Date: Mon, 31 Aug 2009 11:59:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: page allocator regression on nommu
+Message-ID: <20090831105952.GC29627@csn.ul.ie>
+References: <20090831074842.GA28091@linux-sh.org> <20090831103056.GA29627@csn.ul.ie> <20090831104315.GB30264@linux-sh.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090831102909.GS12579@kernel.dk>
+In-Reply-To: <20090831104315.GB30264@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
-To: Theodore Tso <tytso@mit.edu>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
+To: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <dave@linux.vnet.ibm.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 31 2009, Jens Axboe wrote:
-> > I traced the calls to ext4_da_writepages() using ftrace, and found this:
+On Mon, Aug 31, 2009 at 07:43:15PM +0900, Paul Mundt wrote:
+> On Mon, Aug 31, 2009 at 11:30:56AM +0100, Mel Gorman wrote:
+> > On Mon, Aug 31, 2009 at 04:48:43PM +0900, Paul Mundt wrote:
+> > > Hi Mel,
+> > > 
+> > > It seems we've managed to trigger a fairly interesting conflict between
+> > > the anti-fragmentation disabling code and the nommu region rbtree. I've
+> > > bisected it down to:
+> > > 
+> > > commit 49255c619fbd482d704289b5eb2795f8e3b7ff2e
+> > > Author: Mel Gorman <mel@csn.ul.ie>
+> > > Date:   Tue Jun 16 15:31:58 2009 -0700
+> > > 
+> > >     page allocator: move check for disabled anti-fragmentation out of fastpath
+> > > 
+> > >     On low-memory systems, anti-fragmentation gets disabled as there is
+> > >     nothing it can do and it would just incur overhead shuffling pages between
+> > >     lists constantly.  Currently the check is made in the free page fast path
+> > >     for every page.  This patch moves it to a slow path.  On machines with low
+> > >     memory, there will be small amount of additional overhead as pages get
+> > >     shuffled between lists but it should quickly settle.
+> > > 
+> > > which causes death on unpacking initramfs on my nommu board. With this
+> > > reverted, everything works as expected. Note that this blows up with all of
+> > > SLOB/SLUB/SLAB.
+> > > 
+> > > I'll continue debugging it, and can post my .config if it will be helpful, but
+> > > hopefully you have some suggestions on what to try :-)
+> > > 
 > > 
-> >       flush-8:16-1829  [001]    23.416351: ext4_da_writepages: dev sdb ino 12 nr_t_write 32759 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> >       flush-8:16-1829  [000]    25.939354: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> >       flush-8:16-1829  [000]    25.939486: ext4_da_writepages: dev sdb ino 13 nr_t_write 32759 pages_skipped 0 range_start 134180864 range_end 9223372036854775807 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> >       flush-8:16-1829  [000]    27.055687: ext4_da_writepages: dev sdb ino 12 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> >       flush-8:16-1829  [000]    27.055691: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> >       flush-8:16-1829  [000]    27.878708: ext4_da_writepages: dev sdb ino 13 nr_t_write 32768 pages_skipped 0 range_start 0 range_end 0 nonblocking 0 for_kupdate 0 for_reclaim 0 for_writepages 1 range_cyclic 1
-> > 
-> > The *first* time the per-bdi code called writepages on the second file
-> > (test2, inode #13), range_start was 134180864 (which, curiously
-> > enough, is 4096*32759, which was the value of nr_to_write passed to
-> > ext4_da_writepages).  Given that the inode only had 32768 pages, the
-> > fact that apparently *some* codepath called ext4_da_writepages
-> > starting at logical block 32759, with nr_to_write set to 32759, seems
-> > very curious indeed.  That doesn't seem right at all.  It's late, so I
-> > won't try to trace it down now; plus which it's your code so I figure
-> > you can probably figure it out faster....
+> > Based on the output you have given me, it would appear the real
+> > underlying cause is that fragmentation caused the allocation to fail.
+> > The following patch might fix the problem.
+> >
+> Unfortunately this has no impact, the same issue occurs.
 > 
-> Interesting, needs checking up on. I've prepared a v14 patchset today,
-> perhaps (if you have time), you can see if it reproduces there? I'm
-> running some performance tests today, but will make a note to look into
-> this after that.
 
-It's because ext4 writepages sets ->range_start and wb_writeback() is
-range cyclic, then the next iteration will have the previous end point
-as the starting point. Looks like we need to clear ->range_start in
-wb_writeback(), the better place is probably to do that in
-fs/fs-writeback.c:generic_sync_wb_inodes() right after the
-writeback_single_inode() call. This, btw, should be no different than
-the current code, weird/correct or not :-)
+What is the output of the following debug patch?
 
--- 
-Jens Axboe
+====
+page-allocator: Debug per-cpu free
+
+It's possible that pages being freed on the per-cpu list of 1 page is
+the wrong type when anti-fragmentation is disabled. It could have the
+impact of triggering a fallback earlier than it should happen.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d052abb..a2a11ce 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1042,6 +1042,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 
+ 	pcp = &zone_pcp(zone, get_cpu())->pcp;
+ 	set_page_private(page, get_pageblock_migratetype(page));
++	WARN_ON_ONCE(page_group_by_mobility_disabled && page_private(page) != MIGRATE_UNMOVABLE);
+ 	local_irq_save(flags);
+ 	if (unlikely(wasMlocked))
+ 		free_page_mlock(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
