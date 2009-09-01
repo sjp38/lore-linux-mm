@@ -1,41 +1,78 @@
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 2/5] memcg: uncharge in batched manner
-Date: Mon, 31 Aug 2009 17:53:16 +0530
-Message-ID: <20090831122316.GM4770@balbir.in.ibm.com>
-References: <20090828132015.10a42e40.kamezawa.hiroyu@jp.fujitsu.com> <20090828132438.b33828bc.kamezawa.hiroyu@jp.fujitsu.com> <20090831110204.GG4770@balbir.in.ibm.com> <119e8331d1210b1f56d0f6416863bfbc.squirrel@webmail-b.css.fujitsu.com> <20090831121008.GL4770@balbir.in.ibm.com> <48d928bed22f20fc495e9ca1758dc7ed.squirrel@webmail-b.css.fujitsu.com>
-Reply-To: balbir@linux.vnet.ibm.com
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1752812AbZHaMXT@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <48d928bed22f20fc495e9ca1758dc7ed.squirrel@webmail-b.css.fujitsu.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D50D16B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 00:40:03 -0400 (EDT)
+Date: Mon, 31 Aug 2009 21:56:39 -0700 (PDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: Re: [PATCH] mm/vsmcan: check shrink_active_list() sc->isolate_pages()
+ return value.
+In-Reply-To: <20090901094157.1A80.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.00.0908312154130.27447@mail.selltech.ca>
+References: <alpine.DEB.2.00.0908311639220.15607@kernelhack.brc.ubc.ca> <20090901091249.dcd3a8d1.minchan.kim@barrios-desktop> <20090901094157.1A80.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Vincent Li <macli@brc.ubc.ca>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-08-31 21:14:10]:
+On Tue, 1 Sep 2009, KOSAKI Motohiro wrote:
 
-> Balbir Singh wrote:
-> >> > Does this effect deleting of a group and delay it by a large amount?
-> >> >
-> >> plz see what cgroup_release_and_xxxx  fixed. This is not for delay
-> >> but for race-condition, which makes rmdir sleep permanently.
-> >>
-> >
-> > I've seen those patches, where rmdir() can hang. My conern was time
-> > elapsed since we do css_get() and do a cgroup_release_and_wake_rmdir()
-> >
-> plz read unmap() and truncate() code.
-> The number of pages handled without cond_resched() is limited.
+> > On Mon, 31 Aug 2009 17:01:03 -0700 (PDT)
+> > Vincent Li <macli@brc.ubc.ca> wrote:
+> > 
+> > > On Tue, 1 Sep 2009, Minchan Kim wrote:
+> > > 
+> > > > On Mon, 31 Aug 2009 15:54:01 -0700
+> > > > Vincent Li <macli@brc.ubc.ca> wrote:
+> > > > 
+> > > > > commit 5343daceec (If sc->isolate_pages() return 0...) make shrink_inactive_list handle
+> > > > > sc->isolate_pages() return value properly. Add similar proper return value check for
+> > > > > shrink_active_list() sc->isolate_pages().
+> > > > > 
+> > > > > Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+> > > > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > > > 
+> > > > You should have write down your patch's effect clearly
+> > > > in changelog although it's easy. ;-)
+> > > 
+> > > Yes, I should have. This patch is inspired by Kosaki's patch, I 
+> > > thought mentioning that commit would make this patch as follow-up work and 
+> > > changelog clear enough. Would following changelog ok?
+> > > 
+> > > ----
+> > > Add proper return value check for shrink_active_list() 
+> > > sc->isolate_pages(). 
+> > > 
+> > > When "nr_taken == 0"
+> > > 	1: nr_scan related statistics should still be caculated.
+> > > 	2: jump to the end of function and release zone->lru_lock.
+> > 
+> > It looks good than old. 
+> > In fact, What I wanted is your patch impact.
+> > 
+> > For example, 
+> > ----
+> > If we can't isolate pages from LRU list, 
+> > we don't have to account page movement, either.
+> > Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
+> > 
+> > This patch removes unnecessary overhead of page accouting 
+> > and locking in shrink_active_list as follow-up work of commit 5343daceec.
+> > ---
 > 
->
+> Vincent, can you please resubmit the patch with new description?
+> Plus, You can add my reviewed-by sign too.
 
-I understand that part, I was referring to tasks stuck doing rmdir()
-while we do batched uncharge, will it be very visible to the end user?
-cond_resched() is bad in this case.. since it means we'll stay longer
-before we release the cgroup.
- 
+Ok, I will resubmit the patch with Kim's description and add reviewed-by 
+sign. Thanks everyone for reviewing!
 
--- 
-	Balbir
+Vincent Li
+Biomedical Research Center
+University of British Columbia
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
