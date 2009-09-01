@@ -1,92 +1,73 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D57566B004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 21:36:47 -0400 (EDT)
-Date: Thu, 1 Oct 2009 04:02:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20091001020207.GL6327@wotan.suse.de>
-References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost> <20090927104739.GA1666@localhost> <20090927192025.GA6327@wotan.suse.de> <20090928084401.GA22131@localhost>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH, RFC] vm: Add an tuning knob for vm.max_writeback_pages
+Date: Tue, 1 Sep 2009 13:27:39 +0530
+Message-ID: <20090901075738.GA16451@skywalker.linux.vnet.ibm.com>
+References: <1251600858-21294-1-git-send-email-tytso@mit.edu> <20090830165229.GA5189@infradead.org> <20090830181731.GA20822@mit.edu> <20090830222710.GA9938@infradead.org> <20090831030815.GD20822@mit.edu> <20090831102909.GS12579@kernel.dk> <20090831104748.GT12579@kernel.dk> <20090831210337.GG23535@mit.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-ext4-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <20090928084401.GA22131@localhost>
-Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-List-ID: <linux-mm.kvack.org>
+In-Reply-To: <20090831210337.GG23535@mit.edu>
+Sender: linux-ext4-owner@vger.kernel.org
+To: Theodore Tso <tytso@mit.edu>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Ext4 Developers List <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, chris.mason@oracle.com
+List-Id: linux-mm.kvack.org
 
-On Mon, Sep 28, 2009 at 04:44:01PM +0800, Wu Fengguang wrote:
-> On Mon, Sep 28, 2009 at 03:20:25AM +0800, Nick Piggin wrote:
-> > On Sun, Sep 27, 2009 at 06:47:39PM +0800, Wu Fengguang wrote:
-> > > > 
-> > > > And standard deviation is 0.04%, much larger than the difference 0.008% ..
-> > > 
-> > > Sorry that's not correct. I improved the accounting by treating
-> > > function0+function1 from two CPUs as an integral entity:
-> > > 
-> > >                  total time      add_to_page_cache_lru   percent  stddev
-> > >          before  3880166848.722  9683329.610             0.250%   0.014%
-> > >          after   3828516894.376  9778088.870             0.256%   0.012%
-> > >          delta                                           0.006%
-> > 
-> > I don't understand why you're doing this NFS workload to measure?
+On Mon, Aug 31, 2009 at 05:03:37PM -0400, Theodore Tso wrote:
+> On Mon, Aug 31, 2009 at 12:47:49PM +0200, Jens Axboe wrote:
+> > It's because ext4 writepages sets ->range_start and wb_writeback() is
+> > range cyclic, then the next iteration will have the previous end point
+> > as the starting point. Looks like we need to clear ->range_start in
+> > wb_writeback(), the better place is probably to do that in
+> > fs/fs-writeback.c:generic_sync_wb_inodes() right after the
+> > writeback_single_inode() call. This, btw, should be no different than
+> > the current code, weird/correct or not :-)
 > 
-> Because it is the first convenient workload hit my mind, and avoids
-> real disk IO :)
-
-Using tmpfs or sparse files is probably a lot easier.
-
- 
-> > I see significant nfs, networking protocol and device overheads in
-> > your profiles, also you're hitting some locks or something which
-> > is causing massive context switching. So I don't think this is a
-> > good test.
+> Thanks for pointing it out.  After staring at the code, I now believe
+> this is the best fix for now.  What do other folks think?
 > 
-> Yes there are overheads. However it is a real and common workload.
-
-Right, but so are lots of other workloads that don't hit
-add_to_page_cache heavily :)
- 
-
-> > But anyway as Hugh points out, you need to compare with a
-> > *completely* fixed kernel, which includes auditing all users of page
-> > flags non-atomically (slab, notably, but possibly also other
-> > places).
+>      	    	     	       	       - Ted
 > 
-> That's good point. We can do more benchmarks when more fixes are
-> available. However I suspect their design goal will be "fix them
-> without introducing noticeable overheads" :)
-
-s/noticeable//
-
-The problem with all the non-noticeable overheads that we're
-continually adding to the kernel is that we're adding them to
-the kernel. Non-noticeable part only makes it worse because
-you can't bisect them :)
- 
-
-> > One other thing to keep in mind that I will mention is that I am
-> > going to push in a patch to the page allocator to allow callers
-> > to avoid the refcounting (atomic_dec_and_test) in page lifetime,
-> > which is especially important for SLUB and takes more cycles off
-> > the page allocator...
-> >
-> > I don't know exactly what you're going to do after that to get a
-> > stable reference to slab pages. I guess you can read the page
-> > flags and speculatively take some slab locks and recheck etc...
+> commit 39cac8147479b48cd45b768d184aa6a80f23a2f7
+> Author: Theodore Ts'o <tytso@mit.edu>
+> Date:   Mon Aug 31 17:00:59 2009 -0400
 > 
-> For reliably we could skip page lock on zero refcounted pages.
+>     ext4: Restore wbc->range_start in ext4_da_writepages()
+>     
+>     To solve a lock inversion problem, we implement part of the
+>     range_cyclic algorithm in ext4_da_writepages().  (See commit 2acf2c26
+>     for more details.)
+>     
+>     As part of that change wbc->range_start was modified by ext4's
+>     writepages function, which causes its callers to get confused since
+>     they aren't expecting the filesystem to modify it.  The simplest fix
+>     is to save and restore wbc->range_start in ext4_da_writepages.
+>     
+>     Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
 > 
-> We may lose the PG_hwpoison bit on races with __SetPageSlub*, however
-> it should be an acceptable imperfection.
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index d61fb52..ff659e7 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -2749,6 +2749,7 @@ static int ext4_da_writepages(struct address_space *mapping,
+>  	long pages_skipped;
+>  	int range_cyclic, cycled = 1, io_done = 0;
+>  	int needed_blocks, ret = 0, nr_to_writebump = 0;
+> +	loff_t range_start = wbc->range_start;
+>  	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
+> 
+>  	trace_ext4_da_writepages(inode, wbc);
+> @@ -2917,6 +2918,7 @@ out_writepages:
+>  	if (!no_nrwrite_index_update)
+>  		wbc->no_nrwrite_index_update = 0;
+>  	wbc->nr_to_write -= nr_to_writebump;
+> +	wbc->range_start = range_start;
+>  	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
+>  	return ret;
+>  }
 
-I think if you're wiling to accept these problems, then it is
-completely reasonable to also accept similar races with kernel
-fastpaths to avoid extra overheads there.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+We had range_start reset till af6f029d3836eb7264cd3fbb13a6baf0e5fdb5ea
+
+-aneesh
