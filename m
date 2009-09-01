@@ -1,75 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D50D16B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 00:40:03 -0400 (EDT)
-Date: Mon, 31 Aug 2009 21:56:39 -0700 (PDT)
-From: Vincent Li <macli@brc.ubc.ca>
-Subject: Re: [PATCH] mm/vsmcan: check shrink_active_list() sc->isolate_pages()
- return value.
-In-Reply-To: <20090901094157.1A80.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.00.0908312154130.27447@mail.selltech.ca>
-References: <alpine.DEB.2.00.0908311639220.15607@kernelhack.brc.ubc.ca> <20090901091249.dcd3a8d1.minchan.kim@barrios-desktop> <20090901094157.1A80.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D33436B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 00:53:51 -0400 (EDT)
+Received: by pzk8 with SMTP id 8so1232268pzk.22
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:53:58 -0700 (PDT)
+Date: Tue, 1 Sep 2009 13:53:21 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH mmotm] Fix NUMA accounting in numastat.txt
+Message-Id: <20090901135321.f0da4715.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Vincent Li <macli@brc.ubc.ca>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Sep 2009, KOSAKI Motohiro wrote:
 
-> > On Mon, 31 Aug 2009 17:01:03 -0700 (PDT)
-> > Vincent Li <macli@brc.ubc.ca> wrote:
-> > 
-> > > On Tue, 1 Sep 2009, Minchan Kim wrote:
-> > > 
-> > > > On Mon, 31 Aug 2009 15:54:01 -0700
-> > > > Vincent Li <macli@brc.ubc.ca> wrote:
-> > > > 
-> > > > > commit 5343daceec (If sc->isolate_pages() return 0...) make shrink_inactive_list handle
-> > > > > sc->isolate_pages() return value properly. Add similar proper return value check for
-> > > > > shrink_active_list() sc->isolate_pages().
-> > > > > 
-> > > > > Signed-off-by: Vincent Li <macli@brc.ubc.ca>
-> > > > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> > > > 
-> > > > You should have write down your patch's effect clearly
-> > > > in changelog although it's easy. ;-)
-> > > 
-> > > Yes, I should have. This patch is inspired by Kosaki's patch, I 
-> > > thought mentioning that commit would make this patch as follow-up work and 
-> > > changelog clear enough. Would following changelog ok?
-> > > 
-> > > ----
-> > > Add proper return value check for shrink_active_list() 
-> > > sc->isolate_pages(). 
-> > > 
-> > > When "nr_taken == 0"
-> > > 	1: nr_scan related statistics should still be caculated.
-> > > 	2: jump to the end of function and release zone->lru_lock.
-> > 
-> > It looks good than old. 
-> > In fact, What I wanted is your patch impact.
-> > 
-> > For example, 
-> > ----
-> > If we can't isolate pages from LRU list, 
-> > we don't have to account page movement, either.
-> > Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
-> > 
-> > This patch removes unnecessary overhead of page accouting 
-> > and locking in shrink_active_list as follow-up work of commit 5343daceec.
-> > ---
-> 
-> Vincent, can you please resubmit the patch with new description?
-> Plus, You can add my reviewed-by sign too.
+In Documentation/numastat.txt, it confused me.
+For example, there are nodes [0,1] in system.
 
-Ok, I will resubmit the patch with Kim's description and add reviewed-by 
-sign. Thanks everyone for reviewing!
+barrios:~$ cat /proc/zoneinfo | egrep 'numa|zone'
+Node 0, zone	DMA
+	numa_hit	33226
+	numa_miss	1739
+	numa_foreign	27978
+	..
+	..
+Node 1, zone	DMA
+	numa_hit	307
+	numa_miss	46900
+	numa_foreign	0
 
-Vincent Li
-Biomedical Research Center
-University of British Columbia
+1) In node 0,  NUMA_MISS means it wanted to allocate page
+in node 1 but ended up with page in node 0
+
+2) In node 0, NUMA_FOREIGN means it wanted to allocate page
+in node 0 but ended up with page from Node 1.
+
+But now, numastat explains it oppositely about (MISS, FOREIGN).
+Let's fix up with viewpoint of zone. 
+
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ Documentation/numastat.txt |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/numastat.txt b/Documentation/numastat.txt
+index 80133ac..9fcc9a6 100644
+--- a/Documentation/numastat.txt
++++ b/Documentation/numastat.txt
+@@ -7,10 +7,10 @@ All units are pages. Hugepages have separate counters.
+
+ numa_hit			A process wanted to allocate memory from this node,
+ 					and succeeded.
+-numa_miss			A process wanted to allocate memory from this node,
+-					but ended up with memory from another.
+-numa_foreign		A process wanted to allocate on another node,
+-				    but ended up with memory from this one.
++numa_miss			A process wanted to allocate memory from another node,
++					but ended up with memory from this node.
++numa_foreign		A process wanted to allocate on this node,
++				    but ended up with memory from another one.
+ local_node			A process ran on this node and got memory from it.
+ other_node			A process ran on this node and got memory from another node.
+ interleave_hit 		Interleaving wanted to allocate from this node
+--
+1.5.4.3
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
