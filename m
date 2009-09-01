@@ -1,90 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 269756B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 05:52:06 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n819qBYT010102
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 1 Sep 2009 18:52:11 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8636D45DE58
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 18:52:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B59645DE54
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 18:52:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 17307E1800E
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 18:52:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 88E1EE1801D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 18:52:10 +0900 (JST)
-Date: Tue, 1 Sep 2009 18:50:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mmotm][BUG] free is bigger than presnet Re: mmotm
- 2009-08-27-16-51 uploaded
-Message-Id: <20090901185013.c86bd937.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0909011031140.13740@sister.anvils>
-References: <200908272355.n7RNtghC019990@imap1.linux-foundation.org>
-	<20090901180032.55f7b8ca.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0909011031140.13740@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C43C16B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 06:03:55 -0400 (EDT)
+Date: Tue, 1 Sep 2009 11:03:56 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: page allocator regression on nommu
+Message-ID: <20090901100356.GA27393@csn.ul.ie>
+References: <20090831074842.GA28091@linux-sh.org> <20090831103056.GA29627@csn.ul.ie> <20090831104315.GB30264@linux-sh.org> <20090831105952.GC29627@csn.ul.ie> <20090901004627.GA531@linux-sh.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090901004627.GA531@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, hannes@cmpxchg.org
+To: Paul Mundt <lethal@linux-sh.org>, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Hansen <dave@linux.vnet.ibm.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Sep 2009 10:33:31 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
-
-> On Tue, 1 Sep 2009, KAMEZAWA Hiroyuki wrote:
+On Tue, Sep 01, 2009 at 09:46:27AM +0900, Paul Mundt wrote:
+> > What is the output of the following debug patch?
 > > 
-> > I'm not digggin so much but /proc/meminfo corrupted.
-> > 
-> > [kamezawa@bluextal cgroup]$ cat /proc/meminfo
-> > MemTotal:       24421124 kB
-> > MemFree:        38314388 kB
 > 
-> If that's without my fix to shrink_active_list(), I'd try again with.
-> Hugh
+> ...
+> Inode-cache hash table entries: 1024 (order: 0, 4096 bytes)
+> ------------[ cut here ]------------
+> Badness at mm/page_alloc.c:1046
 > 
-Thank you very much. I missed this patch.
-It's fixed.
 
-Regards,
--Kame
+Ok, it looks like ownership was not being taken properly and the first
+patch was incomplete. Please try
 
+====
 
-> [PATCH mmotm] vmscan move pgdeactivate modification to shrink_active_list fix
-> 
-> mmotm 2009-08-27-16-51 lets the OOM killer loose on my loads even
-> quicker than last time: one bug fixed but another bug introduced.
-> vmscan-move-pgdeactivate-modification-to-shrink_active_list.patch
-> forgot to add NR_LRU_BASE to lru index to make zone_page_state index.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> ---
-> 
->  mm/vmscan.c |    6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> --- mmotm/mm/vmscan.c	2009-08-28 10:07:57.000000000 +0100
-> +++ linux/mm/vmscan.c	2009-08-28 18:30:33.000000000 +0100
-> @@ -1381,8 +1381,10 @@ static void shrink_active_list(unsigned
->  	reclaim_stat->recent_rotated[file] += nr_rotated;
->  	__count_vm_events(PGDEACTIVATE, nr_deactivated);
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
-> -	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
-> -	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
-> +	__mod_zone_page_state(zone, NR_ACTIVE_ANON + file * LRU_FILE,
-> +							nr_rotated);
-> +	__mod_zone_page_state(zone, NR_INACTIVE_ANON + file * LRU_FILE,
-> +							nr_deactivated);
->  	spin_unlock_irq(&zone->lru_lock);
->  }
->  
-> 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d052abb..5596880 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -817,13 +815,15 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 			 * agressive about taking ownership of free pages
+ 			 */
+ 			if (unlikely(current_order >= (pageblock_order >> 1)) ||
+-					start_migratetype == MIGRATE_RECLAIMABLE) {
++					start_migratetype == MIGRATE_RECLAIMABLE ||
++					page_group_by_mobility_disabled) {
+ 				unsigned long pages;
+ 				pages = move_freepages_block(zone, page,
+ 								start_migratetype);
+ 
+ 				/* Claim the whole block if over half of it is free */
+-				if (pages >= (1 << (pageblock_order-1)))
++				if (pages >= (1 << (pageblock_order-1)) ||
++						page_group_by_mobility_disabled)
+ 					set_pageblock_migratetype(page,
+ 								start_migratetype);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
