@@ -1,102 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7D0B46B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 03:11:30 -0400 (EDT)
-Received: by pxi14 with SMTP id 14so450227pxi.19
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2009 00:11:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.0908311959460.13560@sister.anvils>
-References: <200908302149.10981.ngupta@vflare.org>
-	 <Pine.LNX.4.64.0908311151190.16326@sister.anvils>
-	 <4A9C06B2.3040009@vflare.org>
-	 <Pine.LNX.4.64.0908311959460.13560@sister.anvils>
-Date: Tue, 1 Sep 2009 12:41:33 +0530
-Message-ID: <d760cf2d0909010011g75a918c0hedd4b2571afc054c@mail.gmail.com>
-Subject: Re: [PATCH] swap: Fix swap size in case of block devices
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id 3DA6F6B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 03:14:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n817EbZq003766
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 1 Sep 2009 16:14:38 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AB1E45DE6C
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:37 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A76545DE66
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:37 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D56F51DB8048
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:36 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D53F21DB804E
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:30 +0900 (JST)
+Date: Tue, 1 Sep 2009 16:12:28 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/4] memcg: add support for hwpoison testing
+Message-Id: <20090901161228.9fb33234.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090901064652.GA20342@localhost>
+References: <20090831102640.092092954@intel.com>
+	<20090901084626.ac4c8879.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090901022514.GA11974@localhost>
+	<20090901113214.60e7ae32.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090901064652.GA20342@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Karel Zak <kzak@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 1, 2009 at 12:56 AM, Hugh Dickins<hugh.dickins@tiscali.co.uk> w=
-rote:
-> On Mon, 31 Aug 2009, Nitin Gupta wrote:
->> For block devices, setup_swap_extents() leaves p->pages untouched.
->> For regular files, it sets p->pages
->> =A0 =A0 =A0 =3D=3D total usable swap pages (including header page) - 1;
->
-> I think you're overlooking the "page < sis->max" condition
-> in setup_swap_extents()'s loop. =A0So at the end of the loop,
-> if no pages were lost to fragmentation, we have
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sis->max =3D page_no; =A0 =A0 =A0 =A0 =A0 =
-=A0 /* no change */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0sis->pages =3D page_no - 1; =A0 =A0 =A0 /*=
- no change */
->
+On Tue, 1 Sep 2009 14:46:52 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Oh, I missed this loop condition. The variable naming is so bad, I
-find it very hard to follow this part of code.
+> On Tue, Sep 01, 2009 at 10:32:14AM +0800, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 1 Sep 2009 10:25:14 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > > > 4. I can't understand why you need this. I wonder you can get pfn via
+> > > >    /proc/<pid>/????. And this may insert HWPOISON to page-cache of shared
+> > > >    library and "unexpected" process will be poisoned.
+> > > 
+> > > Sorry I should have explained this. It's mainly for correctness.
+> > > When a user space tool queries the task PFNs in /proc/pid/pagemap and
+> > > then send to /debug/hwpoison/corrupt-pfn, there is a racy window that
+> > > the page could be reclaimed and allocated by some one else. It would
+> > > be awkward to try to pin the pages in user space. So we need the
+> > > guarantees provided by /debug/hwpoison/corrupt-filter-memcg, which
+> > > will be checked inside the page lock with elevated reference count.
+> > > 
+> > 
+> > memcg never holds refcnt for a page and the kernel::vmscan.c can reclaim
+> > any pages under memcg whithout checking anything related to memcg.
+> > *And*, your code has no "pin" code.
+> > This patch sed does no jobs for your concern.
+> 
+> We grabbed page here, which is not in the scope of this patchset:
+> 
+>         static int try_memory_failure(unsigned long pfn)
+>         {      
+>                 struct page *p;
+>                 int res = -EINVAL;
+> 
+>                 if (!pfn_valid(pfn))
+>                         return res;
+> 
+>                 p = pfn_to_page(pfn);
+>                 if (!get_page_unless_zero(compound_head(p)))
+>                         return res;
+> 
+>                 lock_page_nosync(compound_head(p));
+> 
+>                 if (hwpoison_filter(p))
+>                         goto out;
+> 
+>                 res = __memory_failure(pfn, 18,
+>                                        MEMORY_FAILURE_FLAG_COUNTED |
+>                                        MEMORY_FAILURE_FLAG_LOCKED);
+>         out:
+>                 unlock_page(p);
+>                 return res;
+>         }
 
-Still, if there is even a single page in swap file that is not usable
-(i.e. non-contiguous on disk) -- which is what usually happens for swap
-files of any practical size -- setup_swap_extents() gives correct value
-in sis->pages =3D=3D total usable pages (including header) - 1;
-
-However, if all the file pages are usable, it gives off-by-one error, as
-you noted.
-
-> Yes, I'd dislike that discrepancy between regular files and block
-> devices, if I could see it.  Though I'd probably still be cautious
-> about the disk partitions.
-
-> dd if=3D/dev/zero of=3D/swap bs=3D200k        # says 204800 bytes (205kB)
-> mkswap /swap                            # says size =3D 196 KiB
-> swapon /swap                            # dmesg says Adding 192k swap
-
-> which is what I've come to expect from the off-by-one,
-> even on regular files.
-
-In general, its not correct to compare size repored by mkswap and
-swapon like this. The size reported by mkswap includes pages which
-are not contiguous on disk. While, kernel considers only
-PAGE_SIZE-length, PAGE_SIZE-aligned contiguous run of blocks. So, size
-reported by mkswap and swapon can vary wildly. For e.g.:
-
-(on mtdram with ext2 fs)
-dd if=3D/dev/zero of=3Dswap.dd bs=3D1M count=3D10
-mkswap swap.dd # says size =3D 10236 KiB
-swapon swap.dd # says Adding 10112k swap
-
-=3D=3D=3D=3D
-
-So, to summarize:
-
-1. mkswap always behaves correctly: It sets number of pages in swap file
-minus one as 'last_page' in swap header (since this is a 0-based index).
-This same value (total pages - 1) is printed out as size since it knows
-that first page is swap header.
-
-2. swapon() for block devices: off-by-one error causing last swap page
-to remain unused.
-
-3. swapon() for regular files:
-  3.1 off-by-one error if every swap page in this file is usable i.e.
-      every PAGE_SIZE-length, PAGE_SIZE-aligned chunk is contiguous on
-      disk.
-  3.2 correct size value if there is at least one swap page which is
-      unusable -- which is expected from swap file of any practical
-      size.
+Hmm. maybe off-topic but why lock_page() is necessary ?
 
 
-I will go through swap code again to find other possible off-by-one
-errors. The revised patch will fix these inconsistencies.
+> > I recommend you to add
+> >   /debug/hwpoizon/pin-pfn
+> > 
+> > Then,
+> > 	echo pfn > /debug/hwpoizon/pin-pfn
+> >         # add pfn for hwpoison debug's watch list. and elevate refcnt
+> > 	check 'pfn' is still used.
+> >  	echo pfn > /debug/hwpoison/corrupt-pfn
+> > 	# check 'watch list' and make it corrupt and release refcnt.
+> > or some.
+> 
+> Looks like a good alternative. At least no more memcg dependency..
+> 
+
+My point is that memcg can show 'owner' of pages but the page may
+be shared with something important task _and_ if a task is migrated,
+its pages' memcg information is not updated now. Then, you can kill
+a task which is not in memcg.
+
+Then, I don't recommend to use memcg. I think you'll see too much
+pitfalls.
 
 Thanks,
-Nitin
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
