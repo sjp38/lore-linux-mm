@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D33436B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 00:53:51 -0400 (EDT)
-Received: by pzk8 with SMTP id 8so1232268pzk.22
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2009 21:53:58 -0700 (PDT)
-Date: Tue, 1 Sep 2009 13:53:21 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH mmotm] Fix NUMA accounting in numastat.txt
-Message-Id: <20090901135321.f0da4715.minchan.kim@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0D5C36B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 01:05:45 -0400 (EDT)
+From: "Xin, Xiaohui" <xiaohui.xin@intel.com>
+Date: Tue, 1 Sep 2009 13:04:58 +0800
+Subject: RE: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <C85CEDA13AB1CF4D9D597824A86D2B9006AEB9477C@PDSMSX501.ccr.corp.intel.com>
+References: <E88DD564E9DC5446A76B2B47C3BCCA150219600F9B@pdsmsx503.ccr.corp.intel.com>
+ <C85CEDA13AB1CF4D9D597824A86D2B9006AEB944B8@PDSMSX501.ccr.corp.intel.com>
+ <4A9C0DC2.6080704@redhat.com>
+In-Reply-To: <4A9C0DC2.6080704@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: "mst@redhat.com" <mst@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
+> One way to share the effort is to make vmdq queues available as normal=20
+kernel interfaces.  It would take quite a bit of work, but the end=20
+result is that no other components need to be change, and it makes vmdq=20
+useful outside kvm.  It also greatly reduces the amount of integration=20
+work needed throughout the stack (kvm/qemu/libvirt).
 
-In Documentation/numastat.txt, it confused me.
-For example, there are nodes [0,1] in system.
+Yes. The common queue pair interface which we want to present will also app=
+ly to normal hardware, and try to leave other components unknown.
 
-barrios:~$ cat /proc/zoneinfo | egrep 'numa|zone'
-Node 0, zone	DMA
-	numa_hit	33226
-	numa_miss	1739
-	numa_foreign	27978
-	..
-	..
-Node 1, zone	DMA
-	numa_hit	307
-	numa_miss	46900
-	numa_foreign	0
+Thanks
+Xiaohui
 
-1) In node 0,  NUMA_MISS means it wanted to allocate page
-in node 1 but ended up with page in node 0
+-----Original Message-----
+From: Avi Kivity [mailto:avi@redhat.com]=20
+Sent: Tuesday, September 01, 2009 1:52 AM
+To: Xin, Xiaohui
+Cc: mst@redhat.com; netdev@vger.kernel.org; virtualization@lists.linux-foun=
+dation.org; kvm@vger.kernel.org; linux-kernel@vger.kernel.org; mingo@elte.h=
+u; linux-mm@kvack.org; akpm@linux-foundation.org; hpa@zytor.com; gregory.ha=
+skins@gmail.com
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
 
-2) In node 0, NUMA_FOREIGN means it wanted to allocate page
-in node 0 but ended up with page from Node 1.
+On 08/31/2009 02:42 PM, Xin, Xiaohui wrote:
+> Hi, Michael
+> That's a great job. We are now working on support VMDq on KVM, and since =
+the VMDq hardware presents L2 sorting based on MAC addresses and VLAN tags,=
+ our target is to implement a zero copy solution using VMDq. We stared from=
+ the virtio-net architecture. What we want to proposal is to use AIO combin=
+ed with direct I/O:
+> 1) Modify virtio-net Backend service in Qemu to submit aio requests compo=
+sed from virtqueue.
+> 2) Modify TUN/TAP device to support aio operations and the user space buf=
+fer directly mapping into the host kernel.
+> 3) Let a TUN/TAP device binds to single rx/tx queue from the NIC.
+> 4) Modify the net_dev and skb structure to permit allocated skb to use us=
+er space directly mapped payload buffer address rather then kernel allocate=
+d.
+>
+> As zero copy is also your goal, we are interested in what's in your mind,=
+ and would like to collaborate with you if possible.
+>   =20
 
-But now, numastat explains it oppositely about (MISS, FOREIGN).
-Let's fix up with viewpoint of zone. 
+One way to share the effort is to make vmdq queues available as normal=20
+kernel interfaces.  It would take quite a bit of work, but the end=20
+result is that no other components need to be change, and it makes vmdq=20
+useful outside kvm.  It also greatly reduces the amount of integration=20
+work needed throughout the stack (kvm/qemu/libvirt).
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- Documentation/numastat.txt |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/Documentation/numastat.txt b/Documentation/numastat.txt
-index 80133ac..9fcc9a6 100644
---- a/Documentation/numastat.txt
-+++ b/Documentation/numastat.txt
-@@ -7,10 +7,10 @@ All units are pages. Hugepages have separate counters.
-
- numa_hit			A process wanted to allocate memory from this node,
- 					and succeeded.
--numa_miss			A process wanted to allocate memory from this node,
--					but ended up with memory from another.
--numa_foreign		A process wanted to allocate on another node,
--				    but ended up with memory from this one.
-+numa_miss			A process wanted to allocate memory from another node,
-+					but ended up with memory from this node.
-+numa_foreign		A process wanted to allocate on this node,
-+				    but ended up with memory from another one.
- local_node			A process ran on this node and got memory from it.
- other_node			A process ran on this node and got memory from another node.
- interleave_hit 		Interleaving wanted to allocate from this node
---
-1.5.4.3
-
-
-
--- 
-Kind regards,
-Minchan Kim
+--=20
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
