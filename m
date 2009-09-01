@@ -1,120 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3DA6F6B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 03:14:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n817EbZq003766
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 00F9D6B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 03:19:11 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n817JEHv007433
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 1 Sep 2009 16:14:38 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AB1E45DE6C
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A76545DE66
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:37 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D56F51DB8048
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:36 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D53F21DB804E
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:14:30 +0900 (JST)
-Date: Tue, 1 Sep 2009 16:12:28 +0900
+	Tue, 1 Sep 2009 16:19:16 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CA4F345DE50
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:19:14 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CC5B45DE4F
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:19:14 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 701201DB8038
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:19:14 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0216D1DB8037
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 16:19:14 +0900 (JST)
+Date: Tue, 1 Sep 2009 16:17:21 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/4] memcg: add support for hwpoison testing
-Message-Id: <20090901161228.9fb33234.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090901064652.GA20342@localhost>
-References: <20090831102640.092092954@intel.com>
-	<20090901084626.ac4c8879.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090901022514.GA11974@localhost>
-	<20090901113214.60e7ae32.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090901064652.GA20342@localhost>
+Subject: Re: [PATCH mmotm] Fix NUMA accounting in numastat.txt
+Message-Id: <20090901161721.f104c476.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090901135321.f0da4715.minchan.kim@barrios-desktop>
+References: <20090901135321.f0da4715.minchan.kim@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>, linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Sep 2009 14:46:52 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Tue, 1 Sep 2009 13:53:21 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-> On Tue, Sep 01, 2009 at 10:32:14AM +0800, KAMEZAWA Hiroyuki wrote:
-> > On Tue, 1 Sep 2009 10:25:14 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > > 4. I can't understand why you need this. I wonder you can get pfn via
-> > > >    /proc/<pid>/????. And this may insert HWPOISON to page-cache of shared
-> > > >    library and "unexpected" process will be poisoned.
-> > > 
-> > > Sorry I should have explained this. It's mainly for correctness.
-> > > When a user space tool queries the task PFNs in /proc/pid/pagemap and
-> > > then send to /debug/hwpoison/corrupt-pfn, there is a racy window that
-> > > the page could be reclaimed and allocated by some one else. It would
-> > > be awkward to try to pin the pages in user space. So we need the
-> > > guarantees provided by /debug/hwpoison/corrupt-filter-memcg, which
-> > > will be checked inside the page lock with elevated reference count.
-> > > 
-> > 
-> > memcg never holds refcnt for a page and the kernel::vmscan.c can reclaim
-> > any pages under memcg whithout checking anything related to memcg.
-> > *And*, your code has no "pin" code.
-> > This patch sed does no jobs for your concern.
 > 
-> We grabbed page here, which is not in the scope of this patchset:
+> In Documentation/numastat.txt, it confused me.
+> For example, there are nodes [0,1] in system.
 > 
->         static int try_memory_failure(unsigned long pfn)
->         {      
->                 struct page *p;
->                 int res = -EINVAL;
+> barrios:~$ cat /proc/zoneinfo | egrep 'numa|zone'
+> Node 0, zone	DMA
+> 	numa_hit	33226
+> 	numa_miss	1739
+> 	numa_foreign	27978
+> 	..
+> 	..
+> Node 1, zone	DMA
+> 	numa_hit	307
+> 	numa_miss	46900
+> 	numa_foreign	0
 > 
->                 if (!pfn_valid(pfn))
->                         return res;
+> 1) In node 0,  NUMA_MISS means it wanted to allocate page
+> in node 1 but ended up with page in node 0
 > 
->                 p = pfn_to_page(pfn);
->                 if (!get_page_unless_zero(compound_head(p)))
->                         return res;
+> 2) In node 0, NUMA_FOREIGN means it wanted to allocate page
+> in node 0 but ended up with page from Node 1.
 > 
->                 lock_page_nosync(compound_head(p));
-> 
->                 if (hwpoison_filter(p))
->                         goto out;
-> 
->                 res = __memory_failure(pfn, 18,
->                                        MEMORY_FAILURE_FLAG_COUNTED |
->                                        MEMORY_FAILURE_FLAG_LOCKED);
->         out:
->                 unlock_page(p);
->                 return res;
->         }
-
-Hmm. maybe off-topic but why lock_page() is necessary ?
-
-
-> > I recommend you to add
-> >   /debug/hwpoizon/pin-pfn
-> > 
-> > Then,
-> > 	echo pfn > /debug/hwpoizon/pin-pfn
-> >         # add pfn for hwpoison debug's watch list. and elevate refcnt
-> > 	check 'pfn' is still used.
-> >  	echo pfn > /debug/hwpoison/corrupt-pfn
-> > 	# check 'watch list' and make it corrupt and release refcnt.
-> > or some.
-> 
-> Looks like a good alternative. At least no more memcg dependency..
+> But now, numastat explains it oppositely about (MISS, FOREIGN).
+> Let's fix up with viewpoint of zone. 
 > 
 
-My point is that memcg can show 'owner' of pages but the page may
-be shared with something important task _and_ if a task is migrated,
-its pages' memcg information is not updated now. Then, you can kill
-a task which is not in memcg.
+I'm confused....documentation is really bad ?
+Implementation isn't ?
 
-Then, I don't recommend to use memcg. I think you'll see too much
-pitfalls.
+Hmm, this function ?
+==
+void zone_statistics(struct zone *preferred_zone, struct zone *z)
+{
+        if (z->zone_pgdat == preferred_zone->zone_pgdat) {
+                __inc_zone_state(z, NUMA_HIT);
+        } else {
+                __inc_zone_state(z, NUMA_MISS);
+                __inc_zone_state(preferred_zone, NUMA_FOREIGN);
+        }
+        if (z->node == numa_node_id())
+                __inc_zone_state(z, NUMA_LOCAL);
+        else
+                __inc_zone_state(z, NUMA_OTHER);
+}
+==
+I wonder
+==
+void zone_statistics(struct zone *preferred_zone, struct zone *z)
+{
+        if (z->zone_pgdat == preferred_zone->zone_pgdat) {
+                __inc_zone_state(z, NUMA_HIT);
+        } else {
+                __inc_zone_state(preferred_zone, NUMA_MISS);
+                __inc_zone_state(z, NUMA_FOREIGN);
+        }
+        if (z->node == numa_node_id())
+                __inc_zone_state(z, NUMA_LOCAL);
+        else
+                __inc_zone_state(z, NUMA_OTHER);
+}
+==
+Is correct fix ....
 
 Thanks,
 -Kame
 
+
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  Documentation/numastat.txt |    8 ++++----
+>  1 files changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/Documentation/numastat.txt b/Documentation/numastat.txt
+> index 80133ac..9fcc9a6 100644
+> --- a/Documentation/numastat.txt
+> +++ b/Documentation/numastat.txt
+> @@ -7,10 +7,10 @@ All units are pages. Hugepages have separate counters.
+> 
+>  numa_hit			A process wanted to allocate memory from this node,
+>  					and succeeded.
+> -numa_miss			A process wanted to allocate memory from this node,
+> -					but ended up with memory from another.
+> -numa_foreign		A process wanted to allocate on another node,
+> -				    but ended up with memory from this one.
+> +numa_miss			A process wanted to allocate memory from another node,
+> +					but ended up with memory from this node.
+> +numa_foreign		A process wanted to allocate on this node,
+> +				    but ended up with memory from another one.
+>  local_node			A process ran on this node and got memory from it.
+>  other_node			A process ran on this node and got memory from another node.
+>  interleave_hit 		Interleaving wanted to allocate from this node
+> --
+> 1.5.4.3
+> 
+> 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
