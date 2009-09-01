@@ -1,101 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 328BD6B004D
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 10:49:27 -0400 (EDT)
-Date: Tue, 1 Sep 2009 15:49:32 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/6] hugetlb:  introduce alloc_nodemask_of_node
-Message-ID: <20090901144932.GB7548@csn.ul.ie>
-References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160338.11080.51282.sendpatchset@localhost.localdomain>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 98F186B004D
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 10:58:41 -0400 (EDT)
+From: "Xin, Xiaohui" <xiaohui.xin@intel.com>
+Date: Tue, 1 Sep 2009 22:58:44 +0800
+Subject: RE: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <C85CEDA13AB1CF4D9D597824A86D2B9006AEC02EC0@PDSMSX501.ccr.corp.intel.com>
+References: <E88DD564E9DC5446A76B2B47C3BCCA150219600F9B@pdsmsx503.ccr.corp.intel.com>
+ <C85CEDA13AB1CF4D9D597824A86D2B9006AEB944B8@PDSMSX501.ccr.corp.intel.com>
+ <200908311723.34067.arnd@arndb.de>
+In-Reply-To: <200908311723.34067.arnd@arndb.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090828160338.11080.51282.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: "mst@redhat.com" <mst@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 28, 2009 at 12:03:38PM -0400, Lee Schermerhorn wrote:
-> [PATCH 4/6] - hugetlb:  introduce alloc_nodemask_of_node()
-> 
-> Against:  2.6.31-rc7-mmotm-090827-0057
-> 
-> New in V5 of series
-> 
-> Introduce nodemask macro to allocate a nodemask and 
-> initialize it to contain a single node, using the macro
-> init_nodemask_of_node() factored out of the nodemask_of_node()
-> macro.
-> 
-> alloc_nodemask_of_node() coded as a macro to avoid header
-> dependency hell.
-> 
-> This will be used to construct the huge pages "nodes_allowed"
-> nodemask for a single node when a persistent huge page
-> pool page count is modified via a per node sysfs attribute.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
->  include/linux/nodemask.h |   20 ++++++++++++++++++--
->  1 file changed, 18 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6.31-rc7-mmotm-090827-0057/include/linux/nodemask.h
-> ===================================================================
-> --- linux-2.6.31-rc7-mmotm-090827-0057.orig/include/linux/nodemask.h	2009-08-28 09:21:19.000000000 -0400
-> +++ linux-2.6.31-rc7-mmotm-090827-0057/include/linux/nodemask.h	2009-08-28 09:21:29.000000000 -0400
-> @@ -245,18 +245,34 @@ static inline int __next_node(int n, con
->  	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
->  }
->  
-> +#define init_nodemask_of_nodes(mask, node)				\
-> +	nodes_clear(*(mask));						\
-> +	node_set((node), *(mask));
-> +
+>I don't think we should do that with the tun/tap driver. By design, tun/ta=
+p is a way to interact >with the
+>networking stack as if coming from a device. The only way this connects to=
+ an external >adapter is through
+>a bridge or through IP routing, which means that it does not correspond to=
+ a specific NIC.
+>I have worked on a driver I called 'macvtap' in lack of a better name, to =
+add a new tap >frontend to
+>the 'macvlan' driver. Since macvlan lets you add slaves to a single NIC de=
+vice, this gives you >a direct
+>connection between one or multiple tap devices to an external NIC, which w=
+orks a lot better >than when
+>you have a bridge inbetween. There is also work underway to add a bridging=
+ capability to >macvlan, so
+>you can communicate directly between guests like you can do with a bridge.
+>Michael's vhost_net can plug into the same macvlan infrastructure, so the =
+work is >complementary.
 
-Is the done thing to either make this a static inline or else wrap it in
-a do { } while(0) ? The reasoning being that if this is used as part of an
-another statement (e.g. a for loop) that it'll actually compile instead of
-throw up weird error messages.
+We use TUN/TAP device to implement the prototype, and agree that it's not t=
+he only
+choice here. We'd compare the two if possible.
+And what we cares more about is the modification in the kernel like the net=
+_dev and=20
+skb structures' modifications, thanks.
 
->  #define nodemask_of_node(node)						\
->  ({									\
->  	typeof(_unused_nodemask_arg_) m;				\
->  	if (sizeof(m) == sizeof(unsigned long)) {			\
->  		m.bits[0] = 1UL<<(node);				\
->  	} else {							\
-> -		nodes_clear(m);						\
-> -		node_set((node), m);					\
-> +		init_nodemask_of_nodes(&m, (node));			\
->  	}								\
->  	m;								\
->  })
->  
-> +/*
-> + * returns pointer to kmalloc()'d nodemask initialized to contain the
-> + * specified node.  Caller must free with kfree().
-> + */
-> +#define alloc_nodemask_of_node(node)					\
-> +({									\
-> +	typeof(_unused_nodemask_arg_) *nmp;				\
-> +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
-> +	if (nmp)							\
-> +		init_nodemask_of_nodes(nmp, (node));			\
-> +	nmp;								\
-> +})
-> +
+Thanks
+Xiaohui
 
-Otherwise, it looks ok.
+-----Original Message-----
+From: Arnd Bergmann [mailto:arnd@arndb.de]=20
+Sent: Monday, August 31, 2009 11:24 PM
+To: Xin, Xiaohui
+Cc: mst@redhat.com; netdev@vger.kernel.org; virtualization@lists.linux-foun=
+dation.org; kvm@vger.kernel.org; linux-kernel@vger.kernel.org; mingo@elte.h=
+u; linux-mm@kvack.org; akpm@linux-foundation.org; hpa@zytor.com; gregory.ha=
+skins@gmail.com
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
 
->  #define first_unset_node(mask) __first_unset_node(&(mask))
->  static inline int __first_unset_node(const nodemask_t *maskp)
->  {
-> 
+On Monday 31 August 2009, Xin, Xiaohui wrote:
+>=20
+> Hi, Michael
+> That's a great job. We are now working on support VMDq on KVM, and since =
+the VMDq hardware presents L2 sorting
+> based on MAC addresses and VLAN tags, our target is to implement a zero c=
+opy solution using VMDq.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'm also interested in helping there, please include me in the discussions.
+
+> We stared
+> from the virtio-net architecture. What we want to proposal is to use AIO =
+combined with direct I/O:
+> 1) Modify virtio-net Backend service in Qemu to submit aio requests compo=
+sed from virtqueue.
+
+right, that sounds useful.
+
+> 2) Modify TUN/TAP device to support aio operations and the user space buf=
+fer directly mapping into the host kernel.
+> 3) Let a TUN/TAP device binds to single rx/tx queue from the NIC.
+
+I don't think we should do that with the tun/tap driver. By design, tun/tap=
+ is a way to interact with the
+networking stack as if coming from a device. The only way this connects to =
+an external adapter is through
+a bridge or through IP routing, which means that it does not correspond to =
+a specific NIC.
+
+I have worked on a driver I called 'macvtap' in lack of a better name, to a=
+dd a new tap frontend to
+the 'macvlan' driver. Since macvlan lets you add slaves to a single NIC dev=
+ice, this gives you a direct
+connection between one or multiple tap devices to an external NIC, which wo=
+rks a lot better than when
+you have a bridge inbetween. There is also work underway to add a bridging =
+capability to macvlan, so
+you can communicate directly between guests like you can do with a bridge.
+
+Michael's vhost_net can plug into the same macvlan infrastructure, so the w=
+ork is complementary.
+
+> 4) Modify the net_dev and skb structure to permit allocated skb to use us=
+er space directly mapped payload
+> buffer address rather then kernel allocated.
+
+yes.
+
+> As zero copy is also your goal, we are interested in what's in your mind,=
+ and would like to collaborate with you if possible.
+> BTW, we will send our VMDq write-up very soon.
+
+Ok, cool.
+
+	Arnd <><
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
