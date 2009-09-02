@@ -1,142 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8CB356B005A
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 20:37:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n820bmuD008624
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 2 Sep 2009 09:37:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D541F45DE7B
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 09:37:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3049C45DE70
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 09:37:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7A611DB8045
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 09:37:46 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 699ED1DB803F
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 09:37:46 +0900 (JST)
-Date: Wed, 2 Sep 2009 09:35:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mmotm][PATCH 2/2] memcg: reduce calls for soft limit excess
-Message-Id: <20090902093551.c8b171fb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CF5E36B005A
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2009 20:57:51 -0400 (EDT)
+Date: Wed, 2 Sep 2009 01:57:21 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH mmotm] vmscan move pgdeactivate modification to shrink_active_list
+ fix2
+In-Reply-To: <Pine.LNX.4.64.0908282034240.19475@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0909020154060.31130@sister.anvils>
+References: <Pine.LNX.4.64.0908282034240.19475@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In charge path, usage_in_excess is calculated repeatedly and
-it takes res_counter's spin_lock every time.
+A second fix to the ill-starred
+vmscan-move-pgdeactivate-modification-to-shrink_active_list.patch
+which, once corrected to update the right counters by the first fix,
+builds up absurdly large Active counts in /proc/meminfo.
 
-This patch removes unnecessary calls for res_count_soft_limit_excess.
+nr_rotated is not the number of pages added back to the active list
+(maybe it once was, maybe it should be again: but if so that's not
+any business for a code rearrangement patch).  shrink_active_list()
+needs to keep a separate nr_reactivated count of those.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
- mm/memcontrol.c |   31 +++++++++++++++----------------
- 1 file changed, 15 insertions(+), 16 deletions(-)
+Or... revert the offending patch and its first fix.
 
-Index: mmotm-2.6.31-Aug27/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.31-Aug27.orig/mm/memcontrol.c
-+++ mmotm-2.6.31-Aug27/mm/memcontrol.c
-@@ -313,7 +313,8 @@ soft_limit_tree_from_page(struct page *p
- static void
- __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
- 				struct mem_cgroup_per_zone *mz,
--				struct mem_cgroup_tree_per_zone *mctz)
-+				struct mem_cgroup_tree_per_zone *mctz,
-+				unsigned long new_usage_in_excess)
- {
- 	struct rb_node **p = &mctz->rb_root.rb_node;
- 	struct rb_node *parent = NULL;
-@@ -322,7 +323,9 @@ __mem_cgroup_insert_exceeded(struct mem_
- 	if (mz->on_tree)
- 		return;
+ mm/vmscan.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+--- mmotm/mm/vmscan.c	2009-08-28 18:30:33.000000000 +0100
++++ linux/mm/vmscan.c	2009-09-02 01:28:34.000000000 +0100
+@@ -1306,6 +1306,7 @@ static void shrink_active_list(unsigned
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	unsigned long nr_rotated = 0;
+ 	unsigned long nr_deactivated = 0;
++	unsigned long nr_reactivated = 0;
  
--	mz->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-+	mz->usage_in_excess = new_usage_in_excess;
-+	if (!mz->usage_in_excess)
-+		return;
- 	while (*p) {
- 		parent = *p;
- 		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,
-@@ -382,7 +385,7 @@ static bool mem_cgroup_soft_limit_check(
- 
- static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
- {
--	unsigned long long new_usage_in_excess;
-+	unsigned long long excess;
- 	struct mem_cgroup_per_zone *mz;
- 	struct mem_cgroup_tree_per_zone *mctz;
- 	int nid = page_to_nid(page);
-@@ -395,25 +398,21 @@ static void mem_cgroup_update_tree(struc
- 	 */
- 	for (; mem; mem = parent_mem_cgroup(mem)) {
- 		mz = mem_cgroup_zoneinfo(mem, nid, zid);
--		new_usage_in_excess =
--			res_counter_soft_limit_excess(&mem->res);
-+		excess = res_counter_soft_limit_excess(&mem->res);
- 		/*
- 		 * We have to update the tree if mz is on RB-tree or
- 		 * mem is over its softlimit.
- 		 */
--		if (new_usage_in_excess || mz->on_tree) {
-+		if (excess || mz->on_tree) {
- 			spin_lock(&mctz->lock);
- 			/* if on-tree, remove it */
- 			if (mz->on_tree)
- 				__mem_cgroup_remove_exceeded(mem, mz, mctz);
- 			/*
--			 * if over soft limit, insert again. mz->usage_in_excess
--			 * will be updated properly.
-+			 * Insert again. mz->usage_in_excess will be updated.
-+			 * If excess is 0, no tree ops.
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1354,6 +1355,7 @@ static void shrink_active_list(unsigned
  			 */
--			if (new_usage_in_excess)
--				__mem_cgroup_insert_exceeded(mem, mz, mctz);
--			else
--				mz->usage_in_excess = 0;
-+			__mem_cgroup_insert_exceeded(mem, mz, mctz, excess);
- 			spin_unlock(&mctz->lock);
+ 			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+ 				list_add(&page->lru, &l_active);
++				nr_reactivated++;
+ 				continue;
+ 			}
  		}
- 	}
-@@ -2216,6 +2215,7 @@ unsigned long mem_cgroup_soft_limit_recl
- 	unsigned long reclaimed;
- 	int loop = 0;
- 	struct mem_cgroup_tree_per_zone *mctz;
-+	unsigned long long excess;
- 
- 	if (order > 0)
- 		return 0;
-@@ -2260,9 +2260,8 @@ unsigned long mem_cgroup_soft_limit_recl
- 				__mem_cgroup_largest_soft_limit_node(mctz);
- 			} while (next_mz == mz);
- 		}
--		mz->usage_in_excess =
--			res_counter_soft_limit_excess(&mz->mem->res);
- 		__mem_cgroup_remove_exceeded(mz->mem, mz, mctz);
-+		excess = res_counter_soft_limit_excess(&mz->mem->res);
- 		/*
- 		 * One school of thought says that we should not add
- 		 * back the node to the tree if reclaim returns 0.
-@@ -2271,8 +2270,8 @@ unsigned long mem_cgroup_soft_limit_recl
- 		 * memory to reclaim from. Consider this as a longer
- 		 * term TODO.
- 		 */
--		if (mz->usage_in_excess)
--			__mem_cgroup_insert_exceeded(mz->mem, mz, mctz);
-+		/* If excess == 0, no tree ops */
-+		__mem_cgroup_insert_exceeded(mz->mem, mz, mctz, excess);
- 		spin_unlock(&mctz->lock);
- 		css_put(&mz->mem->css);
- 		loop++;
+@@ -1382,7 +1384,7 @@ static void shrink_active_list(unsigned
+ 	__count_vm_events(PGDEACTIVATE, nr_deactivated);
+ 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+ 	__mod_zone_page_state(zone, NR_ACTIVE_ANON + file * LRU_FILE,
+-							nr_rotated);
++							nr_reactivated);
+ 	__mod_zone_page_state(zone, NR_INACTIVE_ANON + file * LRU_FILE,
+ 							nr_deactivated);
+ 	spin_unlock_irq(&zone->lru_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
