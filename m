@@ -1,200 +1,125 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [RFC][PATCH 1/4] page-types: move from Documentation/vm/ to tools/vm/
-Date: Wed, 02 Sep 2009 11:41:26 +0800
-Message-ID: <20090902035814.441036210@intel.com>
+Subject: [RFC][PATCH 2/4] slabinfo: move from Documentation/vm/ to tools/vm/
+Date: Wed, 02 Sep 2009 11:41:27 +0800
+Message-ID: <20090902035814.595864486@intel.com>
 References: <20090902034125.718886329@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 716596B0062
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 00:02:48 -0400 (EDT)
-Content-Disposition: inline; filename=mm-move-page-types.patch
+	by kanga.kvack.org (Postfix) with SMTP id C21C06B0062
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 00:02:52 -0400 (EDT)
+Content-Disposition: inline; filename=mm-move-slabinfo.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Josh Triplett <josh@joshtriplett.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, Randy Dunlap <randy.dunlap@oracle.com>, Chris Wright <chrisw@redhat.com>, "Huang, Ying" <ying.huang@intel.com>, Lin Ming <ming.m.lin@intel.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>, Chris Wright <chrisw@redhat.com>, "Huang, Ying" <ying.huang@intel.com>, Josh Triplett <josh@joshtriplett.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-
-CC: Andi Kleen <andi@firstfloor.org>
-CC: Josh Triplett <josh@joshtriplett.org>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Lin Ming <ming.m.lin@intel.com>
+CC: Nick Piggin <nickpiggin@yahoo.com.au>
+CC: Christoph Lameter <cl@linux-foundation.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- Documentation/vm/.gitignore   |    1 
- Documentation/vm/Makefile     |    2 
- Documentation/vm/page-types.c |  698 --------------------------------
- Documentation/vm/pagemap.txt  |    4 
- tools/vm/.gitignore           |    1 
- tools/vm/Makefile             |    5 
- tools/vm/page-types.c         |  698 ++++++++++++++++++++++++++++++++
- 7 files changed, 708 insertions(+), 701 deletions(-)
+ Documentation/vm/.gitignore |    1 
+ Documentation/vm/Makefile   |    8 
+ Documentation/vm/slabinfo.c | 1364 ----------------------------------
+ Documentation/vm/slqbinfo.c | 1047 --------------------------
+ Documentation/vm/slub.txt   |    2 
+ tools/vm/.gitignore         |    2 
+ tools/vm/Makefile           |    2 
+ tools/vm/slabinfo.c         | 1364 ++++++++++++++++++++++++++++++++++
+ tools/vm/slqbinfo.c         | 1047 ++++++++++++++++++++++++++
+ 9 files changed, 2415 insertions(+), 2422 deletions(-)
 
---- linux-mm.orig/Documentation/vm/page-types.c	2009-08-31 14:00:34.000000000 +0800
+--- linux-mm.orig/Documentation/vm/slabinfo.c	2009-09-02 11:27:38.000000000 +0800
 +++ /dev/null	1970-01-01 00:00:00.000000000 +0000
-@@ -1,698 +0,0 @@
+@@ -1,1364 +0,0 @@
 -/*
-- * page-types: Tool for querying page flags
+- * Slabinfo: Tool to get reports about slabs
 - *
-- * Copyright (C) 2009 Intel corporation
-- * Copyright (C) 2009 Wu Fengguang <fengguang.wu@intel.com>
+- * (C) 2007 sgi, Christoph Lameter
+- *
+- * Compile by:
+- *
+- * gcc -o slabinfo slabinfo.c
 - */
--
 -#include <stdio.h>
 -#include <stdlib.h>
--#include <unistd.h>
--#include <stdint.h>
--#include <stdarg.h>
--#include <string.h>
--#include <getopt.h>
--#include <limits.h>
 -#include <sys/types.h>
--#include <sys/errno.h>
--#include <sys/fcntl.h>
+-#include <dirent.h>
+-#include <strings.h>
+-#include <string.h>
+-#include <unistd.h>
+-#include <stdarg.h>
+-#include <getopt.h>
+-#include <regex.h>
+-#include <errno.h>
 -
+-#define MAX_SLABS 500
+-#define MAX_ALIASES 500
+-#define MAX_NODES 1024
 -
--/*
-- * kernel page flags
-- */
+-struct slabinfo {
+-	char *name;
+-	int alias;
+-	int refs;
+-	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;
+-	int hwcache_align, object_size, objs_per_slab;
+-	int sanity_checks, slab_size, store_user, trace;
+-	int order, poison, reclaim_account, red_zone;
+-	unsigned long partial, objects, slabs, objects_partial, objects_total;
+-	unsigned long alloc_fastpath, alloc_slowpath;
+-	unsigned long free_fastpath, free_slowpath;
+-	unsigned long free_frozen, free_add_partial, free_remove_partial;
+-	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
+-	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
+-	unsigned long deactivate_to_head, deactivate_to_tail;
+-	unsigned long deactivate_remote_frees, order_fallback;
+-	int numa[MAX_NODES];
+-	int numa_partial[MAX_NODES];
+-} slabinfo[MAX_SLABS];
 -
--#define KPF_BYTES		8
--#define PROC_KPAGEFLAGS		"/proc/kpageflags"
+-struct aliasinfo {
+-	char *name;
+-	char *ref;
+-	struct slabinfo *slab;
+-} aliasinfo[MAX_ALIASES];
 -
--/* copied from kpageflags_read() */
--#define KPF_LOCKED		0
--#define KPF_ERROR		1
--#define KPF_REFERENCED		2
--#define KPF_UPTODATE		3
--#define KPF_DIRTY		4
--#define KPF_LRU			5
--#define KPF_ACTIVE		6
--#define KPF_SLAB		7
--#define KPF_WRITEBACK		8
--#define KPF_RECLAIM		9
--#define KPF_BUDDY		10
+-int slabs = 0;
+-int actual_slabs = 0;
+-int aliases = 0;
+-int alias_targets = 0;
+-int highest_node = 0;
 -
--/* [11-20] new additions in 2.6.31 */
--#define KPF_MMAP		11
--#define KPF_ANON		12
--#define KPF_SWAPCACHE		13
--#define KPF_SWAPBACKED		14
--#define KPF_COMPOUND_HEAD	15
--#define KPF_COMPOUND_TAIL	16
--#define KPF_HUGE		17
--#define KPF_UNEVICTABLE		18
--#define KPF_NOPAGE		20
+-char buffer[4096];
 -
--/* [32-] kernel hacking assistances */
--#define KPF_RESERVED		32
--#define KPF_MLOCKED		33
--#define KPF_MAPPEDTODISK	34
--#define KPF_PRIVATE		35
--#define KPF_PRIVATE_2		36
--#define KPF_OWNER_PRIVATE	37
--#define KPF_ARCH		38
--#define KPF_UNCACHED		39
+-int show_empty = 0;
+-int show_report = 0;
+-int show_alias = 0;
+-int show_slab = 0;
+-int skip_zero = 1;
+-int show_numa = 0;
+-int show_track = 0;
+-int show_first_alias = 0;
+-int validate = 0;
+-int shrink = 0;
+-int show_inverted = 0;
+-int show_single_ref = 0;
+-int show_totals = 0;
+-int sort_size = 0;
+-int sort_active = 0;
+-int set_debug = 0;
+-int show_ops = 0;
+-int show_activity = 0;
 -
--/* [48-] take some arbitrary free slots for expanding overloaded flags
-- * not part of kernel API
-- */
--#define KPF_READAHEAD		48
--#define KPF_SLOB_FREE		49
--#define KPF_SLUB_FROZEN		50
--#define KPF_SLUB_DEBUG		51
+-/* Debug options */
+-int sanity = 0;
+-int redzone = 0;
+-int poison = 0;
+-int tracking = 0;
+-int tracing = 0;
 -
--#define KPF_ALL_BITS		((uint64_t)~0ULL)
--#define KPF_HACKERS_BITS	(0xffffULL << 32)
--#define KPF_OVERLOADED_BITS	(0xffffULL << 48)
--#define BIT(name)		(1ULL << KPF_##name)
--#define BITS_COMPOUND		(BIT(COMPOUND_HEAD) | BIT(COMPOUND_TAIL))
+-int page_size;
 -
--static char *page_flag_names[] = {
--	[KPF_LOCKED]		= "L:locked",
--	[KPF_ERROR]		= "E:error",
--	[KPF_REFERENCED]	= "R:referenced",
--	[KPF_UPTODATE]		= "U:uptodate",
--	[KPF_DIRTY]		= "D:dirty",
--	[KPF_LRU]		= "l:lru",
--	[KPF_ACTIVE]		= "A:active",
--	[KPF_SLAB]		= "S:slab",
--	[KPF_WRITEBACK]		= "W:writeback",
--	[KPF_RECLAIM]		= "I:reclaim",
--	[KPF_BUDDY]		= "B:buddy",
--
--	[KPF_MMAP]		= "M:mmap",
--	[KPF_ANON]		= "a:anonymous",
--	[KPF_SWAPCACHE]		= "s:swapcache",
--	[KPF_SWAPBACKED]	= "b:swapbacked",
--	[KPF_COMPOUND_HEAD]	= "H:compound_head",
--	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
--	[KPF_HUGE]		= "G:huge",
--	[KPF_UNEVICTABLE]	= "u:unevictable",
--	[KPF_NOPAGE]		= "n:nopage",
--
--	[KPF_RESERVED]		= "r:reserved",
--	[KPF_MLOCKED]		= "m:mlocked",
--	[KPF_MAPPEDTODISK]	= "d:mappedtodisk",
--	[KPF_PRIVATE]		= "P:private",
--	[KPF_PRIVATE_2]		= "p:private_2",
--	[KPF_OWNER_PRIVATE]	= "O:owner_private",
--	[KPF_ARCH]		= "h:arch",
--	[KPF_UNCACHED]		= "c:uncached",
--
--	[KPF_READAHEAD]		= "I:readahead",
--	[KPF_SLOB_FREE]		= "P:slob_free",
--	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
--	[KPF_SLUB_DEBUG]	= "E:slub_debug",
--};
--
--
--/*
-- * data structures
-- */
--
--static int		opt_raw;	/* for kernel developers */
--static int		opt_list;	/* list pages (in ranges) */
--static int		opt_no_summary;	/* don't show summary */
--static pid_t		opt_pid;	/* process to walk */
--
--#define MAX_ADDR_RANGES	1024
--static int		nr_addr_ranges;
--static unsigned long	opt_offset[MAX_ADDR_RANGES];
--static unsigned long	opt_size[MAX_ADDR_RANGES];
--
--#define MAX_BIT_FILTERS	64
--static int		nr_bit_filters;
--static uint64_t		opt_mask[MAX_BIT_FILTERS];
--static uint64_t		opt_bits[MAX_BIT_FILTERS];
--
--static int		page_size;
--
--#define PAGES_BATCH	(64 << 10)	/* 64k pages */
--static int		kpageflags_fd;
--static uint64_t		kpageflags_buf[KPF_BYTES * PAGES_BATCH];
--
--#define HASH_SHIFT	13
--#define HASH_SIZE	(1 << HASH_SHIFT)
--#define HASH_MASK	(HASH_SIZE - 1)
--#define HASH_KEY(flags)	(flags & HASH_MASK)
--
--static unsigned long	total_pages;
--static unsigned long	nr_pages[HASH_SIZE];
--static uint64_t 	page_flags[HASH_SIZE];
--
--
--/*
-- * helper functions
-- */
--
--#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
--
--#define min_t(type, x, y) ({			\
--	type __min1 = (x);			\
--	type __min2 = (y);			\
--	__min1 < __min2 ? __min1 : __min2; })
--
--static unsigned long pages2mb(unsigned long pages)
--{
--	return (pages * page_size) >> 20;
--}
+-regex_t pattern;
 -
 -static void fatal(const char *x, ...)
 -{
@@ -206,696 +131,2438 @@ Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 -	exit(EXIT_FAILURE);
 -}
 -
+-static void usage(void)
+-{
+-	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
+-		"-a|--aliases           Show aliases\n"
+-		"-A|--activity          Most active slabs first\n"
+-		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-D|--display-active    Switch line format to activity\n"
+-		"-e|--empty             Show empty slabs\n"
+-		"-f|--first-alias       Show first alias\n"
+-		"-h|--help              Show usage information\n"
+-		"-i|--inverted          Inverted list\n"
+-		"-l|--slabs             Show slabs\n"
+-		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
+-		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
+-		"-S|--Size              Sort by size\n"
+-		"-t|--tracking          Show alloc/free information\n"
+-		"-T|--Totals            Show summary information\n"
+-		"-v|--validate          Validate slabs\n"
+-		"-z|--zero              Include empty slabs\n"
+-		"-1|--1ref              Single reference\n"
+-		"\nValid debug options (FZPUT may be combined)\n"
+-		"a / A          Switch on all debug options (=FZUP)\n"
+-		"-              Switch off all debug options\n"
+-		"f / F          Sanity Checks (SLAB_DEBUG_FREE)\n"
+-		"z / Z          Redzoning\n"
+-		"p / P          Poisoning\n"
+-		"u / U          Tracking\n"
+-		"t / T          Tracing\n"
+-	);
+-}
+-
+-static unsigned long read_obj(const char *name)
+-{
+-	FILE *f = fopen(name, "r");
+-
+-	if (!f)
+-		buffer[0] = 0;
+-	else {
+-		if (!fgets(buffer, sizeof(buffer), f))
+-			buffer[0] = 0;
+-		fclose(f);
+-		if (buffer[strlen(buffer)] == '\n')
+-			buffer[strlen(buffer)] = 0;
+-	}
+-	return strlen(buffer);
+-}
+-
 -
 -/*
-- * page flag names
+- * Get the contents of an attribute
 - */
--
--static char *page_flag_name(uint64_t flags)
+-static unsigned long get_obj(const char *name)
 -{
--	static char buf[65];
--	int present;
--	int i, j;
+-	if (!read_obj(name))
+-		return 0;
 -
--	for (i = 0, j = 0; i < ARRAY_SIZE(page_flag_names); i++) {
--		present = (flags >> i) & 1;
--		if (!page_flag_names[i]) {
--			if (present)
--				fatal("unkown flag bit %d\n", i);
--			continue;
+-	return atol(buffer);
+-}
+-
+-static unsigned long get_obj_and_str(const char *name, char **x)
+-{
+-	unsigned long result = 0;
+-	char *p;
+-
+-	*x = NULL;
+-
+-	if (!read_obj(name)) {
+-		x = NULL;
+-		return 0;
+-	}
+-	result = strtoul(buffer, &p, 10);
+-	while (*p == ' ')
+-		p++;
+-	if (*p)
+-		*x = strdup(p);
+-	return result;
+-}
+-
+-static void set_obj(struct slabinfo *s, const char *name, int n)
+-{
+-	char x[100];
+-	FILE *f;
+-
+-	snprintf(x, 100, "%s/%s", s->name, name);
+-	f = fopen(x, "w");
+-	if (!f)
+-		fatal("Cannot write to %s\n", x);
+-
+-	fprintf(f, "%d\n", n);
+-	fclose(f);
+-}
+-
+-static unsigned long read_slab_obj(struct slabinfo *s, const char *name)
+-{
+-	char x[100];
+-	FILE *f;
+-	size_t l;
+-
+-	snprintf(x, 100, "%s/%s", s->name, name);
+-	f = fopen(x, "r");
+-	if (!f) {
+-		buffer[0] = 0;
+-		l = 0;
+-	} else {
+-		l = fread(buffer, 1, sizeof(buffer), f);
+-		buffer[l] = 0;
+-		fclose(f);
+-	}
+-	return l;
+-}
+-
+-
+-/*
+- * Put a size string together
+- */
+-static int store_size(char *buffer, unsigned long value)
+-{
+-	unsigned long divisor = 1;
+-	char trailer = 0;
+-	int n;
+-
+-	if (value > 1000000000UL) {
+-		divisor = 100000000UL;
+-		trailer = 'G';
+-	} else if (value > 1000000UL) {
+-		divisor = 100000UL;
+-		trailer = 'M';
+-	} else if (value > 1000UL) {
+-		divisor = 100;
+-		trailer = 'K';
+-	}
+-
+-	value /= divisor;
+-	n = sprintf(buffer, "%ld",value);
+-	if (trailer) {
+-		buffer[n] = trailer;
+-		n++;
+-		buffer[n] = 0;
+-	}
+-	if (divisor != 1) {
+-		memmove(buffer + n - 2, buffer + n - 3, 4);
+-		buffer[n-2] = '.';
+-		n++;
+-	}
+-	return n;
+-}
+-
+-static void decode_numa_list(int *numa, char *t)
+-{
+-	int node;
+-	int nr;
+-
+-	memset(numa, 0, MAX_NODES * sizeof(int));
+-
+-	if (!t)
+-		return;
+-
+-	while (*t == 'N') {
+-		t++;
+-		node = strtoul(t, &t, 10);
+-		if (*t == '=') {
+-			t++;
+-			nr = strtoul(t, &t, 10);
+-			numa[node] = nr;
+-			if (node > highest_node)
+-				highest_node = node;
 -		}
--		buf[j++] = present ? page_flag_names[i][0] : '_';
+-		while (*t == ' ')
+-			t++;
 -	}
--
--	return buf;
 -}
 -
--static char *page_flag_longname(uint64_t flags)
+-static void slab_validate(struct slabinfo *s)
 -{
--	static char buf[1024];
--	int i, n;
+-	if (strcmp(s->name, "*") == 0)
+-		return;
 -
--	for (i = 0, n = 0; i < ARRAY_SIZE(page_flag_names); i++) {
--		if (!page_flag_names[i])
--			continue;
--		if ((flags >> i) & 1)
--			n += snprintf(buf + n, sizeof(buf) - n, "%s,",
--					page_flag_names[i] + 2);
--	}
--	if (n)
--		n--;
--	buf[n] = '\0';
--
--	return buf;
+-	set_obj(s, "validate", 1);
 -}
 -
+-static void slab_shrink(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	set_obj(s, "shrink", 1);
+-}
+-
+-int line = 0;
+-
+-static void first_line(void)
+-{
+-	if (show_activity)
+-		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
+-	else
+-		printf("Name                   Objects Objsize    Space "
+-			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
+-}
 -
 -/*
-- * page list and summary
+- * Find the shortest alias of a slab
 - */
--
--static void show_page_range(unsigned long offset, uint64_t flags)
+-static struct aliasinfo *find_one_alias(struct slabinfo *find)
 -{
--	static uint64_t      flags0;
--	static unsigned long index;
--	static unsigned long count;
+-	struct aliasinfo *a;
+-	struct aliasinfo *best = NULL;
 -
--	if (flags == flags0 && offset == index + count) {
--		count++;
+-	for(a = aliasinfo;a < aliasinfo + aliases; a++) {
+-		if (a->slab == find &&
+-			(!best || strlen(best->name) < strlen(a->name))) {
+-				best = a;
+-				if (strncmp(a->name,"kmall", 5) == 0)
+-					return best;
+-			}
+-	}
+-	return best;
+-}
+-
+-static unsigned long slab_size(struct slabinfo *s)
+-{
+-	return 	s->slabs * (page_size << s->order);
+-}
+-
+-static unsigned long slab_activity(struct slabinfo *s)
+-{
+-	return 	s->alloc_fastpath + s->free_fastpath +
+-		s->alloc_slowpath + s->free_slowpath;
+-}
+-
+-static void slab_numa(struct slabinfo *s, int mode)
+-{
+-	int node;
+-
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (!highest_node) {
+-		printf("\n%s: No NUMA information available.\n", s->name);
 -		return;
 -	}
 -
--	if (count)
--		printf("%lu\t%lu\t%s\n",
--				index, count, page_flag_name(flags0));
+-	if (skip_zero && !s->slabs)
+-		return;
 -
--	flags0 = flags;
--	index  = offset;
--	count  = 1;
+-	if (!line) {
+-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
+-		for(node = 0; node <= highest_node; node++)
+-			printf(" %4d", node);
+-		printf("\n----------------------");
+-		for(node = 0; node <= highest_node; node++)
+-			printf("-----");
+-		printf("\n");
+-	}
+-	printf("%-21s ", mode ? "All slabs" : s->name);
+-	for(node = 0; node <= highest_node; node++) {
+-		char b[20];
+-
+-		store_size(b, s->numa[node]);
+-		printf(" %4s", b);
+-	}
+-	printf("\n");
+-	if (mode) {
+-		printf("%-21s ", "Partial slabs");
+-		for(node = 0; node <= highest_node; node++) {
+-			char b[20];
+-
+-			store_size(b, s->numa_partial[node]);
+-			printf(" %4s", b);
+-		}
+-		printf("\n");
+-	}
+-	line++;
 -}
 -
--static void show_page(unsigned long offset, uint64_t flags)
+-static void show_tracking(struct slabinfo *s)
 -{
--	printf("%lu\t%s\n", offset, page_flag_name(flags));
+-	printf("\n%s: Kernel object allocation\n", s->name);
+-	printf("-----------------------------------------------------------------------\n");
+-	if (read_slab_obj(s, "alloc_calls"))
+-		printf(buffer);
+-	else
+-		printf("No Data\n");
+-
+-	printf("\n%s: Kernel object freeing\n", s->name);
+-	printf("------------------------------------------------------------------------\n");
+-	if (read_slab_obj(s, "free_calls"))
+-		printf(buffer);
+-	else
+-		printf("No Data\n");
+-
 -}
 -
--static void show_summary(void)
+-static void ops(struct slabinfo *s)
 -{
--	int i;
+-	if (strcmp(s->name, "*") == 0)
+-		return;
 -
--	printf("             flags\tpage-count       MB"
--		"  symbolic-flags\t\t\tlong-symbolic-flags\n");
+-	if (read_slab_obj(s, "ops")) {
+-		printf("\n%s: kmem_cache operations\n", s->name);
+-		printf("--------------------------------------------\n");
+-		printf(buffer);
+-	} else
+-		printf("\n%s has no kmem_cache operations\n", s->name);
+-}
 -
--	for (i = 0; i < ARRAY_SIZE(nr_pages); i++) {
--		if (nr_pages[i])
--			printf("0x%016llx\t%10lu %8lu  %s\t%s\n",
--				(unsigned long long)page_flags[i],
--				nr_pages[i],
--				pages2mb(nr_pages[i]),
--				page_flag_name(page_flags[i]),
--				page_flag_longname(page_flags[i]));
+-static const char *onoff(int x)
+-{
+-	if (x)
+-		return "On ";
+-	return "Off";
+-}
+-
+-static void slab_stats(struct slabinfo *s)
+-{
+-	unsigned long total_alloc;
+-	unsigned long total_free;
+-	unsigned long total;
+-
+-	if (!s->alloc_slab)
+-		return;
+-
+-	total_alloc = s->alloc_fastpath + s->alloc_slowpath;
+-	total_free = s->free_fastpath + s->free_slowpath;
+-
+-	if (!total_alloc)
+-		return;
+-
+-	printf("\n");
+-	printf("Slab Perf Counter       Alloc     Free %%Al %%Fr\n");
+-	printf("--------------------------------------------------\n");
+-	printf("Fastpath             %8lu %8lu %3lu %3lu\n",
+-		s->alloc_fastpath, s->free_fastpath,
+-		s->alloc_fastpath * 100 / total_alloc,
+-		s->free_fastpath * 100 / total_free);
+-	printf("Slowpath             %8lu %8lu %3lu %3lu\n",
+-		total_alloc - s->alloc_fastpath, s->free_slowpath,
+-		(total_alloc - s->alloc_fastpath) * 100 / total_alloc,
+-		s->free_slowpath * 100 / total_free);
+-	printf("Page Alloc           %8lu %8lu %3lu %3lu\n",
+-		s->alloc_slab, s->free_slab,
+-		s->alloc_slab * 100 / total_alloc,
+-		s->free_slab * 100 / total_free);
+-	printf("Add partial          %8lu %8lu %3lu %3lu\n",
+-		s->deactivate_to_head + s->deactivate_to_tail,
+-		s->free_add_partial,
+-		(s->deactivate_to_head + s->deactivate_to_tail) * 100 / total_alloc,
+-		s->free_add_partial * 100 / total_free);
+-	printf("Remove partial       %8lu %8lu %3lu %3lu\n",
+-		s->alloc_from_partial, s->free_remove_partial,
+-		s->alloc_from_partial * 100 / total_alloc,
+-		s->free_remove_partial * 100 / total_free);
+-
+-	printf("RemoteObj/SlabFrozen %8lu %8lu %3lu %3lu\n",
+-		s->deactivate_remote_frees, s->free_frozen,
+-		s->deactivate_remote_frees * 100 / total_alloc,
+-		s->free_frozen * 100 / total_free);
+-
+-	printf("Total                %8lu %8lu\n\n", total_alloc, total_free);
+-
+-	if (s->cpuslab_flush)
+-		printf("Flushes %8lu\n", s->cpuslab_flush);
+-
+-	if (s->alloc_refill)
+-		printf("Refill %8lu\n", s->alloc_refill);
+-
+-	total = s->deactivate_full + s->deactivate_empty +
+-			s->deactivate_to_head + s->deactivate_to_tail;
+-
+-	if (total)
+-		printf("Deactivate Full=%lu(%lu%%) Empty=%lu(%lu%%) "
+-			"ToHead=%lu(%lu%%) ToTail=%lu(%lu%%)\n",
+-			s->deactivate_full, (s->deactivate_full * 100) / total,
+-			s->deactivate_empty, (s->deactivate_empty * 100) / total,
+-			s->deactivate_to_head, (s->deactivate_to_head * 100) / total,
+-			s->deactivate_to_tail, (s->deactivate_to_tail * 100) / total);
+-}
+-
+-static void report(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %lu\n",
+-		s->name, s->aliases, s->order, s->objects);
+-	if (s->hwcache_align)
+-		printf("** Hardware cacheline aligned\n");
+-	if (s->cache_dma)
+-		printf("** Memory is allocated in a special DMA zone\n");
+-	if (s->destroy_by_rcu)
+-		printf("** Slabs are destroyed via RCU\n");
+-	if (s->reclaim_account)
+-		printf("** Reclaim accounting active\n");
+-
+-	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+-	printf("------------------------------------------------------------------------\n");
+-	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
+-			s->object_size, s->slabs, onoff(s->sanity_checks),
+-			s->slabs * (page_size << s->order));
+-	printf("SlabObj: %7d  Full   : %7ld   Redzoning     : %s  Used : %7ld\n",
+-			s->slab_size, s->slabs - s->partial - s->cpu_slabs,
+-			onoff(s->red_zone), s->objects * s->object_size);
+-	printf("SlabSiz: %7d  Partial: %7ld   Poisoning     : %s  Loss : %7ld\n",
+-			page_size << s->order, s->partial, onoff(s->poison),
+-			s->slabs * (page_size << s->order) - s->objects * s->object_size);
+-	printf("Loss   : %7d  CpuSlab: %7d   Tracking      : %s  Lalig: %7ld\n",
+-			s->slab_size - s->object_size, s->cpu_slabs, onoff(s->store_user),
+-			(s->slab_size - s->object_size) * s->objects);
+-	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
+-			s->align, s->objs_per_slab, onoff(s->trace),
+-			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
+-			s->slabs);
+-
+-	ops(s);
+-	show_tracking(s);
+-	slab_numa(s, 1);
+-	slab_stats(s);
+-}
+-
+-static void slabcache(struct slabinfo *s)
+-{
+-	char size_str[20];
+-	char dist_str[40];
+-	char flags[20];
+-	char *p = flags;
+-
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (actual_slabs == 1) {
+-		report(s);
+-		return;
 -	}
 -
--	printf("             total\t%10lu %8lu\n",
--			total_pages, pages2mb(total_pages));
--}
+-	if (skip_zero && !show_empty && !s->slabs)
+-		return;
 -
+-	if (show_empty && s->slabs)
+-		return;
+-
+-	store_size(size_str, slab_size(s));
+-	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs - s->cpu_slabs,
+-						s->partial, s->cpu_slabs);
+-
+-	if (!line++)
+-		first_line();
+-
+-	if (s->aliases)
+-		*p++ = '*';
+-	if (s->cache_dma)
+-		*p++ = 'd';
+-	if (s->hwcache_align)
+-		*p++ = 'A';
+-	if (s->poison)
+-		*p++ = 'P';
+-	if (s->reclaim_account)
+-		*p++ = 'a';
+-	if (s->red_zone)
+-		*p++ = 'Z';
+-	if (s->sanity_checks)
+-		*p++ = 'F';
+-	if (s->store_user)
+-		*p++ = 'U';
+-	if (s->trace)
+-		*p++ = 'T';
+-
+-	*p = 0;
+-	if (show_activity) {
+-		unsigned long total_alloc;
+-		unsigned long total_free;
+-
+-		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
+-		total_free = s->free_fastpath + s->free_slowpath;
+-
+-		printf("%-21s %8ld %10ld %10ld %3ld %3ld %5ld %1d\n",
+-			s->name, s->objects,
+-			total_alloc, total_free,
+-			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
+-			total_free ? (s->free_fastpath * 100 / total_free) : 0,
+-			s->order_fallback, s->order);
+-	}
+-	else
+-		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+-			s->name, s->objects, s->object_size, size_str, dist_str,
+-			s->objs_per_slab, s->order,
+-			s->slabs ? (s->partial * 100) / s->slabs : 100,
+-			s->slabs ? (s->objects * s->object_size * 100) /
+-				(s->slabs * (page_size << s->order)) : 100,
+-			flags);
+-}
 -
 -/*
-- * page flag filters
+- * Analyze debug options. Return false if something is amiss.
 - */
--
--static int bit_mask_ok(uint64_t flags)
+-static int debug_opt_scan(char *opt)
 -{
--	int i;
+-	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
+-		return 1;
 -
--	for (i = 0; i < nr_bit_filters; i++) {
--		if (opt_bits[i] == KPF_ALL_BITS) {
--			if ((flags & opt_mask[i]) == 0)
--				return 0;
--		} else {
--			if ((flags & opt_mask[i]) != opt_bits[i])
--				return 0;
--		}
+-	if (strcasecmp(opt, "a") == 0) {
+-		sanity = 1;
+-		poison = 1;
+-		redzone = 1;
+-		tracking = 1;
+-		return 1;
 -	}
+-
+-	for ( ; *opt; opt++)
+-	 	switch (*opt) {
+-		case 'F' : case 'f':
+-			if (sanity)
+-				return 0;
+-			sanity = 1;
+-			break;
+-		case 'P' : case 'p':
+-			if (poison)
+-				return 0;
+-			poison = 1;
+-			break;
+-
+-		case 'Z' : case 'z':
+-			if (redzone)
+-				return 0;
+-			redzone = 1;
+-			break;
+-
+-		case 'U' : case 'u':
+-			if (tracking)
+-				return 0;
+-			tracking = 1;
+-			break;
+-
+-		case 'T' : case 't':
+-			if (tracing)
+-				return 0;
+-			tracing = 1;
+-			break;
+-		default:
+-			return 0;
+-		}
+-	return 1;
+-}
+-
+-static int slab_empty(struct slabinfo *s)
+-{
+-	if (s->objects > 0)
+-		return 0;
+-
+-	/*
+-	 * We may still have slabs even if there are no objects. Shrinking will
+-	 * remove them.
+-	 */
+-	if (s->slabs != 0)
+-		set_obj(s, "shrink", 1);
 -
 -	return 1;
 -}
 -
--static uint64_t expand_overloaded_flags(uint64_t flags)
+-static void slab_debug(struct slabinfo *s)
 -{
--	/* SLOB/SLUB overload several page flags */
--	if (flags & BIT(SLAB)) {
--		if (flags & BIT(PRIVATE))
--			flags ^= BIT(PRIVATE) | BIT(SLOB_FREE);
--		if (flags & BIT(ACTIVE))
--			flags ^= BIT(ACTIVE) | BIT(SLUB_FROZEN);
--		if (flags & BIT(ERROR))
--			flags ^= BIT(ERROR) | BIT(SLUB_DEBUG);
--	}
--
--	/* PG_reclaim is overloaded as PG_readahead in the read path */
--	if ((flags & (BIT(RECLAIM) | BIT(WRITEBACK))) == BIT(RECLAIM))
--		flags ^= BIT(RECLAIM) | BIT(READAHEAD);
--
--	return flags;
--}
--
--static uint64_t well_known_flags(uint64_t flags)
--{
--	/* hide flags intended only for kernel hacker */
--	flags &= ~KPF_HACKERS_BITS;
--
--	/* hide non-hugeTLB compound pages */
--	if ((flags & BITS_COMPOUND) && !(flags & BIT(HUGE)))
--		flags &= ~BITS_COMPOUND;
--
--	return flags;
--}
--
--
--/*
-- * page frame walker
-- */
--
--static int hash_slot(uint64_t flags)
--{
--	int k = HASH_KEY(flags);
--	int i;
--
--	/* Explicitly reserve slot 0 for flags 0: the following logic
--	 * cannot distinguish an unoccupied slot from slot (flags==0).
--	 */
--	if (flags == 0)
--		return 0;
--
--	/* search through the remaining (HASH_SIZE-1) slots */
--	for (i = 1; i < ARRAY_SIZE(page_flags); i++, k++) {
--		if (!k || k >= ARRAY_SIZE(page_flags))
--			k = 1;
--		if (page_flags[k] == 0) {
--			page_flags[k] = flags;
--			return k;
--		}
--		if (page_flags[k] == flags)
--			return k;
--	}
--
--	fatal("hash table full: bump up HASH_SHIFT?\n");
--	exit(EXIT_FAILURE);
--}
--
--static void add_page(unsigned long offset, uint64_t flags)
--{
--	flags = expand_overloaded_flags(flags);
--
--	if (!opt_raw)
--		flags = well_known_flags(flags);
--
--	if (!bit_mask_ok(flags))
+-	if (strcmp(s->name, "*") == 0)
 -		return;
 -
--	if (opt_list == 1)
--		show_page_range(offset, flags);
--	else if (opt_list == 2)
--		show_page(offset, flags);
--
--	nr_pages[hash_slot(flags)]++;
--	total_pages++;
--}
--
--static void walk_pfn(unsigned long index, unsigned long count)
--{
--	unsigned long batch;
--	unsigned long n;
--	unsigned long i;
--
--	if (index > ULONG_MAX / KPF_BYTES)
--		fatal("index overflow: %lu\n", index);
--
--	lseek(kpageflags_fd, index * KPF_BYTES, SEEK_SET);
--
--	while (count) {
--		batch = min_t(unsigned long, count, PAGES_BATCH);
--		n = read(kpageflags_fd, kpageflags_buf, batch * KPF_BYTES);
--		if (n == 0)
--			break;
--		if (n < 0) {
--			perror(PROC_KPAGEFLAGS);
--			exit(EXIT_FAILURE);
--		}
--
--		if (n % KPF_BYTES != 0)
--			fatal("partial read: %lu bytes\n", n);
--		n = n / KPF_BYTES;
--
--		for (i = 0; i < n; i++)
--			add_page(index + i, kpageflags_buf[i]);
--
--		index += batch;
--		count -= batch;
+-	if (sanity && !s->sanity_checks) {
+-		set_obj(s, "sanity", 1);
 -	}
--}
--
--static void walk_addr_ranges(void)
--{
--	int i;
--
--	kpageflags_fd = open(PROC_KPAGEFLAGS, O_RDONLY);
--	if (kpageflags_fd < 0) {
--		perror(PROC_KPAGEFLAGS);
--		exit(EXIT_FAILURE);
+-	if (!sanity && s->sanity_checks) {
+-		if (slab_empty(s))
+-			set_obj(s, "sanity", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable sanity checks\n", s->name);
 -	}
--
--	if (!nr_addr_ranges)
--		walk_pfn(0, ULONG_MAX);
--
--	for (i = 0; i < nr_addr_ranges; i++)
--		walk_pfn(opt_offset[i], opt_size[i]);
--
--	close(kpageflags_fd);
+-	if (redzone && !s->red_zone) {
+-		if (slab_empty(s))
+-			set_obj(s, "red_zone", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
+-	}
+-	if (!redzone && s->red_zone) {
+-		if (slab_empty(s))
+-			set_obj(s, "red_zone", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
+-	}
+-	if (poison && !s->poison) {
+-		if (slab_empty(s))
+-			set_obj(s, "poison", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
+-	}
+-	if (!poison && s->poison) {
+-		if (slab_empty(s))
+-			set_obj(s, "poison", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
+-	}
+-	if (tracking && !s->store_user) {
+-		if (slab_empty(s))
+-			set_obj(s, "store_user", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
+-	}
+-	if (!tracking && s->store_user) {
+-		if (slab_empty(s))
+-			set_obj(s, "store_user", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
+-	}
+-	if (tracing && !s->trace) {
+-		if (slabs == 1)
+-			set_obj(s, "trace", 1);
+-		else
+-			fprintf(stderr, "%s can only enable trace for one slab at a time\n", s->name);
+-	}
+-	if (!tracing && s->trace)
+-		set_obj(s, "trace", 1);
 -}
 -
--
--/*
-- * user interface
-- */
--
--static const char *page_flag_type(uint64_t flag)
+-static void totals(void)
 -{
--	if (flag & KPF_HACKERS_BITS)
--		return "(r)";
--	if (flag & KPF_OVERLOADED_BITS)
--		return "(o)";
--	return "   ";
--}
+-	struct slabinfo *s;
 -
--static void usage(void)
--{
--	int i, j;
+-	int used_slabs = 0;
+-	char b1[20], b2[20], b3[20], b4[20];
+-	unsigned long long max = 1ULL << 63;
 -
--	printf(
--"page-types [options]\n"
--"            -r|--raw                  Raw mode, for kernel developers\n"
--"            -a|--addr    addr-spec    Walk a range of pages\n"
--"            -b|--bits    bits-spec    Walk pages with specified bits\n"
--#if 0 /* planned features */
--"            -p|--pid     pid          Walk process address space\n"
--"            -f|--file    filename     Walk file address space\n"
--#endif
--"            -l|--list                 Show page details in ranges\n"
--"            -L|--list-each            Show page details one by one\n"
--"            -N|--no-summary           Don't show summay info\n"
--"            -h|--help                 Show this usage message\n"
--"addr-spec:\n"
--"            N                         one page at offset N (unit: pages)\n"
--"            N+M                       pages range from N to N+M-1\n"
--"            N,M                       pages range from N to M-1\n"
--"            N,                        pages range from N to end\n"
--"            ,M                        pages range from 0 to M\n"
--"bits-spec:\n"
--"            bit1,bit2                 (flags & (bit1|bit2)) != 0\n"
--"            bit1,bit2=bit1            (flags & (bit1|bit2)) == bit1\n"
--"            bit1,~bit2                (flags & (bit1|bit2)) == bit1\n"
--"            =bit1,bit2                flags == (bit1|bit2)\n"
--"bit-names:\n"
--	);
+-	/* Object size */
+-	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
 -
--	for (i = 0, j = 0; i < ARRAY_SIZE(page_flag_names); i++) {
--		if (!page_flag_names[i])
+-	/* Number of partial slabs in a slabcache */
+-	unsigned long long min_partial = max, max_partial = 0,
+-				avg_partial, total_partial = 0;
+-
+-	/* Number of slabs in a slab cache */
+-	unsigned long long min_slabs = max, max_slabs = 0,
+-				avg_slabs, total_slabs = 0;
+-
+-	/* Size of the whole slab */
+-	unsigned long long min_size = max, max_size = 0,
+-				avg_size, total_size = 0;
+-
+-	/* Bytes used for object storage in a slab */
+-	unsigned long long min_used = max, max_used = 0,
+-				avg_used, total_used = 0;
+-
+-	/* Waste: Bytes used for alignment and padding */
+-	unsigned long long min_waste = max, max_waste = 0,
+-				avg_waste, total_waste = 0;
+-	/* Number of objects in a slab */
+-	unsigned long long min_objects = max, max_objects = 0,
+-				avg_objects, total_objects = 0;
+-	/* Waste per object */
+-	unsigned long long min_objwaste = max,
+-				max_objwaste = 0, avg_objwaste,
+-				total_objwaste = 0;
+-
+-	/* Memory per object */
+-	unsigned long long min_memobj = max,
+-				max_memobj = 0, avg_memobj,
+-				total_objsize = 0;
+-
+-	/* Percentage of partial slabs per slab */
+-	unsigned long min_ppart = 100, max_ppart = 0,
+-				avg_ppart, total_ppart = 0;
+-
+-	/* Number of objects in partial slabs */
+-	unsigned long min_partobj = max, max_partobj = 0,
+-				avg_partobj, total_partobj = 0;
+-
+-	/* Percentage of partial objects of all objects in a slab */
+-	unsigned long min_ppartobj = 100, max_ppartobj = 0,
+-				avg_ppartobj, total_ppartobj = 0;
+-
+-
+-	for (s = slabinfo; s < slabinfo + slabs; s++) {
+-		unsigned long long size;
+-		unsigned long used;
+-		unsigned long long wasted;
+-		unsigned long long objwaste;
+-		unsigned long percentage_partial_slabs;
+-		unsigned long percentage_partial_objs;
+-
+-		if (!s->slabs || !s->objects)
 -			continue;
--		printf("%16s%s", page_flag_names[i] + 2,
--				 page_flag_type(1ULL << i));
--		if (++j > 3) {
--			j = 0;
--			putchar('\n');
--		}
+-
+-		used_slabs++;
+-
+-		size = slab_size(s);
+-		used = s->objects * s->object_size;
+-		wasted = size - used;
+-		objwaste = s->slab_size - s->object_size;
+-
+-		percentage_partial_slabs = s->partial * 100 / s->slabs;
+-		if (percentage_partial_slabs > 100)
+-			percentage_partial_slabs = 100;
+-
+-		percentage_partial_objs = s->objects_partial * 100
+-							/ s->objects;
+-
+-		if (percentage_partial_objs > 100)
+-			percentage_partial_objs = 100;
+-
+-		if (s->object_size < min_objsize)
+-			min_objsize = s->object_size;
+-		if (s->partial < min_partial)
+-			min_partial = s->partial;
+-		if (s->slabs < min_slabs)
+-			min_slabs = s->slabs;
+-		if (size < min_size)
+-			min_size = size;
+-		if (wasted < min_waste)
+-			min_waste = wasted;
+-		if (objwaste < min_objwaste)
+-			min_objwaste = objwaste;
+-		if (s->objects < min_objects)
+-			min_objects = s->objects;
+-		if (used < min_used)
+-			min_used = used;
+-		if (s->objects_partial < min_partobj)
+-			min_partobj = s->objects_partial;
+-		if (percentage_partial_slabs < min_ppart)
+-			min_ppart = percentage_partial_slabs;
+-		if (percentage_partial_objs < min_ppartobj)
+-			min_ppartobj = percentage_partial_objs;
+-		if (s->slab_size < min_memobj)
+-			min_memobj = s->slab_size;
+-
+-		if (s->object_size > max_objsize)
+-			max_objsize = s->object_size;
+-		if (s->partial > max_partial)
+-			max_partial = s->partial;
+-		if (s->slabs > max_slabs)
+-			max_slabs = s->slabs;
+-		if (size > max_size)
+-			max_size = size;
+-		if (wasted > max_waste)
+-			max_waste = wasted;
+-		if (objwaste > max_objwaste)
+-			max_objwaste = objwaste;
+-		if (s->objects > max_objects)
+-			max_objects = s->objects;
+-		if (used > max_used)
+-			max_used = used;
+-		if (s->objects_partial > max_partobj)
+-			max_partobj = s->objects_partial;
+-		if (percentage_partial_slabs > max_ppart)
+-			max_ppart = percentage_partial_slabs;
+-		if (percentage_partial_objs > max_ppartobj)
+-			max_ppartobj = percentage_partial_objs;
+-		if (s->slab_size > max_memobj)
+-			max_memobj = s->slab_size;
+-
+-		total_partial += s->partial;
+-		total_slabs += s->slabs;
+-		total_size += size;
+-		total_waste += wasted;
+-
+-		total_objects += s->objects;
+-		total_used += used;
+-		total_partobj += s->objects_partial;
+-		total_ppart += percentage_partial_slabs;
+-		total_ppartobj += percentage_partial_objs;
+-
+-		total_objwaste += s->objects * objwaste;
+-		total_objsize += s->objects * s->slab_size;
 -	}
--	printf("\n                                   "
--		"(r) raw mode bits  (o) overloaded bits\n");
+-
+-	if (!total_objects) {
+-		printf("No objects\n");
+-		return;
+-	}
+-	if (!used_slabs) {
+-		printf("No slabs\n");
+-		return;
+-	}
+-
+-	/* Per slab averages */
+-	avg_partial = total_partial / used_slabs;
+-	avg_slabs = total_slabs / used_slabs;
+-	avg_size = total_size / used_slabs;
+-	avg_waste = total_waste / used_slabs;
+-
+-	avg_objects = total_objects / used_slabs;
+-	avg_used = total_used / used_slabs;
+-	avg_partobj = total_partobj / used_slabs;
+-	avg_ppart = total_ppart / used_slabs;
+-	avg_ppartobj = total_ppartobj / used_slabs;
+-
+-	/* Per object object sizes */
+-	avg_objsize = total_used / total_objects;
+-	avg_objwaste = total_objwaste / total_objects;
+-	avg_partobj = total_partobj * 100 / total_objects;
+-	avg_memobj = total_objsize / total_objects;
+-
+-	printf("Slabcache Totals\n");
+-	printf("----------------\n");
+-	printf("Slabcaches : %3d      Aliases  : %3d->%-3d Active: %3d\n",
+-			slabs, aliases, alias_targets, used_slabs);
+-
+-	store_size(b1, total_size);store_size(b2, total_waste);
+-	store_size(b3, total_waste * 100 / total_used);
+-	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
+-
+-	store_size(b1, total_objects);store_size(b2, total_partobj);
+-	store_size(b3, total_partobj * 100 / total_objects);
+-	printf("# Objects  : %6s   # PartObj: %6s   ORatio:%6s%%\n", b1, b2, b3);
+-
+-	printf("\n");
+-	printf("Per Cache    Average         Min         Max       Total\n");
+-	printf("---------------------------------------------------------\n");
+-
+-	store_size(b1, avg_objects);store_size(b2, min_objects);
+-	store_size(b3, max_objects);store_size(b4, total_objects);
+-	printf("#Objects  %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_slabs);store_size(b2, min_slabs);
+-	store_size(b3, max_slabs);store_size(b4, total_slabs);
+-	printf("#Slabs    %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_partial);store_size(b2, min_partial);
+-	store_size(b3, max_partial);store_size(b4, total_partial);
+-	printf("#PartSlab %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-	store_size(b1, avg_ppart);store_size(b2, min_ppart);
+-	store_size(b3, max_ppart);
+-	store_size(b4, total_partial * 100  / total_slabs);
+-	printf("%%PartSlab%10s%% %10s%% %10s%% %10s%%\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_partobj);store_size(b2, min_partobj);
+-	store_size(b3, max_partobj);
+-	store_size(b4, total_partobj);
+-	printf("PartObjs  %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_ppartobj);store_size(b2, min_ppartobj);
+-	store_size(b3, max_ppartobj);
+-	store_size(b4, total_partobj * 100 / total_objects);
+-	printf("%% PartObj%10s%% %10s%% %10s%% %10s%%\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_size);store_size(b2, min_size);
+-	store_size(b3, max_size);store_size(b4, total_size);
+-	printf("Memory    %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_used);store_size(b2, min_used);
+-	store_size(b3, max_used);store_size(b4, total_used);
+-	printf("Used      %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_waste);store_size(b2, min_waste);
+-	store_size(b3, max_waste);store_size(b4, total_waste);
+-	printf("Loss      %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	printf("\n");
+-	printf("Per Object   Average         Min         Max\n");
+-	printf("---------------------------------------------\n");
+-
+-	store_size(b1, avg_memobj);store_size(b2, min_memobj);
+-	store_size(b3, max_memobj);
+-	printf("Memory    %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
+-	store_size(b1, avg_objsize);store_size(b2, min_objsize);
+-	store_size(b3, max_objsize);
+-	printf("User      %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
+-
+-	store_size(b1, avg_objwaste);store_size(b2, min_objwaste);
+-	store_size(b3, max_objwaste);
+-	printf("Loss      %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
 -}
 -
--static unsigned long long parse_number(const char *str)
+-static void sort_slabs(void)
 -{
--	unsigned long long n;
+-	struct slabinfo *s1,*s2;
 -
--	n = strtoll(str, NULL, 0);
+-	for (s1 = slabinfo; s1 < slabinfo + slabs; s1++) {
+-		for (s2 = s1 + 1; s2 < slabinfo + slabs; s2++) {
+-			int result;
 -
--	if (n == 0 && str[0] != '0')
--		fatal("invalid name or number: %s\n", str);
+-			if (sort_size)
+-				result = slab_size(s1) < slab_size(s2);
+-			else if (sort_active)
+-				result = slab_activity(s1) < slab_activity(s2);
+-			else
+-				result = strcasecmp(s1->name, s2->name);
 -
--	return n;
--}
+-			if (show_inverted)
+-				result = -result;
 -
--static void parse_pid(const char *str)
--{
--	opt_pid = parse_number(str);
--}
+-			if (result > 0) {
+-				struct slabinfo t;
 -
--static void parse_file(const char *name)
--{
--}
--
--static void add_addr_range(unsigned long offset, unsigned long size)
--{
--	if (nr_addr_ranges >= MAX_ADDR_RANGES)
--		fatal("too much addr ranges\n");
--
--	opt_offset[nr_addr_ranges] = offset;
--	opt_size[nr_addr_ranges] = size;
--	nr_addr_ranges++;
--}
--
--static void parse_addr_range(const char *optarg)
--{
--	unsigned long offset;
--	unsigned long size;
--	char *p;
--
--	p = strchr(optarg, ',');
--	if (!p)
--		p = strchr(optarg, '+');
--
--	if (p == optarg) {
--		offset = 0;
--		size   = parse_number(p + 1);
--	} else if (p) {
--		offset = parse_number(optarg);
--		if (p[1] == '\0')
--			size = ULONG_MAX;
--		else {
--			size = parse_number(p + 1);
--			if (*p == ',') {
--				if (size < offset)
--					fatal("invalid range: %lu,%lu\n",
--							offset, size);
--				size -= offset;
+-				memcpy(&t, s1, sizeof(struct slabinfo));
+-				memcpy(s1, s2, sizeof(struct slabinfo));
+-				memcpy(s2, &t, sizeof(struct slabinfo));
 -			}
 -		}
--	} else {
--		offset = parse_number(optarg);
--		size   = 1;
 -	}
--
--	add_addr_range(offset, size);
 -}
 -
--static void add_bits_filter(uint64_t mask, uint64_t bits)
+-static void sort_aliases(void)
 -{
--	if (nr_bit_filters >= MAX_BIT_FILTERS)
--		fatal("too much bit filters\n");
+-	struct aliasinfo *a1,*a2;
 -
--	opt_mask[nr_bit_filters] = mask;
--	opt_bits[nr_bit_filters] = bits;
--	nr_bit_filters++;
--}
+-	for (a1 = aliasinfo; a1 < aliasinfo + aliases; a1++) {
+-		for (a2 = a1 + 1; a2 < aliasinfo + aliases; a2++) {
+-			char *n1, *n2;
 -
--static uint64_t parse_flag_name(const char *str, int len)
--{
--	int i;
+-			n1 = a1->name;
+-			n2 = a2->name;
+-			if (show_alias && !show_inverted) {
+-				n1 = a1->ref;
+-				n2 = a2->ref;
+-			}
+-			if (strcasecmp(n1, n2) > 0) {
+-				struct aliasinfo t;
 -
--	if (!*str || !len)
--		return 0;
--
--	if (len <= 8 && !strncmp(str, "compound", len))
--		return BITS_COMPOUND;
--
--	for (i = 0; i < ARRAY_SIZE(page_flag_names); i++) {
--		if (!page_flag_names[i])
--			continue;
--		if (!strncmp(str, page_flag_names[i] + 2, len))
--			return 1ULL << i;
--	}
--
--	return parse_number(str);
--}
--
--static uint64_t parse_flag_names(const char *str, int all)
--{
--	const char *p    = str;
--	uint64_t   flags = 0;
--
--	while (1) {
--		if (*p == ',' || *p == '=' || *p == '\0') {
--			if ((*str != '~') || (*str == '~' && all && *++str))
--				flags |= parse_flag_name(str, p - str);
--			if (*p != ',')
--				break;
--			str = p + 1;
+-				memcpy(&t, a1, sizeof(struct aliasinfo));
+-				memcpy(a1, a2, sizeof(struct aliasinfo));
+-				memcpy(a2, &t, sizeof(struct aliasinfo));
+-			}
 -		}
--		p++;
 -	}
--
--	return flags;
 -}
 -
--static void parse_bits_mask(const char *optarg)
+-static void link_slabs(void)
 -{
--	uint64_t mask;
--	uint64_t bits;
--	const char *p;
+-	struct aliasinfo *a;
+-	struct slabinfo *s;
 -
--	p = strchr(optarg, '=');
--	if (p == optarg) {
--		mask = KPF_ALL_BITS;
--		bits = parse_flag_names(p + 1, 0);
--	} else if (p) {
--		mask = parse_flag_names(optarg, 0);
--		bits = parse_flag_names(p + 1, 0);
--	} else if (strchr(optarg, '~')) {
--		mask = parse_flag_names(optarg, 1);
--		bits = parse_flag_names(optarg, 0);
--	} else {
--		mask = parse_flag_names(optarg, 0);
--		bits = KPF_ALL_BITS;
+-	for (a = aliasinfo; a < aliasinfo + aliases; a++) {
+-
+-		for (s = slabinfo; s < slabinfo + slabs; s++)
+-			if (strcmp(a->ref, s->name) == 0) {
+-				a->slab = s;
+-				s->refs++;
+-				break;
+-			}
+-		if (s == slabinfo + slabs)
+-			fatal("Unresolved alias %s\n", a->ref);
 -	}
+-}
 -
--	add_bits_filter(mask, bits);
+-static void alias(void)
+-{
+-	struct aliasinfo *a;
+-	char *active = NULL;
+-
+-	sort_aliases();
+-	link_slabs();
+-
+-	for(a = aliasinfo; a < aliasinfo + aliases; a++) {
+-
+-		if (!show_single_ref && a->slab->refs == 1)
+-			continue;
+-
+-		if (!show_inverted) {
+-			if (active) {
+-				if (strcmp(a->slab->name, active) == 0) {
+-					printf(" %s", a->name);
+-					continue;
+-				}
+-			}
+-			printf("\n%-12s <- %s", a->slab->name, a->name);
+-			active = a->slab->name;
+-		}
+-		else
+-			printf("%-20s -> %s\n", a->name, a->slab->name);
+-	}
+-	if (active)
+-		printf("\n");
 -}
 -
 -
--static struct option opts[] = {
--	{ "raw"       , 0, NULL, 'r' },
--	{ "pid"       , 1, NULL, 'p' },
--	{ "file"      , 1, NULL, 'f' },
--	{ "addr"      , 1, NULL, 'a' },
--	{ "bits"      , 1, NULL, 'b' },
--	{ "list"      , 0, NULL, 'l' },
--	{ "list-each" , 0, NULL, 'L' },
--	{ "no-summary", 0, NULL, 'N' },
--	{ "help"      , 0, NULL, 'h' },
--	{ NULL        , 0, NULL, 0 }
+-static void rename_slabs(void)
+-{
+-	struct slabinfo *s;
+-	struct aliasinfo *a;
+-
+-	for (s = slabinfo; s < slabinfo + slabs; s++) {
+-		if (*s->name != ':')
+-			continue;
+-
+-		if (s->refs > 1 && !show_first_alias)
+-			continue;
+-
+-		a = find_one_alias(s);
+-
+-		if (a)
+-			s->name = a->name;
+-		else {
+-			s->name = "*";
+-			actual_slabs--;
+-		}
+-	}
+-}
+-
+-static int slab_mismatch(char *slab)
+-{
+-	return regexec(&pattern, slab, 0, NULL, 0);
+-}
+-
+-static void read_slab_dir(void)
+-{
+-	DIR *dir;
+-	struct dirent *de;
+-	struct slabinfo *slab = slabinfo;
+-	struct aliasinfo *alias = aliasinfo;
+-	char *p;
+-	char *t;
+-	int count;
+-
+-	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
+-		fatal("SYSFS support for SLUB not active\n");
+-
+-	dir = opendir(".");
+-	while ((de = readdir(dir))) {
+-		if (de->d_name[0] == '.' ||
+-			(de->d_name[0] != ':' && slab_mismatch(de->d_name)))
+-				continue;
+-		switch (de->d_type) {
+-		   case DT_LNK:
+-		   	alias->name = strdup(de->d_name);
+-			count = readlink(de->d_name, buffer, sizeof(buffer));
+-
+-			if (count < 0)
+-				fatal("Cannot read symlink %s\n", de->d_name);
+-
+-			buffer[count] = 0;
+-			p = buffer + count;
+-			while (p > buffer && p[-1] != '/')
+-				p--;
+-			alias->ref = strdup(p);
+-			alias++;
+-			break;
+-		   case DT_DIR:
+-			if (chdir(de->d_name))
+-				fatal("Unable to access slab %s\n", slab->name);
+-		   	slab->name = strdup(de->d_name);
+-			slab->alias = 0;
+-			slab->refs = 0;
+-			slab->aliases = get_obj("aliases");
+-			slab->align = get_obj("align");
+-			slab->cache_dma = get_obj("cache_dma");
+-			slab->cpu_slabs = get_obj("cpu_slabs");
+-			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
+-			slab->hwcache_align = get_obj("hwcache_align");
+-			slab->object_size = get_obj("object_size");
+-			slab->objects = get_obj("objects");
+-			slab->objects_partial = get_obj("objects_partial");
+-			slab->objects_total = get_obj("objects_total");
+-			slab->objs_per_slab = get_obj("objs_per_slab");
+-			slab->order = get_obj("order");
+-			slab->partial = get_obj("partial");
+-			slab->partial = get_obj_and_str("partial", &t);
+-			decode_numa_list(slab->numa_partial, t);
+-			free(t);
+-			slab->poison = get_obj("poison");
+-			slab->reclaim_account = get_obj("reclaim_account");
+-			slab->red_zone = get_obj("red_zone");
+-			slab->sanity_checks = get_obj("sanity_checks");
+-			slab->slab_size = get_obj("slab_size");
+-			slab->slabs = get_obj_and_str("slabs", &t);
+-			decode_numa_list(slab->numa, t);
+-			free(t);
+-			slab->store_user = get_obj("store_user");
+-			slab->trace = get_obj("trace");
+-			slab->alloc_fastpath = get_obj("alloc_fastpath");
+-			slab->alloc_slowpath = get_obj("alloc_slowpath");
+-			slab->free_fastpath = get_obj("free_fastpath");
+-			slab->free_slowpath = get_obj("free_slowpath");
+-			slab->free_frozen= get_obj("free_frozen");
+-			slab->free_add_partial = get_obj("free_add_partial");
+-			slab->free_remove_partial = get_obj("free_remove_partial");
+-			slab->alloc_from_partial = get_obj("alloc_from_partial");
+-			slab->alloc_slab = get_obj("alloc_slab");
+-			slab->alloc_refill = get_obj("alloc_refill");
+-			slab->free_slab = get_obj("free_slab");
+-			slab->cpuslab_flush = get_obj("cpuslab_flush");
+-			slab->deactivate_full = get_obj("deactivate_full");
+-			slab->deactivate_empty = get_obj("deactivate_empty");
+-			slab->deactivate_to_head = get_obj("deactivate_to_head");
+-			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
+-			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
+-			slab->order_fallback = get_obj("order_fallback");
+-			chdir("..");
+-			if (slab->name[0] == ':')
+-				alias_targets++;
+-			slab++;
+-			break;
+-		   default :
+-			fatal("Unknown file type %lx\n", de->d_type);
+-		}
+-	}
+-	closedir(dir);
+-	slabs = slab - slabinfo;
+-	actual_slabs = slabs;
+-	aliases = alias - aliasinfo;
+-	if (slabs > MAX_SLABS)
+-		fatal("Too many slabs\n");
+-	if (aliases > MAX_ALIASES)
+-		fatal("Too many aliases\n");
+-}
+-
+-static void output_slabs(void)
+-{
+-	struct slabinfo *slab;
+-
+-	for (slab = slabinfo; slab < slabinfo + slabs; slab++) {
+-
+-		if (slab->alias)
+-			continue;
+-
+-
+-		if (show_numa)
+-			slab_numa(slab, 0);
+-		else if (show_track)
+-			show_tracking(slab);
+-		else if (validate)
+-			slab_validate(slab);
+-		else if (shrink)
+-			slab_shrink(slab);
+-		else if (set_debug)
+-			slab_debug(slab);
+-		else if (show_ops)
+-			ops(slab);
+-		else if (show_slab)
+-			slabcache(slab);
+-		else if (show_report)
+-			report(slab);
+-	}
+-}
+-
+-struct option opts[] = {
+-	{ "aliases", 0, NULL, 'a' },
+-	{ "activity", 0, NULL, 'A' },
+-	{ "debug", 2, NULL, 'd' },
+-	{ "display-activity", 0, NULL, 'D' },
+-	{ "empty", 0, NULL, 'e' },
+-	{ "first-alias", 0, NULL, 'f' },
+-	{ "help", 0, NULL, 'h' },
+-	{ "inverted", 0, NULL, 'i'},
+-	{ "numa", 0, NULL, 'n' },
+-	{ "ops", 0, NULL, 'o' },
+-	{ "report", 0, NULL, 'r' },
+-	{ "shrink", 0, NULL, 's' },
+-	{ "slabs", 0, NULL, 'l' },
+-	{ "track", 0, NULL, 't'},
+-	{ "validate", 0, NULL, 'v' },
+-	{ "zero", 0, NULL, 'z' },
+-	{ "1ref", 0, NULL, '1'},
+-	{ NULL, 0, NULL, 0 }
 -};
 -
 -int main(int argc, char *argv[])
 -{
 -	int c;
+-	int err;
+-	char *pattern_source;
 -
 -	page_size = getpagesize();
 -
--	while ((c = getopt_long(argc, argv,
--				"rp:f:a:b:lLNh", opts, NULL)) != -1) {
+-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTS",
+-						opts, NULL)) != -1)
 -		switch (c) {
--		case 'r':
--			opt_raw = 1;
--			break;
--		case 'p':
--			parse_pid(optarg);
--			break;
--		case 'f':
--			parse_file(optarg);
+-		case '1':
+-			show_single_ref = 1;
 -			break;
 -		case 'a':
--			parse_addr_range(optarg);
+-			show_alias = 1;
 -			break;
--		case 'b':
--			parse_bits_mask(optarg);
+-		case 'A':
+-			sort_active = 1;
 -			break;
--		case 'l':
--			opt_list = 1;
+-		case 'd':
+-			set_debug = 1;
+-			if (!debug_opt_scan(optarg))
+-				fatal("Invalid debug option '%s'\n", optarg);
 -			break;
--		case 'L':
--			opt_list = 2;
+-		case 'D':
+-			show_activity = 1;
 -			break;
--		case 'N':
--			opt_no_summary = 1;
+-		case 'e':
+-			show_empty = 1;
+-			break;
+-		case 'f':
+-			show_first_alias = 1;
 -			break;
 -		case 'h':
 -			usage();
--			exit(0);
+-			return 0;
+-		case 'i':
+-			show_inverted = 1;
+-			break;
+-		case 'n':
+-			show_numa = 1;
+-			break;
+-		case 'o':
+-			show_ops = 1;
+-			break;
+-		case 'r':
+-			show_report = 1;
+-			break;
+-		case 's':
+-			shrink = 1;
+-			break;
+-		case 'l':
+-			show_slab = 1;
+-			break;
+-		case 't':
+-			show_track = 1;
+-			break;
+-		case 'v':
+-			validate = 1;
+-			break;
+-		case 'z':
+-			skip_zero = 0;
+-			break;
+-		case 'T':
+-			show_totals = 1;
+-			break;
+-		case 'S':
+-			sort_size = 1;
+-			break;
+-
 -		default:
--			usage();
--			exit(1);
--		}
+-			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
+-
 -	}
 -
--	if (opt_list == 1)
--		printf("offset\tcount\tflags\n");
--	if (opt_list == 2)
--		printf("offset\tflags\n");
+-	if (!show_slab && !show_alias && !show_track && !show_report
+-		&& !validate && !shrink && !set_debug && !show_ops)
+-			show_slab = 1;
 -
--	walk_addr_ranges();
+-	if (argc > optind)
+-		pattern_source = argv[optind];
+-	else
+-		pattern_source = ".*";
 -
--	if (opt_list == 1)
--		show_page_range(0, 0);  /* drain the buffer */
--
--	if (opt_no_summary)
--		return 0;
--
--	if (opt_list)
--		printf("\n\n");
--
--	show_summary();
--
+-	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_NOSUB);
+-	if (err)
+-		fatal("%s: Invalid pattern '%s' code %d\n",
+-			argv[0], pattern_source, err);
+-	read_slab_dir();
+-	if (show_alias)
+-		alias();
+-	else
+-	if (show_totals)
+-		totals();
+-	else {
+-		link_slabs();
+-		rename_slabs();
+-		sort_slabs();
+-		output_slabs();
+-	}
 -	return 0;
 -}
+--- linux-mm.orig/Documentation/vm/slqbinfo.c	2009-09-02 11:27:38.000000000 +0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1,1047 +0,0 @@
+-/*
+- * Slabinfo: Tool to get reports about slabs
+- *
+- * (C) 2007 sgi, Christoph Lameter
+- *
+- * Reworked by Lin Ming <ming.m.lin@intel.com> for SLQB
+- *
+- * Compile by:
+- *
+- * gcc -o slabinfo slabinfo.c
+- */
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <sys/types.h>
+-#include <dirent.h>
+-#include <strings.h>
+-#include <string.h>
+-#include <unistd.h>
+-#include <stdarg.h>
+-#include <getopt.h>
+-#include <regex.h>
+-#include <errno.h>
+-
+-#define MAX_SLABS 500
+-#define MAX_ALIASES 500
+-#define MAX_NODES 1024
+-
+-struct slabinfo {
+-	char *name;
+-	int align, cache_dma, destroy_by_rcu;
+-	int hwcache_align, object_size, objs_per_slab;
+-	int slab_size, store_user;
+-	int order, poison, reclaim_account, red_zone;
+-	int batch;
+-	unsigned long objects, slabs, total_objects;
+-	unsigned long alloc, alloc_slab_fill, alloc_slab_new;
+-	unsigned long free, free_remote;
+-	unsigned long claim_remote_list, claim_remote_list_objects;
+-	unsigned long flush_free_list, flush_free_list_objects, flush_free_list_remote;
+-	unsigned long flush_rfree_list, flush_rfree_list_objects;
+-	unsigned long flush_slab_free, flush_slab_partial;
+-	int numa[MAX_NODES];
+-	int numa_partial[MAX_NODES];
+-} slabinfo[MAX_SLABS];
+-
+-int slabs = 0;
+-int actual_slabs = 0;
+-int highest_node = 0;
+-
+-char buffer[4096];
+-
+-int show_empty = 0;
+-int show_report = 0;
+-int show_slab = 0;
+-int skip_zero = 1;
+-int show_numa = 0;
+-int show_track = 0;
+-int validate = 0;
+-int shrink = 0;
+-int show_inverted = 0;
+-int show_totals = 0;
+-int sort_size = 0;
+-int sort_active = 0;
+-int set_debug = 0;
+-int show_ops = 0;
+-int show_activity = 0;
+-
+-/* Debug options */
+-int sanity = 0;
+-int redzone = 0;
+-int poison = 0;
+-int tracking = 0;
+-int tracing = 0;
+-
+-int page_size;
+-
+-regex_t pattern;
+-
+-void fatal(const char *x, ...)
+-{
+-	va_list ap;
+-
+-	va_start(ap, x);
+-	vfprintf(stderr, x, ap);
+-	va_end(ap);
+-	exit(EXIT_FAILURE);
+-}
+-
+-void usage(void)
+-{
+-	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
+-		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
+-		"-A|--activity          Most active slabs first\n"
+-		"-d<options>|--debug=<options> Set/Clear Debug options\n"
+-		"-D|--display-active    Switch line format to activity\n"
+-		"-e|--empty             Show empty slabs\n"
+-		"-h|--help              Show usage information\n"
+-		"-i|--inverted          Inverted list\n"
+-		"-l|--slabs             Show slabs\n"
+-		"-n|--numa              Show NUMA information\n"
+-		"-o|--ops		Show kmem_cache_ops\n"
+-		"-s|--shrink            Shrink slabs\n"
+-		"-r|--report		Detailed report on single slabs\n"
+-		"-S|--Size              Sort by size\n"
+-		"-t|--tracking          Show alloc/free information\n"
+-		"-T|--Totals            Show summary information\n"
+-		"-v|--validate          Validate slabs\n"
+-		"-z|--zero              Include empty slabs\n"
+-		"\nValid debug options (FZPUT may be combined)\n"
+-		"a / A          Switch on all debug options (=FZUP)\n"
+-		"-              Switch off all debug options\n"
+-		"f / F          Sanity Checks (SLAB_DEBUG_FREE)\n"
+-		"z / Z          Redzoning\n"
+-		"p / P          Poisoning\n"
+-		"u / U          Tracking\n"
+-		"t / T          Tracing\n"
+-	);
+-}
+-
+-unsigned long read_obj(const char *name)
+-{
+-	FILE *f = fopen(name, "r");
+-
+-	if (!f)
+-		buffer[0] = 0;
+-	else {
+-		if (!fgets(buffer, sizeof(buffer), f))
+-			buffer[0] = 0;
+-		fclose(f);
+-		if (buffer[strlen(buffer)] == '\n')
+-			buffer[strlen(buffer)] = 0;
+-	}
+-	return strlen(buffer);
+-}
+-
+-
+-/*
+- * Get the contents of an attribute
+- */
+-unsigned long get_obj(const char *name)
+-{
+-	if (!read_obj(name))
+-		return 0;
+-
+-	return atol(buffer);
+-}
+-
+-unsigned long get_obj_and_str(const char *name, char **x)
+-{
+-	unsigned long result = 0;
+-	char *p;
+-
+-	*x = NULL;
+-
+-	if (!read_obj(name)) {
+-		x = NULL;
+-		return 0;
+-	}
+-	result = strtoul(buffer, &p, 10);
+-	while (*p == ' ')
+-		p++;
+-	if (*p)
+-		*x = strdup(p);
+-	return result;
+-}
+-
+-void set_obj(struct slabinfo *s, const char *name, int n)
+-{
+-	char x[100];
+-	FILE *f;
+-
+-	snprintf(x, 100, "%s/%s", s->name, name);
+-	f = fopen(x, "w");
+-	if (!f)
+-		fatal("Cannot write to %s\n", x);
+-
+-	fprintf(f, "%d\n", n);
+-	fclose(f);
+-}
+-
+-unsigned long read_slab_obj(struct slabinfo *s, const char *name)
+-{
+-	char x[100];
+-	FILE *f;
+-	size_t l;
+-
+-	snprintf(x, 100, "%s/%s", s->name, name);
+-	f = fopen(x, "r");
+-	if (!f) {
+-		buffer[0] = 0;
+-		l = 0;
+-	} else {
+-		l = fread(buffer, 1, sizeof(buffer), f);
+-		buffer[l] = 0;
+-		fclose(f);
+-	}
+-	return l;
+-}
+-
+-
+-/*
+- * Put a size string together
+- */
+-int store_size(char *buffer, unsigned long value)
+-{
+-	unsigned long divisor = 1;
+-	char trailer = 0;
+-	int n;
+-
+-	if (value > 1000000000UL) {
+-		divisor = 100000000UL;
+-		trailer = 'G';
+-	} else if (value > 1000000UL) {
+-		divisor = 100000UL;
+-		trailer = 'M';
+-	} else if (value > 1000UL) {
+-		divisor = 100;
+-		trailer = 'K';
+-	}
+-
+-	value /= divisor;
+-	n = sprintf(buffer, "%ld",value);
+-	if (trailer) {
+-		buffer[n] = trailer;
+-		n++;
+-		buffer[n] = 0;
+-	}
+-	if (divisor != 1) {
+-		memmove(buffer + n - 2, buffer + n - 3, 4);
+-		buffer[n-2] = '.';
+-		n++;
+-	}
+-	return n;
+-}
+-
+-void decode_numa_list(int *numa, char *t)
+-{
+-	int node;
+-	int nr;
+-
+-	memset(numa, 0, MAX_NODES * sizeof(int));
+-
+-	if (!t)
+-		return;
+-
+-	while (*t == 'N') {
+-		t++;
+-		node = strtoul(t, &t, 10);
+-		if (*t == '=') {
+-			t++;
+-			nr = strtoul(t, &t, 10);
+-			numa[node] = nr;
+-			if (node > highest_node)
+-				highest_node = node;
+-		}
+-		while (*t == ' ')
+-			t++;
+-	}
+-}
+-
+-void slab_validate(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	set_obj(s, "validate", 1);
+-}
+-
+-void slab_shrink(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	set_obj(s, "shrink", 1);
+-}
+-
+-int line = 0;
+-
+-void first_line(void)
+-{
+-	if (show_activity)
+-		printf("Name                   Objects      Alloc       Free   %%Fill %%New  "
+-			"FlushR %%FlushR FlushR_Objs O\n");
+-	else
+-		printf("Name                   Objects Objsize    Space "
+-			" O/S O %%Ef Batch Flg\n");
+-}
+-
+-unsigned long slab_size(struct slabinfo *s)
+-{
+-	return 	s->slabs * (page_size << s->order);
+-}
+-
+-unsigned long slab_activity(struct slabinfo *s)
+-{
+-	return 	s->alloc + s->free;
+-}
+-
+-void slab_numa(struct slabinfo *s, int mode)
+-{
+-	int node;
+-
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (!highest_node) {
+-		printf("\n%s: No NUMA information available.\n", s->name);
+-		return;
+-	}
+-
+-	if (skip_zero && !s->slabs)
+-		return;
+-
+-	if (!line) {
+-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
+-		for(node = 0; node <= highest_node; node++)
+-			printf(" %4d", node);
+-		printf("\n----------------------");
+-		for(node = 0; node <= highest_node; node++)
+-			printf("-----");
+-		printf("\n");
+-	}
+-	printf("%-21s ", mode ? "All slabs" : s->name);
+-	for(node = 0; node <= highest_node; node++) {
+-		char b[20];
+-
+-		store_size(b, s->numa[node]);
+-		printf(" %4s", b);
+-	}
+-	printf("\n");
+-	if (mode) {
+-		printf("%-21s ", "Partial slabs");
+-		for(node = 0; node <= highest_node; node++) {
+-			char b[20];
+-
+-			store_size(b, s->numa_partial[node]);
+-			printf(" %4s", b);
+-		}
+-		printf("\n");
+-	}
+-	line++;
+-}
+-
+-void show_tracking(struct slabinfo *s)
+-{
+-	printf("\n%s: Kernel object allocation\n", s->name);
+-	printf("-----------------------------------------------------------------------\n");
+-	if (read_slab_obj(s, "alloc_calls"))
+-		printf(buffer);
+-	else
+-		printf("No Data\n");
+-
+-	printf("\n%s: Kernel object freeing\n", s->name);
+-	printf("------------------------------------------------------------------------\n");
+-	if (read_slab_obj(s, "free_calls"))
+-		printf(buffer);
+-	else
+-		printf("No Data\n");
+-
+-}
+-
+-void ops(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (read_slab_obj(s, "ops")) {
+-		printf("\n%s: kmem_cache operations\n", s->name);
+-		printf("--------------------------------------------\n");
+-		printf(buffer);
+-	} else
+-		printf("\n%s has no kmem_cache operations\n", s->name);
+-}
+-
+-const char *onoff(int x)
+-{
+-	if (x)
+-		return "On ";
+-	return "Off";
+-}
+-
+-void slab_stats(struct slabinfo *s)
+-{
+-	unsigned long total_alloc;
+-	unsigned long total_free;
+-
+-	total_alloc = s->alloc;
+-	total_free = s->free;
+-
+-	if (!total_alloc)
+-		return;
+-
+-	printf("\n");
+-	printf("Slab Perf Counter\n");
+-	printf("------------------------------------------------------------------------\n");
+-	printf("Alloc: %8lu, partial %8lu, page allocator %8lu\n",
+-		total_alloc,
+-		s->alloc_slab_fill, s->alloc_slab_new);
+-	printf("Free:  %8lu, partial %8lu, page allocator %8lu, remote %5lu\n",
+-		total_free,
+-		s->flush_slab_partial,
+-		s->flush_slab_free,
+-		s->free_remote);
+-	printf("Claim: %8lu, objects %8lu\n",
+-		s->claim_remote_list,
+-		s->claim_remote_list_objects);
+-	printf("Flush: %8lu, objects %8lu, remote: %8lu\n",
+-		s->flush_free_list,
+-		s->flush_free_list_objects,
+-		s->flush_free_list_remote);
+-	printf("FlushR:%8lu, objects %8lu\n",
+-		s->flush_rfree_list,
+-		s->flush_rfree_list_objects);
+-}
+-
+-void report(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	printf("\nSlabcache: %-20s  Order : %2d Objects: %lu\n",
+-		s->name, s->order, s->objects);
+-	if (s->hwcache_align)
+-		printf("** Hardware cacheline aligned\n");
+-	if (s->cache_dma)
+-		printf("** Memory is allocated in a special DMA zone\n");
+-	if (s->destroy_by_rcu)
+-		printf("** Slabs are destroyed via RCU\n");
+-	if (s->reclaim_account)
+-		printf("** Reclaim accounting active\n");
+-
+-	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+-	printf("------------------------------------------------------------------------\n");
+-	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
+-			s->object_size, s->slabs, "N/A",
+-			s->slabs * (page_size << s->order));
+-	printf("SlabObj: %7d  Full   : %7s   Redzoning     : %s  Used : %7ld\n",
+-			s->slab_size, "N/A",
+-			onoff(s->red_zone), s->objects * s->object_size);
+-	printf("SlabSiz: %7d  Partial: %7s   Poisoning     : %s  Loss : %7ld\n",
+-			page_size << s->order, "N/A", onoff(s->poison),
+-			s->slabs * (page_size << s->order) - s->objects * s->object_size);
+-	printf("Loss   : %7d  CpuSlab: %7s   Tracking      : %s  Lalig: %7ld\n",
+-			s->slab_size - s->object_size, "N/A", onoff(s->store_user),
+-			(s->slab_size - s->object_size) * s->objects);
+-	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
+-			s->align, s->objs_per_slab, "N/A",
+-			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
+-			s->slabs);
+-
+-	ops(s);
+-	show_tracking(s);
+-	slab_numa(s, 1);
+-	slab_stats(s);
+-}
+-
+-void slabcache(struct slabinfo *s)
+-{
+-	char size_str[20];
+-	char flags[20];
+-	char *p = flags;
+-
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (actual_slabs == 1) {
+-		report(s);
+-		return;
+-	}
+-
+-	if (skip_zero && !show_empty && !s->slabs)
+-		return;
+-
+-	if (show_empty && s->slabs)
+-		return;
+-
+-	store_size(size_str, slab_size(s));
+-
+-	if (!line++)
+-		first_line();
+-
+-	if (s->cache_dma)
+-		*p++ = 'd';
+-	if (s->hwcache_align)
+-		*p++ = 'A';
+-	if (s->poison)
+-		*p++ = 'P';
+-	if (s->reclaim_account)
+-		*p++ = 'a';
+-	if (s->red_zone)
+-		*p++ = 'Z';
+-	if (s->store_user)
+-		*p++ = 'U';
+-
+-	*p = 0;
+-	if (show_activity) {
+-		unsigned long total_alloc;
+-		unsigned long total_free;
+-
+-		total_alloc = s->alloc;
+-		total_free = s->free;
+-
+-		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5ld %7ld %8d\n",
+-			s->name, s->objects,
+-			total_alloc, total_free,
+-			total_alloc ? (s->alloc_slab_fill * 100 / total_alloc) : 0,
+-			total_alloc ? (s->alloc_slab_new * 100 / total_alloc) : 0,
+-			s->flush_rfree_list,
+-			s->flush_rfree_list * 100 / (total_alloc + total_free),
+-			s->flush_rfree_list_objects,
+-			s->order);
+-	}
+-	else
+-		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4d %s\n",
+-			s->name, s->objects, s->object_size, size_str,
+-			s->objs_per_slab, s->order,
+-			s->slabs ? (s->objects * s->object_size * 100) /
+-				(s->slabs * (page_size << s->order)) : 100,
+-			s->batch, flags);
+-}
+-
+-/*
+- * Analyze debug options. Return false if something is amiss.
+- */
+-int debug_opt_scan(char *opt)
+-{
+-	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
+-		return 1;
+-
+-	if (strcasecmp(opt, "a") == 0) {
+-		sanity = 1;
+-		poison = 1;
+-		redzone = 1;
+-		tracking = 1;
+-		return 1;
+-	}
+-
+-	for ( ; *opt; opt++)
+-	 	switch (*opt) {
+-		case 'F' : case 'f':
+-			if (sanity)
+-				return 0;
+-			sanity = 1;
+-			break;
+-		case 'P' : case 'p':
+-			if (poison)
+-				return 0;
+-			poison = 1;
+-			break;
+-
+-		case 'Z' : case 'z':
+-			if (redzone)
+-				return 0;
+-			redzone = 1;
+-			break;
+-
+-		case 'U' : case 'u':
+-			if (tracking)
+-				return 0;
+-			tracking = 1;
+-			break;
+-
+-		case 'T' : case 't':
+-			if (tracing)
+-				return 0;
+-			tracing = 1;
+-			break;
+-		default:
+-			return 0;
+-		}
+-	return 1;
+-}
+-
+-int slab_empty(struct slabinfo *s)
+-{
+-	if (s->objects > 0)
+-		return 0;
+-
+-	/*
+-	 * We may still have slabs even if there are no objects. Shrinking will
+-	 * remove them.
+-	 */
+-	if (s->slabs != 0)
+-		set_obj(s, "shrink", 1);
+-
+-	return 1;
+-}
+-
+-void slab_debug(struct slabinfo *s)
+-{
+-	if (strcmp(s->name, "*") == 0)
+-		return;
+-
+-	if (redzone && !s->red_zone) {
+-		if (slab_empty(s))
+-			set_obj(s, "red_zone", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
+-	}
+-	if (!redzone && s->red_zone) {
+-		if (slab_empty(s))
+-			set_obj(s, "red_zone", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
+-	}
+-	if (poison && !s->poison) {
+-		if (slab_empty(s))
+-			set_obj(s, "poison", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
+-	}
+-	if (!poison && s->poison) {
+-		if (slab_empty(s))
+-			set_obj(s, "poison", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
+-	}
+-	if (tracking && !s->store_user) {
+-		if (slab_empty(s))
+-			set_obj(s, "store_user", 1);
+-		else
+-			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
+-	}
+-	if (!tracking && s->store_user) {
+-		if (slab_empty(s))
+-			set_obj(s, "store_user", 0);
+-		else
+-			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
+-	}
+-}
+-
+-void totals(void)
+-{
+-	struct slabinfo *s;
+-
+-	int used_slabs = 0;
+-	char b1[20], b2[20], b3[20], b4[20];
+-	unsigned long long max = 1ULL << 63;
+-
+-	/* Object size */
+-	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
+-
+-	/* Number of slabs in a slab cache */
+-	unsigned long long min_slabs = max, max_slabs = 0,
+-				avg_slabs, total_slabs = 0;
+-
+-	/* Size of the whole slab */
+-	unsigned long long min_size = max, max_size = 0,
+-				avg_size, total_size = 0;
+-
+-	/* Bytes used for object storage in a slab */
+-	unsigned long long min_used = max, max_used = 0,
+-				avg_used, total_used = 0;
+-
+-	/* Waste: Bytes used for alignment and padding */
+-	unsigned long long min_waste = max, max_waste = 0,
+-				avg_waste, total_waste = 0;
+-	/* Number of objects in a slab */
+-	unsigned long long min_objects = max, max_objects = 0,
+-				avg_objects, total_objects = 0;
+-	/* Waste per object */
+-	unsigned long long min_objwaste = max,
+-				max_objwaste = 0, avg_objwaste,
+-				total_objwaste = 0;
+-
+-	/* Memory per object */
+-	unsigned long long min_memobj = max,
+-				max_memobj = 0, avg_memobj,
+-				total_objsize = 0;
+-
+-	for (s = slabinfo; s < slabinfo + slabs; s++) {
+-		unsigned long long size;
+-		unsigned long used;
+-		unsigned long long wasted;
+-		unsigned long long objwaste;
+-
+-		if (!s->slabs || !s->objects)
+-			continue;
+-
+-		used_slabs++;
+-
+-		size = slab_size(s);
+-		used = s->objects * s->object_size;
+-		wasted = size - used;
+-		objwaste = s->slab_size - s->object_size;
+-
+-		if (s->object_size < min_objsize)
+-			min_objsize = s->object_size;
+-		if (s->slabs < min_slabs)
+-			min_slabs = s->slabs;
+-		if (size < min_size)
+-			min_size = size;
+-		if (wasted < min_waste)
+-			min_waste = wasted;
+-		if (objwaste < min_objwaste)
+-			min_objwaste = objwaste;
+-		if (s->objects < min_objects)
+-			min_objects = s->objects;
+-		if (used < min_used)
+-			min_used = used;
+-		if (s->slab_size < min_memobj)
+-			min_memobj = s->slab_size;
+-
+-		if (s->object_size > max_objsize)
+-			max_objsize = s->object_size;
+-		if (s->slabs > max_slabs)
+-			max_slabs = s->slabs;
+-		if (size > max_size)
+-			max_size = size;
+-		if (wasted > max_waste)
+-			max_waste = wasted;
+-		if (objwaste > max_objwaste)
+-			max_objwaste = objwaste;
+-		if (s->objects > max_objects)
+-			max_objects = s->objects;
+-		if (used > max_used)
+-			max_used = used;
+-		if (s->slab_size > max_memobj)
+-			max_memobj = s->slab_size;
+-
+-		total_slabs += s->slabs;
+-		total_size += size;
+-		total_waste += wasted;
+-
+-		total_objects += s->objects;
+-		total_used += used;
+-
+-		total_objwaste += s->objects * objwaste;
+-		total_objsize += s->objects * s->slab_size;
+-	}
+-
+-	if (!total_objects) {
+-		printf("No objects\n");
+-		return;
+-	}
+-	if (!used_slabs) {
+-		printf("No slabs\n");
+-		return;
+-	}
+-
+-	/* Per slab averages */
+-	avg_slabs = total_slabs / used_slabs;
+-	avg_size = total_size / used_slabs;
+-	avg_waste = total_waste / used_slabs;
+-
+-	avg_objects = total_objects / used_slabs;
+-	avg_used = total_used / used_slabs;
+-
+-	/* Per object object sizes */
+-	avg_objsize = total_used / total_objects;
+-	avg_objwaste = total_objwaste / total_objects;
+-	avg_memobj = total_objsize / total_objects;
+-
+-	printf("Slabcache Totals\n");
+-	printf("----------------\n");
+-	printf("Slabcaches : %3d      Active: %3d\n",
+-			slabs, used_slabs);
+-
+-	store_size(b1, total_size);store_size(b2, total_waste);
+-	store_size(b3, total_waste * 100 / total_used);
+-	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
+-
+-	store_size(b1, total_objects);
+-	printf("# Objects  : %6s\n", b1);
+-
+-	printf("\n");
+-	printf("Per Cache    Average         Min         Max       Total\n");
+-	printf("---------------------------------------------------------\n");
+-
+-	store_size(b1, avg_objects);store_size(b2, min_objects);
+-	store_size(b3, max_objects);store_size(b4, total_objects);
+-	printf("#Objects  %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_slabs);store_size(b2, min_slabs);
+-	store_size(b3, max_slabs);store_size(b4, total_slabs);
+-	printf("#Slabs    %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_size);store_size(b2, min_size);
+-	store_size(b3, max_size);store_size(b4, total_size);
+-	printf("Memory    %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_used);store_size(b2, min_used);
+-	store_size(b3, max_used);store_size(b4, total_used);
+-	printf("Used      %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	store_size(b1, avg_waste);store_size(b2, min_waste);
+-	store_size(b3, max_waste);store_size(b4, total_waste);
+-	printf("Loss      %10s  %10s  %10s  %10s\n",
+-			b1,	b2,	b3,	b4);
+-
+-	printf("\n");
+-	printf("Per Object   Average         Min         Max\n");
+-	printf("---------------------------------------------\n");
+-
+-	store_size(b1, avg_memobj);store_size(b2, min_memobj);
+-	store_size(b3, max_memobj);
+-	printf("Memory    %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
+-	store_size(b1, avg_objsize);store_size(b2, min_objsize);
+-	store_size(b3, max_objsize);
+-	printf("User      %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
+-
+-	store_size(b1, avg_objwaste);store_size(b2, min_objwaste);
+-	store_size(b3, max_objwaste);
+-	printf("Loss      %10s  %10s  %10s\n",
+-			b1,	b2,	b3);
+-}
+-
+-void sort_slabs(void)
+-{
+-	struct slabinfo *s1,*s2;
+-
+-	for (s1 = slabinfo; s1 < slabinfo + slabs; s1++) {
+-		for (s2 = s1 + 1; s2 < slabinfo + slabs; s2++) {
+-			int result;
+-
+-			if (sort_size)
+-				result = slab_size(s1) < slab_size(s2);
+-			else if (sort_active)
+-				result = slab_activity(s1) < slab_activity(s2);
+-			else
+-				result = strcasecmp(s1->name, s2->name);
+-
+-			if (show_inverted)
+-				result = -result;
+-
+-			if (result > 0) {
+-				struct slabinfo t;
+-
+-				memcpy(&t, s1, sizeof(struct slabinfo));
+-				memcpy(s1, s2, sizeof(struct slabinfo));
+-				memcpy(s2, &t, sizeof(struct slabinfo));
+-			}
+-		}
+-	}
+-}
+-
+-int slab_mismatch(char *slab)
+-{
+-	return regexec(&pattern, slab, 0, NULL, 0);
+-}
+-
+-void read_slab_dir(void)
+-{
+-	DIR *dir;
+-	struct dirent *de;
+-	struct slabinfo *slab = slabinfo;
+-	char *t;
+-
+-	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
+-		fatal("SYSFS support for SLUB not active\n");
+-
+-	dir = opendir(".");
+-	while ((de = readdir(dir))) {
+-		if (de->d_name[0] == '.' ||
+-			(de->d_name[0] != ':' && slab_mismatch(de->d_name)))
+-				continue;
+-		switch (de->d_type) {
+-		   case DT_DIR:
+-			if (chdir(de->d_name))
+-				fatal("Unable to access slab %s\n", slab->name);
+-		   	slab->name = strdup(de->d_name);
+-			slab->align = get_obj("align");
+-			slab->cache_dma = get_obj("cache_dma");
+-			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
+-			slab->hwcache_align = get_obj("hwcache_align");
+-			slab->object_size = get_obj("object_size");
+-			slab->objects = get_obj("objects");
+-			slab->total_objects = get_obj("total_objects");
+-			slab->objs_per_slab = get_obj("objs_per_slab");
+-			slab->order = get_obj("order");
+-			slab->poison = get_obj("poison");
+-			slab->reclaim_account = get_obj("reclaim_account");
+-			slab->red_zone = get_obj("red_zone");
+-			slab->slab_size = get_obj("slab_size");
+-			slab->slabs = get_obj_and_str("slabs", &t);
+-			decode_numa_list(slab->numa, t);
+-			free(t);
+-			slab->store_user = get_obj("store_user");
+-			slab->batch = get_obj("batch");
+-			slab->alloc = get_obj("alloc");
+-			slab->alloc_slab_fill = get_obj("alloc_slab_fill");
+-			slab->alloc_slab_new = get_obj("alloc_slab_new");
+-			slab->free = get_obj("free");
+-			slab->free_remote = get_obj("free_remote");
+-			slab->claim_remote_list = get_obj("claim_remote_list");
+-			slab->claim_remote_list_objects = get_obj("claim_remote_list_objects");
+-			slab->flush_free_list = get_obj("flush_free_list");
+-			slab->flush_free_list_objects = get_obj("flush_free_list_objects");
+-			slab->flush_free_list_remote = get_obj("flush_free_list_remote");
+-			slab->flush_rfree_list = get_obj("flush_rfree_list");
+-			slab->flush_rfree_list_objects = get_obj("flush_rfree_list_objects");
+-			slab->flush_slab_free = get_obj("flush_slab_free");
+-			slab->flush_slab_partial = get_obj("flush_slab_partial");
+-			
+-			chdir("..");
+-			slab++;
+-			break;
+-		   default :
+-			fatal("Unknown file type %lx\n", de->d_type);
+-		}
+-	}
+-	closedir(dir);
+-	slabs = slab - slabinfo;
+-	actual_slabs = slabs;
+-	if (slabs > MAX_SLABS)
+-		fatal("Too many slabs\n");
+-}
+-
+-void output_slabs(void)
+-{
+-	struct slabinfo *slab;
+-
+-	for (slab = slabinfo; slab < slabinfo + slabs; slab++) {
+-
+-		if (show_numa)
+-			slab_numa(slab, 0);
+-		else if (show_track)
+-			show_tracking(slab);
+-		else if (validate)
+-			slab_validate(slab);
+-		else if (shrink)
+-			slab_shrink(slab);
+-		else if (set_debug)
+-			slab_debug(slab);
+-		else if (show_ops)
+-			ops(slab);
+-		else if (show_slab)
+-			slabcache(slab);
+-		else if (show_report)
+-			report(slab);
+-	}
+-}
+-
+-struct option opts[] = {
+-	{ "activity", 0, NULL, 'A' },
+-	{ "debug", 2, NULL, 'd' },
+-	{ "display-activity", 0, NULL, 'D' },
+-	{ "empty", 0, NULL, 'e' },
+-	{ "help", 0, NULL, 'h' },
+-	{ "inverted", 0, NULL, 'i'},
+-	{ "numa", 0, NULL, 'n' },
+-	{ "ops", 0, NULL, 'o' },
+-	{ "report", 0, NULL, 'r' },
+-	{ "shrink", 0, NULL, 's' },
+-	{ "slabs", 0, NULL, 'l' },
+-	{ "track", 0, NULL, 't'},
+-	{ "validate", 0, NULL, 'v' },
+-	{ "zero", 0, NULL, 'z' },
+-	{ "1ref", 0, NULL, '1'},
+-	{ NULL, 0, NULL, 0 }
+-};
+-
+-int main(int argc, char *argv[])
+-{
+-	int c;
+-	int err;
+-	char *pattern_source;
+-
+-	page_size = getpagesize();
+-
+-	while ((c = getopt_long(argc, argv, "Ad::Dehil1noprstvzTS",
+-						opts, NULL)) != -1)
+-		switch (c) {
+-		case 'A':
+-			sort_active = 1;
+-			break;
+-		case 'd':
+-			set_debug = 1;
+-			if (!debug_opt_scan(optarg))
+-				fatal("Invalid debug option '%s'\n", optarg);
+-			break;
+-		case 'D':
+-			show_activity = 1;
+-			break;
+-		case 'e':
+-			show_empty = 1;
+-			break;
+-		case 'h':
+-			usage();
+-			return 0;
+-		case 'i':
+-			show_inverted = 1;
+-			break;
+-		case 'n':
+-			show_numa = 1;
+-			break;
+-		case 'o':
+-			show_ops = 1;
+-			break;
+-		case 'r':
+-			show_report = 1;
+-			break;
+-		case 's':
+-			shrink = 1;
+-			break;
+-		case 'l':
+-			show_slab = 1;
+-			break;
+-		case 't':
+-			show_track = 1;
+-			break;
+-		case 'v':
+-			validate = 1;
+-			break;
+-		case 'z':
+-			skip_zero = 0;
+-			break;
+-		case 'T':
+-			show_totals = 1;
+-			break;
+-		case 'S':
+-			sort_size = 1;
+-			break;
+-
+-		default:
+-			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
+-
+-	}
+-
+-	if (!show_slab && !show_track && !show_report
+-		&& !validate && !shrink && !set_debug && !show_ops)
+-			show_slab = 1;
+-
+-	if (argc > optind)
+-		pattern_source = argv[optind];
+-	else
+-		pattern_source = ".*";
+-
+-	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_NOSUB);
+-	if (err)
+-		fatal("%s: Invalid pattern '%s' code %d\n",
+-			argv[0], pattern_source, err);
+-	read_slab_dir();
+-	if (show_totals)
+-		totals();
+-	else {
+-		sort_slabs();
+-		output_slabs();
+-	}
+-	return 0;
+-}
+--- linux-mm.orig/Documentation/vm/slub.txt	2009-09-02 11:27:38.000000000 +0800
++++ linux-mm/Documentation/vm/slub.txt	2009-09-02 11:29:47.000000000 +0800
+@@ -17,7 +17,7 @@ data and perform operation on the slabs.
+ slabs that have data in them. See "slabinfo -h" for more options when
+ running the command. slabinfo can be compiled with
+ 
+-gcc -o slabinfo Documentation/vm/slabinfo.c
++gcc -o slabinfo tools/vm/slabinfo.c
+ 
+ Some of the modes of operation of slabinfo require that slub debugging
+ be enabled on the command line. F.e. no tracking information will be
+--- linux-mm.orig/tools/vm/.gitignore	2009-09-02 11:27:38.000000000 +0800
++++ linux-mm/tools/vm/.gitignore	2009-09-02 11:29:47.000000000 +0800
+@@ -1 +1,3 @@
+ page-types
++slabinfo
++slqbinfo
+--- linux-mm.orig/tools/vm/Makefile	2009-09-02 11:27:38.000000000 +0800
++++ linux-mm/tools/vm/Makefile	2009-09-02 11:29:47.000000000 +0800
+@@ -1,5 +1,5 @@
+ # List of programs to build
+-hostprogs-y := page-types
++hostprogs-y := page-types slabinfo slqbinfo
+ 
+ # Tell kbuild to always build the programs
+ always := $(hostprogs-y)
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mm/tools/vm/page-types.c	2009-09-02 11:09:39.000000000 +0800
-@@ -0,0 +1,698 @@
++++ linux-mm/tools/vm/slabinfo.c	2009-09-02 11:29:47.000000000 +0800
+@@ -0,0 +1,1364 @@
 +/*
-+ * page-types: Tool for querying page flags
++ * Slabinfo: Tool to get reports about slabs
 + *
-+ * Copyright (C) 2009 Intel corporation
-+ * Copyright (C) 2009 Wu Fengguang <fengguang.wu@intel.com>
++ * (C) 2007 sgi, Christoph Lameter
++ *
++ * Compile by:
++ *
++ * gcc -o slabinfo slabinfo.c
 + */
-+
 +#include <stdio.h>
 +#include <stdlib.h>
-+#include <unistd.h>
-+#include <stdint.h>
-+#include <stdarg.h>
-+#include <string.h>
-+#include <getopt.h>
-+#include <limits.h>
 +#include <sys/types.h>
-+#include <sys/errno.h>
-+#include <sys/fcntl.h>
++#include <dirent.h>
++#include <strings.h>
++#include <string.h>
++#include <unistd.h>
++#include <stdarg.h>
++#include <getopt.h>
++#include <regex.h>
++#include <errno.h>
 +
++#define MAX_SLABS 500
++#define MAX_ALIASES 500
++#define MAX_NODES 1024
 +
-+/*
-+ * kernel page flags
-+ */
++struct slabinfo {
++	char *name;
++	int alias;
++	int refs;
++	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;
++	int hwcache_align, object_size, objs_per_slab;
++	int sanity_checks, slab_size, store_user, trace;
++	int order, poison, reclaim_account, red_zone;
++	unsigned long partial, objects, slabs, objects_partial, objects_total;
++	unsigned long alloc_fastpath, alloc_slowpath;
++	unsigned long free_fastpath, free_slowpath;
++	unsigned long free_frozen, free_add_partial, free_remove_partial;
++	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
++	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
++	unsigned long deactivate_to_head, deactivate_to_tail;
++	unsigned long deactivate_remote_frees, order_fallback;
++	int numa[MAX_NODES];
++	int numa_partial[MAX_NODES];
++} slabinfo[MAX_SLABS];
 +
-+#define KPF_BYTES		8
-+#define PROC_KPAGEFLAGS		"/proc/kpageflags"
++struct aliasinfo {
++	char *name;
++	char *ref;
++	struct slabinfo *slab;
++} aliasinfo[MAX_ALIASES];
 +
-+/* copied from kpageflags_read() */
-+#define KPF_LOCKED		0
-+#define KPF_ERROR		1
-+#define KPF_REFERENCED		2
-+#define KPF_UPTODATE		3
-+#define KPF_DIRTY		4
-+#define KPF_LRU			5
-+#define KPF_ACTIVE		6
-+#define KPF_SLAB		7
-+#define KPF_WRITEBACK		8
-+#define KPF_RECLAIM		9
-+#define KPF_BUDDY		10
++int slabs = 0;
++int actual_slabs = 0;
++int aliases = 0;
++int alias_targets = 0;
++int highest_node = 0;
 +
-+/* [11-20] new additions in 2.6.31 */
-+#define KPF_MMAP		11
-+#define KPF_ANON		12
-+#define KPF_SWAPCACHE		13
-+#define KPF_SWAPBACKED		14
-+#define KPF_COMPOUND_HEAD	15
-+#define KPF_COMPOUND_TAIL	16
-+#define KPF_HUGE		17
-+#define KPF_UNEVICTABLE		18
-+#define KPF_NOPAGE		20
++char buffer[4096];
 +
-+/* [32-] kernel hacking assistances */
-+#define KPF_RESERVED		32
-+#define KPF_MLOCKED		33
-+#define KPF_MAPPEDTODISK	34
-+#define KPF_PRIVATE		35
-+#define KPF_PRIVATE_2		36
-+#define KPF_OWNER_PRIVATE	37
-+#define KPF_ARCH		38
-+#define KPF_UNCACHED		39
++int show_empty = 0;
++int show_report = 0;
++int show_alias = 0;
++int show_slab = 0;
++int skip_zero = 1;
++int show_numa = 0;
++int show_track = 0;
++int show_first_alias = 0;
++int validate = 0;
++int shrink = 0;
++int show_inverted = 0;
++int show_single_ref = 0;
++int show_totals = 0;
++int sort_size = 0;
++int sort_active = 0;
++int set_debug = 0;
++int show_ops = 0;
++int show_activity = 0;
 +
-+/* [48-] take some arbitrary free slots for expanding overloaded flags
-+ * not part of kernel API
-+ */
-+#define KPF_READAHEAD		48
-+#define KPF_SLOB_FREE		49
-+#define KPF_SLUB_FROZEN		50
-+#define KPF_SLUB_DEBUG		51
++/* Debug options */
++int sanity = 0;
++int redzone = 0;
++int poison = 0;
++int tracking = 0;
++int tracing = 0;
 +
-+#define KPF_ALL_BITS		((uint64_t)~0ULL)
-+#define KPF_HACKERS_BITS	(0xffffULL << 32)
-+#define KPF_OVERLOADED_BITS	(0xffffULL << 48)
-+#define BIT(name)		(1ULL << KPF_##name)
-+#define BITS_COMPOUND		(BIT(COMPOUND_HEAD) | BIT(COMPOUND_TAIL))
++int page_size;
 +
-+static char *page_flag_names[] = {
-+	[KPF_LOCKED]		= "L:locked",
-+	[KPF_ERROR]		= "E:error",
-+	[KPF_REFERENCED]	= "R:referenced",
-+	[KPF_UPTODATE]		= "U:uptodate",
-+	[KPF_DIRTY]		= "D:dirty",
-+	[KPF_LRU]		= "l:lru",
-+	[KPF_ACTIVE]		= "A:active",
-+	[KPF_SLAB]		= "S:slab",
-+	[KPF_WRITEBACK]		= "W:writeback",
-+	[KPF_RECLAIM]		= "I:reclaim",
-+	[KPF_BUDDY]		= "B:buddy",
-+
-+	[KPF_MMAP]		= "M:mmap",
-+	[KPF_ANON]		= "a:anonymous",
-+	[KPF_SWAPCACHE]		= "s:swapcache",
-+	[KPF_SWAPBACKED]	= "b:swapbacked",
-+	[KPF_COMPOUND_HEAD]	= "H:compound_head",
-+	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
-+	[KPF_HUGE]		= "G:huge",
-+	[KPF_UNEVICTABLE]	= "u:unevictable",
-+	[KPF_NOPAGE]		= "n:nopage",
-+
-+	[KPF_RESERVED]		= "r:reserved",
-+	[KPF_MLOCKED]		= "m:mlocked",
-+	[KPF_MAPPEDTODISK]	= "d:mappedtodisk",
-+	[KPF_PRIVATE]		= "P:private",
-+	[KPF_PRIVATE_2]		= "p:private_2",
-+	[KPF_OWNER_PRIVATE]	= "O:owner_private",
-+	[KPF_ARCH]		= "h:arch",
-+	[KPF_UNCACHED]		= "c:uncached",
-+
-+	[KPF_READAHEAD]		= "I:readahead",
-+	[KPF_SLOB_FREE]		= "P:slob_free",
-+	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
-+	[KPF_SLUB_DEBUG]	= "E:slub_debug",
-+};
-+
-+
-+/*
-+ * data structures
-+ */
-+
-+static int		opt_raw;	/* for kernel developers */
-+static int		opt_list;	/* list pages (in ranges) */
-+static int		opt_no_summary;	/* don't show summary */
-+static pid_t		opt_pid;	/* process to walk */
-+
-+#define MAX_ADDR_RANGES	1024
-+static int		nr_addr_ranges;
-+static unsigned long	opt_offset[MAX_ADDR_RANGES];
-+static unsigned long	opt_size[MAX_ADDR_RANGES];
-+
-+#define MAX_BIT_FILTERS	64
-+static int		nr_bit_filters;
-+static uint64_t		opt_mask[MAX_BIT_FILTERS];
-+static uint64_t		opt_bits[MAX_BIT_FILTERS];
-+
-+static int		page_size;
-+
-+#define PAGES_BATCH	(64 << 10)	/* 64k pages */
-+static int		kpageflags_fd;
-+static uint64_t		kpageflags_buf[KPF_BYTES * PAGES_BATCH];
-+
-+#define HASH_SHIFT	13
-+#define HASH_SIZE	(1 << HASH_SHIFT)
-+#define HASH_MASK	(HASH_SIZE - 1)
-+#define HASH_KEY(flags)	(flags & HASH_MASK)
-+
-+static unsigned long	total_pages;
-+static unsigned long	nr_pages[HASH_SIZE];
-+static uint64_t 	page_flags[HASH_SIZE];
-+
-+
-+/*
-+ * helper functions
-+ */
-+
-+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-+
-+#define min_t(type, x, y) ({			\
-+	type __min1 = (x);			\
-+	type __min2 = (y);			\
-+	__min1 < __min2 ? __min1 : __min2; })
-+
-+static unsigned long pages2mb(unsigned long pages)
-+{
-+	return (pages * page_size) >> 20;
-+}
++regex_t pattern;
 +
 +static void fatal(const char *x, ...)
 +{
@@ -907,570 +2574,2336 @@ Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 +	exit(EXIT_FAILURE);
 +}
 +
++static void usage(void)
++{
++	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
++		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"-a|--aliases           Show aliases\n"
++		"-A|--activity          Most active slabs first\n"
++		"-d<options>|--debug=<options> Set/Clear Debug options\n"
++		"-D|--display-active    Switch line format to activity\n"
++		"-e|--empty             Show empty slabs\n"
++		"-f|--first-alias       Show first alias\n"
++		"-h|--help              Show usage information\n"
++		"-i|--inverted          Inverted list\n"
++		"-l|--slabs             Show slabs\n"
++		"-n|--numa              Show NUMA information\n"
++		"-o|--ops		Show kmem_cache_ops\n"
++		"-s|--shrink            Shrink slabs\n"
++		"-r|--report		Detailed report on single slabs\n"
++		"-S|--Size              Sort by size\n"
++		"-t|--tracking          Show alloc/free information\n"
++		"-T|--Totals            Show summary information\n"
++		"-v|--validate          Validate slabs\n"
++		"-z|--zero              Include empty slabs\n"
++		"-1|--1ref              Single reference\n"
++		"\nValid debug options (FZPUT may be combined)\n"
++		"a / A          Switch on all debug options (=FZUP)\n"
++		"-              Switch off all debug options\n"
++		"f / F          Sanity Checks (SLAB_DEBUG_FREE)\n"
++		"z / Z          Redzoning\n"
++		"p / P          Poisoning\n"
++		"u / U          Tracking\n"
++		"t / T          Tracing\n"
++	);
++}
++
++static unsigned long read_obj(const char *name)
++{
++	FILE *f = fopen(name, "r");
++
++	if (!f)
++		buffer[0] = 0;
++	else {
++		if (!fgets(buffer, sizeof(buffer), f))
++			buffer[0] = 0;
++		fclose(f);
++		if (buffer[strlen(buffer)] == '\n')
++			buffer[strlen(buffer)] = 0;
++	}
++	return strlen(buffer);
++}
++
 +
 +/*
-+ * page flag names
++ * Get the contents of an attribute
 + */
-+
-+static char *page_flag_name(uint64_t flags)
++static unsigned long get_obj(const char *name)
 +{
-+	static char buf[65];
-+	int present;
-+	int i, j;
++	if (!read_obj(name))
++		return 0;
 +
-+	for (i = 0, j = 0; i < ARRAY_SIZE(page_flag_names); i++) {
-+		present = (flags >> i) & 1;
-+		if (!page_flag_names[i]) {
-+			if (present)
-+				fatal("unkown flag bit %d\n", i);
-+			continue;
++	return atol(buffer);
++}
++
++static unsigned long get_obj_and_str(const char *name, char **x)
++{
++	unsigned long result = 0;
++	char *p;
++
++	*x = NULL;
++
++	if (!read_obj(name)) {
++		x = NULL;
++		return 0;
++	}
++	result = strtoul(buffer, &p, 10);
++	while (*p == ' ')
++		p++;
++	if (*p)
++		*x = strdup(p);
++	return result;
++}
++
++static void set_obj(struct slabinfo *s, const char *name, int n)
++{
++	char x[100];
++	FILE *f;
++
++	snprintf(x, 100, "%s/%s", s->name, name);
++	f = fopen(x, "w");
++	if (!f)
++		fatal("Cannot write to %s\n", x);
++
++	fprintf(f, "%d\n", n);
++	fclose(f);
++}
++
++static unsigned long read_slab_obj(struct slabinfo *s, const char *name)
++{
++	char x[100];
++	FILE *f;
++	size_t l;
++
++	snprintf(x, 100, "%s/%s", s->name, name);
++	f = fopen(x, "r");
++	if (!f) {
++		buffer[0] = 0;
++		l = 0;
++	} else {
++		l = fread(buffer, 1, sizeof(buffer), f);
++		buffer[l] = 0;
++		fclose(f);
++	}
++	return l;
++}
++
++
++/*
++ * Put a size string together
++ */
++static int store_size(char *buffer, unsigned long value)
++{
++	unsigned long divisor = 1;
++	char trailer = 0;
++	int n;
++
++	if (value > 1000000000UL) {
++		divisor = 100000000UL;
++		trailer = 'G';
++	} else if (value > 1000000UL) {
++		divisor = 100000UL;
++		trailer = 'M';
++	} else if (value > 1000UL) {
++		divisor = 100;
++		trailer = 'K';
++	}
++
++	value /= divisor;
++	n = sprintf(buffer, "%ld",value);
++	if (trailer) {
++		buffer[n] = trailer;
++		n++;
++		buffer[n] = 0;
++	}
++	if (divisor != 1) {
++		memmove(buffer + n - 2, buffer + n - 3, 4);
++		buffer[n-2] = '.';
++		n++;
++	}
++	return n;
++}
++
++static void decode_numa_list(int *numa, char *t)
++{
++	int node;
++	int nr;
++
++	memset(numa, 0, MAX_NODES * sizeof(int));
++
++	if (!t)
++		return;
++
++	while (*t == 'N') {
++		t++;
++		node = strtoul(t, &t, 10);
++		if (*t == '=') {
++			t++;
++			nr = strtoul(t, &t, 10);
++			numa[node] = nr;
++			if (node > highest_node)
++				highest_node = node;
 +		}
-+		buf[j++] = present ? page_flag_names[i][0] : '_';
++		while (*t == ' ')
++			t++;
 +	}
-+
-+	return buf;
 +}
 +
-+static char *page_flag_longname(uint64_t flags)
++static void slab_validate(struct slabinfo *s)
 +{
-+	static char buf[1024];
-+	int i, n;
++	if (strcmp(s->name, "*") == 0)
++		return;
 +
-+	for (i = 0, n = 0; i < ARRAY_SIZE(page_flag_names); i++) {
-+		if (!page_flag_names[i])
-+			continue;
-+		if ((flags >> i) & 1)
-+			n += snprintf(buf + n, sizeof(buf) - n, "%s,",
-+					page_flag_names[i] + 2);
-+	}
-+	if (n)
-+		n--;
-+	buf[n] = '\0';
-+
-+	return buf;
++	set_obj(s, "validate", 1);
 +}
 +
++static void slab_shrink(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	set_obj(s, "shrink", 1);
++}
++
++int line = 0;
++
++static void first_line(void)
++{
++	if (show_activity)
++		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
++	else
++		printf("Name                   Objects Objsize    Space "
++			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
++}
 +
 +/*
-+ * page list and summary
++ * Find the shortest alias of a slab
 + */
-+
-+static void show_page_range(unsigned long offset, uint64_t flags)
++static struct aliasinfo *find_one_alias(struct slabinfo *find)
 +{
-+	static uint64_t      flags0;
-+	static unsigned long index;
-+	static unsigned long count;
++	struct aliasinfo *a;
++	struct aliasinfo *best = NULL;
 +
-+	if (flags == flags0 && offset == index + count) {
-+		count++;
++	for(a = aliasinfo;a < aliasinfo + aliases; a++) {
++		if (a->slab == find &&
++			(!best || strlen(best->name) < strlen(a->name))) {
++				best = a;
++				if (strncmp(a->name,"kmall", 5) == 0)
++					return best;
++			}
++	}
++	return best;
++}
++
++static unsigned long slab_size(struct slabinfo *s)
++{
++	return 	s->slabs * (page_size << s->order);
++}
++
++static unsigned long slab_activity(struct slabinfo *s)
++{
++	return 	s->alloc_fastpath + s->free_fastpath +
++		s->alloc_slowpath + s->free_slowpath;
++}
++
++static void slab_numa(struct slabinfo *s, int mode)
++{
++	int node;
++
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (!highest_node) {
++		printf("\n%s: No NUMA information available.\n", s->name);
 +		return;
 +	}
 +
-+	if (count)
-+		printf("%lu\t%lu\t%s\n",
-+				index, count, page_flag_name(flags0));
++	if (skip_zero && !s->slabs)
++		return;
 +
-+	flags0 = flags;
-+	index  = offset;
-+	count  = 1;
++	if (!line) {
++		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
++		for(node = 0; node <= highest_node; node++)
++			printf(" %4d", node);
++		printf("\n----------------------");
++		for(node = 0; node <= highest_node; node++)
++			printf("-----");
++		printf("\n");
++	}
++	printf("%-21s ", mode ? "All slabs" : s->name);
++	for(node = 0; node <= highest_node; node++) {
++		char b[20];
++
++		store_size(b, s->numa[node]);
++		printf(" %4s", b);
++	}
++	printf("\n");
++	if (mode) {
++		printf("%-21s ", "Partial slabs");
++		for(node = 0; node <= highest_node; node++) {
++			char b[20];
++
++			store_size(b, s->numa_partial[node]);
++			printf(" %4s", b);
++		}
++		printf("\n");
++	}
++	line++;
 +}
 +
-+static void show_page(unsigned long offset, uint64_t flags)
++static void show_tracking(struct slabinfo *s)
 +{
-+	printf("%lu\t%s\n", offset, page_flag_name(flags));
++	printf("\n%s: Kernel object allocation\n", s->name);
++	printf("-----------------------------------------------------------------------\n");
++	if (read_slab_obj(s, "alloc_calls"))
++		printf(buffer);
++	else
++		printf("No Data\n");
++
++	printf("\n%s: Kernel object freeing\n", s->name);
++	printf("------------------------------------------------------------------------\n");
++	if (read_slab_obj(s, "free_calls"))
++		printf(buffer);
++	else
++		printf("No Data\n");
++
 +}
 +
-+static void show_summary(void)
++static void ops(struct slabinfo *s)
 +{
-+	int i;
++	if (strcmp(s->name, "*") == 0)
++		return;
 +
-+	printf("             flags\tpage-count       MB"
-+		"  symbolic-flags\t\t\tlong-symbolic-flags\n");
++	if (read_slab_obj(s, "ops")) {
++		printf("\n%s: kmem_cache operations\n", s->name);
++		printf("--------------------------------------------\n");
++		printf(buffer);
++	} else
++		printf("\n%s has no kmem_cache operations\n", s->name);
++}
 +
-+	for (i = 0; i < ARRAY_SIZE(nr_pages); i++) {
-+		if (nr_pages[i])
-+			printf("0x%016llx\t%10lu %8lu  %s\t%s\n",
-+				(unsigned long long)page_flags[i],
-+				nr_pages[i],
-+				pages2mb(nr_pages[i]),
-+				page_flag_name(page_flags[i]),
-+				page_flag_longname(page_flags[i]));
++static const char *onoff(int x)
++{
++	if (x)
++		return "On ";
++	return "Off";
++}
++
++static void slab_stats(struct slabinfo *s)
++{
++	unsigned long total_alloc;
++	unsigned long total_free;
++	unsigned long total;
++
++	if (!s->alloc_slab)
++		return;
++
++	total_alloc = s->alloc_fastpath + s->alloc_slowpath;
++	total_free = s->free_fastpath + s->free_slowpath;
++
++	if (!total_alloc)
++		return;
++
++	printf("\n");
++	printf("Slab Perf Counter       Alloc     Free %%Al %%Fr\n");
++	printf("--------------------------------------------------\n");
++	printf("Fastpath             %8lu %8lu %3lu %3lu\n",
++		s->alloc_fastpath, s->free_fastpath,
++		s->alloc_fastpath * 100 / total_alloc,
++		s->free_fastpath * 100 / total_free);
++	printf("Slowpath             %8lu %8lu %3lu %3lu\n",
++		total_alloc - s->alloc_fastpath, s->free_slowpath,
++		(total_alloc - s->alloc_fastpath) * 100 / total_alloc,
++		s->free_slowpath * 100 / total_free);
++	printf("Page Alloc           %8lu %8lu %3lu %3lu\n",
++		s->alloc_slab, s->free_slab,
++		s->alloc_slab * 100 / total_alloc,
++		s->free_slab * 100 / total_free);
++	printf("Add partial          %8lu %8lu %3lu %3lu\n",
++		s->deactivate_to_head + s->deactivate_to_tail,
++		s->free_add_partial,
++		(s->deactivate_to_head + s->deactivate_to_tail) * 100 / total_alloc,
++		s->free_add_partial * 100 / total_free);
++	printf("Remove partial       %8lu %8lu %3lu %3lu\n",
++		s->alloc_from_partial, s->free_remove_partial,
++		s->alloc_from_partial * 100 / total_alloc,
++		s->free_remove_partial * 100 / total_free);
++
++	printf("RemoteObj/SlabFrozen %8lu %8lu %3lu %3lu\n",
++		s->deactivate_remote_frees, s->free_frozen,
++		s->deactivate_remote_frees * 100 / total_alloc,
++		s->free_frozen * 100 / total_free);
++
++	printf("Total                %8lu %8lu\n\n", total_alloc, total_free);
++
++	if (s->cpuslab_flush)
++		printf("Flushes %8lu\n", s->cpuslab_flush);
++
++	if (s->alloc_refill)
++		printf("Refill %8lu\n", s->alloc_refill);
++
++	total = s->deactivate_full + s->deactivate_empty +
++			s->deactivate_to_head + s->deactivate_to_tail;
++
++	if (total)
++		printf("Deactivate Full=%lu(%lu%%) Empty=%lu(%lu%%) "
++			"ToHead=%lu(%lu%%) ToTail=%lu(%lu%%)\n",
++			s->deactivate_full, (s->deactivate_full * 100) / total,
++			s->deactivate_empty, (s->deactivate_empty * 100) / total,
++			s->deactivate_to_head, (s->deactivate_to_head * 100) / total,
++			s->deactivate_to_tail, (s->deactivate_to_tail * 100) / total);
++}
++
++static void report(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	printf("\nSlabcache: %-20s  Aliases: %2d Order : %2d Objects: %lu\n",
++		s->name, s->aliases, s->order, s->objects);
++	if (s->hwcache_align)
++		printf("** Hardware cacheline aligned\n");
++	if (s->cache_dma)
++		printf("** Memory is allocated in a special DMA zone\n");
++	if (s->destroy_by_rcu)
++		printf("** Slabs are destroyed via RCU\n");
++	if (s->reclaim_account)
++		printf("** Reclaim accounting active\n");
++
++	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
++	printf("------------------------------------------------------------------------\n");
++	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
++			s->object_size, s->slabs, onoff(s->sanity_checks),
++			s->slabs * (page_size << s->order));
++	printf("SlabObj: %7d  Full   : %7ld   Redzoning     : %s  Used : %7ld\n",
++			s->slab_size, s->slabs - s->partial - s->cpu_slabs,
++			onoff(s->red_zone), s->objects * s->object_size);
++	printf("SlabSiz: %7d  Partial: %7ld   Poisoning     : %s  Loss : %7ld\n",
++			page_size << s->order, s->partial, onoff(s->poison),
++			s->slabs * (page_size << s->order) - s->objects * s->object_size);
++	printf("Loss   : %7d  CpuSlab: %7d   Tracking      : %s  Lalig: %7ld\n",
++			s->slab_size - s->object_size, s->cpu_slabs, onoff(s->store_user),
++			(s->slab_size - s->object_size) * s->objects);
++	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
++			s->align, s->objs_per_slab, onoff(s->trace),
++			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
++			s->slabs);
++
++	ops(s);
++	show_tracking(s);
++	slab_numa(s, 1);
++	slab_stats(s);
++}
++
++static void slabcache(struct slabinfo *s)
++{
++	char size_str[20];
++	char dist_str[40];
++	char flags[20];
++	char *p = flags;
++
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (actual_slabs == 1) {
++		report(s);
++		return;
 +	}
 +
-+	printf("             total\t%10lu %8lu\n",
-+			total_pages, pages2mb(total_pages));
-+}
++	if (skip_zero && !show_empty && !s->slabs)
++		return;
 +
++	if (show_empty && s->slabs)
++		return;
++
++	store_size(size_str, slab_size(s));
++	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs - s->cpu_slabs,
++						s->partial, s->cpu_slabs);
++
++	if (!line++)
++		first_line();
++
++	if (s->aliases)
++		*p++ = '*';
++	if (s->cache_dma)
++		*p++ = 'd';
++	if (s->hwcache_align)
++		*p++ = 'A';
++	if (s->poison)
++		*p++ = 'P';
++	if (s->reclaim_account)
++		*p++ = 'a';
++	if (s->red_zone)
++		*p++ = 'Z';
++	if (s->sanity_checks)
++		*p++ = 'F';
++	if (s->store_user)
++		*p++ = 'U';
++	if (s->trace)
++		*p++ = 'T';
++
++	*p = 0;
++	if (show_activity) {
++		unsigned long total_alloc;
++		unsigned long total_free;
++
++		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
++		total_free = s->free_fastpath + s->free_slowpath;
++
++		printf("%-21s %8ld %10ld %10ld %3ld %3ld %5ld %1d\n",
++			s->name, s->objects,
++			total_alloc, total_free,
++			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
++			total_free ? (s->free_fastpath * 100 / total_free) : 0,
++			s->order_fallback, s->order);
++	}
++	else
++		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
++			s->name, s->objects, s->object_size, size_str, dist_str,
++			s->objs_per_slab, s->order,
++			s->slabs ? (s->partial * 100) / s->slabs : 100,
++			s->slabs ? (s->objects * s->object_size * 100) /
++				(s->slabs * (page_size << s->order)) : 100,
++			flags);
++}
 +
 +/*
-+ * page flag filters
++ * Analyze debug options. Return false if something is amiss.
 + */
-+
-+static int bit_mask_ok(uint64_t flags)
++static int debug_opt_scan(char *opt)
 +{
-+	int i;
++	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
++		return 1;
 +
-+	for (i = 0; i < nr_bit_filters; i++) {
-+		if (opt_bits[i] == KPF_ALL_BITS) {
-+			if ((flags & opt_mask[i]) == 0)
-+				return 0;
-+		} else {
-+			if ((flags & opt_mask[i]) != opt_bits[i])
-+				return 0;
-+		}
++	if (strcasecmp(opt, "a") == 0) {
++		sanity = 1;
++		poison = 1;
++		redzone = 1;
++		tracking = 1;
++		return 1;
 +	}
++
++	for ( ; *opt; opt++)
++	 	switch (*opt) {
++		case 'F' : case 'f':
++			if (sanity)
++				return 0;
++			sanity = 1;
++			break;
++		case 'P' : case 'p':
++			if (poison)
++				return 0;
++			poison = 1;
++			break;
++
++		case 'Z' : case 'z':
++			if (redzone)
++				return 0;
++			redzone = 1;
++			break;
++
++		case 'U' : case 'u':
++			if (tracking)
++				return 0;
++			tracking = 1;
++			break;
++
++		case 'T' : case 't':
++			if (tracing)
++				return 0;
++			tracing = 1;
++			break;
++		default:
++			return 0;
++		}
++	return 1;
++}
++
++static int slab_empty(struct slabinfo *s)
++{
++	if (s->objects > 0)
++		return 0;
++
++	/*
++	 * We may still have slabs even if there are no objects. Shrinking will
++	 * remove them.
++	 */
++	if (s->slabs != 0)
++		set_obj(s, "shrink", 1);
 +
 +	return 1;
 +}
 +
-+static uint64_t expand_overloaded_flags(uint64_t flags)
++static void slab_debug(struct slabinfo *s)
 +{
-+	/* SLOB/SLUB overload several page flags */
-+	if (flags & BIT(SLAB)) {
-+		if (flags & BIT(PRIVATE))
-+			flags ^= BIT(PRIVATE) | BIT(SLOB_FREE);
-+		if (flags & BIT(ACTIVE))
-+			flags ^= BIT(ACTIVE) | BIT(SLUB_FROZEN);
-+		if (flags & BIT(ERROR))
-+			flags ^= BIT(ERROR) | BIT(SLUB_DEBUG);
-+	}
-+
-+	/* PG_reclaim is overloaded as PG_readahead in the read path */
-+	if ((flags & (BIT(RECLAIM) | BIT(WRITEBACK))) == BIT(RECLAIM))
-+		flags ^= BIT(RECLAIM) | BIT(READAHEAD);
-+
-+	return flags;
-+}
-+
-+static uint64_t well_known_flags(uint64_t flags)
-+{
-+	/* hide flags intended only for kernel hacker */
-+	flags &= ~KPF_HACKERS_BITS;
-+
-+	/* hide non-hugeTLB compound pages */
-+	if ((flags & BITS_COMPOUND) && !(flags & BIT(HUGE)))
-+		flags &= ~BITS_COMPOUND;
-+
-+	return flags;
-+}
-+
-+
-+/*
-+ * page frame walker
-+ */
-+
-+static int hash_slot(uint64_t flags)
-+{
-+	int k = HASH_KEY(flags);
-+	int i;
-+
-+	/* Explicitly reserve slot 0 for flags 0: the following logic
-+	 * cannot distinguish an unoccupied slot from slot (flags==0).
-+	 */
-+	if (flags == 0)
-+		return 0;
-+
-+	/* search through the remaining (HASH_SIZE-1) slots */
-+	for (i = 1; i < ARRAY_SIZE(page_flags); i++, k++) {
-+		if (!k || k >= ARRAY_SIZE(page_flags))
-+			k = 1;
-+		if (page_flags[k] == 0) {
-+			page_flags[k] = flags;
-+			return k;
-+		}
-+		if (page_flags[k] == flags)
-+			return k;
-+	}
-+
-+	fatal("hash table full: bump up HASH_SHIFT?\n");
-+	exit(EXIT_FAILURE);
-+}
-+
-+static void add_page(unsigned long offset, uint64_t flags)
-+{
-+	flags = expand_overloaded_flags(flags);
-+
-+	if (!opt_raw)
-+		flags = well_known_flags(flags);
-+
-+	if (!bit_mask_ok(flags))
++	if (strcmp(s->name, "*") == 0)
 +		return;
 +
-+	if (opt_list == 1)
-+		show_page_range(offset, flags);
-+	else if (opt_list == 2)
-+		show_page(offset, flags);
-+
-+	nr_pages[hash_slot(flags)]++;
-+	total_pages++;
-+}
-+
-+static void walk_pfn(unsigned long index, unsigned long count)
-+{
-+	unsigned long batch;
-+	unsigned long n;
-+	unsigned long i;
-+
-+	if (index > ULONG_MAX / KPF_BYTES)
-+		fatal("index overflow: %lu\n", index);
-+
-+	lseek(kpageflags_fd, index * KPF_BYTES, SEEK_SET);
-+
-+	while (count) {
-+		batch = min_t(unsigned long, count, PAGES_BATCH);
-+		n = read(kpageflags_fd, kpageflags_buf, batch * KPF_BYTES);
-+		if (n == 0)
-+			break;
-+		if (n < 0) {
-+			perror(PROC_KPAGEFLAGS);
-+			exit(EXIT_FAILURE);
-+		}
-+
-+		if (n % KPF_BYTES != 0)
-+			fatal("partial read: %lu bytes\n", n);
-+		n = n / KPF_BYTES;
-+
-+		for (i = 0; i < n; i++)
-+			add_page(index + i, kpageflags_buf[i]);
-+
-+		index += batch;
-+		count -= batch;
++	if (sanity && !s->sanity_checks) {
++		set_obj(s, "sanity", 1);
 +	}
-+}
-+
-+static void walk_addr_ranges(void)
-+{
-+	int i;
-+
-+	kpageflags_fd = open(PROC_KPAGEFLAGS, O_RDONLY);
-+	if (kpageflags_fd < 0) {
-+		perror(PROC_KPAGEFLAGS);
-+		exit(EXIT_FAILURE);
++	if (!sanity && s->sanity_checks) {
++		if (slab_empty(s))
++			set_obj(s, "sanity", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable sanity checks\n", s->name);
 +	}
-+
-+	if (!nr_addr_ranges)
-+		walk_pfn(0, ULONG_MAX);
-+
-+	for (i = 0; i < nr_addr_ranges; i++)
-+		walk_pfn(opt_offset[i], opt_size[i]);
-+
-+	close(kpageflags_fd);
++	if (redzone && !s->red_zone) {
++		if (slab_empty(s))
++			set_obj(s, "red_zone", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
++	}
++	if (!redzone && s->red_zone) {
++		if (slab_empty(s))
++			set_obj(s, "red_zone", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
++	}
++	if (poison && !s->poison) {
++		if (slab_empty(s))
++			set_obj(s, "poison", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
++	}
++	if (!poison && s->poison) {
++		if (slab_empty(s))
++			set_obj(s, "poison", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
++	}
++	if (tracking && !s->store_user) {
++		if (slab_empty(s))
++			set_obj(s, "store_user", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
++	}
++	if (!tracking && s->store_user) {
++		if (slab_empty(s))
++			set_obj(s, "store_user", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
++	}
++	if (tracing && !s->trace) {
++		if (slabs == 1)
++			set_obj(s, "trace", 1);
++		else
++			fprintf(stderr, "%s can only enable trace for one slab at a time\n", s->name);
++	}
++	if (!tracing && s->trace)
++		set_obj(s, "trace", 1);
 +}
 +
-+
-+/*
-+ * user interface
-+ */
-+
-+static const char *page_flag_type(uint64_t flag)
++static void totals(void)
 +{
-+	if (flag & KPF_HACKERS_BITS)
-+		return "(r)";
-+	if (flag & KPF_OVERLOADED_BITS)
-+		return "(o)";
-+	return "   ";
-+}
++	struct slabinfo *s;
 +
-+static void usage(void)
-+{
-+	int i, j;
++	int used_slabs = 0;
++	char b1[20], b2[20], b3[20], b4[20];
++	unsigned long long max = 1ULL << 63;
 +
-+	printf(
-+"page-types [options]\n"
-+"            -r|--raw                  Raw mode, for kernel developers\n"
-+"            -a|--addr    addr-spec    Walk a range of pages\n"
-+"            -b|--bits    bits-spec    Walk pages with specified bits\n"
-+#if 0 /* planned features */
-+"            -p|--pid     pid          Walk process address space\n"
-+"            -f|--file    filename     Walk file address space\n"
-+#endif
-+"            -l|--list                 Show page details in ranges\n"
-+"            -L|--list-each            Show page details one by one\n"
-+"            -N|--no-summary           Don't show summay info\n"
-+"            -h|--help                 Show this usage message\n"
-+"addr-spec:\n"
-+"            N                         one page at offset N (unit: pages)\n"
-+"            N+M                       pages range from N to N+M-1\n"
-+"            N,M                       pages range from N to M-1\n"
-+"            N,                        pages range from N to end\n"
-+"            ,M                        pages range from 0 to M\n"
-+"bits-spec:\n"
-+"            bit1,bit2                 (flags & (bit1|bit2)) != 0\n"
-+"            bit1,bit2=bit1            (flags & (bit1|bit2)) == bit1\n"
-+"            bit1,~bit2                (flags & (bit1|bit2)) == bit1\n"
-+"            =bit1,bit2                flags == (bit1|bit2)\n"
-+"bit-names:\n"
-+	);
++	/* Object size */
++	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
 +
-+	for (i = 0, j = 0; i < ARRAY_SIZE(page_flag_names); i++) {
-+		if (!page_flag_names[i])
++	/* Number of partial slabs in a slabcache */
++	unsigned long long min_partial = max, max_partial = 0,
++				avg_partial, total_partial = 0;
++
++	/* Number of slabs in a slab cache */
++	unsigned long long min_slabs = max, max_slabs = 0,
++				avg_slabs, total_slabs = 0;
++
++	/* Size of the whole slab */
++	unsigned long long min_size = max, max_size = 0,
++				avg_size, total_size = 0;
++
++	/* Bytes used for object storage in a slab */
++	unsigned long long min_used = max, max_used = 0,
++				avg_used, total_used = 0;
++
++	/* Waste: Bytes used for alignment and padding */
++	unsigned long long min_waste = max, max_waste = 0,
++				avg_waste, total_waste = 0;
++	/* Number of objects in a slab */
++	unsigned long long min_objects = max, max_objects = 0,
++				avg_objects, total_objects = 0;
++	/* Waste per object */
++	unsigned long long min_objwaste = max,
++				max_objwaste = 0, avg_objwaste,
++				total_objwaste = 0;
++
++	/* Memory per object */
++	unsigned long long min_memobj = max,
++				max_memobj = 0, avg_memobj,
++				total_objsize = 0;
++
++	/* Percentage of partial slabs per slab */
++	unsigned long min_ppart = 100, max_ppart = 0,
++				avg_ppart, total_ppart = 0;
++
++	/* Number of objects in partial slabs */
++	unsigned long min_partobj = max, max_partobj = 0,
++				avg_partobj, total_partobj = 0;
++
++	/* Percentage of partial objects of all objects in a slab */
++	unsigned long min_ppartobj = 100, max_ppartobj = 0,
++				avg_ppartobj, total_ppartobj = 0;
++
++
++	for (s = slabinfo; s < slabinfo + slabs; s++) {
++		unsigned long long size;
++		unsigned long used;
++		unsigned long long wasted;
++		unsigned long long objwaste;
++		unsigned long percentage_partial_slabs;
++		unsigned long percentage_partial_objs;
++
++		if (!s->slabs || !s->objects)
 +			continue;
-+		printf("%16s%s", page_flag_names[i] + 2,
-+				 page_flag_type(1ULL << i));
-+		if (++j > 3) {
-+			j = 0;
-+			putchar('\n');
-+		}
++
++		used_slabs++;
++
++		size = slab_size(s);
++		used = s->objects * s->object_size;
++		wasted = size - used;
++		objwaste = s->slab_size - s->object_size;
++
++		percentage_partial_slabs = s->partial * 100 / s->slabs;
++		if (percentage_partial_slabs > 100)
++			percentage_partial_slabs = 100;
++
++		percentage_partial_objs = s->objects_partial * 100
++							/ s->objects;
++
++		if (percentage_partial_objs > 100)
++			percentage_partial_objs = 100;
++
++		if (s->object_size < min_objsize)
++			min_objsize = s->object_size;
++		if (s->partial < min_partial)
++			min_partial = s->partial;
++		if (s->slabs < min_slabs)
++			min_slabs = s->slabs;
++		if (size < min_size)
++			min_size = size;
++		if (wasted < min_waste)
++			min_waste = wasted;
++		if (objwaste < min_objwaste)
++			min_objwaste = objwaste;
++		if (s->objects < min_objects)
++			min_objects = s->objects;
++		if (used < min_used)
++			min_used = used;
++		if (s->objects_partial < min_partobj)
++			min_partobj = s->objects_partial;
++		if (percentage_partial_slabs < min_ppart)
++			min_ppart = percentage_partial_slabs;
++		if (percentage_partial_objs < min_ppartobj)
++			min_ppartobj = percentage_partial_objs;
++		if (s->slab_size < min_memobj)
++			min_memobj = s->slab_size;
++
++		if (s->object_size > max_objsize)
++			max_objsize = s->object_size;
++		if (s->partial > max_partial)
++			max_partial = s->partial;
++		if (s->slabs > max_slabs)
++			max_slabs = s->slabs;
++		if (size > max_size)
++			max_size = size;
++		if (wasted > max_waste)
++			max_waste = wasted;
++		if (objwaste > max_objwaste)
++			max_objwaste = objwaste;
++		if (s->objects > max_objects)
++			max_objects = s->objects;
++		if (used > max_used)
++			max_used = used;
++		if (s->objects_partial > max_partobj)
++			max_partobj = s->objects_partial;
++		if (percentage_partial_slabs > max_ppart)
++			max_ppart = percentage_partial_slabs;
++		if (percentage_partial_objs > max_ppartobj)
++			max_ppartobj = percentage_partial_objs;
++		if (s->slab_size > max_memobj)
++			max_memobj = s->slab_size;
++
++		total_partial += s->partial;
++		total_slabs += s->slabs;
++		total_size += size;
++		total_waste += wasted;
++
++		total_objects += s->objects;
++		total_used += used;
++		total_partobj += s->objects_partial;
++		total_ppart += percentage_partial_slabs;
++		total_ppartobj += percentage_partial_objs;
++
++		total_objwaste += s->objects * objwaste;
++		total_objsize += s->objects * s->slab_size;
 +	}
-+	printf("\n                                   "
-+		"(r) raw mode bits  (o) overloaded bits\n");
++
++	if (!total_objects) {
++		printf("No objects\n");
++		return;
++	}
++	if (!used_slabs) {
++		printf("No slabs\n");
++		return;
++	}
++
++	/* Per slab averages */
++	avg_partial = total_partial / used_slabs;
++	avg_slabs = total_slabs / used_slabs;
++	avg_size = total_size / used_slabs;
++	avg_waste = total_waste / used_slabs;
++
++	avg_objects = total_objects / used_slabs;
++	avg_used = total_used / used_slabs;
++	avg_partobj = total_partobj / used_slabs;
++	avg_ppart = total_ppart / used_slabs;
++	avg_ppartobj = total_ppartobj / used_slabs;
++
++	/* Per object object sizes */
++	avg_objsize = total_used / total_objects;
++	avg_objwaste = total_objwaste / total_objects;
++	avg_partobj = total_partobj * 100 / total_objects;
++	avg_memobj = total_objsize / total_objects;
++
++	printf("Slabcache Totals\n");
++	printf("----------------\n");
++	printf("Slabcaches : %3d      Aliases  : %3d->%-3d Active: %3d\n",
++			slabs, aliases, alias_targets, used_slabs);
++
++	store_size(b1, total_size);store_size(b2, total_waste);
++	store_size(b3, total_waste * 100 / total_used);
++	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
++
++	store_size(b1, total_objects);store_size(b2, total_partobj);
++	store_size(b3, total_partobj * 100 / total_objects);
++	printf("# Objects  : %6s   # PartObj: %6s   ORatio:%6s%%\n", b1, b2, b3);
++
++	printf("\n");
++	printf("Per Cache    Average         Min         Max       Total\n");
++	printf("---------------------------------------------------------\n");
++
++	store_size(b1, avg_objects);store_size(b2, min_objects);
++	store_size(b3, max_objects);store_size(b4, total_objects);
++	printf("#Objects  %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_slabs);store_size(b2, min_slabs);
++	store_size(b3, max_slabs);store_size(b4, total_slabs);
++	printf("#Slabs    %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_partial);store_size(b2, min_partial);
++	store_size(b3, max_partial);store_size(b4, total_partial);
++	printf("#PartSlab %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++	store_size(b1, avg_ppart);store_size(b2, min_ppart);
++	store_size(b3, max_ppart);
++	store_size(b4, total_partial * 100  / total_slabs);
++	printf("%%PartSlab%10s%% %10s%% %10s%% %10s%%\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_partobj);store_size(b2, min_partobj);
++	store_size(b3, max_partobj);
++	store_size(b4, total_partobj);
++	printf("PartObjs  %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_ppartobj);store_size(b2, min_ppartobj);
++	store_size(b3, max_ppartobj);
++	store_size(b4, total_partobj * 100 / total_objects);
++	printf("%% PartObj%10s%% %10s%% %10s%% %10s%%\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_size);store_size(b2, min_size);
++	store_size(b3, max_size);store_size(b4, total_size);
++	printf("Memory    %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_used);store_size(b2, min_used);
++	store_size(b3, max_used);store_size(b4, total_used);
++	printf("Used      %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_waste);store_size(b2, min_waste);
++	store_size(b3, max_waste);store_size(b4, total_waste);
++	printf("Loss      %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	printf("\n");
++	printf("Per Object   Average         Min         Max\n");
++	printf("---------------------------------------------\n");
++
++	store_size(b1, avg_memobj);store_size(b2, min_memobj);
++	store_size(b3, max_memobj);
++	printf("Memory    %10s  %10s  %10s\n",
++			b1,	b2,	b3);
++	store_size(b1, avg_objsize);store_size(b2, min_objsize);
++	store_size(b3, max_objsize);
++	printf("User      %10s  %10s  %10s\n",
++			b1,	b2,	b3);
++
++	store_size(b1, avg_objwaste);store_size(b2, min_objwaste);
++	store_size(b3, max_objwaste);
++	printf("Loss      %10s  %10s  %10s\n",
++			b1,	b2,	b3);
 +}
 +
-+static unsigned long long parse_number(const char *str)
++static void sort_slabs(void)
 +{
-+	unsigned long long n;
++	struct slabinfo *s1,*s2;
 +
-+	n = strtoll(str, NULL, 0);
++	for (s1 = slabinfo; s1 < slabinfo + slabs; s1++) {
++		for (s2 = s1 + 1; s2 < slabinfo + slabs; s2++) {
++			int result;
 +
-+	if (n == 0 && str[0] != '0')
-+		fatal("invalid name or number: %s\n", str);
++			if (sort_size)
++				result = slab_size(s1) < slab_size(s2);
++			else if (sort_active)
++				result = slab_activity(s1) < slab_activity(s2);
++			else
++				result = strcasecmp(s1->name, s2->name);
 +
-+	return n;
-+}
++			if (show_inverted)
++				result = -result;
 +
-+static void parse_pid(const char *str)
-+{
-+	opt_pid = parse_number(str);
-+}
++			if (result > 0) {
++				struct slabinfo t;
 +
-+static void parse_file(const char *name)
-+{
-+}
-+
-+static void add_addr_range(unsigned long offset, unsigned long size)
-+{
-+	if (nr_addr_ranges >= MAX_ADDR_RANGES)
-+		fatal("too much addr ranges\n");
-+
-+	opt_offset[nr_addr_ranges] = offset;
-+	opt_size[nr_addr_ranges] = size;
-+	nr_addr_ranges++;
-+}
-+
-+static void parse_addr_range(const char *optarg)
-+{
-+	unsigned long offset;
-+	unsigned long size;
-+	char *p;
-+
-+	p = strchr(optarg, ',');
-+	if (!p)
-+		p = strchr(optarg, '+');
-+
-+	if (p == optarg) {
-+		offset = 0;
-+		size   = parse_number(p + 1);
-+	} else if (p) {
-+		offset = parse_number(optarg);
-+		if (p[1] == '\0')
-+			size = ULONG_MAX;
-+		else {
-+			size = parse_number(p + 1);
-+			if (*p == ',') {
-+				if (size < offset)
-+					fatal("invalid range: %lu,%lu\n",
-+							offset, size);
-+				size -= offset;
++				memcpy(&t, s1, sizeof(struct slabinfo));
++				memcpy(s1, s2, sizeof(struct slabinfo));
++				memcpy(s2, &t, sizeof(struct slabinfo));
 +			}
 +		}
-+	} else {
-+		offset = parse_number(optarg);
-+		size   = 1;
 +	}
-+
-+	add_addr_range(offset, size);
 +}
 +
-+static void add_bits_filter(uint64_t mask, uint64_t bits)
++static void sort_aliases(void)
 +{
-+	if (nr_bit_filters >= MAX_BIT_FILTERS)
-+		fatal("too much bit filters\n");
++	struct aliasinfo *a1,*a2;
 +
-+	opt_mask[nr_bit_filters] = mask;
-+	opt_bits[nr_bit_filters] = bits;
-+	nr_bit_filters++;
-+}
++	for (a1 = aliasinfo; a1 < aliasinfo + aliases; a1++) {
++		for (a2 = a1 + 1; a2 < aliasinfo + aliases; a2++) {
++			char *n1, *n2;
 +
-+static uint64_t parse_flag_name(const char *str, int len)
-+{
-+	int i;
++			n1 = a1->name;
++			n2 = a2->name;
++			if (show_alias && !show_inverted) {
++				n1 = a1->ref;
++				n2 = a2->ref;
++			}
++			if (strcasecmp(n1, n2) > 0) {
++				struct aliasinfo t;
 +
-+	if (!*str || !len)
-+		return 0;
-+
-+	if (len <= 8 && !strncmp(str, "compound", len))
-+		return BITS_COMPOUND;
-+
-+	for (i = 0; i < ARRAY_SIZE(page_flag_names); i++) {
-+		if (!page_flag_names[i])
-+			continue;
-+		if (!strncmp(str, page_flag_names[i] + 2, len))
-+			return 1ULL << i;
-+	}
-+
-+	return parse_number(str);
-+}
-+
-+static uint64_t parse_flag_names(const char *str, int all)
-+{
-+	const char *p    = str;
-+	uint64_t   flags = 0;
-+
-+	while (1) {
-+		if (*p == ',' || *p == '=' || *p == '\0') {
-+			if ((*str != '~') || (*str == '~' && all && *++str))
-+				flags |= parse_flag_name(str, p - str);
-+			if (*p != ',')
-+				break;
-+			str = p + 1;
++				memcpy(&t, a1, sizeof(struct aliasinfo));
++				memcpy(a1, a2, sizeof(struct aliasinfo));
++				memcpy(a2, &t, sizeof(struct aliasinfo));
++			}
 +		}
-+		p++;
 +	}
-+
-+	return flags;
 +}
 +
-+static void parse_bits_mask(const char *optarg)
++static void link_slabs(void)
 +{
-+	uint64_t mask;
-+	uint64_t bits;
-+	const char *p;
++	struct aliasinfo *a;
++	struct slabinfo *s;
 +
-+	p = strchr(optarg, '=');
-+	if (p == optarg) {
-+		mask = KPF_ALL_BITS;
-+		bits = parse_flag_names(p + 1, 0);
-+	} else if (p) {
-+		mask = parse_flag_names(optarg, 0);
-+		bits = parse_flag_names(p + 1, 0);
-+	} else if (strchr(optarg, '~')) {
-+		mask = parse_flag_names(optarg, 1);
-+		bits = parse_flag_names(optarg, 0);
-+	} else {
-+		mask = parse_flag_names(optarg, 0);
-+		bits = KPF_ALL_BITS;
++	for (a = aliasinfo; a < aliasinfo + aliases; a++) {
++
++		for (s = slabinfo; s < slabinfo + slabs; s++)
++			if (strcmp(a->ref, s->name) == 0) {
++				a->slab = s;
++				s->refs++;
++				break;
++			}
++		if (s == slabinfo + slabs)
++			fatal("Unresolved alias %s\n", a->ref);
 +	}
++}
 +
-+	add_bits_filter(mask, bits);
++static void alias(void)
++{
++	struct aliasinfo *a;
++	char *active = NULL;
++
++	sort_aliases();
++	link_slabs();
++
++	for(a = aliasinfo; a < aliasinfo + aliases; a++) {
++
++		if (!show_single_ref && a->slab->refs == 1)
++			continue;
++
++		if (!show_inverted) {
++			if (active) {
++				if (strcmp(a->slab->name, active) == 0) {
++					printf(" %s", a->name);
++					continue;
++				}
++			}
++			printf("\n%-12s <- %s", a->slab->name, a->name);
++			active = a->slab->name;
++		}
++		else
++			printf("%-20s -> %s\n", a->name, a->slab->name);
++	}
++	if (active)
++		printf("\n");
 +}
 +
 +
-+static struct option opts[] = {
-+	{ "raw"       , 0, NULL, 'r' },
-+	{ "pid"       , 1, NULL, 'p' },
-+	{ "file"      , 1, NULL, 'f' },
-+	{ "addr"      , 1, NULL, 'a' },
-+	{ "bits"      , 1, NULL, 'b' },
-+	{ "list"      , 0, NULL, 'l' },
-+	{ "list-each" , 0, NULL, 'L' },
-+	{ "no-summary", 0, NULL, 'N' },
-+	{ "help"      , 0, NULL, 'h' },
-+	{ NULL        , 0, NULL, 0 }
++static void rename_slabs(void)
++{
++	struct slabinfo *s;
++	struct aliasinfo *a;
++
++	for (s = slabinfo; s < slabinfo + slabs; s++) {
++		if (*s->name != ':')
++			continue;
++
++		if (s->refs > 1 && !show_first_alias)
++			continue;
++
++		a = find_one_alias(s);
++
++		if (a)
++			s->name = a->name;
++		else {
++			s->name = "*";
++			actual_slabs--;
++		}
++	}
++}
++
++static int slab_mismatch(char *slab)
++{
++	return regexec(&pattern, slab, 0, NULL, 0);
++}
++
++static void read_slab_dir(void)
++{
++	DIR *dir;
++	struct dirent *de;
++	struct slabinfo *slab = slabinfo;
++	struct aliasinfo *alias = aliasinfo;
++	char *p;
++	char *t;
++	int count;
++
++	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
++		fatal("SYSFS support for SLUB not active\n");
++
++	dir = opendir(".");
++	while ((de = readdir(dir))) {
++		if (de->d_name[0] == '.' ||
++			(de->d_name[0] != ':' && slab_mismatch(de->d_name)))
++				continue;
++		switch (de->d_type) {
++		   case DT_LNK:
++		   	alias->name = strdup(de->d_name);
++			count = readlink(de->d_name, buffer, sizeof(buffer));
++
++			if (count < 0)
++				fatal("Cannot read symlink %s\n", de->d_name);
++
++			buffer[count] = 0;
++			p = buffer + count;
++			while (p > buffer && p[-1] != '/')
++				p--;
++			alias->ref = strdup(p);
++			alias++;
++			break;
++		   case DT_DIR:
++			if (chdir(de->d_name))
++				fatal("Unable to access slab %s\n", slab->name);
++		   	slab->name = strdup(de->d_name);
++			slab->alias = 0;
++			slab->refs = 0;
++			slab->aliases = get_obj("aliases");
++			slab->align = get_obj("align");
++			slab->cache_dma = get_obj("cache_dma");
++			slab->cpu_slabs = get_obj("cpu_slabs");
++			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
++			slab->hwcache_align = get_obj("hwcache_align");
++			slab->object_size = get_obj("object_size");
++			slab->objects = get_obj("objects");
++			slab->objects_partial = get_obj("objects_partial");
++			slab->objects_total = get_obj("objects_total");
++			slab->objs_per_slab = get_obj("objs_per_slab");
++			slab->order = get_obj("order");
++			slab->partial = get_obj("partial");
++			slab->partial = get_obj_and_str("partial", &t);
++			decode_numa_list(slab->numa_partial, t);
++			free(t);
++			slab->poison = get_obj("poison");
++			slab->reclaim_account = get_obj("reclaim_account");
++			slab->red_zone = get_obj("red_zone");
++			slab->sanity_checks = get_obj("sanity_checks");
++			slab->slab_size = get_obj("slab_size");
++			slab->slabs = get_obj_and_str("slabs", &t);
++			decode_numa_list(slab->numa, t);
++			free(t);
++			slab->store_user = get_obj("store_user");
++			slab->trace = get_obj("trace");
++			slab->alloc_fastpath = get_obj("alloc_fastpath");
++			slab->alloc_slowpath = get_obj("alloc_slowpath");
++			slab->free_fastpath = get_obj("free_fastpath");
++			slab->free_slowpath = get_obj("free_slowpath");
++			slab->free_frozen= get_obj("free_frozen");
++			slab->free_add_partial = get_obj("free_add_partial");
++			slab->free_remove_partial = get_obj("free_remove_partial");
++			slab->alloc_from_partial = get_obj("alloc_from_partial");
++			slab->alloc_slab = get_obj("alloc_slab");
++			slab->alloc_refill = get_obj("alloc_refill");
++			slab->free_slab = get_obj("free_slab");
++			slab->cpuslab_flush = get_obj("cpuslab_flush");
++			slab->deactivate_full = get_obj("deactivate_full");
++			slab->deactivate_empty = get_obj("deactivate_empty");
++			slab->deactivate_to_head = get_obj("deactivate_to_head");
++			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
++			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
++			slab->order_fallback = get_obj("order_fallback");
++			chdir("..");
++			if (slab->name[0] == ':')
++				alias_targets++;
++			slab++;
++			break;
++		   default :
++			fatal("Unknown file type %lx\n", de->d_type);
++		}
++	}
++	closedir(dir);
++	slabs = slab - slabinfo;
++	actual_slabs = slabs;
++	aliases = alias - aliasinfo;
++	if (slabs > MAX_SLABS)
++		fatal("Too many slabs\n");
++	if (aliases > MAX_ALIASES)
++		fatal("Too many aliases\n");
++}
++
++static void output_slabs(void)
++{
++	struct slabinfo *slab;
++
++	for (slab = slabinfo; slab < slabinfo + slabs; slab++) {
++
++		if (slab->alias)
++			continue;
++
++
++		if (show_numa)
++			slab_numa(slab, 0);
++		else if (show_track)
++			show_tracking(slab);
++		else if (validate)
++			slab_validate(slab);
++		else if (shrink)
++			slab_shrink(slab);
++		else if (set_debug)
++			slab_debug(slab);
++		else if (show_ops)
++			ops(slab);
++		else if (show_slab)
++			slabcache(slab);
++		else if (show_report)
++			report(slab);
++	}
++}
++
++struct option opts[] = {
++	{ "aliases", 0, NULL, 'a' },
++	{ "activity", 0, NULL, 'A' },
++	{ "debug", 2, NULL, 'd' },
++	{ "display-activity", 0, NULL, 'D' },
++	{ "empty", 0, NULL, 'e' },
++	{ "first-alias", 0, NULL, 'f' },
++	{ "help", 0, NULL, 'h' },
++	{ "inverted", 0, NULL, 'i'},
++	{ "numa", 0, NULL, 'n' },
++	{ "ops", 0, NULL, 'o' },
++	{ "report", 0, NULL, 'r' },
++	{ "shrink", 0, NULL, 's' },
++	{ "slabs", 0, NULL, 'l' },
++	{ "track", 0, NULL, 't'},
++	{ "validate", 0, NULL, 'v' },
++	{ "zero", 0, NULL, 'z' },
++	{ "1ref", 0, NULL, '1'},
++	{ NULL, 0, NULL, 0 }
 +};
 +
 +int main(int argc, char *argv[])
 +{
 +	int c;
++	int err;
++	char *pattern_source;
 +
 +	page_size = getpagesize();
 +
-+	while ((c = getopt_long(argc, argv,
-+				"rp:f:a:b:lLNh", opts, NULL)) != -1) {
++	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTS",
++						opts, NULL)) != -1)
 +		switch (c) {
-+		case 'r':
-+			opt_raw = 1;
-+			break;
-+		case 'p':
-+			parse_pid(optarg);
-+			break;
-+		case 'f':
-+			parse_file(optarg);
++		case '1':
++			show_single_ref = 1;
 +			break;
 +		case 'a':
-+			parse_addr_range(optarg);
++			show_alias = 1;
 +			break;
-+		case 'b':
-+			parse_bits_mask(optarg);
++		case 'A':
++			sort_active = 1;
 +			break;
-+		case 'l':
-+			opt_list = 1;
++		case 'd':
++			set_debug = 1;
++			if (!debug_opt_scan(optarg))
++				fatal("Invalid debug option '%s'\n", optarg);
 +			break;
-+		case 'L':
-+			opt_list = 2;
++		case 'D':
++			show_activity = 1;
 +			break;
-+		case 'N':
-+			opt_no_summary = 1;
++		case 'e':
++			show_empty = 1;
++			break;
++		case 'f':
++			show_first_alias = 1;
 +			break;
 +		case 'h':
 +			usage();
-+			exit(0);
++			return 0;
++		case 'i':
++			show_inverted = 1;
++			break;
++		case 'n':
++			show_numa = 1;
++			break;
++		case 'o':
++			show_ops = 1;
++			break;
++		case 'r':
++			show_report = 1;
++			break;
++		case 's':
++			shrink = 1;
++			break;
++		case 'l':
++			show_slab = 1;
++			break;
++		case 't':
++			show_track = 1;
++			break;
++		case 'v':
++			validate = 1;
++			break;
++		case 'z':
++			skip_zero = 0;
++			break;
++		case 'T':
++			show_totals = 1;
++			break;
++		case 'S':
++			sort_size = 1;
++			break;
++
 +		default:
-+			usage();
-+			exit(1);
-+		}
++			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
++
 +	}
 +
-+	if (opt_list == 1)
-+		printf("offset\tcount\tflags\n");
-+	if (opt_list == 2)
-+		printf("offset\tflags\n");
++	if (!show_slab && !show_alias && !show_track && !show_report
++		&& !validate && !shrink && !set_debug && !show_ops)
++			show_slab = 1;
 +
-+	walk_addr_ranges();
++	if (argc > optind)
++		pattern_source = argv[optind];
++	else
++		pattern_source = ".*";
 +
-+	if (opt_list == 1)
-+		show_page_range(0, 0);  /* drain the buffer */
-+
-+	if (opt_no_summary)
-+		return 0;
-+
-+	if (opt_list)
-+		printf("\n\n");
-+
-+	show_summary();
-+
++	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_NOSUB);
++	if (err)
++		fatal("%s: Invalid pattern '%s' code %d\n",
++			argv[0], pattern_source, err);
++	read_slab_dir();
++	if (show_alias)
++		alias();
++	else
++	if (show_totals)
++		totals();
++	else {
++		link_slabs();
++		rename_slabs();
++		sort_slabs();
++		output_slabs();
++	}
 +	return 0;
 +}
---- linux-mm.orig/Documentation/vm/.gitignore	2009-08-31 14:10:15.000000000 +0800
-+++ linux-mm/Documentation/vm/.gitignore	2009-09-02 11:32:08.000000000 +0800
-@@ -1,2 +1 @@
--page-types
- slabinfo
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mm/tools/vm/.gitignore	2009-09-02 11:32:08.000000000 +0800
-@@ -0,0 +1 @@
-+page-types
---- linux-mm.orig/Documentation/vm/Makefile	2009-08-31 14:40:44.000000000 +0800
-+++ linux-mm/Documentation/vm/Makefile	2009-09-02 11:32:08.000000000 +0800
-@@ -2,7 +2,7 @@
- obj- := dummy.o
- 
- # List of programs to build
--hostprogs-y := slabinfo page-types
-+hostprogs-y := slabinfo
- 
- # Tell kbuild to always build the programs
- always := $(hostprogs-y)
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-mm/tools/vm/Makefile	2009-09-02 11:32:08.000000000 +0800
-@@ -0,0 +1,5 @@
-+# List of programs to build
-+hostprogs-y := page-types
++++ linux-mm/tools/vm/slqbinfo.c	2009-09-02 11:29:47.000000000 +0800
+@@ -0,0 +1,1047 @@
++/*
++ * Slabinfo: Tool to get reports about slabs
++ *
++ * (C) 2007 sgi, Christoph Lameter
++ *
++ * Reworked by Lin Ming <ming.m.lin@intel.com> for SLQB
++ *
++ * Compile by:
++ *
++ * gcc -o slabinfo slabinfo.c
++ */
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <dirent.h>
++#include <strings.h>
++#include <string.h>
++#include <unistd.h>
++#include <stdarg.h>
++#include <getopt.h>
++#include <regex.h>
++#include <errno.h>
 +
-+# Tell kbuild to always build the programs
-+always := $(hostprogs-y)
---- linux-mm.orig/Documentation/vm/pagemap.txt	2009-09-02 11:33:25.000000000 +0800
-+++ linux-mm/Documentation/vm/pagemap.txt	2009-09-02 11:35:07.000000000 +0800
-@@ -110,7 +110,9 @@ Short descriptions to the page flags:
- 13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
- 14. SWAPBACKED  page is backed by swap/RAM
- 
--The page-types tool in this directory can be used to query the above flags.
-+The page-types tool can be used to query the above flags:
++#define MAX_SLABS 500
++#define MAX_ALIASES 500
++#define MAX_NODES 1024
 +
-+	gcc -o page-types tools/vm/page-types.c
- 
- Using pagemap to do something useful:
- 
++struct slabinfo {
++	char *name;
++	int align, cache_dma, destroy_by_rcu;
++	int hwcache_align, object_size, objs_per_slab;
++	int slab_size, store_user;
++	int order, poison, reclaim_account, red_zone;
++	int batch;
++	unsigned long objects, slabs, total_objects;
++	unsigned long alloc, alloc_slab_fill, alloc_slab_new;
++	unsigned long free, free_remote;
++	unsigned long claim_remote_list, claim_remote_list_objects;
++	unsigned long flush_free_list, flush_free_list_objects, flush_free_list_remote;
++	unsigned long flush_rfree_list, flush_rfree_list_objects;
++	unsigned long flush_slab_free, flush_slab_partial;
++	int numa[MAX_NODES];
++	int numa_partial[MAX_NODES];
++} slabinfo[MAX_SLABS];
++
++int slabs = 0;
++int actual_slabs = 0;
++int highest_node = 0;
++
++char buffer[4096];
++
++int show_empty = 0;
++int show_report = 0;
++int show_slab = 0;
++int skip_zero = 1;
++int show_numa = 0;
++int show_track = 0;
++int validate = 0;
++int shrink = 0;
++int show_inverted = 0;
++int show_totals = 0;
++int sort_size = 0;
++int sort_active = 0;
++int set_debug = 0;
++int show_ops = 0;
++int show_activity = 0;
++
++/* Debug options */
++int sanity = 0;
++int redzone = 0;
++int poison = 0;
++int tracking = 0;
++int tracing = 0;
++
++int page_size;
++
++regex_t pattern;
++
++void fatal(const char *x, ...)
++{
++	va_list ap;
++
++	va_start(ap, x);
++	vfprintf(stderr, x, ap);
++	va_end(ap);
++	exit(EXIT_FAILURE);
++}
++
++void usage(void)
++{
++	printf("slabinfo 5/7/2007. (c) 2007 sgi.\n\n"
++		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
++		"-A|--activity          Most active slabs first\n"
++		"-d<options>|--debug=<options> Set/Clear Debug options\n"
++		"-D|--display-active    Switch line format to activity\n"
++		"-e|--empty             Show empty slabs\n"
++		"-h|--help              Show usage information\n"
++		"-i|--inverted          Inverted list\n"
++		"-l|--slabs             Show slabs\n"
++		"-n|--numa              Show NUMA information\n"
++		"-o|--ops		Show kmem_cache_ops\n"
++		"-s|--shrink            Shrink slabs\n"
++		"-r|--report		Detailed report on single slabs\n"
++		"-S|--Size              Sort by size\n"
++		"-t|--tracking          Show alloc/free information\n"
++		"-T|--Totals            Show summary information\n"
++		"-v|--validate          Validate slabs\n"
++		"-z|--zero              Include empty slabs\n"
++		"\nValid debug options (FZPUT may be combined)\n"
++		"a / A          Switch on all debug options (=FZUP)\n"
++		"-              Switch off all debug options\n"
++		"f / F          Sanity Checks (SLAB_DEBUG_FREE)\n"
++		"z / Z          Redzoning\n"
++		"p / P          Poisoning\n"
++		"u / U          Tracking\n"
++		"t / T          Tracing\n"
++	);
++}
++
++unsigned long read_obj(const char *name)
++{
++	FILE *f = fopen(name, "r");
++
++	if (!f)
++		buffer[0] = 0;
++	else {
++		if (!fgets(buffer, sizeof(buffer), f))
++			buffer[0] = 0;
++		fclose(f);
++		if (buffer[strlen(buffer)] == '\n')
++			buffer[strlen(buffer)] = 0;
++	}
++	return strlen(buffer);
++}
++
++
++/*
++ * Get the contents of an attribute
++ */
++unsigned long get_obj(const char *name)
++{
++	if (!read_obj(name))
++		return 0;
++
++	return atol(buffer);
++}
++
++unsigned long get_obj_and_str(const char *name, char **x)
++{
++	unsigned long result = 0;
++	char *p;
++
++	*x = NULL;
++
++	if (!read_obj(name)) {
++		x = NULL;
++		return 0;
++	}
++	result = strtoul(buffer, &p, 10);
++	while (*p == ' ')
++		p++;
++	if (*p)
++		*x = strdup(p);
++	return result;
++}
++
++void set_obj(struct slabinfo *s, const char *name, int n)
++{
++	char x[100];
++	FILE *f;
++
++	snprintf(x, 100, "%s/%s", s->name, name);
++	f = fopen(x, "w");
++	if (!f)
++		fatal("Cannot write to %s\n", x);
++
++	fprintf(f, "%d\n", n);
++	fclose(f);
++}
++
++unsigned long read_slab_obj(struct slabinfo *s, const char *name)
++{
++	char x[100];
++	FILE *f;
++	size_t l;
++
++	snprintf(x, 100, "%s/%s", s->name, name);
++	f = fopen(x, "r");
++	if (!f) {
++		buffer[0] = 0;
++		l = 0;
++	} else {
++		l = fread(buffer, 1, sizeof(buffer), f);
++		buffer[l] = 0;
++		fclose(f);
++	}
++	return l;
++}
++
++
++/*
++ * Put a size string together
++ */
++int store_size(char *buffer, unsigned long value)
++{
++	unsigned long divisor = 1;
++	char trailer = 0;
++	int n;
++
++	if (value > 1000000000UL) {
++		divisor = 100000000UL;
++		trailer = 'G';
++	} else if (value > 1000000UL) {
++		divisor = 100000UL;
++		trailer = 'M';
++	} else if (value > 1000UL) {
++		divisor = 100;
++		trailer = 'K';
++	}
++
++	value /= divisor;
++	n = sprintf(buffer, "%ld",value);
++	if (trailer) {
++		buffer[n] = trailer;
++		n++;
++		buffer[n] = 0;
++	}
++	if (divisor != 1) {
++		memmove(buffer + n - 2, buffer + n - 3, 4);
++		buffer[n-2] = '.';
++		n++;
++	}
++	return n;
++}
++
++void decode_numa_list(int *numa, char *t)
++{
++	int node;
++	int nr;
++
++	memset(numa, 0, MAX_NODES * sizeof(int));
++
++	if (!t)
++		return;
++
++	while (*t == 'N') {
++		t++;
++		node = strtoul(t, &t, 10);
++		if (*t == '=') {
++			t++;
++			nr = strtoul(t, &t, 10);
++			numa[node] = nr;
++			if (node > highest_node)
++				highest_node = node;
++		}
++		while (*t == ' ')
++			t++;
++	}
++}
++
++void slab_validate(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	set_obj(s, "validate", 1);
++}
++
++void slab_shrink(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	set_obj(s, "shrink", 1);
++}
++
++int line = 0;
++
++void first_line(void)
++{
++	if (show_activity)
++		printf("Name                   Objects      Alloc       Free   %%Fill %%New  "
++			"FlushR %%FlushR FlushR_Objs O\n");
++	else
++		printf("Name                   Objects Objsize    Space "
++			" O/S O %%Ef Batch Flg\n");
++}
++
++unsigned long slab_size(struct slabinfo *s)
++{
++	return 	s->slabs * (page_size << s->order);
++}
++
++unsigned long slab_activity(struct slabinfo *s)
++{
++	return 	s->alloc + s->free;
++}
++
++void slab_numa(struct slabinfo *s, int mode)
++{
++	int node;
++
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (!highest_node) {
++		printf("\n%s: No NUMA information available.\n", s->name);
++		return;
++	}
++
++	if (skip_zero && !s->slabs)
++		return;
++
++	if (!line) {
++		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
++		for(node = 0; node <= highest_node; node++)
++			printf(" %4d", node);
++		printf("\n----------------------");
++		for(node = 0; node <= highest_node; node++)
++			printf("-----");
++		printf("\n");
++	}
++	printf("%-21s ", mode ? "All slabs" : s->name);
++	for(node = 0; node <= highest_node; node++) {
++		char b[20];
++
++		store_size(b, s->numa[node]);
++		printf(" %4s", b);
++	}
++	printf("\n");
++	if (mode) {
++		printf("%-21s ", "Partial slabs");
++		for(node = 0; node <= highest_node; node++) {
++			char b[20];
++
++			store_size(b, s->numa_partial[node]);
++			printf(" %4s", b);
++		}
++		printf("\n");
++	}
++	line++;
++}
++
++void show_tracking(struct slabinfo *s)
++{
++	printf("\n%s: Kernel object allocation\n", s->name);
++	printf("-----------------------------------------------------------------------\n");
++	if (read_slab_obj(s, "alloc_calls"))
++		printf(buffer);
++	else
++		printf("No Data\n");
++
++	printf("\n%s: Kernel object freeing\n", s->name);
++	printf("------------------------------------------------------------------------\n");
++	if (read_slab_obj(s, "free_calls"))
++		printf(buffer);
++	else
++		printf("No Data\n");
++
++}
++
++void ops(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (read_slab_obj(s, "ops")) {
++		printf("\n%s: kmem_cache operations\n", s->name);
++		printf("--------------------------------------------\n");
++		printf(buffer);
++	} else
++		printf("\n%s has no kmem_cache operations\n", s->name);
++}
++
++const char *onoff(int x)
++{
++	if (x)
++		return "On ";
++	return "Off";
++}
++
++void slab_stats(struct slabinfo *s)
++{
++	unsigned long total_alloc;
++	unsigned long total_free;
++
++	total_alloc = s->alloc;
++	total_free = s->free;
++
++	if (!total_alloc)
++		return;
++
++	printf("\n");
++	printf("Slab Perf Counter\n");
++	printf("------------------------------------------------------------------------\n");
++	printf("Alloc: %8lu, partial %8lu, page allocator %8lu\n",
++		total_alloc,
++		s->alloc_slab_fill, s->alloc_slab_new);
++	printf("Free:  %8lu, partial %8lu, page allocator %8lu, remote %5lu\n",
++		total_free,
++		s->flush_slab_partial,
++		s->flush_slab_free,
++		s->free_remote);
++	printf("Claim: %8lu, objects %8lu\n",
++		s->claim_remote_list,
++		s->claim_remote_list_objects);
++	printf("Flush: %8lu, objects %8lu, remote: %8lu\n",
++		s->flush_free_list,
++		s->flush_free_list_objects,
++		s->flush_free_list_remote);
++	printf("FlushR:%8lu, objects %8lu\n",
++		s->flush_rfree_list,
++		s->flush_rfree_list_objects);
++}
++
++void report(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	printf("\nSlabcache: %-20s  Order : %2d Objects: %lu\n",
++		s->name, s->order, s->objects);
++	if (s->hwcache_align)
++		printf("** Hardware cacheline aligned\n");
++	if (s->cache_dma)
++		printf("** Memory is allocated in a special DMA zone\n");
++	if (s->destroy_by_rcu)
++		printf("** Slabs are destroyed via RCU\n");
++	if (s->reclaim_account)
++		printf("** Reclaim accounting active\n");
++
++	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
++	printf("------------------------------------------------------------------------\n");
++	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
++			s->object_size, s->slabs, "N/A",
++			s->slabs * (page_size << s->order));
++	printf("SlabObj: %7d  Full   : %7s   Redzoning     : %s  Used : %7ld\n",
++			s->slab_size, "N/A",
++			onoff(s->red_zone), s->objects * s->object_size);
++	printf("SlabSiz: %7d  Partial: %7s   Poisoning     : %s  Loss : %7ld\n",
++			page_size << s->order, "N/A", onoff(s->poison),
++			s->slabs * (page_size << s->order) - s->objects * s->object_size);
++	printf("Loss   : %7d  CpuSlab: %7s   Tracking      : %s  Lalig: %7ld\n",
++			s->slab_size - s->object_size, "N/A", onoff(s->store_user),
++			(s->slab_size - s->object_size) * s->objects);
++	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
++			s->align, s->objs_per_slab, "N/A",
++			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
++			s->slabs);
++
++	ops(s);
++	show_tracking(s);
++	slab_numa(s, 1);
++	slab_stats(s);
++}
++
++void slabcache(struct slabinfo *s)
++{
++	char size_str[20];
++	char flags[20];
++	char *p = flags;
++
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (actual_slabs == 1) {
++		report(s);
++		return;
++	}
++
++	if (skip_zero && !show_empty && !s->slabs)
++		return;
++
++	if (show_empty && s->slabs)
++		return;
++
++	store_size(size_str, slab_size(s));
++
++	if (!line++)
++		first_line();
++
++	if (s->cache_dma)
++		*p++ = 'd';
++	if (s->hwcache_align)
++		*p++ = 'A';
++	if (s->poison)
++		*p++ = 'P';
++	if (s->reclaim_account)
++		*p++ = 'a';
++	if (s->red_zone)
++		*p++ = 'Z';
++	if (s->store_user)
++		*p++ = 'U';
++
++	*p = 0;
++	if (show_activity) {
++		unsigned long total_alloc;
++		unsigned long total_free;
++
++		total_alloc = s->alloc;
++		total_free = s->free;
++
++		printf("%-21s %8ld %10ld %10ld %5ld %5ld %7ld %5ld %7ld %8d\n",
++			s->name, s->objects,
++			total_alloc, total_free,
++			total_alloc ? (s->alloc_slab_fill * 100 / total_alloc) : 0,
++			total_alloc ? (s->alloc_slab_new * 100 / total_alloc) : 0,
++			s->flush_rfree_list,
++			s->flush_rfree_list * 100 / (total_alloc + total_free),
++			s->flush_rfree_list_objects,
++			s->order);
++	}
++	else
++		printf("%-21s %8ld %7d %8s %4d %1d %3ld %4d %s\n",
++			s->name, s->objects, s->object_size, size_str,
++			s->objs_per_slab, s->order,
++			s->slabs ? (s->objects * s->object_size * 100) /
++				(s->slabs * (page_size << s->order)) : 100,
++			s->batch, flags);
++}
++
++/*
++ * Analyze debug options. Return false if something is amiss.
++ */
++int debug_opt_scan(char *opt)
++{
++	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
++		return 1;
++
++	if (strcasecmp(opt, "a") == 0) {
++		sanity = 1;
++		poison = 1;
++		redzone = 1;
++		tracking = 1;
++		return 1;
++	}
++
++	for ( ; *opt; opt++)
++	 	switch (*opt) {
++		case 'F' : case 'f':
++			if (sanity)
++				return 0;
++			sanity = 1;
++			break;
++		case 'P' : case 'p':
++			if (poison)
++				return 0;
++			poison = 1;
++			break;
++
++		case 'Z' : case 'z':
++			if (redzone)
++				return 0;
++			redzone = 1;
++			break;
++
++		case 'U' : case 'u':
++			if (tracking)
++				return 0;
++			tracking = 1;
++			break;
++
++		case 'T' : case 't':
++			if (tracing)
++				return 0;
++			tracing = 1;
++			break;
++		default:
++			return 0;
++		}
++	return 1;
++}
++
++int slab_empty(struct slabinfo *s)
++{
++	if (s->objects > 0)
++		return 0;
++
++	/*
++	 * We may still have slabs even if there are no objects. Shrinking will
++	 * remove them.
++	 */
++	if (s->slabs != 0)
++		set_obj(s, "shrink", 1);
++
++	return 1;
++}
++
++void slab_debug(struct slabinfo *s)
++{
++	if (strcmp(s->name, "*") == 0)
++		return;
++
++	if (redzone && !s->red_zone) {
++		if (slab_empty(s))
++			set_obj(s, "red_zone", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
++	}
++	if (!redzone && s->red_zone) {
++		if (slab_empty(s))
++			set_obj(s, "red_zone", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
++	}
++	if (poison && !s->poison) {
++		if (slab_empty(s))
++			set_obj(s, "poison", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
++	}
++	if (!poison && s->poison) {
++		if (slab_empty(s))
++			set_obj(s, "poison", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
++	}
++	if (tracking && !s->store_user) {
++		if (slab_empty(s))
++			set_obj(s, "store_user", 1);
++		else
++			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
++	}
++	if (!tracking && s->store_user) {
++		if (slab_empty(s))
++			set_obj(s, "store_user", 0);
++		else
++			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
++	}
++}
++
++void totals(void)
++{
++	struct slabinfo *s;
++
++	int used_slabs = 0;
++	char b1[20], b2[20], b3[20], b4[20];
++	unsigned long long max = 1ULL << 63;
++
++	/* Object size */
++	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
++
++	/* Number of slabs in a slab cache */
++	unsigned long long min_slabs = max, max_slabs = 0,
++				avg_slabs, total_slabs = 0;
++
++	/* Size of the whole slab */
++	unsigned long long min_size = max, max_size = 0,
++				avg_size, total_size = 0;
++
++	/* Bytes used for object storage in a slab */
++	unsigned long long min_used = max, max_used = 0,
++				avg_used, total_used = 0;
++
++	/* Waste: Bytes used for alignment and padding */
++	unsigned long long min_waste = max, max_waste = 0,
++				avg_waste, total_waste = 0;
++	/* Number of objects in a slab */
++	unsigned long long min_objects = max, max_objects = 0,
++				avg_objects, total_objects = 0;
++	/* Waste per object */
++	unsigned long long min_objwaste = max,
++				max_objwaste = 0, avg_objwaste,
++				total_objwaste = 0;
++
++	/* Memory per object */
++	unsigned long long min_memobj = max,
++				max_memobj = 0, avg_memobj,
++				total_objsize = 0;
++
++	for (s = slabinfo; s < slabinfo + slabs; s++) {
++		unsigned long long size;
++		unsigned long used;
++		unsigned long long wasted;
++		unsigned long long objwaste;
++
++		if (!s->slabs || !s->objects)
++			continue;
++
++		used_slabs++;
++
++		size = slab_size(s);
++		used = s->objects * s->object_size;
++		wasted = size - used;
++		objwaste = s->slab_size - s->object_size;
++
++		if (s->object_size < min_objsize)
++			min_objsize = s->object_size;
++		if (s->slabs < min_slabs)
++			min_slabs = s->slabs;
++		if (size < min_size)
++			min_size = size;
++		if (wasted < min_waste)
++			min_waste = wasted;
++		if (objwaste < min_objwaste)
++			min_objwaste = objwaste;
++		if (s->objects < min_objects)
++			min_objects = s->objects;
++		if (used < min_used)
++			min_used = used;
++		if (s->slab_size < min_memobj)
++			min_memobj = s->slab_size;
++
++		if (s->object_size > max_objsize)
++			max_objsize = s->object_size;
++		if (s->slabs > max_slabs)
++			max_slabs = s->slabs;
++		if (size > max_size)
++			max_size = size;
++		if (wasted > max_waste)
++			max_waste = wasted;
++		if (objwaste > max_objwaste)
++			max_objwaste = objwaste;
++		if (s->objects > max_objects)
++			max_objects = s->objects;
++		if (used > max_used)
++			max_used = used;
++		if (s->slab_size > max_memobj)
++			max_memobj = s->slab_size;
++
++		total_slabs += s->slabs;
++		total_size += size;
++		total_waste += wasted;
++
++		total_objects += s->objects;
++		total_used += used;
++
++		total_objwaste += s->objects * objwaste;
++		total_objsize += s->objects * s->slab_size;
++	}
++
++	if (!total_objects) {
++		printf("No objects\n");
++		return;
++	}
++	if (!used_slabs) {
++		printf("No slabs\n");
++		return;
++	}
++
++	/* Per slab averages */
++	avg_slabs = total_slabs / used_slabs;
++	avg_size = total_size / used_slabs;
++	avg_waste = total_waste / used_slabs;
++
++	avg_objects = total_objects / used_slabs;
++	avg_used = total_used / used_slabs;
++
++	/* Per object object sizes */
++	avg_objsize = total_used / total_objects;
++	avg_objwaste = total_objwaste / total_objects;
++	avg_memobj = total_objsize / total_objects;
++
++	printf("Slabcache Totals\n");
++	printf("----------------\n");
++	printf("Slabcaches : %3d      Active: %3d\n",
++			slabs, used_slabs);
++
++	store_size(b1, total_size);store_size(b2, total_waste);
++	store_size(b3, total_waste * 100 / total_used);
++	printf("Memory used: %6s   # Loss   : %6s   MRatio:%6s%%\n", b1, b2, b3);
++
++	store_size(b1, total_objects);
++	printf("# Objects  : %6s\n", b1);
++
++	printf("\n");
++	printf("Per Cache    Average         Min         Max       Total\n");
++	printf("---------------------------------------------------------\n");
++
++	store_size(b1, avg_objects);store_size(b2, min_objects);
++	store_size(b3, max_objects);store_size(b4, total_objects);
++	printf("#Objects  %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_slabs);store_size(b2, min_slabs);
++	store_size(b3, max_slabs);store_size(b4, total_slabs);
++	printf("#Slabs    %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_size);store_size(b2, min_size);
++	store_size(b3, max_size);store_size(b4, total_size);
++	printf("Memory    %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_used);store_size(b2, min_used);
++	store_size(b3, max_used);store_size(b4, total_used);
++	printf("Used      %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	store_size(b1, avg_waste);store_size(b2, min_waste);
++	store_size(b3, max_waste);store_size(b4, total_waste);
++	printf("Loss      %10s  %10s  %10s  %10s\n",
++			b1,	b2,	b3,	b4);
++
++	printf("\n");
++	printf("Per Object   Average         Min         Max\n");
++	printf("---------------------------------------------\n");
++
++	store_size(b1, avg_memobj);store_size(b2, min_memobj);
++	store_size(b3, max_memobj);
++	printf("Memory    %10s  %10s  %10s\n",
++			b1,	b2,	b3);
++	store_size(b1, avg_objsize);store_size(b2, min_objsize);
++	store_size(b3, max_objsize);
++	printf("User      %10s  %10s  %10s\n",
++			b1,	b2,	b3);
++
++	store_size(b1, avg_objwaste);store_size(b2, min_objwaste);
++	store_size(b3, max_objwaste);
++	printf("Loss      %10s  %10s  %10s\n",
++			b1,	b2,	b3);
++}
++
++void sort_slabs(void)
++{
++	struct slabinfo *s1,*s2;
++
++	for (s1 = slabinfo; s1 < slabinfo + slabs; s1++) {
++		for (s2 = s1 + 1; s2 < slabinfo + slabs; s2++) {
++			int result;
++
++			if (sort_size)
++				result = slab_size(s1) < slab_size(s2);
++			else if (sort_active)
++				result = slab_activity(s1) < slab_activity(s2);
++			else
++				result = strcasecmp(s1->name, s2->name);
++
++			if (show_inverted)
++				result = -result;
++
++			if (result > 0) {
++				struct slabinfo t;
++
++				memcpy(&t, s1, sizeof(struct slabinfo));
++				memcpy(s1, s2, sizeof(struct slabinfo));
++				memcpy(s2, &t, sizeof(struct slabinfo));
++			}
++		}
++	}
++}
++
++int slab_mismatch(char *slab)
++{
++	return regexec(&pattern, slab, 0, NULL, 0);
++}
++
++void read_slab_dir(void)
++{
++	DIR *dir;
++	struct dirent *de;
++	struct slabinfo *slab = slabinfo;
++	char *t;
++
++	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
++		fatal("SYSFS support for SLUB not active\n");
++
++	dir = opendir(".");
++	while ((de = readdir(dir))) {
++		if (de->d_name[0] == '.' ||
++			(de->d_name[0] != ':' && slab_mismatch(de->d_name)))
++				continue;
++		switch (de->d_type) {
++		   case DT_DIR:
++			if (chdir(de->d_name))
++				fatal("Unable to access slab %s\n", slab->name);
++		   	slab->name = strdup(de->d_name);
++			slab->align = get_obj("align");
++			slab->cache_dma = get_obj("cache_dma");
++			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
++			slab->hwcache_align = get_obj("hwcache_align");
++			slab->object_size = get_obj("object_size");
++			slab->objects = get_obj("objects");
++			slab->total_objects = get_obj("total_objects");
++			slab->objs_per_slab = get_obj("objs_per_slab");
++			slab->order = get_obj("order");
++			slab->poison = get_obj("poison");
++			slab->reclaim_account = get_obj("reclaim_account");
++			slab->red_zone = get_obj("red_zone");
++			slab->slab_size = get_obj("slab_size");
++			slab->slabs = get_obj_and_str("slabs", &t);
++			decode_numa_list(slab->numa, t);
++			free(t);
++			slab->store_user = get_obj("store_user");
++			slab->batch = get_obj("batch");
++			slab->alloc = get_obj("alloc");
++			slab->alloc_slab_fill = get_obj("alloc_slab_fill");
++			slab->alloc_slab_new = get_obj("alloc_slab_new");
++			slab->free = get_obj("free");
++			slab->free_remote = get_obj("free_remote");
++			slab->claim_remote_list = get_obj("claim_remote_list");
++			slab->claim_remote_list_objects = get_obj("claim_remote_list_objects");
++			slab->flush_free_list = get_obj("flush_free_list");
++			slab->flush_free_list_objects = get_obj("flush_free_list_objects");
++			slab->flush_free_list_remote = get_obj("flush_free_list_remote");
++			slab->flush_rfree_list = get_obj("flush_rfree_list");
++			slab->flush_rfree_list_objects = get_obj("flush_rfree_list_objects");
++			slab->flush_slab_free = get_obj("flush_slab_free");
++			slab->flush_slab_partial = get_obj("flush_slab_partial");
++
++			chdir("..");
++			slab++;
++			break;
++		   default :
++			fatal("Unknown file type %lx\n", de->d_type);
++		}
++	}
++	closedir(dir);
++	slabs = slab - slabinfo;
++	actual_slabs = slabs;
++	if (slabs > MAX_SLABS)
++		fatal("Too many slabs\n");
++}
++
++void output_slabs(void)
++{
++	struct slabinfo *slab;
++
++	for (slab = slabinfo; slab < slabinfo + slabs; slab++) {
++
++		if (show_numa)
++			slab_numa(slab, 0);
++		else if (show_track)
++			show_tracking(slab);
++		else if (validate)
++			slab_validate(slab);
++		else if (shrink)
++			slab_shrink(slab);
++		else if (set_debug)
++			slab_debug(slab);
++		else if (show_ops)
++			ops(slab);
++		else if (show_slab)
++			slabcache(slab);
++		else if (show_report)
++			report(slab);
++	}
++}
++
++struct option opts[] = {
++	{ "activity", 0, NULL, 'A' },
++	{ "debug", 2, NULL, 'd' },
++	{ "display-activity", 0, NULL, 'D' },
++	{ "empty", 0, NULL, 'e' },
++	{ "help", 0, NULL, 'h' },
++	{ "inverted", 0, NULL, 'i'},
++	{ "numa", 0, NULL, 'n' },
++	{ "ops", 0, NULL, 'o' },
++	{ "report", 0, NULL, 'r' },
++	{ "shrink", 0, NULL, 's' },
++	{ "slabs", 0, NULL, 'l' },
++	{ "track", 0, NULL, 't'},
++	{ "validate", 0, NULL, 'v' },
++	{ "zero", 0, NULL, 'z' },
++	{ "1ref", 0, NULL, '1'},
++	{ NULL, 0, NULL, 0 }
++};
++
++int main(int argc, char *argv[])
++{
++	int c;
++	int err;
++	char *pattern_source;
++
++	page_size = getpagesize();
++
++	while ((c = getopt_long(argc, argv, "Ad::Dehil1noprstvzTS",
++						opts, NULL)) != -1)
++		switch (c) {
++		case 'A':
++			sort_active = 1;
++			break;
++		case 'd':
++			set_debug = 1;
++			if (!debug_opt_scan(optarg))
++				fatal("Invalid debug option '%s'\n", optarg);
++			break;
++		case 'D':
++			show_activity = 1;
++			break;
++		case 'e':
++			show_empty = 1;
++			break;
++		case 'h':
++			usage();
++			return 0;
++		case 'i':
++			show_inverted = 1;
++			break;
++		case 'n':
++			show_numa = 1;
++			break;
++		case 'o':
++			show_ops = 1;
++			break;
++		case 'r':
++			show_report = 1;
++			break;
++		case 's':
++			shrink = 1;
++			break;
++		case 'l':
++			show_slab = 1;
++			break;
++		case 't':
++			show_track = 1;
++			break;
++		case 'v':
++			validate = 1;
++			break;
++		case 'z':
++			skip_zero = 0;
++			break;
++		case 'T':
++			show_totals = 1;
++			break;
++		case 'S':
++			sort_size = 1;
++			break;
++
++		default:
++			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
++
++	}
++
++	if (!show_slab && !show_track && !show_report
++		&& !validate && !shrink && !set_debug && !show_ops)
++			show_slab = 1;
++
++	if (argc > optind)
++		pattern_source = argv[optind];
++	else
++		pattern_source = ".*";
++
++	err = regcomp(&pattern, pattern_source, REG_ICASE|REG_NOSUB);
++	if (err)
++		fatal("%s: Invalid pattern '%s' code %d\n",
++			argv[0], pattern_source, err);
++	read_slab_dir();
++	if (show_totals)
++		totals();
++	else {
++		sort_slabs();
++		output_slabs();
++	}
++	return 0;
++}
+--- linux-mm.orig/Documentation/vm/Makefile	2009-09-02 11:27:38.000000000 +0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1,8 +0,0 @@
+-# kbuild trick to avoid linker error. Can be omitted if a module is built.
+-obj- := dummy.o
+-
+-# List of programs to build
+-hostprogs-y := slabinfo
+-
+-# Tell kbuild to always build the programs
+-always := $(hostprogs-y)
+--- linux-mm.orig/Documentation/vm/.gitignore	2009-09-02 11:31:30.000000000 +0800
++++ /dev/null	1970-01-01 00:00:00.000000000 +0000
+@@ -1 +0,0 @@
+-slabinfo
 
 -- 
 
