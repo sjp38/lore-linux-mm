@@ -1,32 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 078E06B004F
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 15:58:09 -0400 (EDT)
-Received: by pxi14 with SMTP id 14so975072pxi.19
-        for <linux-mm@kvack.org>; Wed, 02 Sep 2009 12:58:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 5971E6B004F
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 16:02:25 -0400 (EDT)
+Received: by pzk16 with SMTP id 16so829144pzk.18
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2009 13:02:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 3 Sep 2009 01:28:17 +0530
-Message-ID: <661de9470909021258j7fcc71fcv27d284738d1e37e3@mail.gmail.com>
-Subject: Re: [mmotm][experimental][PATCH] coalescing charge
+In-Reply-To: <ff13736137802f78cf492d13c43c1af1.squirrel@webmail-b.css.fujitsu.com>
+References: <20090902.205137.71100180.ryov@valinux.co.jp>
+	 <ff13736137802f78cf492d13c43c1af1.squirrel@webmail-b.css.fujitsu.com>
+Date: Thu, 3 Sep 2009 01:32:24 +0530
+Message-ID: <661de9470909021302ge86d01s5d107dc2b5cffbc5@mail.gmail.com>
+Subject: Re: a room for blkio-cgroup in struct page_cgroup
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: Ryo Tsuruta <ryov@valinux.co.jp>, linux-kernel@vger.kernel.org, dm-devel@redhat.com, containers@lists.linux-foundation.org, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 2, 2009 at 2:59 PM, KAMEZAWA
-Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> I'm sorry that I'll be absent tomorrow. This is dump of current code.
-> IMHO, this version is enough simple.
+2009/9/2 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> Ryo Tsuruta wrote:
+>> Hi Kamezawa-san,
+>>
+>> As you wrote before (http://lkml.org/lkml/2009/7/22/65)
+>>> To be honest, what I expected in these days for people of blockio
+>>> cgroup is like following for getting room for themselves.
+>> <<snip>>
+>>> --- mmotm-2.6.31-Jul16.orig/include/linux/page_cgroup.h
+>>> +++ mmotm-2.6.31-Jul16/include/linux/page_cgroup.h
+>>> @@ -13,7 +13,7 @@
+>>> =A0struct page_cgroup {
+>>> =A0 =A0 =A0 unsigned long flags;
+>>> =A0 =A0 =A0 struct mem_cgroup *mem_cgroup;
+>>> - =A0 =A0 struct page *page;
+>>> + =A0 =A0 /* block io tracking will use extra unsigned long bytes */
+>>> =A0 =A0 =A0 struct list_head lru; =A0 =A0 =A0 /* per cgroup LRU list */
+>>> };
+>>
+>> Have you already added a room for blkio_cgroup in struct page_cgroup?
+> No.
 >
-> My next target is css's refcnt per page. I think we never need it...
 
-Is this against 27th August 2009 mmotm?
+The diff above is unclear, are you removing struct page from page_cgroup?
 
 Balbir Singh
 
