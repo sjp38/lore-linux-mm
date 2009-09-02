@@ -1,74 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7B3516B005A
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 09:12:54 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n82DCuYp002596
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 2 Sep 2009 22:12:56 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 25CD645DE4E
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 22:12:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 05AD845DE4C
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 22:12:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DE9B4E08001
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 22:12:55 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F6051DB8038
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 22:12:52 +0900 (JST)
-Message-ID: <ff13736137802f78cf492d13c43c1af1.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090902.205137.71100180.ryov@valinux.co.jp>
-References: <20090902.205137.71100180.ryov@valinux.co.jp>
-Date: Wed, 2 Sep 2009 22:12:51 +0900 (JST)
-Subject: Re: a room for blkio-cgroup in struct page_cgroup
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA406B005A
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 10:11:14 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id C5C0682C7C2
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 10:12:56 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id yaAG8bJN9u+y for <linux-mm@kvack.org>;
+	Wed,  2 Sep 2009 10:12:52 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6AFC282C491
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 10:12:44 -0400 (EDT)
+Date: Wed, 2 Sep 2009 13:04:49 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH 2/4 v2] slabinfo: move from Documentation/vm/ to
+ tools/vm/
+In-Reply-To: <20090902041714.GA23248@localhost>
+Message-ID: <alpine.DEB.1.10.0909021304290.27987@V090114053VZO-1>
+References: <20090902034125.718886329@intel.com> <20090902035814.595864486@intel.com> <20090902041714.GA23248@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ryo Tsuruta <ryov@valinux.co.jp>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, dm-devel@redhat.com, containers@lists.linux-foundation.org, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Lin, Ming M" <ming.m.lin@intel.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Randy Dunlap <randy.dunlap@oracle.com>, Chris Wright <chrisw@redhat.com>, "Huang, Ying" <ying.huang@intel.com>, Josh Triplett <josh@joshtriplett.org>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ryo Tsuruta wrote:
-> Hi Kamezawa-san,
->
-> As you wrote before (http://lkml.org/lkml/2009/7/22/65)
->> To be honest, what I expected in these days for people of blockio
->> cgroup is like following for getting room for themselves.
-> <<snip>>
->> --- mmotm-2.6.31-Jul16.orig/include/linux/page_cgroup.h
->> +++ mmotm-2.6.31-Jul16/include/linux/page_cgroup.h
->> @@ -13,7 +13,7 @@
->>  struct page_cgroup {
->>       unsigned long flags;
->>       struct mem_cgroup *mem_cgroup;
->> -     struct page *page;
->> +     /* block io tracking will use extra unsigned long bytes */
->>       struct list_head lru;       /* per cgroup LRU list */
->> };
->
-> Have you already added a room for blkio_cgroup in struct page_cgroup?
-No.
 
-> If not, I would like you to apply the above change to mmotm.
->
-Plz wait until October. We're deadly busy and some amount of more important
-patches are piled up in front of us. I have no objections if you add
-a pointer or id  because I know I can reduce 8(4)bytes later.
-Just add (a small) member for a while and ignore page_cgroup's size.
-I'll fix later.
 
-> The latest blkio-cgroup has reflected the comments you pointed out.
-> I would also like you to give me any comments on it and consider
-> merging blkio-cgroup to mmotm.
->
-BTW, do you all have cosensus about implementation ?
-
-Bye,
--Kame
+Acked-by: Christoph Lameter <cl@linux-foundation.org>
 
 
 --
