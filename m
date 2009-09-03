@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A52616B005D
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 20:24:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n830OfVY014949
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2B4B66B006A
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2009 20:30:14 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n830UBk7017487
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 3 Sep 2009 09:24:41 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 85FA345DE51
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:24:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3824745DE4F
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:24:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EF237E08013
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:24:40 +0900 (JST)
+	Thu, 3 Sep 2009 09:30:12 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 86F8C45DE62
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:30:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EEBE45DE64
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:30:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A33F11DB8053
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:30:06 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B3FFE0800F
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:24:40 +0900 (JST)
-Message-ID: <61624a1a836fe4f48d76af9b431eba39.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <661de9470909021258j7fcc71fcv27d284738d1e37e3@mail.gmail.com>
-References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
-    <661de9470909021258j7fcc71fcv27d284738d1e37e3@mail.gmail.com>
-Date: Thu, 3 Sep 2009 09:24:39 +0900 (JST)
-Subject: Re: [mmotm][experimental][PATCH] coalescing charge
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E7EC61DB803F
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 09:30:05 +0900 (JST)
+Message-ID: <fa721014d75b6e193623349bfde28124.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <661de9470909021302ge86d01s5d107dc2b5cffbc5@mail.gmail.com>
+References: <20090902.205137.71100180.ryov@valinux.co.jp>
+    <ff13736137802f78cf492d13c43c1af1.squirrel@webmail-b.css.fujitsu.com>
+    <661de9470909021302ge86d01s5d107dc2b5cffbc5@mail.gmail.com>
+Date: Thu, 3 Sep 2009 09:30:05 +0900 (JST)
+Subject: Re: a room for blkio-cgroup in struct page_cgroup
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ryo Tsuruta <ryov@valinux.co.jp>, linux-kernel@vger.kernel.org, dm-devel@redhat.com, containers@lists.linux-foundation.org, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh さんは書きました：
-> On Wed, Sep 2, 2009 at 2:59 PM, KAMEZAWA
-> Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> I'm sorry that I'll be absent tomorrow. This is dump of current code.
->> IMHO, this version is enough simple.
+Balbir Singh wrote:
+> 2009/9/2 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+>> Ryo Tsuruta wrote:
+>>> Hi Kamezawa-san,
+>>>
+>>> As you wrote before (http://lkml.org/lkml/2009/7/22/65)
+>>>> To be honest, what I expected in these days for people of blockio
+>>>> cgroup is like following for getting room for themselves.
+>>> <<snip>>
+>>>> --- mmotm-2.6.31-Jul16.orig/include/linux/page_cgroup.h
+>>>> +++ mmotm-2.6.31-Jul16/include/linux/page_cgroup.h
+>>>> @@ -13,7 +13,7 @@
+>>>> &#160;struct page_cgroup {
+>>>> &#160; &#160; &#160; unsigned long flags;
+>>>> &#160; &#160; &#160; struct mem_cgroup *mem_cgroup;
+>>>> - &#160; &#160; struct page *page;
+>>>> + &#160; &#160; /* block io tracking will use extra unsigned long
+bytes */
+>>>> &#160; &#160; &#160; struct list_head lru; &#160; &#160; &#160; /*
+per cgroup LRU list */
+>>>> };
+>>>
+>>> Have you already added a room for blkio_cgroup in struct page_cgroup?
+>> No.
 >>
->> My next target is css's refcnt per page. I think we never need it...
 >
-> Is this against 27th August 2009 mmotm?
+> The diff above is unclear, are you removing struct page from page_cgroup?
 >
-Onto mmotm-27+ all patches I sent. Maybe arguments to res_counter will
-HUNK, at least
+I said him "if you want a room, plz get by youself, consider more"
+And offered this change.
+ http://lkml.org/lkml/2009/7/22/65
+you were CC'd.
+Because page_cgroup's layout is same to memmap, we can use similar function
+as
+  page_cgroup_to_pfn(), pfn_to_page_cgroup().
+And, we don't access page_cgroup->page in fast path. (maybe)
+But as I wrote, we're busy. I'll not do this until all performance fixes
+go ahead.
 
 Thanks,
 -Kame
-
-> Balbir Singh
->
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
