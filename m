@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 165AD6B005C
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 17:28:59 -0400 (EDT)
-Date: Thu, 3 Sep 2009 14:28:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm][BUG] lockdep warning block I/O (Was Re: mmotm
- 2009-08-27-16-51 uploaded
-Message-Id: <20090903142836.fef35b23.akpm@linux-foundation.org>
-In-Reply-To: <20090901180717.f707c58f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <200908272355.n7RNtghC019990@imap1.linux-foundation.org>
-	<20090901180717.f707c58f.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5656A6B004F
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 18:03:04 -0400 (EDT)
+Date: Thu, 3 Sep 2009 15:02:58 -0700 (PDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
+ sc->isolate_pages() return value.
+In-Reply-To: <20090903140602.e0169ffc.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.0909031458160.5762@kernelhack.brc.ubc.ca>
+References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, jens.axboe@oracle.com, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vincent Li <macli@brc.ubc.ca>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, minchan.kim@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Sep 2009 18:07:17 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 3 Sep 2009, Andrew Morton wrote:
 
+> On Wed,  2 Sep 2009 16:49:25 -0700
+> Vincent Li <macli@brc.ubc.ca> wrote:
 > 
-> Here is mmont-Aug27's lockdep wanring. This was printed out when oom-kill happens.
-> I'm sorry if already fixed.
+> > If we can't isolate pages from LRU list, we don't have to account page movement, either.
+> > Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
+> > 
+> > This patch removes unnecessary overhead of page accounting
+> > and locking in shrink_active_list as follow-up work of commit 5343daceec.
+> > 
+> > Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+> > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > 
+> > ---
+> >  mm/vmscan.c |    9 +++++++--
+> >  1 files changed, 7 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 460a6f7..2d1c846 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1319,9 +1319,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+> >  	if (scanning_global_lru(sc)) {
+> >  		zone->pages_scanned += pgscanned;
+> >  	}
+> > -	reclaim_stat->recent_scanned[file] += nr_taken;
+> > -
+> >  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+> > +
+> > +	if (nr_taken == 0)
+> > +		goto done;
+> > +
+> > +	reclaim_stat->recent_scanned[file] += nr_taken;
+> >  	if (file)
+> >  		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
+> >  	else
+> > @@ -1383,6 +1386,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+> >  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+> >  	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
+> >  	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
+> > +
+> > +done:
+> >  	spin_unlock_irq(&zone->lru_lock);
+> >  }
+> 
+> How do we know this patch is a net gain?
+> 
+> IOW, with what frequency is `nr_taken' zero here?
+> 
 
-My life's project is to hunt down the guy who invented mail client
-wordwrapping, set him on fire then dance on his ashes.
+Actually, I have asked myself the same question, Anyway I can verify this, 
+Kim, KOSAKI? 
 
-> =
-> Sep  1 18:01:16 localhost kernel: [ 3012.503035] ======================================================
-> Sep  1 18:01:16 localhost kernel: [ 3012.503039] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> Sep  1 18:01:16 localhost kernel: [ 3012.503042] 2.6.31-rc7-mm1 #3
-> Sep  1 18:01:16 localhost kernel: [ 3012.503049] ------------------------------------------------------
-> Sep  1 18:01:16 localhost kernel: [ 3012.503052] kblockd/7/350 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
-> Sep  1 18:01:16 localhost kernel: [ 3012.503058]  (bdev_lock){+.+...}, at: [<ffffffff811458c7>] nr_blockdev_pages+0x1
-> 7/0x80
-> Sep  1 18:01:16 localhost kernel: [ 3012.503069]
-> Sep  1 18:01:16 localhost kernel: [ 3012.503070] and this task is already holding:
-> Sep  1 18:01:16 localhost kernel: [ 3012.503075]  (&q->__queue_lock){..-.-.}, at: [<ffffffff811e9ff8>] cfq_kick_queue
-> +0x28/0x50
-> Sep  1 18:01:16 localhost kernel: [ 3012.503083] which would create a new lock dependency:
-> Sep  1 18:01:16 localhost kernel: [ 3012.503087]  (&q->__queue_lock){..-.-.} -> (bdev_lock){+.+...}
-> Sep  1 18:01:16 localhost kernel: [ 3012.503100]
-
-I'd say the core problem here is that __alloc_pages_slowpath() is
-calling show_mem().  Because show_mem() is a "high level" function which
-takes "high level" locks.  ie: bdev_lock.
-
-It's inappropriate that alloc_pages() is assuming that it is safe to
-call show_mem() from all contexts in which alloc_pages() might be
-called.
-
-That show_mem() call has been there since 2005, so I don't know what
-caused this to be revealed now.
-
-It's not at all a serious bug and the chances of us deadlocking the
-kernel here are close to zero.  An appropriate fix would be to replace
-that show_mem() call with something which can be safely called from all
-contexts in which the page allocator can be called.
+Vincent Li
+Biomedical Research Center
+University of British Columbia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
