@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1A86B005C
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 17:04:01 -0400 (EDT)
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id n83L3wrX003137
-	for <linux-mm@kvack.org>; Thu, 3 Sep 2009 14:03:58 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by zps78.corp.google.com with ESMTP id n83L3soI021041
-	for <linux-mm@kvack.org>; Thu, 3 Sep 2009 14:03:56 -0700
-Received: by pxi7 with SMTP id 7so186516pxi.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2009 14:03:56 -0700 (PDT)
-Date: Thu, 3 Sep 2009 14:03:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/6] hugetlb:  introduce alloc_nodemask_of_node
-In-Reply-To: <1252010988.6029.194.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.1.00.0909031402340.30662@chino.kir.corp.google.com>
-References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160338.11080.51282.sendpatchset@localhost.localdomain> <20090901144932.GB7548@csn.ul.ie> <1251823334.4164.2.camel@useless.americas.hpqcorp.net>
- <alpine.DEB.1.00.0909031122590.9055@chino.kir.corp.google.com> <1252010988.6029.194.camel@useless.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4936B005C
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 17:07:30 -0400 (EDT)
+Date: Thu, 3 Sep 2009 14:06:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
+ sc->isolate_pages() return value.
+Message-Id: <20090903140602.e0169ffc.akpm@linux-foundation.org>
+In-Reply-To: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca>
+References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Vincent Li <macli@brc.ubc.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, minchan.kim@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Sep 2009, Lee Schermerhorn wrote:
+On Wed,  2 Sep 2009 16:49:25 -0700
+Vincent Li <macli@brc.ubc.ca> wrote:
 
-> > I've seen the issue about the signed-off-by/reviewed-by/acked-by order 
-> > come up before.  I've always put my signed-off-by line last whenever 
-> > proposing patches because it shows a clear order in who gathered those 
-> > lines when submitting to -mm, for example.  If I write
-> > 
-> > 	Cc: Mel Gorman <mel@csn.ul.ie>
-> > 	Signed-off-by: David Rientjes <rientjes@google.com>
-> > 
-> > it is clear that I cc'd Mel on the initial proposal.  If it is the other 
-> > way around, for example,
-> > 
-> > 	Signed-off-by: David Rientjes <rientjes@google.com>
-> > 	Cc: Mel Gorman <mel@csn.ul.ie>
-> > 	Signed-off-by: Andrew Morton...
-> > 
-> > then it indicates Andrew added the cc when merging into -mm.  That's more 
-> > relevant when such a line is acked-by or reviewed-by since it is now 
-> > possible to determine who received such acknowledgement from the 
-> > individual and is responsible for correctly relaying it in the patch 
-> > submission.
-> > 
-> > If it's done this way, it indicates that whoever is signing off the patch 
-> > is responsible for everything above it.  The type of line (signed-off-by, 
-> > reviewed-by, acked-by) is enough of an indication about the development 
-> > history of the patch, I believe, and it doesn't require specific ordering 
-> > to communicate (and the first line having to be a signed-off-by line isn't 
-> > really important, it doesn't replace the From: line).
-> > 
-> > It also appears to be how both Linus merges his own patches with Cc's.
+> If we can't isolate pages from LRU list, we don't have to account page movement, either.
+> Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
 > 
-> ???
+> This patch removes unnecessary overhead of page accounting
+> and locking in shrink_active_list as follow-up work of commit 5343daceec.
 > 
+> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> 
+> ---
+>  mm/vmscan.c |    9 +++++++--
+>  1 files changed, 7 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 460a6f7..2d1c846 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1319,9 +1319,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+>  	if (scanning_global_lru(sc)) {
+>  		zone->pages_scanned += pgscanned;
+>  	}
+> -	reclaim_stat->recent_scanned[file] += nr_taken;
+> -
+>  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+> +
+> +	if (nr_taken == 0)
+> +		goto done;
+> +
+> +	reclaim_stat->recent_scanned[file] += nr_taken;
+>  	if (file)
+>  		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
+>  	else
+> @@ -1383,6 +1386,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+>  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+>  	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
+>  	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
+> +
+> +done:
+>  	spin_unlock_irq(&zone->lru_lock);
+>  }
 
-Not sure what's confusing about this, sorry.  You order your 
-acked-by/reviewed-by/signed-off-by lines just like I have for years and I 
-don't think it needs to be changed.  It shows a clear history of who did 
-what in the path from original developer -> maintainer -> Linus.
+How do we know this patch is a net gain?
+
+IOW, with what frequency is `nr_taken' zero here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
