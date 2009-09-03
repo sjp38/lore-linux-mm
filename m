@@ -1,64 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1123A6B004F
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 11:34:43 -0400 (EDT)
-Message-ID: <4A9FE3E0.8050208@redhat.com>
-Date: Thu, 03 Sep 2009 18:42:24 +0300
-From: Izik Eidus <ieidus@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ECAA56B005A
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2009 14:34:34 -0400 (EDT)
+Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
+	by smtp-out.google.com with ESMTP id n83IYTLd013625
+	for <linux-mm@kvack.org>; Thu, 3 Sep 2009 19:34:30 +0100
+Received: from pxi27 (pxi27.prod.google.com [10.243.27.27])
+	by zps35.corp.google.com with ESMTP id n83IYLdN015054
+	for <linux-mm@kvack.org>; Thu, 3 Sep 2009 11:34:27 -0700
+Received: by pxi27 with SMTP id 27so116363pxi.15
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2009 11:34:26 -0700 (PDT)
+Date: Thu, 3 Sep 2009 11:34:24 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/6] hugetlb:  introduce alloc_nodemask_of_node
+In-Reply-To: <1251823334.4164.2.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.1.00.0909031122590.9055@chino.kir.corp.google.com>
+References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160338.11080.51282.sendpatchset@localhost.localdomain> <20090901144932.GB7548@csn.ul.ie> <1251823334.4164.2.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
-Subject: Re: improving checksum cpu consumption in ksm
-References: <4A983C52.7000803@redhat.com> <Pine.LNX.4.64.0908312233340.23516@sister.anvils> <4A9FB83F.2000605@redhat.com> <Pine.LNX.4.64.0909031535290.13918@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909031535290.13918@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, akpm@linux-foundation.org, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> Yes, that's nice, thank you for looking into it.
->
-> But please do some more along these lines, if you've time?
-> Presumably the improvement from Jenkins lookup2 to lookup3
-> is therefore more than 15%, but we cannot tell how much.
->
-> I think you need to do a run with a null version of jhash2(),
-> one just returning 0 or 0xffffffff (the first would settle down
-> a little quicker because oldchecksum 0 will match the first time;
-> but there should be no difference once you cut out settling time).
->
-> And a run with an almost-null version of jhash2(), one which does
-> also read the whole page sequentially into cache, so we can see
-> how much is the processing and how much is the memory access.
->
-> And also, while you're about it, a run with cmp_and_merge_page()
-> stubbed out, so we can see how much is just the page table walking
-> (and deduce from that how much is the radix tree walking and memcmping).
->
-> Hmm, and a run to see how much is radix tree walking,
-> by stubbing out the memcmping.
->
-> Sorry... if you (or someone else following) have the time!
->   
+On Tue, 1 Sep 2009, Lee Schermerhorn wrote:
 
-Good ideas, The tests that I did were quick tests, I hope in Saturday 
-(or maybe few days after it) I will have more time to spend on this area
-I will try to collect and see how much every part is taking there.
-So i will keep benchmarking it in terms of "how many loops it accomplish"
+> > > Index: linux-2.6.31-rc7-mmotm-090827-0057/include/linux/nodemask.h
+> > > ===================================================================
+> > > --- linux-2.6.31-rc7-mmotm-090827-0057.orig/include/linux/nodemask.h	2009-08-28 09:21:19.000000000 -0400
+> > > +++ linux-2.6.31-rc7-mmotm-090827-0057/include/linux/nodemask.h	2009-08-28 09:21:29.000000000 -0400
+> > > @@ -245,18 +245,34 @@ static inline int __next_node(int n, con
+> > >  	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
+> > >  }
+> > >  
+> > > +#define init_nodemask_of_nodes(mask, node)				\
+> > > +	nodes_clear(*(mask));						\
+> > > +	node_set((node), *(mask));
+> > > +
+> > 
+> > Is the done thing to either make this a static inline or else wrap it in
+> > a do { } while(0) ? The reasoning being that if this is used as part of an
+> > another statement (e.g. a for loop) that it'll actually compile instead of
+> > throw up weird error messages.
+> 
+> Right.  I'll fix this [and signoff/review orders] next time [maybe last
+> time?].  It occurs to me that I can also use this for
+> huge_mpol_nodes_allowed(), so I'll move it up in the series and fix that
+> [which you've already ack'd].  I'll wait a bit to hear from David before
+> I respin.
+> 
 
->
-> Doesn't matter to your results, so long as it didn't crash;
-> but I think you meant to say
->
->      p = (unsigned char *)(((unsigned long)p + 4095) & ~4095);
->      p_end = p + 1024 * 1024 * 100;
->   
+I think it should be an inline function just so there's typechecking on 
+the first argument passed in (and so alloc_nodemask_of_node() below 
+doesn't get a NULL pointer dereference on node_set() if nmp can't be 
+allocated).
 
-Yes...
+I've seen the issue about the signed-off-by/reviewed-by/acked-by order 
+come up before.  I've always put my signed-off-by line last whenever 
+proposing patches because it shows a clear order in who gathered those 
+lines when submitting to -mm, for example.  If I write
 
+	Cc: Mel Gorman <mel@csn.ul.ie>
+	Signed-off-by: David Rientjes <rientjes@google.com>
 
-Thanks.
+it is clear that I cc'd Mel on the initial proposal.  If it is the other 
+way around, for example,
+
+	Signed-off-by: David Rientjes <rientjes@google.com>
+	Cc: Mel Gorman <mel@csn.ul.ie>
+	Signed-off-by: Andrew Morton...
+
+then it indicates Andrew added the cc when merging into -mm.  That's more 
+relevant when such a line is acked-by or reviewed-by since it is now 
+possible to determine who received such acknowledgement from the 
+individual and is responsible for correctly relaying it in the patch 
+submission.
+
+If it's done this way, it indicates that whoever is signing off the patch 
+is responsible for everything above it.  The type of line (signed-off-by, 
+reviewed-by, acked-by) is enough of an indication about the development 
+history of the patch, I believe, and it doesn't require specific ordering 
+to communicate (and the first line having to be a signed-off-by line isn't 
+really important, it doesn't replace the From: line).
+
+It also appears to be how both Linus merges his own patches with Cc's.
+
+> > > +/*
+> > > + * returns pointer to kmalloc()'d nodemask initialized to contain the
+> > > + * specified node.  Caller must free with kfree().
+> > > + */
+> > > +#define alloc_nodemask_of_node(node)					\
+> > > +({									\
+> > > +	typeof(_unused_nodemask_arg_) *nmp;				\
+> > > +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
+> > > +	if (nmp)							\
+> > > +		init_nodemask_of_nodes(nmp, (node));			\
+> > > +	nmp;								\
+> > > +})
+> > > +
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
