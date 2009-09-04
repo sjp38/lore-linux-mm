@@ -1,48 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DD1486B008A
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 15:27:57 -0400 (EDT)
-Subject: [PATCH 4/4] pci: Remove bogus check of proc dir entry usage.
-References: <m1fxb2wm0z.fsf@fess.ebiederm.org>
-	<m1bplqwlzr.fsf@fess.ebiederm.org>
-	<m17hwewlxr.fsf_-_@fess.ebiederm.org>
-	<m13a72wlwm.fsf_-_@fess.ebiederm.org>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Fri, 04 Sep 2009 12:28:03 -0700
-In-Reply-To: <m13a72wlwm.fsf_-_@fess.ebiederm.org> (Eric W. Biederman's message of "Fri\, 04 Sep 2009 12\:27\:21 -0700")
-Message-ID: <m1ws4ev7b0.fsf_-_@fess.ebiederm.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 296086B006A
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 16:06:30 -0400 (EDT)
+From: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
+Date: Fri, 4 Sep 2009 13:06:28 -0700
+Subject: RE: [RFC] respect the referenced bit of KVM guest pages?
+Message-ID: <9EECC02A4CC333418C00A85D21E8932601841D4A66@azsmsx502.amr.corp.intel.com>
+References: <4A846581.2020304@redhat.com>
+ <20090813211626.GA28274@cmpxchg.org> <4A850F4A.9020507@redhat.com>
+ <20090814091055.GA29338@cmpxchg.org> <20090814095106.GA3345@localhost>
+ <4A856467.6050102@redhat.com> <20090815054524.GB11387@localhost>
+ <9EECC02A4CC333418C00A85D21E89326B6611E81@azsmsx502.amr.corp.intel.com>
+ <20090818022609.GA7958@localhost>
+ <9EECC02A4CC333418C00A85D21E893260184184010@azsmsx502.amr.corp.intel.com>
+ <20090903020452.GA9474@localhost>
+In-Reply-To: <20090903020452.GA9474@localhost>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, Greg Kroah-Hartman <gregkh@suse.de>, Tejun Heo <tj@kernel.org>
+To: "Wu, Fengguang" <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Stupid question - what in your patch allows a text page get kicked out to t=
+he inactive list after you've given it an extra pass through the active lis=
+t?
 
-This check prevents /proc/bus/pci/*/* from being removed when
-pci devices are hot unpluged and someone happens to have it open.
-This is not a problem because proc handles this case properly.
-
-Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
----
- drivers/pci/proc.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/pci/proc.c b/drivers/pci/proc.c
-index 593bb84..afd2a6a 100644
---- a/drivers/pci/proc.c
-+++ b/drivers/pci/proc.c
-@@ -430,8 +430,6 @@ int pci_proc_detach_device(struct pci_dev *dev)
- 	struct proc_dir_entry *e;
- 
- 	if ((e = dev->procent)) {
--		if (atomic_read(&e->count) > 1)
--			return -EBUSY;
- 		remove_proc_entry(e->name, dev->bus->procdir);
- 		dev->procent = NULL;
- 	}
--- 
-1.6.2.5
+					Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
