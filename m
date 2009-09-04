@@ -1,93 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A7D4F6B005C
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 00:23:46 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n844Nqg5017214
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Sep 2009 13:23:52 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BE8B945DE5A
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C34D845DE53
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:48 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 36A14E08001
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:47 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A09711DB804D
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:44 +0900 (JST)
-Date: Fri, 4 Sep 2009 13:21:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mmotm][BUG] lockdep warning block I/O (Was Re: mmotm
- 2009-08-27-16-51 uploaded
-Message-Id: <20090904132144.256a9485.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090903142836.fef35b23.akpm@linux-foundation.org>
-References: <200908272355.n7RNtghC019990@imap1.linux-foundation.org>
-	<20090901180717.f707c58f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090903142836.fef35b23.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CDD4A6B004F
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 01:01:47 -0400 (EDT)
+Date: Thu, 3 Sep 2009 22:01:40 -0700 (PDT)
+From: Vincent Li <macli@brc.ubc.ca>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
+ sc->isolate_pages() return value.
+In-Reply-To: <20090903190141.16ce4cf3.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.0909032146130.10307@kernelhack.brc.ubc.ca>
+References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org> <28c262360909031837j4e1a9214if6070d02cb4fde04@mail.gmail.com> <20090903190141.16ce4cf3.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, jens.axboe@oracle.com, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Vincent Li <macli@brc.ubc.ca>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Sep 2009 14:28:36 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 3 Sep 2009, Andrew Morton wrote:
 
-> On Tue, 1 Sep 2009 18:07:17 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 4 Sep 2009 10:37:17 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
 > 
-> > 
-> > Here is mmont-Aug27's lockdep wanring. This was printed out when oom-kill happens.
-> > I'm sorry if already fixed.
+> > On Fri, Sep 4, 2009 at 6:06 AM, Andrew Morton<akpm@linux-foundation.org> wrote:
+> > > On Wed, __2 Sep 2009 16:49:25 -0700
+> > > Vincent Li <macli@brc.ubc.ca> wrote:
+> > >
+> > >> If we can't isolate pages from LRU list, we don't have to account page movement, either.
+> > >> Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
+> > >>
+> > >> This patch removes unnecessary overhead of page accounting
+> > >> and locking in shrink_active_list as follow-up work of commit 5343daceec.
+> > >>
+> > >> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
+> > >> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> > >> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > >> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> > >> Acked-by: Rik van Riel <riel@redhat.com>
+> > >>
+> > >> ---
+> > >> __mm/vmscan.c | __ __9 +++++++--
+> > >> __1 files changed, 7 insertions(+), 2 deletions(-)
+> > >>
+> > >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > >> index 460a6f7..2d1c846 100644
+> > >> --- a/mm/vmscan.c
+> > >> +++ b/mm/vmscan.c
+> > >> @@ -1319,9 +1319,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+> > >> __ __ __ if (scanning_global_lru(sc)) {
+> > >> __ __ __ __ __ __ __ zone->pages_scanned += pgscanned;
 > 
-> My life's project is to hunt down the guy who invented mail client
-> wordwrapping, set him on fire then dance on his ashes.
-> 
-Hmm, I should write a script to cut "Sep 1 ,,,,, : [.....]"...
+> Someone's email client is replacing 0x09 with 0xa0, dammit.
 
+I am using alpine 2.0, I got:
 
+ [ Sending Preferences ]
+      [X]  Do Not Send Flowed Text                                               
+      [ ]  Downgrade Multipart to Text                                           
+      [X]  Enable 8bit ESMTP Negotiation    (default)
+      [ ]  Strip Whitespace Before Sending                                       
+ 
+And Documentation/email-clients.txt have:
 
-> > =
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503035] ======================================================
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503039] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503042] 2.6.31-rc7-mm1 #3
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503049] ------------------------------------------------------
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503052] kblockd/7/350 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503058]  (bdev_lock){+.+...}, at: [<ffffffff811458c7>] nr_blockdev_pages+0x1
-> > 7/0x80
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503069]
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503070] and this task is already holding:
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503075]  (&q->__queue_lock){..-.-.}, at: [<ffffffff811e9ff8>] cfq_kick_queue
-> > +0x28/0x50
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503083] which would create a new lock dependency:
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503087]  (&q->__queue_lock){..-.-.} -> (bdev_lock){+.+...}
-> > Sep  1 18:01:16 localhost kernel: [ 3012.503100]
-> 
-> I'd say the core problem here is that __alloc_pages_slowpath() is
-> calling show_mem().  Because show_mem() is a "high level" function which
-> takes "high level" locks.  ie: bdev_lock.
-> 
-> It's inappropriate that alloc_pages() is assuming that it is safe to
-> call show_mem() from all contexts in which alloc_pages() might be
-> called.
-> 
-> That show_mem() call has been there since 2005, so I don't know what
-> caused this to be revealed now.
-> 
-> It's not at all a serious bug and the chances of us deadlocking the
-> kernel here are close to zero.  An appropriate fix would be to replace
-> that show_mem() call with something which can be safely called from all
-> contexts in which the page allocator can be called.
-> 
-ok, I'll study this path.
+Config options:
+- quell-flowed-text is needed for recent versions
+- the "no-strip-whitespace-before-send" option is needed
 
-Thanks,
--Kame
+Am I the one to blame? Should I uncheck the 'Do Not Send Flowed Text'? I 
+am sorry if it is my fault.
+
+Vincent
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
