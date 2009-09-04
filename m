@@ -1,28 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 484996B004F
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 03:47:10 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n847lELW006243
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Sep 2009 16:47:14 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B26845DE60
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 16:47:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 61E8245DE4D
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 16:47:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A3481DB803E
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 16:47:13 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B0E12E18007
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 16:47:12 +0900 (JST)
-Date: Fri, 4 Sep 2009 16:45:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AA4216B004F
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 06:07:27 -0400 (EDT)
+Date: Fri, 4 Sep 2009 19:07:26 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
 Subject: Re: [mmotm][BUGFIX][PATCH] memcg: fix softlimit css refcnt
  handling.
-Message-Id: <20090904164517.fb2bf3c5.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090904190726.6442f3df.d-nishimura@mtf.biglobe.ne.jp>
 In-Reply-To: <20090904163758.a5604fee.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
@@ -34,17 +18,39 @@ References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090904142654.08dd159f.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090904154050.25873aa5.nishimura@mxp.nes.nec.co.jp>
 	<20090904163758.a5604fee.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 4 Sep 2009 16:37:58 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
+> On Fri, 4 Sep 2009 15:40:50 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > Ah, one more question. What memory.usage_in_bytes shows in that case ?
+> > > If not zero, charge/uncharge coalescing is guilty.
+> > > 
+> > usage_in_bytes is 0.
+> > I've confirmed by crash command that the mem_cgroup has extra ref counts.
+> > 
+> > I'll dig more..
+> > 
+> BTW, do you use softlimit ? I found this but...Hmm
+> 
+No.
+I'm sorry I can't access my machine, so can't test this.
+
+But I think this patch itself is needed and looks good.
+
+	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+Thanks,
+Daisuke Nishimura.
 > ==
 > SoftLimit tree 'find next one' loop uses next_mz to remember
 > next one to be visited if reclaimd==0.
@@ -53,14 +59,6 @@ KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-maybe this patch can be applied after
-memory-controller-soft-limit-reclaim-on-contention-v9-fix.patch
-
-Thanks,
--Kmae
-
-
-
 > 
 > ---
 >  mm/memcontrol.c |   11 ++++++++++-
@@ -109,6 +107,8 @@ Thanks,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
