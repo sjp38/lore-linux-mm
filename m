@@ -1,212 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 481226B0085
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 17:39:32 -0400 (EDT)
-Date: Fri, 4 Sep 2009 14:39:32 -0700 (PDT)
-From: Vincent Li <macli@brc.ubc.ca>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
- sc->isolate_pages() return value.
-In-Reply-To: <20090903154704.da62dd76.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.0909041431370.32680@kernelhack.brc.ubc.ca>
-References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org> <alpine.DEB.2.00.0909031458160.5762@kernelhack.brc.ubc.ca> <20090903154704.da62dd76.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D8CF76B0085
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 18:28:54 -0400 (EDT)
+Received: by fxm18 with SMTP id 18so972578fxm.38
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2009 15:29:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <Pine.LNX.4.64.0909031535290.13918@sister.anvils>
+References: <4A983C52.7000803@redhat.com>
+	 <Pine.LNX.4.64.0908312233340.23516@sister.anvils>
+	 <4A9FB83F.2000605@redhat.com>
+	 <Pine.LNX.4.64.0909031535290.13918@sister.anvils>
+Date: Fri, 4 Sep 2009 15:29:02 -0700
+Message-ID: <7928e7bd0909041529i6d745955paa636206b9409587@mail.gmail.com>
+Subject: Re: improving checksum cpu consumption in ksm
+From: Moussa Ba <moussa.a.ba@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vincent Li <macli@brc.ubc.ca>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, minchan.kim@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, linux-mm@kvack.org, jaredeh@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Sep 2009, Andrew Morton wrote:
+Just to add to the discussion, we have also seen a high cpu usage for
+KSM.  In our case however it is more serious as the system that KSM is
+running on is battery powered  with a weaker processor.  With KSM
+constantly running, the effect on the battery life is significant.
 
-> On Thu, 3 Sep 2009 15:02:58 -0700 (PDT)
-> Vincent Li <macli@brc.ubc.ca> wrote:
-> 
-> > On Thu, 3 Sep 2009, Andrew Morton wrote:
-> > 
-> > > On Wed,  2 Sep 2009 16:49:25 -0700
-> > > Vincent Li <macli@brc.ubc.ca> wrote:
-> > > 
-> > > > If we can't isolate pages from LRU list, we don't have to account page movement, either.
-> > > > Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
-> > > > 
-> > > > This patch removes unnecessary overhead of page accounting
-> > > > and locking in shrink_active_list as follow-up work of commit 5343daceec.
-> > > > 
-> > > > Signed-off-by: Vincent Li <macli@brc.ubc.ca>
-> > > > Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> > > > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > Acked-by: Rik van Riel <riel@redhat.com>
-> > > > 
-> > > > ---
-> > > >  mm/vmscan.c |    9 +++++++--
-> > > >  1 files changed, 7 insertions(+), 2 deletions(-)
-> > > > 
-> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > index 460a6f7..2d1c846 100644
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > > > @@ -1319,9 +1319,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> > > >  	if (scanning_global_lru(sc)) {
-> > > >  		zone->pages_scanned += pgscanned;
-> > > >  	}
-> > > > -	reclaim_stat->recent_scanned[file] += nr_taken;
-> > > > -
-> > > >  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-> > > > +
-> > > > +	if (nr_taken == 0)
-> > > > +		goto done;
-> > > > +
-> > > > +	reclaim_stat->recent_scanned[file] += nr_taken;
-> > > >  	if (file)
-> > > >  		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
-> > > >  	else
-> > > > @@ -1383,6 +1386,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> > > >  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
-> > > >  	__mod_zone_page_state(zone, LRU_ACTIVE + file * LRU_FILE, nr_rotated);
-> > > >  	__mod_zone_page_state(zone, LRU_BASE + file * LRU_FILE, nr_deactivated);
-> > > > +
-> > > > +done:
-> > > >  	spin_unlock_irq(&zone->lru_lock);
-> > > >  }
-> > > 
-> > > How do we know this patch is a net gain?
-> > > 
-> > > IOW, with what frequency is `nr_taken' zero here?
-> > > 
-> > 
-> > Actually, I have asked myself the same question, Anyway I can verify this, 
-> > Kim, KOSAKI? 
-> 
-> Put two counters in there.
-> 
-> They could be ad-hoc displayed-in-/proc counters.  Or ad-hoc additions
-> to /proc/vmstat.  Or you could dive into the tracing framework and use
-> that.  These patches in -mm:
-> 
-> tracing-page-allocator-add-trace-events-for-page-allocation-and-page-freeing.patch
-> tracing-page-allocator-add-trace-events-for-anti-fragmentation-falling-back-to-other-migratetypes.patch
-> tracing-page-allocator-add-trace-event-for-page-traffic-related-to-the-buddy-lists.patch
-> tracing-page-allocator-add-trace-event-for-page-traffic-related-to-the-buddy-lists-fix.patch
-> tracing-page-allocator-add-a-postprocessing-script-for-page-allocator-related-ftrace-events.patch
-> tracing-documentation-add-a-document-describing-how-to-do-some-performance-analysis-with-tracepoints.patch
-> tracing-documentation-add-a-document-on-the-kmem-tracepoints.patch
-> 
-> 
-> would be a suitable guide.
-> 
+I like the idea of dirty bit tracking as it would obviate the need to
+rehash once we know the page has not been dirtied.  We have been
+working on a patch that adds dirty bit clearing from user space,
+similar to the clear_refs entry under /proc/pid/.  In our instance we
+use this mechanism to measure page accesses and write frequency on
+ANONYMOUS pages, file backed pages or both.  Could this potentially
+pose a problem if KSM decides to use that mechanism for page state
+tracking?
 
-Ok, I followed the patches above to make following testing code:
+Moussa.
 
----
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index eaf46bd..863820a 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -388,6 +388,24 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->alloc_migratetype == __entry->fallback_migratetype)
- );
- 
-+TRACE_EVENT(mm_vmscan_isolate_pages,
-+
-+	TP_PROTO(int nr_taken_zeros),
-+
-+	TP_ARGS(nr_taken_zeros),
-+
-+	TP_STRUCT__entry(
-+		__field(int,		nr_taken_zeros)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->nr_taken_zeros	= nr_taken_zeros;
-+	),
-+
-+	TP_printk("nr_taken_zeros=%d",
-+		__entry->nr_taken_zeros)
-+);
-+
- #endif /* _TRACE_KMEM_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ad93096..c2cf4dd 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <trace/events/kmem.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1306,6 +1307,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 	unsigned long nr_rotated = 0;
- 	unsigned long nr_deactivated = 0;
-+	int nr_taken_zeros = 0;
- 
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
-@@ -1321,8 +1323,11 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 	}
- 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
- 
--	if (nr_taken == 0)
-+	if (nr_taken == 0) {
-+		nr_taken_zeros++;
-+		trace_mm_vmscan_isolate_pages(nr_taken_zeros);
- 		goto done;
-+	}
- 
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 	if (file)
-
-Then I got test result with:
-
-root@kernelhack:/usr/src/mmotm-0903# perf  stat --repeat 5  -e \ 
-kmem:mm_vmscan_isolate_pages hackbench 100
-
-Running with 100*40 (== 4000) tasks.
-Time: 52.736
-Running with 100*40 (== 4000) tasks.
-Time: 64.982
-Running with 100*40 (== 4000) tasks.
-Time: 56.866
-Running with 100*40 (== 4000) tasks.
-Time: 37.137
-Running with 100*40 (== 4000) tasks.
-Time: 48.415
-
- Performance counter stats for 'hackbench 100' (5 runs):
-
-          14189  kmem:mm_vmscan_isolate_pages   ( +-   9.084% )
-
-   52.680621973  seconds time elapsed   ( +-   0.689% )
-
-Is the testing patch written write? I don't understand what the number 
-14189 means? Does it make any sense?
-
-> 
-> The way I used to do stuff like this is:
-> 
-> int akpm1;
-> int akpm2;
-> 
-> 	...
-> 	if (nr_taken)
-> 		akpm1++;
-> 	else
-> 		akpm2++;
-> 
-> then inspect the values of akpm1 and akpm2 in the running kernel using kgdb.
-> 
-> 
-> 
-
-Vincent Li
-Biomedical Research Center
-University of British Columbia
+On Thu, Sep 3, 2009 at 8:20 AM, Hugh Dickins<hugh.dickins@tiscali.co.uk> wr=
+ote:
+> On Thu, 3 Sep 2009, Izik Eidus wrote:
+>>
+>> Hi,
+>> I just did small test of the new hash compare to the old
+>>
+>> using the program below, i ran ksm (with nice -20)
+>> at time_to_sleep_in_millisecs =3D 1
+>
+> Better 0?
+>
+>> run =3D 1
+>> pages_to_scan =3D 9999
+>
+> Okay, the bigger the better.
+>
+>>
+>> (The program is designing just to =A0pressure the hash calcs and tree wa=
+lking
+>> (and not to share any page really)
+>>
+>> then i checked how many full_scans have ksm reached (i just checked
+>> /sys/kernel/mm/ksm/full_scans)
+>>
+>> And i got the following results:
+>> with the old jhash version ksm did 395 loops
+>> with the new jhash version ksm did 455 loops
+>
+> The first few loops will be settling down, need to subtract those.
+>
+>> we got here 15% improvment for this case where we have pages that are st=
+atic
+>> but are not shareable...
+>> (And it will help in any case we got page we are not merging in the stab=
+le
+>> tree)
+>>
+>> I think it is nice...
+>
+> Yes, that's nice, thank you for looking into it.
+>
+> But please do some more along these lines, if you've time?
+> Presumably the improvement from Jenkins lookup2 to lookup3
+> is therefore more than 15%, but we cannot tell how much.
+>
+> I think you need to do a run with a null version of jhash2(),
+> one just returning 0 or 0xffffffff (the first would settle down
+> a little quicker because oldchecksum 0 will match the first time;
+> but there should be no difference once you cut out settling time).
+>
+> And a run with an almost-null version of jhash2(), one which does
+> also read the whole page sequentially into cache, so we can see
+> how much is the processing and how much is the memory access.
+>
+> And also, while you're about it, a run with cmp_and_merge_page()
+> stubbed out, so we can see how much is just the page table walking
+> (and deduce from that how much is the radix tree walking and memcmping).
+>
+> Hmm, and a run to see how much is radix tree walking,
+> by stubbing out the memcmping.
+>
+> Sorry... if you (or someone else following) have the time!
+>
+>>
+>> (I used =A0AMD Phenom(tm) II X3 720 Processor, but probably i didnt run =
+the test
+>> enougth, i should rerun it again and see if the results are consistent)
+>
+> Right, other processors will differ some(unknown)what, so we shouldn't
+> take the numbers you find too seriously. =A0But at this moment I've no
+> idea of what proportion of time is spent on what: it should be helpful
+> to see what dominates.
+>
+>>
+>> =A0 =A0p =3D (unsigned char *) malloc(1024 * 1024 * 100 + 4096);
+>> =A0 =A0if (!p) {
+>> =A0 =A0 =A0 =A0printf("error\n");
+>> =A0 =A0}
+>>
+>> =A0 =A0p_end =3D p + 1024 * 1024 * 100;
+>> =A0 =A0p =3D (unsigned char *)((unsigned long)p & ~4095);
+>
+> Doesn't matter to your results, so long as it didn't crash;
+> but I think you meant to say
+>
+> =A0 =A0 p =3D (unsigned char *)(((unsigned long)p + 4095) & ~4095);
+> =A0 =A0 p_end =3D p + 1024 * 1024 * 100;
+>
+> Hugh
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
