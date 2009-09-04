@@ -1,73 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CDD4A6B004F
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 01:01:47 -0400 (EDT)
-Date: Thu, 3 Sep 2009 22:01:40 -0700 (PDT)
-From: Vincent Li <macli@brc.ubc.ca>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
- sc->isolate_pages() return value.
-In-Reply-To: <20090903190141.16ce4cf3.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.0909032146130.10307@kernelhack.brc.ubc.ca>
-References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org> <28c262360909031837j4e1a9214if6070d02cb4fde04@mail.gmail.com> <20090903190141.16ce4cf3.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 138C56B004F
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 01:19:15 -0400 (EDT)
+Date: Fri, 4 Sep 2009 14:11:57 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [mmotm][experimental][PATCH] coalescing charge
+Message-Id: <20090904141157.4640ec1e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090904131835.ac2b8cc8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090903141727.ccde7e91.nishimura@mxp.nes.nec.co.jp>
+	<20090904131835.ac2b8cc8.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Vincent Li <macli@brc.ubc.ca>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Sep 2009, Andrew Morton wrote:
+A few more comments.
 
-> On Fri, 4 Sep 2009 10:37:17 +0900 Minchan Kim <minchan.kim@gmail.com> wrote:
+On Fri, 4 Sep 2009 13:18:35 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 3 Sep 2009 14:17:27 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > =
+> > > This is a code for batched charging using percpu cache.
+> > > At charge, memcg charges 64pages and remember it in percpu cache.
+> > > Because it's cache, drain/flushed if necessary.
+> > > 
+> > > This version uses public percpu area , not per-memcg percpu area.
+> > >  2 benefits of public percpu area.
+> > >  1. Sum of stocked charge in the system is limited to # of cpus
+> > >     not to the number of memcg. This shows better synchonization.
+> > >  2. drain code for flush/cpuhotplug is very easy (and quick)
+> > > 
+> > > The most important point of this patch is that we never touch res_counter
+> > > in fast path. The res_counter is system-wide shared counter which is modified
+> > > very frequently. We shouldn't touch it as far as we can for avoid false sharing.
+> > > 
+> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > It looks basically good. I'll do some tests with all patches applied.
+> > 
+> thanks.
 > 
-> > On Fri, Sep 4, 2009 at 6:06 AM, Andrew Morton<akpm@linux-foundation.org> wrote:
-> > > On Wed, __2 Sep 2009 16:49:25 -0700
-> > > Vincent Li <macli@brc.ubc.ca> wrote:
-> > >
-> > >> If we can't isolate pages from LRU list, we don't have to account page movement, either.
-> > >> Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
-> > >>
-> > >> This patch removes unnecessary overhead of page accounting
-> > >> and locking in shrink_active_list as follow-up work of commit 5343daceec.
-> > >>
-> > >> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
-> > >> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> > >> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > >> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > >> Acked-by: Rik van Riel <riel@redhat.com>
-> > >>
-> > >> ---
-> > >> __mm/vmscan.c | __ __9 +++++++--
-> > >> __1 files changed, 7 insertions(+), 2 deletions(-)
-> > >>
-> > >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > >> index 460a6f7..2d1c846 100644
-> > >> --- a/mm/vmscan.c
-> > >> +++ b/mm/vmscan.c
-> > >> @@ -1319,9 +1319,12 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-> > >> __ __ __ if (scanning_global_lru(sc)) {
-> > >> __ __ __ __ __ __ __ zone->pages_scanned += pgscanned;
-> 
-> Someone's email client is replacing 0x09 with 0xa0, dammit.
+it seems that these patches make rmdir stall again...
+This batched charge patch seems not to be the (only) suspect, though.
 
-I am using alpine 2.0, I got:
+> > > @@ -1288,23 +1364,25 @@ static int __mem_cgroup_try_charge(struc
+> > >  		return 0;
+> > >  
+> > >  	VM_BUG_ON(css_is_removed(&mem->css));
+> > > +	if (mem_cgroup_is_root(mem))
+> > > +		goto done;
+> > > +	if (consume_stock(mem))
+> > > +		goto charged;
+> > >  
+IMHO, it would be better to check consume_stock() every time in the while loop below,
+because someone might have already refilled the stock while the current context
+sleeps in reclaiming memory.
 
- [ Sending Preferences ]
-      [X]  Do Not Send Flowed Text                                               
-      [ ]  Downgrade Multipart to Text                                           
-      [X]  Enable 8bit ESMTP Negotiation    (default)
-      [ ]  Strip Whitespace Before Sending                                       
- 
-And Documentation/email-clients.txt have:
+> > >  	while (1) {
+> > >  		int ret = 0;
+> > >  		unsigned long flags = 0;
+> > >  
+> > > -		if (mem_cgroup_is_root(mem))
+> > > -			goto done;
+> > > -		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
+> > > +		ret = res_counter_charge(&mem->res, CHARGE_SIZE, &fail_res);
+> > >  		if (likely(!ret)) {
+> > >  			if (!do_swap_account)
+> > >  				break;
+> > > -			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
+> > > +			ret = res_counter_charge(&mem->memsw, CHARGE_SIZE,
+> > >  							&fail_res);
+> > >  			if (likely(!ret))
+> > >  				break;
+> > >  			/* mem+swap counter fails */
+> > > -			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > > +			res_counter_uncharge(&mem->res, CHARGE_SIZE);
+> > >  			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+> > >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+> > >  									memsw);
+How about changing pre-charge size according to the loop count ?
+IMHO, it would be better to disable pre-charge at least in nr_retries==0 case,
+i.e. it is about to causing oom.
 
-Config options:
-- quell-flowed-text is needed for recent versions
-- the "no-strip-whitespace-before-send" option is needed
 
-Am I the one to blame? Should I uncheck the 'Do Not Send Flowed Text'? I 
-am sorry if it is my fault.
+P.S. I will not be so active next week.
 
-Vincent
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
