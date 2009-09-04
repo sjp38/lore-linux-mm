@@ -1,259 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DD67E6B004F
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 00:20:31 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n844Kao8012051
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A7D4F6B005C
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 00:23:46 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n844Nqg5017214
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Sep 2009 13:20:36 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 19ACB45DE6F
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:20:36 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CFE9745DE7E
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:20:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DC74B1DB804B
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:20:34 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 694951DB8043
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:20:33 +0900 (JST)
-Date: Fri, 4 Sep 2009 13:18:35 +0900
+	Fri, 4 Sep 2009 13:23:52 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BE8B945DE5A
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C34D845DE53
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 36A14E08001
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:47 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A09711DB804D
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 13:23:44 +0900 (JST)
+Date: Fri, 4 Sep 2009 13:21:44 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mmotm][experimental][PATCH] coalescing charge
-Message-Id: <20090904131835.ac2b8cc8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090903141727.ccde7e91.nishimura@mxp.nes.nec.co.jp>
-References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090903141727.ccde7e91.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [mmotm][BUG] lockdep warning block I/O (Was Re: mmotm
+ 2009-08-27-16-51 uploaded
+Message-Id: <20090904132144.256a9485.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090903142836.fef35b23.akpm@linux-foundation.org>
+References: <200908272355.n7RNtghC019990@imap1.linux-foundation.org>
+	<20090901180717.f707c58f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090903142836.fef35b23.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, jens.axboe@oracle.com, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Sep 2009 14:17:27 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Thu, 3 Sep 2009 14:28:36 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Tue, 1 Sep 2009 18:07:17 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > 
+> > Here is mmont-Aug27's lockdep wanring. This was printed out when oom-kill happens.
+> > I'm sorry if already fixed.
+> 
+> My life's project is to hunt down the guy who invented mail client
+> wordwrapping, set him on fire then dance on his ashes.
+> 
+Hmm, I should write a script to cut "Sep 1 ,,,,, : [.....]"...
+
+
+
 > > =
-> > This is a code for batched charging using percpu cache.
-> > At charge, memcg charges 64pages and remember it in percpu cache.
-> > Because it's cache, drain/flushed if necessary.
-> > 
-> > This version uses public percpu area , not per-memcg percpu area.
-> >  2 benefits of public percpu area.
-> >  1. Sum of stocked charge in the system is limited to # of cpus
-> >     not to the number of memcg. This shows better synchonization.
-> >  2. drain code for flush/cpuhotplug is very easy (and quick)
-> > 
-> > The most important point of this patch is that we never touch res_counter
-> > in fast path. The res_counter is system-wide shared counter which is modified
-> > very frequently. We shouldn't touch it as far as we can for avoid false sharing.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> It looks basically good. I'll do some tests with all patches applied.
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503035] ======================================================
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503039] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503042] 2.6.31-rc7-mm1 #3
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503049] ------------------------------------------------------
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503052] kblockd/7/350 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503058]  (bdev_lock){+.+...}, at: [<ffffffff811458c7>] nr_blockdev_pages+0x1
+> > 7/0x80
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503069]
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503070] and this task is already holding:
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503075]  (&q->__queue_lock){..-.-.}, at: [<ffffffff811e9ff8>] cfq_kick_queue
+> > +0x28/0x50
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503083] which would create a new lock dependency:
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503087]  (&q->__queue_lock){..-.-.} -> (bdev_lock){+.+...}
+> > Sep  1 18:01:16 localhost kernel: [ 3012.503100]
 > 
-thanks.
-
-
-> I have some comments inlined.
-> > ---
-> >  mm/memcontrol.c |   93 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
-> >  1 file changed, 88 insertions(+), 5 deletions(-)
-> > 
-> > Index: mmotm-2.6.31-Aug27/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-2.6.31-Aug27.orig/mm/memcontrol.c
-> > +++ mmotm-2.6.31-Aug27/mm/memcontrol.c
-> > @@ -275,6 +275,7 @@ enum charge_type {
-> >  static void mem_cgroup_get(struct mem_cgroup *mem);
-> >  static void mem_cgroup_put(struct mem_cgroup *mem);
-> >  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-> > +static void drain_all_stock(void);
-> >  
-> >  static struct mem_cgroup_per_zone *
-> >  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-> > @@ -1136,6 +1137,8 @@ static int mem_cgroup_hierarchical_recla
-> >  		victim = mem_cgroup_select_victim(root_mem);
-> >  		if (victim == root_mem) {
-> >  			loop++;
-> > +			if (loop >= 1)
-> > +				drain_all_stock();
-> >  			if (loop >= 2) {
-> >  				/*
-> >  				 * If we have not been able to reclaim
-> > @@ -1253,6 +1256,79 @@ done:
-> >  	unlock_page_cgroup(pc);
-> >  }
-> >  
-> > +#define CHARGE_SIZE	(64 * PAGE_SIZE)
-> > +struct memcg_stock_pcp {
-> > +	struct mem_cgroup *from;
-> > +	int charge;
-> > +};
-> > +DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
-> > +
-> It might be better to add "static".
+> I'd say the core problem here is that __alloc_pages_slowpath() is
+> calling show_mem().  Because show_mem() is a "high level" function which
+> takes "high level" locks.  ie: bdev_lock.
 > 
-ok.
-
-
-> > +static bool consume_stock(struct mem_cgroup *mem)
-> > +{
-> > +	struct memcg_stock_pcp *stock;
-> > +	bool ret = true;
-> > +
-> > +	stock = &get_cpu_var(memcg_stock);
-> > +	if (mem == stock->from && stock->charge)
-> > +		stock->charge -= PAGE_SIZE;
-> > +	else
-> > +		ret = false;
-> > +	put_cpu_var(memcg_stock);
-> > +	return ret;
-> > +}
-> > +
-> > +static void drain_stock(struct memcg_stock_pcp *stock)
-> > +{
-> > +	struct mem_cgroup *old = stock->from;
-> > +
-> > +	if (stock->charge) {
-> > +		res_counter_uncharge(&old->res, stock->charge);
-> > +		if (do_swap_account)
-> > +			res_counter_uncharge(&old->memsw, stock->charge);
-> > +	}
-> > +	stock->from = NULL;
-> We must clear stock->charge too.
+> It's inappropriate that alloc_pages() is assuming that it is safe to
+> call show_mem() from all contexts in which alloc_pages() might be
+> called.
 > 
-ok.
-
-
-
-> > +}
-> > +
-> > +static void drain_local_stock(struct work_struct *dummy)
-> > +{
-> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
-> > +	drain_stock(stock);
-> > +	put_cpu_var(memcg_stock);
-> > +}
-> > +
-> > +static void refill_stock(struct mem_cgroup *mem, int val)
-> > +{
-> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
-> > +
-> > +	if (stock->from != mem) {
-> > +		drain_stock(stock);
-> > +		stock->from = mem;
-> > +	}
-> > +	stock->charge = val;
-> > +	put_cpu_var(memcg_stock);
-> > +}
-> > +
-> > +static void drain_all_stock(void)
-> > +{
-> > +	schedule_on_each_cpu(drain_local_stock);
-> > +}
-> > +
-> > +static int __cpuinit memcg_stock_cpu_callback(struct notifier_block *nb,
-> > +					unsigned long action,
-> > +					void *hcpu)
-> > +{
-> > +#ifdef CONFIG_HOTPLUG_CPU
-> > +	int cpu = (unsigned long)*hcpu;
-> '*' isn't needed.
+> That show_mem() call has been there since 2005, so I don't know what
+> caused this to be revealed now.
 > 
-Hmm, ouch.
-
-> > +	struct memcg_stock_pcp *stock;
-> > +
-> > +	if (action != CPU_DEAD)
-> > +		return NOTIFY_OK;
-> > +	stock = per_cpu(memcg_stock, cpu);
-> '&' is needed.
+> It's not at all a serious bug and the chances of us deadlocking the
+> kernel here are close to zero.  An appropriate fix would be to replace
+> that show_mem() call with something which can be safely called from all
+> contexts in which the page allocator can be called.
 > 
-yes..
-
-> > +	drain_stock(stock);
-> > +#endif
-> > +	return NOTIFY_OK;
-> > +}
-> > +
-> >  /*
-> >   * Unlike exported interface, "oom" parameter is added. if oom==true,
-> >   * oom-killer can be invoked.
-> > @@ -1288,23 +1364,25 @@ static int __mem_cgroup_try_charge(struc
-> >  		return 0;
-> >  
-> >  	VM_BUG_ON(css_is_removed(&mem->css));
-> > +	if (mem_cgroup_is_root(mem))
-> > +		goto done;
-> > +	if (consume_stock(mem))
-> > +		goto charged;
-> >  
-> >  	while (1) {
-> >  		int ret = 0;
-> >  		unsigned long flags = 0;
-> >  
-> > -		if (mem_cgroup_is_root(mem))
-> > -			goto done;
-> > -		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
-> > +		ret = res_counter_charge(&mem->res, CHARGE_SIZE, &fail_res);
-> >  		if (likely(!ret)) {
-> >  			if (!do_swap_account)
-> >  				break;
-> > -			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
-> > +			ret = res_counter_charge(&mem->memsw, CHARGE_SIZE,
-> >  							&fail_res);
-> >  			if (likely(!ret))
-> >  				break;
-> >  			/* mem+swap counter fails */
-> > -			res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > +			res_counter_uncharge(&mem->res, CHARGE_SIZE);
-> >  			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-> >  									memsw);
-> > @@ -1342,6 +1420,9 @@ static int __mem_cgroup_try_charge(struc
-> >  			goto nomem;
-> >  		}
-> >  	}
-> > +	refill_stock(mem, CHARGE_SIZE - PAGE_SIZE);
-> > +
-> > +charged:
-> >  	/*
-> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-> >  	 * if they exceeds softlimit.
-> > @@ -2448,6 +2529,7 @@ move_account:
-> >  			goto out;
-> >  		/* This is for making all *used* pages to be on LRU. */
-> >  		lru_add_drain_all();
-> > +		drain_all_stock();
-> >  		ret = 0;
-> >  		for_each_node_state(node, N_HIGH_MEMORY) {
-> >  			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
-> > @@ -3166,6 +3248,7 @@ mem_cgroup_create(struct cgroup_subsys *
-> >  		root_mem_cgroup = mem;
-> >  		if (mem_cgroup_soft_limit_tree_init())
-> >  			goto free_out;
-> > +		hotcpu_notifier(memcg_stock_cpu_callback, 0);
-> >  
-> We should include cpu.h to use hotcpu_notifier().
-> 
-Ah, I'll check my .config again..
+ok, I'll study this path.
 
 Thanks,
 -Kame
-
-
-> >  	} else {
-> >  		parent = mem_cgroup_from_cont(cont->parent);
-> > 
-> 
-> 
-> Thanks,
-> Daisuke Nishimura.
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
