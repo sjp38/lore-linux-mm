@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2CB3E6B0083
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2009 17:23:04 -0400 (EDT)
-Date: Sat, 5 Sep 2009 22:22:23 +0100 (BST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0E3896B0083
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2009 17:25:55 -0400 (EDT)
+Date: Sat, 5 Sep 2009 22:25:21 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 1/3] ksm: clean up obsolete references
-Message-ID: <Pine.LNX.4.64.0909052219580.7381@sister.anvils>
+Subject: [PATCH 2/3] ksm: unmerge is an origin of OOMs
+In-Reply-To: <Pine.LNX.4.64.0909052219580.7381@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0909052222430.7387@sister.anvils>
+References: <Pine.LNX.4.64.0909052219580.7381@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,101 +15,74 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A few cleanups, given the munlock fix: the comment on ksm_test_exit()
-no longer applies, and it can be made private to ksm.c; there's no
-more reference to mmu_gather or tlb.h, and mmap.c doesn't need ksm.h.
+Just as the swapoff system call allocates many pages of RAM to various
+processes, perhaps triggering OOM, so "echo 2 >/sys/kernel/mm/ksm/run"
+(unmerge) is liable to allocate many pages of RAM to various processes,
+perhaps triggering OOM; and each is normally run from a modest admin
+process (swapoff or shell), easily repeated until it succeeds.
+
+So treat unmerge_and_remove_all_rmap_items() in the same way that we
+treat try_to_unuse(): generalize PF_SWAPOFF to PF_OOM_ORIGIN, and
+bracket both with that, to ask the OOM killer to kill them first,
+to prevent them from spawning more and more OOM kills.
 
 Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 ---
 
- include/linux/ksm.h |   20 --------------------
- mm/ksm.c            |   14 +++++++++++++-
- mm/mmap.c           |    1 -
- 3 files changed, 13 insertions(+), 22 deletions(-)
+ include/linux/sched.h |    2 +-
+ mm/ksm.c              |    2 ++
+ mm/oom_kill.c         |    2 +-
+ mm/swapfile.c         |    4 ++--
+ 4 files changed, 6 insertions(+), 4 deletions(-)
 
---- mmotm/include/linux/ksm.h	2009-09-05 14:40:16.000000000 +0100
-+++ linux/include/linux/ksm.h	2009-09-05 16:41:55.000000000 +0100
-@@ -12,8 +12,6 @@
- #include <linux/sched.h>
- #include <linux/vmstat.h>
- 
--struct mmu_gather;
--
- #ifdef CONFIG_KSM
- int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 		unsigned long end, int advice, unsigned long *vm_flags);
-@@ -27,19 +25,6 @@ static inline int ksm_fork(struct mm_str
- 	return 0;
- }
- 
--/*
-- * For KSM to handle OOM without deadlock when it's breaking COW in a
-- * likely victim of the OOM killer, exit_mmap() has to serialize with
-- * ksm_exit() after freeing mm's pages but before freeing its page tables.
-- * That leaves a window in which KSM might refault pages which have just
-- * been finally unmapped: guard against that with ksm_test_exit(), and
-- * use it after getting mmap_sem in ksm.c, to check if mm is exiting.
-- */
--static inline bool ksm_test_exit(struct mm_struct *mm)
--{
--	return atomic_read(&mm->mm_users) == 0;
--}
--
- static inline void ksm_exit(struct mm_struct *mm)
- {
- 	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
-@@ -78,11 +63,6 @@ static inline int ksm_fork(struct mm_str
- {
- 	return 0;
- }
--
--static inline bool ksm_test_exit(struct mm_struct *mm)
--{
--	return 0;
--}
- 
- static inline void ksm_exit(struct mm_struct *mm)
- {
+--- mmotm/include/linux/sched.h	2009-09-05 14:40:16.000000000 +0100
++++ linux/include/linux/sched.h	2009-09-05 16:41:55.000000000 +0100
+@@ -1755,7 +1755,7 @@ extern cputime_t task_gtime(struct task_
+ #define PF_FROZEN	0x00010000	/* frozen for system suspend */
+ #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
+ #define PF_KSWAPD	0x00040000	/* I am kswapd */
+-#define PF_SWAPOFF	0x00080000	/* I am in swapoff */
++#define PF_OOM_ORIGIN	0x00080000	/* Allocating much memory to others */
+ #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
+ #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
+ #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
 --- mmotm/mm/ksm.c	2009-09-05 14:40:16.000000000 +0100
 +++ linux/mm/ksm.c	2009-09-05 16:41:55.000000000 +0100
-@@ -32,7 +32,6 @@
- #include <linux/mmu_notifier.h>
- #include <linux/ksm.h>
+@@ -1564,7 +1564,9 @@ static ssize_t run_store(struct kobject
+ 	if (ksm_run != flags) {
+ 		ksm_run = flags;
+ 		if (flags & KSM_RUN_UNMERGE) {
++			current->flags |= PF_OOM_ORIGIN;
+ 			err = unmerge_and_remove_all_rmap_items();
++			current->flags &= ~PF_OOM_ORIGIN;
+ 			if (err) {
+ 				ksm_run = KSM_RUN_STOP;
+ 				count = err;
+--- mmotm/mm/oom_kill.c	2009-09-05 14:40:16.000000000 +0100
++++ linux/mm/oom_kill.c	2009-09-05 16:41:55.000000000 +0100
+@@ -103,7 +103,7 @@ unsigned long badness(struct task_struct
+ 	/*
+ 	 * swapoff can easily use up all memory, so kill those first.
+ 	 */
+-	if (p->flags & PF_SWAPOFF)
++	if (p->flags & PF_OOM_ORIGIN)
+ 		return ULONG_MAX;
  
--#include <asm/tlb.h>
- #include <asm/tlbflush.h>
+ 	/*
+--- mmotm/mm/swapfile.c	2009-09-05 14:40:16.000000000 +0100
++++ linux/mm/swapfile.c	2009-09-05 16:41:55.000000000 +0100
+@@ -1573,9 +1573,9 @@ SYSCALL_DEFINE1(swapoff, const char __us
+ 	p->flags &= ~SWP_WRITEOK;
+ 	spin_unlock(&swap_lock);
  
- /*
-@@ -285,6 +284,19 @@ static inline int in_stable_tree(struct
- }
+-	current->flags |= PF_SWAPOFF;
++	current->flags |= PF_OOM_ORIGIN;
+ 	err = try_to_unuse(type);
+-	current->flags &= ~PF_SWAPOFF;
++	current->flags &= ~PF_OOM_ORIGIN;
  
- /*
-+ * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
-+ * page tables after it has passed through ksm_exit() - which, if necessary,
-+ * takes mmap_sem briefly to serialize against them.  ksm_exit() does not set
-+ * a special flag: they can just back out as soon as mm_users goes to zero.
-+ * ksm_test_exit() is used throughout to make this test for exit: in some
-+ * places for correctness, in some places just to avoid unnecessary work.
-+ */
-+static inline bool ksm_test_exit(struct mm_struct *mm)
-+{
-+	return atomic_read(&mm->mm_users) == 0;
-+}
-+
-+/*
-  * We use break_ksm to break COW on a ksm page: it's a stripped down
-  *
-  *	if (get_user_pages(current, mm, addr, 1, 1, 1, &page, NULL) == 1)
---- mmotm/mm/mmap.c	2009-09-05 14:40:16.000000000 +0100
-+++ linux/mm/mmap.c	2009-09-05 16:41:55.000000000 +0100
-@@ -27,7 +27,6 @@
- #include <linux/mount.h>
- #include <linux/mempolicy.h>
- #include <linux/rmap.h>
--#include <linux/ksm.h>
- #include <linux/mmu_notifier.h>
- #include <linux/perf_counter.h>
- #include <linux/hugetlb.h>
+ 	if (err) {
+ 		/* re-insert swap space back into swap_list */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
