@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 84FB36B0083
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 20:44:56 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id B8BB26B0089
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2009 20:44:57 -0400 (EDT)
 Received: from mail.atheros.com ([10.10.20.105])
 	by sidewinder.atheros.com
-	for <linux-mm@kvack.org>; Fri, 04 Sep 2009 17:45:00 -0700
+	for <linux-mm@kvack.org>; Fri, 04 Sep 2009 17:45:02 -0700
 From: "Luis R. Rodriguez" <lrodriguez@atheros.com>
-Subject: [PATCH v3 3/5] kmemleak: move common painting code together
-Date: Fri, 4 Sep 2009 17:44:52 -0700
-Message-ID: <1252111494-7593-4-git-send-email-lrodriguez@atheros.com>
+Subject: [PATCH v3 4/5] kmemleak: fix sparse warning over overshadowed flags
+Date: Fri, 4 Sep 2009 17:44:53 -0700
+Message-ID: <1252111494-7593-5-git-send-email-lrodriguez@atheros.com>
 In-Reply-To: <1252111494-7593-1-git-send-email-lrodriguez@atheros.com>
 References: <1252111494-7593-1-git-send-email-lrodriguez@atheros.com>
 MIME-Version: 1.0
@@ -18,141 +18,47 @@ To: catalin.marinas@arm.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, mcgrof@gmail.com, "Luis R. Rodriguez" <lrodriguez@atheros.com>
 List-ID: <linux-mm.kvack.org>
 
-When painting grey or black we do the same thing, bring
-this together into a helper and identify coloring grey or
-black explicitly with defines. This makes this a little
-easier to read.
+A secondary irq_save is not required as a locking before it was
+already disabling irqs.
+
+This fixes this sparse warning:
+mm/kmemleak.c:512:31: warning: symbol 'flags' shadows an earlier one
+mm/kmemleak.c:448:23: originally declared here
 
 Signed-off-by: Luis R. Rodriguez <lrodriguez@atheros.com>
 ---
- mm/kmemleak.c |   68 +++++++++++++++++++++++++++++++++-----------------------
- 1 files changed, 40 insertions(+), 28 deletions(-)
+ mm/kmemleak.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 76dd7af..18dfd62 100644
+index 18dfd62..d078621 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
-@@ -122,6 +122,9 @@ struct kmemleak_scan_area {
- 	size_t length;
- };
+@@ -552,6 +552,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	object->tree_node.last = ptr + size - 1;
  
-+#define KMEMLEAK_GREY	0
-+#define KMEMLEAK_BLACK	-1
+ 	write_lock_irqsave(&kmemleak_lock, flags);
 +
- /*
-  * Structure holding the metadata for each allocated memory block.
-  * Modifications to such objects should be made while holding the
-@@ -307,17 +310,19 @@ static void hex_dump_object(struct seq_file *seq,
-  */
- static bool color_white(const struct kmemleak_object *object)
- {
--	return object->count != -1 && object->count < object->min_count;
-+	return object->count != KMEMLEAK_BLACK &&
-+		object->count < object->min_count;
- }
+ 	min_addr = min(min_addr, ptr);
+ 	max_addr = max(max_addr, ptr + size);
+ 	node = prio_tree_insert(&object_tree_root, &object->tree_node);
+@@ -562,14 +563,12 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	 * random memory blocks.
+ 	 */
+ 	if (node != &object->tree_node) {
+-		unsigned long flags;
+-
+ 		kmemleak_stop("Cannot insert 0x%lx into the object search tree "
+ 			      "(already existing)\n", ptr);
+ 		object = lookup_object(ptr, 1);
+-		spin_lock_irqsave(&object->lock, flags);
++		spin_lock(&object->lock);
+ 		dump_object_info(object);
+-		spin_unlock_irqrestore(&object->lock, flags);
++		spin_unlock(&object->lock);
  
- static bool color_gray(const struct kmemleak_object *object)
- {
--	return object->min_count != -1 && object->count >= object->min_count;
-+	return object->min_count != KMEMLEAK_BLACK &&
-+		object->count >= object->min_count;
- }
- 
- static bool color_black(const struct kmemleak_object *object)
- {
--	return object->min_count == -1;
-+	return object->min_count == KMEMLEAK_BLACK;
- }
- 
- /*
-@@ -658,47 +663,54 @@ static void delete_object_part(unsigned long ptr, size_t size)
- 
- 	put_object(object);
- }
--/*
-- * Make a object permanently as gray-colored so that it can no longer be
-- * reported as a leak. This is used in general to mark a false positive.
-- */
--static void make_gray_object(unsigned long ptr)
-+
-+static void __paint_it(struct kmemleak_object *object, int color)
-+{
-+	object->min_count = color;
-+	if (color == KMEMLEAK_BLACK)
-+		object->flags |= OBJECT_NO_SCAN;
-+}
-+
-+static void paint_it(struct kmemleak_object *object, int color)
- {
- 	unsigned long flags;
-+	spin_lock_irqsave(&object->lock, flags);
-+	__paint_it(object, color);
-+	spin_unlock_irqrestore(&object->lock, flags);
-+}
-+
-+static void paint_ptr(unsigned long ptr, int color)
-+{
- 	struct kmemleak_object *object;
- 
- 	object = find_and_get_object(ptr, 0);
- 	if (!object) {
--		kmemleak_warn("Graying unknown object at 0x%08lx\n", ptr);
-+		kmemleak_warn("Tried to color unknown object "
-+			      "at 0x%08lx as %s\n", ptr,
-+			      (color == KMEMLEAK_GREY) ? "Grey" :
-+			      (color == KMEMLEAK_BLACK) ? "Black" : "Unknown");
- 		return;
+ 		goto out;
  	}
--
--	spin_lock_irqsave(&object->lock, flags);
--	object->min_count = 0;
--	spin_unlock_irqrestore(&object->lock, flags);
-+	paint_it(object, color);
- 	put_object(object);
- }
- 
- /*
-+ * Make a object permanently as gray-colored so that it can no longer be
-+ * reported as a leak. This is used in general to mark a false positive.
-+ */
-+static void make_gray_object(unsigned long ptr)
-+{
-+	paint_ptr(ptr, KMEMLEAK_GREY);
-+}
-+
-+/*
-  * Mark the object as black-colored so that it is ignored from scans and
-  * reporting.
-  */
- static void make_black_object(unsigned long ptr)
- {
--	unsigned long flags;
--	struct kmemleak_object *object;
--
--	object = find_and_get_object(ptr, 0);
--	if (!object) {
--		kmemleak_warn("Blacking unknown object at 0x%08lx\n", ptr);
--		return;
--	}
--
--	spin_lock_irqsave(&object->lock, flags);
--	object->min_count = -1;
--	object->flags |= OBJECT_NO_SCAN;
--	spin_unlock_irqrestore(&object->lock, flags);
--	put_object(object);
-+	paint_ptr(ptr, KMEMLEAK_BLACK);
- }
- 
- /*
-@@ -1422,7 +1434,7 @@ static void kmemleak_clear(void)
- 		spin_lock_irqsave(&object->lock, flags);
- 		if ((object->flags & OBJECT_REPORTED) &&
- 		    unreferenced_object(object))
--			object->min_count = -1;
-+			__paint_it(object, KMEMLEAK_GREY);
- 		spin_unlock_irqrestore(&object->lock, flags);
- 	}
- 	rcu_read_unlock();
 -- 
 1.6.3.3
 
