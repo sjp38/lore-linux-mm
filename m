@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 67F276B0083
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2009 07:34:31 -0400 (EDT)
-Date: Sat, 5 Sep 2009 12:33:52 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: improving checksum cpu consumption in ksm
-In-Reply-To: <7928e7bd0909041529i6d745955paa636206b9409587@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0909051225450.5114@sister.anvils>
-References: <4A983C52.7000803@redhat.com>  <Pine.LNX.4.64.0908312233340.23516@sister.anvils>
-  <4A9FB83F.2000605@redhat.com>  <Pine.LNX.4.64.0909031535290.13918@sister.anvils>
- <7928e7bd0909041529i6d745955paa636206b9409587@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D0996B0083
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2009 10:29:02 -0400 (EDT)
+Date: Sat, 5 Sep 2009 10:28:37 -0400
+From: Theodore Tso <tytso@mit.edu>
+Subject: Re: ipw2200: firmware DMA loading rework
+Message-ID: <20090905142837.GI16217@mit.edu>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <1251430951.3704.181.camel@debian> <200908301437.42133.bzolnier@gmail.com> <200909021948.13262.bzolnier@gmail.com> <43e72e890909021102g7f844c79xefccf305f5f5c5b6@mail.gmail.com> <20090903124913.GA26110@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090903124913.GA26110@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Moussa Ba <moussa.a.ba@gmail.com>
-Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, linux-mm@kvack.org, jaredeh@gmail.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "Luis R. Rodriguez" <mcgrof@gmail.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Zhu Yi <yi.zhu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Sep 2009, Moussa Ba wrote:
+On Thu, Sep 03, 2009 at 01:49:14PM +0100, Mel Gorman wrote:
+> > 
+> > This looks very similar to the kmemleak ext4 reports upon a mount. If
+> > it is the same issue, which from the trace it seems it is, then this
+> > is due to an extra kmalloc() allocation and this apparently will not
+> > get fixed on 2.6.31 due to the closeness of the merge window and the
+> > non-criticalness this issue has been deemed.
 
-> Just to add to the discussion, we have also seen a high cpu usage for
-> KSM.  In our case however it is more serious as the system that KSM is
-> running on is battery powered  with a weaker processor.  With KSM
-> constantly running, the effect on the battery life is significant.
+No, it's a different problem.
 
-Sounds like it would be a good idea for us to throttle back ksmd
-when the system is otherwise idle.  Though quite a bit of thought
-should go into how we decide "idle" for that.
+> I suspect the more pressing concern is why is this kmalloc() resulting in
+> an order-5 allocation request? What size is the buffer being requested?
+> Was that expected?  What is the contents of /proc/slabinfo in case a buffer
+> that should have required order-1 or order-2 is using a higher order for
+> some reason.
 
-> 
-> I like the idea of dirty bit tracking as it would obviate the need to
-> rehash once we know the page has not been dirtied.  We have been
-> working on a patch that adds dirty bit clearing from user space,
-> similar to the clear_refs entry under /proc/pid/.  In our instance we
-> use this mechanism to measure page accesses and write frequency on
-> ANONYMOUS pages, file backed pages or both.  Could this potentially
-> pose a problem if KSM decides to use that mechanism for page state
-> tracking?
+It's allocating 68,000 bytes for the mb_history structure, which is
+used for debugging purposes.  That's why it's optional and we continue
+if it's not allocated.  We should fix it to use vmalloc() and I'm
+inclined to turn it off by default since it's not worth the overhead,
+and most ext4 users won't find it useful or interesting.
 
-Yes, KSM's use of the bit would interfere with your statistics, and
-your use of the bit would interfere with KSM's efficiency: better
-not use them both together (or keep yours off MADV_MERGEABLE areas).
-
-Hugh
+	      	   	      	    	 - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
