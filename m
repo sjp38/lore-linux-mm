@@ -1,46 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 99E546B0085
-	for <linux-mm@kvack.org>; Sun,  6 Sep 2009 14:42:15 -0400 (EDT)
-Date: Sun, 6 Sep 2009 20:42:14 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [RFC PATCH] v2 mm: balance_dirty_pages.  reduce calls to
-	global_page_state to reduce cache references
-Message-ID: <20090906184214.GL18599@kernel.dk>
-References: <1252062330.2271.61.camel@castor>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1252062330.2271.61.camel@castor>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 261F76B0082
+	for <linux-mm@kvack.org>; Sun,  6 Sep 2009 19:04:06 -0400 (EDT)
+Date: Mon, 7 Sep 2009 08:04:03 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: [mmotm][BUGFIX][PATCH] memcg: fix softlimit css refcnt handling(yet
+ another one)
+Message-Id: <20090907080403.5e4510b3.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20090904190726.6442f3df.d-nishimura@mtf.biglobe.ne.jp>
+References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090903141727.ccde7e91.nishimura@mxp.nes.nec.co.jp>
+	<20090904131835.ac2b8cc8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090904141157.4640ec1e.nishimura@mxp.nes.nec.co.jp>
+	<20090904142143.15ffcb53.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090904142654.08dd159f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090904154050.25873aa5.nishimura@mxp.nes.nec.co.jp>
+	<20090904163758.a5604fee.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090904190726.6442f3df.d-nishimura@mtf.biglobe.ne.jp>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, "chris.mason" <chris.mason@oracle.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 04 2009, Richard Kennedy wrote:
-> Reducing the number of times balance_dirty_pages calls global_page_state
-> reduces the cache references and so improves write performance on a
-> variety of workloads.
-> 
-> 'perf stats' of simple fio write tests shows the reduction in cache
-> access.
-> Where the test is fio 'write,mmap,600Mb,pre_read' on AMD AthlonX2 with
-> 3Gb memory (dirty_threshold approx 600 Mb)
-> running each test 10 times, dropping the fasted & slowest values then
-> taking 
-> the average & standard deviation
-> 
-> 		average (s.d.) in millions (10^6)
-> 2.6.31-rc8	648.6 (14.6)
-> +patch		620.1 (16.5)
+On Fri, 4 Sep 2009 19:07:26 +0900
+Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
 
-This patch looks good to me, I have workloads too here where up to 10%
-of the time is spent in balance_dirty_pages() because of this. I'll give
-this patch a go on the box and test in question tomorrow, but it looks
-promising.
+> On Fri, 4 Sep 2009 16:37:58 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Fri, 4 Sep 2009 15:40:50 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > > Ah, one more question. What memory.usage_in_bytes shows in that case ?
+> > > > If not zero, charge/uncharge coalescing is guilty.
+> > > > 
+> > > usage_in_bytes is 0.
+> > > I've confirmed by crash command that the mem_cgroup has extra ref counts.
+> > > 
+> > > I'll dig more..
+> > > 
+> > BTW, do you use softlimit ? I found this but...Hmm
+> > 
+> No.
+> I'm sorry I can't access my machine, so can't test this.
+> 
+> 
+> But I think this patch itself is needed and looks good.
+> 
+I've found the cause of the issue.
 
--- 
-Jens Axboe
+Andrew, could you add this one after KAMEZAWA-san's
+memory-controller-soft-limit-reclaim-on-contention-v9-fix-softlimit-css-refcnt-handling.patch ?
+
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+refcount of the "victim" should be decremented before exiting the loop.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ac51294..011aba6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1133,8 +1133,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 				 * anything, it might because there are
+ 				 * no reclaimable pages under this hierarchy
+ 				 */
+-				if (!check_soft || !total)
++				if (!check_soft || !total) {
++					css_put(&victim->css);
+ 					break;
++				}
+ 				/*
+ 				 * We want to do more targetted reclaim.
+ 				 * excess >> 2 is not to excessive so as to
+@@ -1142,8 +1144,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 				 * coming back to reclaim from this cgroup
+ 				 */
+ 				if (total >= (excess >> 2) ||
+-					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS))
++					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
++					css_put(&victim->css);
+ 					break;
++				}
+ 			}
+ 		}
+ 		if (!mem_cgroup_local_usage(&victim->stat)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
