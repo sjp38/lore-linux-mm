@@ -1,100 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 261F76B0082
-	for <linux-mm@kvack.org>; Sun,  6 Sep 2009 19:04:06 -0400 (EDT)
-Date: Mon, 7 Sep 2009 08:04:03 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: [mmotm][BUGFIX][PATCH] memcg: fix softlimit css refcnt handling(yet
- another one)
-Message-Id: <20090907080403.5e4510b3.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20090904190726.6442f3df.d-nishimura@mtf.biglobe.ne.jp>
-References: <20090902093438.eed47a57.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090902134114.b6f1a04d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090902182923.c6d98fd6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090903141727.ccde7e91.nishimura@mxp.nes.nec.co.jp>
-	<20090904131835.ac2b8cc8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090904141157.4640ec1e.nishimura@mxp.nes.nec.co.jp>
-	<20090904142143.15ffcb53.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090904142654.08dd159f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090904154050.25873aa5.nishimura@mxp.nes.nec.co.jp>
-	<20090904163758.a5604fee.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090904190726.6442f3df.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3F6FF6B0088
+	for <linux-mm@kvack.org>; Sun,  6 Sep 2009 19:38:30 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n86NcTPL016063
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 7 Sep 2009 08:38:29 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19BF145DE50
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 08:38:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 793F345DE4F
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 08:38:28 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C86151DB803A
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 08:38:27 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED5181DB803C
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 08:38:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()  sc->isolate_pages() return value.
+In-Reply-To: <alpine.DEB.2.00.0909040856030.17650@kernelhack.brc.ubc.ca>
+References: <alpine.DEB.2.00.0909032146130.10307@kernelhack.brc.ubc.ca> <alpine.DEB.2.00.0909040856030.17650@kernelhack.brc.ubc.ca>
+Message-Id: <20090907083603.2C74.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon,  7 Sep 2009 08:38:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Vincent Li <macli@brc.ubc.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Sep 2009 19:07:26 +0900
-Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
-
-> On Fri, 4 Sep 2009 16:37:58 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Fri, 4 Sep 2009 15:40:50 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > > Ah, one more question. What memory.usage_in_bytes shows in that case ?
-> > > > If not zero, charge/uncharge coalescing is guilty.
-> > > > 
-> > > usage_in_bytes is 0.
-> > > I've confirmed by crash command that the mem_cgroup has extra ref counts.
-> > > 
-> > > I'll dig more..
-> > > 
-> > BTW, do you use softlimit ? I found this but...Hmm
+> >  [ Sending Preferences ]
+> >       [X]  Do Not Send Flowed Text                                               
+> >       [ ]  Downgrade Multipart to Text                                           
+> >       [X]  Enable 8bit ESMTP Negotiation    (default)
+> >       [ ]  Strip Whitespace Before Sending                                       
+> >  
+> > And Documentation/email-clients.txt have:
 > > 
-> No.
-> I'm sorry I can't access my machine, so can't test this.
+> > Config options:
+> > - quell-flowed-text is needed for recent versions
+> > - the "no-strip-whitespace-before-send" option is needed
+> > 
+> > Am I the one to blame? Should I uncheck the 'Do Not Send Flowed Text'? I 
+> > am sorry if it is my fault.
 > 
+> Ah, I quoted the pine Config options, the alpine config options from 
+> Documentation/email-clients.txt should be:
 > 
-> But I think this patch itself is needed and looks good.
+> Config options:
+> In the "Sending Preferences" section:
 > 
-I've found the cause of the issue.
+> - "Do Not Send Flowed Text" must be enabled
+> - "Strip Whitespace Before Sending" must be disabled
 
-Andrew, could you add this one after KAMEZAWA-san's
-memory-controller-soft-limit-reclaim-on-contention-v9-fix-softlimit-css-refcnt-handling.patch ?
+Can you please make email-clients.txt fixing patch too? :-)
 
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-refcount of the "victim" should be decremented before exiting the loop.
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |    8 ++++++--
- 1 files changed, 6 insertions(+), 2 deletions(-)
+> 
+> and my alpine did follow the recommendations as above showed.
+> 
+> I used 'git send-email' to send out the original patch.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ac51294..011aba6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1133,8 +1133,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 				 * anything, it might because there are
- 				 * no reclaimable pages under this hierarchy
- 				 */
--				if (!check_soft || !total)
-+				if (!check_soft || !total) {
-+					css_put(&victim->css);
- 					break;
-+				}
- 				/*
- 				 * We want to do more targetted reclaim.
- 				 * excess >> 2 is not to excessive so as to
-@@ -1142,8 +1144,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 				 * coming back to reclaim from this cgroup
- 				 */
- 				if (total >= (excess >> 2) ||
--					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS))
-+					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
-+					css_put(&victim->css);
- 					break;
-+				}
- 			}
- 		}
- 		if (!mem_cgroup_local_usage(&victim->stat)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
