@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7BC6D6B00A9
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 12:28:23 -0400 (EDT)
-Message-ID: <4AA5367E.6010103@redhat.com>
-Date: Mon, 07 Sep 2009 19:36:14 +0300
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ACB9A6B00AC
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2009 12:34:31 -0400 (EDT)
+Message-ID: <4AA537E9.8030800@redhat.com>
+Date: Mon, 07 Sep 2009 19:42:17 +0300
 From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] ksm: clean up obsolete references
-References: <Pine.LNX.4.64.0909052219580.7381@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909052219580.7381@sister.anvils>
+Subject: Re: [PATCH 2/3] ksm: unmerge is an origin of OOMs
+References: <Pine.LNX.4.64.0909052219580.7381@sister.anvils> <Pine.LNX.4.64.0909052222430.7387@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0909052222430.7387@sister.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,14 +17,21 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> A few cleanups, given the munlock fix: the comment on ksm_test_exit()
-> no longer applies, and it can be made private to ksm.c; there's no
-> more reference to mmu_gather or tlb.h, and mmap.c doesn't need ksm.h.
+> Just as the swapoff system call allocates many pages of RAM to various
+> processes, perhaps triggering OOM, so "echo 2 >/sys/kernel/mm/ksm/run"
+> (unmerge) is liable to allocate many pages of RAM to various processes,
+> perhaps triggering OOM; and each is normally run from a modest admin
+> process (swapoff or shell), easily repeated until it succeeds.
+>
+> So treat unmerge_and_remove_all_rmap_items() in the same way that we
+> treat try_to_unuse(): generalize PF_SWAPOFF to PF_OOM_ORIGIN, and
+> bracket both with that, to ask the OOM killer to kill them first,
+> to prevent them from spawning more and more OOM kills.
 >
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 > ---
->
 >   
+
 Acked-by: Izik Eidus <ieidus@redhat.com>
 
 --
