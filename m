@@ -1,34 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E35376B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:14:27 -0400 (EDT)
-Date: Tue, 8 Sep 2009 07:13:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-In-Reply-To: <20090908073119.GA29902@wotan.suse.de>
-Message-ID: <alpine.LFD.2.01.0909080712200.7458@localhost.localdomain>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072238320.15430@sister.anvils> <20090908073119.GA29902@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0A96B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:20:05 -0400 (EDT)
+Subject: Re: [rfc] lru_add_drain_all() vs isolation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <alpine.DEB.1.10.0909081000100.15723@V090114053VZO-1>
+References: <20090908190148.0CC9.A69D9226@jp.fujitsu.com>
+	 <1252405209.7746.38.camel@twins>
+	 <20090908193712.0CCF.A69D9226@jp.fujitsu.com>
+	 <1252411520.7746.68.camel@twins>
+	 <alpine.DEB.1.10.0909081000100.15723@V090114053VZO-1>
+Content-Type: text/plain
+Date: Tue, 08 Sep 2009 16:20:02 +0200
+Message-Id: <1252419602.7746.73.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Tue, 8 Sep 2009, Nick Piggin wrote:
+On Tue, 2009-09-08 at 10:03 -0400, Christoph Lameter wrote:
+> On Tue, 8 Sep 2009, Peter Zijlstra wrote:
 > 
-> Without looking closely, why is it a big problem to have a
-> !HAVE PTE SPECIAL case? Couldn't it just be a check for
-> pfn == zero_pfn that is conditionally compiled away for pte
-> special architectures anyway?
+> > This is about avoiding work when there is non, clearly when an
+> > application does use the kernel it creates work.
+> 
+> Hmmm. The lru draining in page migration is to reduce the number of pages
+> that are not on the lru to increase the chance of page migration to be
+> successful. A page on a per cpu list cannot be drained.
+> 
+> Reducing the number of cpus where we perform the drain results in
+> increased likelyhood that we cannot migrate a page because its on the per
+> cpu lists of a cpu not covered.
 
-At least traditionally, there wasn't a single zero_pfn, but multiple (for 
-VIPT caches that have performance issues with aliases). But yeah, we could 
-check just the pfn number, and allow any architecture to do it.
+Did you even read the patch?
 
-			Linus
+There is _no_ functional difference between before and after, except
+less wakeups on cpus that don't have any __lru_cache_add activity.
+
+If there's pages on the per cpu lru_add_pvecs list it will be present in
+the mask and will be send a drain request. If its not, then it won't be
+send.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
