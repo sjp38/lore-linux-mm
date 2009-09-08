@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AEB6F6B0082
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 07:57:41 -0400 (EDT)
-Date: Tue, 8 Sep 2009 12:56:57 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-In-Reply-To: <20090908113734.869cdad7.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0909081231480.25652@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
- <Pine.LNX.4.64.0909072238320.15430@sister.anvils>
- <20090908113734.869cdad7.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B01946B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 08:05:30 -0400 (EDT)
+Subject: Re: [rfc] lru_add_drain_all() vs isolation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20090908193712.0CCF.A69D9226@jp.fujitsu.com>
+References: <20090908190148.0CC9.A69D9226@jp.fujitsu.com>
+	 <1252405209.7746.38.camel@twins>
+	 <20090908193712.0CCF.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 08 Sep 2009 14:05:20 +0200
+Message-Id: <1252411520.7746.68.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Sep 2009, KAMEZAWA Hiroyuki wrote:
+On Tue, 2009-09-08 at 20:41 +0900, KOSAKI Motohiro wrote:
+
+> Thank you for kindly explanation. I gradually become to understand this isssue.
+> Yes, lru_add_drain_all() use schedule_on_each_cpu() and it have following code
 > 
-> A nitpick but this was a concern you shown, IIUC.
+>         for_each_online_cpu(cpu)
+>                 flush_work(per_cpu_ptr(works, cpu));
 > 
-> == __get_user_pages()..
+> However, I don't think your approach solve this issue.
+> lru_add_drain_all() flush lru_add_pvecs and lru_rotate_pvecs.
 > 
->                         if (pages) {
->                                 pages[i] = page;
+> lru_add_pvecs is accounted when
+>   - lru move
+>       e.g. read(2), write(2), page fault, vmscan, page migration, et al
 > 
->                                 flush_anon_page(vma, page, start);
->                                 flush_dcache_page(page);
->                         }
-> ==
+> lru_rotate_pves is accounted when
+>   - page writeback
 > 
-> This part will call flush_dcache_page() even when ZERO_PAGE is found.
+> IOW, if RT-thread call write(2) syscall or page fault, we face the same
+> problem. I don't think we can assume RT-thread don't make page fault....
 > 
-> Don't we need to mask this ?
+> hmm, this seems difficult problem. I guess any mm code should use
+> schedule_on_each_cpu(). I continue to think this issue awhile.
 
-No, it's okay to flush_dcache_page() on ZERO_PAGE: we always used to
-do that there, and the arches I remember offhand won't do anything
-with it anyway, once they see page->mapping NULL.
+This is about avoiding work when there is non, clearly when an
+application does use the kernel it creates work.
 
-What you're remembering, that I did object to, was the way your
-FOLL_NOZERO ended up doing
-				pages[i] = NULL;
-				flush_anon_page(vma, NULL, start);
-				flush_dcache_page(NULL);
+But a clearly userspace, cpu-bound process, while(1), should not get
+interrupted by things like lru_add_drain() when it doesn't have any
+pages to drain.
 
-which would cause an oops when those arches look at page->mapping.
+> > There is nothing that makes lru_add_drain_all() the only such site, its
+> > the one Mike posted to me, and my patch was a way to deal with that.
+> 
+> Well, schedule_on_each_cpu() is very limited used function.
+> Practically we can ignore other caller.
 
-I should take another look at your FOLL_NOZERO: I may have dismissed
-it too quickly, after seeing that bug, and oopsing on x86 when
-mlocking a readonly anonymous area.
+No, we need to inspect all callers, having only a few makes that easier.
 
-Though I like that we don't _need_ to change mlock.c for reinstated
-ZERO_PAGE, this morning I'm having trouble persuading myself that
-mlocking a readonly anonymous area is too silly to optimize for.
+> > I also explained that its not only RT related in that the HPC folks also
+> > want to avoid unneeded work -- for them its not starvation but a
+> > performance issue.
+> 
+> I think you talked about OS jitter issue. if so, I don't think this issue
+> make serious problem.  OS jitter mainly be caused by periodic action
+>  (e.g. tick update, timer, vmstat update). it's because
+> 	little-delay x plenty-times = large-delay
+> 
+> lru_add_drain_all() is called from very limited point. e.g. mlock, shm-lock,
+> page-migration, memory-hotplug. all caller is not periodic.
 
-Maybe the very people who persuaded you to bring back the anonymous
-use of ZERO_PAGE, are also doing a huge mlock of the area first?
-So if two or more are starting up at the same time on the same box,
-more bouncing than is healthy (and more than they would have seen
-in the old days of ZERO_PAGE but no lock_page on it there).
-
-I'd like to persuade myself not to bother,
-but may want to add a further patch for that later.
-
-Hugh
+Doesn't matter, if you want to reduce it, you need to address all of
+them, a process 4 nodes away calling mlock() while this partition has
+been user-bound for the last hour or so and doesn't have any lru pages
+simply needn't be woken.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
