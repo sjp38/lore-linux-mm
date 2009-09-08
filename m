@@ -1,76 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EEA26B0085
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 11:34:55 -0400 (EDT)
-Date: Tue, 8 Sep 2009 17:34:41 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CC5506B0085
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 11:41:32 -0400 (EDT)
+Date: Tue, 8 Sep 2009 17:41:32 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-Message-ID: <20090908153441.GB29902@wotan.suse.de>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072238320.15430@sister.anvils> <20090908073119.GA29902@wotan.suse.de> <Pine.LNX.4.64.0909081258160.25652@sister.anvils>
+Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
+Message-ID: <20090908154132.GC29902@wotan.suse.de>
+References: <1240510668.11148.40.camel@heimdal.trondhjem.org> <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu> <20090424104137.GA7601@sgi.com> <E1LxMlO-0000sU-1J@pomaz-ex.szeredi.hu> <1240592448.4946.35.camel@heimdal.trondhjem.org> <20090425051028.GC10088@wotan.suse.de> <20090908153007.GB2513@think>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0909081258160.25652@sister.anvils>
+In-Reply-To: <20090908153007.GB2513@think>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Chris Mason <chris.mason@oracle.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Miklos Szeredi <miklos@szeredi.hu>, holt@sgi.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 01:17:01PM +0100, Hugh Dickins wrote:
-> On Tue, 8 Sep 2009, Nick Piggin wrote:
-> > On Mon, Sep 07, 2009 at 10:39:34PM +0100, Hugh Dickins wrote:
-> > > KAMEZAWA Hiroyuki has observed customers of earlier kernels taking
-> > > advantage of the ZERO_PAGE: which we stopped do_anonymous_page() from
-> > > using in 2.6.24.  And there were a couple of regression reports on LKML.
-> > > 
-> > > Following suggestions from Linus, reinstate do_anonymous_page() use of
-> > > the ZERO_PAGE; but this time avoid dirtying its struct page cacheline
-> > > with (map)count updates - let vm_normal_page() regard it as abnormal.
-> > > 
-> > > Use it only on arches which __HAVE_ARCH_PTE_SPECIAL (x86, s390, sh32,
-> > > most powerpc): that's not essential, but minimizes additional branches
-> > > (keeping them in the unlikely pte_special case); and incidentally
-> > > excludes mips (some models of which needed eight colours of ZERO_PAGE
-> > > to avoid costly exceptions).
+On Tue, Sep 08, 2009 at 11:30:07AM -0400, Chris Mason wrote:
+> > > As I said, I think I can fix the NFS problem by simply unmapping the
+> > > page inside ->writepage() whenever we know the write request was
+> > > originally set up by a page fault.
 > > 
-> > Without looking closely, why is it a big problem to have a
-> > !HAVE PTE SPECIAL case? Couldn't it just be a check for
-> > pfn == zero_pfn that is conditionally compiled away for pte
-> > special architectures anyway?
+> > The biggest outstanding problem we have remaining is get_user_pages.
+> > Callers are only required to hold a ref on the page and then they
+> > can call set_page_dirty at any point after that.
+> > 
+> > I have a half-done patch somewhere to add a put_user_pages, and then
+> > we could probably go from there to pinning the fs metadata (whether
+> > by using the page lock or something else, I don't quite know).
 > 
-> Yes, I'm uncomfortable with that restriction too: it makes for
-> neater looking code in a couple of places, but it's not so good
-> for the architectures to diverge gratuitously there.
+> Hi everyone,
 > 
-> I'll give it a try without that restriction, see how it looks:
-> it was Linus who proposed the "special" approach, I'm sure he'll
-> speak up if he doesn't like how the alternative comes out.
+> Sorry for digging up an old thread, but is there any reason we can't
+> just use page_mkwrite here?  I'd love to get rid of the btrfs code to
+> detect places that use set_page_dirty without a page_mkwrite.
 
-I guess using special is pretty neat and doesn't require an
-additional branch in vm_normal_page paths. But I think it is
-important to allow other architectures at least the _option_
-to have equivalent behaviour as x86 here. So it would be
-great if you would look into it.
+It is because page_mkwrite must be called before the page is dirtied
+(it may fail, it theoretically may do something crazy with the previous
+clean page data). And in several places I think it gets called from a
+nasty context.
 
- 
-> Tucking the test away in an asm-generic macro, we can leave
-> the pain of a rangetest to the one mips case.
-> 
-> By the way, in compiling that list of "special" architectures,
-> I was surprised not to find ia64 amongst them.  Not that it
-> matters to me, but I thought the Fujitsu guys were usually
-> keen on Itanium - do they realize that the special test is
-> excluding it, or do they have their own special patch for it?
+It hasn't fallen completely off my radar. fsblock has the same issue
+(although I've just been ignoring gup writes into fsblock fs for the
+time being).
 
-I don't understand your question. Are you asking whether they
-know your patch will not enable zero pages on ia64?
-
-I guess pte special was primarily driven by gup_fast, which in
-turn was driven primarily by DB2 9.5, which I think might be
-only available on x86 and ibm's architectures.
-
-But I admit to being a curious as to when I'll see a gup_fast
-patch come out of SGI or HP or Fujitsu :)
+I have a basic idea of what to do... It would be nice to change calling
+convention of get_user_pages and take the page lock. Database people might
+scream, in which case we could only take the page lock for filesystems that
+define ->page_mkwrite (so shared mem segments avoid the overhead). Lock
+ordering might get a bit interesting, but if we can have callers ensure they
+always submit and release partially fulfilled requirests, then we can always
+trylock them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
