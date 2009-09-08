@@ -1,68 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A43B96B0085
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 14:33:38 -0400 (EDT)
-Date: Tue, 8 Sep 2009 11:32:45 -0700 (PDT)
-From: Vincent Li <macli@brc.ubc.ca>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
- sc->isolate_pages() return value.
-In-Reply-To: <20090907083603.2C74.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.0909081106490.24907@kernelhack.brc.ubc.ca>
-References: <alpine.DEB.2.00.0909032146130.10307@kernelhack.brc.ubc.ca> <alpine.DEB.2.00.0909040856030.17650@kernelhack.brc.ubc.ca> <20090907083603.2C74.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7EB066B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 14:57:01 -0400 (EDT)
+Message-ID: <4AA6A8FC.9080301@redhat.com>
+Date: Tue, 08 Sep 2009 14:57:00 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/8] mm: add get_dump_page
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072231120.15430@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0909072231120.15430@sister.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Sep 2009, KOSAKI Motohiro wrote:
+Hugh Dickins wrote:
+> In preparation for the next patch, add a simple get_dump_page(addr)
+> interface for the CONFIG_ELF_CORE dumpers to use, instead of calling
+> get_user_pages() directly.  They're not interested in errors: they
+> just want to use holes as much as possible, to save space and make
+> sure that the data is aligned where the headers said it would be.
+> 
+> Oh, and don't use that horrid DUMP_SEEK(off) macro!
+> 
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-> > >  [ Sending Preferences ]
-> > >       [X]  Do Not Send Flowed Text                                               
-> > >       [ ]  Downgrade Multipart to Text                                           
-> > >       [X]  Enable 8bit ESMTP Negotiation    (default)
-> > >       [ ]  Strip Whitespace Before Sending                                       
-> > >  
-> > > And Documentation/email-clients.txt have:
-> > > 
-> > > Config options:
-> > > - quell-flowed-text is needed for recent versions
-> > > - the "no-strip-whitespace-before-send" option is needed
-> > > 
-> > > Am I the one to blame? Should I uncheck the 'Do Not Send Flowed Text'? I 
-> > > am sorry if it is my fault.
-> > 
-> > Ah, I quoted the pine Config options, the alpine config options from 
-> > Documentation/email-clients.txt should be:
-> > 
-> > Config options:
-> > In the "Sending Preferences" section:
-> > 
-> > - "Do Not Send Flowed Text" must be enabled
-> > - "Strip Whitespace Before Sending" must be disabled
-> 
-> Can you please make email-clients.txt fixing patch too? :-)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Sorry my poor written English make you confused.:-). The two config 
-options for alpine are already in email-clients.txt and I followed the existing config options 
-recommendation. I am not sure if my alpine is the faulty email client. Is 
-there still something missing with alpine? 
-
-> 
-> 
-> > 
-> > and my alpine did follow the recommendations as above showed.
-> > 
-> > I used 'git send-email' to send out the original patch.
-> 
-> 
-> 
-> 
-
-Vincent Li
-Biomedical Research Center
-University of British Columbia
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
