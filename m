@@ -1,50 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5194B6B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 19:35:11 -0400 (EDT)
-Message-ID: <4AA6EA27.70407@redhat.com>
-Date: Tue, 08 Sep 2009 19:35:03 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id ECFF16B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 19:47:23 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n88NlRFv017382
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 9 Sep 2009 08:47:27 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 636BE45DE7B
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 08:47:27 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E7C445DE6F
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 08:47:27 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 042381DB8046
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 08:47:27 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 702A01DB8040
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 08:47:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()  sc->isolate_pages() return value.
+In-Reply-To: <alpine.DEB.2.00.0909081106490.24907@kernelhack.brc.ubc.ca>
+References: <20090907083603.2C74.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.0909081106490.24907@kernelhack.brc.ubc.ca>
+Message-Id: <20090909084626.0CD3.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072238320.15430@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909072238320.15430@sister.anvils>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed,  9 Sep 2009 08:47:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vincent Li <macli@brc.ubc.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> KAMEZAWA Hiroyuki has observed customers of earlier kernels taking
-> advantage of the ZERO_PAGE: which we stopped do_anonymous_page() from
-> using in 2.6.24.  And there were a couple of regression reports on LKML.
+> On Mon, 7 Sep 2009, KOSAKI Motohiro wrote:
 > 
-> Following suggestions from Linus, reinstate do_anonymous_page() use of
-> the ZERO_PAGE; but this time avoid dirtying its struct page cacheline
-> with (map)count updates - let vm_normal_page() regard it as abnormal.
+> > > >  [ Sending Preferences ]
+> > > >       [X]  Do Not Send Flowed Text                                               
+> > > >       [ ]  Downgrade Multipart to Text                                           
+> > > >       [X]  Enable 8bit ESMTP Negotiation    (default)
+> > > >       [ ]  Strip Whitespace Before Sending                                       
+> > > >  
+> > > > And Documentation/email-clients.txt have:
+> > > > 
+> > > > Config options:
+> > > > - quell-flowed-text is needed for recent versions
+> > > > - the "no-strip-whitespace-before-send" option is needed
+> > > > 
+> > > > Am I the one to blame? Should I uncheck the 'Do Not Send Flowed Text'? I 
+> > > > am sorry if it is my fault.
+> > > 
+> > > Ah, I quoted the pine Config options, the alpine config options from 
+> > > Documentation/email-clients.txt should be:
+> > > 
+> > > Config options:
+> > > In the "Sending Preferences" section:
+> > > 
+> > > - "Do Not Send Flowed Text" must be enabled
+> > > - "Strip Whitespace Before Sending" must be disabled
+> > 
+> > Can you please make email-clients.txt fixing patch too? :-)
 > 
-> Use it only on arches which __HAVE_ARCH_PTE_SPECIAL (x86, s390, sh32,
-> most powerpc): that's not essential, but minimizes additional branches
-> (keeping them in the unlikely pte_special case); and incidentally
-> excludes mips (some models of which needed eight colours of ZERO_PAGE
-> to avoid costly exceptions).
-> 
-> Don't be fanatical about avoiding ZERO_PAGE updates: get_user_pages()
-> callers won't want to make exceptions for it, so increment its count
-> there.  Changes to mlock and migration? happily seems not needed.
-> 
-> In most places it's quicker to check pfn than struct page address:
-> prepare a __read_mostly zero_pfn for that.  Does get_dump_page()
-> still need its ZERO_PAGE check? probably not, but keep it anyway.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Sorry my poor written English make you confused.:-). The two config 
+> options for alpine are already in email-clients.txt and I followed the existing config options 
+> recommendation. 
 
-Acked-by: Rik van Riel <riel@redhat.com>
+I see. sorry my misunderstood.
+thanks :)
 
--- 
-All rights reversed.
+> I am not sure if my alpine is the faulty email client. Is 
+> there still something missing with alpine? 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
