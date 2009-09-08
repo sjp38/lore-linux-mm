@@ -1,168 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 096716B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 03:31:22 -0400 (EDT)
-Date: Tue, 8 Sep 2009 09:31:19 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-Message-ID: <20090908073119.GA29902@wotan.suse.de>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072238320.15430@sister.anvils>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9A6136B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 04:20:06 -0400 (EDT)
+Subject: Re: [rfc] lru_add_drain_all() vs isolation
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20090908085344.0CBD.A69D9226@jp.fujitsu.com>
+References: <1252311463.7586.26.camel@marge.simson.net>
+	 <1252321596.7959.6.camel@laptop>
+	 <20090908085344.0CBD.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 08 Sep 2009 10:20:06 +0200
+Message-Id: <1252398006.7746.3.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0909072238320.15430@sister.anvils>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 07, 2009 at 10:39:34PM +0100, Hugh Dickins wrote:
-> KAMEZAWA Hiroyuki has observed customers of earlier kernels taking
-> advantage of the ZERO_PAGE: which we stopped do_anonymous_page() from
-> using in 2.6.24.  And there were a couple of regression reports on LKML.
+On Tue, 2009-09-08 at 08:56 +0900, KOSAKI Motohiro wrote:
+> Hi Peter,
 > 
-> Following suggestions from Linus, reinstate do_anonymous_page() use of
-> the ZERO_PAGE; but this time avoid dirtying its struct page cacheline
-> with (map)count updates - let vm_normal_page() regard it as abnormal.
+> > On Mon, 2009-09-07 at 10:17 +0200, Mike Galbraith wrote:
+> > 
+> > > [  774.651779] SysRq : Show Blocked State
+> > > [  774.655770]   task                        PC stack   pid father
+> > > [  774.655770] evolution.bin D ffff8800bc1575f0     0  7349   6459 0x00000000
+> > > [  774.676008]  ffff8800bc3c9d68 0000000000000086 ffff8800015d9340 ffff8800bb91b780
+> > > [  774.676008]  000000000000dd28 ffff8800bc3c9fd8 0000000000013340 0000000000013340
+> > > [  774.676008]  00000000000000fd ffff8800015d9340 ffff8800bc1575f0 ffff8800bc157888
+> > > [  774.676008] Call Trace:
+> > > [  774.676008]  [<ffffffff812c4a11>] schedule_timeout+0x2d/0x20c
+> > > [  774.676008]  [<ffffffff812c4891>] wait_for_common+0xde/0x155
+> > > [  774.676008]  [<ffffffff8103f1cd>] ? default_wake_function+0x0/0x14
+> > > [  774.676008]  [<ffffffff810c0e63>] ? lru_add_drain_per_cpu+0x0/0x10
+> > > [  774.676008]  [<ffffffff810c0e63>] ? lru_add_drain_per_cpu+0x0/0x10
+> > > [  774.676008]  [<ffffffff812c49ab>] wait_for_completion+0x1d/0x1f
+> > > [  774.676008]  [<ffffffff8105fdf5>] flush_work+0x7f/0x93
+> > > [  774.676008]  [<ffffffff8105f870>] ? wq_barrier_func+0x0/0x14
+> > > [  774.676008]  [<ffffffff81060109>] schedule_on_each_cpu+0xb4/0xed
+> > > [  774.676008]  [<ffffffff810c0c78>] lru_add_drain_all+0x15/0x17
+> > > [  774.676008]  [<ffffffff810d1dbd>] sys_mlock+0x2e/0xde
+> > > [  774.676008]  [<ffffffff8100bc1b>] system_call_fastpath+0x16/0x1b
+> > 
+> > FWIW, something like the below (prone to explode since its utterly
+> > untested) should (mostly) fix that one case. Something similar needs to
+> > be done for pretty much all machine wide workqueue thingies, possibly
+> > also flush_workqueue().
 > 
-> Use it only on arches which __HAVE_ARCH_PTE_SPECIAL (x86, s390, sh32,
-> most powerpc): that's not essential, but minimizes additional branches
-> (keeping them in the unlikely pte_special case); and incidentally
-> excludes mips (some models of which needed eight colours of ZERO_PAGE
-> to avoid costly exceptions).
+> Can you please explain reproduce way and problem detail?
+> 
+> AFAIK, mlock() call lru_add_drain_all() _before_ grab semaphoe. Then,
+> it doesn't cause any deadlock.
 
-Without looking closely, why is it a big problem to have a
-!HAVE PTE SPECIAL case? Couldn't it just be a check for
-pfn == zero_pfn that is conditionally compiled away for pte
-special architectures anyway?
+Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
+cpu0 does mlock()->lru_add_drain_all(), which does
+schedule_on_each_cpu(), which then waits for all cpus to complete the
+work. Except that cpu1, which is busy with the RT task, will never run
+keventd until the RT load goes away.
 
-If zero page is such a good idea, I don't see the logic of
-limiting it like thisa. Your patch looks pretty clean though.
-
-At any rate, I think it might be an idea to cc linux-arch. 
-
-> 
-> Don't be fanatical about avoiding ZERO_PAGE updates: get_user_pages()
-> callers won't want to make exceptions for it, so increment its count
-> there.  Changes to mlock and migration? happily seems not needed.
-> 
-> In most places it's quicker to check pfn than struct page address:
-> prepare a __read_mostly zero_pfn for that.  Does get_dump_page()
-> still need its ZERO_PAGE check? probably not, but keep it anyway.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> ---
-> I have not studied the performance of this at all: I'd rather it go
-> into mmotm where others may decide whether it's a good thing or not.
-> 
->  mm/memory.c |   53 +++++++++++++++++++++++++++++++++++++++++---------
->  1 file changed, 44 insertions(+), 9 deletions(-)
-> 
-> --- mm6/mm/memory.c	2009-09-07 13:16:53.000000000 +0100
-> +++ mm7/mm/memory.c	2009-09-07 13:17:01.000000000 +0100
-> @@ -107,6 +107,17 @@ static int __init disable_randmaps(char
->  }
->  __setup("norandmaps", disable_randmaps);
->  
-> +static unsigned long zero_pfn __read_mostly;
-> +
-> +/*
-> + * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
-> + */
-> +static int __init init_zero_pfn(void)
-> +{
-> +	zero_pfn = page_to_pfn(ZERO_PAGE(0));
-> +	return 0;
-> +}
-> +core_initcall(init_zero_pfn);
->  
->  /*
->   * If a p?d_bad entry is found while walking page tables, report
-> @@ -499,7 +510,9 @@ struct page *vm_normal_page(struct vm_ar
->  	if (HAVE_PTE_SPECIAL) {
->  		if (likely(!pte_special(pte)))
->  			goto check_pfn;
-> -		if (!(vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)))
-> +		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
-> +			return NULL;
-> +		if (pfn != zero_pfn)
->  			print_bad_pte(vma, addr, pte, NULL);
->  		return NULL;
->  	}
-> @@ -1144,9 +1157,14 @@ struct page *follow_page(struct vm_area_
->  		goto no_page;
->  	if ((flags & FOLL_WRITE) && !pte_write(pte))
->  		goto unlock;
-> +
->  	page = vm_normal_page(vma, address, pte);
-> -	if (unlikely(!page))
-> -		goto bad_page;
-> +	if (unlikely(!page)) {
-> +		if ((flags & FOLL_DUMP) ||
-> +		    pte_pfn(pte) != zero_pfn)
-> +			goto bad_page;
-> +		page = pte_page(pte);
-> +	}
->  
->  	if (flags & FOLL_GET)
->  		get_page(page);
-> @@ -2085,10 +2103,19 @@ gotten:
->  
->  	if (unlikely(anon_vma_prepare(vma)))
->  		goto oom;
-> -	VM_BUG_ON(old_page == ZERO_PAGE(0));
-> -	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> -	if (!new_page)
-> -		goto oom;
-> +
-> +	if (pte_pfn(orig_pte) == zero_pfn) {
-> +		new_page = alloc_zeroed_user_highpage_movable(vma, address);
-> +		if (!new_page)
-> +			goto oom;
-> +	} else {
-> +		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> +		if (!new_page)
-> +			goto oom;
-> +		cow_user_page(new_page, old_page, address, vma);
-> +	}
-> +	__SetPageUptodate(new_page);
-> +
->  	/*
->  	 * Don't let another task, with possibly unlocked vma,
->  	 * keep the mlocked page.
-> @@ -2098,8 +2125,6 @@ gotten:
->  		clear_page_mlock(old_page);
->  		unlock_page(old_page);
->  	}
-> -	cow_user_page(new_page, old_page, address, vma);
-> -	__SetPageUptodate(new_page);
->  
->  	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
->  		goto oom_free_new;
-> @@ -2594,6 +2619,15 @@ static int do_anonymous_page(struct mm_s
->  	spinlock_t *ptl;
->  	pte_t entry;
->  
-> +	if (HAVE_PTE_SPECIAL && !(flags & FAULT_FLAG_WRITE)) {
-> +		entry = pte_mkspecial(pfn_pte(zero_pfn, vma->vm_page_prot));
-> +		ptl = pte_lockptr(mm, pmd);
-> +		spin_lock(ptl);
-> +		if (!pte_none(*page_table))
-> +			goto unlock;
-> +		goto setpte;
-> +	}
-> +
->  	/* Allocate our own private page. */
->  	pte_unmap(page_table);
->  
-> @@ -2617,6 +2651,7 @@ static int do_anonymous_page(struct mm_s
->  
->  	inc_mm_counter(mm, anon_rss);
->  	page_add_new_anon_rmap(page, vma, address);
-> +setpte:
->  	set_pte_at(mm, address, page_table, entry);
->  
->  	/* No need to invalidate - it was non-present before */
+This is not so much an actual deadlock as a serious starvation case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
