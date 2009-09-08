@@ -1,74 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 06A5B6B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 12:24:25 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so1358481iwn.24
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2009 09:24:32 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4A56B0085
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 12:32:02 -0400 (EDT)
+Date: Tue, 8 Sep 2009 12:31:49 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
+Message-ID: <20090908163149.GB2975@think>
+References: <1240510668.11148.40.camel@heimdal.trondhjem.org>
+ <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu>
+ <1240519320.5602.9.camel@heimdal.trondhjem.org>
+ <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu>
+ <20090424104137.GA7601@sgi.com>
+ <E1LxMlO-0000sU-1J@pomaz-ex.szeredi.hu>
+ <1240592448.4946.35.camel@heimdal.trondhjem.org>
+ <20090425051028.GC10088@wotan.suse.de>
+ <20090908153007.GB2513@think>
+ <20090908154132.GC29902@wotan.suse.de>
 MIME-Version: 1.0
-In-Reply-To: <1252426288.12145.112.camel@pc1117.cambridge.arm.com>
-References: <1252111494-7593-1-git-send-email-lrodriguez@atheros.com>
-	<1252111494-7593-3-git-send-email-lrodriguez@atheros.com>
-	<1252426288.12145.112.camel@pc1117.cambridge.arm.com>
-From: "Luis R. Rodriguez" <lrodriguez@atheros.com>
-Date: Tue, 8 Sep 2009 09:16:56 -0700
-Message-ID: <43e72e890909080916j159c5fadgda3f2c87aa3b965@mail.gmail.com>
-Subject: Re: [PATCH v3 2/5] kmemleak: add clear command support
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090908154132.GC29902@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi
+To: Nick Piggin <npiggin@suse.de>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Miklos Szeredi <miklos@szeredi.hu>, holt@sgi.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 8, 2009 at 9:11 AM, Catalin Marinas<catalin.marinas@arm.com> wr=
-ote:
-> On Fri, 2009-09-04 at 17:44 -0700, Luis R. Rodriguez wrote:
->> =C2=A0/*
->> + * We use grey instead of black to ensure we can do future
->> + * scans on the same objects. If we did not do future scans
->> + * these black objects could potentially contain references to
->> + * newly allocated objects in the future and we'd end up with
->> + * false positives.
->> + */
->> +static void kmemleak_clear(void)
->> +{
->> + =C2=A0 =C2=A0 struct kmemleak_object *object;
->> + =C2=A0 =C2=A0 unsigned long flags;
->> +
->> + =C2=A0 =C2=A0 stop_scan_thread();
->> +
->> + =C2=A0 =C2=A0 rcu_read_lock();
->> + =C2=A0 =C2=A0 list_for_each_entry_rcu(object, &object_list, object_lis=
-t) {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_lock_irqsave(&object->l=
-ock, flags);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if ((object->flags & OBJECT_=
-REPORTED) &&
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unreferenced_o=
-bject(object))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-object->min_count =3D -1;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 spin_unlock_irqrestore(&obje=
-ct->lock, flags);
->> + =C2=A0 =C2=A0 }
->> + =C2=A0 =C2=A0 rcu_read_unlock();
->> +
->> + =C2=A0 =C2=A0 start_scan_thread();
->> +}
->
-> Do we need to stop and start the scanning thread here? When starting it,
-> it will trigger a memory scan automatically. I don't think we want this
-> as a side-effect, so I dropped these lines from your patch.
+On Tue, Sep 08, 2009 at 05:41:32PM +0200, Nick Piggin wrote:
+> On Tue, Sep 08, 2009 at 11:30:07AM -0400, Chris Mason wrote:
+> > > > As I said, I think I can fix the NFS problem by simply unmapping the
+> > > > page inside ->writepage() whenever we know the write request was
+> > > > originally set up by a page fault.
+> > > 
+> > > The biggest outstanding problem we have remaining is get_user_pages.
+> > > Callers are only required to hold a ref on the page and then they
+> > > can call set_page_dirty at any point after that.
+> > > 
+> > > I have a half-done patch somewhere to add a put_user_pages, and then
+> > > we could probably go from there to pinning the fs metadata (whether
+> > > by using the page lock or something else, I don't quite know).
+> > 
+> > Hi everyone,
+> > 
+> > Sorry for digging up an old thread, but is there any reason we can't
+> > just use page_mkwrite here?  I'd love to get rid of the btrfs code to
+> > detect places that use set_page_dirty without a page_mkwrite.
+> 
+> It is because page_mkwrite must be called before the page is dirtied
+> (it may fail, it theoretically may do something crazy with the previous
+> clean page data). And in several places I think it gets called from a
+> nasty context.
+> 
+> It hasn't fallen completely off my radar. fsblock has the same issue
+> (although I've just been ignoring gup writes into fsblock fs for the
+> time being).
 
-OK thanks.
+Ok, I'll change my detection code a bit then.
 
-> Also you set min_count to -1 here which means black object, so a
-> subsequent patch corrects it. I'll set min_count to 0 here in case
-> anyone bisects over it.
+> 
+> I have a basic idea of what to do... It would be nice to change calling
+> convention of get_user_pages and take the page lock. Database people might
+> scream, in which case we could only take the page lock for filesystems that
+> define ->page_mkwrite (so shared mem segments avoid the overhead). Lock
+> ordering might get a bit interesting, but if we can have callers ensure they
+> always submit and release partially fulfilled requirests, then we can always
+> trylock them.
 
-Dah, thanks for catching that, seems I only fixed the named set.
+I think everyone will have page_mkwrite eventually, at least everyone
+who the databases will care about ;)
 
-  Luis
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
