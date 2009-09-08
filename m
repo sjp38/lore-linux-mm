@@ -1,46 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D1F176B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:04:44 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D293182C38A
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:05:33 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id FPYSWwUADe3b for <linux-mm@kvack.org>;
-	Tue,  8 Sep 2009 10:05:33 -0400 (EDT)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0011882C3AE
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:05:28 -0400 (EDT)
-Date: Tue, 8 Sep 2009 10:03:42 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [rfc] lru_add_drain_all() vs isolation
-In-Reply-To: <1252411520.7746.68.camel@twins>
-Message-ID: <alpine.DEB.1.10.0909081000100.15723@V090114053VZO-1>
-References: <20090908190148.0CC9.A69D9226@jp.fujitsu.com>  <1252405209.7746.38.camel@twins>  <20090908193712.0CCF.A69D9226@jp.fujitsu.com> <1252411520.7746.68.camel@twins>
+	by kanga.kvack.org (Postfix) with ESMTP id E35376B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 10:14:27 -0400 (EDT)
+Date: Tue, 8 Sep 2009 07:13:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
+In-Reply-To: <20090908073119.GA29902@wotan.suse.de>
+Message-ID: <alpine.LFD.2.01.0909080712200.7458@localhost.localdomain>
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072238320.15430@sister.anvils> <20090908073119.GA29902@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Sep 2009, Peter Zijlstra wrote:
 
-> This is about avoiding work when there is non, clearly when an
-> application does use the kernel it creates work.
 
-Hmmm. The lru draining in page migration is to reduce the number of pages
-that are not on the lru to increase the chance of page migration to be
-successful. A page on a per cpu list cannot be drained.
+On Tue, 8 Sep 2009, Nick Piggin wrote:
+> 
+> Without looking closely, why is it a big problem to have a
+> !HAVE PTE SPECIAL case? Couldn't it just be a check for
+> pfn == zero_pfn that is conditionally compiled away for pte
+> special architectures anyway?
 
-Reducing the number of cpus where we perform the drain results in
-increased likelyhood that we cannot migrate a page because its on the per
-cpu lists of a cpu not covered.
+At least traditionally, there wasn't a single zero_pfn, but multiple (for 
+VIPT caches that have performance issues with aliases). But yeah, we could 
+check just the pfn number, and allow any architecture to do it.
 
-On the other hand if the cpu is offline then we know that it has no per
-cpu pages. That is why I found the idea of the OFFLINE
-scheduler attractive.
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
