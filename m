@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 81F3F6B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 12:11:33 -0400 (EDT)
-Subject: Re: [PATCH v3 2/5] kmemleak: add clear command support
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <1252111494-7593-3-git-send-email-lrodriguez@atheros.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 250646B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 12:14:33 -0400 (EDT)
+Received: from mail.atheros.com ([10.10.20.105])
+	by sidewinder.atheros.com
+	for <linux-mm@kvack.org>; Tue, 08 Sep 2009 09:14:37 -0700
+Date: Tue, 8 Sep 2009 09:14:32 -0700
+From: "Luis R. Rodriguez" <lrodriguez@atheros.com>
+Subject: Re: [PATCH v3 0/5] kmemleak: few small cleanups and clear command
+ support
+Message-ID: <20090908161432.GA8839@mosca>
 References: <1252111494-7593-1-git-send-email-lrodriguez@atheros.com>
-	 <1252111494-7593-3-git-send-email-lrodriguez@atheros.com>
-Content-Type: text/plain
-Date: Tue, 08 Sep 2009 17:11:28 +0100
-Message-Id: <1252426288.12145.112.camel@pc1117.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1252344570.23780.110.camel@pc1117.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1252344570.23780.110.camel@pc1117.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
-To: "Luis R. Rodriguez" <lrodriguez@Atheros.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, mcgrof@gmail.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Luis Rodriguez <Luis.Rodriguez@Atheros.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "penberg@cs.helsinki.fi" <penberg@cs.helsinki.fi>, "mcgrof@gmail.com" <mcgrof@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-09-04 at 17:44 -0700, Luis R. Rodriguez wrote:
->  /*
-> + * We use grey instead of black to ensure we can do future
-> + * scans on the same objects. If we did not do future scans
-> + * these black objects could potentially contain references to
-> + * newly allocated objects in the future and we'd end up with
-> + * false positives.
-> + */
-> +static void kmemleak_clear(void)
-> +{
-> +	struct kmemleak_object *object;
-> +	unsigned long flags;
-> +
-> +	stop_scan_thread();
-> +
-> +	rcu_read_lock();
-> +	list_for_each_entry_rcu(object, &object_list, object_list) {
-> +		spin_lock_irqsave(&object->lock, flags);
-> +		if ((object->flags & OBJECT_REPORTED) &&
-> +		    unreferenced_object(object))
-> +			object->min_count = -1;
-> +		spin_unlock_irqrestore(&object->lock, flags);
-> +	}
-> +	rcu_read_unlock();
-> +
-> +	start_scan_thread();
-> +}
+On Mon, Sep 07, 2009 at 10:29:30AM -0700, Catalin Marinas wrote:
+> On Fri, 2009-09-04 at 17:44 -0700, Luis R. Rodriguez wrote:
+> > Here is my third respin, this time rebased ontop of:
+> >
+> > git://linux-arm.org/linux-2.6 kmemleak
+> >
+> > As suggested by Catalin we now clear the list by only painting reported
+> > unreferenced objects and the color we use is grey to ensure future
+> > scans are possible on these same objects to account for new allocations
+> > in the future referenced on the cleared objects.
+> >
+> > Patch 3 is now a little different, now with a paint_ptr() and
+> > a __paint_it() helper.
+> 
+> Thanks for the patches. They look ok now, I'll merge them tomorrow to my
+> kmemleak branch and give them a try.
+> 
+> > I tested this by clearing kmemleak after bootup, then writing my
+> > own buggy module which kmalloc()'d onto some internal pointer,
+> > scanned, unloaded, and scanned again and then saw a new shiny
+> > report come up:
+> 
+> BTW, kmemleak comes with a test module which does this.
 
-Do we need to stop and start the scanning thread here? When starting it,
-it will trigger a memory scan automatically. I don't think we want this
-as a side-effect, so I dropped these lines from your patch.
+Thanks for the note, I'll use this in case I need to test more stuff.
 
-Also you set min_count to -1 here which means black object, so a
-subsequent patch corrects it. I'll set min_count to 0 here in case
-anyone bisects over it.
-
--- 
-Catalin
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
