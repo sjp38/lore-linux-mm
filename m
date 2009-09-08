@@ -1,119 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D5EF46B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 17:41:07 -0400 (EDT)
-Date: Tue, 8 Sep 2009 22:41:10 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
-	mempolicy based management.
-Message-ID: <20090908214109.GB6481@csn.ul.ie>
-References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160351.11080.21379.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0909031254380.26408@chino.kir.corp.google.com> <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com> <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie> <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A15AA6B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 18:19:54 -0400 (EDT)
+Date: Tue, 8 Sep 2009 15:18:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/4] mm: Introduce revoke_file_mappings.
+Message-Id: <20090908151853.d313c834.akpm@linux-foundation.org>
+In-Reply-To: <m1bplqwlzr.fsf@fess.ebiederm.org>
+References: <m1fxb2wm0z.fsf@fess.ebiederm.org>
+	<m1bplqwlzr.fsf@fess.ebiederm.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, adobriyan@gmail.com, gregkh@suse.de, tj@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 01:18:01PM -0700, David Rientjes wrote:
-> On Tue, 8 Sep 2009, Mel Gorman wrote:
+On Fri, 04 Sep 2009 12:25:28 -0700
+ebiederm@xmission.com (Eric W. Biederman) wrote:
+
 > 
-> > > Au contraire, the hugepages= kernel parameter is not restricted to any 
-> > > mempolicy.
-> > > 
-> > 
-> > I'm not seeing how it would be considered symmetric to compare allocation
-> > at a boot-time parameter with freeing happening at run-time within a mempolicy.
-> > It's more plausible to me that such a scenario will having the freeing
-> > thread either with no policy or the ability to run with no policy
-> > applied.
-> > 
+> When the backing store of a file becomes inaccessible we need a
+> function to remove that file from the page tables and arrange for page
+> faults to receive SIGBUS until the file is unmapped.
 > 
-> Imagine a cluster of machines that are all treated equally to serve a 
-> variety of different production jobs.  One of those production jobs 
-> requires a very high percentage of hugepages.  In fact, its performance 
-> gain is directly proportional to the number of hugepages allocated.
+> The current implementation in sysfs almost gets this correct by
+> intercepting vm_ops, but fails to call vm_ops->close on revoke and in
+> fact does not have quite enough information available to do so.  Which
+> can result in leaks for any vm_ops that depend on close to drop
+> reference counts.
 > 
-> It is quite plausible for all machines to be booted with hugepages= to 
-> achieve the maximum number of hugepages that those machines may support.  
-> Depending on what jobs they will serve, however, those hugepages may 
-> immediately be freed (or a subset, depending on other smaller jobs that 
-> may want them.)  If the job scheduler is bound to a mempolicy which does 
-> not include all nodes with memory, those hugepages are now leaked. 
-
-Why is a job scheduler that is expecting to affect memory on a global
-basis running inside a mempolicy that restricts it to a subset of nodes?
-It seems inconsistent that an isolated job starting could affect the global
-state potentially affecting other jobs starting up.
-
-In addition, if it is the case that the jobs performance is directly
-proportional to the number of hugepages it gets access to, why is it starting
-up with access to only a subset of the available hugepages? Why is it not
-being setup to being the first job to start on a freshly booting machine,
-starting on the subset of nodes allowed and requesting the maximum number
-of hugepages it needs such that it achieves maximum performance? With the
-memory policy approach, it's very straight-forward to do this because all
-it has to do is write to nr_hugepages when it starts-up.
-
-> That 
-> was not the behavior over the past three or four years until this 
-> patchset.
+> It turns out that revoke_file_mapping is less code and a more straight
+> forward solution to the problem (except for the locking), as well as
+> being a general solution that can work for any mmapped and is not
+> limited to sysfs.
 > 
-
-While this is true, I know people have also been bitten by the expectation
-that writing to nr_hugepages would obey a memory policy and were surprised
-when it didn't happen and sent me whinging emails. It also appeared obvious
-to me that it's how the interface should behave even if it wasn't doing it
-in practice. Once nr_hugepages obeys memory policies, it's fairly convenient
-to size the number of pages on a subset of nodes using numactl - a tool that
-people would generally expect to be used when operating on nodes. Hence the
-example usage being
-
-numactl -m x,y,z hugeadm --pool-pages-min $PAGESIZE:$NUMPAGES
-
-> That example is not dealing in hypotheticals or assumptions on how people 
-> use hugepages, it's based on reality.  As I said previously, I don't 
-> necessarily have an objection to that if it can be shown that the 
-> advantages significantly outweigh the disadvantages.  I'm not sure I see 
-> the advantage in being implict vs. explicit, however. 
-
-The advantage is that with memory policies on nr_hugepages, it's very
-convenient to allocate pages within a subset of nodes without worrying about
-where exactly those huge pages are being allocated from. It will allocate
-them on a round-robin basis allocating more pages on one node over another
-if fragmentation requires it rather than shifting the burden to a userspace
-application figuring out what nodes might succeed an allocation or shifting
-the burden onto the system administrator. It's likely that writing to the
-global nr_hugepages within a mempolicy will end up with a more sensible
-result than a userspace application dealing with the individual node-specific
-nr_hugepages files.
-
-To do the same with the explicit interface, a userspace application
-or administrator would have to keep reading the existing nr_hugepages,
-writing existing_nr_hugepages+1 to each node in the allowed set, re-reading
-to check for allocating failure and round-robining by hand.  This seems
-awkward-for-the-sake-of-being-awkward when the kernel is already prefectly
-aware of how to round-robin allocate the requested number of nodes allocating
-more on one node if necessary.
-
-> Mempolicy 
-> allocation and freeing is now _implicit_ because its restricted to 
-> current's mempolicy when it wasn't before, yet node-targeted hugepage 
-> allocation and freeing is _explicit_ because it's a new interface and on 
-> the same granularity.
+> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
+> ---
+>  include/linux/mm.h |    2 +
+>  mm/memory.c        |  140 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 142 insertions(+), 0 deletions(-)
 > 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 9a72cc7..eb6cecb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -790,6 +790,8 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
+>  	unmap_mapping_range(mapping, holebegin, holelen, 0);
+>  }
+>  
+> +extern void revoke_file_mappings(struct file *file);
+> +
+>  extern int vmtruncate(struct inode * inode, loff_t offset);
+>  extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index aede2ce..4b47116 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
 
-Arguably because the application was restricted by a memory policy, it
-should not be able to operating outside of that policy and be forbidden
-from writing to per-node-nr_hugepages outside the allowed set.  However,
-that would appear awkward for the sake of it.
+mm/memory.c is large, messy and ill-defined.  I think this new code
+would fit nicely into a new mm/revoke.c?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> @@ -55,6 +55,7 @@
+>  #include <linux/kallsyms.h>
+>  #include <linux/swapops.h>
+>  #include <linux/elf.h>
+> +#include <linux/file.h>
+>  
+>  #include <asm/pgalloc.h>
+>  #include <asm/uaccess.h>
+> @@ -2410,6 +2411,145 @@ void unmap_mapping_range(struct address_space *mapping,
+>  }
+>  EXPORT_SYMBOL(unmap_mapping_range);
+>  
+> +static int revoked_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+> +{
+> +	return VM_FAULT_SIGBUS;
+> +}
+> +
+> +static struct vm_operations_struct revoked_vm_ops = {
+> +	.fault	= revoked_fault,
+> +};
+> +
+> +static void revoke_one_file_vma(struct file *file,
+> +	struct mm_struct *mm, unsigned long vma_addr)
+
+It'd be nice to have a comment explaining what this function does, how
+it does it, etc.
+
+> +{
+> +	unsigned long start_addr, end_addr, size;
+> +	struct vm_area_struct *vma;
+> +
+> +	/*
+> +	 * Must be called with mmap_sem held for write.
+> +	 *
+> +	 * Holding the mmap_sem prevents all vm_ops operations from
+> +	 * being called as well as preventing all other kinds of
+> +	 * modifications to the mm.
+
+Does it?  I'm surprised that we'd have 100% coverage for a rule this
+broad.
+
+> +	 */
+> +
+> +	/* Lookup a vma for my file address */
+> +	vma = find_vma(mm, vma_addr);
+> +	if (vma->vm_file != file)
+
+What does it mean when this comparison failed?
+
+> +		return;
+> +
+> +	start_addr = vma->vm_start;
+> +	end_addr   = vma->vm_end;
+> +	size	   = end_addr - start_addr;
+> +
+> +	/* Unlock the pages */
+
+A "locked page" in the kernel has a specific meaning, and "being in a
+VMA which has VM_LOCKED set" isn't it ;)
+
+> +	if (mm->locked_vm && (vma->vm_flags & VM_LOCKED)) {
+> +		mm->locked_vm -= vma_pages(vma);
+> +		vma->vm_flags &= ~VM_LOCKED;
+
+So if ->locked_vm happens to be zero, we don't clear VM_LOCKED.  Is
+that a bug?
+
+> +	}
+> +
+> +	/* Unmap the vma */
+
+"Unmap the pages within the vma"
+
+> +	zap_page_range(vma, start_addr, size, NULL);
+> +
+> +	/* Unlink the vma from the file */
+> +	unlink_file_vma(vma);
+> +
+> +	/* Close the vma */
+> +	if (vma->vm_ops && vma->vm_ops->close)
+> +		vma->vm_ops->close(vma);
+> +	fput(vma->vm_file);
+> +	vma->vm_file = NULL;
+> +	if (vma->vm_flags & VM_EXECUTABLE)
+> +		removed_exe_file_vma(vma->vm_mm);
+> +
+> +	/* Repurpose the vma  */
+> +	vma->vm_private_data = NULL;
+> +	vma->vm_ops = &revoked_vm_ops;
+> +	vma->vm_flags &= ~(VM_NONLINEAR | VM_CAN_NONLINEAR | VM_PFNMAP);
+
+geeze, where did this decision come from?  Needs explanatory comments?
+
+> +}
+> +
+> +void revoke_file_mappings(struct file *file)
+
+Again, the semantics and intent of this code can only be divined by
+reverse-engineering the implementation.  This makes it hard to review
+and harder to maintainer.
+
+> +{
+> +	/* After a file has been marked dead update the vmas */
+> +	struct address_space *mapping = file->f_mapping;
+> +	struct vm_area_struct *vma;
+> +	struct prio_tree_iter iter;
+> +	unsigned long start_address;
+> +	struct mm_struct *mm;
+> +	int mm_users;
+> +
+> +	/*
+> +	 * The locking here is a bit complex.
+> +	 *
+> +	 * - revoke_one_file_vma needs to be able to sleep so it can
+> +         *   call vm_ops->close().
+
+whitespace went funny.
+
+> +	 *
+> +	 * - i_mmap_lock needs to be held to iterate the list of vmas
+> +	 *   for a file.
+> +	 *
+> +	 * - The mm can be exiting when we find the vma on our list.
+> +	 *
+> +	 * - This function can not return until we can guarantee for
+> +	 *   all vmas associated with file that no vm_ops method will
+> +	 *   be called.
+> +	 *
+> +	 * This code increments mm_users to ensure that the mm will
+> +	 * not go away after it drops i_mmap_lock, and then grabs
+> +	 * mmap_sem for write to block all other modifications to the
+> +	 * mm, before refinding the the vma and removing it.
+> +	 *
+> +	 * If mm_users is already 0 indicated that exit_mmap is
+> +	 * running on the mm the code simply drop the locks and sleeps
+> +	 * giving exit_mmap a chance to finish.  If exit_mmap has not
+> +	 * freed our vma when we rescan the list we repeat until it has.
+> +	 */
+
+All the above makes one wonder "in what contexts can this function be
+called" and "what are its calling preconditions".
+
+
+> +	spin_lock(&mapping->i_mmap_lock);
+> +restart_tree:
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX) {
+> +		/* Skip quickly over vmas that do not need to be touched */
+> +		if (vma->vm_file != file)
+> +			continue;
+
+We check this again in revoke_one_file_vma().  How come?  Avoiding
+races perhaps?  I don't know, and I don't know how to find out.
+
+> +		start_address = vma->vm_start;
+> +		mm = vma->vm_mm;
+> +		mm_users = atomic_inc_not_zero(&mm->mm_users);
+> +		spin_unlock(&mapping->i_mmap_lock);
+> +		if (mm_users) {
+> +			down_write(&mm->mmap_sem);
+> +			revoke_one_file_vma(file, mm, start_address);
+> +			up_write(&mm->mmap_sem);
+> +			mmput(mm);
+> +		} else {
+> +			schedule(); /* wait for exit_mmap to remove the vma */
+
+This doesn't "wait" for anything.  It's a no-op unless need_resched()
+happens to be true.
+
+> +		}
+> +		spin_lock(&mapping->i_mmap_lock);
+> +		goto restart_tree;
+> +	}
+> +
+> +restart_list:
+> +	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list) {
+> +		/* Skip quickly over vmas that do not need to be touched */
+> +		if (vma->vm_file != file)
+> +			continue;
+> +		start_address = vma->vm_start;
+> +		mm = vma->vm_mm;
+> +		mm_users = atomic_inc_not_zero(&mm->mm_users);
+> +		spin_unlock(&mapping->i_mmap_lock);
+> +		if (mm_users) {
+> +			down_write(&mm->mmap_sem);
+> +			revoke_one_file_vma(file, mm, start_address);
+> +			up_write(&mm->mmap_sem);
+> +			mmput(mm);
+> +		} else {
+> +			schedule(); /* wait for exit_mmap to remove the vma */
+> +		}
+> +		spin_lock(&mapping->i_mmap_lock);
+> +		goto restart_list;
+> +	}
+> +
+> +	spin_unlock(&mapping->i_mmap_lock);
+> +}
+> +
+>  /**
+>   * vmtruncate - unmap mappings "freed" by truncate() syscall
+>   * @inode: inode of the file used
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
