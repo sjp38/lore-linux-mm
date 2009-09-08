@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 33A566B0085
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 12:42:08 -0400 (EDT)
-Date: Tue, 8 Sep 2009 17:40:50 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 7/8] mm: reinstate ZERO_PAGE
-In-Reply-To: <20090908153441.GB29902@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0909081735230.18233@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
- <Pine.LNX.4.64.0909072238320.15430@sister.anvils> <20090908073119.GA29902@wotan.suse.de>
- <Pine.LNX.4.64.0909081258160.25652@sister.anvils> <20090908153441.GB29902@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D2BAD6B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 13:00:04 -0400 (EDT)
+Date: Tue, 8 Sep 2009 19:00:02 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
+Message-ID: <20090908170002.GD29902@wotan.suse.de>
+References: <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu> <20090424104137.GA7601@sgi.com> <E1LxMlO-0000sU-1J@pomaz-ex.szeredi.hu> <1240592448.4946.35.camel@heimdal.trondhjem.org> <20090425051028.GC10088@wotan.suse.de> <20090908153007.GB2513@think> <20090908154132.GC29902@wotan.suse.de> <20090908163149.GB2975@think>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090908163149.GB2975@think>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Chris Mason <chris.mason@oracle.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Miklos Szeredi <miklos@szeredi.hu>, holt@sgi.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Sep 2009, Nick Piggin wrote:
-> On Tue, Sep 08, 2009 at 01:17:01PM +0100, Hugh Dickins wrote:
-> > By the way, in compiling that list of "special" architectures,
-> > I was surprised not to find ia64 amongst them.  Not that it
-> > matters to me, but I thought the Fujitsu guys were usually
-> > keen on Itanium - do they realize that the special test is
-> > excluding it, or do they have their own special patch for it?
+On Tue, Sep 08, 2009 at 12:31:49PM -0400, Chris Mason wrote:
+> On Tue, Sep 08, 2009 at 05:41:32PM +0200, Nick Piggin wrote:
+> > It hasn't fallen completely off my radar. fsblock has the same issue
+> > (although I've just been ignoring gup writes into fsblock fs for the
+> > time being).
 > 
-> I don't understand your question. Are you asking whether they
-> know your patch will not enable zero pages on ia64?
+> Ok, I'll change my detection code a bit then.
 
-That's what I was meaning to ask, yes; but wondering whether
-perhaps they've already got their own patch to enable pte_special
-on ia64, and just haven't got around to sending it in yet.
+OK.
 
+
+> > I have a basic idea of what to do... It would be nice to change calling
+> > convention of get_user_pages and take the page lock. Database people might
+> > scream, in which case we could only take the page lock for filesystems that
+> > define ->page_mkwrite (so shared mem segments avoid the overhead). Lock
+> > ordering might get a bit interesting, but if we can have callers ensure they
+> > always submit and release partially fulfilled requirests, then we can always
+> > trylock them.
 > 
-> I guess pte special was primarily driven by gup_fast, which in
-> turn was driven primarily by DB2 9.5, which I think might be
-> only available on x86 and ibm's architectures.
-> 
-> But I admit to being a curious as to when I'll see a gup_fast
-> patch come out of SGI or HP or Fujitsu :)
+> I think everyone will have page_mkwrite eventually, at least everyone
+> who the databases will care about ;)
 
-Yes, me too!
+Ah, the problem is not where the DIO write goes, it's where the read
+goes :) (ie. the read writes into get_user_pages pages).
 
-Hugh
+So for databases this should typically be shared memory segments I'd
+say (tmpfs), or maybe anonymous memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
