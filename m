@@ -1,113 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A5BF26B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 06:41:24 -0400 (EDT)
-Subject: Re: [RFC PATCH] v2 mm: balance_dirty_pages.  reduce calls to
- global_page_state to reduce cache references
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-In-Reply-To: <1252317986.2348.15.camel@castor>
-References: <1252062330.2271.61.camel@castor>
-	 <20090906035537.GA16063@localhost>  <1252317986.2348.15.camel@castor>
-Content-Type: text/plain
-Date: Tue, 08 Sep 2009 11:41:23 +0100
-Message-Id: <1252406483.2269.12.camel@castor>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 014E16B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 06:44:05 -0400 (EDT)
+Date: Tue, 8 Sep 2009 11:44:09 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
+	mempolicy based management.
+Message-ID: <20090908104409.GB28127@csn.ul.ie>
+References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160351.11080.21379.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0909031254380.26408@chino.kir.corp.google.com> <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "chris.mason" <chris.mason@oracle.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-09-07 at 11:06 +0100, Richard Kennedy wrote:
-> On Sun, 2009-09-06 at 11:55 +0800, Wu Fengguang wrote:
-> > On Fri, Sep 04, 2009 at 07:05:30PM +0800, Richard Kennedy wrote:
-> > > Reducing the number of times balance_dirty_pages calls global_page_state
-> > > reduces the cache references and so improves write performance on a
-> > > variety of workloads.
-> > > 
-> > > 'perf stats' of simple fio write tests shows the reduction in cache
-> > > access.
-> > > Where the test is fio 'write,mmap,600Mb,pre_read' on AMD AthlonX2 with
-> > > 3Gb memory (dirty_threshold approx 600 Mb)
-> > > running each test 10 times, dropping the fasted & slowest values then
-> > > taking 
-> > > the average & standard deviation
-> > > 
-> > > 		average (s.d.) in millions (10^6)
-> > > 2.6.31-rc8	648.6 (14.6)
-> > > +patch		620.1 (16.5)
-> > > 
-> > > Achieving this reduction is by dropping clip_bdi_dirty_limit as it  
-> > > rereads the counters to apply the dirty_threshold and moving this check
-> > > up into balance_dirty_pages where it has already read the counters.
-> > > 
-> > > Also by rearrange the for loop to only contain one copy of the limit
-> > > tests allows the pdflush test after the loop to use the local copies of
-> > > the counters rather than rereading them.
-> > > 
-> > > In the common case with no throttling it now calls global_page_state 5
-> > > fewer times and bdi_stat 2 fewer.
-> > > 
-> > > This version includes the changes suggested by 
-> > > Wu Fengguang <fengguang.wu@intel.com>
-> > 
-> > It seems that an redundant pages_written test can be reduced by
-> > 
-> > --- linux.orig/mm/page-writeback.c	2009-09-06 11:44:39.000000000 +0800
-> > +++ linux/mm/page-writeback.c	2009-09-06 11:44:42.000000000 +0800
-> > @@ -526,10 +526,6 @@ static void balance_dirty_pages(struct a
-> >  		    (background_thresh + dirty_thresh) / 2)
-> >  			break;
-> >  
-> > -		/* done enough? */
-> > -		if (pages_written >= write_chunk)
-> > -			break;
-> > -
-> >  		if (!bdi->dirty_exceeded)
-> >  			bdi->dirty_exceeded = 1;
-> >  
-> > @@ -547,7 +543,7 @@ static void balance_dirty_pages(struct a
-> >  			pages_written += write_chunk - wbc.nr_to_write;
-> >  			/* don't wait if we've done enough */
-> >  			if (pages_written >= write_chunk)
-> > -				continue;
-> > +				break;
-> >  		}
-> >  		congestion_wait(BLK_RW_ASYNC, HZ/10);
-> >  	}
-> > 
-> > Otherwise the patch looks good to me. Thank you for the nice work!
-> > 
-> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > 
-> Thank you.
+On Thu, Sep 03, 2009 at 02:25:56PM -0700, David Rientjes wrote:
+> On Thu, 3 Sep 2009, Lee Schermerhorn wrote:
 > 
-> I'll give your suggestion a try & run some tests. I think you're right
-> it should be better. Not re-reading the global counters again should be
-> of some benefit!
-> regards
-> Richard
+> > > > @@ -53,26 +51,25 @@ HugePages_Surp  is short for "surplus,"
+> > > >  /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
+> > > >  in the kernel.
+> > > >  
+> > > > -/proc/sys/vm/nr_hugepages indicates the current number of configured hugetlb
+> > > > -pages in the kernel.  Super user can dynamically request more (or free some
+> > > > -pre-configured) huge pages.
+> > > > -The allocation (or deallocation) of hugetlb pages is possible only if there are
+> > > > -enough physically contiguous free pages in system (freeing of huge pages is
+> > > > -possible only if there are enough hugetlb pages free that can be transferred
+> > > > -back to regular memory pool).
+> > > > -
+> > > > -Pages that are used as hugetlb pages are reserved inside the kernel and cannot
+> > > > -be used for other purposes.
+> > > > -
+> > > > -Once the kernel with Hugetlb page support is built and running, a user can
+> > > > -use either the mmap system call or shared memory system calls to start using
+> > > > -the huge pages.  It is required that the system administrator preallocate
+> > > > -enough memory for huge page purposes.
+> > > > -
+> > > > -The administrator can preallocate huge pages on the kernel boot command line by
+> > > > -specifying the "hugepages=N" parameter, where 'N' = the number of huge pages
+> > > > -requested.  This is the most reliable method for preallocating huge pages as
+> > > > -memory has not yet become fragmented.
+> > > > +/proc/sys/vm/nr_hugepages indicates the current number of huge pages pre-
+> > > > +allocated in the kernel's huge page pool.  These are called "persistent"
+> > > > +huge pages.  A user with root privileges can dynamically allocate more or
+> > > > +free some persistent huge pages by increasing or decreasing the value of
+> > > > +'nr_hugepages'.
+> > > > +
+> > > 
+> > > So they're not necessarily "preallocated" then if they're already in use.
+> > 
+> > I don't see what in the text you're referring to"  "preallocated" vs
+> > "already in use" ???
+> > 
 > 
-I've tried this change and ran a series of tests overnight but it turns
-out to be worse. The existing patch does better overall.
+> Your new line, "/proc/sys/vm/nr_hugepages indicates the current number of 
+> huge pages preallocated in the kernel's huge page pool" doesn't seem 
+> correct since pages are not "pre"-allocated if they are used by an 
+> application.  Preallocation is only when pages are allocated for a 
+> performance optimization in a later hotpath (such as in a slab allocator) 
+> or when the allocation cannot be done later in a non-blocking context.  If 
+> you were to remove "pre" from that line it would be clear.
+> 
+> > > Not sure if you need to spell out that they're called "huge page allowed 
+> > > nodes," isn't that an implementation detail?  The way Paul Jackson used to 
+> > > describe nodes_allowed is "set of allowable nodes," and I can't think of a 
+> > > better phrase.  That's also how the cpuset documentation describes them.
+> > 
+> > I wanted to refer to "huge pages allowed nodes" to differentiate from,
+> > e.g., cpusets mems_allowed"--i.e., I wanted the "huge pages" qualifier.
+> > I suppose I could introduce the phrase you suggest:  "set of allowable
+> > nodes" and emphasize that in this doc, it only refers to nodes from
+> > which persistent huge pages will be allocated.
+> > 
+> 
+> It's a different story if you want to use the phrase "allowed nodes" 
+> throughout this document to mean "the set of allowed nodes from which to 
+> allocate hugepages depending on the allocating task's mempolicy," but I 
+> didn't see any future reference to that phrase in your changes anyway.
+> 
+> > I understand.  However, I do think it's useful to support both a mask
+> > [and Mel prefers it be based on mempolicy] and per node attributes.  On
+> > some of our platforms, we do want explicit control over the placement of
+> > huge pages--e.g., for a data base shared area or such.  So, we can say,
+> > "I need <N> huge pages, and I want them on nodes 1, 3, 4 and 5", and
+> > then, assuming we start with no huge pages allocated [free them all if
+> > this is not the case]:
+> > 
+> > 	numactl -m 1,3-5 hugeadm --pool-pages-min 2M:<N>
+> > 
+> > Later, if I decide that maybe I want to adjust the number on node 1, I
+> > can:
+> > 
+> > 	numactl -m 1 --pool-pages-min 2M:{+|-}<count>
+> > 
+> > or:
+> > 
+> > 	echo <new-value> >/sys/devices/system/node/node1/hugepages/hugepages-2048KB/nr_hugepages
+> > 
+> > [Of course, I'd probably do this in a script to avoid all that typing :)]
+> > 
+> 
+> Yes, but the caveat I'm pointing out (and is really clearly described in 
+> your documentation changes here) is that existing applications, shell 
+> scripts, job schedulers, whatever, which currently free all system 
+> hugepages (or do so at a consistent interval down to the surplus 
+> value to reclaim memory) will now leak disjoint pages since the freeing is 
+> now governed by its mempolicy. 
 
-e.g. fio 600mb
-cache references average (s.d.) in millions (10^6)
+While this is a possibility, it makes little sense to assume that behaviour. To
+be really bitten by the change, the policy used to allocate huge pages needs
+to be different than the policy used to free them. This would be a bit
+screwy as it would imply the job scheduler allocated pages that would
+then be unusable by the job if policies were being obeyed which makes
+very little sense.
 
-2.6.31-rc8	648.6 (14.6)
-+patch		620.1 (16.5)
-patch+change	635.6 (10.2)
+> If the benefits of doing this 
+> significantly outweigh that potential for userspace breakage, I have no 
+> objection to it.  I just can't say for certain that it is.
+> 
 
-I'm not sure how to trace this to work out exactly why, but without the
-change the patch is closer to the behavior of the existing code.
+An application depending on memory policies to be ignored is pretty broken
+to begin with.
 
-So I think we should go with it as is.
-
-regards
-Richard
- 
-
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
