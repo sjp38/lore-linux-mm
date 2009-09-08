@@ -1,29 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7EB066B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 14:57:01 -0400 (EDT)
-Message-ID: <4AA6A8FC.9080301@redhat.com>
-Date: Tue, 08 Sep 2009 14:57:00 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 469D96B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 15:00:05 -0400 (EDT)
+Message-ID: <4AA6A989.60907@redhat.com>
+Date: Tue, 08 Sep 2009 14:59:21 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] mm: add get_dump_page
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072231120.15430@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909072231120.15430@sister.anvils>
+Subject: Re: [PATCH 4/8] mm: FOLL_DUMP replace FOLL_ANON
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072233240.15430@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0909072233240.15430@sister.anvils>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jeff Chua <jeff.chua.linux@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> In preparation for the next patch, add a simple get_dump_page(addr)
-> interface for the CONFIG_ELF_CORE dumpers to use, instead of calling
-> get_user_pages() directly.  They're not interested in errors: they
-> just want to use holes as much as possible, to save space and make
-> sure that the data is aligned where the headers said it would be.
+> The "FOLL_ANON optimization" and its use_zero_page() test have caused
+> confusion and bugs: why does it test VM_SHARED? for the very good but
+> unsatisfying reason that VMware crashed without.  As we look to maybe
+> reinstating anonymous use of the ZERO_PAGE, we need to sort this out.
 > 
-> Oh, and don't use that horrid DUMP_SEEK(off) macro!
+> Easily done: it's silly for __get_user_pages() and follow_page() to
+> be guessing whether it's safe to assume that they're being used for
+> a coredump (which can take a shortcut snapshot where other uses must
+> handle a fault) - just tell them with GUP_FLAGS_DUMP and FOLL_DUMP.
+> 
+> get_dump_page() doesn't even want a ZERO_PAGE: an error suits fine.
 > 
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
