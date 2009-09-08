@@ -1,81 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3165F6B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 16:04:51 -0400 (EDT)
-Date: Tue, 8 Sep 2009 21:04:51 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
-	mempolicy based management.
-Message-ID: <20090908200451.GA6481@csn.ul.ie>
-References: <20090828160314.11080.18541.sendpatchset@localhost.localdomain> <20090828160351.11080.21379.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0909031254380.26408@chino.kir.corp.google.com> <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com> <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6B5BC6B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 16:16:14 -0400 (EDT)
+Date: Tue, 8 Sep 2009 23:14:28 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <20090908201428.GA12420@redhat.com>
+References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com>
+In-Reply-To: <20090908172035.GB319@ovro.caltech.edu>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: "Ira W. Snyder" <iws@ovro.caltech.edu>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 12:51:48PM -0700, David Rientjes wrote:
-> On Tue, 8 Sep 2009, Mel Gorman wrote:
-> 
-> > > Yes, but the caveat I'm pointing out (and is really clearly described in 
-> > > your documentation changes here) is that existing applications, shell 
-> > > scripts, job schedulers, whatever, which currently free all system 
-> > > hugepages (or do so at a consistent interval down to the surplus 
-> > > value to reclaim memory) will now leak disjoint pages since the freeing is 
-> > > now governed by its mempolicy. 
+On Tue, Sep 08, 2009 at 10:20:35AM -0700, Ira W. Snyder wrote:
+> On Mon, Sep 07, 2009 at 01:15:37PM +0300, Michael S. Tsirkin wrote:
+> > On Thu, Sep 03, 2009 at 11:39:45AM -0700, Ira W. Snyder wrote:
+> > > On Thu, Aug 27, 2009 at 07:07:50PM +0300, Michael S. Tsirkin wrote:
+> > > > What it is: vhost net is a character device that can be used to reduce
+> > > > the number of system calls involved in virtio networking.
+> > > > Existing virtio net code is used in the guest without modification.
+> > > > 
+> > > > There's similarity with vringfd, with some differences and reduced scope
+> > > > - uses eventfd for signalling
+> > > > - structures can be moved around in memory at any time (good for migration)
+> > > > - support memory table and not just an offset (needed for kvm)
+> > > > 
+> > > > common virtio related code has been put in a separate file vhost.c and
+> > > > can be made into a separate module if/when more backends appear.  I used
+> > > > Rusty's lguest.c as the source for developing this part : this supplied
+> > > > me with witty comments I wouldn't be able to write myself.
+> > > > 
+> > > > What it is not: vhost net is not a bus, and not a generic new system
+> > > > call. No assumptions are made on how guest performs hypercalls.
+> > > > Userspace hypervisors are supported as well as kvm.
+> > > > 
+> > > > How it works: Basically, we connect virtio frontend (configured by
+> > > > userspace) to a backend. The backend could be a network device, or a
+> > > > tun-like device. In this version I only support raw socket as a backend,
+> > > > which can be bound to e.g. SR IOV, or to macvlan device.  Backend is
+> > > > also configured by userspace, including vlan/mac etc.
+> > > > 
+> > > > Status:
+> > > > This works for me, and I haven't see any crashes.
+> > > > I have done some light benchmarking (with v4), compared to userspace, I
+> > > > see improved latency (as I save up to 4 system calls per packet) but not
+> > > > bandwidth/CPU (as TSO and interrupt mitigation are not supported).  For
+> > > > ping benchmark (where there's no TSO) troughput is also improved.
+> > > > 
+> > > > Features that I plan to look at in the future:
+> > > > - tap support
+> > > > - TSO
+> > > > - interrupt mitigation
+> > > > - zero copy
+> > > > 
+> > > 
+> > > Hello Michael,
+> > > 
+> > > I've started looking at vhost with the intention of using it over PCI to
+> > > connect physical machines together.
+> > > 
+> > > The part that I am struggling with the most is figuring out which parts
+> > > of the rings are in the host's memory, and which parts are in the
+> > > guest's memory.
 > > 
-> > While this is a possibility, it makes little sense to assume that behaviour. To
-> > be really bitten by the change, the policy used to allocate huge pages needs
-> > to be different than the policy used to free them. This would be a bit
-> > screwy as it would imply the job scheduler allocated pages that would
-> > then be unusable by the job if policies were being obeyed which makes
-> > very little sense.
+> > All rings are in guest's memory, to match existing virtio code.
+> 
+> Ok, this makes sense.
+> 
+> > vhost
+> > assumes that the memory space of the hypervisor userspace process covers
+> > the whole of guest memory.
+> 
+> Is this necessary? Why?
+
+Because with virtio ring can give us arbitrary guest addresses.  If
+guest was limited to using a subset of addresses, hypervisor would only
+have to map these.
+
+> The assumption seems very wrong when you're
+> doing data transport between two physical systems via PCI.
+> I know vhost has not been designed for this specific situation, but it
+> is good to be looking toward other possible uses.
+> 
+> > And there's a translation table.
+> > Ring addresses are userspace addresses, they do not undergo translation.
+> > 
+> > > If I understand everything correctly, the rings are all userspace
+> > > addresses, which means that they can be moved around in physical memory,
+> > > and get pushed out to swap.
+> > 
+> > Unless they are locked, yes.
+> > 
+> > > AFAIK, this is impossible to handle when
+> > > connecting two physical systems, you'd need the rings available in IO
+> > > memory (PCI memory), so you can ioreadXX() them instead. To the best of
+> > > my knowledge, I shouldn't be using copy_to_user() on an __iomem address.
+> > > Also, having them migrate around in memory would be a bad thing.
+> > > 
+> > > Also, I'm having trouble figuring out how the packet contents are
+> > > actually copied from one system to the other. Could you point this out
+> > > for me?
+> > 
+> > The code in net/packet/af_packet.c does it when vhost calls sendmsg.
 > > 
 > 
-> Au contraire, the hugepages= kernel parameter is not restricted to any 
-> mempolicy.
-> 
+> Ok. The sendmsg() implementation uses memcpy_fromiovec(). Is it possible
+> to make this use a DMA engine instead?
 
-I'm not seeing how it would be considered symmetric to compare allocation
-at a boot-time parameter with freeing happening at run-time within a mempolicy.
-It's more plausible to me that such a scenario will having the freeing
-thread either with no policy or the ability to run with no policy
-applied.
+Maybe.
 
-> > > If the benefits of doing this 
-> > > significantly outweigh that potential for userspace breakage, I have no 
-> > > objection to it.  I just can't say for certain that it is.
+> I know this was suggested in an earlier thread.
+
+Yes, it might even give some performance benefit with e.g. I/O AT.
+
+> > > Is there somewhere I can find the userspace code (kvm, qemu, lguest,
+> > > etc.) code needed for interacting with the vhost misc device so I can
+> > > get a better idea of how userspace is supposed to work?
+> > 
+> > Look in archives for kvm@vger.kernel.org. the subject is qemu-kvm: vhost net.
+> > 
+> > > (Features
+> > > negotiation, etc.)
 > > > 
 > > 
-> > An application depending on memory policies to be ignored is pretty broken
-> > to begin with.
+> > That's not yet implemented as there are no features yet.  I'm working on
+> > tap support, which will add a feature bit.  Overall, qemu does an ioctl
+> > to query supported features, and then acks them with another ioctl.  I'm
+> > also trying to avoid duplicating functionality available elsewhere.  So
+> > that to check e.g. TSO support, you'd just look at the underlying
+> > hardware device you are binding to.
 > > 
 > 
-> Theoretically, yes, but not in practice.  /proc/sys/vm/nr_hugepages has 
-> always allocated and freed with disregard to current's mempolicy prior to 
-> this patchset and it wouldn't be "broken" for an application to assume 
-> that it will continue to do so. 
+> Ok. Do you have plans to support the VIRTIO_NET_F_MRG_RXBUF feature in
+> the future? I found that this made an enormous improvement in throughput
+> on my virtio-net <-> virtio-net system. Perhaps it isn't needed with
+> vhost-net.
 
-I don't think we're going to agree on this one. I find it very unlikely
-that the process doing the allocation and freeing is going to have
-different memory policies.
+Yes, I'm working on it.
 
-> More broken is assuming that such an 
-> application should have been written to change its mempolicy to include 
-> all nodes that have hugepages prior to freeing because someday the kernel 
-> would change to do mempolicy-restricted hugepage freeing.
-> 
-
-It wouldn't have to be rewritten. At very worst, rearranged at startup
-to have the same policy when allocating and freeing.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Thanks for replying,
+> Ira
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
