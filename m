@@ -1,47 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D2BAD6B007E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 13:00:04 -0400 (EDT)
-Date: Tue, 8 Sep 2009 19:00:02 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
-Message-ID: <20090908170002.GD29902@wotan.suse.de>
-References: <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu> <20090424104137.GA7601@sgi.com> <E1LxMlO-0000sU-1J@pomaz-ex.szeredi.hu> <1240592448.4946.35.camel@heimdal.trondhjem.org> <20090425051028.GC10088@wotan.suse.de> <20090908153007.GB2513@think> <20090908154132.GC29902@wotan.suse.de> <20090908163149.GB2975@think>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090908163149.GB2975@think>
+	by kanga.kvack.org (Postfix) with SMTP id 93F176B007E
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2009 13:10:13 -0400 (EDT)
+Message-ID: <4AA68FEB.6090703@redhat.com>
+Date: Tue, 08 Sep 2009 13:10:03 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/8] mm: munlock use follow_page
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072227140.15430@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0909072227140.15430@sister.anvils>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Miklos Szeredi <miklos@szeredi.hu>, holt@sgi.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hiroaki Wakabayashi <primulaelatior@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 12:31:49PM -0400, Chris Mason wrote:
-> On Tue, Sep 08, 2009 at 05:41:32PM +0200, Nick Piggin wrote:
-> > It hasn't fallen completely off my radar. fsblock has the same issue
-> > (although I've just been ignoring gup writes into fsblock fs for the
-> > time being).
-> 
-> Ok, I'll change my detection code a bit then.
+Hugh Dickins wrote:
+> Hiroaki Wakabayashi points out that when mlock() has been interrupted
+> by SIGKILL, the subsequent munlock() takes unnecessarily long because
+> its use of __get_user_pages() insists on faulting in all the pages
+> which mlock() never reached.
 
-OK.
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
+Nice cleanup.
 
-> > I have a basic idea of what to do... It would be nice to change calling
-> > convention of get_user_pages and take the page lock. Database people might
-> > scream, in which case we could only take the page lock for filesystems that
-> > define ->page_mkwrite (so shared mem segments avoid the overhead). Lock
-> > ordering might get a bit interesting, but if we can have callers ensure they
-> > always submit and release partially fulfilled requirests, then we can always
-> > trylock them.
-> 
-> I think everyone will have page_mkwrite eventually, at least everyone
-> who the databases will care about ;)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Ah, the problem is not where the DIO write goes, it's where the read
-goes :) (ie. the read writes into get_user_pages pages).
-
-So for databases this should typically be shared memory segments I'd
-say (tmpfs), or maybe anonymous memory.
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
