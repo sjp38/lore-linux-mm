@@ -1,212 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 407766B007E
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 04:16:26 -0400 (EDT)
-Date: Wed, 9 Sep 2009 09:16:31 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
-	mempolicy based management.
-Message-ID: <20090909081631.GB24614@csn.ul.ie>
-References: <20090828160351.11080.21379.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0909031254380.26408@chino.kir.corp.google.com> <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com> <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie> <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E95786B007E
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 04:41:04 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n898f6WY027790
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 9 Sep 2009 17:41:06 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A79145DE51
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 17:41:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 13ACE45DE5D
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 17:41:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 109251DB8042
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 17:41:05 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DD44A1DB8048
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 17:41:03 +0900 (JST)
+Date: Wed, 9 Sep 2009 17:39:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/4][mmotm] memcg: reduce lock contention v3
+Message-Id: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 03:54:40PM -0700, David Rientjes wrote:
-> On Tue, 8 Sep 2009, Mel Gorman wrote:
-> 
-> > Why is a job scheduler that is expecting to affect memory on a global
-> > basis running inside a mempolicy that restricts it to a subset of nodes?
-> 
-> Because hugepage allocation and freeing has always been on a global basis, 
-> there was no previous restriction.
-> 
+This patch series is for reducing memcg's lock contention on res_counter, v3.
+(sending today just for reporting current status in my stack.)
 
-And to beat a dead horse, it does make sense that an application
-allocating hugepages obey memory policies. It does with dynamic hugepage
-resizing for example. It should have been done years ago and
-unfortunately wasn't but it's not the first time that the behaviour of
-hugepages differed from the core VM.
+It's reported that memcg's res_counter can cause heavy false sharing / lock
+conention and scalability is not good. This is for relaxing that.
+No terrible bugs are found, I'll maintain/update this until the end of next
+merge window. Tests on big-smp and new-good-idea are welcome.
 
-> > In addition, if it is the case that the jobs performance is directly
-> > proportional to the number of hugepages it gets access to, why is it starting
-> > up with access to only a subset of the available hugepages?
-> 
-> It's not, that particular job is allocated the entire machine other than 
-> the job scheduler. The point is that the machine pool treats each machine 
-> equally so while they are all booted with hugepages=<large number>, 
-> machines that don't serve this application immediately free them.  If 
-> hugepages cannot be dynamically allocated up to a certain threshold that 
-> the application requires, a reboot is necessary if no other machines are 
-> available.
-> 
-> Since the only way to achieve the absolute maximum number of hugepages 
-> possible on a machine is through the command line, it's completely 
-> reasonable to use it on every boot and then subsequently free them when 
-> they're unnecessary.
-> 
+This patch is on to mmotm+Nishimura's fix + Hugh's get_user_pages() patch.
+But can be applied directly against mmotm, I think.
 
-But less reasonable that an application within a memory policy be able
-to affect memory on a global basis. Why not let it break cpusets or
-something else as well?
+numbers:
 
-> > Why is it not
-> > being setup to being the first job to start on a freshly booting machine,
-> > starting on the subset of nodes allowed and requesting the maximum number
-> > of hugepages it needs such that it achieves maximum performance? With the
-> > memory policy approach, it's very straight-forward to do this because all
-> > it has to do is write to nr_hugepages when it starts-up.
-> > 
-> 
-> The job scheduler will always be the first job to start on the machine and 
-> it may have a mempolicy of its own.  When it attempts to free all 
-> hugepages allocated by the command line, it will then leak pages because 
-> of these changes.
-> 
-> Arguing that applications should always dynamically allocate their 
-> hugepages on their own subset of nodes when they are started is wishful 
-> thinking: it's much easier to allocate as many as possible on the command 
-> line and then free unnecessary hugepages than allocate on the mempolicy's 
-> nodes for the maximal number of hugepages.
-> 
+I used 8cpu x86-64 box and run make -j 12 kernel.
+Before make, make clean and drop_caches.
 
-Only in your particular case where you're willing to reboot the machine to
-satisfy a jobs hugepage requirement. This is not always the situation. On
-shared-machines, there can be many jobs running, each with different hugepage
-requirements. The objective of things like anti-fragmentation, lumpy reclaim
-and the like was to allow these sort of jobs to allocate the pages they
-need at run-time. In the event these jobs are running on a subset of nodes,
-it's of benefit to have nr_hugepages obey memory policies or else userspace
-or the administrator has to try a number of different tricks to get the
-hugepages they need on the nodes they want.
+[Before patch(mmotm)] 3 runs
+real    3m1.127s
+user    4m42.143s
+sys     6m22.588s
 
-> > > That 
-> > > was not the behavior over the past three or four years until this 
-> > > patchset.
-> > > 
-> > 
-> > While this is true, I know people have also been bitten by the expectation
-> > that writing to nr_hugepages would obey a memory policy and were surprised
-> > when it didn't happen and sent me whinging emails.
-> 
-> Ok, but I doubt the inverse is true: people probably haven't emailed you 
-> letting you know that they've coded their application for hugepage 
-> allocations based on how the kernel has implemented it for years, so 
-> there's no context. 
+real    3m0.942s
+user    4m42.377s
+sys     6m24.463s
 
-They didn't code their application specifically to this case. What happened
-is that their jobs needed to run on a subset of nodes and they wanted the
-hugepages only available on those nodes. They wrote the value under a memory
-policy to nr_hugepages and were suprised when that didn't work. cpusets were
-not an obvious choice.
+real    2m53.982s
+user    4m42.635s
+sys     6m23.124s
 
-> That's the population that I'm worried about (and is 
-> also solved by node-targeted hugepage allocation, btw).
-> 
+[After patch] 3 runs.
+real    2m53.052s
+user    4m48.095s
+sys     5m43.042s
 
-I disagree because it pushes the burden of interleaving to the userspace
-application or the administrator, something the kernel can and is able
-to deal with.
+real    2m54.367s
+user    4m43.738s
+sys     5m40.626s
 
->  [ Such users who have emailed you could always use cpusets for the
->    desired effect, it's not like there isn't a solution. ]
->  
+real    2m55.108s
+user    4m43.367s
+sys     5m40.265s
 
-Which is very convulated. numactl is the expected administrative interface
-to restrict allocations on a set of nodes, not cpusets.
 
-> > It also appeared obvious
-> > to me that it's how the interface should behave even if it wasn't doing it
-> > in practice. Once nr_hugepages obeys memory policies, it's fairly convenient
-> > to size the number of pages on a subset of nodes using numactl - a tool that
-> > people would generally expect to be used when operating on nodes. Hence the
-> > example usage being
-> > 
-> > numactl -m x,y,z hugeadm --pool-pages-min $PAGESIZE:$NUMPAGES
-> > 
-> 
-> We need a new mempolicy flag, then, such as MPOL_F_HUGEPAGES to constrain 
-> hugepage allocation and freeing via the global tunable to such a 
-> mempolicy.
-> 
+you can see 'sys' is reduced.
 
-This would be somewhat inconsistent. When dynamic hugepage pool resizing
-is enabled, the application obeys the memory policy that is in place.
-Your suggested policy would only apply when nr_hugepages is being
-written to.
-
-It would also appear as duplicated and redundant functionality to numactl
-because it would have --interleave meaning interleaving and --hugepages
-meaning interleave but only when nr_hugepages is being written to.
-
-> > The advantage is that with memory policies on nr_hugepages, it's very
-> > convenient to allocate pages within a subset of nodes without worrying about
-> > where exactly those huge pages are being allocated from. It will allocate
-> > them on a round-robin basis allocating more pages on one node over another
-> > if fragmentation requires it rather than shifting the burden to a userspace
-> > application figuring out what nodes might succeed an allocation or shifting
-> > the burden onto the system administrator.
-> 
-> That "burden" is usually for good reason: if my MPOL_INTERLEAVE policy 
-> gets hugepages that are relatively unbalanced across a set of nodes that I 
-> arbitrarily picked, my interleave it's going to be nearly as optimized 
-> compared to what userspace can allocate with the node-targeted approach: 
-> allocate [desired nr of hugepages] / [nr nodes in policy] hugepages via 
-> /sys/devices/system/node/node*/nr_hugepages, and construct a policy out of 
-> the nodes that give a true interleave.
-
-Except that knowledge and awareness of having to do this is pushed out
-to userspace and the system administrator, when again it's something
-the kernel can trivially do on their behalf.
-
-> That's not a trivial performance 
-> gain and can rarely be dismissed by simply picking an arbitrary set.
-> 
-> > It's likely that writing to the
-> > global nr_hugepages within a mempolicy will end up with a more sensible
-> > result than a userspace application dealing with the individual node-specific
-> > nr_hugepages files.
-> > 
-> 
-> Disagree for the interleave example above without complex userspace logic 
-> to determine how successful hugepage allocation will be based on 
-> fragmentation.
-> 
-
-It can read the value back for nr_hugepages to see was the total number
-of allocation successful. hugeadm does this for example and warns when the
-desired number of pages were not allocated (or not freed for that example). It
-would not detect if the memory allocations were imbalanced without taking
-further steps but it would depend on whether being evenly interleaved was
-more important than having the maximum number of hugepages.
-
-> > To do the same with the explicit interface, a userspace application
-> > or administrator would have to keep reading the existing nr_hugepages,
-> > writing existing_nr_hugepages+1 to each node in the allowed set, re-reading
-> > to check for allocating failure and round-robining by hand.  This seems
-> > awkward-for-the-sake-of-being-awkward when the kernel is already prefectly
-> > aware of how to round-robin allocate the requested number of nodes allocating
-> > more on one node if necessary.
-> > 
-> 
-> No need for an iteration, simply allocate the ratio I specified above on 
-> each node and then construct a mempolicy from those nodes based on actual 
-> results instead of arbitrarily.
-> 
-
-They would still need to read back the values, determine if the full
-allocation was successful and if not, figure out where it failed and
-recalculate. 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
