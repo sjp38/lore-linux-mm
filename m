@@ -1,99 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 642F06B004D
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 16:10:45 -0400 (EDT)
-Subject: [PATCH] mmap:  avoid unnecessary anon_vma lock acquisition in
- vma_adjust()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Wed, 09 Sep 2009 16:10:46 -0400
-Message-Id: <1252527046.4102.162.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A77636B004D
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 16:31:04 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp04.au.ibm.com (8.14.3/8.13.1) with ESMTP id n89KSCQx017057
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 06:28:12 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n89KV1lw1204458
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 06:31:01 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n89KV1Qx015654
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 06:31:01 +1000
+Date: Thu, 10 Sep 2009 02:00:42 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 0/4][mmotm] memcg: reduce lock contention v3
+Message-ID: <20090909203042.GA4473@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, stable <stable@kernel.org>, Eric Whitney <eric.whitney@hp.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-09-09 17:39:03]:
 
-Against:  2.6.31-rc6
+> This patch series is for reducing memcg's lock contention on res_counter, v3.
+> (sending today just for reporting current status in my stack.)
+> 
+> It's reported that memcg's res_counter can cause heavy false sharing / lock
+> conention and scalability is not good. This is for relaxing that.
+> No terrible bugs are found, I'll maintain/update this until the end of next
+> merge window. Tests on big-smp and new-good-idea are welcome.
+> 
+> This patch is on to mmotm+Nishimura's fix + Hugh's get_user_pages() patch.
+> But can be applied directly against mmotm, I think.
+> 
+> numbers:
+> 
+> I used 8cpu x86-64 box and run make -j 12 kernel.
+> Before make, make clean and drop_caches.
+>
 
-We noticed very erratic behavior [throughput] with the AIM7 shared
-workload running on recent distro [SLES11] and mainline kernels on
-an 8-socket, 32-core, 256GB x86_64 platform.  On the SLES11 kernel
-[2.6.27.19+] with Barcelona processors, as we increased the load
-[10s of thousands of tasks], the throughput would vary between two
-"plateaus"--one at ~65K jobs per minute and one at ~130K jpm.  The
-simple patch below causes the results to smooth out at the ~130k
-plateau.
+Kamezawa-San
 
-But wait, there's more:
+I was able to test on a 24 way using my parallel page fault test
+program and here is what I see
 
-We do not see this behavior on smaller platforms--e.g., 4 socket/8
-core.  This could be the result of the larger number of cpus on
-the larger platform--a scalability issue--or it could be the result
-of the larger number of interconnect "hops" between some nodes in
-this platform and how the tasks for a given load end up distributed
-over the nodes' cpus and memories--a stochastic NUMA effect.
+ Performance counter stats for '/home/balbir/parallel_pagefault' (3
+runs):
 
-The variability in the results are less pronounced [on the same
-platform] with Shanghai processors and with mainline kernels.  With
-31-rc6 on Shanghai processors and 288 file systems on 288 fibre
-attached storage volumes, the curves [jpm vs load] are both quite
-flat with the patched kernel consistently producing ~3.9% better
-throughput [~80K jpm vs ~77K jpm] than the unpatched kernel.
+ 7191673.834385  task-clock-msecs         #     23.953 CPUs    ( +- 0.001% )
+         427765  context-switches         #      0.000 M/sec   ( +- 0.106% )
+            234  CPU-migrations           #      0.000 M/sec   ( +- 20.851% )
+       87975343  page-faults              #      0.012 M/sec   ( +- 0.347% )
+  5962193345280  cycles                   #    829.041 M/sec   ( +- 0.012% )
+  1009132401195  instructions             #      0.169 IPC     ( +- 0.059% )
+    10068652670  cache-references         #      1.400 M/sec   ( +- 2.581% )
+     2053688394  cache-misses             #      0.286 M/sec   ( +- 0.481% )
 
-Profiling indicated that the "slow" runs were incurring high[er]
-contention on an anon_vma lock in vma_adjust(), apparently called
-from the sbrk() system call.
+  300.238748326  seconds time elapsed   ( +-   0.001% )
 
-The patch:
+Without the patch I saw
 
-A comment in mm/mmap.c:vma_adjust() suggests that we don't really
-need the anon_vma lock when we're only adjusting the end of a vma,
-as is the case for brk().  The comment questions whether it's worth
-while to optimize for this case.  Apparently, on the newer, larger
-x86_64 platforms, with interesting NUMA topologies, it is worth
-while--especially considering that the patch [if correct!] is 
-quite simple.
+ Performance counter stats for '/home/balbir/parallel_pagefault' (3
+runs):
 
-We can detect this condition--no overlap with next vma--by noting
-a NULL "importer".  The anon_vma pointer will also be NULL in this
-case, so simply avoid loading vma->anon_vma to avoid the lock.
-However, we apparently DO need to take the anon_vma lock when
-we're inserting a vma ['insert' non-NULL] even when we have no
-overlap [NULL "importer"], so we need to check for 'insert', as well.
+ 7198364.596593  task-clock-msecs         #     23.959 CPUs    ( +- 0.004% )
+         425104  context-switches         #      0.000 M/sec   ( +- 0.244% )
+            157  CPU-migrations           #      0.000 M/sec   ( +- 13.291% )
+       28964117  page-faults              #      0.004 M/sec   ( +- 0.106% )
+  5786854402292  cycles                   #    803.912 M/sec   ( +- 0.013% )
+   835828892399  instructions             #      0.144 IPC     ( +- 0.073% )
+     6240606753  cache-references         #      0.867 M/sec   ( +- 1.058% )
+     2068445332  cache-misses             #      0.287 M/sec   ( +- 1.844% )
 
-I have tested with and without the 'file || ' test in the patch.
-This does not seem to matter for stability nor performance.  I
-left this check/filter in, so we only optimize away the
-anon_vma lock acquisition when adjusting the end of a non-
-importing, non-inserting, anon vma.
+  300.443366784  seconds time elapsed   ( +-   0.005% )
 
-If accepted, this patch may benefit the stable tree as well.
 
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+This does look like a very good improvement.
 
- mm/mmap.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Index: linux-2.6.31-rc6/mm/mmap.c
-===================================================================
---- linux-2.6.31-rc6.orig/mm/mmap.c	2009-08-19 14:34:13.000000000 -0400
-+++ linux-2.6.31-rc6/mm/mmap.c	2009-08-19 14:53:24.000000000 -0400
-@@ -573,9 +573,9 @@ again:			remove_next = 1 + (end > next->
+
  
- 	/*
- 	 * When changing only vma->vm_end, we don't really need
--	 * anon_vma lock: but is that case worth optimizing out?
-+	 * anon_vma lock.
- 	 */
--	if (vma->anon_vma)
-+	if ((file || insert || importer) && vma->anon_vma)
- 		anon_vma = vma->anon_vma;
- 	if (anon_vma) {
- 		spin_lock(&anon_vma->lock);
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
