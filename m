@@ -1,237 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A94C06B007E
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 05:59:20 -0400 (EDT)
-Date: Wed, 9 Sep 2009 10:59:18 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id ED8F36B007E
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 07:15:22 -0400 (EDT)
+Date: Wed, 9 Sep 2009 12:14:38 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
-	sc->isolate_pages() return value.
-Message-ID: <20090909095918.GE24614@csn.ul.ie>
-References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org> <alpine.DEB.2.00.0909031458160.5762@kernelhack.brc.ubc.ca> <20090903154704.da62dd76.akpm@linux-foundation.org> <alpine.DEB.2.00.0909041431370.32680@kernelhack.brc.ubc.ca> <20090904165305.c19429ce.akpm@linux-foundation.org> <20090908132100.GA17446@csn.ul.ie> <alpine.DEB.2.00.0909081516550.3524@kernelhack.brc.ubc.ca>
+Subject: Re: [PATCH 4/8] mm: FOLL_DUMP replace FOLL_ANON
+Message-ID: <20090909111438.GF24614@csn.ul.ie>
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072233240.15430@sister.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0909081516550.3524@kernelhack.brc.ubc.ca>
+In-Reply-To: <Pine.LNX.4.64.0909072233240.15430@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Vincent Li <macli@brc.ubc.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, minchan.kim@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jeff Chua <jeff.chua.linux@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 08, 2009 at 03:39:59PM -0700, Vincent Li wrote:
-> On Tue, 8 Sep 2009, Mel Gorman wrote:
+On Mon, Sep 07, 2009 at 10:35:32PM +0100, Hugh Dickins wrote:
+> The "FOLL_ANON optimization" and its use_zero_page() test have caused
+> confusion and bugs: why does it test VM_SHARED? for the very good but
+> unsatisfying reason that VMware crashed without.  As we look to maybe
+> reinstating anonymous use of the ZERO_PAGE, we need to sort this out.
 > 
-> > On Fri, Sep 04, 2009 at 04:53:05PM -0700, Andrew Morton wrote:
-> > > On Fri, 4 Sep 2009 14:39:32 -0700 (PDT)
-> > > Vincent Li <macli@brc.ubc.ca> wrote:
-> > > 
-> > > Well you want to count two things: 1: how many times nr_taken==0 and 2:
-> > > how many times nr_taken!=0.
-> > > 
-> > 
-> > Indeed. I'm not aware of the specifics that led to this patch, but minimally
-> > one would be interested in the exact value of nr_taken as it can be used to
-> > answer more than one question.
-> > 
-> > > > Then I got test result with:
-> > > > 
-> > > > root@kernelhack:/usr/src/mmotm-0903# perf  stat --repeat 5  -e \ 
-> > > > kmem:mm_vmscan_isolate_pages hackbench 100
-> > > > 
-> > > > Running with 100*40 (== 4000) tasks.
-> > > > Time: 52.736
-> > > > Running with 100*40 (== 4000) tasks.
-> > > > Time: 64.982
-> > > > Running with 100*40 (== 4000) tasks.
-> > > > Time: 56.866
-> > > > Running with 100*40 (== 4000) tasks.
-> > > > Time: 37.137
-> > > > Running with 100*40 (== 4000) tasks.
-> > > > Time: 48.415
-> > > > 
-> > > >  Performance counter stats for 'hackbench 100' (5 runs):
-> > > > 
-> > > >           14189  kmem:mm_vmscan_isolate_pages   ( +-   9.084% )
-> > > > 
-> > > >    52.680621973  seconds time elapsed   ( +-   0.689% )
-> > > > 
-> > > > Is the testing patch written write? I don't understand what the number 
-> > > > 14189 means? Does it make any sense?
-> > > 
-> > 
-> > Broadly speaking
-> > 
-> > "For each of the 5 runs of hackbench, there were 14189 times the
-> > kmem:mm_vmscan_isolate_pages was sampled  +/- 9.084%"
-> > 
-> > Without knowing how many times nr_taken_zero was positive, it's
-> > difficult to tell whether 14189 is common or not.
-> > 
-> > > I don't think you need nr_taken_zeros at all.  You'd want something like
-> > > 
-> > > 	if (nr_taken == 0)
-> > > 		trace_mm_vmscan_nr_taken_zero();
-> > > 	else
-> > > 		trace_mm_vmscan_nr_taken_nonzero();
-> > > 
-> > > which would pointlessly generate a huge stream of events which would
-> > > have to be added up downstream, which is dumb.
-> > > 
-> > 
-> > Dumb it might be, but perf acts as that aggregator. For the purposes of
-> > debugging, it would be fine although it would not be a very suitable pair
-> > of events to merge to mainline. A more sensible trace point for mainline
-> > would record what nr_taken was so a higher-level tool could answer the zero
-> > vs non-zero question or optionally do things like figure out how many pages
-> > were being taken of the lists and being put back.
-> > 
-> > For this question though, use the two tracepoints with no additional parameters
-> > and have perf how many times each event occurred.
+> Easily done: it's silly for __get_user_pages() and follow_page() to
+> be guessing whether it's safe to assume that they're being used for
+> a coredump (which can take a shortcut snapshot where other uses must
+> handle a fault) - just tell them with GUP_FLAGS_DUMP and FOLL_DUMP.
 > 
-> Thank you for the explaintion. I am not sure I follow your discussion 
-> correctly, no additional parameters means something like:
+> get_dump_page() doesn't even want a ZERO_PAGE: an error suits fine.
 > 
-> TRACE_EVENT(mm_vmscan_nr_taken_zero,
->        TP_PROTO( ),
->        TP_ARGS( ),
->        TP_STRUCT__entry( ),
->        TP_fast_assign( ),
->        TP_printk( )
-> );
+> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-My bad, I was expecting something like
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-TRACE_EVENT(mm_vmscan_nr_taken_zero,
-	TP_PROTO(void),
-	TP_ARGS(),
-	TP_printk("nr_taken_zero");
-);
-
-to work in the same way it does for DECLARE_TRACE but that is not the
-case.
-
-> ? which looks strange to me and does not compile. I guess that is not what 
-> you mean.
-> 
-
-No, it's what I meant all right. As you were not using the value of
-nr_taken, the information was redundant to store in the trace record.
-
-> I ended up with a following patch:
-> 
-> ----PATCH BEGIN---
-> 
 > ---
-> diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-> index eaf46bd..1f9e7bf 100644
-> --- a/include/trace/events/kmem.h
-> +++ b/include/trace/events/kmem.h
-> @@ -388,6 +388,42 @@ TRACE_EVENT(mm_page_alloc_extfrag,
->  		__entry->alloc_migratetype == __entry->fallback_migratetype)
->  );
+> 
+>  include/linux/mm.h |    2 +-
+>  mm/internal.h      |    1 +
+>  mm/memory.c        |   43 ++++++++++++-------------------------------
+>  3 files changed, 14 insertions(+), 32 deletions(-)
+> 
+> --- mm3/include/linux/mm.h	2009-09-07 13:16:32.000000000 +0100
+> +++ mm4/include/linux/mm.h	2009-09-07 13:16:39.000000000 +0100
+> @@ -1247,7 +1247,7 @@ struct page *follow_page(struct vm_area_
+>  #define FOLL_WRITE	0x01	/* check pte is writable */
+>  #define FOLL_TOUCH	0x02	/* mark page accessed */
+>  #define FOLL_GET	0x04	/* do get_page on page */
+> -#define FOLL_ANON	0x08	/* give ZERO_PAGE if no pgtable */
+> +#define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
 >  
-> +TRACE_EVENT(mm_vmscan_nr_taken_zero,
-> +
-> +	TP_PROTO(unsigned long nr_taken),
-> +
-> +	TP_ARGS(nr_taken),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(        unsigned long,          nr_taken        )
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->nr_taken       = nr_taken;
-> +	),
-> +
-> +	TP_printk("nr_taken=%lu",
-> +	__entry->nr_taken)
-> +);
-> +
-> +TRACE_EVENT(mm_vmscan_nr_taken_nonzero,
-> +
-> +	TP_PROTO(unsigned long nr_taken),
-> +
-> +	TP_ARGS(nr_taken),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(        unsigned long,          nr_taken        )
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->nr_taken       = nr_taken;
-> +	),
-> +
-> +	TP_printk("nr_taken=%lu",
-> +		__entry->nr_taken)
-> +);
-> +
->  #endif /* _TRACE_KMEM_H */
+>  typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+>  			void *data);
+> --- mm3/mm/internal.h	2009-09-07 13:16:22.000000000 +0100
+> +++ mm4/mm/internal.h	2009-09-07 13:16:39.000000000 +0100
+> @@ -252,6 +252,7 @@ static inline void mminit_validate_memmo
 >  
->  /* This part must be outside protection */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ad93096..eec4099 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -40,6 +40,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/delayacct.h>
->  #include <linux/sysctl.h>
-> +#include <trace/events/kmem.h>
+>  #define GUP_FLAGS_WRITE		0x01
+>  #define GUP_FLAGS_FORCE		0x02
+> +#define GUP_FLAGS_DUMP		0x04
 >  
->  #include <asm/tlbflush.h>
->  #include <asm/div64.h>
-> @@ -1322,7 +1323,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
->  
->  	if (nr_taken == 0)
-> -		goto done;
-> +		trace_mm_vmscan_nr_taken_zero(nr_taken);
-> +	else
-> +		trace_mm_vmscan_nr_taken_nonzero(nr_taken);
->  
->  	reclaim_stat->recent_scanned[file] += nr_taken;
->  	if (file)
-> @@ -1388,7 +1391,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
->  							nr_rotated);
->  	__mod_zone_page_state(zone, NR_INACTIVE_ANON + file * LRU_FILE,
->  							nr_deactivated);
-> -done:
->  	spin_unlock_irq(&zone->lru_lock);
+>  int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		     unsigned long start, int len, int flags,
+> --- mm3/mm/memory.c	2009-09-07 13:16:32.000000000 +0100
+> +++ mm4/mm/memory.c	2009-09-07 13:16:39.000000000 +0100
+> @@ -1174,41 +1174,22 @@ no_page:
+>  	pte_unmap_unlock(ptep, ptl);
+>  	if (!pte_none(pte))
+>  		return page;
+> -	/* Fall through to ZERO_PAGE handling */
+> +
+>  no_page_table:
+>  	/*
+>  	 * When core dumping an enormous anonymous area that nobody
+> -	 * has touched so far, we don't want to allocate page tables.
+> +	 * has touched so far, we don't want to allocate unnecessary pages or
+> +	 * page tables.  Return error instead of NULL to skip handle_mm_fault,
+> +	 * then get_dump_page() will return NULL to leave a hole in the dump.
+> +	 * But we can only make this optimization where a hole would surely
+> +	 * be zero-filled if handle_mm_fault() actually did handle it.
+>  	 */
+> -	if (flags & FOLL_ANON) {
+> -		page = ZERO_PAGE(0);
+> -		if (flags & FOLL_GET)
+> -			get_page(page);
+> -		BUG_ON(flags & FOLL_WRITE);
+> -	}
+> +	if ((flags & FOLL_DUMP) &&
+> +	    (!vma->vm_ops || !vma->vm_ops->fault))
+> +		return ERR_PTR(-EFAULT);
+>  	return page;
 >  }
-> 
-> ----PATCH END---
 >  
-> /usr/src/mmotm-0903# perf stat --repeat 5 -e kmem:mm_vmscan_nr_taken_zero \
->  -e kmem:mm_vmscan_nr_taken_nonzero hackbench 100
+> -/* Can we do the FOLL_ANON optimization? */
+> -static inline int use_zero_page(struct vm_area_struct *vma)
+> -{
+> -	/*
+> -	 * We don't want to optimize FOLL_ANON for make_pages_present()
+> -	 * when it tries to page in a VM_LOCKED region. As to VM_SHARED,
+> -	 * we want to get the page from the page tables to make sure
+> -	 * that we serialize and update with any other user of that
+> -	 * mapping.
+> -	 */
+> -	if (vma->vm_flags & (VM_LOCKED | VM_SHARED))
+> -		return 0;
+> -	/*
+> -	 * And if we have a fault routine, it's not an anonymous region.
+> -	 */
+> -	return !vma->vm_ops || !vma->vm_ops->fault;
+> -}
+> -
+> -
+> -
+>  int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		     unsigned long start, int nr_pages, int flags,
+>  		     struct page **pages, struct vm_area_struct **vmas)
+> @@ -1288,8 +1269,8 @@ int __get_user_pages(struct task_struct
+>  		foll_flags = FOLL_TOUCH;
+>  		if (pages)
+>  			foll_flags |= FOLL_GET;
+> -		if (!write && use_zero_page(vma))
+> -			foll_flags |= FOLL_ANON;
+> +		if (flags & GUP_FLAGS_DUMP)
+> +			foll_flags |= FOLL_DUMP;
+>  
+>  		do {
+>  			struct page *page;
+> @@ -1447,7 +1428,7 @@ struct page *get_dump_page(unsigned long
+>  	struct page *page;
+>  
+>  	if (__get_user_pages(current, current->mm, addr, 1,
+> -				GUP_FLAGS_FORCE, &page, &vma) < 1)
+> +			GUP_FLAGS_FORCE | GUP_FLAGS_DUMP, &page, &vma) < 1)
+>  		return NULL;
+>  	if (page == ZERO_PAGE(0)) {
+>  		page_cache_release(page);
 > 
-> Running with 100*40 (== 4000) tasks.
-> Time: 41.599
-> Running with 100*40 (== 4000) tasks.
-> Time: 80.192
-> Running with 100*40 (== 4000) tasks.
-> Time: 26.451
-> Running with 100*40 (== 4000) tasks.
-> Time: 65.428
-> Running with 100*40 (== 4000) tasks.
-> Time: 30.054
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
->  Performance counter stats for 'hackbench 100' (5 runs):
-> 
->           10330  kmem:mm_vmscan_nr_taken_zero   ( +-  11.732% )
->            2601  kmem:mm_vmscan_nr_taken_nonzero   ( +-  10.876% )
-> 
->    49.509328260  seconds time elapsed   ( +-   0.934% )
-> 
-> Sampling of nr_taken_zero is way bigger than sampling of nr_taken_nonzero 
-> in the 5 hackbench runs. I thought the sampling result would be the 
-> opposite. 
-> 
-> Maybe I get it all wrong :-).
-> 
-
-As pointed out in another mail, the remaining question would be if this
-situation is specific to a fork-bomb situation like hackbench or whether
-it happens in reclaim generally.
 
 -- 
 Mel Gorman
