@@ -1,104 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BADA56B005A
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 10:31:54 -0400 (EDT)
-Date: Thu, 10 Sep 2009 09:31:49 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH V3] x86: SGU UV Add volatile semantics to macros that access chipset registers
-Message-ID: <20090910143149.GA14273@sgi.com>
-References: <20090909154246.GA26716@sgi.com> <1252512600.14793.125.camel@desktop> <20090909180110.GA10311@sgi.com> <1252519885.14793.135.camel@desktop> <4AA7F9E5.4070506@nortel.com> <20090909193829.GB10530@sgi.com> <4AA84BE7.9010304@zytor.com> <20090910022226.GB10038@sgi.com> <4AA86CFA.8090000@zytor.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4AA86CFA.8090000@zytor.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8327C6B004D
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 14:05:21 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id CE32182C401
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 14:06:24 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id jJf0nVw-lV3z for <linux-mm@kvack.org>;
+	Thu, 10 Sep 2009 14:06:24 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2384D82C479
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 14:06:14 -0400 (EDT)
+Date: Thu, 10 Sep 2009 14:03:55 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [rfc] lru_add_drain_all() vs isolation
+In-Reply-To: <20090910083340.9CB7.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0909101402340.13682@V090114053VZO-1>
+References: <20090909131945.0CF5.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0909091005010.28070@V090114053VZO-1> <20090910083340.9CB7.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: mingo@elte.hu, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, dwalker@fifo99.com, cfriesen@nortel.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Add volatile-semantics to the SGI UV read/write macros that are
-used to access chipset memory mapped registers. No direct
-references to volatile are made. Instead the readq/writeq
-macros are used.
+On Thu, 10 Sep 2009, KOSAKI Motohiro wrote:
 
-Signed-off-by: Jack Steiner <steiner@sgi.com>
+> How about this?
+>   - pass 1-2,  lru_add_drain_all_async()
+>   - pass 3-10, lru_add_drain_all()
+>
+> this scheme might save RT-thread case and never cause regression. (I think)
 
+Sounds good.
 
----
- arch/x86/include/asm/uv/uv_hub.h |   17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+> The last remain problem is, if RT-thread binding cpu's pagevec has migrate
+> targetted page, migration still face the same issue.
+> but we can't solve it...
+> RT-thread must use /proc/sys/vm/drop_caches properly.
 
-Index: linux/arch/x86/include/asm/uv/uv_hub.h
-===================================================================
---- linux.orig/arch/x86/include/asm/uv/uv_hub.h	2009-09-09 01:34:02.000000000 -0500
-+++ linux/arch/x86/include/asm/uv/uv_hub.h	2009-09-09 20:51:53.000000000 -0500
-@@ -15,6 +15,7 @@
- #include <linux/numa.h>
- #include <linux/percpu.h>
- #include <linux/timer.h>
-+#include <linux/io.h>
- #include <asm/types.h>
- #include <asm/percpu.h>
- #include <asm/uv/uv_mmrs.h>
-@@ -258,13 +259,13 @@ static inline unsigned long *uv_global_m
- static inline void uv_write_global_mmr32(int pnode, unsigned long offset,
- 				 unsigned long val)
- {
--	*uv_global_mmr32_address(pnode, offset) = val;
-+	writeq(val, uv_global_mmr32_address(pnode, offset));
- }
- 
- static inline unsigned long uv_read_global_mmr32(int pnode,
- 						 unsigned long offset)
- {
--	return *uv_global_mmr32_address(pnode, offset);
-+	return readq(uv_global_mmr32_address(pnode, offset));
- }
- 
- /*
-@@ -281,13 +282,13 @@ static inline unsigned long *uv_global_m
- static inline void uv_write_global_mmr64(int pnode, unsigned long offset,
- 				unsigned long val)
- {
--	*uv_global_mmr64_address(pnode, offset) = val;
-+	writeq(val, uv_global_mmr64_address(pnode, offset));
- }
- 
- static inline unsigned long uv_read_global_mmr64(int pnode,
- 						 unsigned long offset)
- {
--	return *uv_global_mmr64_address(pnode, offset);
-+	return readq(uv_global_mmr64_address(pnode, offset));
- }
- 
- /*
-@@ -301,22 +302,22 @@ static inline unsigned long *uv_local_mm
- 
- static inline unsigned long uv_read_local_mmr(unsigned long offset)
- {
--	return *uv_local_mmr_address(offset);
-+	return readq(uv_local_mmr_address(offset));
- }
- 
- static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
- {
--	*uv_local_mmr_address(offset) = val;
-+	writeq(val, uv_local_mmr_address(offset));
- }
- 
- static inline unsigned char uv_read_local_mmr8(unsigned long offset)
- {
--	return *((unsigned char *)uv_local_mmr_address(offset));
-+	return readb(uv_local_mmr_address(offset));
- }
- 
- static inline void uv_write_local_mmr8(unsigned long offset, unsigned char val)
- {
--	*((unsigned char *)uv_local_mmr_address(offset)) = val;
-+	writeb(val, uv_local_mmr_address(offset));
- }
- 
- /*
+A system call "sys_os_quiet_down" may be useful. It would drain all
+caches, fold counters etc etc so that there will be no OS activities
+needed for those things later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
