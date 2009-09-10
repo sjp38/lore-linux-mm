@@ -1,121 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4046B004D
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 10:26:25 -0400 (EDT)
-Subject: Re: [PATCH 5/6] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090910123233.GB31153@csn.ul.ie>
-References: <20090909163127.12963.612.sendpatchset@localhost.localdomain>
-	 <20090909163158.12963.49725.sendpatchset@localhost.localdomain>
-	 <20090910123233.GB31153@csn.ul.ie>
-Content-Type: text/plain
-Date: Thu, 10 Sep 2009 10:26:14 -0400
-Message-Id: <1252592774.6947.163.camel@useless.americas.hpqcorp.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id BADA56B005A
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 10:31:54 -0400 (EDT)
+Date: Thu, 10 Sep 2009 09:31:49 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: [PATCH V3] x86: SGU UV Add volatile semantics to macros that access chipset registers
+Message-ID: <20090910143149.GA14273@sgi.com>
+References: <20090909154246.GA26716@sgi.com> <1252512600.14793.125.camel@desktop> <20090909180110.GA10311@sgi.com> <1252519885.14793.135.camel@desktop> <4AA7F9E5.4070506@nortel.com> <20090909193829.GB10530@sgi.com> <4AA84BE7.9010304@zytor.com> <20090910022226.GB10038@sgi.com> <4AA86CFA.8090000@zytor.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4AA86CFA.8090000@zytor.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: mingo@elte.hu, tglx@linutronix.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com, dwalker@fifo99.com, cfriesen@nortel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-09-10 at 13:32 +0100, Mel Gorman wrote:
-> On Wed, Sep 09, 2009 at 12:31:58PM -0400, Lee Schermerhorn wrote:
-> > [PATCH 5/6] hugetlb:  register per node hugepages attributes
-> > 
-> > V6:  + Use NUMA_NO_NODE for unspecified node id throughout hugetlb.c
-> >        to indicate that we didn't get there via a per node attribute.
-> >        Drop redundant "NO_NODEID_SPECIFIED" definition.
-> >      + handle movement of defaulting of nodes_allowed up to
-> >        set_max_huge_pages()
-> > 
-> 
-> ppc64 doesn't define NUMA_NO_NODE so this fails to build. Maybe move the
-> definition to include/linux/node.h as a pre-requisite patch?
+Add volatile-semantics to the SGI UV read/write macros that are
+used to access chipset memory mapped registers. No direct
+references to volatile are made. Instead the readq/writeq
+macros are used.
+
+Signed-off-by: Jack Steiner <steiner@sgi.com>
 
 
-Rats!  should have looked before I leaped.  Only ia64 and x86_64 define
-NUMA_NO_NODE, both in arch dependent code, and in different headers to
-boot.  I don't think node.h is the right place.  The ia64/x86_64 arch
-code uses it for acpi and cpu management.  How about <linux/numa.h>?
-It's currently a minimal header with no external dependencies.  The ia64
-numa.h [where NUMA_NO_NODE is defined] already includes it, and the
-x86_64 can include it.
+---
+ arch/x86/include/asm/uv/uv_hub.h |   17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 
-This patch, inserted before the subject patch [for bisect-ability],
-seems to work on x86_64.  Can you try it on ppc?
-
-------------------
-
-PATCH 5/7 - hugetlb:  promote NUMA_NO_NODE to generic constant
-
-Against:  2.6.31-rc7-mmotm-090827-1651
-
-Move definition of NUMA_NO_NODE from ia64 and x86_64 arch specific
-headers to generic header 'linux/numa.h' for use in generic code.
-NUMA_NO_NODE replaces bare '-1' where it's used in this series to
-indicate "no node id specified".  Ultimately, it can be used
-to replace the -1 elsewhere where it is used similarly.
-
-Note that in arch/x86/include/asm/topology.h, NUMA_NO_NODE is
-now only defined when CONFIG_NUMA is defined.  This seems to work
-for current usage of NUMA_NO_NODE in x86_64 arch code, with or
-without CONFIG_NUMA defined.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- arch/ia64/include/asm/numa.h    |    2 --
- arch/x86/include/asm/topology.h |    5 ++---
- include/linux/numa.h            |    2 ++
- 3 files changed, 4 insertions(+), 5 deletions(-)
-
-Index: linux-2.6.31-rc7-mmotm-090827-1651/arch/ia64/include/asm/numa.h
+Index: linux/arch/x86/include/asm/uv/uv_hub.h
 ===================================================================
---- linux-2.6.31-rc7-mmotm-090827-1651.orig/arch/ia64/include/asm/numa.h	2009-06-09 23:05:27.000000000 -0400
-+++ linux-2.6.31-rc7-mmotm-090827-1651/arch/ia64/include/asm/numa.h	2009-09-10 08:57:40.000000000 -0400
-@@ -22,8 +22,6 @@
+--- linux.orig/arch/x86/include/asm/uv/uv_hub.h	2009-09-09 01:34:02.000000000 -0500
++++ linux/arch/x86/include/asm/uv/uv_hub.h	2009-09-09 20:51:53.000000000 -0500
+@@ -15,6 +15,7 @@
+ #include <linux/numa.h>
+ #include <linux/percpu.h>
+ #include <linux/timer.h>
++#include <linux/io.h>
+ #include <asm/types.h>
+ #include <asm/percpu.h>
+ #include <asm/uv/uv_mmrs.h>
+@@ -258,13 +259,13 @@ static inline unsigned long *uv_global_m
+ static inline void uv_write_global_mmr32(int pnode, unsigned long offset,
+ 				 unsigned long val)
+ {
+-	*uv_global_mmr32_address(pnode, offset) = val;
++	writeq(val, uv_global_mmr32_address(pnode, offset));
+ }
  
- #include <asm/mmzone.h>
+ static inline unsigned long uv_read_global_mmr32(int pnode,
+ 						 unsigned long offset)
+ {
+-	return *uv_global_mmr32_address(pnode, offset);
++	return readq(uv_global_mmr32_address(pnode, offset));
+ }
  
--#define NUMA_NO_NODE	-1
--
- extern u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
- extern cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
- extern pg_data_t *pgdat_list[MAX_NUMNODES];
-Index: linux-2.6.31-rc7-mmotm-090827-1651/arch/x86/include/asm/topology.h
-===================================================================
---- linux-2.6.31-rc7-mmotm-090827-1651.orig/arch/x86/include/asm/topology.h	2009-09-09 10:05:28.000000000 -0400
-+++ linux-2.6.31-rc7-mmotm-090827-1651/arch/x86/include/asm/topology.h	2009-09-10 09:07:04.000000000 -0400
-@@ -35,11 +35,10 @@
- # endif
- #endif
+ /*
+@@ -281,13 +282,13 @@ static inline unsigned long *uv_global_m
+ static inline void uv_write_global_mmr64(int pnode, unsigned long offset,
+ 				unsigned long val)
+ {
+-	*uv_global_mmr64_address(pnode, offset) = val;
++	writeq(val, uv_global_mmr64_address(pnode, offset));
+ }
  
--/* Node not present */
--#define NUMA_NO_NODE	(-1)
--
- #ifdef CONFIG_NUMA
- #include <linux/cpumask.h>
-+#include <linux/numa.h>
-+
- #include <asm/mpspec.h>
+ static inline unsigned long uv_read_global_mmr64(int pnode,
+ 						 unsigned long offset)
+ {
+-	return *uv_global_mmr64_address(pnode, offset);
++	return readq(uv_global_mmr64_address(pnode, offset));
+ }
  
- #ifdef CONFIG_X86_32
-Index: linux-2.6.31-rc7-mmotm-090827-1651/include/linux/numa.h
-===================================================================
---- linux-2.6.31-rc7-mmotm-090827-1651.orig/include/linux/numa.h	2009-09-04 08:47:02.000000000 -0400
-+++ linux-2.6.31-rc7-mmotm-090827-1651/include/linux/numa.h	2009-09-10 09:00:10.000000000 -0400
-@@ -10,4 +10,6 @@
+ /*
+@@ -301,22 +302,22 @@ static inline unsigned long *uv_local_mm
  
- #define MAX_NUMNODES    (1 << NODES_SHIFT)
+ static inline unsigned long uv_read_local_mmr(unsigned long offset)
+ {
+-	return *uv_local_mmr_address(offset);
++	return readq(uv_local_mmr_address(offset));
+ }
  
-+#define	NUMA_NO_NODE	(-1)
-+
- #endif /* _LINUX_NUMA_H */
-
-
-
-
-
-
+ static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
+ {
+-	*uv_local_mmr_address(offset) = val;
++	writeq(val, uv_local_mmr_address(offset));
+ }
+ 
+ static inline unsigned char uv_read_local_mmr8(unsigned long offset)
+ {
+-	return *((unsigned char *)uv_local_mmr_address(offset));
++	return readb(uv_local_mmr_address(offset));
+ }
+ 
+ static inline void uv_write_local_mmr8(unsigned long offset, unsigned char val)
+ {
+-	*((unsigned char *)uv_local_mmr_address(offset)) = val;
++	writeb(val, uv_local_mmr_address(offset));
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
