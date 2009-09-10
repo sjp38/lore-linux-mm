@@ -1,153 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F32A6B004D
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 19:15:54 -0400 (EDT)
-Date: Thu, 10 Sep 2009 16:15:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/6] hugetlb:  derive huge pages nodes allowed from task
- mempolicy
-Message-Id: <20090910161525.dce065b0.akpm@linux-foundation.org>
-In-Reply-To: <20090909163152.12963.80784.sendpatchset@localhost.localdomain>
-References: <20090909163127.12963.612.sendpatchset@localhost.localdomain>
-	<20090909163152.12963.80784.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BB8256B004D
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 19:17:28 -0400 (EDT)
+Received: from spaceape23.eur.corp.google.com (spaceape23.eur.corp.google.com [172.28.16.75])
+	by smtp-out.google.com with ESMTP id n8ANHSgg021597
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 00:17:28 +0100
+Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
+	by spaceape23.eur.corp.google.com with ESMTP id n8ANH6ZA018686
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 16:17:26 -0700
+Received: by pzk4 with SMTP id 4so444524pzk.22
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2009 16:17:25 -0700 (PDT)
+Date: Thu, 10 Sep 2009 16:17:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 3/6] hugetlb:  introduce alloc_nodemask_of_node
+In-Reply-To: <20090910160541.9f902126.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.1.00.0909101614060.25078@chino.kir.corp.google.com>
+References: <20090909163127.12963.612.sendpatchset@localhost.localdomain> <20090909163146.12963.79545.sendpatchset@localhost.localdomain> <20090910160541.9f902126.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, rientjes@google.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 09 Sep 2009 12:31:52 -0400
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+On Thu, 10 Sep 2009, Andrew Morton wrote:
 
-> This patch derives a "nodes_allowed" node mask from the numa
-> mempolicy of the task modifying the number of persistent huge
-> pages to control the allocation, freeing and adjusting of surplus
-> huge pages.
->
-> ...
->
+> alloc_nodemask_of_node() has no callers, so I can think of a good fix
+> for these problems.  If it _did_ have a caller then I might ask "can't
+> we fix this by moving alloc_nodemask_of_node() into the .c file".  But
+> it doesn't so I can't.
+> 
 
-> Index: linux-2.6.31-rc7-mmotm-090827-1651/mm/mempolicy.c
-> ===================================================================
-> --- linux-2.6.31-rc7-mmotm-090827-1651.orig/mm/mempolicy.c	2009-09-09 11:57:26.000000000 -0400
-> +++ linux-2.6.31-rc7-mmotm-090827-1651/mm/mempolicy.c	2009-09-09 11:57:36.000000000 -0400
-> @@ -1564,6 +1564,57 @@ struct zonelist *huge_zonelist(struct vm
->  	}
->  	return zl;
->  }
-> +
-> +/*
-> + * alloc_nodemask_of_mempolicy
-> + *
-> + * Returns a [pointer to a] nodelist based on the current task's mempolicy.
-> + *
-> + * If the task's mempolicy is "default" [NULL], return NULL for default
-> + * behavior.  Otherwise, extract the policy nodemask for 'bind'
-> + * or 'interleave' policy or construct a nodemask for 'preferred' or
-> + * 'local' policy and return a pointer to a kmalloc()ed nodemask_t.
-> + *
-> + * N.B., it is the caller's responsibility to free a returned nodemask.
-> + */
-> +nodemask_t *alloc_nodemask_of_mempolicy(void)
-> +{
-> +	nodemask_t *nodes_allowed = NULL;
-> +	struct mempolicy *mempolicy;
-> +	int nid;
-> +
-> +	if (!current->mempolicy)
-> +		return NULL;
-> +
-> +	mpol_get(current->mempolicy);
-> +	nodes_allowed = kmalloc(sizeof(*nodes_allowed), GFP_KERNEL);
+It gets a caller in patch 5 of the series in set_max_huge_pages().
 
-Ho hum.  I guess a caller which didn't permit GFP_KERNEL would be
-pretty lame.
-
-> +	if (!nodes_allowed)
-> +		return NULL;		/* silently default */
-
-Missed an mpol_put().
-
-> +	nodes_clear(*nodes_allowed);
-> +	mempolicy = current->mempolicy;
-> +	switch (mempolicy->mode) {
-> +	case MPOL_PREFERRED:
-> +		if (mempolicy->flags & MPOL_F_LOCAL)
-> +			nid = numa_node_id();
-> +		else
-> +			nid = mempolicy->v.preferred_node;
-> +		node_set(nid, *nodes_allowed);
-> +		break;
-> +
-> +	case MPOL_BIND:
-> +		/* Fall through */
-> +	case MPOL_INTERLEAVE:
-> +		*nodes_allowed =  mempolicy->v.nodes;
-> +		break;
-> +
-> +	default:
-> +		BUG();
-> +	}
-> +
-> +	mpol_put(current->mempolicy);
-> +	return nodes_allowed;
-> +}
-
-Do we actually need the mpol_get()/put here?  Can some other process
-really some in and trash a process's current->mempolicy when that
-process isn't looking?
-
-If so, why the heck isn't the code racy?
-
-static inline void mpol_get(struct mempolicy *pol)
-{
-	if (pol)
-		atomic_inc(&pol->refcnt);
-}
-
-If it's possible for some other task to trash current->mempolicy then
-that trashing can happen between the `if' and the `atomic_inc', so
-we're screwed.  
-
-So either we need some locking here or the mpol_get() isn't needed on
-current's mempolicy or the mpol_get() has some secret side-effect?
-
-
-Fixlets:
-
---- a/mm/hugetlb.c~hugetlb-derive-huge-pages-nodes-allowed-from-task-mempolicy-fix
-+++ a/mm/hugetlb.c
-@@ -1253,7 +1253,7 @@ static unsigned long set_max_huge_pages(
- 
- 	nodes_allowed = alloc_nodemask_of_mempolicy();
- 	if (!nodes_allowed) {
--		printk(KERN_WARNING "%s unable to allocate nodes allowed mask "
-+		printk(KERN_WARNING "%s: unable to allocate nodes allowed mask "
- 			"for huge page allocation.  Falling back to default.\n",
- 			current->comm);
- 		nodes_allowed = &node_online_map;
---- a/mm/mempolicy.c~hugetlb-derive-huge-pages-nodes-allowed-from-task-mempolicy-fix
-+++ a/mm/mempolicy.c
-@@ -1589,7 +1589,7 @@ nodemask_t *alloc_nodemask_of_mempolicy(
- 	mpol_get(current->mempolicy);
- 	nodes_allowed = kmalloc(sizeof(*nodes_allowed), GFP_KERNEL);
- 	if (!nodes_allowed)
--		return NULL;		/* silently default */
-+		goto out;		/* silently default */
- 
- 	nodes_clear(*nodes_allowed);
- 	mempolicy = current->mempolicy;
-@@ -1611,7 +1611,7 @@ nodemask_t *alloc_nodemask_of_mempolicy(
- 	default:
- 		BUG();
- 	}
--
-+out:
- 	mpol_put(current->mempolicy);
- 	return nodes_allowed;
- }
+My early criticism of both alloc_nodemask_of_node() and 
+alloc_nodemask_of_mempolicy() was that for small CONFIG_NODES_SHIFT (say, 
+6 or less, which covers all defconfigs except ia64), it is perfectly 
+reasonable to allocate 64 bytes on the stack in the caller.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
