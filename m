@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5B0A96B004D
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 20:33:06 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8A0X5ff029407
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 10 Sep 2009 09:33:05 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3259145DE51
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 09:33:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 137F145DE55
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 09:33:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id ECBC51DB803C
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 09:33:04 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 537F51DB8046
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 09:33:01 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 0/8] mm: around get_user_pages flags
-In-Reply-To: <20090908090009.0CC0.A69D9226@jp.fujitsu.com>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <20090908090009.0CC0.A69D9226@jp.fujitsu.com>
-Message-Id: <20090910093207.9CC6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 10 Sep 2009 09:33:00 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 99CFB6B0055
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2009 21:01:25 -0400 (EDT)
+Received: by ey-out-1920.google.com with SMTP id 13so1230013eye.18
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2009 18:01:24 -0700 (PDT)
+Date: Thu, 10 Sep 2009 10:00:57 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [rfc] lru_add_drain_all() vs isolation
+Message-Id: <20090910100057.a1375276.minchan.kim@barrios-desktop>
+In-Reply-To: <20090910084602.9CBD.A69D9226@jp.fujitsu.com>
+References: <20090909131945.0CF5.A69D9226@jp.fujitsu.com>
+	<28c262360909090839j626ff818of930cf13a6185123@mail.gmail.com>
+	<20090910084602.9CBD.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <onestero@redhat.com>, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Here's a series of mm mods against current mmotm: mostly cleanup
-> > of get_user_pages flags, but fixing munlock's OOM, sorting out the
-> > "FOLL_ANON optimization", and reinstating ZERO_PAGE along the way.
+On Thu, 10 Sep 2009 08:58:20 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> > On Wed, Sep 9, 2009 at 1:27 PM, KOSAKI Motohiro
+> > <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > >> The usefulness of a scheme like this requires:
+> > >>
+> > >> 1. There are cpus that continually execute user space code
+> > >> A  A without system interaction.
+> > >>
+> > >> 2. There are repeated VM activities that require page isolation /
+> > >> A  A migration.
+> > >>
+> > >> The first page isolation activity will then clear the lru caches of the
+> > >> processes doing number crunching in user space (and therefore the first
+> > >> isolation will still interrupt). The second and following isolation will
+> > >> then no longer interrupt the processes.
+> > >>
+> > >> 2. is rare. So the question is if the additional code in the LRU handling
+> > >> can be justified. If lru handling is not time sensitive then yes.
+> > >
+> > > Christoph, I'd like to discuss a bit related (and almost unrelated) thing.
+> > > I think page migration don't need lru_add_drain_all() as synchronous, because
+> > > page migration have 10 times retry.
+> > >
+> > > Then asynchronous lru_add_drain_all() cause
+> > >
+> > > A - if system isn't under heavy pressure, retry succussfull.
+> > > A - if system is under heavy pressure or RT-thread work busy busy loop, retry failure.
+> > >
+> > > I don't think this is problematic bahavior. Also, mlock can use asynchrounous lru drain.
 > > 
-> >  fs/binfmt_elf.c         |   42 ++------
-> >  fs/binfmt_elf_fdpic.c   |   56 ++++-------
-> >  include/linux/hugetlb.h |    4 
-> >  include/linux/mm.h      |    4 
-> >  mm/hugetlb.c            |   62 +++++++------
-> >  mm/internal.h           |    7 -
-> >  mm/memory.c             |  180 +++++++++++++++++++++++---------------
-> >  mm/mlock.c              |   99 ++++++++------------
-> >  mm/nommu.c              |   22 ++--
-> >  9 files changed, 235 insertions(+), 241 deletions(-)
+> > I think, more exactly, we don't have to drain lru pages for mlocking.
+> > Mlocked pages will go into unevictable lru due to
+> > try_to_unmap when shrink of lru happens.
 > 
-> Great!
-> I'll start to test this patch series. Thanks Hugh!!
+> Right.
+> 
+> > How about removing draining in case of mlock?
+> 
+> Umm, I don't like this. because perfectly no drain often make strange test result.
+> I mean /proc/meminfo::Mlock might be displayed unexpected value. it is not leak. it's only lazy cull.
+> but many tester and administrator wiill think it's bug... ;)
 
-At least, My 24H stress workload test didn't find any problem.
-I'll continue testing.
+I agree. I have no objection to your approach. :)
 
+> Practically, lru_add_drain_all() is nearly zero cost. because mlock's page fault is very
+> costly operation. it hide drain cost. now, we only want to treat corner case issue. 
+> I don't hope dramatic change.
+
+Another problem is as follow.
+
+Although some CPUs don't have any thing to do, we do it. 
+HPC guys don't want to consume CPU cycle as Christoph pointed out.
+I liked Peter's idea with regard to this. 
+My approach can solve it, too. 
+But I agree it would be dramatic change. 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
