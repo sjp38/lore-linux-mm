@@ -1,88 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E49016B005A
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 12:14:08 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so913705bwz.38
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 09:14:12 -0700 (PDT)
-Message-ID: <4AAA774F.2050209@gmail.com>
-Date: Fri, 11 Sep 2009 12:14:07 -0400
-From: Gregory Haskins <gregory.haskins@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu> <4AAA7415.5080204@gmail.com>
-In-Reply-To: <4AAA7415.5080204@gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enig82C43E5F2EF2CEB5FEA90C83"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 13D106B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 16:09:51 -0400 (EDT)
+Date: Fri, 11 Sep 2009 13:09:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 14148] New: kernel panic: do_wp_page
+ assert_pte_locked failed when DEBUG_VM
+Message-Id: <20090911130940.a99708dc.akpm@linux-foundation.org>
+In-Reply-To: <bug-14148-10286@http.bugzilla.kernel.org/>
+References: <bug-14148-10286@http.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Ira W. Snyder" <iws@ovro.caltech.edu>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
+To: linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, wangbj@lzu.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enig82C43E5F2EF2CEB5FEA90C83
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 
-Gregory Haskins wrote:
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-[snip]
+On Wed, 9 Sep 2009 15:09:15 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
 
->=20
-> FWIW: VBUS handles this situation via the "memctx" abstraction.  IOW,
-> the memory is not assumed to be a userspace address.  Rather, it is a
-> memctx-specific address, which can be userspace, or any other type
-> (including hardware, dma-engine, etc).  As long as the memctx knows how=
+> http://bugzilla.kernel.org/show_bug.cgi?id=14148
+> 
+>            Summary: kernel panic: do_wp_page assert_pte_locked failed when
+>                     DEBUG_VM
+>            Product: Platform Specific/Hardware
+>            Version: 2.5
+>     Kernel Version: 2.6.31-rc3, 2.6.31-rc9-git2
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: PPC-32
+>         AssignedTo: platform_ppc-32@kernel-bugs.osdl.org
+>         ReportedBy: wangbj@lzu.edu.cn
+>         Regression: Yes
+> 
+> 
+> Created an attachment (id=23049)
+>  --> (http://bugzilla.kernel.org/attachment.cgi?id=23049)
+> problematic config file for mpc8548cds
+> 
+> powerpc mpc8548cds (I only have this board on hand) will kernel panic if
+> DEBUG_VM (kernel hacking) is enabled due to assertion failed in function
+> do_wp_page(). I think it highly possible for other ppc boards like 44x have the
+> same problem too, but I don't have the board.
+> 
+> here is the full log from power up (after u-boot). and the attachment is
+> related .config, NOTE the kernel boot successfully if CONFIG_DEBUG_VM is not
+> enabled.
+> 
+> host system is gentoo, the gcc (powerpc-unknown-linux-gnu-gcc) is build by
+> gentoo crossdev, version 4.4.1, (cross) glibc is 2.9, (cross) binutils is
+> 2.19.1, (cross) kernel headers is 2.6.30. target (mpc8548cds) root filesystem
+> is also gentoo (200907xx, extracted from stage3 tarball).
+> 
+> I have running similar test on x86 using qemu (0.10.6, +kvm), the result seems
+> OK, especially x86 pass all lock api test suite.
 
-> to translate it, it will work.
->=20
+First question:
 
-citations:
+> [10611.192802] ------------[ cut here ]------------
+> [10611.197409] Kernel BUG at c0014d70 [verbose debug info unavailable]
 
-Here is a packet import (from the perspective of the host side "venet"
-device model, similar to Michaels "vhost")
+Why did we not get the file-n-line?  That's iritating.
 
-http://git.kernel.org/?p=3Dlinux/kernel/git/ghaskins/alacrityvm/linux-2.6=
-=2Egit;a=3Dblob;f=3Dkernel/vbus/devices/venet-tap.c;h=3Dee091c47f06e9bb84=
-87a45e72d493273fe08329f;hb=3Dded8ce2005a85c174ba93ee26f8d67049ef11025#l53=
-5
+Oh, CONFIG_DEBUG_BUGVERBOSE=n.  Don't do that.  We should make that thing
+harder to get at, to stop people shooting our feet off.
 
-Here is the KVM specific memctx:
+> [10611.203660] Oops: Exception in kernel mode, sig: 5 [#1]
+> [10611.208866] PREEMPT MPC85xx CDS
+> [10611.211997] Modules linked in:
+> [10611.215040] NIP: c0014d70 LR: c0014eb4 CTR: 00000002
+> [10611.219988] REGS: cf82db40 TRAP: 0700   Not tainted  (2.6.31-rc3)
+> [10611.226061] MSR: 00029000 <EE,ME,CE>  CR: 88448044  XER: 20000000
+> [10611.232162] TASK = cf828000[1] 'init' THREAD: cf82c000
+> [10611.237108] GPR00: 00000001 cf82dbf0 cf828000 cf9781c0 bf8031d8 cf9f400c
+> 0057902f 00000001
+> [10611.245471] GPR08: cf978200 cf9f4000 00000002 00000000 28448042 1001b0b0
+> 00000001 cf88ee00
+> [10611.253833] GPR16: c05c0000 bf8031d8 00000002 10000000 48000000 00000001
+> 00000008 c05ecf20
+> [10611.262196] GPR24: 0057902b 0057902f cf82c000 00000000 cf9f400c 00000001
+> bf8031d8 cf98b000
+> [10611.270749] NIP [c0014d70] assert_pte_locked+0x3c/0x44
+> [10611.275872] LR [c0014eb4] ptep_set_access_flags+0xa8/0xf4
+> [10611.281252] Call Trace:
+> [10611.283687] [cf82dbf0] [bf8031d8] 0xbf8031d8 (unreliable)
+> [10611.289079] [cf82dc10] [c008e87c] do_wp_page+0xf8/0x82c
+> [10611.294292] [cf82dc60] [c0014770] do_page_fault+0x2c0/0x480
+> [10611.299851] [cf82dd10] [c0011078] handle_page_fault+0xc/0x80
+> [10611.305504] [cf82ddd0] [c00f2b4c] load_elf_binary+0x8a8/0x121c
+> [10611.311325] [cf82de50] [c00af418] search_binary_handler+0x144/0x37c
+> [10611.317578] [cf82dea0] [c00b0bc8] do_execve+0x270/0x2c8
+> [10611.322794] [cf82dee0] [c0008754] sys_execve+0x68/0xa4
+> [10611.327919] [cf82df00] [c0010c38] ret_from_syscall+0x0/0x3c
+> [10611.333482] [cf82dfc0] [c00b9350] sys_dup+0x38/0x78
+> [10611.338349] [cf82dfd0] [c0002030] init_post+0x94/0x108
+> [10611.343478] [cf82dfe0] [c054c234] kernel_init+0x114/0x130
+> [10611.348865] [cf82dff0] [c00109b8] kernel_thread+0x4c/0x68
+> [10611.354249] Instruction dump:
+> [10611.357206] 4d9e0020 38000000 0f000000 0f000000 81230024 5480653a 7c09002e
+> 54090027
+> [10611.364959] 7c000026 54001ffe 0f000000 38000001 <0f000000> 4e800020 7c0802a6
+> 9421fff0
+> [10611.372887] ---[ end trace 0cda2392272f221a ]---
 
-http://git.kernel.org/?p=3Dlinux/kernel/git/ghaskins/alacrityvm/linux-2.6=
-=2Egit;a=3Dblob;f=3Dkernel/vbus/kvm.c;h=3D56e2c5682a7ca8432c159377b0f7389=
-cf34cbc1b;hb=3Dded8ce2005a85c174ba93ee26f8d67049ef11025#l188
-
-and
-
-http://git.kernel.org/?p=3Dlinux/kernel/git/ghaskins/alacrityvm/linux-2.6=
-=2Egit;a=3Dblob;f=3Dvirt/kvm/xinterface.c;h=3D0cccb6095ca2a51bad01f7ba213=
-7fdd9111b63d3;hb=3Dded8ce2005a85c174ba93ee26f8d67049ef11025#l289
-
-You could alternatively define a memctx for your environment which knows
-how to deal with your PPC boards PCI based memory, and the devices would
-all "just work".
-
-Kind Regards,
--Greg
+So do_wp_page() called ptep_set_access_flags().  If CONFIG_DEBUG_VM=y,
+powerpc's ptep_set_access_flags() will call
+arch/powerpc/mm/pgtable.c:assert_pte_locked().  Because of the lack of
+file-n-line info it is unclear which of those many assertions
+triggered.  It looks like BUG_ON(!pmd_present(*pmd)).  Perhaps.
 
 
+Please set CONFIG_DEBUG_BUGVERBOSE=y in your .config and then tell us
+(via emailed reply-to-all) which line in arch/powerpc/mm/pgtable.c
+triggered the BUG.  Please actually quote that line, or tell us exactly
+which kernel version you're using so we can see which line it was in
+the source code.
 
---------------enig82C43E5F2EF2CEB5FEA90C83
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
-
-iEYEARECAAYFAkqqd08ACgkQP5K2CMvXmqEaqQCfXWSJFQS12SmLB3k+J4WDiEJq
-68cAoIjRCya0FvGnWGkZBETyFAe17+a/
-=8hCs
------END PGP SIGNATURE-----
-
---------------enig82C43E5F2EF2CEB5FEA90C83--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
