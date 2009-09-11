@@ -1,54 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C3BAC6B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 07:07:11 -0400 (EDT)
-Received: by iwn1 with SMTP id 1so402119iwn.11
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 04:07:13 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3A2A96B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 07:22:27 -0400 (EDT)
+Date: Fri, 11 Sep 2009 19:22:21 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 1/2] memcg: rename and export try_get_mem_cgroup_from_page()
+Message-ID: <20090911112221.GA20629@localhost>
 MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.0909072227140.15430@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
-	 <Pine.LNX.4.64.0909072227140.15430@sister.anvils>
-Date: Fri, 11 Sep 2009 20:07:13 +0900
-Message-ID: <82e12e5f0909110407h178ab6e0hbd6ac9e204738ae7@mail.gmail.com>
-Subject: Re: [PATCH 1/8] mm: munlock use follow_page
-From: Hiroaki Wakabayashi <primulaelatior@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2009/9/8 Hugh Dickins <hugh.dickins@tiscali.co.uk>:
-> Hiroaki Wakabayashi points out that when mlock() has been interrupted
-> by SIGKILL, the subsequent munlock() takes unnecessarily long because
-> its use of __get_user_pages() insists on faulting in all the pages
-> which mlock() never reached.
->
-> It's worse than slowness if mlock() is terminated by Out Of Memory kill:
-> the munlock_vma_pages_all() in exit_mmap() insists on faulting in all the
-> pages which mlock() could not find memory for; so innocent bystanders are
-> killed too, and perhaps the system hangs.
->
-> __get_user_pages() does a lot that's silly for munlock(): so remove the
-> munlock option from __mlock_vma_pages_range(), and use a simple loop of
-> follow_page()s in munlock_vma_pages_range() instead; ignoring absent
-> pages, and not marking present pages as accessed or dirty.
->
-> (Change munlock() to only go so far as mlock() reached? =A0That does not
-> work out, given the convention that mlock() claims complete success even
-> when it has to give up early - in part so that an underlying file can be
-> extended later, and those pages locked which earlier would give SIGBUS.)
->
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+So that the hwpoison injector can get mem_cgroup for arbitrary page
+and thus know whether it is owned by some mem_cgroup task(s).
 
-Reviewed-by: Hiroaki Wakabayashi <primulaelatior@gmail.com>
+Background:
 
-It very simple and so cool! I have learned something.
+The hwpoison test suite need to inject hwpoison to a collection of
+selected task pages, and must not touch pages not owned by these pages
+and thus kill important system processes such as init. (But it's OK to
+mis-hwpoison free/unowned pages as well as shared clean pages.
+Mis-hwpoison of shared dirty pages will kill all tasks, so the test
+suite will target all or non of such tasks in the first place.)
 
---
-Thanks,
-Hiroaki Wakabayashi
+The memory cgroup serves this purpose well. We can put the target
+processes under the control of a memory cgroup, and tell the hwpoison
+injection code to only kill pages associated with some active memory
+cgroup.
+
+The prerequsite for doing hwpoison stress tests with mem_cgroup is,
+the mem_cgroup code tracks task pages _accurately_ (unless page is
+locked).  Which we believe is/should be true.
+
+The benifits are simplification of hwpoison injector code. Also the
+mem_cgroup code will automatically be tested by hwpoison test cases.
+
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Hugh Dickins <hugh@veritas.com>
+CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+CC: Balbir Singh <balbir@linux.vnet.ibm.com>
+CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/memcontrol.h |    6 ++++++
+ mm/memcontrol.c            |   12 +++++-------
+ 2 files changed, 11 insertions(+), 7 deletions(-)
+
+--- linux-mm.orig/mm/memcontrol.c	2009-09-11 18:51:14.000000000 +0800
++++ linux-mm/mm/memcontrol.c	2009-09-11 18:52:14.000000000 +0800
+@@ -1389,25 +1389,22 @@ static struct mem_cgroup *mem_cgroup_loo
+ 	return container_of(css, struct mem_cgroup, css);
+ }
+ 
+-static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
++struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+ {
+-	struct mem_cgroup *mem;
++	struct mem_cgroup *mem = NULL;
+ 	struct page_cgroup *pc;
+ 	unsigned short id;
+ 	swp_entry_t ent;
+ 
+ 	VM_BUG_ON(!PageLocked(page));
+ 
+-	if (!PageSwapCache(page))
+-		return NULL;
+-
+ 	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc)) {
+ 		mem = pc->mem_cgroup;
+ 		if (mem && !css_tryget(&mem->css))
+ 			mem = NULL;
+-	} else {
++	} else if (PageSwapCache(page)) {
+ 		ent.val = page_private(page);
+ 		id = lookup_swap_cgroup(ent);
+ 		rcu_read_lock();
+@@ -1419,6 +1416,7 @@ static struct mem_cgroup *try_get_mem_cg
+ 	unlock_page_cgroup(pc);
+ 	return mem;
+ }
++EXPORT_SYMBOL(try_get_mem_cgroup_from_page);
+ 
+ /*
+  * commit a charge got by __mem_cgroup_try_charge() and makes page_cgroup to be
+@@ -1753,7 +1751,7 @@ int mem_cgroup_try_charge_swapin(struct 
+ 	 */
+ 	if (!PageSwapCache(page))
+ 		return 0;
+-	mem = try_get_mem_cgroup_from_swapcache(page);
++	mem = try_get_mem_cgroup_from_page(page);
+ 	if (!mem)
+ 		goto charge_cur_mm;
+ 	*ptr = mem;
+--- linux-mm.orig/include/linux/memcontrol.h	2009-09-11 18:51:13.000000000 +0800
++++ linux-mm/include/linux/memcontrol.h	2009-09-11 18:52:14.000000000 +0800
+@@ -68,6 +68,7 @@ extern unsigned long mem_cgroup_isolate_
+ extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
+ 
++extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+ 
+ static inline
+@@ -189,6 +190,11 @@ mem_cgroup_move_lists(struct page *page,
+ {
+ }
+ 
++static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
++{
++	return NULL;
++}
++
+ static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
+ {
+ 	return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
