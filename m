@@ -1,150 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EEFE6B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 18:27:32 -0400 (EDT)
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id n8BMRbal030120
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 23:27:38 +0100
-Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
-	by zps78.corp.google.com with ESMTP id n8BMQW7V024121
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:27:35 -0700
-Received: by pzk35 with SMTP id 35so1193729pzk.11
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:27:34 -0700 (PDT)
-Date: Fri, 11 Sep 2009 15:27:30 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 094626B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 18:38:32 -0400 (EDT)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id n8BMcVwd028630
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 23:38:31 +0100
+Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
+	by spaceape14.eur.corp.google.com with ESMTP id n8BMcScQ007880
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:38:28 -0700
+Received: by pxi10 with SMTP id 10so1257685pxi.24
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:38:27 -0700 (PDT)
+Date: Fri, 11 Sep 2009 15:38:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for mempolicy
- based management.
-In-Reply-To: <20090910122641.GA31153@csn.ul.ie>
-Message-ID: <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com>
-References: <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com> <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie>
- <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com>
- <20090910122641.GA31153@csn.ul.ie>
+Subject: Re: [PATCH 3/6] hugetlb:  introduce alloc_nodemask_of_node
+In-Reply-To: <1252674684.4392.222.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.1.00.0909111529590.22083@chino.kir.corp.google.com>
+References: <20090909163127.12963.612.sendpatchset@localhost.localdomain> <20090909163146.12963.79545.sendpatchset@localhost.localdomain> <20090910160541.9f902126.akpm@linux-foundation.org> <1252674684.4392.222.camel@useless.americas.hpqcorp.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Sep 2009, Mel Gorman wrote:
+On Fri, 11 Sep 2009, Lee Schermerhorn wrote:
 
-> > Would you explain why introducing a new mempolicy flag, MPOL_F_HUGEPAGES, 
-> > and only using the new behavior when this is set would be inconsistent or 
-> > inadvisible?
+> > It's a bit rude to assume that the caller wanted to use GFP_KERNEL.
 > 
-> I already explained this. The interface in numactl would look weird. There
-> would be an --interleave switch and a --hugepages-interleave that only
-> applies to nr_hugepages. The smarts could be in hugeadm to apply the mask
-> when --pool-pages-min is specified but that wouldn't help scripts that are
-> still using echo.
+> I can add a gfp_t parameter to the macro, but I'll still need to select
+> value in the caller.  Do you have a suggested alternative to GFP_KERNEL
+> [for both here and in alloc_nodemask_of_mempolicy()]?  We certainly
+> don't want to loop forever, killing off tasks, as David mentioned.
+> Silently failing is OK.  We handle that.
 > 
 
-I don't think we need to address the scripts that are currently using echo 
-since they're (hopefully) written to the kernel implementation, i.e. no 
-mempolicy restriction on writing to nr_hugepages.
+Dynamically allocating the nodemask_t for small NODES_SHIFT and failing to 
+find adequate memory isn't as troublesome as I may have made it sound; 
+it's only a problem if we're low on memory and can't do order-0 GFP_KERNEL 
+allocations and the kmalloc cache for that size is full.  That's going to 
+be extremely rare, but the first requirement, being low on memory, is one 
+of the reasons why people traditionally free hugepages via the tunable.
 
-> I hate to have to do this, but how about nr_hugepages which acts
-> system-wide as it did traditionally and nr_hugepages_mempolicy that obeys
-> policies? Something like the following untested patch. It would be fairly
-> trivial for me to implement a --obey-mempolicies switch for hugeadm which
-> works in conjunction with --pool--pages-min and less likely to cause confusion
-> than --hugepages-interleave in numactl.
-> 
+As far as the software engineering of alloc_nodemask_of_node() goes, I'd 
+defer back to my previous suggestion of modifying NODEMASK_ALLOC() which 
+has very much the same purpose.  It's also only used with mempolicies 
+because we're frequently dealing with the same issue; this is not unique 
+only to hugetlb, which is probably why it was made generic in the first 
+place.
 
-I like it.
+It has the added benefit of also incorporating my other suggestion, which 
+was to allocate these on the stack when NODES_SHIFT is small, which it 
+defaults to for all architectures other than ia64.  I think it would be 
+nice to avoid the slab allocator for relatively small (<= 256 bytes?) 
+amounts of memory that could otherwise be stack allocated.  That's more of 
+a general statement with regard to the entire kernel, but I don't think 
+you'll find much benefit in always allocating them from slab for code 
+clarity when NODEMASK_ALLOC() exists for the same purpose such as 
+set_mempolicy(), mbind(), etc.
 
-> Sorry the patch is untested. I can't hold of a NUMA machine at the moment
-> and fake NUMA support sucks far worse than I expected it to.
-> 
-
-Hmm, I rewrote most of fake NUMA a couple years ago.  What problems are 
-you having with it?
-
-> ==== BEGIN PATCH ====
-> 
-> [PATCH] Optionally use a memory policy when tuning the size of the static hugepage pool
-> 
-> Patch "derive huge pages nodes allowed from task mempolicy" brought
-> huge page support more in line with the core VM in that tuning the size
-> of the static huge page pool would obey memory policies. Using this,
-> administrators could interleave allocation of huge pages from a subset
-> of nodes. This is consistent with how dynamic hugepage pool resizing
-> works and how hugepages get allocated to applications at run-time.
-> 
-> However, it was pointed out that scripts may exist that depend on being
-> able to drain all hugepages via /proc/sys/vm/nr_hugepages from processes
-> that are running within a memory policy. This patch adds
-> /proc/sys/vm/nr_hugepages_mempolicy which when written to will obey
-> memory policies. /proc/sys/vm/nr_hugepages continues then to be a
-> system-wide tunable regardless of memory policy.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> --- 
->  include/linux/hugetlb.h |    1 +
->  kernel/sysctl.c         |   11 +++++++++++
->  mm/hugetlb.c            |   35 ++++++++++++++++++++++++++++++++---
->  3 files changed, 44 insertions(+), 3 deletions(-)
-> 
-
-It'll need an update to Documentation/vm/hugetlb.txt, but this can 
-probably be done in one of Lee's patches that edits the same file when he 
-reposts.
-
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index fcb1677..fc3a659 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -21,6 +21,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
->  
->  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
->  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-> +int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
->  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
->  int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
->  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 8bac3f5..0637655 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -1171,6 +1171,17 @@ static struct ctl_table vm_table[] = {
->  		.extra1		= (void *)&hugetlb_zero,
->  		.extra2		= (void *)&hugetlb_infinity,
->  	 },
-> +#ifdef CONFIG_NUMA
-> +	 {
-> +		.procname	= "nr_hugepages_mempolicy",
-> +		.data		= NULL,
-> +		.maxlen		= sizeof(unsigned long),
-> +		.mode		= 0644,
-> +		.proc_handler	= &hugetlb_mempolicy_sysctl_handler,
-> +		.extra1		= (void *)&hugetlb_zero,
-> +		.extra2		= (void *)&hugetlb_infinity,
-> +	 },
-> +#endif
->  	 {
->  		.ctl_name	= VM_HUGETLB_GROUP,
->  		.procname	= "hugetlb_shm_group",
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 83decd6..68abef0 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1244,6 +1244,7 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
->  	return ret;
->  }
->  
-> +#define NUMA_NO_NODE_OBEY_MEMPOLICY (-2)
->  #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
->  static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
->  								int nid)
-
-I think it would be possible to avoid adding NUMA_NO_NODE_OBEY_MEMPOLICY 
-if the nodemask was allocated in the sysctl handler instead and passing it 
-into set_max_huge_pages() instead of a nid.  Lee, what do you think?
-
-
-Other than that, I like this approach because it avoids the potential for 
-userspace breakage while adding the new feature in way that avoids 
-confusion.
+So I'd ask that you reconsider using NODEMASK_ALLOC() by making it more 
+general (i.e. not just allocating "structs of <name>" but rather pass in 
+the entire type such as "nodemask_t" or "struct nodemask_scratch") and 
+then using it to dynamically allocate your hugetlb nodemasks when 
+necessary because of their size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
