@@ -1,150 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4E1496B0055
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 07:36:49 -0400 (EDT)
-Date: Fri, 11 Sep 2009 19:36:39 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/2] memcg: rename and export
-	try_get_mem_cgroup_from_page()
-Message-ID: <20090911113639.GA21321@localhost>
-References: <20090911112221.GA20629@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090911112221.GA20629@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 60E0A6B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 09:11:25 -0400 (EDT)
+Subject: Re: [PATCH 3/6] hugetlb:  introduce alloc_nodemask_of_node
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090910160541.9f902126.akpm@linux-foundation.org>
+References: <20090909163127.12963.612.sendpatchset@localhost.localdomain>
+	 <20090909163146.12963.79545.sendpatchset@localhost.localdomain>
+	 <20090910160541.9f902126.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Fri, 11 Sep 2009 09:11:24 -0400
+Message-Id: <1252674684.4392.222.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, rientjes@google.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[add CC to new Hugh; will update CC inside patch]
+On Thu, 2009-09-10 at 16:05 -0700, Andrew Morton wrote:
+> On Wed, 09 Sep 2009 12:31:46 -0400
+> Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> 
+> > [PATCH 3/6] - hugetlb:  introduce alloc_nodemask_of_node()
+> > 
+> > Against:  2.6.31-rc7-mmotm-090827-1651
+> > 
+> > New in V5 of series
+> > 
+> > V6: + rename 'init_nodemask_of_nodes()' to 'init_nodemask_of_node()'
+> >     + redefine init_nodemask_of_node() as static inline fcn
+> >     + move this patch back 1 in series
+> > 
+> > Introduce nodemask macro to allocate a nodemask and 
+> > initialize it to contain a single node, using the macro
+> > init_nodemask_of_node() factored out of the nodemask_of_node()
+> > macro.
+> > 
+> > alloc_nodemask_of_node() coded as a macro to avoid header
+> > dependency hell.
+> > 
+> > This will be used to construct the huge pages "nodes_allowed"
+> > nodemask for a single node when basing nodes_allowed on a
+> > preferred/local mempolicy or when a persistent huge page
+> > pool page count is modified via a per node sysfs attribute.
+> > 
+> > ...
+> >
+> > +/*
+> > + * returns pointer to kmalloc()'d nodemask initialized to contain the
+> > + * specified node.  Caller must free with kfree().
+> > + */
+> > +#define alloc_nodemask_of_node(node)					\
+> > +({									\
+> > +	typeof(_unused_nodemask_arg_) *nmp;				\
+> > +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
+> > +	if (nmp)							\
+> > +		init_nodemask_of_node(nmp, (node));			\
+> > +	nmp;								\
+> > +})
+> 
+> All right, I give up.  What's with this `typeof(_unused_nodemask_arg_)'
+> stuff?
 
-Hi Kame and Balbir,
+You got me.  I would have used a bar nodemask_t, but I was following the
+style of the nodemask_of_node() in the same header.
 
-After your previous reviews, I tried out the pin-pfn idea.
-It resulted in many code in both kernel and user space tools.
-So I (and Andi) decided that the complexity of tracking pin
-states is not worth it. It would be best to reuse the memcg
-functionalities for testing hwpoison. It is particular handy
-for some fork storm tests.
+> 
+> 
+> Was there a reason why this had to be implemented as a macro.
 
-The change since the initial post is
-- don't export the memcg id. we don't need it indeed, and can simply
-  try to hwpoison *all* memcg tracked pages.
-- generate mem_cgroup_css() code only for CONFIG_HWPOISON_INJECT
+> One
+> which evaluates its arg either one or zero times, btw?
 
-Thus no user visible changes and no extra code when hwpoison is
-disabled.
+Well, one, unless the alloc fails.  
 
-Thanks,
-Fengguang
+> 
+> hm.  "to avoid header dependency hell".  What hell?  Self-inflicted?
 
-On Fri, Sep 11, 2009 at 07:22:21PM +0800, Wu Fengguang wrote:
-> So that the hwpoison injector can get mem_cgroup for arbitrary page
-> and thus know whether it is owned by some mem_cgroup task(s).
+Well, I tried to make it a static inline function, but nodemask.h gets
+included, indirectly, in various places where, e.g., kmalloc() is not
+defined.  I tried including slab.h, but that had problems with other
+missing definitions.  I didn't want to end up with the entire
+include/linux directory included in nodemask.h.
+
+I would have put it in a .c file, but there is no, e.g., nodemask.c.
+Guess I could have created alloc_bitmap_of_bit() in bitmap.c with a
+wrapper in nodemask.h.  Would that be preferable?
+
 > 
-> Background:
+> alloc_nodemask_of_node() has no callers, so I can think of a good fix
+> for these problems.  If it _did_ have a caller then I might ask "can't
+> we fix this by moving alloc_nodemask_of_node() into the .c file".  But
+> it doesn't so I can't.
+
+This patch was a later addition.  The function is used by the following
+patch.   Originally, I had a private function in hugetlb.c that
+kmalloc()'d and initialized the nodes_allowed mask.  Mel suggested that
+I use the generic nodemask_of_node().  That didn't have the semantics I
+wanted, so I created this variant.
+
 > 
-> The hwpoison test suite need to inject hwpoison to a collection of
-> selected task pages, and must not touch pages not owned by these pages
-> and thus kill important system processes such as init. (But it's OK to
-> mis-hwpoison free/unowned pages as well as shared clean pages.
-> Mis-hwpoison of shared dirty pages will kill all tasks, so the test
-> suite will target all or non of such tasks in the first place.)
-> 
-> The memory cgroup serves this purpose well. We can put the target
-> processes under the control of a memory cgroup, and tell the hwpoison
-> injection code to only kill pages associated with some active memory
-> cgroup.
-> 
-> The prerequsite for doing hwpoison stress tests with mem_cgroup is,
-> the mem_cgroup code tracks task pages _accurately_ (unless page is
-> locked).  Which we believe is/should be true.
-> 
-> The benifits are simplification of hwpoison injector code. Also the
-> mem_cgroup code will automatically be tested by hwpoison test cases.
-> 
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Hugh Dickins <hugh@veritas.com>
-> CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/memcontrol.h |    6 ++++++
->  mm/memcontrol.c            |   12 +++++-------
->  2 files changed, 11 insertions(+), 7 deletions(-)
-> 
-> --- linux-mm.orig/mm/memcontrol.c	2009-09-11 18:51:14.000000000 +0800
-> +++ linux-mm/mm/memcontrol.c	2009-09-11 18:52:14.000000000 +0800
-> @@ -1389,25 +1389,22 @@ static struct mem_cgroup *mem_cgroup_loo
->  	return container_of(css, struct mem_cgroup, css);
->  }
->  
-> -static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
-> +struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->  {
-> -	struct mem_cgroup *mem;
-> +	struct mem_cgroup *mem = NULL;
->  	struct page_cgroup *pc;
->  	unsigned short id;
->  	swp_entry_t ent;
->  
->  	VM_BUG_ON(!PageLocked(page));
->  
-> -	if (!PageSwapCache(page))
-> -		return NULL;
-> -
->  	pc = lookup_page_cgroup(page);
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
->  		if (mem && !css_tryget(&mem->css))
->  			mem = NULL;
-> -	} else {
-> +	} else if (PageSwapCache(page)) {
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup(ent);
->  		rcu_read_lock();
-> @@ -1419,6 +1416,7 @@ static struct mem_cgroup *try_get_mem_cg
->  	unlock_page_cgroup(pc);
->  	return mem;
->  }
-> +EXPORT_SYMBOL(try_get_mem_cgroup_from_page);
->  
->  /*
->   * commit a charge got by __mem_cgroup_try_charge() and makes page_cgroup to be
-> @@ -1753,7 +1751,7 @@ int mem_cgroup_try_charge_swapin(struct 
->  	 */
->  	if (!PageSwapCache(page))
->  		return 0;
-> -	mem = try_get_mem_cgroup_from_swapcache(page);
-> +	mem = try_get_mem_cgroup_from_page(page);
->  	if (!mem)
->  		goto charge_cur_mm;
->  	*ptr = mem;
-> --- linux-mm.orig/include/linux/memcontrol.h	2009-09-11 18:51:13.000000000 +0800
-> +++ linux-mm/include/linux/memcontrol.h	2009-09-11 18:52:14.000000000 +0800
-> @@ -68,6 +68,7 @@ extern unsigned long mem_cgroup_isolate_
->  extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
->  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
->  
-> +extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
->  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
->  
->  static inline
-> @@ -189,6 +190,11 @@ mem_cgroup_move_lists(struct page *page,
->  {
->  }
->  
-> +static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> +{
-> +	return NULL;
-> +}
-> +
->  static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
->  {
->  	return 1;
+> It's a bit rude to assume that the caller wanted to use GFP_KERNEL.
+
+I can add a gfp_t parameter to the macro, but I'll still need to select
+value in the caller.  Do you have a suggested alternative to GFP_KERNEL
+[for both here and in alloc_nodemask_of_mempolicy()]?  We certainly
+don't want to loop forever, killing off tasks, as David mentioned.
+Silently failing is OK.  We handle that.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
