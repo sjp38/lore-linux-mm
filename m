@@ -1,199 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6203B6B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 01:52:40 -0400 (EDT)
-Date: Thu, 10 Sep 2009 22:52:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Add memory mapped RTC driver for UV
-Message-Id: <20090910225242.5c3f8ca1.akpm@linux-foundation.org>
-In-Reply-To: <20090911013054.GA6567@sgi.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A26536B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 02:01:17 -0400 (EDT)
+Received: by yxe32 with SMTP id 32so1011672yxe.23
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2009 23:01:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090910225242.5c3f8ca1.akpm@linux-foundation.org>
 References: <20090911013054.GA6567@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20090910225242.5c3f8ca1.akpm@linux-foundation.org>
+Date: Fri, 11 Sep 2009 15:01:16 +0900
+Message-ID: <28c262360909102301v5d1c32b9lb3290a6a31f49d17@mail.gmail.com>
+Subject: Re: [PATCH] Add memory mapped RTC driver for UV
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Dimitri Sivanich <sivanich@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dimitri Sivanich <sivanich@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Sep 2009 20:30:54 -0500 Dimitri Sivanich <sivanich@sgi.com> wrote:
-
-> This driver memory maps the UV Hub RTC.
+On Fri, Sep 11, 2009 at 2:52 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 10 Sep 2009 20:30:54 -0500 Dimitri Sivanich <sivanich@sgi.com> wr=
+ote:
 >
-> ...
+>> This driver memory maps the UV Hub RTC.
+>>
+>> ...
+>>
+>> +/**
+>> + * uv_mmtimer_ioctl - ioctl interface for /dev/uv_mmtimer
+>> + * @file: file structure for the device
+>> + * @cmd: command to execute
+>> + * @arg: optional argument to command
+>> + *
+>> + * Executes the command specified by @cmd. =A0Returns 0 for success, < =
+0 for
+>> + * failure.
+>> + *
+>> + * Valid commands:
+>> + *
+>> + * %MMTIMER_GETOFFSET - Should return the offset (relative to the start
+>> + * of the page where the registers are mapped) for the counter in quest=
+ion.
+>> + *
+>> + * %MMTIMER_GETRES - Returns the resolution of the clock in femto (10^-=
+15)
+>> + * seconds
+>> + *
+>> + * %MMTIMER_GETFREQ - Copies the frequency of the clock in Hz to the ad=
+dress
+>> + * specified by @arg
+>> + *
+>> + * %MMTIMER_GETBITS - Returns the number of bits in the clock's counter
+>> + *
+>> + * %MMTIMER_MMAPAVAIL - Returns 1 if registers can be mmap'd into users=
+pace
+>> + *
+>> + * %MMTIMER_GETCOUNTER - Gets the current value in the counter and plac=
+es it
+>> + * in the address specified by @arg.
 >
-> +/**
-> + * uv_mmtimer_ioctl - ioctl interface for /dev/uv_mmtimer
-> + * @file: file structure for the device
-> + * @cmd: command to execute
-> + * @arg: optional argument to command
-> + *
-> + * Executes the command specified by @cmd.  Returns 0 for success, < 0 for
-> + * failure.
-> + *
-> + * Valid commands:
-> + *
-> + * %MMTIMER_GETOFFSET - Should return the offset (relative to the start
-> + * of the page where the registers are mapped) for the counter in question.
-> + *
-> + * %MMTIMER_GETRES - Returns the resolution of the clock in femto (10^-15)
-> + * seconds
-> + *
-> + * %MMTIMER_GETFREQ - Copies the frequency of the clock in Hz to the address
-> + * specified by @arg
-> + *
-> + * %MMTIMER_GETBITS - Returns the number of bits in the clock's counter
-> + *
-> + * %MMTIMER_MMAPAVAIL - Returns 1 if registers can be mmap'd into userspace
-> + *
-> + * %MMTIMER_GETCOUNTER - Gets the current value in the counter and places it
-> + * in the address specified by @arg.
+> Are these % thingies part of kerneldoc?
+>
+>> + */
+>> +static long uv_mmtimer_ioctl(struct file *file, unsigned int cmd,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 unsigned long arg)
+>> +{
+>> + =A0 =A0 int ret =3D 0;
+>> +
+>> + =A0 =A0 switch (cmd) {
+>> + =A0 =A0 case MMTIMER_GETOFFSET: /* offset of the counter */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0* UV RTC register is on it's own page
+>
+> "its" ;)
+>
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (PAGE_SIZE <=3D (1 << 16))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D ((UV_LOCAL_MMR_BASE | =
+UVH_RTC) & (PAGE_SIZE-1))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 / 8;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 else
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOSYS;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> +
+>> + =A0 =A0 case MMTIMER_GETRES: /* resolution of the clock in 10^-15 s */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (copy_to_user((unsigned long __user *)arg,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &uv_mmtimer_fe=
+mtoperiod, sizeof(unsigned long)))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EFAULT;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> +
+>> + =A0 =A0 case MMTIMER_GETFREQ: /* frequency in Hz */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (copy_to_user((unsigned long __user *)arg,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &sn_rtc_cycles=
+_per_second,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sizeof(unsigne=
+d long)))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EFAULT;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> +
+>> + =A0 =A0 case MMTIMER_GETBITS: /* number of bits in the clock */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D hweight64(UVH_RTC_REAL_TIME_CLOCK_MASK=
+);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> +
+>> + =A0 =A0 case MMTIMER_MMAPAVAIL: /* can we mmap the clock into userspac=
+e? */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D (PAGE_SIZE <=3D (1 << 16)) ? 1 : 0;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> +
+>> + =A0 =A0 case MMTIMER_GETCOUNTER:
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (copy_to_user((unsigned long __user *)arg,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 (unsigned long=
+ *)uv_local_mmr_address(UVH_RTC),
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sizeof(unsigne=
+d long)))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -EFAULT;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> + =A0 =A0 default:
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOTTY;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> + =A0 =A0 }
+>> + =A0 =A0 return ret;
+>> +}
+>> +
+>> +/**
+>> + * uv_mmtimer_mmap - maps the clock's registers into userspace
+>> + * @file: file structure for the device
+>> + * @vma: VMA to map the registers into
+>> + *
+>> + * Calls remap_pfn_range() to map the clock's registers into
+>> + * the calling process' address space.
+>> + */
+>> +static int uv_mmtimer_mmap(struct file *file, struct vm_area_struct *vm=
+a)
+>> +{
+>> + =A0 =A0 unsigned long uv_mmtimer_addr;
+>> +
+>> + =A0 =A0 if (vma->vm_end - vma->vm_start !=3D PAGE_SIZE)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return -EINVAL;
+>> +
+>> + =A0 =A0 if (vma->vm_flags & VM_WRITE)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return -EPERM;
+>> +
+>> + =A0 =A0 if (PAGE_SIZE > (1 << 16))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return -ENOSYS;
+>> +
+>> + =A0 =A0 vma->vm_page_prot =3D pgprot_noncached(vma->vm_page_prot);
+>> +
+>> + =A0 =A0 uv_mmtimer_addr =3D UV_LOCAL_MMR_BASE | UVH_RTC;
+>> + =A0 =A0 uv_mmtimer_addr &=3D ~(PAGE_SIZE - 1);
+>> + =A0 =A0 uv_mmtimer_addr &=3D 0xfffffffffffffffUL;
+>> +
+>> + =A0 =A0 if (remap_pfn_range(vma, vma->vm_start, uv_mmtimer_addr >> PAG=
+E_SHIFT,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 PAGE_SIZE, vma->vm_page_prot)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_ERR "remap_pfn_range failed in uv_=
+mmtimer_mmap\n");
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return -EAGAIN;
+>> + =A0 =A0 }
+>> +
+>> + =A0 =A0 return 0;
+>> +}
+>
+> Methinks we should be setting vma->vm_flags's VM_IO here and perhaps
+> also VM_RESERVED.
 
-Are these % thingies part of kerneldoc?
+remap_pfn_range already does it. :)
 
-> + */
-> +static long uv_mmtimer_ioctl(struct file *file, unsigned int cmd,
-> +						unsigned long arg)
-> +{
-> +	int ret = 0;
-> +
-> +	switch (cmd) {
-> +	case MMTIMER_GETOFFSET:	/* offset of the counter */
-> +		/*
-> +		 * UV RTC register is on it's own page
-
-"its" ;)
-
-> +		 */
-> +		if (PAGE_SIZE <= (1 << 16))
-> +			ret = ((UV_LOCAL_MMR_BASE | UVH_RTC) & (PAGE_SIZE-1))
-> +				/ 8;
-> +		else
-> +			ret = -ENOSYS;
-> +		break;
-> +
-> +	case MMTIMER_GETRES: /* resolution of the clock in 10^-15 s */
-> +		if (copy_to_user((unsigned long __user *)arg,
-> +				&uv_mmtimer_femtoperiod, sizeof(unsigned long)))
-> +			ret = -EFAULT;
-> +		break;
-> +
-> +	case MMTIMER_GETFREQ: /* frequency in Hz */
-> +		if (copy_to_user((unsigned long __user *)arg,
-> +				&sn_rtc_cycles_per_second,
-> +				sizeof(unsigned long)))
-> +			ret = -EFAULT;
-> +		break;
-> +
-> +	case MMTIMER_GETBITS: /* number of bits in the clock */
-> +		ret = hweight64(UVH_RTC_REAL_TIME_CLOCK_MASK);
-> +		break;
-> +
-> +	case MMTIMER_MMAPAVAIL: /* can we mmap the clock into userspace? */
-> +		ret = (PAGE_SIZE <= (1 << 16)) ? 1 : 0;
-> +		break;
-> +
-> +	case MMTIMER_GETCOUNTER:
-> +		if (copy_to_user((unsigned long __user *)arg,
-> +				(unsigned long *)uv_local_mmr_address(UVH_RTC),
-> +				sizeof(unsigned long)))
-> +			ret = -EFAULT;
-> +		break;
-> +	default:
-> +		ret = -ENOTTY;
-> +		break;
-> +	}
-> +	return ret;
-> +}
-> +
-> +/**
-> + * uv_mmtimer_mmap - maps the clock's registers into userspace
-> + * @file: file structure for the device
-> + * @vma: VMA to map the registers into
-> + *
-> + * Calls remap_pfn_range() to map the clock's registers into
-> + * the calling process' address space.
-> + */
-> +static int uv_mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	unsigned long uv_mmtimer_addr;
-> +
-> +	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
-> +		return -EINVAL;
-> +
-> +	if (vma->vm_flags & VM_WRITE)
-> +		return -EPERM;
-> +
-> +	if (PAGE_SIZE > (1 << 16))
-> +		return -ENOSYS;
-> +
-> +	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-> +
-> +	uv_mmtimer_addr = UV_LOCAL_MMR_BASE | UVH_RTC;
-> +	uv_mmtimer_addr &= ~(PAGE_SIZE - 1);
-> +	uv_mmtimer_addr &= 0xfffffffffffffffUL;
-> +
-> +	if (remap_pfn_range(vma, vma->vm_start, uv_mmtimer_addr >> PAGE_SHIFT,
-> +					PAGE_SIZE, vma->vm_page_prot)) {
-> +		printk(KERN_ERR "remap_pfn_range failed in uv_mmtimer_mmap\n");
-> +		return -EAGAIN;
-> +	}
-> +
-> +	return 0;
-> +}
-
-Methinks we should be setting vma->vm_flags's VM_IO here and perhaps
-also VM_RESERVED.
-
-> +static struct miscdevice uv_mmtimer_miscdev = {
-> +	MISC_DYNAMIC_MINOR,
-> +	UV_MMTIMER_NAME,
-> +	&uv_mmtimer_fops
-> +};
-> +
-> +
-> +/**
-> + * uv_mmtimer_init - device initialization routine
-> + *
-> + * Does initial setup for the uv_mmtimer device.
-> + */
-> +static int __init uv_mmtimer_init(void)
-> +{
-> +	if (!is_uv_system())
-> +		return 0;
-
-This will leave the module loaded but inactive.  Would it make more
-sense to return an error code in this case so that a) the user
-discovers that he wasted his time and b) the module will get booted out
-again?
-
-> +	/*
-> +	 * Sanity check the cycles/sec variable
-> +	 */
-> +	if (sn_rtc_cycles_per_second < 100000) {
-> +		printk(KERN_ERR "%s: unable to determine clock frequency\n",
-> +		       UV_MMTIMER_NAME);
-> +		return -1;
-> +	}
-> +
-> +	uv_mmtimer_femtoperiod = ((unsigned long)1E15 +
-> +				sn_rtc_cycles_per_second / 2) /
-> +				sn_rtc_cycles_per_second;
-> +
-> +	if (misc_register(&uv_mmtimer_miscdev)) {
-> +		printk(KERN_ERR "%s: failed to register device\n",
-> +		       UV_MMTIMER_NAME);
-> +		return -1;
-> +	}
-> +
-> +	printk(KERN_INFO "%s: v%s, %ld MHz\n", UV_MMTIMER_DESC,
-> +		UV_MMTIMER_VERSION,
-> +		sn_rtc_cycles_per_second/(unsigned long)1E6);
-> +
-> +	return 0;
-> +}
-> +
-> +module_init(uv_mmtimer_init);
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
