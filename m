@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B05156B004D
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 19:43:54 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id n8ANhtXO021347
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 16:43:55 -0700
-Received: from qyk6 (qyk6.prod.google.com [10.241.83.134])
-	by wpaz1.hot.corp.google.com with ESMTP id n8ANhMrR030860
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 16:43:53 -0700
-Received: by qyk6 with SMTP id 6so42437qyk.9
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2009 16:43:52 -0700 (PDT)
-Date: Thu, 10 Sep 2009 16:43:48 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/6] hugetlb:  introduce alloc_nodemask_of_node
-In-Reply-To: <20090910163641.9ebaa601.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.1.00.0909101638290.27541@chino.kir.corp.google.com>
-References: <20090909163127.12963.612.sendpatchset@localhost.localdomain> <20090909163146.12963.79545.sendpatchset@localhost.localdomain> <20090910160541.9f902126.akpm@linux-foundation.org> <alpine.DEB.1.00.0909101614060.25078@chino.kir.corp.google.com>
- <20090910163641.9ebaa601.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4A87C6B004D
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2009 21:52:46 -0400 (EDT)
+Received: by pxi1 with SMTP id 1so465641pxi.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2009 18:52:52 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] mmap : save some cycles for the shared anonymous mapping
+Date: Fri, 11 Sep 2009 09:52:46 +0800
+Message-Id: <1252633966-20541-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lee.schermerhorn@hp.com, linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Sep 2009, Andrew Morton wrote:
+The shmem_zere_setup() does not change vm_start, pgoff or vm_flags,
+only some drivers change them (such as /driver/video/bfin-t350mcqb-fb.c).
 
-> > > alloc_nodemask_of_node() has no callers, so I can think of a good fix
-> > > for these problems.  If it _did_ have a caller then I might ask "can't
-> > > we fix this by moving alloc_nodemask_of_node() into the .c file".  But
-> > > it doesn't so I can't.
-> > > 
-> > 
-> > It gets a caller in patch 5 of the series in set_max_huge_pages().
-> 
-> ooh, there it is.
-> 
-> So alloc_nodemask_of_node() could be moved into mm/hugetlb.c.
-> 
+Moving these codes to a more proper place to save cycles for shared anonymous mapping.
 
-We discussed that, but the consensus was that it specific to mempolicies 
-not hugepages.  Perhaps someday it will gain another caller.
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ mm/mmap.c |   18 +++++++++---------
+ 1 files changed, 9 insertions(+), 9 deletions(-)
 
-> > My early criticism of both alloc_nodemask_of_node() and 
-> > alloc_nodemask_of_mempolicy() was that for small CONFIG_NODES_SHIFT (say, 
-> > 6 or less, which covers all defconfigs except ia64), it is perfectly 
-> > reasonable to allocate 64 bytes on the stack in the caller.
-> 
-> Spose so.  But this stuff is only called when userspace reconfigures
-> via sysfs, so it'll be low bandwidth (one sincerely hopes).
-> 
-
-True, but order-0 GFP_KERNEL allocations will loop forever in the page 
-allocator and kill off tasks if it can't allocate memory.  That wouldn't 
-necessarily be a cause for concern other than the fact that this tunable 
-is already frequently written when memory is low to reclaim pages.
-
- [ If we're really tailoring it only for its current use case, though, the 
-   stack could easily support even NODES_SHIFT of 10. ]
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8101de4..840e91e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1195,21 +1195,21 @@ munmap_back:
+ 			goto unmap_and_free_vma;
+ 		if (vm_flags & VM_EXECUTABLE)
+ 			added_exe_file_vma(mm);
++
++		/* Can addr have changed??
++		 *
++		 * Answer: Yes, several device drivers can do it in their
++		 *         f_op->mmap method. -DaveM
++		 */
++		addr = vma->vm_start;
++		pgoff = vma->vm_pgoff;
++		vm_flags = vma->vm_flags;
+ 	} else if (vm_flags & VM_SHARED) {
+ 		error = shmem_zero_setup(vma);
+ 		if (error)
+ 			goto free_vma;
+ 	}
+ 
+-	/* Can addr have changed??
+-	 *
+-	 * Answer: Yes, several device drivers can do it in their
+-	 *         f_op->mmap method. -DaveM
+-	 */
+-	addr = vma->vm_start;
+-	pgoff = vma->vm_pgoff;
+-	vm_flags = vma->vm_flags;
+-
+ 	if (vma_wants_writenotify(vma))
+ 		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+ 
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
