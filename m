@@ -1,176 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B56C46B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 17:37:24 -0400 (EDT)
-Subject: Re: [Bugme-new] [Bug 14148] New: kernel panic: do_wp_page assert_pte_locked failed when DEBUG_VM
-Mime-Version: 1.0 (Apple Message framework v1076)
-Content-Type: text/plain; charset=us-ascii; format=flowed; delsp=yes
-From: Kumar Gala <galak@kernel.crashing.org>
-In-Reply-To: <20090911130940.a99708dc.akpm@linux-foundation.org>
-Date: Fri, 11 Sep 2009 16:37:19 -0500
-Content-Transfer-Encoding: 7bit
-Message-Id: <D6EDFC5E-F6B6-4689-B3CF-67BA4E034707@kernel.crashing.org>
-References: <bug-14148-10286@http.bugzilla.kernel.org/> <20090911130940.a99708dc.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EEFE6B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 18:27:32 -0400 (EDT)
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id n8BMRbal030120
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 23:27:38 +0100
+Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
+	by zps78.corp.google.com with ESMTP id n8BMQW7V024121
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:27:35 -0700
+Received: by pzk35 with SMTP id 35so1193729pzk.11
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 15:27:34 -0700 (PDT)
+Date: Fri, 11 Sep 2009 15:27:30 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for mempolicy
+ based management.
+In-Reply-To: <20090910122641.GA31153@csn.ul.ie>
+Message-ID: <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com>
+References: <1252012158.6029.215.camel@useless.americas.hpqcorp.net> <alpine.DEB.1.00.0909031416310.1459@chino.kir.corp.google.com> <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie>
+ <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com>
+ <20090910122641.GA31153@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linuxppc-dev@ozlabs.org, wangbj@lzu.edu.cn, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 10 Sep 2009, Mel Gorman wrote:
 
-On Sep 11, 2009, at 3:09 PM, Andrew Morton wrote:
+> > Would you explain why introducing a new mempolicy flag, MPOL_F_HUGEPAGES, 
+> > and only using the new behavior when this is set would be inconsistent or 
+> > inadvisible?
+> 
+> I already explained this. The interface in numactl would look weird. There
+> would be an --interleave switch and a --hugepages-interleave that only
+> applies to nr_hugepages. The smarts could be in hugeadm to apply the mask
+> when --pool-pages-min is specified but that wouldn't help scripts that are
+> still using echo.
+> 
 
->
-> (switched to email.  Please respond via emailed reply-to-all, not  
-> via the
-> bugzilla web interface).
->
-> On Wed, 9 Sep 2009 15:09:15 GMT
-> bugzilla-daemon@bugzilla.kernel.org wrote:
->
->> http://bugzilla.kernel.org/show_bug.cgi?id=14148
->>
->>           Summary: kernel panic: do_wp_page assert_pte_locked  
->> failed when
->>                    DEBUG_VM
->>           Product: Platform Specific/Hardware
->>           Version: 2.5
->>    Kernel Version: 2.6.31-rc3, 2.6.31-rc9-git2
->>          Platform: All
->>        OS/Version: Linux
->>              Tree: Mainline
->>            Status: NEW
->>          Severity: normal
->>          Priority: P1
->>         Component: PPC-32
->>        AssignedTo: platform_ppc-32@kernel-bugs.osdl.org
->>        ReportedBy: wangbj@lzu.edu.cn
->>        Regression: Yes
->>
->>
->> Created an attachment (id=23049)
->> --> (http://bugzilla.kernel.org/attachment.cgi?id=23049)
->> problematic config file for mpc8548cds
->>
->> powerpc mpc8548cds (I only have this board on hand) will kernel  
->> panic if
->> DEBUG_VM (kernel hacking) is enabled due to assertion failed in  
->> function
->> do_wp_page(). I think it highly possible for other ppc boards like  
->> 44x have the
->> same problem too, but I don't have the board.
->>
->> here is the full log from power up (after u-boot). and the  
->> attachment is
->> related .config, NOTE the kernel boot successfully if  
->> CONFIG_DEBUG_VM is not
->> enabled.
->>
->> host system is gentoo, the gcc (powerpc-unknown-linux-gnu-gcc) is  
->> build by
->> gentoo crossdev, version 4.4.1, (cross) glibc is 2.9, (cross)  
->> binutils is
->> 2.19.1, (cross) kernel headers is 2.6.30. target (mpc8548cds) root  
->> filesystem
->> is also gentoo (200907xx, extracted from stage3 tarball).
->>
->> I have running similar test on x86 using qemu (0.10.6, +kvm), the  
->> result seems
->> OK, especially x86 pass all lock api test suite.
->
-> First question:
->
->> [10611.192802] ------------[ cut here ]------------
->> [10611.197409] Kernel BUG at c0014d70 [verbose debug info  
->> unavailable]
->
-> Why did we not get the file-n-line?  That's iritating.
->
-> Oh, CONFIG_DEBUG_BUGVERBOSE=n.  Don't do that.  We should make that  
-> thing
-> harder to get at, to stop people shooting our feet off.
->
->> [10611.203660] Oops: Exception in kernel mode, sig: 5 [#1]
->> [10611.208866] PREEMPT MPC85xx CDS
->> [10611.211997] Modules linked in:
->> [10611.215040] NIP: c0014d70 LR: c0014eb4 CTR: 00000002
->> [10611.219988] REGS: cf82db40 TRAP: 0700   Not tainted  (2.6.31-rc3)
->> [10611.226061] MSR: 00029000 <EE,ME,CE>  CR: 88448044  XER: 20000000
->> [10611.232162] TASK = cf828000[1] 'init' THREAD: cf82c000
->> [10611.237108] GPR00: 00000001 cf82dbf0 cf828000 cf9781c0 bf8031d8  
->> cf9f400c
->> 0057902f 00000001
->> [10611.245471] GPR08: cf978200 cf9f4000 00000002 00000000 28448042  
->> 1001b0b0
->> 00000001 cf88ee00
->> [10611.253833] GPR16: c05c0000 bf8031d8 00000002 10000000 48000000  
->> 00000001
->> 00000008 c05ecf20
->> [10611.262196] GPR24: 0057902b 0057902f cf82c000 00000000 cf9f400c  
->> 00000001
->> bf8031d8 cf98b000
->> [10611.270749] NIP [c0014d70] assert_pte_locked+0x3c/0x44
->> [10611.275872] LR [c0014eb4] ptep_set_access_flags+0xa8/0xf4
->> [10611.281252] Call Trace:
->> [10611.283687] [cf82dbf0] [bf8031d8] 0xbf8031d8 (unreliable)
->> [10611.289079] [cf82dc10] [c008e87c] do_wp_page+0xf8/0x82c
->> [10611.294292] [cf82dc60] [c0014770] do_page_fault+0x2c0/0x480
->> [10611.299851] [cf82dd10] [c0011078] handle_page_fault+0xc/0x80
->> [10611.305504] [cf82ddd0] [c00f2b4c] load_elf_binary+0x8a8/0x121c
->> [10611.311325] [cf82de50] [c00af418] search_binary_handler 
->> +0x144/0x37c
->> [10611.317578] [cf82dea0] [c00b0bc8] do_execve+0x270/0x2c8
->> [10611.322794] [cf82dee0] [c0008754] sys_execve+0x68/0xa4
->> [10611.327919] [cf82df00] [c0010c38] ret_from_syscall+0x0/0x3c
->> [10611.333482] [cf82dfc0] [c00b9350] sys_dup+0x38/0x78
->> [10611.338349] [cf82dfd0] [c0002030] init_post+0x94/0x108
->> [10611.343478] [cf82dfe0] [c054c234] kernel_init+0x114/0x130
->> [10611.348865] [cf82dff0] [c00109b8] kernel_thread+0x4c/0x68
->> [10611.354249] Instruction dump:
->> [10611.357206] 4d9e0020 38000000 0f000000 0f000000 81230024  
->> 5480653a 7c09002e
->> 54090027
->> [10611.364959] 7c000026 54001ffe 0f000000 38000001 <0f000000>  
->> 4e800020 7c0802a6
->> 9421fff0
->> [10611.372887] ---[ end trace 0cda2392272f221a ]---
->
-> So do_wp_page() called ptep_set_access_flags().  If CONFIG_DEBUG_VM=y,
-> powerpc's ptep_set_access_flags() will call
-> arch/powerpc/mm/pgtable.c:assert_pte_locked().  Because of the lack of
-> file-n-line info it is unclear which of those many assertions
-> triggered.  It looks like BUG_ON(!pmd_present(*pmd)).  Perhaps.
->
->
-> Please set CONFIG_DEBUG_BUGVERBOSE=y in your .config and then tell us
-> (via emailed reply-to-all) which line in arch/powerpc/mm/pgtable.c
-> triggered the BUG.  Please actually quote that line, or tell us  
-> exactly
-> which kernel version you're using so we can see which line it was in
-> the source code.
->
-> Thanks.
+I don't think we need to address the scripts that are currently using echo 
+since they're (hopefully) written to the kernel implementation, i.e. no 
+mempolicy restriction on writing to nr_hugepages.
 
-I think I fixed this:
+> I hate to have to do this, but how about nr_hugepages which acts
+> system-wide as it did traditionally and nr_hugepages_mempolicy that obeys
+> policies? Something like the following untested patch. It would be fairly
+> trivial for me to implement a --obey-mempolicies switch for hugeadm which
+> works in conjunction with --pool--pages-min and less likely to cause confusion
+> than --hugepages-interleave in numactl.
+> 
 
-commit 797a747a82e23530ee45d2927bf84f3571c1acb2
-Author: Kumar Gala <galak@kernel.crashing.org>
-Date:   Tue Aug 18 15:21:40 2009 +0000
+I like it.
 
-     powerpc/mm: Fix assert_pte_locked to work properly on uniprocessor
+> Sorry the patch is untested. I can't hold of a NUMA machine at the moment
+> and fake NUMA support sucks far worse than I expected it to.
+> 
 
-     Since the pte_lockptr is a spinlock it gets optimized away on
-     uniprocessor builds so using spin_is_locked is not correct.  We  
-can use
-     assert_spin_locked instead and get the proper behavior between UP  
-and
-     SMP builds.
+Hmm, I rewrote most of fake NUMA a couple years ago.  What problems are 
+you having with it?
 
-     Signed-off-by: Kumar Gala <galak@kernel.crashing.org>
-     Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> ==== BEGIN PATCH ====
+> 
+> [PATCH] Optionally use a memory policy when tuning the size of the static hugepage pool
+> 
+> Patch "derive huge pages nodes allowed from task mempolicy" brought
+> huge page support more in line with the core VM in that tuning the size
+> of the static huge page pool would obey memory policies. Using this,
+> administrators could interleave allocation of huge pages from a subset
+> of nodes. This is consistent with how dynamic hugepage pool resizing
+> works and how hugepages get allocated to applications at run-time.
+> 
+> However, it was pointed out that scripts may exist that depend on being
+> able to drain all hugepages via /proc/sys/vm/nr_hugepages from processes
+> that are running within a memory policy. This patch adds
+> /proc/sys/vm/nr_hugepages_mempolicy which when written to will obey
+> memory policies. /proc/sys/vm/nr_hugepages continues then to be a
+> system-wide tunable regardless of memory policy.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> --- 
+>  include/linux/hugetlb.h |    1 +
+>  kernel/sysctl.c         |   11 +++++++++++
+>  mm/hugetlb.c            |   35 ++++++++++++++++++++++++++++++++---
+>  3 files changed, 44 insertions(+), 3 deletions(-)
+> 
 
-But the patch was queued up for .32 not .31
+It'll need an update to Documentation/vm/hugetlb.txt, but this can 
+probably be done in one of Lee's patches that edits the same file when he 
+reposts.
 
-- k
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index fcb1677..fc3a659 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -21,6 +21,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+>  
+>  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+>  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> +int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+>  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+>  int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+>  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 8bac3f5..0637655 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1171,6 +1171,17 @@ static struct ctl_table vm_table[] = {
+>  		.extra1		= (void *)&hugetlb_zero,
+>  		.extra2		= (void *)&hugetlb_infinity,
+>  	 },
+> +#ifdef CONFIG_NUMA
+> +	 {
+> +		.procname	= "nr_hugepages_mempolicy",
+> +		.data		= NULL,
+> +		.maxlen		= sizeof(unsigned long),
+> +		.mode		= 0644,
+> +		.proc_handler	= &hugetlb_mempolicy_sysctl_handler,
+> +		.extra1		= (void *)&hugetlb_zero,
+> +		.extra2		= (void *)&hugetlb_infinity,
+> +	 },
+> +#endif
+>  	 {
+>  		.ctl_name	= VM_HUGETLB_GROUP,
+>  		.procname	= "hugetlb_shm_group",
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 83decd6..68abef0 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1244,6 +1244,7 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
+>  	return ret;
+>  }
+>  
+> +#define NUMA_NO_NODE_OBEY_MEMPOLICY (-2)
+>  #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
+>  static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>  								int nid)
+
+I think it would be possible to avoid adding NUMA_NO_NODE_OBEY_MEMPOLICY 
+if the nodemask was allocated in the sysctl handler instead and passing it 
+into set_max_huge_pages() instead of a nid.  Lee, what do you think?
+
+
+Other than that, I like this approach because it avoids the potential for 
+userspace breakage while adding the new feature in way that avoids 
+confusion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
