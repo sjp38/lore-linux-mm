@@ -1,16 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E0A6B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 09:11:25 -0400 (EDT)
-Subject: Re: [PATCH 3/6] hugetlb:  introduce alloc_nodemask_of_node
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6236E6B0055
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 09:12:29 -0400 (EDT)
+Subject: Re: [PATCH 4/6] hugetlb:  derive huge pages nodes allowed from
+ task mempolicy
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090910160541.9f902126.akpm@linux-foundation.org>
+In-Reply-To: <20090910161525.dce065b0.akpm@linux-foundation.org>
 References: <20090909163127.12963.612.sendpatchset@localhost.localdomain>
-	 <20090909163146.12963.79545.sendpatchset@localhost.localdomain>
-	 <20090910160541.9f902126.akpm@linux-foundation.org>
+	 <20090909163152.12963.80784.sendpatchset@localhost.localdomain>
+	 <20090910161525.dce065b0.akpm@linux-foundation.org>
 Content-Type: text/plain
-Date: Fri, 11 Sep 2009 09:11:24 -0400
-Message-Id: <1252674684.4392.222.camel@useless.americas.hpqcorp.net>
+Date: Fri, 11 Sep 2009 09:12:27 -0400
+Message-Id: <1252674747.4392.229.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,98 +19,161 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, mel@csn.ul.ie, randy.dunlap@oracle.com, nacc@us.ibm.com, rientjes@google.com, agl@us.ibm.com, apw@canonical.com, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-09-10 at 16:05 -0700, Andrew Morton wrote:
-> On Wed, 09 Sep 2009 12:31:46 -0400
+On Thu, 2009-09-10 at 16:15 -0700, Andrew Morton wrote:
+> On Wed, 09 Sep 2009 12:31:52 -0400
 > Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 > 
-> > [PATCH 3/6] - hugetlb:  introduce alloc_nodemask_of_node()
-> > 
-> > Against:  2.6.31-rc7-mmotm-090827-1651
-> > 
-> > New in V5 of series
-> > 
-> > V6: + rename 'init_nodemask_of_nodes()' to 'init_nodemask_of_node()'
-> >     + redefine init_nodemask_of_node() as static inline fcn
-> >     + move this patch back 1 in series
-> > 
-> > Introduce nodemask macro to allocate a nodemask and 
-> > initialize it to contain a single node, using the macro
-> > init_nodemask_of_node() factored out of the nodemask_of_node()
-> > macro.
-> > 
-> > alloc_nodemask_of_node() coded as a macro to avoid header
-> > dependency hell.
-> > 
-> > This will be used to construct the huge pages "nodes_allowed"
-> > nodemask for a single node when basing nodes_allowed on a
-> > preferred/local mempolicy or when a persistent huge page
-> > pool page count is modified via a per node sysfs attribute.
-> > 
+> > This patch derives a "nodes_allowed" node mask from the numa
+> > mempolicy of the task modifying the number of persistent huge
+> > pages to control the allocation, freeing and adjusting of surplus
+> > huge pages.
+> >
 > > ...
 > >
+> 
+> > Index: linux-2.6.31-rc7-mmotm-090827-1651/mm/mempolicy.c
+> > ===================================================================
+> > --- linux-2.6.31-rc7-mmotm-090827-1651.orig/mm/mempolicy.c	2009-09-09 11:57:26.000000000 -0400
+> > +++ linux-2.6.31-rc7-mmotm-090827-1651/mm/mempolicy.c	2009-09-09 11:57:36.000000000 -0400
+> > @@ -1564,6 +1564,57 @@ struct zonelist *huge_zonelist(struct vm
+> >  	}
+> >  	return zl;
+> >  }
+> > +
 > > +/*
-> > + * returns pointer to kmalloc()'d nodemask initialized to contain the
-> > + * specified node.  Caller must free with kfree().
+> > + * alloc_nodemask_of_mempolicy
+> > + *
+> > + * Returns a [pointer to a] nodelist based on the current task's mempolicy.
+> > + *
+> > + * If the task's mempolicy is "default" [NULL], return NULL for default
+> > + * behavior.  Otherwise, extract the policy nodemask for 'bind'
+> > + * or 'interleave' policy or construct a nodemask for 'preferred' or
+> > + * 'local' policy and return a pointer to a kmalloc()ed nodemask_t.
+> > + *
+> > + * N.B., it is the caller's responsibility to free a returned nodemask.
 > > + */
-> > +#define alloc_nodemask_of_node(node)					\
-> > +({									\
-> > +	typeof(_unused_nodemask_arg_) *nmp;				\
-> > +	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL);			\
-> > +	if (nmp)							\
-> > +		init_nodemask_of_node(nmp, (node));			\
-> > +	nmp;								\
-> > +})
+> > +nodemask_t *alloc_nodemask_of_mempolicy(void)
+> > +{
+> > +	nodemask_t *nodes_allowed = NULL;
+> > +	struct mempolicy *mempolicy;
+> > +	int nid;
+> > +
+> > +	if (!current->mempolicy)
+> > +		return NULL;
+> > +
+> > +	mpol_get(current->mempolicy);
+> > +	nodes_allowed = kmalloc(sizeof(*nodes_allowed), GFP_KERNEL);
 > 
-> All right, I give up.  What's with this `typeof(_unused_nodemask_arg_)'
-> stuff?
-
-You got me.  I would have used a bar nodemask_t, but I was following the
-style of the nodemask_of_node() in the same header.
-
+> Ho hum.  I guess a caller which didn't permit GFP_KERNEL would be
+> pretty lame.
 > 
+> > +	if (!nodes_allowed)
+> > +		return NULL;		/* silently default */
 > 
-> Was there a reason why this had to be implemented as a macro.
+> Missed an mpol_put().
 
-> One
-> which evaluates its arg either one or zero times, btw?
-
-Well, one, unless the alloc fails.  
+Ah, yes.  But, see below...
 
 > 
-> hm.  "to avoid header dependency hell".  What hell?  Self-inflicted?
+> > +	nodes_clear(*nodes_allowed);
+> > +	mempolicy = current->mempolicy;
+> > +	switch (mempolicy->mode) {
+> > +	case MPOL_PREFERRED:
+> > +		if (mempolicy->flags & MPOL_F_LOCAL)
+> > +			nid = numa_node_id();
+> > +		else
+> > +			nid = mempolicy->v.preferred_node;
+> > +		node_set(nid, *nodes_allowed);
+> > +		break;
+> > +
+> > +	case MPOL_BIND:
+> > +		/* Fall through */
+> > +	case MPOL_INTERLEAVE:
+> > +		*nodes_allowed =  mempolicy->v.nodes;
+> > +		break;
+> > +
+> > +	default:
+> > +		BUG();
+> > +	}
+> > +
+> > +	mpol_put(current->mempolicy);
+> > +	return nodes_allowed;
+> > +}
+> 
+> Do we actually need the mpol_get()/put here?  Can some other process
+> really some in and trash a process's current->mempolicy when that
+> process isn't looking?
 
-Well, I tried to make it a static inline function, but nodemask.h gets
-included, indirectly, in various places where, e.g., kmalloc() is not
-defined.  I tried including slab.h, but that had problems with other
-missing definitions.  I didn't want to end up with the entire
-include/linux directory included in nodemask.h.
+You're correct.  In this context, I can/will eliminate the get/put.
 
-I would have put it in a .c file, but there is no, e.g., nodemask.c.
-Guess I could have created alloc_bitmap_of_bit() in bitmap.c with a
-wrapper in nodemask.h.  Would that be preferable?
+We only really need the reference count in two places:
+
+1) for shared policies [shmem, ...]:  one task could be replacing a
+shared policy while another task is trying to allocate using it's
+nodemask.
+
+2) for show_numa_maps(), as we're looking at another task's mempolicy
+[when vma policies default to task mempolicy].
+
+But, here, where the current task is examining its own mempolicy, we
+don't need the get/put as only the task itself can change it's
+mempolicy.
 
 > 
-> alloc_nodemask_of_node() has no callers, so I can think of a good fix
-> for these problems.  If it _did_ have a caller then I might ask "can't
-> we fix this by moving alloc_nodemask_of_node() into the .c file".  But
-> it doesn't so I can't.
+> If so, why the heck isn't the code racy?
+> 
+> static inline void mpol_get(struct mempolicy *pol)
+> {
+> 	if (pol)
+> 		atomic_inc(&pol->refcnt);
+> }
+> 
+> If it's possible for some other task to trash current->mempolicy then
+> that trashing can happen between the `if' and the `atomic_inc', so
+> we're screwed.  
+> 
+> So either we need some locking here or the mpol_get() isn't needed on
+> current's mempolicy or the mpol_get() has some secret side-effect?
 
-This patch was a later addition.  The function is used by the following
-patch.   Originally, I had a private function in hugetlb.c that
-kmalloc()'d and initialized the nodes_allowed mask.  Mel suggested that
-I use the generic nodemask_of_node().  That didn't have the semantics I
-wanted, so I created this variant.
+Good point.  Need to revisit this, altho' not in the context of this
+series, IMO.  May need an atomic_inc_if_nonzero() or such there.
 
 > 
-> It's a bit rude to assume that the caller wanted to use GFP_KERNEL.
-
-I can add a gfp_t parameter to the macro, but I'll still need to select
-value in the caller.  Do you have a suggested alternative to GFP_KERNEL
-[for both here and in alloc_nodemask_of_mempolicy()]?  We certainly
-don't want to loop forever, killing off tasks, as David mentioned.
-Silently failing is OK.  We handle that.
-
-Lee
+> 
+> Fixlets:
+> 
+> --- a/mm/hugetlb.c~hugetlb-derive-huge-pages-nodes-allowed-from-task-mempolicy-fix
+> +++ a/mm/hugetlb.c
+> @@ -1253,7 +1253,7 @@ static unsigned long set_max_huge_pages(
+>  
+>  	nodes_allowed = alloc_nodemask_of_mempolicy();
+>  	if (!nodes_allowed) {
+> -		printk(KERN_WARNING "%s unable to allocate nodes allowed mask "
+> +		printk(KERN_WARNING "%s: unable to allocate nodes allowed mask "
+>  			"for huge page allocation.  Falling back to default.\n",
+>  			current->comm);
+>  		nodes_allowed = &node_online_map;
+> --- a/mm/mempolicy.c~hugetlb-derive-huge-pages-nodes-allowed-from-task-mempolicy-fix
+> +++ a/mm/mempolicy.c
+> @@ -1589,7 +1589,7 @@ nodemask_t *alloc_nodemask_of_mempolicy(
+>  	mpol_get(current->mempolicy);
+>  	nodes_allowed = kmalloc(sizeof(*nodes_allowed), GFP_KERNEL);
+>  	if (!nodes_allowed)
+> -		return NULL;		/* silently default */
+> +		goto out;		/* silently default */
+>  
+>  	nodes_clear(*nodes_allowed);
+>  	mempolicy = current->mempolicy;
+> @@ -1611,7 +1611,7 @@ nodemask_t *alloc_nodemask_of_mempolicy(
+>  	default:
+>  		BUG();
+>  	}
+> -
+> +out:
+>  	mpol_put(current->mempolicy);
+>  	return nodes_allowed;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
