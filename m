@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AD5496B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 21:56:36 -0400 (EDT)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp [192.51.44.36])
-	by fgwmail9.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0lpR6016265
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 873676B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 22:09:15 -0400 (EDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp [192.51.44.35])
+	by fgwmail9.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0pc1C016533
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 12 Sep 2009 09:47:51 +0900
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0lGpE018623
+	Sat, 12 Sep 2009 09:51:38 +0900
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0p3W3001192
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 12 Sep 2009 09:47:16 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 23DC045DE7F
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:47:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF20445DE6E
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:47:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BCBA1E18006
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:47:15 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E9AA1DB8041
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:47:15 +0900 (JST)
-Message-ID: <e95a8951d7a678983b26830ef535a108.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090911112221.GA20629@localhost>
+	Sat, 12 Sep 2009 09:51:03 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3215745DE52
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E1AAB45DE4F
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C21D8E38006
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C826E38004
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
+Message-ID: <7c7a5bbcd7ad21ea1cee1b6df3a28494.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090911112259.GA20988@localhost>
 References: <20090911112221.GA20629@localhost>
-Date: Sat, 12 Sep 2009 09:47:14 +0900 (JST)
-Subject: Re: [PATCH 1/2] memcg: rename and export
- try_get_mem_cgroup_from_page()
+    <20090911112259.GA20988@localhost>
+Date: Sat, 12 Sep 2009 09:51:01 +0900 (JST)
+Subject: Re: [PATCH 2/2] memcg: add accessor to mem_cgroup.css
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=iso-2022-jp
@@ -38,41 +38,16 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@
 List-ID: <linux-mm.kvack.org>
 
 Wu Fengguang wrote:
-> So that the hwpoison injector can get mem_cgroup for arbitrary page
-> and thus know whether it is owned by some mem_cgroup task(s).
+> So that an outside user can free the reference count grabbed by
+> try_get_mem_cgroup_from_page().
 >
+While no heavy caller for this, I(we) would like to hide mem_cgroup
+under memcontrol.c
+Personally, I like no #ifdef for this easy code ;)
 
-I have no strong objections to these 2 patches.
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-But it's in merge-window. I recommend you to repost again with
-codes for caller(hwpoison itself).
 
--Kame
-
-So if you
-
-> Background:
->
-> The hwpoison test suite need to inject hwpoison to a collection of
-> selected task pages, and must not touch pages not owned by these pages
-> and thus kill important system processes such as init. (But it's OK to
-> mis-hwpoison free/unowned pages as well as shared clean pages.
-> Mis-hwpoison of shared dirty pages will kill all tasks, so the test
-> suite will target all or non of such tasks in the first place.)
->
-> The memory cgroup serves this purpose well. We can put the target
-> processes under the control of a memory cgroup, and tell the hwpoison
-> injection code to only kill pages associated with some active memory
-> cgroup.
->
-> The prerequsite for doing hwpoison stress tests with mem_cgroup is,
-> the mem_cgroup code tracks task pages _accurately_ (unless page is
-> locked).  Which we believe is/should be true.
->
-> The benifits are simplification of hwpoison injector code. Also the
-> mem_cgroup code will automatically be tested by hwpoison test cases.
->
 > CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > CC: Hugh Dickins <hugh@veritas.com>
 > CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
@@ -80,89 +55,55 @@ So if you
 > CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 > ---
->  include/linux/memcontrol.h |    6 ++++++
->  mm/memcontrol.c            |   12 +++++-------
->  2 files changed, 11 insertions(+), 7 deletions(-)
+>  include/linux/memcontrol.h |    7 +++++++
+>  mm/memcontrol.c            |    8 ++++++++
+>  2 files changed, 15 insertions(+)
 >
-> --- linux-mm.orig/mm/memcontrol.c	2009-09-11 18:51:14.000000000 +0800
-> +++ linux-mm/mm/memcontrol.c	2009-09-11 18:52:14.000000000 +0800
-> @@ -1389,25 +1389,22 @@ static struct mem_cgroup *mem_cgroup_loo
->  	return container_of(css, struct mem_cgroup, css);
+> --- linux-mm.orig/include/linux/memcontrol.h	2009-09-11 18:16:55.000000000
+> +0800
+> +++ linux-mm/include/linux/memcontrol.h	2009-09-11 18:16:56.000000000
+> +0800
+> @@ -81,6 +81,8 @@ int mm_match_cgroup(const struct mm_stru
+>  	return cgroup == mem;
 >  }
 >
-> -static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page
-> *page)
-> +struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->  {
-> -	struct mem_cgroup *mem;
-> +	struct mem_cgroup *mem = NULL;
->  	struct page_cgroup *pc;
->  	unsigned short id;
->  	swp_entry_t ent;
->
->  	VM_BUG_ON(!PageLocked(page));
->
-> -	if (!PageSwapCache(page))
-> -		return NULL;
-> -
->  	pc = lookup_page_cgroup(page);
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
->  		if (mem && !css_tryget(&mem->css))
->  			mem = NULL;
-> -	} else {
-> +	} else if (PageSwapCache(page)) {
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup(ent);
->  		rcu_read_lock();
-> @@ -1419,6 +1416,7 @@ static struct mem_cgroup *try_get_mem_cg
->  	unlock_page_cgroup(pc);
->  	return mem;
->  }
-> +EXPORT_SYMBOL(try_get_mem_cgroup_from_page);
->
->  /*
->   * commit a charge got by __mem_cgroup_try_charge() and makes page_cgroup
-> to be
-> @@ -1753,7 +1751,7 @@ int mem_cgroup_try_charge_swapin(struct
->  	 */
->  	if (!PageSwapCache(page))
->  		return 0;
-> -	mem = try_get_mem_cgroup_from_swapcache(page);
-> +	mem = try_get_mem_cgroup_from_page(page);
->  	if (!mem)
->  		goto charge_cur_mm;
->  	*ptr = mem;
-> --- linux-mm.orig/include/linux/memcontrol.h	2009-09-11 18:51:13.000000000
-> +0800
-> +++ linux-mm/include/linux/memcontrol.h	2009-09-11 18:52:14.000000000
-> +0800
-> @@ -68,6 +68,7 @@ extern unsigned long mem_cgroup_isolate_
->  extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t
-> gfp_mask);
->  int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup
+> +extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup
 > *mem);
->
-> +extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page
-> *page);
->  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
->
->  static inline
-> @@ -189,6 +190,11 @@ mem_cgroup_move_lists(struct page *page,
->  {
+> +
+>  extern int
+>  mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
+>  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> @@ -206,6 +208,11 @@ static inline int task_in_mem_cgroup(str
+>  	return 1;
 >  }
 >
-> +static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page
-> *page)
+> +static inline struct cgroup_subsys_state *mem_cgroup_css(struct
+> mem_cgroup *mem)
 > +{
 > +	return NULL;
 > +}
 > +
->  static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup
-> *mem)
+>  static inline int
+>  mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 >  {
->  	return 1;
+> --- linux-mm.orig/mm/memcontrol.c	2009-09-11 18:16:55.000000000 +0800
+> +++ linux-mm/mm/memcontrol.c	2009-09-11 18:18:11.000000000 +0800
+> @@ -282,6 +282,14 @@ mem_cgroup_zoneinfo(struct mem_cgroup *m
+>  	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
+>  }
+>
+> +#ifdef CONFIG_HWPOISON_INJECT /* for now, only user is hwpoison injector
+> */
+> +struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
+> +{
+> +	return &mem->css;
+> +}
+> +EXPORT_SYMBOL(mem_cgroup_css);
+> +#endif
+> +
+>  static struct mem_cgroup_per_zone *
+>  page_cgroup_zoneinfo(struct page_cgroup *pc)
+>  {
 >
 
 
