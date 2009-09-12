@@ -1,120 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3E3F46B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 22:25:17 -0400 (EDT)
-Received: by ywh28 with SMTP id 28so2434041ywh.15
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 19:25:23 -0700 (PDT)
-Message-ID: <4AAB065D.3070602@vflare.org>
-Date: Sat, 12 Sep 2009 07:54:29 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] compcache: in-memory compressed swapping v2
-References: <200909100215.36350.ngupta@vflare.org> <200909100332.55910.ngupta@vflare.org>
-In-Reply-To: <200909100332.55910.ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 476366B004D
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 00:58:19 -0400 (EDT)
+Date: Sat, 12 Sep 2009 13:58:25 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [RFC][PATCH 4/4][mmotm] memcg: coalescing charge
+Message-Id: <20090912135825.7f78a247.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20090909174533.3b607bd7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090909174533.3b607bd7.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ed Tomlinson <edt@aei.ca>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc <linux-mm-cc@laptop.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, d-nishimura@mtf.biglobe.ne.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> @@ -1320,6 +1423,9 @@ static int __mem_cgroup_try_charge(struc
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto nomem;
+>  
+> +		/* we don't make stocks if failed */
+> +		csize = PAGE_SIZE;
+> +
+>  		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+>  						gfp_mask, flags);
+>  		if (ret)
+It might be a nitpick though, isn't it better to move csize modification
+before checking __GFP_WAIT ?
+It might look like:
 
+	/* we don't make stocks if failed */
+	if (csize > PAGE_SIZE) {
+		csize = PAGE_SIZE;
+		continue;
+	}
 
-On 09/10/2009 03:32 AM, Nitin Gupta wrote:
-> Project home: http://compcache.googlecode.com/
->
-> * Changelog: v2 vs initial revision
->   - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and xvmalloc.
->     This is to make these 64-bit safe.
->   - xvmalloc is no longer a separate module and does not export any symbols.
->     Its compiled directly with ramzswap block driver. This is to avoid any
->     last bit of confusion with any other allocator.
->   - set_swap_free_notify() now accepts block_device as parameter instead of
->     swp_entry_t (interface cleanup).
->   - Fix: Make sure ramzswap disksize matches usable pages in backing swap file.
->     This caused initialization error in case backing swap file had intra-page
->     fragmentation.
->
->    
-
-
-Can anyone please review these patches for possible inclusion in 2.6.32?
-Sorry for the weird email threading.
+	if (!(gfp_mask & __GFP_WAIT))
+		goto nomem;
 
 Thanks,
-Nitin
-
-
-> It creates RAM based block devices which can be used (only) as swap disks.
-> Pages swapped to these disks are compressed and stored in memory itself. This
-> is a big win over swapping to slow hard-disk which are typically used as swap
-> disk. For flash, these suffer from wear-leveling issues when used as swap disk
-> - so again its helpful. For swapless systems, it allows more apps to run for a
-> given amount of memory.
->
-> It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
-> Each of these devices can have separate backing swap (file or disk partition)
-> which is used when incompressible page is found or memory limit for device is
-> reached.
->
-> A separate userspace utility called rzscontrol is used to manage individual
-> ramzswap devices.
->
-> * Testing notes
->
-> Tested on x86, x64, ARM
-> ARM:
->   - Cortex-A8 (Beagleboard)
->   - ARM11 (Android G1)
->   - OMAP2420 (Nokia N810)
->
-> * Performance
->
-> All performance numbers/plots can be found at:
-> http://code.google.com/p/compcache/wiki/Performance
->
-> Below is a summary of this data:
->
-> General:
->   - Swap R/W times are reduced from milliseconds (in case of hard disks)
-> down to microseconds.
->
-> Positive cases:
->   - Shows 33% improvement in 'scan' benchmark which allocates given amount
-> of memory and linearly reads/writes to this region. This benchmark also
-> exposes bottlenecks in ramzswap code (global mutex) due to which this gain
-> is so small.
->   - On Linux thin clients, it gives the effect of nearly doubling the amount of
-> memory.
->
-> Negative cases:
-> Any workload that has active working set w.r.t. filesystem cache that is
-> nearly equal to amount of RAM while has minimal anonymous memory requirement,
-> is expected to suffer maximum loss in performance with ramzswap enabled.
->
-> Iozone filesystem benchmark can simulate exactly this kind of workload.
-> As expected, this test shows performance loss of ~25% with ramzswap.
->
-> (Sorry for long patch[2/4] but its now very hard to split it up).
->
->   Documentation/blockdev/00-INDEX       |    2 +
->   Documentation/blockdev/ramzswap.txt   |   50 ++
->   drivers/block/Kconfig                 |   22 +
->   drivers/block/Makefile                |    1 +
->   drivers/block/ramzswap/Makefile       |    3 +
->   drivers/block/ramzswap/ramzswap_drv.c | 1529 +++++++++++++++++++++++++++++++++
->   drivers/block/ramzswap/ramzswap_drv.h |  183 ++++
->   drivers/block/ramzswap/xvmalloc.c     |  533 ++++++++++++
->   drivers/block/ramzswap/xvmalloc.h     |   30 +
->   drivers/block/ramzswap/xvmalloc_int.h |   86 ++
->   include/linux/ramzswap_ioctl.h        |   51 ++
->   include/linux/swap.h                  |    5 +
->   mm/swapfile.c                         |   34 +
->   13 files changed, 2529 insertions(+), 0 deletions(-)
-> _______________________________________________
->    
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
