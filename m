@@ -1,111 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 873676B004D
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 22:09:15 -0400 (EDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp [192.51.44.35])
-	by fgwmail9.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0pc1C016533
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 12 Sep 2009 09:51:38 +0900
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8C0p3W3001192
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 12 Sep 2009 09:51:03 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3215745DE52
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:03 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E1AAB45DE4F
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C21D8E38006
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C826E38004
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2009 09:51:02 +0900 (JST)
-Message-ID: <7c7a5bbcd7ad21ea1cee1b6df3a28494.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090911112259.GA20988@localhost>
-References: <20090911112221.GA20629@localhost>
-    <20090911112259.GA20988@localhost>
-Date: Sat, 12 Sep 2009 09:51:01 +0900 (JST)
-Subject: Re: [PATCH 2/2] memcg: add accessor to mem_cgroup.css
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3E3F46B004D
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2009 22:25:17 -0400 (EDT)
+Received: by ywh28 with SMTP id 28so2434041ywh.15
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2009 19:25:23 -0700 (PDT)
+Message-ID: <4AAB065D.3070602@vflare.org>
+Date: Sat, 12 Sep 2009 07:54:29 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 0/4] compcache: in-memory compressed swapping v2
+References: <200909100215.36350.ngupta@vflare.org> <200909100332.55910.ngupta@vflare.org>
+In-Reply-To: <200909100332.55910.ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ed Tomlinson <edt@aei.ca>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
-> So that an outside user can free the reference count grabbed by
-> try_get_mem_cgroup_from_page().
->
-While no heavy caller for this, I(we) would like to hide mem_cgroup
-under memcontrol.c
-Personally, I like no #ifdef for this easy code ;)
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hi,
 
 
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Hugh Dickins <hugh@veritas.com>
-> CC: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> CC: Balbir Singh <balbir@linux.vnet.ibm.com>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  include/linux/memcontrol.h |    7 +++++++
->  mm/memcontrol.c            |    8 ++++++++
->  2 files changed, 15 insertions(+)
+On 09/10/2009 03:32 AM, Nitin Gupta wrote:
+> Project home: http://compcache.googlecode.com/
 >
-> --- linux-mm.orig/include/linux/memcontrol.h	2009-09-11 18:16:55.000000000
-> +0800
-> +++ linux-mm/include/linux/memcontrol.h	2009-09-11 18:16:56.000000000
-> +0800
-> @@ -81,6 +81,8 @@ int mm_match_cgroup(const struct mm_stru
->  	return cgroup == mem;
->  }
+> * Changelog: v2 vs initial revision
+>   - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and xvmalloc.
+>     This is to make these 64-bit safe.
+>   - xvmalloc is no longer a separate module and does not export any symbols.
+>     Its compiled directly with ramzswap block driver. This is to avoid any
+>     last bit of confusion with any other allocator.
+>   - set_swap_free_notify() now accepts block_device as parameter instead of
+>     swp_entry_t (interface cleanup).
+>   - Fix: Make sure ramzswap disksize matches usable pages in backing swap file.
+>     This caused initialization error in case backing swap file had intra-page
+>     fragmentation.
 >
-> +extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup
-> *mem);
-> +
->  extern int
->  mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
->  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> @@ -206,6 +208,11 @@ static inline int task_in_mem_cgroup(str
->  	return 1;
->  }
->
-> +static inline struct cgroup_subsys_state *mem_cgroup_css(struct
-> mem_cgroup *mem)
-> +{
-> +	return NULL;
-> +}
-> +
->  static inline int
->  mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
->  {
-> --- linux-mm.orig/mm/memcontrol.c	2009-09-11 18:16:55.000000000 +0800
-> +++ linux-mm/mm/memcontrol.c	2009-09-11 18:18:11.000000000 +0800
-> @@ -282,6 +282,14 @@ mem_cgroup_zoneinfo(struct mem_cgroup *m
->  	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
->  }
->
-> +#ifdef CONFIG_HWPOISON_INJECT /* for now, only user is hwpoison injector
-> */
-> +struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
-> +{
-> +	return &mem->css;
-> +}
-> +EXPORT_SYMBOL(mem_cgroup_css);
-> +#endif
-> +
->  static struct mem_cgroup_per_zone *
->  page_cgroup_zoneinfo(struct page_cgroup *pc)
->  {
->
+>    
 
+
+Can anyone please review these patches for possible inclusion in 2.6.32?
+Sorry for the weird email threading.
+
+Thanks,
+Nitin
+
+
+> It creates RAM based block devices which can be used (only) as swap disks.
+> Pages swapped to these disks are compressed and stored in memory itself. This
+> is a big win over swapping to slow hard-disk which are typically used as swap
+> disk. For flash, these suffer from wear-leveling issues when used as swap disk
+> - so again its helpful. For swapless systems, it allows more apps to run for a
+> given amount of memory.
+>
+> It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
+> Each of these devices can have separate backing swap (file or disk partition)
+> which is used when incompressible page is found or memory limit for device is
+> reached.
+>
+> A separate userspace utility called rzscontrol is used to manage individual
+> ramzswap devices.
+>
+> * Testing notes
+>
+> Tested on x86, x64, ARM
+> ARM:
+>   - Cortex-A8 (Beagleboard)
+>   - ARM11 (Android G1)
+>   - OMAP2420 (Nokia N810)
+>
+> * Performance
+>
+> All performance numbers/plots can be found at:
+> http://code.google.com/p/compcache/wiki/Performance
+>
+> Below is a summary of this data:
+>
+> General:
+>   - Swap R/W times are reduced from milliseconds (in case of hard disks)
+> down to microseconds.
+>
+> Positive cases:
+>   - Shows 33% improvement in 'scan' benchmark which allocates given amount
+> of memory and linearly reads/writes to this region. This benchmark also
+> exposes bottlenecks in ramzswap code (global mutex) due to which this gain
+> is so small.
+>   - On Linux thin clients, it gives the effect of nearly doubling the amount of
+> memory.
+>
+> Negative cases:
+> Any workload that has active working set w.r.t. filesystem cache that is
+> nearly equal to amount of RAM while has minimal anonymous memory requirement,
+> is expected to suffer maximum loss in performance with ramzswap enabled.
+>
+> Iozone filesystem benchmark can simulate exactly this kind of workload.
+> As expected, this test shows performance loss of ~25% with ramzswap.
+>
+> (Sorry for long patch[2/4] but its now very hard to split it up).
+>
+>   Documentation/blockdev/00-INDEX       |    2 +
+>   Documentation/blockdev/ramzswap.txt   |   50 ++
+>   drivers/block/Kconfig                 |   22 +
+>   drivers/block/Makefile                |    1 +
+>   drivers/block/ramzswap/Makefile       |    3 +
+>   drivers/block/ramzswap/ramzswap_drv.c | 1529 +++++++++++++++++++++++++++++++++
+>   drivers/block/ramzswap/ramzswap_drv.h |  183 ++++
+>   drivers/block/ramzswap/xvmalloc.c     |  533 ++++++++++++
+>   drivers/block/ramzswap/xvmalloc.h     |   30 +
+>   drivers/block/ramzswap/xvmalloc_int.h |   86 ++
+>   include/linux/ramzswap_ioctl.h        |   51 ++
+>   include/linux/swap.h                  |    5 +
+>   mm/swapfile.c                         |   34 +
+>   13 files changed, 2529 insertions(+), 0 deletions(-)
+> _______________________________________________
+>    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
