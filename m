@@ -1,91 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0A5D06B004F
-	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 14:34:05 -0400 (EDT)
-Subject: [GIT BISECT] BUG kmalloc-8192: Object already free from
- kmem_cache_destroy
-From: Eric Paris <eparis@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sun, 13 Sep 2009 14:33:55 -0400
-Message-Id: <1252866835.13780.37.camel@dhcp231-106.rdu.redhat.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E92B76B004F
+	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 14:49:05 -0400 (EDT)
+Date: Sun, 13 Sep 2009 19:48:09 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] mmap : save some cycles for the shared anonymous mapping
+In-Reply-To: <20090911154630.6fd232f1.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0909131932440.27988@sister.anvils>
+References: <1252633966-20541-1-git-send-email-shijie8@gmail.com>
+ <20090911154630.6fd232f1.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: cl@linux-foundation.org, dfeng@redhat.com, penberg@cs.helsinki.fi
-Cc: mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Huang Shijie <shijie8@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2a38a002fbee06556489091c30b04746222167e4 is first bad commit
-commit 2a38a002fbee06556489091c30b04746222167e4
-Author: Xiaotian Feng <dfeng@redhat.com>
-Date:   Wed Jul 22 17:03:57 2009 +0800
+On Fri, 11 Sep 2009, Andrew Morton wrote:
+> On Fri, 11 Sep 2009 09:52:46 +0800
+> Huang Shijie <shijie8@gmail.com> wrote:
+> 
+> > The shmem_zere_setup() does not change vm_start, pgoff or vm_flags,
+> > only some drivers change them (such as /driver/video/bfin-t350mcqb-fb.c).
+> > 
+> > Moving these codes to a more proper place to save cycles for shared
+> > anonymous mapping.
 
-    slub: sysfs_slab_remove should free kmem_cache when debug is enabled
-    
-    kmem_cache_destroy use sysfs_slab_remove to release the kmem_cache,
-    but when CONFIG_SLUB_DEBUG is enabled, sysfs_slab_remove just release
-    related kobject, the whole kmem_cache is missed to release and cause
-    a memory leak.
-    
-    Acked-by: Christoph Lameer <cl@linux-foundation.org>
-    Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-    Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
+(Actually it's saving them for any !file mapping.
+ Though I doubt it's a significant saving myself.)
 
-CONFIG_SLUB_DEBUG=y
-CONFIG_SLUB=y
-CONFIG_SLUB_DEBUG_ON=y
-# CONFIG_SLUB_STATS is not set
+> > 
+> > Signed-off-by: Huang Shijie <shijie8@gmail.com>
 
-I created a very simple kernel module which consisted only of:
+Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-static int __init kmem_cache_test_init_module(void)
-{
-	struct kmem_cache *test_cachep;
+> > ---
+> >  mm/mmap.c |   18 +++++++++---------
+> >  1 files changed, 9 insertions(+), 9 deletions(-)
+> > 
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index 8101de4..840e91e 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -1195,21 +1195,21 @@ munmap_back:
+> >  			goto unmap_and_free_vma;
+> >  		if (vm_flags & VM_EXECUTABLE)
+> >  			added_exe_file_vma(mm);
+> > +
+> > +		/* Can addr have changed??
+> > +		 *
+> > +		 * Answer: Yes, several device drivers can do it in their
+> > +		 *         f_op->mmap method. -DaveM
+> > +		 */
+> > +		addr = vma->vm_start;
+> > +		pgoff = vma->vm_pgoff;
+> > +		vm_flags = vma->vm_flags;
+> >  	} else if (vm_flags & VM_SHARED) {
+> >  		error = shmem_zero_setup(vma);
+> >  		if (error)
+> >  			goto free_vma;
+> >  	}
+> >  
+> > -	/* Can addr have changed??
+> > -	 *
+> > -	 * Answer: Yes, several device drivers can do it in their
+> > -	 *         f_op->mmap method. -DaveM
+> > -	 */
+> > -	addr = vma->vm_start;
+> > -	pgoff = vma->vm_pgoff;
+> > -	vm_flags = vma->vm_flags;
+> > -
+> >  	if (vma_wants_writenotify(vma))
+> >  		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+> >  
+> 
+> hm, maybe we should nuke those locals and just use vma->foo everywhere.
+> 
+> Local variable pgoff never gets used again anyway.
 
-	test_cachep = kmem_cache_create("test_cachep", 32, 0, 0, NULL);
-	if (test_cachep)
-		kmem_cache_destroy(test_cachep);
+I think it was me who Nak'ed an earlier patch to remove the update
+of pgoff, out of fear that we might add a later reference sometime
+in future, and not notice for a long time that it then needed that
+update again.
 
-        return 0;
-}
+addr and pgoff start off as args to do_mmap_pgoff(), so we'd better
+not nuke them!  And if we changed all the lines below that point to
+refer to vma->vm_start and vma->vm_flags, I think there's still a
+danger we'd unthinkingly add a reference to addr or vm_flags later.
 
-Before this patch it works just fine.  After this patch I get a bug like
-this:
+If any change is to be made here, I think I prefer Shijie's:
+shmem_zero_setup isn't likely to change to modify any of those,
+and that patch has the great virtue of retaining DaveM's comment,
+which draws attention to the issue.
 
-[   59.921431] kmem_cache_test_init_module:
-[   59.922415] =============================================================================
-[   59.922418] BUG kmalloc-8192: Object already free
-[   59.922419] -----------------------------------------------------------------------------
-[   59.922420]
-[   59.922453] INFO: Allocated in kmem_cache_create+0x70/0x320 age=1 cpu=3 pid=1781
-[   59.922458] INFO: Freed in kmem_cache_release+0x23/0x40 age=0 cpu=3 pid=1781
-[   59.922461] INFO: Slab 0xffffea0000373cc0 objects=3 used=1 fp=0xffff8800087fa048 flags=0x200000000040c3
-[   59.922463] INFO: Object 0xffff8800087fa048 @offset=8264 fp=0xffff8800087fc090
-[   59.922463]
-[   59.922465] Bytes b4 0xffff8800087fa038:  00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ........ZZZZZZZZ
-[   59.922477]   Object 0xffff8800087fa048:  6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b kkkkkkkkkkkkkkkk
-[   59.922487]   Object 0xffff8800087fa058:  6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b kkkkkkkkkkkkkkkk
-[snip]
-[   59.923261]   Object 0xffff8800087fb028:  6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b kkkkkkkkkkkkkkkk
-[   59.923261]   Object 0xffff8800087fb038:  6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b kkkkkkkkkkkkkkkk
-[   59.923261]  Redzone 0xffff8800087fc048:  bb bb bb bb bb bb bb bb                         A>>A>>A>>A>>A>>A>>A>>A>>
-[   59.923261]  Padding 0xffff8800087fc088:  5a 5a 5a 5a 5a 5a 5a 5a                         ZZZZZZZZ
-[   59.923261] Pid: 1781, comm: insmod Not tainted 2.6.31-rc2 #33
-[   59.923261] Call Trace:
-[   59.923261]  [<ffffffff81142e1b>] print_trailer+0xfb/0x160
-[   59.923261]  [<ffffffff81142ec9>] object_err+0x49/0x70
-[   59.923261]  [<ffffffff81146166>] __slab_free+0x266/0x3c0
-[   59.923261]  [<ffffffff811463ac>] kfree+0xec/0x220
-[   59.923261]  [<ffffffff81146c4e>] ? kmem_cache_destroy+0x20e/0x230
-[   59.923261]  [<ffffffffa02d1000>] ? kmem_cache_test_init_module+0x0/0x67 [cache_test]
-[   59.923261]  [<ffffffffa02d1000>] ? kmem_cache_test_init_module+0x0/0x67 [cache_test]
-[   59.923261]  [<ffffffff81146c4e>] kmem_cache_destroy+0x20e/0x230
-[   59.923261]  [<ffffffffa02d1000>] ? kmem_cache_test_init_module+0x0/0x67 [cache_test]
-[   59.923261]  [<ffffffffa02d104f>] kmem_cache_test_init_module+0x4f/0x67 [cache_test]
-[   59.923261]  [<ffffffff8100a07b>] do_one_initcall+0x4b/0x1a0
-[   59.923261]  [<ffffffff810b5f08>] sys_init_module+0x108/0x260
-[   59.923261]  [<ffffffff81014282>] system_call_fastpath+0x16/0x1b
-[   59.923261] FIX kmalloc-8192: Object at 0xffff8800087fa048 not freed
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
