@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 317BC6B004F
-	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 11:46:51 -0400 (EDT)
-Date: Sun, 13 Sep 2009 16:46:12 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 4/8] mm: FOLL_DUMP replace FOLL_ANON
-In-Reply-To: <28c262360909090916w12d700b3w7fa8a970f3aba3af@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0909131636540.22865@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
- <Pine.LNX.4.64.0909072233240.15430@sister.anvils>
- <28c262360909090916w12d700b3w7fa8a970f3aba3af@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 183FD6B004F
+	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 12:23:12 -0400 (EDT)
+Received: by yxe12 with SMTP id 12so3457027yxe.1
+        for <linux-mm@kvack.org>; Sun, 13 Sep 2009 09:23:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-2139220000-1252856772=:22865"
+In-Reply-To: <9EECC02A4CC333418C00A85D21E89326B6611AC5@azsmsx502.amr.corp.intel.com>
+References: <20090812074820.GA29631@localhost> <4A843565.3010104@redhat.com>
+	 <4A843B72.6030204@redhat.com> <4A843EAE.6070200@redhat.com>
+	 <4A846581.2020304@redhat.com> <20090813211626.GA28274@cmpxchg.org>
+	 <4A850F4A.9020507@redhat.com> <20090814091055.GA29338@cmpxchg.org>
+	 <20090814095106.GA3345@localhost>
+	 <9EECC02A4CC333418C00A85D21E89326B6611AC5@azsmsx502.amr.corp.intel.com>
+Date: Mon, 14 Sep 2009 01:23:19 +0900
+Message-ID: <2f11576a0909130923i3795a91bxd0cc0fe7b19a1e3b@mail.gmail.com>
+Subject: Re: [RFC] respect the referenced bit of KVM guest pages?
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jeff Chua <jeff.chua.linux@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Dike, Jeffrey G" <jeffrey.g.dike@intel.com>
+Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Avi Kivity <avi@redhat.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Yu, Wilfred" <wilfred.yu@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Hi Jeff,
 
---8323584-2139220000-1252856772=:22865
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+> A side note - I've been doing some tracing and shrink_active_list is call=
+ed a humongous number of times (25000-ish during a ~90 kvm run), with a net=
+ result of zero pages moved nearly all the time. =A0Your test is rescuing e=
+ssentially all candidate pages from the inactive list. =A0Right now, I have=
+ the VM_EXEC || PageAnon version of your test.
 
-On Thu, 10 Sep 2009, Minchan Kim wrote:
-> > =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
-> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 * When core dumping an enormous anonymous a=
-rea that nobody
-> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0* has touched so far, we don't want to all=
-ocate page tables.
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* has touched so far, we don't want to all=
-ocate unnecessary pages or
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* page tables. =C2=A0Return error instead =
-of NULL to skip handle_mm_fault,
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* then get_dump_page() will return NULL to=
- leave a hole in the dump.
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* But we can only make this optimization w=
-here a hole would surely
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* be zero-filled if handle_mm_fault() actu=
-ally did handle it.
-> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> > - =C2=A0 =C2=A0 =C2=A0 if (flags & FOLL_ANON) {
-> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 page =3D ZERO_PAGE(0=
-);
-> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (flags & FOLL_GET=
-)
-> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 get_page(page);
-> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 BUG_ON(flags & FOLL_=
-WRITE);
-> > - =C2=A0 =C2=A0 =C2=A0 }
-> > + =C2=A0 =C2=A0 =C2=A0 if ((flags & FOLL_DUMP) &&
-> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (!vma->vm_ops || !vma->vm_ops->fau=
-lt))
->=20
-> How about adding comment about zero page use?
+Sorry for the long delayed replay.
+I made reproduce environment today. but I don't have luck. I didn't
+reproduce stack refault issue.
+Could you please explain detailed reproduce way and your analysis way?
 
-What kind of comment did you have in mind?
-We used to use ZERO_PAGE there, but with this patch we're not using it.
-I thought the comment above describes what we're doing well enough.
+My environment is,
+  x86_64 CPUx4 MEM 6G
+  userland: fedora11
+  kernel: latest mmotm
 
-I may have kept too quiet about ZERO_PAGEs, knowing that a later patch
-was going to change the story; but I don't see what needs saying here.
+  cgroup size: 128M
+  guest mem: 256M
+  CONFIG_KSM=3Dn
 
-Hugh
---8323584-2139220000-1252856772=:22865--
+My result,
+  - plenty anon and file fault happen. but it is ideal. it is caused
+by demand paging.
+  - do_anonymous_page almost doesn't handle stack fault. both host and gues=
+t.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
