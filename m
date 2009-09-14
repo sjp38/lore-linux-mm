@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 678186B004D
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 00:04:29 -0400 (EDT)
-Received: by pxi1 with SMTP id 1so2216236pxi.1
-        for <linux-mm@kvack.org>; Sun, 13 Sep 2009 21:04:30 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0B1FD6B004D
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 01:11:12 -0400 (EDT)
+Received: by yxe12 with SMTP id 12so3913569yxe.1
+        for <linux-mm@kvack.org>; Sun, 13 Sep 2009 22:11:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.64.0909131956590.28668@sister.anvils>
-References: <200909100215.36350.ngupta@vflare.org>
-	 <200909100332.55910.ngupta@vflare.org> <4AAB065D.3070602@vflare.org>
-	 <Pine.LNX.4.64.0909131956590.28668@sister.anvils>
-Date: Mon, 14 Sep 2009 09:34:29 +0530
-Message-ID: <d760cf2d0909132104t703c9420y119e51e3bd2c9aa5@mail.gmail.com>
-Subject: Re: [PATCH 0/4] compcache: in-memory compressed swapping v2
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Date: Mon, 14 Sep 2009 17:11:15 +1200
+Message-ID: <202cde0e0909132211q3766c7daq4349b97dd8864438@mail.gmail.com>
+Subject: [PATCH 0/3]Huge pages mapping for device drivers. (Take 3)
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Mel Gorman <mel@csn.ul.ie>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 14, 2009 at 12:37 AM, Hugh Dickins
-<hugh.dickins@tiscali.co.uk> wrote:
-> On Sat, 12 Sep 2009, Nitin Gupta wrote:
->> On 09/10/2009 03:32 AM, Nitin Gupta wrote:
->> > Project home: http://compcache.googlecode.com/
->> >
->> > * Changelog: v2 vs initial revision
->> > =A0 - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and
->> > =A0 xvmalloc.
->> > =A0 =A0 This is to make these 64-bit safe.
->> > =A0 - xvmalloc is no longer a separate module and does not export any =
-symbols.
->> > =A0 =A0 Its compiled directly with ramzswap block driver. This is to a=
-void any
->> > =A0 =A0 last bit of confusion with any other allocator.
->> > =A0 - set_swap_free_notify() now accepts block_device as parameter ins=
-tead of
->> > =A0 =A0 swp_entry_t (interface cleanup).
->> > =A0 - Fix: Make sure ramzswap disksize matches usable pages in backing=
- swap
->> > =A0 file.
->> > =A0 =A0 This caused initialization error in case backing swap file had
->> > =A0 =A0 intra-page
->> > =A0 =A0 fragmentation.
->>
->> Can anyone please review these patches for possible inclusion in 2.6.32?
->
-> Sorry, I certainly wouldn't be able to review them for 2.6.32 myself.
->
-> Since we're already in the merge window, and this work has not yet
-> had exposure in mmotm (preferably) or linux-next, I really doubt
-> anyone should be pushing it for 2.6.32.
->
-> I'd be quite glad to see it and experiment with it in mmotm,
-> so it could go into 2.6.33 if all okay. =A0And I now fully accept
-> that the discard/trim situation is so hazy that you are quite
-> right to be asking for your own well-defined notifier instead.
->
-> But I'm not going to pretend to have reviewed it.
->
+Hi,
 
-Thanks for the pointer Hugh -- I will try to post patches against mmotm lat=
-er.
+The patch set listed below provides device drivers with the ability to
+map memory regions to user space using HTLB interfaces.
 
-Nitin
+The patches are applicable over Eric's patches for ANON_HUGETLB.
+
+Why do we need this feature for drivers?
+Device drivers often need to map memory regions to a user-space to
+allow efficient data handling in user mode. Involving hugetlb mapping
+may bring a performance gain if the mapped regions are relatively
+large. Our tests showed that it is possible to gain up to 10%
+performance if hugetlb mapping is enabled. In my case involving
+hugetlb starts to make sense if the buffer is greater than or equal to
+the size of one huge page. Since typically, the device throughput
+increases over time there are more and more reasons to remap large
+regions using hugetlb.
+
+For example hugetlb remapping could be important for performance of
+data acquisition systems (logic analyzers, DSO), network monitoring
+systems (packet capture), HD video capture/frame buffer and probably
+other.
+
+How it is implemented?
+
+Implementation and approach is very close to what is already done in
+ipc/shm.c. We create a file on hugetlbfs vfs mount point using
+standard procedures. Then we associate hugetlbfs file mapping with the
+file mapping we want to access. A helper returns the page at a given
+offset within a hugetlbfs file for population before the page has been
+faulted. Allocation process is fully based on standard htlb
+procedures, so accounting is not touched.
+
+The typical procedure for mapping of huge pages to userspace by drivers is:
+1 Create file on vfs mount of hugetlbfs
+2 Replace file mapping with the hugetlbfs file mapping
+3 Get huge page for configuring DMA or for something else.
+...................
+4 Remove hugetlbfs file
+
+A detailed description is given in the following messages.
+
+This implementation is based on the idea of Mel Gorman.
+The patches do not contain changes for having GFP alloc mask per
+inode. I made patch, but changes are not very small and not so
+critical for us. I can post it if someone ask.
+
+Thanks,
+Alexey
+
+P/S: Sorry for delay in posting - was much busy with other tasks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
