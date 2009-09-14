@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 89E546B004F
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 12:55:50 -0400 (EDT)
-Date: Mon, 14 Sep 2009 19:53:20 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20090914165320.GA3851@redhat.com>
-References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu> <4AAA7415.5080204@gmail.com> <20090913120140.GA31218@redhat.com> <4AAE6A97.7090808@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2405E6B004D
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 15:14:10 -0400 (EDT)
+Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
+	by smtp-out.google.com with ESMTP id n8EJEBJ5011264
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 12:14:12 -0700
+Received: from pxi27 (pxi27.prod.google.com [10.243.27.27])
+	by spaceape8.eur.corp.google.com with ESMTP id n8EJE897011218
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 12:14:09 -0700
+Received: by pxi27 with SMTP id 27so2555896pxi.15
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2009 12:14:08 -0700 (PDT)
+Date: Mon, 14 Sep 2009 12:14:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for mempolicy
+ based management.
+In-Reply-To: <20090914133329.GC11778@csn.ul.ie>
+Message-ID: <alpine.DEB.1.00.0909141213150.14000@chino.kir.corp.google.com>
+References: <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie> <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie>
+ <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com> <20090910122641.GA31153@csn.ul.ie> <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com>
+ <20090914133329.GC11778@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4AAE6A97.7090808@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 14, 2009 at 12:08:55PM -0400, Gregory Haskins wrote:
-> Michael S. Tsirkin wrote:
-> > On Fri, Sep 11, 2009 at 12:00:21PM -0400, Gregory Haskins wrote:
-> >> FWIW: VBUS handles this situation via the "memctx" abstraction.  IOW,
-> >> the memory is not assumed to be a userspace address.  Rather, it is a
-> >> memctx-specific address, which can be userspace, or any other type
-> >> (including hardware, dma-engine, etc).  As long as the memctx knows how
-> >> to translate it, it will work.
+On Mon, 14 Sep 2009, Mel Gorman wrote:
+
+> > Hmm, I rewrote most of fake NUMA a couple years ago.  What problems are 
+> > you having with it?
 > > 
-> > How would permissions be handled?
 > 
-> Same as anything else, really.  Read on for details.
-> 
-> > it's easy to allow an app to pass in virtual addresses in its own address space.
-> 
-> Agreed, and this is what I do.
-> 
-> The guest always passes its own physical addresses (using things like
-> __pa() in linux).  This address passed is memctx specific, but generally
-> would fall into the category of "virtual-addresses" from the hosts
-> perspective.
-> 
-> For a KVM/AlacrityVM guest example, the addresses are GPAs, accessed
-> internally to the context via a gfn_to_hva conversion (you can see this
-> occuring in the citation links I sent)
-> 
-> For Ira's example, the addresses would represent a physical address on
-> the PCI boards, and would follow any kind of relevant rules for
-> converting a "GPA" to a host accessible address (even if indirectly, via
-> a dma controller).
-
-So vbus can let an application access either its own virtual memory or a
-physical memory on a PCI device.  My question is, is any application
-that's allowed to do the former also granted rights to do the later?
-
-> >  But we can't let the guest specify physical addresses.
-> 
-> Agreed.  Neither your proposal nor mine operate this way afaict.
-> 
-> HTH
-> 
-> Kind Regards,
-> -Greg
+> On PPC64, the parameters behave differently. I couldn't convince it to
+> create more than one NUMA node. On x86-64, the NUMA nodes appeared to
+> exist and would be visible on /proc/buddyinfo for example but the sysfs
+> directories for the fake nodes were not created so nr_hugepages couldn't
+> be examined on a per-node basis for example.
 > 
 
+I don't know anything about the ppc64 fake NUMA, but the sysfs node 
+directories should certainly be created on x86_64.  I'll look into it 
+because that's certainly a bug.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
