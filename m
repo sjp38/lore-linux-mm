@@ -1,54 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id ECF956B004D
-	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 21:52:43 -0400 (EDT)
-Message-ID: <4AADA1F9.9080305@redhat.com>
-Date: Mon, 14 Sep 2009 09:52:57 +0800
-From: Danny Feng <dfeng@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D595E6B004D
+	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 22:21:23 -0400 (EDT)
+Received: by pxi1 with SMTP id 1so2164604pxi.1
+        for <linux-mm@kvack.org>; Sun, 13 Sep 2009 19:21:30 -0700 (PDT)
+Message-ID: <4AADA8A5.6040603@gmail.com>
+Date: Mon, 14 Sep 2009 10:21:25 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [GIT BISECT] BUG kmalloc-8192: Object already free from kmem_cache_destroy
-References: <1252866835.13780.37.camel@dhcp231-106.rdu.redhat.com> <1252883493.16335.8.camel@dhcp231-106.rdu.redhat.com>
-In-Reply-To: <1252883493.16335.8.camel@dhcp231-106.rdu.redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH] mmap : save some cycles for the shared anonymous mapping
+References: <1252633966-20541-1-git-send-email-shijie8@gmail.com> <20090911154630.6fd232f1.akpm@linux-foundation.org> <Pine.LNX.4.64.0909131932440.27988@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0909131932440.27988@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@redhat.com>
-Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/14/2009 07:11 AM, Eric Paris wrote:
-> On Sun, 2009-09-13 at 14:33 -0400, Eric Paris wrote:
->> 2a38a002fbee06556489091c30b04746222167e4 is first bad commit
->> commit 2a38a002fbee06556489091c30b04746222167e4
->> Author: Xiaotian Feng<dfeng@redhat.com>
->> Date:   Wed Jul 22 17:03:57 2009 +0800
+Hugh Dickins write:
+> On Fri, 11 Sep 2009, Andrew Morton wrote:
+>   
+>> On Fri, 11 Sep 2009 09:52:46 +0800
+>> Huang Shijie <shijie8@gmail.com> wrote:
 >>
->>      slub: sysfs_slab_remove should free kmem_cache when debug is enabled
+>>     
+>>> The shmem_zere_setup() does not change vm_start, pgoff or vm_flags,
+>>> only some drivers change them (such as /driver/video/bfin-t350mcqb-fb.c).
+>>>
+>>> Moving these codes to a more proper place to save cycles for shared
+>>> anonymous mapping.
+>>>       
+>
+> (Actually it's saving them for any !file mapping.
+>  Though I doubt it's a significant saving myself.)
+>
+>   
+yes.
+>>> Signed-off-by: Huang Shijie <shijie8@gmail.com>
+>>>       
+>
+> Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+>
+>   
+>>> ---
+>>>  mm/mmap.c |   18 +++++++++---------
+>>>  1 files changed, 9 insertions(+), 9 deletions(-)
+>>>
+>>> diff --git a/mm/mmap.c b/mm/mmap.c
+>>> index 8101de4..840e91e 100644
+>>> --- a/mm/mmap.c
+>>> +++ b/mm/mmap.c
+>>> @@ -1195,21 +1195,21 @@ munmap_back:
+>>>  			goto unmap_and_free_vma;
+>>>  		if (vm_flags & VM_EXECUTABLE)
+>>>  			added_exe_file_vma(mm);
+>>> +
+>>> +		/* Can addr have changed??
+>>> +		 *
+>>> +		 * Answer: Yes, several device drivers can do it in their
+>>> +		 *         f_op->mmap method. -DaveM
+>>> +		 */
+>>> +		addr = vma->vm_start;
+>>> +		pgoff = vma->vm_pgoff;
+>>> +		vm_flags = vma->vm_flags;
+>>>  	} else if (vm_flags & VM_SHARED) {
+>>>  		error = shmem_zero_setup(vma);
+>>>  		if (error)
+>>>  			goto free_vma;
+>>>  	}
+>>>  
+>>> -	/* Can addr have changed??
+>>> -	 *
+>>> -	 * Answer: Yes, several device drivers can do it in their
+>>> -	 *         f_op->mmap method. -DaveM
+>>> -	 */
+>>> -	addr = vma->vm_start;
+>>> -	pgoff = vma->vm_pgoff;
+>>> -	vm_flags = vma->vm_flags;
+>>> -
+>>>  	if (vma_wants_writenotify(vma))
+>>>  		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+>>>  
+>>>       
+>> hm, maybe we should nuke those locals and just use vma->foo everywhere.
 >>
->>      kmem_cache_destroy use sysfs_slab_remove to release the kmem_cache,
->>      but when CONFIG_SLUB_DEBUG is enabled, sysfs_slab_remove just release
->>      related kobject, the whole kmem_cache is missed to release and cause
->>      a memory leak.
->>
->>      Acked-by: Christoph Lameer<cl@linux-foundation.org>
->>      Signed-off-by: Xiaotian Feng<dfeng@redhat.com>
->>      Signed-off-by: Pekka Enberg<penberg@cs.helsinki.fi>
->>
->> CONFIG_SLUB_DEBUG=y
->> CONFIG_SLUB=y
->> CONFIG_SLUB_DEBUG_ON=y
->> # CONFIG_SLUB_STATS is not set
+>> Local variable pgoff never gets used again anyway.
+>>     
 >
-> I also had problems destroying a kmem_cache in a security_initcall()
-> function which had a different backtrace (it's what made me create the
-> module and bisect.)   So be sure to let me know what you find so I can
-> be sure that we fix that place as well   (I believe that was a kref
-> problem rather than a double free)
+> I think it was me who Nak'ed an earlier patch to remove the update
+> of pgoff, out of fear that we might add a later reference sometime
+> in future, and not notice for a long time that it then needed that
+> update again.
 >
-> -Eric
+>   
+my patch.
+> addr and pgoff start off as args to do_mmap_pgoff(), so we'd better
+> not nuke them!  And if we changed all the lines below that point to
+> refer to vma->vm_start and vma->vm_flags, I think there's still a
+> danger we'd unthinkingly add a reference to addr or vm_flags later.
 >
+>   
+If we nuke them, there is potential problem to notice :
+    Some drivers change the vm->vm_end, so (vm->vm_end - vm->vm_start) 
+changes against the length of MMAP.
+
+> If any change is to be made here, I think I prefer Shijie's:
+> shmem_zero_setup isn't likely to change to modify any of those,
+> and that patch has the great virtue of retaining DaveM's comment,
+> which draws attention to the issue.
 >
-Could you please tell me the tree you're using? I'll debug on it first...
+> Hugh
+>
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
