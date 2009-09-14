@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 41C146B004D
-	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 22:46:42 -0400 (EDT)
-Date: Mon, 14 Sep 2009 10:46:36 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Isolated(anon) and Isolated(file)
-Message-ID: <20090914024636.GA10570@localhost>
-References: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 77FB06B004D
+	for <linux-mm@kvack.org>; Sun, 13 Sep 2009 23:13:15 -0400 (EDT)
+Subject: Re: [GIT BISECT] BUG kmalloc-8192: Object already free from
+ kmem_cache_destroy
+From: Eric Paris <eparis@redhat.com>
+In-Reply-To: <4AADA1F9.9080305@redhat.com>
+References: <1252866835.13780.37.camel@dhcp231-106.rdu.redhat.com>
+	 <1252883493.16335.8.camel@dhcp231-106.rdu.redhat.com>
+	 <4AADA1F9.9080305@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sun, 13 Sep 2009 23:13:05 -0400
+Message-Id: <1252897985.5793.2.camel@dhcp231-106.rdu.redhat.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Danny Feng <dfeng@redhat.com>
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 14, 2009 at 03:42:38AM +0800, Hugh Dickins wrote:
-> Hi KOSAKI-san,
-> 
-> May I question the addition of Isolated(anon) and Isolated(file)
-> lines to /proc/meminfo?  I get irritated by all such "0 kB" lines!
-> 
-> I see their appropriateness and usefulness in the Alt-Sysrq-M-style
-> info which accompanies an OOM; and I see that those statistics help
-> you to identify and fix bugs of having too many pages isolated.
-> 
-> But IMHO they're too transient to be appropriate in /proc/meminfo:
-> by the time the "cat /proc/meminfo" is done, the situation is very
-> different (or should be once the bugs are fixed).
-> 
-> Almost all its numbers are transient, of course, but these seem
-> so much so that I think /proc/meminfo is better off without them
-> (compressing more info into fewer lines).
-> 
-> Perhaps I'm in the minority: if others care, what do they think?
+On Mon, 2009-09-14 at 09:52 +0800, Danny Feng wrote:
+> On 09/14/2009 07:11 AM, Eric Paris wrote:
+> > On Sun, 2009-09-13 at 14:33 -0400, Eric Paris wrote:
+> >> 2a38a002fbee06556489091c30b04746222167e4 is first bad commit
+> >> commit 2a38a002fbee06556489091c30b04746222167e4
+> >> Author: Xiaotian Feng<dfeng@redhat.com>
+> >> Date:   Wed Jul 22 17:03:57 2009 +0800
+> >>
+> >>      slub: sysfs_slab_remove should free kmem_cache when debug is enabled
+> >>
+> >>      kmem_cache_destroy use sysfs_slab_remove to release the kmem_cache,
+> >>      but when CONFIG_SLUB_DEBUG is enabled, sysfs_slab_remove just release
+> >>      related kobject, the whole kmem_cache is missed to release and cause
+> >>      a memory leak.
+> >>
+> >>      Acked-by: Christoph Lameer<cl@linux-foundation.org>
+> >>      Signed-off-by: Xiaotian Feng<dfeng@redhat.com>
+> >>      Signed-off-by: Pekka Enberg<penberg@cs.helsinki.fi>
+> >>
+> >> CONFIG_SLUB_DEBUG=y
+> >> CONFIG_SLUB=y
+> >> CONFIG_SLUB_DEBUG_ON=y
+> >> # CONFIG_SLUB_STATS is not set
+> >
+> > I also had problems destroying a kmem_cache in a security_initcall()
+> > function which had a different backtrace (it's what made me create the
+> > module and bisect.)   So be sure to let me know what you find so I can
+> > be sure that we fix that place as well   (I believe that was a kref
+> > problem rather than a double free)
+> >
+> > -Eric
+> >
+> >
+> Could you please tell me the tree you're using? I'll debug on it first...
 
-Hugh, I tend to agree with you.
+I was looking at the linux-next tree from Sept 11
 
-Typically one will have difficulty running the "cat /proc/meminfo"
-command when isolated numbers are large, because that means so many
-processes running that 'cat' cannot be scheduled for very long time.
+http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git;a=summary
 
-If anywhere, /proc/vmstat (which has more "advanced" numbers) or
-/sys/devices/system/node/node0/meminfo (which is less visited by
-human?) may be more suitable place for the isolated numbers.
-
-Thanks,
-Fengguang
+-Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
