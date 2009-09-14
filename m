@@ -1,185 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 40CF86B004D
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 09:27:29 -0400 (EDT)
-Date: Mon, 14 Sep 2009 14:27:37 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C086B004D
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 09:33:30 -0400 (EDT)
+Date: Mon, 14 Sep 2009 14:33:30 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/8] mm: follow_hugetlb_page flags
-Message-ID: <20090914132737.GB11778@csn.ul.ie>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909072235360.15430@sister.anvils> <20090909113143.GG24614@csn.ul.ie> <Pine.LNX.4.64.0909131548001.22865@sister.anvils>
+Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
+	mempolicy based management.
+Message-ID: <20090914133329.GC11778@csn.ul.ie>
+References: <20090908104409.GB28127@csn.ul.ie> <alpine.DEB.1.00.0909081241530.10542@chino.kir.corp.google.com> <20090908200451.GA6481@csn.ul.ie> <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com> <20090910122641.GA31153@csn.ul.ie> <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0909131548001.22865@sister.anvils>
+In-Reply-To: <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 13, 2009 at 04:35:44PM +0100, Hugh Dickins wrote:
-> On Wed, 9 Sep 2009, Mel Gorman wrote:
-> > On Mon, Sep 07, 2009 at 10:37:14PM +0100, Hugh Dickins wrote:
-> > > 
-> > > (Alternatively, since hugetlb pages aren't swapped out under pressure,
-> > > you could save more dump space by arguing that a page not yet faulted
-> > > into this process cannot be relevant to the dump; but that would be
-> > > more surprising.)
+On Fri, Sep 11, 2009 at 03:27:30PM -0700, David Rientjes wrote:
+> On Thu, 10 Sep 2009, Mel Gorman wrote:
+> 
+> > > Would you explain why introducing a new mempolicy flag, MPOL_F_HUGEPAGES, 
+> > > and only using the new behavior when this is set would be inconsistent or 
+> > > inadvisible?
 > > 
-> > It would be more surprising. It's an implementation detail that hugetlb
-> > pages cannot be swapped out and someone reading the dump shouldn't have
-> > to be aware of it. It's better to treat non-faulted pages as if they
-> > were zero-filled.
-> 
-> Oh sure, I did mean that the non-faulted pages should be zero-filled,
-> just stored (on those filesystems which support them) by holes in the
-> file instead of zero-filled blocks (just as the dump tries to do with
-> other zero pages). It would mess up the alignment with ELF headers
-> to leave them out completely.
-> 
-
-Oh right, now I get you.
-
-> But it would still be a change in convention which might surprise
-> someone (pages of hugetlb file in the dump appearing as zeroed where
-> the underlying hugetlb file is known to contain non-zero data), and
-> there's already hugetlb dump filters for saving space on those areas.
-> So I'm not anxious to pursue that parenthetical alternative, just
-> admitting that we've got a choice of what to do here.
-> 
-
-Grand.
-
-> > > @@ -2016,6 +2016,23 @@ static struct page *hugetlbfs_pagecache_
-> > >  	return find_lock_page(mapping, idx);
-> > >  }
-> > >  
-> > > +/* Return whether there is a pagecache page to back given address within VMA */
-> > > +static bool hugetlbfs_backed(struct hstate *h,
-> > > +			struct vm_area_struct *vma, unsigned long address)
-> > > +{
-> > > +	struct address_space *mapping;
-> > > +	pgoff_t idx;
-> > > +	struct page *page;
-> > > +
-> > > +	mapping = vma->vm_file->f_mapping;
-> > > +	idx = vma_hugecache_offset(h, vma, address);
-> > > +
-> > > +	page = find_get_page(mapping, idx);
-> > > +	if (page)
-> > > +		put_page(page);
-> > > +	return page != NULL;
-> > > +}
-> > > +
+> > I already explained this. The interface in numactl would look weird. There
+> > would be an --interleave switch and a --hugepages-interleave that only
+> > applies to nr_hugepages. The smarts could be in hugeadm to apply the mask
+> > when --pool-pages-min is specified but that wouldn't help scripts that are
+> > still using echo.
 > > 
-> > It's a total nit-pick, but this is very similar to
-> > hugetlbfs_pagecache_page(). It would have been nice to have them nearby
 > 
-> Indeed!  That's why I placed it just after hugetlbfs_pagecache_page ;)
-> 
-
-Oops, sorry.
-
-> > and called something like hugetlbfs_pagecache_present()
-> 
-> Can call it that if you prefer, either name suits me.
+> I don't think we need to address the scripts that are currently using echo 
+> since they're (hopefully) written to the kernel implementation, i.e. no 
+> mempolicy restriction on writing to nr_hugepages.
 > 
 
-I don't feel strongly enough to ask for a new version. If this is not
-the final version that is merged, then a name-change would be nice.
-Otherwise, it's not worth the hassle.
+Ok.
 
-> > or else reuse
-> > the function and have the caller unlock_page but it's probably not worth
-> > addressing.
-> 
-> I did originally want to do it that way, but the caller is holding
-> page_table_lock, so cannot lock_page there.
-> 
-
-Gack, fair point. If there is another version, a comment to that effect
-wouldn't hurt.
-
-> > >  int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  			struct page **pages, struct vm_area_struct **vmas,
-> > >  			unsigned long *position, int *length, int i,
-> > > -			int write)
-> > > +			unsigned int flags)
+> > I hate to have to do this, but how about nr_hugepages which acts
+> > system-wide as it did traditionally and nr_hugepages_mempolicy that obeys
+> > policies? Something like the following untested patch. It would be fairly
+> > trivial for me to implement a --obey-mempolicies switch for hugeadm which
+> > works in conjunction with --pool--pages-min and less likely to cause confusion
+> > than --hugepages-interleave in numactl.
 > > 
-> > Total aside, but in line with gfp_t flags, is there a case for having
-> > foll_t type for FOLL_* ?
 > 
-> Perhaps some case, but it's the wrong side of my boredom threshold!
-> Even get_user_pages is much less widely used than the functions where
-> gfp flags and page order were getting muddled up.  (foll_t itself
-> would not have helped, but maybe such a change would have saved me time
-> debugging the hang in an earlier version of this patch: eventually I saw
-> I was passing VM_FAULT_WRITE instead of FAULT_FLAG_WRITE to hugetlb_fault.)
+> I like it.
 > 
 
-I guess it's something to have on the back-boiler. If bugs of that
-nature happen a few times, then the effort would be justified. As you
-say, the gfp flags are much wider used.
+Ok, when I get this tested, I'll sent it as a follow-on patch to Lee's
+for proper incorporation.
 
-> > > +		/*
-> > > +		 * When coredumping, it suits get_dump_page if we just return
-> > > +		 * an error if there's a hole and no huge pagecache to back it.
-> > > +		 */
-> > > +		if (absent &&
-> > > +		    ((flags & FOLL_DUMP) && !hugetlbfs_backed(h, vma, vaddr))) {
-> > > +			remainder = 0;
-> > > +			break;
-> > > +		}
+> > Sorry the patch is untested. I can't hold of a NUMA machine at the moment
+> > and fake NUMA support sucks far worse than I expected it to.
 > > 
-> > Does this break an assumption of get_user_pages() whereby when there are
-> > holes, the corresponding pages are NULL but the following pages are still
-> > checked? I guess the caller is informed ultimately that the read was only
-> > partial but offhand I don't know if that's generally expected or not.
 > 
-> Sorry, I don't understand.  get_user_pages() doesn't return any NULL
-> pages within the count it says was successful - Kamezawa-san had a patch
-> and flag which did so, and we might go that way, but it's not the case
-> at present is it? 
-
-No, it's not but for some reason, I thought it was. On re-examination,
-what you are doing makes sense for the current implementation.
-
-> And follow_hugetlb_page() seems to be setting every
-> pages[i] within the count to something non-NULL.
+> Hmm, I rewrote most of fake NUMA a couple years ago.  What problems are 
+> you having with it?
 > 
+
+On PPC64, the parameters behave differently. I couldn't convince it to
+create more than one NUMA node. On x86-64, the NUMA nodes appeared to
+exist and would be visible on /proc/buddyinfo for example but the sysfs
+directories for the fake nodes were not created so nr_hugepages couldn't
+be examined on a per-node basis for example.
+
+> > ==== BEGIN PATCH ====
 > > 
-> > Or is your comment saying that because the only caller using FOLL_DUMP is
-> > get_dump_page() using an array of one page, it doesn't care and the case is
-> > just not worth dealing with?
+> > [PATCH] Optionally use a memory policy when tuning the size of the static hugepage pool
+> > 
+> > Patch "derive huge pages nodes allowed from task mempolicy" brought
+> > huge page support more in line with the core VM in that tuning the size
+> > of the static huge page pool would obey memory policies. Using this,
+> > administrators could interleave allocation of huge pages from a subset
+> > of nodes. This is consistent with how dynamic hugepage pool resizing
+> > works and how hugepages get allocated to applications at run-time.
+> > 
+> > However, it was pointed out that scripts may exist that depend on being
+> > able to drain all hugepages via /proc/sys/vm/nr_hugepages from processes
+> > that are running within a memory policy. This patch adds
+> > /proc/sys/vm/nr_hugepages_mempolicy which when written to will obey
+> > memory policies. /proc/sys/vm/nr_hugepages continues then to be a
+> > system-wide tunable regardless of memory policy.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > --- 
+> >  include/linux/hugetlb.h |    1 +
+> >  kernel/sysctl.c         |   11 +++++++++++
+> >  mm/hugetlb.c            |   35 ++++++++++++++++++++++++++++++++---
+> >  3 files changed, 44 insertions(+), 3 deletions(-)
+> > 
 > 
-> Yes, that's more like it, but what case?  Oh, the case where first pages
-> are okay, then we hit a hole.  Right, that case doesn't actually arise
-> with FOLL_DUMP because of its sole user.
+> It'll need an update to Documentation/vm/hugetlb.txt, but this can 
+> probably be done in one of Lee's patches that edits the same file when he 
+> reposts.
 > 
 
-And nothing else other than core dumping will be using FOLL_DUMP so
-there should be no assumptions broken.
+Agreed.
 
-> Perhaps my comment confuses because at first I had BUG_ON(remainder != 1)
-> in there, and wrote that comment, and returned -EFAULT; then later moved
-> the "i? i: -EFAULT" business down to the bottom and couldn't see any need
-> to assume remainder 1 any more.  But the comment on "error" rather than
-> "error or short count" remains.  But if I do change that to "error or
-> short count" it'll be a bit odd, because in practice it is always error.
+> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> > index fcb1677..fc3a659 100644
+> > --- a/include/linux/hugetlb.h
+> > +++ b/include/linux/hugetlb.h
+> > @@ -21,6 +21,7 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> >  
+> >  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+> >  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> > +int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> >  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> >  int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> >  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+> > diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> > index 8bac3f5..0637655 100644
+> > --- a/kernel/sysctl.c
+> > +++ b/kernel/sysctl.c
+> > @@ -1171,6 +1171,17 @@ static struct ctl_table vm_table[] = {
+> >  		.extra1		= (void *)&hugetlb_zero,
+> >  		.extra2		= (void *)&hugetlb_infinity,
+> >  	 },
+> > +#ifdef CONFIG_NUMA
+> > +	 {
+> > +		.procname	= "nr_hugepages_mempolicy",
+> > +		.data		= NULL,
+> > +		.maxlen		= sizeof(unsigned long),
+> > +		.mode		= 0644,
+> > +		.proc_handler	= &hugetlb_mempolicy_sysctl_handler,
+> > +		.extra1		= (void *)&hugetlb_zero,
+> > +		.extra2		= (void *)&hugetlb_infinity,
+> > +	 },
+> > +#endif
+> >  	 {
+> >  		.ctl_name	= VM_HUGETLB_GROUP,
+> >  		.procname	= "hugetlb_shm_group",
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 83decd6..68abef0 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -1244,6 +1244,7 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
+> >  	return ret;
+> >  }
+> >  
+> > +#define NUMA_NO_NODE_OBEY_MEMPOLICY (-2)
+> >  #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
+> >  static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+> >  								int nid)
 > 
-> But it does seem that we've confused each other: what to say instead?
+> I think it would be possible to avoid adding NUMA_NO_NODE_OBEY_MEMPOLICY 
+> if the nodemask was allocated in the sysctl handler instead and passing it 
+> into set_max_huge_pages() instead of a nid.  Lee, what do you think?
+> 
+> Other than that, I like this approach because it avoids the potential for 
+> userspace breakage while adding the new feature in way that avoids 
+> confusion.
 > 
 
-/*
- * When core-dumping, it's suits the get_dump_page() if an error is
- * returned if there is a hole and no huge pagecache to back it.
- * get_dump_page() is concerned with individual pages and by
- * returning the page as an error, the core dump file still gets
- * zeros but a hugepage allocation is avoided.
- */
-
-?
-
-Sorry for the noise, my review wasn't as careful as it should have been.
+Indeed. While the addition of another proc tunable sucks, it seems like
+the only available compromise.
 
 -- 
 Mel Gorman
