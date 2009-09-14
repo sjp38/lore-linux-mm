@@ -1,142 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E64586B004D
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 01:30:12 -0400 (EDT)
-Received: by ywh28 with SMTP id 28so4155583ywh.15
-        for <linux-mm@kvack.org>; Sun, 13 Sep 2009 22:30:12 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6447D6B004D
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 01:57:06 -0400 (EDT)
+From: "Xin, Xiaohui" <xiaohui.xin@intel.com>
+Date: Mon, 14 Sep 2009 13:57:06 +0800
+Subject: RE: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <C85CEDA13AB1CF4D9D597824A86D2B9006AECB9FE7@PDSMSX501.ccr.corp.intel.com>
+References: <cover.1251388414.git.mst@redhat.com>
+ <20090827160750.GD23722@redhat.com>
+ <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com>
+ <20090908172035.GB319@ovro.caltech.edu> <20090908201428.GA12420@redhat.com>
+ <C85CEDA13AB1CF4D9D597824A86D2B9006AECB9C1D@PDSMSX501.ccr.corp.intel.com>
+ <20090913054610.GA4446@redhat.com>
+In-Reply-To: <20090913054610.GA4446@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Date: Mon, 14 Sep 2009 17:30:12 +1200
-Message-ID: <202cde0e0909132230y52b805a4i8792f2e287b01acb@mail.gmail.com>
-Subject: HugeTLB: Driver example
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Ira W. Snyder" <iws@ovro.caltech.edu>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@elte.hu" <mingo@elte.hu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "gregory.haskins@gmail.com" <gregory.haskins@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, "s.hetze@linux-ag.com" <s.hetze@linux-ag.com>, "avi@redhat.com" <avi@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-There is an example of simple driver which provides huge pages mapping
-for user level applications. The  procedure for mapping of huge pages
-to userspace by the driver is:
+>The irqfd/ioeventfd patches are part of Avi's kvm.git tree:
+>git://git.kernel.org/pub/scm/linux/kernel/git/avi/kvm.git
+>
+>I expect them to be merged by 2.6.32-rc1 - right, Avi?
 
-1. Create a hugetlb file on vfs mount of hugetlbfs (h_file)
+Michael,
 
-2. File operations of /dev/hpage_map do the following:
-In file open we  associate mappings of /dev/xxx with the file on
-hugetlbfs (like it is done in ipc/shm.c)
-       file->f_mapping = h_file->f_mapping;
-In get_unmapped_area we should tell about addressing constraints in
-case of huge pages by calling hugetlbfs procedures. (as in ipc/shm.c)
-       return get_unmapped_area(h_file, addr, len, pgoff, flags);
+I think I have the kernel patch for kvm_irqfd and kvm_ioeventfd, but missed=
+ the qemu side patch for irqfd and ioeventfd.
 
-3 In mmap get huge page in order to DMA or for something else
-(hugetlb_get_user_page call).
-..................
-4 Remove hugetlbfs file
+I met the compile error when I compiled virtio-pci.c file in qemu-kvm like =
+this:
 
----
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/hugetlb.h>
-#include <linux/pagevec.h>
-#include <linux/miscdevice.h>
-#include <asm/io.h>
-#include <asm/ioctl.h>
+/root/work/vmdq/vhost/qemu-kvm/hw/virtio-pci.c:384: error: `KVM_IRQFD` unde=
+clared (first use in this function)
+/root/work/vmdq/vhost/qemu-kvm/hw/virtio-pci.c:400: error: `KVM_IOEVENTFD` =
+undeclared (first use in this function)
 
-#define HFILE_SIZE 16UL*1024*1024
-static struct file	*h_file;
+Which qemu tree or patch do you use for kvm_irqfd and kvm_ioeventfd?
 
-static int hpage_map_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	int ret;
-	struct page *page;
-	struct hstate *h;
-	unsigned long addr = vma->vm_start;
+Thanks
+Xiaohui
 
-	if ((ret = h_file->f_op->mmap(h_file, vma)))
-	    return ret;
+-----Original Message-----
+From: Michael S. Tsirkin [mailto:mst@redhat.com]=20
+Sent: Sunday, September 13, 2009 1:46 PM
+To: Xin, Xiaohui
+Cc: Ira W. Snyder; netdev@vger.kernel.org; virtualization@lists.linux-found=
+ation.org; kvm@vger.kernel.org; linux-kernel@vger.kernel.org; mingo@elte.hu=
+; linux-mm@kvack.org; akpm@linux-foundation.org; hpa@zytor.com; gregory.has=
+kins@gmail.com; Rusty Russell; s.hetze@linux-ag.com; avi@redhat.com
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
 
-	h = hstate_file(h_file);
-	
-	while (addr < vma->vm_end) {
-		page = hugetlb_get_user_page(vma, addr);
-		if (IS_ERR(page))
-		        return -EFAULT;
-		addr += huge_page_size(h);
-		/* Add code to configure DMA here */
-	}
-	return 0;
-}
+On Fri, Sep 11, 2009 at 11:17:33PM +0800, Xin, Xiaohui wrote:
+> Michael,
+> We are very interested in your patch and want to have a try with it.
+> I have collected your 3 patches in kernel side and 4 patches in queue sid=
+e.
+> The patches are listed here:
+>=20
+> PATCHv5-1-3-mm-export-use_mm-unuse_mm-to-modules.patch
+> PATCHv5-2-3-mm-reduce-atomic-use-on-use_mm-fast-path.patch
+> PATCHv5-3-3-vhost_net-a-kernel-level-virtio-server.patch
+>=20
+> PATCHv3-1-4-qemu-kvm-move-virtio-pci[1].o-to-near-pci.o.patch
+> PATCHv3-2-4-virtio-move-features-to-an-inline-function.patch
+> PATCHv3-3-4-qemu-kvm-vhost-net-implementation.patch
+> PATCHv3-4-4-qemu-kvm-add-compat-eventfd.patch
+>=20
+> I applied the kernel patches on v2.6.31-rc4 and the qemu patches on lates=
+t kvm qemu.
+> But seems there are some patches are needed at least irqfd and ioeventfd =
+patches on
+> current qemu. I cannot create a kvm guest with "-net nic,model=3Dvirtio,v=
+host=3DvethX".
+>=20
+> May you kindly advice us the patch lists all exactly to make it work?
+> Thanks a lot. :-)
+>=20
+> Thanks
+> Xiaohui
 
-static unsigned long hpage_map_get_unmapped_area(struct file *file,
-	unsigned long addr, unsigned long len, unsigned long pgoff,
-	unsigned long flags)
-{
-	/* Tell about addressing constrains in case of huge pages,
-	 * hugetlbfs knows how to do this */
-	return get_unmapped_area(h_file, addr, len, pgoff, flags);
-}
-static int hpage_map_open(struct inode * inode, struct file * file)
-{
-	/* Associate mappings of /dev/xxx with the file on hugetlbfs
-	 * like it is done in ipc/shm.c */
-	file->f_mapping = h_file->f_mapping;
-	return 0;
-}
 
-/*
- * The file operations for /dev/hpage_map
- */
-static const struct file_operations hpage_map_fops = {
-	.owner		= THIS_MODULE,
-	.mmap		= hpage_map_mmap,
-	.open 		= hpage_map_open,
-	.get_unmapped_area	= hpage_map_get_unmapped_area,
-};
+The irqfd/ioeventfd patches are part of Avi's kvm.git tree:
+git://git.kernel.org/pub/scm/linux/kernel/git/avi/kvm.git
 
-static struct miscdevice hpage_map_dev = {
-	MISC_DYNAMIC_MINOR,
-	"hpage_map",
-	&hpage_map_fops
-};
+I expect them to be merged by 2.6.32-rc1 - right, Avi?
 
-static int __init
-hpage_map_init(void)
-{
-	int ret;
-	struct user_struct *user = NULL;
-
-	/* Create the device in the /sys/class/misc directory. */
-	if ((ret = misc_register(&hpage_map_dev)))
-		return ret;
-
-	/* Create file on hugetlbfs */
-	h_file = hugetlb_file_setup("hpage_map_dev", HFILE_SIZE, 0, &user,
-				HUGETLB_DEVBACK_INODE);
-	if (IS_ERR(h_file)) {
-		misc_deregister(&hpage_map_dev);
-		ret = -ENOENT;
-	}
-	return ret;
-}
-
-module_init(hpage_map_init);
-
-static void __exit
-hpage_map_exit(void)
-{
-	fput(h_file);
-	misc_deregister(&hpage_map_dev);
-}
-
-module_exit(hpage_map_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alexey Korolev");
-MODULE_DESCRIPTION("Example of driver with hugetlb mapping");
-MODULE_VERSION("1.0");
+--=20
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
