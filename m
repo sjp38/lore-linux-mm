@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C2D5F6B005C
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 16:39:06 -0400 (EDT)
-Date: Tue, 15 Sep 2009 21:38:21 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 4/4] mm: move highest_memmap_pfn
-In-Reply-To: <Pine.LNX.4.64.0909152127240.22199@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0909152137240.22199@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
- <Pine.LNX.4.64.0909152127240.22199@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3797B6B004F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 16:39:59 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Tue, 15 Sep 2009 16:43:27 -0400
+Message-Id: <20090915204327.4828.4349.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/11] hugetlb: V7 constrain allocation/free based on task mempolicy
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Move highest_memmap_pfn __read_mostly from page_alloc.c next to
-zero_pfn __read_mostly in memory.c: to help them share a cacheline,
-since they're very often tested together in vm_normal_page().
+PATCH 0/11 hugetlb: numa control of persistent huge pages alloc/free
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
+Against:  2.6.31-mmotm-090914-0157
 
- mm/internal.h   |    3 ++-
- mm/memory.c     |    1 +
- mm/page_alloc.c |    1 -
- 3 files changed, 3 insertions(+), 2 deletions(-)
+This is V7 of a series of patches to provide control over the location
+of the allocation and freeing of persistent huge pages on a NUMA
+platform.   Please consider [at least patches 1-8] for merging into mmotm.
 
---- mm3/mm/internal.h	2009-09-14 16:34:37.000000000 +0100
-+++ mm4/mm/internal.h	2009-09-15 17:32:27.000000000 +0100
-@@ -37,6 +37,8 @@ static inline void __put_page(struct pag
- 	atomic_dec(&page->_count);
- }
- 
-+extern unsigned long highest_memmap_pfn;
-+
- /*
-  * in mm/vmscan.c:
-  */
-@@ -46,7 +48,6 @@ extern void putback_lru_page(struct page
- /*
-  * in mm/page_alloc.c
-  */
--extern unsigned long highest_memmap_pfn;
- extern void __free_pages_bootmem(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned long order);
- 
---- mm3/mm/memory.c	2009-09-15 17:32:19.000000000 +0100
-+++ mm4/mm/memory.c	2009-09-15 17:32:27.000000000 +0100
-@@ -108,6 +108,7 @@ static int __init disable_randmaps(char
- __setup("norandmaps", disable_randmaps);
- 
- unsigned long zero_pfn __read_mostly;
-+unsigned long highest_memmap_pfn __read_mostly;
- 
- /*
-  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
---- mm3/mm/page_alloc.c	2009-09-14 16:34:37.000000000 +0100
-+++ mm4/mm/page_alloc.c	2009-09-15 17:32:27.000000000 +0100
-@@ -72,7 +72,6 @@ EXPORT_SYMBOL(node_states);
- 
- unsigned long totalram_pages __read_mostly;
- unsigned long totalreserve_pages __read_mostly;
--unsigned long highest_memmap_pfn __read_mostly;
- int percpu_pagelist_fraction;
- gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
- 
+This series uses two mechanisms to constrain the nodes from which
+persistent huge pages are allocated:  1) the task NUMA mempolicy of
+the task modifying  a new sysctl "nr_hugepages_mempolicy" [patch 8],
+based on a suggestion by Mel Gorman; and 2) a subset of the hugepages
+hstate sysfs attributes have been added [in V4] to each node system
+device under:
+
+	/sys/devices/node/node[0-9]*/hugepages.
+
+The per node attibutes allow direct assignment of a huge page
+count on a specific node, regardless of the task's mempolicy or
+cpuset constraints.
+
+V5 addressed review comments -- changes described in patch descriptions.
+
+V6 addressed more review comments, described in the patches.
+
+V6 also included a 3 patch series that implements an enhancement suggested
+by David Rientjes:   the default huge page nodes allowed mask will be the
+nodes with memory rather than all on-line nodes and we will allocate per
+node hstate attributes only for nodes with memory.  This requires that we
+register a memory on/off-line notifier and [un]register the attributes on
+transitions to/from memoryless state.
+
+V7 addresses review comments,, described in the patches, and includes a
+new patch, originally from Mel Gorman, to define a new vm sysctl and
+sysfs global hugepages attribute "nr_hugepages_mempolicy" rather than
+apply mempolicy contraints to pool adujstments via the pre-existing
+"nr_hugepages".  The 3 patches to restrict hugetlb to visiting only
+nodes with memory and to add/remove per node hstate attributes on
+memory hotplug complete V7.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
