@@ -1,89 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 59D9A6B005A
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:30:53 -0400 (EDT)
-Received: by ywh8 with SMTP id 8so6654016ywh.14
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 08:30:52 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 821E66B005A
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:56:32 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id d23so1168881fga.8
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 08:56:39 -0700 (PDT)
+Message-ID: <4AAFB8F3.4000209@vflare.org>
+Date: Tue, 15 Sep 2009 21:25:31 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-In-Reply-To: <20090915114742.DB79.A69D9226@jp.fujitsu.com>
-References: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
-	 <20090915114742.DB79.A69D9226@jp.fujitsu.com>
-Date: Wed, 16 Sep 2009 00:30:52 +0900
-Message-ID: <28c262360909150830x36de7a28s869c57042a537f24@mail.gmail.com>
-Subject: Re: Isolated(anon) and Isolated(file)
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/4] virtual block device driver (ramzswap)
+References: <200909100215.36350.ngupta@vflare.org> <200909100249.26284.ngupta@vflare.org> <84144f020909141310y164b2d1ak44dd6945d35e6ec@mail.gmail.com> <d760cf2d0909142339i30d74a9dic7ece86e7227c2e2@mail.gmail.com> <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com> <d760cf2d0909150121i7f6f45b9p76f8eb89ab0d5882@mail.gmail.com> <84144f020909150130r573df1e1jfe359b88387f94ad@mail.gmail.com> <20090915152641.GA22667@kroah.com>
+In-Reply-To: <20090915152641.GA22667@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Greg KH <greg@kroah.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ed Tomlinson <edt@aei.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?Fr=E9?= =?ISO-8859-1?Q?d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 15, 2009 at 11:56 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi
+On 09/15/2009 08:56 PM, Greg KH wrote:
+> On Tue, Sep 15, 2009 at 11:30:16AM +0300, Pekka Enberg wrote:
+>> Btw, Nitin, why are you targeting drivers/block and not
+>> drivers/staging at this point? It seems obvious enough that there are
+>> still some issues that need to be ironed out (like the CONFIG_ARM
+>> thing) so submitting the driver for inclusion in drivers/staging and
+>> fixing it up there incrementally would likely save you from a lot of
+>> trouble. Greg, does ramzswap sound like something that you'd be
+>> willing to take?
 >
->> Hi KOSAKI-san,
->>
->> May I question the addition of Isolated(anon) and Isolated(file)
->> lines to /proc/meminfo? =A0I get irritated by all such "0 kB" lines!
->>
->> I see their appropriateness and usefulness in the Alt-Sysrq-M-style
->> info which accompanies an OOM; and I see that those statistics help
->> you to identify and fix bugs of having too many pages isolated.
->>
->> But IMHO they're too transient to be appropriate in /proc/meminfo:
->> by the time the "cat /proc/meminfo" is done, the situation is very
->> different (or should be once the bugs are fixed).
->>
->> Almost all its numbers are transient, of course, but these seem
->> so much so that I think /proc/meminfo is better off without them
->> (compressing more info into fewer lines).
->>
->> Perhaps I'm in the minority: if others care, what do they think?
+> If it is self-contained, actually builds, and there is an active
+> developer who is working getting it merged into the main kernel tree,
+> then yes, I will be willing to take it into the drivers/staging/ tree.
+> Just send me the patches.
 >
-> I think Alt-Sysrq-M isn't useful in this case. because, if heavy memory
-> pressure occur, the administrator can't input "echo > /proc/sysrq-trigger=
-"
-> to his terminal.
-> In the otherhand, many system get /proc/meminfo per every second. then,
-> the administrator can see last got statistics.
->
-> However, I halfly agree with you. Isolated field is transient value.
-> In almost case, it display 0kB. it is a bit annoy.
->
-> Fortunately, now /proc/vmstat and /sys/device/system/node/meminfo also
-> can display isolated value.
-> (As far as I rememberd, it was implemented by Wu's request)
-> We can use it. IOW, we can remove isolated field from /proc/meminfo.
->
->
-> How about following patch?
->
->
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CUT HERE =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> From 7aa6fa2b76ff5d063b8bfa4a3af38c39b9396fd5 Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Tue, 15 Sep 2009 10:16:51 +0900
-> Subject: [PATCH] Kill Isolated field in /proc/meminfo
->
-> Hugh Dickins pointed out Isolated field dislpay 0kB at almost time.
-> It is only increased at heavy memory pressure case.
->
-> So, if the system haven't get memory pressure, this field isn't useful.
-> And now, we have two alternative way, /sys/device/system/node/node{n}/mem=
-info
-> and /prov/vmstat. Then, it can be removed.
->
-> Reported-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
+It is self contained (except for swap notify callback part). I will send
+revised patches addressing some of coding issues raised in reviews and moving
+everything over to drivers/staging.
 
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
