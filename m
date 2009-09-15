@@ -1,33 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 360D36B0055
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 08:35:33 -0400 (EDT)
-Message-ID: <4AAF8A03.5020806@redhat.com>
-Date: Tue, 15 Sep 2009 15:35:15 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2036F6B0055
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 08:42:07 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so2817003bwz.38
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 05:42:09 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu> <4AAA7415.5080204@gmail.com> <20090913120140.GA31218@redhat.com> <4AAE6A97.7090808@gmail.com> <20090914164750.GB3745@redhat.com> <4AAE961B.6020509@gmail.com>
-In-Reply-To: <4AAE961B.6020509@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <200909150745.16265.edt@aei.ca>
+References: <200909100215.36350.ngupta@vflare.org>
+	 <d760cf2d0909142339i30d74a9dic7ece86e7227c2e2@mail.gmail.com>
+	 <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com>
+	 <200909150745.16265.edt@aei.ca>
+Date: Tue, 15 Sep 2009 15:42:09 +0300
+Message-ID: <84144f020909150542k1d62f100ubaef3bb3b1cea592@mail.gmail.com>
+Subject: Re: [PATCH 2/4] virtual block device driver (ramzswap)
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: Ed Tomlinson <edt@aei.ca>
+Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-On 09/14/2009 10:14 PM, Gregory Haskins wrote:
-> To reiterate, as long as the model is such that the ppc boards are
-> considered the "owner" (direct access, no translation needed) I believe
-> it will work.  If the pointers are expected to be owned by the host,
-> then my model doesn't work well either.
->    
+On Tuesday 15 September 2009 03:30:23 you wrote:
+>> > So, its extremely difficult to wait for the proper fix.
+>>
+>> Then make ramzswap depend on !CONFIG_ARM. In any case, CONFIG_ARM bits
+>> really don't belong into drivers/block.
 
-In this case the x86 is the owner and the ppc boards use translated 
-access.  Just switch drivers and device and it falls into place.
+On Tue, Sep 15, 2009 at 2:45 PM, Ed Tomlinson <edt@aei.ca> wrote:
+> Problem is that ramzswap is usefull on boxes like the n800/n810... =A0So =
+this is a bad
+> suggestion from my POV. =A0 =A0How about a comment saying this code goes =
+when the
+> fix arrives???
 
--- 
-error compiling committee.c: too many arguments to function
+Just put the driver in driver/staging until the issue is resolved.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
