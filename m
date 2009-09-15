@@ -1,103 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 738A86B005C
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 09:14:28 -0400 (EDT)
-Subject: Re: [PATCH 2/4] virtual block device driver (ramzswap)
-From: Steven Rostedt <rostedt@goodmis.org>
-Reply-To: rostedt@goodmis.org
-In-Reply-To: <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com>
-References: <200909100215.36350.ngupta@vflare.org>
-	 <200909100249.26284.ngupta@vflare.org>
-	 <84144f020909141310y164b2d1ak44dd6945d35e6ec@mail.gmail.com>
-	 <d760cf2d0909142339i30d74a9dic7ece86e7227c2e2@mail.gmail.com>
-	 <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 15 Sep 2009 09:14:30 -0400
-Message-Id: <1253020471.20020.76.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 44B1A6B005C
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 09:25:41 -0400 (EDT)
+Message-ID: <4AAF95D1.1080600@redhat.com>
+Date: Tue, 15 Sep 2009 16:25:37 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu> <4AAA7415.5080204@gmail.com> <20090913120140.GA31218@redhat.com> <4AAE6A97.7090808@gmail.com> <20090914164750.GB3745@redhat.com> <4AAE961B.6020509@gmail.com> <4AAF8A03.5020806@redhat.com> <4AAF909F.9080306@gmail.com>
+In-Reply-To: <4AAF909F.9080306@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ed Tomlinson <edt@aei.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org, Ingo Molnar <mingo@elte.hu>, =?ISO-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-09-15 at 10:30 +0300, Pekka Enberg wrote:
-> Hi Nitin,
+On 09/15/2009 04:03 PM, Gregory Haskins wrote:
+>
+>> In this case the x86 is the owner and the ppc boards use translated
+>> access.  Just switch drivers and device and it falls into place.
+>>
+>>      
+> You could switch vbus roles as well, I suppose.
 
-> 
-> >>> +static int page_zero_filled(void *ptr)
-> >>> +{
-> >>> +       u32 pos;
-> >>> +       u64 *page;
-> >>> +
-> >>> +       page = (u64 *)ptr;
-> >>> +
-> >>> +       for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
-> >>> +               if (page[pos])
-> >>> +                       return 0;
-> >>> +       }
-> >>> +
-> >>> +       return 1;
-> >>> +}
-> >>
-> >> This looks like something that could be in lib/string.c.
-> >>
-> >> /me looks
-> >>
-> >> There's strspn so maybe you could introduce a memspn equivalent.
-> >
-> > Maybe this is just too specific to this driver. Who else will use it?
-> > So, this simple function should stay within this driver only. If it
-> > finds more user, we can them move it to lib/string.c.
-> >
-> > If I now move it to string.c I am sure I will get reverse argument
-> > from someone else:
-> > "currently, it has no other users so bury it with this driver only".
-> 
-> How can you be sure about that? If you don't want to move it to
-> generic code, fine, but the above argumentation doesn't really
-> convince me. Check the git logs to see that this is *exactly* how new
-> functions get added to lib/string.c. It's not always a question of two
-> or more users, it's also an API issue. It doesn't make sense to put
-> helpers in driver code where they don't belong (and won't be
-> discovered if they're needed somewhere else).
+Right, there's not real difference in this regard.
 
-I agree, a generic function like this should be put into string.c (or
-some library). That's the first place I look when I want to do some kind
-of generic string or memory manipulation.
+> Another potential
+> option is that he can stop mapping host memory on the guest so that it
+> follows the more traditional model.  As a bus-master device, the ppc
+> boards should have access to any host memory at least in the GFP_DMA
+> range, which would include all relevant pointers here.
+>
+> I digress:  I was primarily addressing the concern that Ira would need
+> to manage the "host" side of the link using hvas mapped from userspace
+> (even if host side is the ppc boards).  vbus abstracts that access so as
+> to allow something other than userspace/hva mappings.  OTOH, having each
+> ppc board run a userspace app to do the mapping on its behalf and feed
+> it to vhost is probably not a huge deal either.  Where vhost might
+> really fall apart is when any assumptions about pageable memory occur,
+> if any.
+>    
 
-If you don't put it there, and another driver writer needs the same
-thing, they will write their own. That's how we get 10 different
-implementations of the same code in the kernel. Because everyone thinks
-"this will only be used by me".
+Why?  vhost will call get_user_pages() or copy_*_user() which ought to 
+do the right thing.
 
+> As an aside: a bigger issue is that, iiuc, Ira wants more than a single
+> ethernet channel in his design (multiple ethernets, consoles, etc).  A
+> vhost solution in this environment is incomplete.
+>    
 
-> >>> +
-> >>> +       trace_mark(ramzswap_lock_wait, "ramzswap_lock_wait");
-> >>> +       mutex_lock(&rzs->lock);
-> >>> +       trace_mark(ramzswap_lock_acquired, "ramzswap_lock_acquired");
-> >>
-> >> Hmm? What's this? I don't think you should be doing ad hoc
-> >> trace_mark() in driver code.
-> >
-> > This is not ad hoc. It is to see contention over this lock which I believe is a
-> > major bottleneck even on dual-cores. I need to keep this to measure improvements
-> > as I gradually make this locking more fine grained (using per-cpu buffer etc).
-> 
-> It is ad hoc. Talk to the ftrace folks how to do it properly. I'd keep
-> those bits out-of-tree until the issue is resolved, really.
+Why?  Instantiate as many vhost-nets as needed.
 
-Yes, trace_mark is deprecated. You want to use TRACE_EVENT. See how gfs2
-does it in:
+> Note that Ira's architecture highlights that vbus's explicit management
+> interface is more valuable here than it is in KVM, since KVM already has
+> its own management interface via QEMU.
+>    
 
-  fs/gfs2/gfs2_trace.h
+vhost-net and vbus both need management, vhost-net via ioctls and vbus 
+via configfs.  The only difference is the implementation.  vhost-net 
+leaves much more to userspace, that's the main difference.
 
-and it is well documented in
-samples/trace_events/trace-events-samples.[ch]
-
--- Steve
-
-
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
