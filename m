@@ -1,34 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD406B004D
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 07:45:16 -0400 (EDT)
-From: Ed Tomlinson <edt@aei.ca>
-Subject: Re: [PATCH 2/4] virtual block device driver (ramzswap)
-Date: Tue, 15 Sep 2009 07:45:14 -0400
-References: <200909100215.36350.ngupta@vflare.org> <d760cf2d0909142339i30d74a9dic7ece86e7227c2e2@mail.gmail.com> <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com>
-In-Reply-To: <84144f020909150030h1f9d8062sc39057b55a7ba6c0@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 0916E6B0055
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 07:48:39 -0400 (EDT)
+Date: Tue, 15 Sep 2009 12:48:45 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
+	mempolicy based management.
+Message-ID: <20090915114844.GA31840@csn.ul.ie>
+References: <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com> <20090910122641.GA31153@csn.ul.ie> <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com> <20090914133329.GC11778@csn.ul.ie> <1252937748.17132.111.camel@useless.americas.hpqcorp.net> <20090914154112.GD11778@csn.ul.ie> <alpine.DEB.1.00.0909141214170.14000@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200909150745.16265.edt@aei.ca>
+In-Reply-To: <alpine.DEB.1.00.0909141214170.14000@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>, Nitin Gupta <ngupta@vflare.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ed Tomlinson <edt@aei.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org, Ingo Molnar <mingo@elte.hu>, =?iso-8859-1?q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Greg KH <greg@kroah.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 15 September 2009 03:30:23 you wrote:
-> > So, its extremely difficult to wait for the proper fix.
+On Mon, Sep 14, 2009 at 12:15:43PM -0700, David Rientjes wrote:
+> On Mon, 14 Sep 2009, Mel Gorman wrote:
 > 
-> Then make ramzswap depend on !CONFIG_ARM. In any case, CONFIG_ARM bits
-> really don't belong into drivers/block.
+> > > > > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > > > > index 83decd6..68abef0 100644
+> > > > > > --- a/mm/hugetlb.c
+> > > > > > +++ b/mm/hugetlb.c
+> > > > > > @@ -1244,6 +1244,7 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
+> > > > > >  	return ret;
+> > > > > >  }
+> > > > > >  
+> > > > > > +#define NUMA_NO_NODE_OBEY_MEMPOLICY (-2)
+> > > 
+> > > How about defining NUMA_NO_NODE_OBEY_MEMPOLICY as (NUMA_NO_NODE - 1)
+> > > just to ensure that it's different.  Not sure it's worth an enum at this
+> > > point.  NUMA_NO_NODE_OBEY_MEMPOLICY is private to hugetlb at this time.
+> > > 
+> > 
+> > That seems reasonable.
+> > 
+> 
+> If the nodemask allocation is moved to the sysctl handler and nodemask_t 
+> is passed into set_max_huge_pages() instead of nid, you don't need 
+> NUMA_NO_NODE_OBEY_MEMPOLICY at all, though.
+> 
 
-Problem is that ramzswap is usefull on boxes like the n800/n810...  So this is a bad
-suggestion from my POV.    How about a comment saying this code goes when the 
-fix arrives???
+Very likely. When V7 comes out, I'll spin a patch for that and see what
+it looks like if Lee doesn't beat me to it.
 
-Ed Tomlinson
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
