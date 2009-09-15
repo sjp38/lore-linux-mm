@@ -1,125 +1,470 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EDD9B6B004D
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2009 22:56:25 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8F2uWe2006088
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 15 Sep 2009 11:56:32 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DFDA45DE6F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:56:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEC9345DE6E
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:56:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AEC311DB8037
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:56:31 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F30F1DB8041
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 11:56:28 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Isolated(anon) and Isolated(file)
-In-Reply-To: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
-References: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
-Message-Id: <20090915114742.DB79.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DF12F6B004D
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 02:39:36 -0400 (EDT)
+Received: by pzk26 with SMTP id 26so2969335pzk.27
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2009 23:39:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <84144f020909141310y164b2d1ak44dd6945d35e6ec@mail.gmail.com>
+References: <200909100215.36350.ngupta@vflare.org>
+	 <200909100249.26284.ngupta@vflare.org>
+	 <84144f020909141310y164b2d1ak44dd6945d35e6ec@mail.gmail.com>
+Date: Tue, 15 Sep 2009 12:09:38 +0530
+Message-ID: <d760cf2d0909142339i30d74a9dic7ece86e7227c2e2@mail.gmail.com>
+Subject: Re: [PATCH 2/4] virtual block device driver (ramzswap)
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
-Date: Tue, 15 Sep 2009 11:56:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Ed Tomlinson <edt@aei.ca>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mm-cc@laptop.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Hi Pekka,
 
-> Hi KOSAKI-san,
->=20
-> May I question the addition of Isolated(anon) and Isolated(file)
-> lines to /proc/meminfo?  I get irritated by all such "0 kB" lines!
->=20
-> I see their appropriateness and usefulness in the Alt-Sysrq-M-style
-> info which accompanies an OOM; and I see that those statistics help
-> you to identify and fix bugs of having too many pages isolated.
->=20
-> But IMHO they're too transient to be appropriate in /proc/meminfo:
-> by the time the "cat /proc/meminfo" is done, the situation is very
-> different (or should be once the bugs are fixed).
->=20
-> Almost all its numbers are transient, of course, but these seem
-> so much so that I think /proc/meminfo is better off without them
-> (compressing more info into fewer lines).
->=20
-> Perhaps I'm in the minority: if others care, what do they think?
+Thanks for review. My comments inline.
 
-I think Alt-Sysrq-M isn't useful in this case. because, if heavy memory
-pressure occur, the administrator can't input "echo > /proc/sysrq-trigger"
-to his terminal.
-In the otherhand, many system get /proc/meminfo per every second. then,
-the administrator can see last got statistics.
+On Tue, Sep 15, 2009 at 1:40 AM, Pekka Enberg <penberg@cs.helsinki.fi> wrot=
+e:
+>
+> I am not a block driver expert but here are some comments on the code
+> that probably need to be addressed before merging.
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Pekka
 
-However, I halfly agree with you. Isolated field is transient value.
-In almost case, it display 0kB. it is a bit annoy.
+>
+> On Thu, Sep 10, 2009 at 12:19 AM, Nitin Gupta <ngupta@vflare.org> wrote:
+>> +
+>> +/* Globals */
+>> +static int RAMZSWAP_MAJOR;
+>> +static struct ramzswap *DEVICES;
+>> +
+>> +/*
+>> + * Pages that compress to larger than this size are
+>> + * forwarded to backing swap, if present or stored
+>> + * uncompressed in memory otherwise.
+>> + */
+>> +static unsigned int MAX_CPAGE_SIZE;
+>> +
+>> +/* Module params (documentation at end) */
+>> +static unsigned long NUM_DEVICES;
+>
+> These variable names should be in lower case.
+>
 
-Fortunately, now /proc/vmstat and /sys/device/system/node/meminfo also
-can display isolated value.
-(As far as I rememberd, it was implemented by Wu's request)
-We can use it. IOW, we can remove isolated field from /proc/meminfo.
-
-
-How about following patch?
+Global variables with lower case causes confusion.
 
 
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D CUT HERE =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=46rom 7aa6fa2b76ff5d063b8bfa4a3af38c39b9396fd5 Mon Sep 17 00:00:00 2001
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Tue, 15 Sep 2009 10:16:51 +0900
-Subject: [PATCH] Kill Isolated field in /proc/meminfo
+>> +
+>> +/* Function declarations */
+>> +static int __init ramzswap_init(void);
+>> +static int ramzswap_ioctl(struct block_device *, fmode_t,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 unsigned, unsigned long);
+>> +static int setup_swap_header(struct ramzswap *, union swap_header *);
+>> +static void ramzswap_set_memlimit(struct ramzswap *, size_t);
+>> +static void ramzswap_set_disksize(struct ramzswap *, size_t);
+>> +static void reset_device(struct ramzswap *rzs);
+>
+> It's preferable not to use forward declarations in new kernel code.
+>
 
-Hugh Dickins pointed out Isolated field dislpay 0kB at almost time.
-It is only increased at heavy memory pressure case.
-
-So, if the system haven't get memory pressure, this field isn't useful.
-And now, we have two alternative way, /sys/device/system/node/node{n}/memin=
-fo
-and /prov/vmstat. Then, it can be removed.
-
-Reported-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- fs/proc/meminfo.c |    4 ----
- 1 files changed, 0 insertions(+), 4 deletions(-)
-
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 7d46c2e..c7bff4f 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -65,8 +65,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		"Active(file):   %8lu kB\n"
- 		"Inactive(file): %8lu kB\n"
- 		"Unevictable:    %8lu kB\n"
--		"Isolated(anon): %8lu kB\n"
--		"Isolated(file): %8lu kB\n"
- 		"Mlocked:        %8lu kB\n"
- #ifdef CONFIG_HIGHMEM
- 		"HighTotal:      %8lu kB\n"
-@@ -116,8 +114,6 @@ static int meminfo_proc_show(struct seq_file *m, void *=
-v)
- 		K(pages[LRU_ACTIVE_FILE]),
- 		K(pages[LRU_INACTIVE_FILE]),
- 		K(pages[LRU_UNEVICTABLE]),
--		K(global_page_state(NR_ISOLATED_ANON)),
--		K(global_page_state(NR_ISOLATED_FILE)),
- 		K(global_page_state(NR_MLOCK)),
- #ifdef CONFIG_HIGHMEM
- 		K(i.totalhigh),
---=20
-1.6.2.5
+okay, I will rearrange functions to avoid this.
 
 
+>> +static int test_flag(struct ramzswap *rzs, u32 index, enum rzs_pageflag=
+s flag)
+>> +{
+>> + =A0 =A0 =A0 return rzs->table[index].flags & BIT(flag);
+>> +}
+>> +
+>> +static void set_flag(struct ramzswap *rzs, u32 index, enum rzs_pageflag=
+s flag)
+>> +{
+>> + =A0 =A0 =A0 rzs->table[index].flags |=3D BIT(flag);
+>> +}
+>> +
+>> +static void clear_flag(struct ramzswap *rzs, u32 index,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 enum rzs_pageflags flag)
+>> +{
+>> + =A0 =A0 =A0 rzs->table[index].flags &=3D ~BIT(flag);
+>> +}
+>
+> These function names could use a ramzswap specific prefix.
 
+okay.
+
+>
+>> +
+>> +static int page_zero_filled(void *ptr)
+>> +{
+>> + =A0 =A0 =A0 u32 pos;
+>> + =A0 =A0 =A0 u64 *page;
+>> +
+>> + =A0 =A0 =A0 page =3D (u64 *)ptr;
+>> +
+>> + =A0 =A0 =A0 for (pos =3D 0; pos !=3D PAGE_SIZE / sizeof(*page); pos++)=
+ {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (page[pos])
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> + =A0 =A0 =A0 }
+>> +
+>> + =A0 =A0 =A0 return 1;
+>> +}
+>
+> This looks like something that could be in lib/string.c.
+>
+> /me looks
+>
+> There's strspn so maybe you could introduce a memspn equivalent.
+>
+
+
+Maybe this is just too specific to this driver. Who else will use it?
+So, this simple function should stay within this driver only. If it
+finds more user,
+we can them move it to lib/string.c.
+
+If I now move it to string.c I am sure I will get reverse argument
+from someone else:
+"currently, it has no other users so bury it with this driver only".
+
+
+>> +
+>> +/*
+>> + * Given <pagenum, offset> pair, provide a dereferencable pointer.
+>> + */
+>> +static void *get_ptr_atomic(struct page *page, u16 offset, enum km_type=
+ type)
+>> +{
+>> + =A0 =A0 =A0 unsigned char *base;
+>> +
+>> + =A0 =A0 =A0 base =3D kmap_atomic(page, type);
+>> + =A0 =A0 =A0 return base + offset;
+>> +}
+>> +
+>> +static void put_ptr_atomic(void *ptr, enum km_type type)
+>> +{
+>> + =A0 =A0 =A0 kunmap_atomic(ptr, type);
+>> +}
+>
+> These two functions also appear in xmalloc. It's probably best to just
+> kill the wrappers and use kmap/kunmap directly.
+>
+
+Wrapper for kmap_atomic is nice as spreading:
+kmap_atomic(page, KM_USER0,1) + offset everywhere looks worse.
+What is the problem if these little 1-liner wrappers are repeated in
+xvmalloc too?
+To me, they just add some clarity.
+
+
+>> +
+>> +static void ramzswap_flush_dcache_page(struct page *page)
+>> +{
+>> +#ifdef CONFIG_ARM
+>> + =A0 =A0 =A0 int flag =3D 0;
+>> + =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0* Ugly hack to get flush_dcache_page() work on ARM.
+>> + =A0 =A0 =A0 =A0* page_mapping(page) =3D=3D NULL after clearing this sw=
+ap cache flag.
+>> + =A0 =A0 =A0 =A0* Without clearing this flag, flush_dcache_page() will =
+simply set
+>> + =A0 =A0 =A0 =A0* "PG_dcache_dirty" bit and return.
+>> + =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 if (PageSwapCache(page)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 flag =3D 1;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ClearPageSwapCache(page);
+>> + =A0 =A0 =A0 }
+>> +#endif
+>> + =A0 =A0 =A0 flush_dcache_page(page);
+>> +#ifdef CONFIG_ARM
+>> + =A0 =A0 =A0 if (flag)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 SetPageSwapCache(page);
+>> +#endif
+>> +}
+>
+> The above CONFIG_ARM magic really has no place in drivers/block.
+>
+
+Please read the comment above this hack to see why its needed. Also,
+for details see this mail:
+http://www.linux-mips.org/archives/linux-mips/2008-11/msg00038.html
+
+No one replied to above mail. So, I though just to temporarily introduce th=
+is
+hack while someone makes a proper fix for ARM (I will probably ping ARM/MIP=
+S
+folks again for this).
+
+Without this hack, ramzswap simply won't work on ARM. See:
+http://code.google.com/p/compcache/issues/detail?id=3D33
+
+So, its extremely difficult to wait for the _proper_ fix.
+
+
+>> +
+>> + =A0 =A0 =A0 pr_debug(C "extent: [%lu, %lu] %lu\n", phy_pagenum,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 phy_pagenum + num_pages - 1, num_pages);
+>
+> What's this "C" thing everywhere? A subsystem prefix? Shouldn't you
+> override pr_fmt() instead?
+>
+
+Yes, "C" is subsystem prefix. Will now override pr_fmt() instead.
+
+
+>> +
+>> + =A0 =A0 =A0 trace_mark(ramzswap_lock_wait, "ramzswap_lock_wait");
+>> + =A0 =A0 =A0 mutex_lock(&rzs->lock);
+>> + =A0 =A0 =A0 trace_mark(ramzswap_lock_acquired, "ramzswap_lock_acquired=
+");
+>
+> Hmm? What's this? I don't think you should be doing ad hoc
+> trace_mark() in driver code.
+>
+
+This is not ad hoc. It is to see contention over this lock which I believe =
+is a
+major bottleneck even on dual-cores. I need to keep this to measure improve=
+ments
+as I gradually make this locking more fine grained (using per-cpu buffer et=
+c).
+
+
+
+>> +#if 0
+>> + =A0 =A0 =A0 /* Back-reference needed for memory defragmentation */
+>> + =A0 =A0 =A0 if (!test_flag(rzs, index, RZS_UNCOMPRESSED)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zheader =3D (struct zobj_header *)cmem;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 zheader->table_idx =3D index;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 cmem +=3D sizeof(*zheader);
+>> + =A0 =A0 =A0 }
+>> +#endif
+>
+> Drop the above dead code?
+
+
+This is a reminder for me that every object has to contain this header
+ultimately
+and hence object data does not start immediately from start of chunk.
+
+More than the dead code, the comment adds more value to it. So lets keep it=
+.
+
+
+>
+>> +
+>> + =A0 =A0 =A0 memcpy(cmem, src, clen);
+>> +
+>> + =A0 =A0 =A0 put_ptr_atomic(cmem, KM_USER1);
+>> + =A0 =A0 =A0 if (unlikely(test_flag(rzs, index, RZS_UNCOMPRESSED)))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 put_ptr_atomic(src, KM_USER0);
+>> +
+>> + =A0 =A0 =A0 /* Update stats */
+>> + =A0 =A0 =A0 rzs->stats.compr_size +=3D clen;
+>> + =A0 =A0 =A0 stat_inc(rzs->stats.pages_stored);
+>> + =A0 =A0 =A0 stat_inc_if_less(rzs->stats.good_compress, clen, PAGE_SIZE=
+ / 2 + 1);
+>> +
+>> + =A0 =A0 =A0 mutex_unlock(&rzs->lock);
+>> +
+>> + =A0 =A0 =A0 set_bit(BIO_UPTODATE, &bio->bi_flags);
+>> + =A0 =A0 =A0 bio_endio(bio, 0);
+>> + =A0 =A0 =A0 return 0;
+>> +
+>> +out:
+>> + =A0 =A0 =A0 if (fwd_write_request) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 stat_inc(rzs->stats.bdev_num_writes);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 bio->bi_bdev =3D rzs->backing_swap;
+>> +#if 0
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* TODO: We currently have linear mappin=
+g of ramzswap and
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* backing swap sectors. This is not des=
+ired since we want
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* to optimize writes to backing swap to=
+ minimize disk seeks
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* or have effective wear leveling (for =
+SSDs). Also, a
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* non-linear mapping is required to imp=
+lement compressed
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* on-disk swapping.
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bio->bi_sector =3D get_backing_swap_pag=
+e()
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 << SECTORS_PER_PAGE_SHIFT;
+>> +#endif
+>
+> This too?
+>
+
+Again, I want to retain this comment. Its very important for me. So, I pref=
+er to
+keep this small bit of dead code.
+
+
+>> +static int ramzswap_ioctl_init_device(struct ramzswap *rzs)
+>> +{
+>> + =A0 =A0 =A0 int ret;
+>> + =A0 =A0 =A0 size_t num_pages, totalram_bytes;
+>> + =A0 =A0 =A0 struct sysinfo i;
+>> + =A0 =A0 =A0 struct page *page;
+>> + =A0 =A0 =A0 union swap_header *swap_header;
+>> +
+>> + =A0 =A0 =A0 if (rzs->init_done) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 pr_info(C "Device already initialized!\n")=
+;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -EBUSY;
+>> + =A0 =A0 =A0 }
+>> +
+>> + =A0 =A0 =A0 ret =3D setup_backing_swap(rzs);
+>> + =A0 =A0 =A0 if (ret)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto fail;
+>> +
+>> + =A0 =A0 =A0 si_meminfo(&i);
+>> + =A0 =A0 =A0 /* Here is a trivia: guess unit used for i.totalram !! */
+>> + =A0 =A0 =A0 totalram_bytes =3D i.totalram << PAGE_SHIFT;
+>
+> You can use totalram_pages here. OTOH, I'm not sure why the driver
+> needs this information. Hmm?
+>
+
+The driver sets 'disksize' as 25% of RAM by default. So, it needs to know
+how much RAM the system has.
+
+>> +
+>> + =A0 =A0 =A0 if (rzs->backing_swap)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ramzswap_set_memlimit(rzs, totalram_bytes)=
+;
+>> + =A0 =A0 =A0 else
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ramzswap_set_disksize(rzs, totalram_bytes)=
+;
+>> +
+>> + =A0 =A0 =A0 rzs->compress_workmem =3D kzalloc(LZO1X_MEM_COMPRESS, GFP_=
+KERNEL);
+>> + =A0 =A0 =A0 if (rzs->compress_workmem =3D=3D NULL) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 pr_err(C "Error allocating compressor work=
+ing memory!\n");
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOMEM;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto fail;
+>> + =A0 =A0 =A0 }
+>> +
+>> + =A0 =A0 =A0 rzs->compress_buffer =3D kzalloc(2 * PAGE_SIZE, GFP_KERNEL=
+);
+>
+> Use alloc_pages(__GFP_ZERO) here?
+>
+
+alloc pages then map them (i.e. vmalloc). What did we gain? With
+vmalloc, pages might
+not be physically contiguous which might hurt performance as
+compressor runs over this buffer.
+
+So, use kzalloc().
+
+
+>> diff --git a/drivers/block/ramzswap/ramzswap_drv.h b/drivers/block/ramzs=
+wap/ramzswap_drv.h
+>> new file mode 100644
+>> index 0000000..7f77edc
+>> --- /dev/null
+>> +++ b/drivers/block/ramzswap/ramzswap_drv.h
+>
+>> +
+>> +#define SECTOR_SHIFT =A0 =A0 =A0 =A0 =A0 9
+>> +#define SECTOR_SIZE =A0 =A0 =A0 =A0 =A0 =A0(1 << SECTOR_SHIFT)
+>> +#define SECTORS_PER_PAGE_SHIFT (PAGE_SHIFT - SECTOR_SHIFT)
+>> +#define SECTORS_PER_PAGE =A0 =A0 =A0 (1 << SECTORS_PER_PAGE_SHIFT)
+>
+> Don't we have these defines somewhere in include/linux?
+>
+
+I couldn't find something equivalent. At least swap code hard codes a
+value of 9.
+So, a #define looks somewhat better.
+
+
+>> +
+>> +/* Message prefix */
+>> +#define C "ramzswap: "
+>
+> Use pr_fmt() instead.
+
+okay.
+
+
+>
+>> +
+>> +/* Debugging and Stats */
+>> +#define NOP =A0 =A0do { } while (0)
+>
+> Huh? Drop this.
+
+This is more of individual taste. This makes the code look cleaner to me.
+I hope its not considered 'over decoration'.
+
+
+>
+>> +
+>> +#if defined(CONFIG_BLK_DEV_RAMZSWAP_STATS)
+>> +#define STATS
+>> +#endif
+>
+> Why can't you rename that to CONFIG_RAMZSWAP_STATS and use that
+> instead of the very generic STATS?
+>
+
+Everything in drivers/block/Kconfig has BLK_DEV_ as prefix
+BLK_DEV_RAM
+BLK_DEV_RAM_COUNT
+BLK_DEV_RAM_SIZE
+
+and following the pattern:
+
+BLK_DEV_RAMZSWAP
+BLK_DEV_RAMZSWAP_STATS
+
+
+STATS is just a convenient shortcut for very longish BLK_DEV_RAMZSWAP_STATS
+but I see this not used very often, so this shortcut is really not
+needed. I will now directly
+use the long version.
+
+
+>> +
+>> +#if defined(STATS)
+>> +#define stat_inc(stat) =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ((stat)++)
+>> +#define stat_dec(stat) =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ((stat)--)
+>> +#define stat_inc_if_less(stat, val1, val2) \
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ((stat) +=
+=3D ((val1) < (val2) ? 1 : 0))
+>> +#define stat_dec_if_less(stat, val1, val2) \
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ((stat) -=
+=3D ((val1) < (val2) ? 1 : 0))
+>> +#else =A0/* STATS */
+>> +#define stat_inc(x) =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0NOP
+>> +#define stat_dec(x) =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0NOP
+>> +#define stat_inc_if_less(x, v1, v2) =A0 =A0NOP
+>> +#define stat_dec_if_less(x, v1, v2) =A0 =A0NOP
+>> +#endif /* STATS */
+>
+> Why do you need inc_if_less() and dec_if_less()?
+
+No good reason. I will get rid of inc/dec_if_less().
+
+
+> And why are these not static inlines?
+>
+
+stats variables exist only when 'STATS' is defined. So, every call to stati=
+c
+inline will have to be enclosed within '#if defined (STATS)'. Thus we use
+macros instead.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
