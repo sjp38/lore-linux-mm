@@ -1,47 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 660596B004F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 23:56:34 -0400 (EDT)
-Received: by ywh9 with SMTP id 9so6590008ywh.32
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 20:56:42 -0700 (PDT)
-MIME-Version: 1.0
-From: Mike Frysinger <vapier.adi@gmail.com>
-Date: Tue, 15 Sep 2009 23:56:21 -0400
-Message-ID: <8bd0f97a0909152056h61bfc487g6b8631966c6d72be@mail.gmail.com>
-Subject: Re: 2.6.32 -mm Blackfin patches
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 75DF56B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 00:14:17 -0400 (EDT)
+Date: Tue, 15 Sep 2009 21:14:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 2.6.32 -mm merge plans
+Message-Id: <20090915211408.bb614be5.akpm@linux-foundation.org>
+In-Reply-To: <20090916034650.GD2756@core.coreip.homeip.net>
+References: <20090915161535.db0a6904.akpm@linux-foundation.org>
+	<20090916034650.GD2756@core.coreip.homeip.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bjorn Helgaas <bjorn.helgaas@hp.com>, David =?ISO-8859-1?Q?H=E4rdeman?= <david@hardeman.nu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 15, 2009 at 19:15, Andrew Morton wrote:
-> blackfin-convert-to-use-arch_gettimeoffset.patch
+On Tue, 15 Sep 2009 20:46:50 -0700 Dmitry Torokhov <dmitry.torokhov@gmail.com> wrote:
 
-i thought John was merging this via some sort of patch series, but i
-can pick it up in the Blackfin tree to make sure things are really
-sane
+> Hi Andrew,
+> 
+> On Tue, Sep 15, 2009 at 04:15:35PM -0700, Andrew Morton wrote:
+> > 
+> > input-touchpad-not-detected-on-asus-g1s.patch
+> 
+> This one has been in mainline for a while now, please drop.
 
-> blackfin-fix-read-buffer-overflow.patch
+Thanks.
 
-the latter patch i merged into my tree (and i thought that i followed
-up in the original posting about this)
+> > input-add-a-shutdown-method-to-pnp-drivers.patch
+> 
+> This should go through PNP tree (do we have one?).
 
-> checkpatch-possible-types-else-cannot-start-a-type.patch
-> checkpatch-handle-c99-comments-correctly-performance-issue.patch
-> checkpatch-indent-checks-stop-when-we-run-out-of-continuation-lines.patch
-> checkpatch-make-f-alias-file-add-help-more-verbose-help-message.patch
-> checkpatch-format-strings-should-not-have-brackets-in-macros.patch
-> checkpatch-limit-sn-un-matches-to-actual-bit-sizes.patch
-> checkpatch-version-029.patch
-> checkpatch-add-some-common-blackfin-checks.patch
->
-> =C2=A0Grumpy. =C2=A0These spit perl warnings but maintainer won't talk to=
- me.
+Not really.  Bjorn heeps an eye on pnp.  Sometimes merges through acpi,
+sometimes through -mm.
 
-the last one shouldnt cause any warnings at all ;)
--mike
+I'll merge it I guess, but where is the corresponding change to the
+winbond driver?
+
+
+
+
+From: David H_rdeman <david@hardeman.nu>
+
+The shutdown method is used by the winbond cir driver to setup the
+hardware for wake-from-S5.
+
+Signed-off-by: Bjorn Helgaas <bjorn.helgaas@hp.com>
+Signed-off-by: David H_rdeman <david@hardeman.nu>
+Cc: Dmitry Torokhov <dtor@mail.ru>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ drivers/pnp/driver.c |   10 ++++++++++
+ include/linux/pnp.h  |    1 +
+ 2 files changed, 11 insertions(+)
+
+diff -puN drivers/pnp/driver.c~input-add-a-shutdown-method-to-pnp-drivers drivers/pnp/driver.c
+--- a/drivers/pnp/driver.c~input-add-a-shutdown-method-to-pnp-drivers
++++ a/drivers/pnp/driver.c
+@@ -135,6 +135,15 @@ static int pnp_device_remove(struct devi
+ 	return 0;
+ }
+ 
++static void pnp_device_shutdown(struct device *dev)
++{
++	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
++	struct pnp_driver *drv = pnp_dev->driver;
++
++	if (drv && drv->shutdown)
++		drv->shutdown(pnp_dev);
++}
++
+ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
+ {
+ 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+@@ -203,6 +212,7 @@ struct bus_type pnp_bus_type = {
+ 	.match   = pnp_bus_match,
+ 	.probe   = pnp_device_probe,
+ 	.remove  = pnp_device_remove,
++	.shutdown = pnp_device_shutdown,
+ 	.suspend = pnp_bus_suspend,
+ 	.resume  = pnp_bus_resume,
+ 	.dev_attrs = pnp_interface_attrs,
+diff -puN include/linux/pnp.h~input-add-a-shutdown-method-to-pnp-drivers include/linux/pnp.h
+--- a/include/linux/pnp.h~input-add-a-shutdown-method-to-pnp-drivers
++++ a/include/linux/pnp.h
+@@ -360,6 +360,7 @@ struct pnp_driver {
+ 	unsigned int flags;
+ 	int (*probe) (struct pnp_dev *dev, const struct pnp_device_id *dev_id);
+ 	void (*remove) (struct pnp_dev *dev);
++	void (*shutdown) (struct pnp_dev *dev);
+ 	int (*suspend) (struct pnp_dev *dev, pm_message_t state);
+ 	int (*resume) (struct pnp_dev *dev);
+ 	struct device_driver driver;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
