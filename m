@@ -1,55 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A4E066B0055
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 12:10:32 -0400 (EDT)
-Date: Wed, 16 Sep 2009 19:08:30 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20090916160829.GA6034@redhat.com>
-References: <20090914164750.GB3745@redhat.com> <200909161657.42628.arnd@arndb.de> <20090916151329.GC5513@redhat.com> <200909161722.37606.arnd@arndb.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 19E606B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 15:04:12 -0400 (EDT)
+Date: Wed, 16 Sep 2009 21:04:31 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm: use-once mapped file pages
+Message-ID: <20090916190431.GA20897@cmpxchg.org>
+References: <1252971975-15218-1-git-send-email-hannes@cmpxchg.org> <28c262360909150826s2a0f5f0dpd111640f92d0f5ff@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <200909161722.37606.arnd@arndb.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <28c262360909150826s2a0f5f0dpd111640f92d0f5ff@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, Avi Kivity <avi@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 16, 2009 at 05:22:37PM +0200, Arnd Bergmann wrote:
-> On Wednesday 16 September 2009, Michael S. Tsirkin wrote:
-> > On Wed, Sep 16, 2009 at 04:57:42PM +0200, Arnd Bergmann wrote:
-> > > On Tuesday 15 September 2009, Michael S. Tsirkin wrote:
-> > > > Userspace in x86 maps a PCI region, uses it for communication with ppc?
-> > > 
-> > > This might have portability issues. On x86 it should work, but if the
-> > > host is powerpc or similar, you cannot reliably access PCI I/O memory
-> > > through copy_tofrom_user but have to use memcpy_toio/fromio or readl/writel
-> > > calls, which don't work on user pointers.
-> > > 
-> > > Specifically on powerpc, copy_from_user cannot access unaligned buffers
-> > > if they are on an I/O mapping.
-> > > 
-> > We are talking about doing this in userspace, not in kernel.
+Hello Minchan,
+
+On Wed, Sep 16, 2009 at 12:26:27AM +0900, Minchan Kim wrote:
+> Hi, Hannes.
+
+[snapped stuff Rik answered already]
+
+> > When dropping into reclaim, the VM has a hard time making progress
+> > with these pages dominating. A And since all mapped pages are treated
+> > equally (i.e. anon pages as well), a major part of the anon working
+> > set is swapped out before the hashing completes as well.
+> >
+> > Failing reclaim and swapping show up pretty quickly in decreasing
+> > overall system interactivity, but also in the throughput of the
+> > hashing process itself.
+> >
+> > This patch implements a use-once strategy for mapped file pages.
+> >
+> > For this purpose, mapped file pages with page table references are not
+> > directly activated at the end of the inactive list anymore but marked
+> > with PG_referenced and sent on another roundtrip on the inactive list.
+> > If such a page comes in again, another page table reference activates
+> > it while the lack thereof leads to its eviction.
+> >
+> > The deactivation path does not clear this mark so that a subsequent
+> > page table reference for a page coming from the active list means
+> > reactivation as well.
 > 
-> Ok, that's fine then. I thought the idea was to use the vhost_net driver
-
-It's a separate issue. We were talking generally about configuration
-and setup. Gregory implemented it in kernel, Avi wants it
-moved to userspace, with only fastpath in kernel.
-
-> to access the user memory, which would be a really cute hack otherwise,
-> as you'd only need to provide the eventfds from a hardware specific
-> driver and could use the regular virtio_net on the other side.
+> It seems to be good idea. but I have a concern about embedded.
+> AFAIK, some CPUs don't have accessed bit by hardware.
+> maybe ARM series.
+> (Nowadays, Some kinds of CPU series just supports access bit.
+> but there are still CPUs that doesn't support it)
 > 
-> 	Arnd <><
+> I am not sure there are others architecture.
+> Your idea makes mapped page reclaim depend on access bit more tightly.
+>  :(
 
-To do that, maybe copy to user on ppc can be fixed, or wrapped
-around in a arch specific macro, so that everyone else
-does not have to go through abstraction layers.
+ARM seems to emulate the accessed bit by ensuring a subsequent access
+will fault when the young bit is cleared, so we should get one extra
+minor fault per finally activated mapped file page as a trade-off.
 
--- 
-MST
+I am not too concerned about that because it should be a rather rare
+event.  Only fresh pages go through that.  PG_referenced is remembered
+over activation/deactivation and once it's set, a page is treated just
+like it is now: activated if referenced, reclaimed if not.
+
+So yeah, there is a bit more overhead for ARM to approximate the
+working set initially.  But the results are more trustworthy and we
+get rid of a badly performing corner case in the VM.
+
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 28aafe2..0c88813 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -508,9 +508,6 @@ int page_referenced(struct page *page,
+> > A {
+> > A  A  A  A int referenced = 0;
+> >
+> > - A  A  A  if (TestClearPageReferenced(page))
+> > - A  A  A  A  A  A  A  referenced++;
+> > -
+
+This hunk should also get removed from the !CONFIG_MMU dummy function.
+I'll wait a bit for more feedback and send a fixed revision.
+
+Thanks,
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
