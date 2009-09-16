@@ -1,391 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 74CC36B004F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 22:16:31 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8G2GYSn019801
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Sep 2009 11:16:34 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AFA0A45DE57
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 11:16:33 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7245C45DE51
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 11:16:33 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5657A1DB8044
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 11:16:33 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CD5871DB803B
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 11:16:32 +0900 (JST)
-Date: Wed, 16 Sep 2009 11:14:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] devmem: change vread()/vwrite() prototype to return
- success or error code
-Message-Id: <20090916111425.967fd1ff.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090916014958.722014998@intel.com>
-References: <20090916013939.656308742@intel.com>
-	<20090916014958.722014998@intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 188F96B004F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 22:19:59 -0400 (EDT)
+Date: Tue, 15 Sep 2009 19:19:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Isolated(anon) and Isolated(file)
+Message-Id: <20090915191957.9e901c38.akpm@linux-foundation.org>
+In-Reply-To: <20090916091022.DB8C.A69D9226@jp.fujitsu.com>
+References: <20090915114742.DB79.A69D9226@jp.fujitsu.com>
+	<Pine.LNX.4.64.0909160047480.4234@sister.anvils>
+	<20090916091022.DB8C.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Sep 2009 09:39:40 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Wed, 16 Sep 2009 11:09:54 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Silently ignore all vmalloc area holes in vread()/vwrite(),
-> and report success (or error code in future) to the caller.
+> Subject: [PATCH] Kill Isolated field in /proc/meminfo fix
 > 
-> The original intention is to fix a vwrite() related bug, where
-> it could return 0 which cannot be handled correctly by its caller
-> write_kmem(). Then KAMEZAWA recommends to change the prototype
-> to make the semantics clear.
-> 
-> CC: Andi Kleen <andi@firstfloor.org>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Christoph Lameter <cl@linux-foundation.org>
-> CC: Ingo Molnar <mingo@elte.hu>
-> CC: Tejun Heo <tj@kernel.org>
-> CC: Nick Piggin <npiggin@suse.de>
-> CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  drivers/char/mem.c      |   24 ++++++++--------
->  fs/proc/kcore.c         |    5 ++-
->  include/linux/vmalloc.h |    6 ++--
->  mm/nommu.c              |    8 ++---
->  mm/vmalloc.c            |   55 +++++++++++---------------------------
->  5 files changed, 40 insertions(+), 58 deletions(-)
-> 
-> --- linux-mm.orig/mm/vmalloc.c	2009-09-16 08:52:12.000000000 +0800
-> +++ linux-mm/mm/vmalloc.c	2009-09-16 09:24:11.000000000 +0800
-> @@ -1655,7 +1655,6 @@ EXPORT_SYMBOL(vmalloc_32_user);
->  static int aligned_vread(char *buf, char *addr, unsigned long count)
->  {
->  	struct page *p;
-> -	int copied = 0;
->  
->  	while (count) {
->  		unsigned long offset, length;
-> @@ -1685,16 +1684,14 @@ static int aligned_vread(char *buf, char
->  
->  		addr += length;
->  		buf += length;
-> -		copied += length;
->  		count -= length;
->  	}
-> -	return copied;
-> +	return 0;
->  }
->  
->  static int aligned_vwrite(char *buf, char *addr, unsigned long count)
->  {
->  	struct page *p;
-> -	int copied = 0;
->  
->  	while (count) {
->  		unsigned long offset, length;
-> @@ -1722,10 +1719,9 @@ static int aligned_vwrite(char *buf, cha
->  		}
->  		addr += length;
->  		buf += length;
-> -		copied += length;
->  		count -= length;
->  	}
-> -	return copied;
-> +	return 0;
->  }
->  
->  /**
-> @@ -1734,9 +1730,7 @@ static int aligned_vwrite(char *buf, cha
->   *	@addr:		vm address.
->   *	@count:		number of bytes to be read.
->   *
-> - *	Returns # of bytes which addr and buf should be increased.
-> - *	(same number to @count). Returns 0 if [addr...addr+count) doesn't
-> - *	includes any intersect with alive vmalloc area.
-> + *	Returns 0 on success.
+> Hugh Dickins pointed out Isolated field dislpay 0kB at almost time.
+> It is only increased at heavy memory pressure case.
 
-Seems to return 0 _always_. My version retunrs false if it's out-of-range.
-plz return false if out-of-vmalloc-range.
-Now, use vmalloc area is exported via /proc/vmallocinfo. Then, it's easy
-to know "valid" vmalloc area. But users cannot know memory holes in
-"valid" vmalloc area. So, vread() returns success even if it founds holes.
+Have we made up our minds yet?
 
-Another thought:
-Should we purge vread/vwrite and just use copy_to/from_user ?
-To do that, /proc/kcore should be revisited...
-It has to copy pages one by one in aligned manner.
-
-Anyway, it's merge window and not good season for this semantic changes of
-a function.
-
->   *
->   *	This function checks that addr is a valid vmalloc'ed area, and
->   *	copy data from that area to a given buffer. If the given memory range
-> @@ -1744,23 +1738,21 @@ static int aligned_vwrite(char *buf, cha
->   *	proper area of @buf. If there are memory holes, they'll be zero-filled.
->   *	IOREMAP area is treated as memory hole and no copy is done.
->   *
-> - *	If [addr...addr+count) doesn't includes any intersects with alive
-> - *	vm_struct area, returns 0.
->   *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
->   *	the caller should guarantee KM_USER0 is not used.
->   *
->   *	Note: In usual ops, vread() is never necessary because the caller
->   *	should know vmalloc() area is valid and can use memcpy().
->   *	This is for routines which have to access vmalloc area without
-> - *	any informaion, as /dev/kmem.
-> + *	any information, as /dev/kmem and /dev/kcore.
->   *
->   */
->  
-> -long vread(char *buf, char *addr, unsigned long count)
-> +int vread(char *buf, char *addr, unsigned long count)
->  {
->  	struct vm_struct *tmp;
-> -	char *vaddr, *buf_start = buf;
-> -	unsigned long buflen = count;
-> +	char *vaddr;
-> +	char *buf_end = buf + count;
->  	unsigned long n;
->  
->  	/* Don't allow overflow */
-> @@ -1794,13 +1786,11 @@ long vread(char *buf, char *addr, unsign
->  finished:
->  	read_unlock(&vmlist_lock);
->  
-> -	if (buf == buf_start)
-> -		return 0;
->  	/* zero-fill memory holes */
-> -	if (buf != buf_start + buflen)
-> -		memset(buf, 0, buflen - (buf - buf_start));
-> +	if (buf != buf_end)
-> +		memset(buf, 0, buf_end - buf);
->  
-> -	return buflen;
-> +	return 0;
->  }
->  
->  /**
-> @@ -1809,10 +1799,7 @@ finished:
->   *	@addr:		vm address.
->   *	@count:		number of bytes to be read.
->   *
-> - *	Returns # of bytes which addr and buf should be incresed.
-> - *	(same number to @count).
-> - *	If [addr...addr+count) doesn't includes any intersect with valid
-> - *	vmalloc area, returns 0.
-> + *	Returns 0 on success.
->   *
->   *	This function checks that addr is a valid vmalloc'ed area, and
->   *	copy data from a buffer to the given addr. If specified range of
-> @@ -1820,30 +1807,24 @@ finished:
->   *	proper area of @buf. If there are memory holes, no copy to hole.
->   *	IOREMAP area is treated as memory hole and no copy is done.
->   *
-> - *	If [addr...addr+count) doesn't includes any intersects with alive
-> - *	vm_struct area, returns 0.
->   *	@buf should be kernel's buffer. Because	this function uses KM_USER0,
->   *	the caller should guarantee KM_USER0 is not used.
->   *
->   *	Note: In usual ops, vwrite() is never necessary because the caller
->   *	should know vmalloc() area is valid and can use memcpy().
->   *	This is for routines which have to access vmalloc area without
-> - *	any informaion, as /dev/kmem.
-> - *
-> - *	The caller should guarantee KM_USER1 is not used.
-> + *	any information, as /dev/kmem.
->   */
->  
-> -long vwrite(char *buf, char *addr, unsigned long count)
-> +int vwrite(char *buf, char *addr, unsigned long count)
->  {
->  	struct vm_struct *tmp;
->  	char *vaddr;
-> -	unsigned long n, buflen;
-> -	int copied = 0;
-> +	unsigned long n;
->  
->  	/* Don't allow overflow */
->  	if ((unsigned long) addr + count < count)
->  		count = -(unsigned long) addr;
-> -	buflen = count;
->  
->  	read_lock(&vmlist_lock);
->  	for (tmp = vmlist; count && tmp; tmp = tmp->next) {
-> @@ -1860,19 +1841,15 @@ long vwrite(char *buf, char *addr, unsig
->  		n = vaddr + tmp->size - PAGE_SIZE - addr;
->  		if (n > count)
->  			n = count;
-> -		if (!(tmp->flags & VM_IOREMAP)) {
-> +		if (!(tmp->flags & VM_IOREMAP))
->  			aligned_vwrite(buf, addr, n);
-> -			copied++;
-> -		}
->  		buf += n;
->  		addr += n;
->  		count -= n;
->  	}
->  finished:
->  	read_unlock(&vmlist_lock);
-> -	if (!copied)
-> -		return 0;
-> -	return buflen;
-> +	return 0;
->  }
->  
->  /**
-> --- linux-mm.orig/include/linux/vmalloc.h	2009-09-16 08:52:12.000000000 +0800
-> +++ linux-mm/include/linux/vmalloc.h	2009-09-16 08:52:17.000000000 +0800
-> @@ -104,9 +104,9 @@ extern void unmap_kernel_range(unsigned 
->  extern struct vm_struct *alloc_vm_area(size_t size);
->  extern void free_vm_area(struct vm_struct *area);
->  
-> -/* for /dev/kmem */
-> -extern long vread(char *buf, char *addr, unsigned long count);
-> -extern long vwrite(char *buf, char *addr, unsigned long count);
-> +/* for /dev/kmem and /dev/kcore */
-> +extern int vread(char *buf, char *addr, unsigned long count);
-> +extern int vwrite(char *buf, char *addr, unsigned long count);
->  
->  /*
->   *	Internals.  Dont't use..
-> --- linux-mm.orig/drivers/char/mem.c	2009-09-16 08:52:12.000000000 +0800
-> +++ linux-mm/drivers/char/mem.c	2009-09-16 09:23:00.000000000 +0800
-> @@ -396,6 +396,7 @@ static ssize_t read_kmem(struct file *fi
->  	unsigned long p = *ppos;
->  	ssize_t low_count, read, sz;
->  	char * kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
-> +	int err = 0;
->  
->  	read = 0;
->  	if (p < (unsigned long) high_memory) {
-> @@ -442,12 +443,12 @@ static ssize_t read_kmem(struct file *fi
->  			return -ENOMEM;
->  		while (count > 0) {
->  			sz = size_inside_page(p, count);
-> -			sz = vread(kbuf, (char *)p, sz);
-> -			if (!sz)
-> +			err = vread(kbuf, (char *)p, sz);
-> +			if (err)
->  				break;
->  			if (copy_to_user(buf, kbuf, sz)) {
-> -				free_page((unsigned long)kbuf);
-> -				return -EFAULT;
-> +				err = -EFAULT;
-> +				break;
->  			}
->  			count -= sz;
->  			buf += sz;
-> @@ -457,7 +458,7 @@ static ssize_t read_kmem(struct file *fi
->  		free_page((unsigned long)kbuf);
->  	}
->   	*ppos = p;
-> - 	return read;
-> +	return read ? read : err;
->  }
->  
->  
-> @@ -521,6 +522,7 @@ static ssize_t write_kmem(struct file * 
->  	ssize_t wrote = 0;
->  	ssize_t virtr = 0;
->  	char * kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
-> +	int err = 0;
->  
->  	if (p < (unsigned long) high_memory) {
->  		unsigned long to_write = min_t(unsigned long, count,
-> @@ -543,12 +545,12 @@ static ssize_t write_kmem(struct file * 
->  
->  			n = copy_from_user(kbuf, buf, sz);
->  			if (n) {
-> -				if (wrote + virtr)
-> -					break;
-> -				free_page((unsigned long)kbuf);
-> -				return -EFAULT;
-> +				err = -EFAULT;
-> +				break;
->  			}
-> -			sz = vwrite(kbuf, (char *)p, sz);
-> +			err = vwrite(kbuf, (char *)p, sz);
-> +			if (err)
-> +				break;
->  			count -= sz;
->  			buf += sz;
->  			virtr += sz;
-> @@ -558,7 +560,7 @@ static ssize_t write_kmem(struct file * 
->  	}
->  
->   	*ppos = p;
-> - 	return virtr + wrote;
-> +	return virtr + wrote ? : err;
->  }
->  #endif
->  
-> --- linux-mm.orig/fs/proc/kcore.c	2009-09-16 08:52:12.000000000 +0800
-> +++ linux-mm/fs/proc/kcore.c	2009-09-16 08:52:17.000000000 +0800
-> @@ -492,11 +492,14 @@ read_kcore(struct file *file, char __use
->  				return -EFAULT;
->  		} else if (is_vmalloc_or_module_addr((void *)start)) {
->  			char * elf_buf;
-> +			int err;
->  
->  			elf_buf = kzalloc(tsz, GFP_KERNEL);
->  			if (!elf_buf)
->  				return -ENOMEM;
-> -			vread(elf_buf, (char *)start, tsz);
-> +			err = vread(elf_buf, (char *)start, tsz);
-> +			if (err)
-> +				return err;
-
-This is wrong.
-
-/proc/kcore provides "coredump" image of kernel and it never faults.
-Then, it doesn't check error code intentionally and just return
-zero-filled buffer of reuqested length.
-
-Thanks,
--Kame
+Below is what remains.  Please check that the changelog is still
+accurate and complete.  If not, please send along a new one?
 
 
->  			/* we have to zero-fill user buffer even if no read */
->  			if (copy_to_user(buffer, elf_buf, tsz)) {
->  				kfree(elf_buf);
-> --- linux-mm.orig/mm/nommu.c	2009-09-16 09:01:36.000000000 +0800
-> +++ linux-mm/mm/nommu.c	2009-09-16 09:02:02.000000000 +0800
-> @@ -263,20 +263,20 @@ unsigned long vmalloc_to_pfn(const void 
->  }
->  EXPORT_SYMBOL(vmalloc_to_pfn);
->  
-> -long vread(char *buf, char *addr, unsigned long count)
-> +int vread(char *buf, char *addr, unsigned long count)
->  {
->  	memcpy(buf, addr, count);
-> -	return count;
-> +	return 0;
->  }
->  
-> -long vwrite(char *buf, char *addr, unsigned long count)
-> +int vwrite(char *buf, char *addr, unsigned long count)
->  {
->  	/* Don't allow overflow */
->  	if ((unsigned long) addr + count < count)
->  		count = -(unsigned long) addr;
->  
->  	memcpy(addr, buf, count);
-> -	return(count);
-> +	return 0;
->  }
->  
->  /*
-> 
-> -- 
-> 
-> 
+
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+If the system is running a heavy load of processes then concurrent reclaim
+can isolate a large number of pages from the LRU. /proc/meminfo and the
+output generated for an OOM do not show how many pages were isolated.
+
+This has been observed during process fork bomb testing (mstctl11 in LTP).
+
+This patch shows the information about isolated pages.
+
+Reproduced via:
+
+-----------------------
+% ./hackbench 140 process 1000
+   => OOM occur
+
+active_anon:146 inactive_anon:0 isolated_anon:49245
+ active_file:79 inactive_file:18 isolated_file:113
+ unevictable:0 dirty:0 writeback:0 unstable:0 buffer:39
+ free:370 slab_reclaimable:309 slab_unreclaimable:5492
+ mapped:53 shmem:15 pagetables:28140 bounce:0
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/mmzone.h |    2 ++
+ mm/migrate.c           |   11 +++++++++++
+ mm/page_alloc.c        |   12 +++++++++---
+ mm/vmscan.c            |   12 +++++++++++-
+ mm/vmstat.c            |    2 ++
+ 5 files changed, 35 insertions(+), 4 deletions(-)
+
+diff -puN drivers/base/node.c~mm-vmstat-add-isolate-pages drivers/base/node.c
+diff -puN fs/proc/meminfo.c~mm-vmstat-add-isolate-pages fs/proc/meminfo.c
+diff -puN include/linux/mmzone.h~mm-vmstat-add-isolate-pages include/linux/mmzone.h
+--- a/include/linux/mmzone.h~mm-vmstat-add-isolate-pages
++++ a/include/linux/mmzone.h
+@@ -100,6 +100,8 @@ enum zone_stat_item {
+ 	NR_BOUNCE,
+ 	NR_VMSCAN_WRITE,
+ 	NR_WRITEBACK_TEMP,	/* Writeback using temporary buffers */
++	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
++	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+ 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+diff -puN mm/migrate.c~mm-vmstat-add-isolate-pages mm/migrate.c
+--- a/mm/migrate.c~mm-vmstat-add-isolate-pages
++++ a/mm/migrate.c
+@@ -67,6 +67,8 @@ int putback_lru_pages(struct list_head *
+ 
+ 	list_for_each_entry_safe(page, page2, l, lru) {
+ 		list_del(&page->lru);
++		dec_zone_page_state(page, NR_ISOLATED_ANON +
++				    !!page_is_file_cache(page));
+ 		putback_lru_page(page);
+ 		count++;
+ 	}
+@@ -698,6 +700,8 @@ unlock:
+  		 * restored.
+  		 */
+  		list_del(&page->lru);
++		dec_zone_page_state(page, NR_ISOLATED_ANON +
++				    !!page_is_file_cache(page));
+ 		putback_lru_page(page);
+ 	}
+ 
+@@ -742,6 +746,13 @@ int migrate_pages(struct list_head *from
+ 	struct page *page2;
+ 	int swapwrite = current->flags & PF_SWAPWRITE;
+ 	int rc;
++	unsigned long flags;
++
++	local_irq_save(flags);
++	list_for_each_entry(page, from, lru)
++		__inc_zone_page_state(page, NR_ISOLATED_ANON +
++				      !!page_is_file_cache(page));
++	local_irq_restore(flags);
+ 
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+diff -puN mm/page_alloc.c~mm-vmstat-add-isolate-pages mm/page_alloc.c
+--- a/mm/page_alloc.c~mm-vmstat-add-isolate-pages
++++ a/mm/page_alloc.c
+@@ -2152,16 +2152,18 @@ void show_free_areas(void)
+ 		}
+ 	}
+ 
+-	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
+-		" inactive_file:%lu"
++	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
++		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+ 		" unevictable:%lu"
+ 		" dirty:%lu writeback:%lu unstable:%lu buffer:%lu\n"
+ 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+ 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+-		global_page_state(NR_ACTIVE_FILE),
+ 		global_page_state(NR_INACTIVE_ANON),
++		global_page_state(NR_ISOLATED_ANON),
++		global_page_state(NR_ACTIVE_FILE),
+ 		global_page_state(NR_INACTIVE_FILE),
++		global_page_state(NR_ISOLATED_FILE),
+ 		global_page_state(NR_UNEVICTABLE),
+ 		global_page_state(NR_FILE_DIRTY),
+ 		global_page_state(NR_WRITEBACK),
+@@ -2189,6 +2191,8 @@ void show_free_areas(void)
+ 			" active_file:%lukB"
+ 			" inactive_file:%lukB"
+ 			" unevictable:%lukB"
++			" isolated(anon):%lukB"
++			" isolated(file):%lukB"
+ 			" present:%lukB"
+ 			" mlocked:%lukB"
+ 			" dirty:%lukB"
+@@ -2215,6 +2219,8 @@ void show_free_areas(void)
+ 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
+ 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
+ 			K(zone_page_state(zone, NR_UNEVICTABLE)),
++			K(zone_page_state(zone, NR_ISOLATED_ANON)),
++			K(zone_page_state(zone, NR_ISOLATED_FILE)),
+ 			K(zone->present_pages),
+ 			K(zone_page_state(zone, NR_MLOCK)),
+ 			K(zone_page_state(zone, NR_FILE_DIRTY)),
+diff -puN mm/vmscan.c~mm-vmstat-add-isolate-pages mm/vmscan.c
+--- a/mm/vmscan.c~mm-vmstat-add-isolate-pages
++++ a/mm/vmscan.c
+@@ -1072,6 +1072,8 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_active;
+ 		unsigned int count[NR_LRU_LISTS] = { 0, };
+ 		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
++		unsigned long nr_anon;
++		unsigned long nr_file;
+ 
+ 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
+ 			     &page_list, &nr_scan, sc->order, mode,
+@@ -1102,6 +1104,10 @@ static unsigned long shrink_inactive_lis
+ 		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+ 						-count[LRU_INACTIVE_ANON]);
+ 
++		nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
++		nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
++		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
++		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
+ 
+ 		reclaim_stat->recent_scanned[0] += count[LRU_INACTIVE_ANON];
+ 		reclaim_stat->recent_scanned[0] += count[LRU_ACTIVE_ANON];
+@@ -1169,6 +1175,9 @@ static unsigned long shrink_inactive_lis
+ 				spin_lock_irq(&zone->lru_lock);
+ 			}
+ 		}
++		__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
++		__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
++
+   	} while (nr_scanned < max_scan);
+ 
+ done:
+@@ -1279,6 +1288,7 @@ static void shrink_active_list(unsigned 
+ 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
+ 	else
+ 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+ 	while (!list_empty(&l_hold)) {
+@@ -1329,7 +1339,7 @@ static void shrink_active_list(unsigned 
+ 						LRU_ACTIVE + file * LRU_FILE);
+ 	move_active_pages_to_lru(zone, &l_inactive,
+ 						LRU_BASE   + file * LRU_FILE);
+-
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
+ 
+diff -puN mm/vmstat.c~mm-vmstat-add-isolate-pages mm/vmstat.c
+--- a/mm/vmstat.c~mm-vmstat-add-isolate-pages
++++ a/mm/vmstat.c
+@@ -644,6 +644,8 @@ static const char * const vmstat_text[] 
+ 	"nr_bounce",
+ 	"nr_vmscan_write",
+ 	"nr_writeback_temp",
++	"nr_isolated_anon",
++	"nr_isolated_file",
+ 	"nr_shmem",
+ #ifdef CONFIG_NUMA
+ 	"numa_hit",
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
