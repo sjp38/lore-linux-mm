@@ -1,92 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CCDA76B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 04:00:27 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8G80POK030340
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Sep 2009 17:00:25 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E796B45DE4E
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 17:00:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B3C9045DE52
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 17:00:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6649D1DB803F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 17:00:24 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 017ED1DB805B
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 17:00:24 +0900 (JST)
-Date: Wed, 16 Sep 2009 16:58:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: memcg merge for 2.6.32 (was Re: 2.6.32 -mm merge plans)
-Message-Id: <20090916165819.b8843f36.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090916073727.GP4846@balbir.in.ibm.com>
-References: <20090915161535.db0a6904.akpm@linux-foundation.org>
-	<20090916073727.GP4846@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 46A606B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 04:23:17 -0400 (EDT)
+Message-ID: <4AB0A070.1050400@redhat.com>
+Date: Wed, 16 Sep 2009 11:23:12 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090903183945.GF28651@ovro.caltech.edu> <20090907101537.GH3031@redhat.com> <20090908172035.GB319@ovro.caltech.edu> <4AAA7415.5080204@gmail.com> <20090913120140.GA31218@redhat.com> <4AAE6A97.7090808@gmail.com> <20090914164750.GB3745@redhat.com> <4AAE961B.6020509@gmail.com> <4AAF8A03.5020806@redhat.com> <4AAF909F.9080306@gmail.com> <4AAF95D1.1080600@redhat.com> <4AAF9BAF.3030109@gmail.com> <4AAFACB5.9050808@redhat.com> <4AAFF437.7060100@gmail.com>
+In-Reply-To: <4AAFF437.7060100@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Sep 2009 13:07:27 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On 09/15/2009 11:08 PM, Gregory Haskins wrote:
+>
+>> There's virtio-console, virtio-blk etc.  None of these have kernel-mode
+>> servers, but these could be implemented if/when needed.
+>>      
+> IIUC, Ira already needs at least ethernet and console capability.
+>
+>    
 
-> * Andrew Morton <akpm@linux-foundation.org> [2009-09-15 16:15:35]:
-> 
-> > 
-> > memcg-remove-the-overhead-associated-with-the-root-cgroup.patch
-> > memcg-remove-the-overhead-associated-with-the-root-cgroup-fix.patch
-> > memcg-remove-the-overhead-associated-with-the-root-cgroup-fix-2.patch
-> > #memcg-add-comments-explaining-memory-barriers.patch: needs update (Balbir)
-> > memcg-add-comments-explaining-memory-barriers.patch
-> > memcg-add-comments-explaining-memory-barriers-checkpatch-fixes.patch
-> > memory-controller-soft-limit-documentation-v9.patch
-> > memory-controller-soft-limit-interface-v9.patch
-> > memory-controller-soft-limit-organize-cgroups-v9.patch
-> > memory-controller-soft-limit-organize-cgroups-v9-fix.patch
-> > memory-controller-soft-limit-refactor-reclaim-flags-v9.patch
-> > memory-controller-soft-limit-reclaim-on-contention-v9.patch
-> > memory-controller-soft-limit-reclaim-on-contention-v9-fix.patch
-> > memory-controller-soft-limit-reclaim-on-contention-v9-fix-softlimit-css-refcnt-handling.patch
-> > memory-controller-soft-limit-reclaim-on-contention-v9-fix-softlimit-css-refcnt-handling-fix.patch
-> > memcg-improve-resource-counter-scalability.patch
-> > memcg-improve-resource-counter-scalability-checkpatch-fixes.patch
-> > memcg-improve-resource-counter-scalability-v5.patch
-> > memcg-show-swap-usage-in-stat-file.patch
-> > memcg-show-swap-usage-in-stat-file-fix.patch
-> > 
-> >   Merge after checking with Balbir
-> 
-> 
-> I think these are ready for merging, I'll let Kame and Daisuke comment
-> on it more.
+He's welcome to pick up the necessary code from qemu.
 
-While testing memcg, I feel that only I and Balbir and Nishimura are heavy
-testers of memcg in mmotm. Because Nishimura's test is very good, I think
-we could get good quality to some extent.
- 
-Then, I think it's time to move to -rc for getting wider testers.
+>>> b) what do you suppose this protocol to aggregate the connections would
+>>> look like? (hint: this is what a vbus-connector does).
+>>>
+>>>        
+>> You mean multilink?  You expose the device as a multiqueue.
+>>      
+> No, what I mean is how do you surface multiple ethernet and consoles to
+> the guests?  For Ira's case, I think he needs at minimum at least one of
+> each, and he mentioned possibly having two unique ethernets at one point.
+>    
 
-But Balbir, soft-limit is a difficult thing. plz keep checking.
+You instantiate multiple vhost-nets.  Multiple ethernet NICs is a 
+supported configuration for kvm.
 
-> The resource counter scalability patch is the most
-> important patch in the series.
-> 
-plz don't call it as resource counter scalability patch ;)
-It just skips resoruce_counter, resource_counter itself is still slow.
-root-cgroup-memcg-scalability patch is good name.
+> His slave boards surface themselves as PCI devices to the x86
+> host.  So how do you use that to make multiple vhost-based devices (say
+> two virtio-nets, and a virtio-console) communicate across the transport?
+>    
 
-I'll post other-cgroup-memcg-scalability patch series when it seems ready.
-It's what I need but not for 2.6.32.
+I don't really see the difference between 1 and N here.
 
-Thanks,
--Kame
+> There are multiple ways to do this, but what I am saying is that
+> whatever is conceived will start to look eerily like a vbus-connector,
+> since this is one of its primary purposes ;)
+>    
 
+I'm not sure if you're talking about the configuration interface or data 
+path here.
+
+>>> c) how do you manage the configuration, especially on a per-board basis?
+>>>
+>>>        
+>> pci (for kvm/x86).
+>>      
+> Ok, for kvm understood (and I would also add "qemu" to that mix).  But
+> we are talking about vhost's application in a non-kvm environment here,
+> right?.
+>
+> So if the vhost-X devices are in the "guest",
+
+They aren't in the "guest".  The best way to look at it is
+
+- a device side, with a dma engine: vhost-net
+- a driver side, only accessing its own memory: virtio-net
+
+Given that Ira's config has the dma engine in the ppc boards, that's 
+where vhost-net would live (the ppc boards acting as NICs to the x86 
+board, essentially).
+
+> and the x86 board is just
+> a slave...How do you tell each ppc board how many devices and what
+> config (e.g. MACs, etc) to instantiate?  Do you assume that they should
+> all be symmetric and based on positional (e.g. slot) data?  What if you
+> want asymmetric configurations (if not here, perhaps in a different
+> environment)?
+>    
+
+I have no idea, that's for Ira to solve.  If he could fake the PCI 
+config space as seen by the x86 board, he would just show the normal pci 
+config and use virtio-pci (multiple channels would show up as a 
+multifunction device).  Given he can't, he needs to tunnel the virtio 
+config space some other way.
+
+>> Yes.  virtio is really virtualization oriented.
+>>      
+> I would say that its vhost in particular that is virtualization
+> oriented.  virtio, as a concept, generally should work in physical
+> systems, if perhaps with some minor modifications.  The biggest "limit"
+> is having "virt" in its name ;)
+>    
+
+Let me rephrase.  The virtio developers are virtualization oriented.  If 
+it works for non-virt applications, that's good, but not a design goal.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
