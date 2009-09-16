@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 70BEC6B004F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 23:46:49 -0400 (EDT)
-Received: by qyk16 with SMTP id 16so1294248qyk.20
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 20:46:54 -0700 (PDT)
-Date: Tue, 15 Sep 2009 20:46:50 -0700
-From: Dmitry Torokhov <dmitry.torokhov@gmail.com>
-Subject: Re: 2.6.32 -mm merge plans
-Message-ID: <20090916034650.GD2756@core.coreip.homeip.net>
-References: <20090915161535.db0a6904.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 660596B004F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 23:56:34 -0400 (EDT)
+Received: by ywh9 with SMTP id 9so6590008ywh.32
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2009 20:56:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090915161535.db0a6904.akpm@linux-foundation.org>
+From: Mike Frysinger <vapier.adi@gmail.com>
+Date: Tue, 15 Sep 2009 23:56:21 -0400
+Message-ID: <8bd0f97a0909152056h61bfc487g6b8631966c6d72be@mail.gmail.com>
+Subject: Re: 2.6.32 -mm Blackfin patches
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Tue, Sep 15, 2009 at 19:15, Andrew Morton wrote:
+> blackfin-convert-to-use-arch_gettimeoffset.patch
 
-On Tue, Sep 15, 2009 at 04:15:35PM -0700, Andrew Morton wrote:
-> 
-> input-touchpad-not-detected-on-asus-g1s.patch
+i thought John was merging this via some sort of patch series, but i
+can pick it up in the Blackfin tree to make sure things are really
+sane
 
-This one has been in mainline for a while now, please drop.
+> blackfin-fix-read-buffer-overflow.patch
 
-> input-add-a-shutdown-method-to-pnp-drivers.patch
+the latter patch i merged into my tree (and i thought that i followed
+up in the original posting about this)
 
-This should go through PNP tree (do we have one?).
+> checkpatch-possible-types-else-cannot-start-a-type.patch
+> checkpatch-handle-c99-comments-correctly-performance-issue.patch
+> checkpatch-indent-checks-stop-when-we-run-out-of-continuation-lines.patch
+> checkpatch-make-f-alias-file-add-help-more-verbose-help-message.patch
+> checkpatch-format-strings-should-not-have-brackets-in-macros.patch
+> checkpatch-limit-sn-un-matches-to-actual-bit-sizes.patch
+> checkpatch-version-029.patch
+> checkpatch-add-some-common-blackfin-checks.patch
+>
+> =C2=A0Grumpy. =C2=A0These spit perl warnings but maintainer won't talk to=
+ me.
 
--- 
-Dmitry
+the last one shouldnt cause any warnings at all ;)
+-mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
