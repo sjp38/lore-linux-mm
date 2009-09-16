@@ -1,34 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 982136B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 10:57:46 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-Date: Wed, 16 Sep 2009 16:57:42 +0200
-References: <20090914164750.GB3745@redhat.com> <4AAFFC8E.9010404@gmail.com> <20090915212545.GC27954@redhat.com>
-In-Reply-To: <20090915212545.GC27954@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7086B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 11:00:12 -0400 (EDT)
+From: Bjorn Helgaas <bjorn.helgaas@hp.com>
+Subject: Re: 2.6.32 -mm merge plans
+Date: Wed, 16 Sep 2009 09:00:09 -0600
+References: <20090915161535.db0a6904.akpm@linux-foundation.org> <20090916034650.GD2756@core.coreip.homeip.net> <20090915211408.bb614be5.akpm@linux-foundation.org>
+In-Reply-To: <20090915211408.bb614be5.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
+Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200909161657.42628.arnd@arndb.de>
+Content-Disposition: inline
+Message-Id: <200909160900.10057.bjorn.helgaas@hp.com>
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, Avi Kivity <avi@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dmitry Torokhov <dmitry.torokhov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David =?iso-8859-1?q?H=E4rdeman?= <david@hardeman.nu>, Len Brown <lenb@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 15 September 2009, Michael S. Tsirkin wrote:
-> Userspace in x86 maps a PCI region, uses it for communication with ppc?
+On Tuesday 15 September 2009 10:14:08 pm Andrew Morton wrote:
+> On Tue, 15 Sep 2009 20:46:50 -0700 Dmitry Torokhov <dmitry.torokhov@gmail.com> wrote:
+> > > input-add-a-shutdown-method-to-pnp-drivers.patch
+> > 
+> > This should go through PNP tree (do we have one?).
+> 
+> Not really.  Bjorn heeps an eye on pnp.  Sometimes merges through acpi,
+> sometimes through -mm.
+> 
+> I'll merge it I guess, but where is the corresponding change to the
+> winbond driver?
 
-This might have portability issues. On x86 it should work, but if the
-host is powerpc or similar, you cannot reliably access PCI I/O memory
-through copy_tofrom_user but have to use memcpy_toio/fromio or readl/writel
-calls, which don't work on user pointers.
+I think this change looks good, and I think the winbond driver uses it.
+I don't object to it going in via -mm so it stays together with the
+winbond driver itself.
 
-Specifically on powerpc, copy_from_user cannot access unaligned buffers
-if they are on an I/O mapping.
+Bjorn
 
-	Arnd <><
+> From: David H_rdeman <david@hardeman.nu>
+> 
+> The shutdown method is used by the winbond cir driver to setup the
+> hardware for wake-from-S5.
+> 
+> Signed-off-by: Bjorn Helgaas <bjorn.helgaas@hp.com>
+> Signed-off-by: David H_rdeman <david@hardeman.nu>
+> Cc: Dmitry Torokhov <dtor@mail.ru>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  drivers/pnp/driver.c |   10 ++++++++++
+>  include/linux/pnp.h  |    1 +
+>  2 files changed, 11 insertions(+)
+> 
+> diff -puN drivers/pnp/driver.c~input-add-a-shutdown-method-to-pnp-drivers drivers/pnp/driver.c
+> --- a/drivers/pnp/driver.c~input-add-a-shutdown-method-to-pnp-drivers
+> +++ a/drivers/pnp/driver.c
+> @@ -135,6 +135,15 @@ static int pnp_device_remove(struct devi
+>  	return 0;
+>  }
+>  
+> +static void pnp_device_shutdown(struct device *dev)
+> +{
+> +	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+> +	struct pnp_driver *drv = pnp_dev->driver;
+> +
+> +	if (drv && drv->shutdown)
+> +		drv->shutdown(pnp_dev);
+> +}
+> +
+>  static int pnp_bus_match(struct device *dev, struct device_driver *drv)
+>  {
+>  	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
+> @@ -203,6 +212,7 @@ struct bus_type pnp_bus_type = {
+>  	.match   = pnp_bus_match,
+>  	.probe   = pnp_device_probe,
+>  	.remove  = pnp_device_remove,
+> +	.shutdown = pnp_device_shutdown,
+>  	.suspend = pnp_bus_suspend,
+>  	.resume  = pnp_bus_resume,
+>  	.dev_attrs = pnp_interface_attrs,
+> diff -puN include/linux/pnp.h~input-add-a-shutdown-method-to-pnp-drivers include/linux/pnp.h
+> --- a/include/linux/pnp.h~input-add-a-shutdown-method-to-pnp-drivers
+> +++ a/include/linux/pnp.h
+> @@ -360,6 +360,7 @@ struct pnp_driver {
+>  	unsigned int flags;
+>  	int (*probe) (struct pnp_dev *dev, const struct pnp_device_id *dev_id);
+>  	void (*remove) (struct pnp_dev *dev);
+> +	void (*shutdown) (struct pnp_dev *dev);
+>  	int (*suspend) (struct pnp_dev *dev, pm_message_t state);
+>  	int (*resume) (struct pnp_dev *dev);
+>  	struct device_driver driver;
+> _
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
