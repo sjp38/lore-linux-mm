@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B38106B004F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 19:59:13 -0400 (EDT)
-Date: Wed, 16 Sep 2009 07:59:01 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] hwpoison: fix uninitialized warning
-Message-ID: <20090915235901.GB6431@localhost>
-References: <Pine.LNX.4.64.0909152206220.28874@sister.anvils>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9D7206B004F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2009 20:05:24 -0400 (EDT)
+Date: Wed, 16 Sep 2009 01:04:39 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: Isolated(anon) and Isolated(file)
+In-Reply-To: <20090915114742.DB79.A69D9226@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0909160047480.4234@sister.anvils>
+References: <Pine.LNX.4.64.0909132011550.28745@sister.anvils>
+ <20090915114742.DB79.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0909152206220.28874@sister.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 16, 2009 at 05:19:07AM +0800, Hugh Dickins wrote:
-> Fix mmotm build warning, presumably also in linux-next:
-> mm/memory.c: In function `do_swap_page':
-> mm/memory.c:2498: warning: `pte' may be used uninitialized in this function
+On Tue, 15 Sep 2009, KOSAKI Motohiro wrote:
+> From 7aa6fa2b76ff5d063b8bfa4a3af38c39b9396fd5 Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Tue, 15 Sep 2009 10:16:51 +0900
+> Subject: [PATCH] Kill Isolated field in /proc/meminfo
+> 
+> Hugh Dickins pointed out Isolated field dislpay 0kB at almost time.
+> It is only increased at heavy memory pressure case.
+> 
+> So, if the system haven't get memory pressure, this field isn't useful.
+> And now, we have two alternative way, /sys/device/system/node/node{n}/meminfo
+> and /prov/vmstat. Then, it can be removed.
+> 
+> Reported-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Thanks for the fix!
+Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+I should be overjoyed that you agree to hide the Isolateds from my sight:
+thank you.  But in fact I'm a little depressed, now you've reminded me of
+almost-the-same-but-annoyingly-different /sys/devices/unmemorable/meminfo.
 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Oh well, since I never see it (I'd need some nodes), I guess I don't
+even need to turn a blind eye to it; and it already contains other
+stuff I objected to in /proc/meminfo.
+
+I still think your Isolateds make most sense in the OOM display;
+and yes, they are there in /proc/vmstat, that's good too.
+
 > ---
-> I've only noticed this warning on one machine, the powerpc: certainly it
-> needs CONFIG_MIGRATION or CONFIG_MEMORY_FAILURE to see it, but I thought
-> I had one of those set on other machines - just musing in case it's being
-> masked elsewhere by some other bug...
+>  fs/proc/meminfo.c |    4 ----
+>  1 files changed, 0 insertions(+), 4 deletions(-)
 > 
->  mm/memory.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- mmotm/mm/memory.c	2009-09-14 16:34:37.000000000 +0100
-> +++ linux/mm/memory.c	2009-09-15 22:00:48.000000000 +0100
-> @@ -2495,7 +2495,7 @@ static int do_swap_page(struct mm_struct
->  		} else if (is_hwpoison_entry(entry)) {
->  			ret = VM_FAULT_HWPOISON;
->  		} else {
-> -			print_bad_pte(vma, address, pte, NULL);
-> +			print_bad_pte(vma, address, orig_pte, NULL);
->  			ret = VM_FAULT_OOM;
->  		}
->  		goto out;
+> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+> index 7d46c2e..c7bff4f 100644
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -65,8 +65,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>  		"Active(file):   %8lu kB\n"
+>  		"Inactive(file): %8lu kB\n"
+>  		"Unevictable:    %8lu kB\n"
+> -		"Isolated(anon): %8lu kB\n"
+> -		"Isolated(file): %8lu kB\n"
+>  		"Mlocked:        %8lu kB\n"
+>  #ifdef CONFIG_HIGHMEM
+>  		"HighTotal:      %8lu kB\n"
+> @@ -116,8 +114,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>  		K(pages[LRU_ACTIVE_FILE]),
+>  		K(pages[LRU_INACTIVE_FILE]),
+>  		K(pages[LRU_UNEVICTABLE]),
+> -		K(global_page_state(NR_ISOLATED_ANON)),
+> -		K(global_page_state(NR_ISOLATED_FILE)),
+>  		K(global_page_state(NR_MLOCK)),
+>  #ifdef CONFIG_HIGHMEM
+>  		K(i.totalhigh),
+> -- 
+> 1.6.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
