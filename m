@@ -1,191 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C75DE6B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 02:22:26 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8G6MV1Z028210
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Sep 2009 15:22:32 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BCB0745DE4F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 15:22:31 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 88D8145DE52
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 15:22:31 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B640E08005
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 15:22:31 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DEE44E0800A
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 15:22:30 +0900 (JST)
-Date: Wed, 16 Sep 2009 15:20:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] mm: ZERO_PAGE without PTE_SPECIAL
-Message-Id: <20090916152021.f76a3721.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0909152133060.22199@sister.anvils>
-References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils>
-	<Pine.LNX.4.64.0909152127240.22199@sister.anvils>
-	<Pine.LNX.4.64.0909152133060.22199@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8A9C76B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 03:21:59 -0400 (EDT)
+Received: by ywh9 with SMTP id 9so6724324ywh.32
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2009 00:22:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.LNX.2.00.0909151202560.17028@wotan.suse.de>
+References: <20090915085441.GF23126@kernel.dk>
+	 <alpine.LNX.2.00.0909151202560.17028@wotan.suse.de>
+Date: Wed, 16 Sep 2009 16:16:46 +0900
+Message-ID: <28c262360909160016m19edee02g9215669f854e1026@mail.gmail.com>
+Subject: Re: BUG: sleeping function called from invalid context at
+	mm/slub.c:1717
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Sep 2009 21:37:20 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+Hi, Jiri.
 
-> Reinstate anonymous use of ZERO_PAGE to all architectures, not just
-> to those which __HAVE_ARCH_PTE_SPECIAL: as suggested by Nick Piggin.
-> 
-> Contrary to how I'd imagined it, there's nothing ugly about this, just
-> a zero_pfn test built into one or another block of vm_normal_page().
-> 
-> But the MIPS ZERO_PAGE-of-many-colours case demands is_zero_pfn() and
-> my_zero_pfn() inlines.  Reinstate its mremap move_pte() shuffling of
-> ZERO_PAGEs we did from 2.6.17 to 2.6.19?  Not unless someone shouts
-> for that: it would have to take vm_flags to weed out some cases.
-> 
-> Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+On Tue, Sep 15, 2009 at 7:10 PM, Jiri Kosina <jkosina@suse.cz> wrote:
+> On Tue, 15 Sep 2009, Jens Axboe wrote:
+>
+>> This is new with todays -git:
+>>
+>> BUG: sleeping function called from invalid context at mm/slub.c:1717
+>> in_atomic(): 1, irqs_disabled(): 1, pid: 0, name: swapper
+>> Pid: 0, comm: swapper Not tainted 2.6.31 #206
+>> Call Trace:
+>> =A0<IRQ> =A0[<ffffffff8103eb23>] __might_sleep+0xf3/0x110
+>> =A0[<ffffffff810e4d83>] kmem_cache_alloc+0x123/0x170
+>> =A0[<ffffffff813306c9>] hid_input_report+0x89/0x3a0
+>> =A0[<ffffffffa00cd5f4>] hid_ctrl+0xa4/0x1f0 [usbhid]
+>> =A0[<ffffffff8108a4c7>] ? handle_IRQ_event+0xa7/0x1e0
+>> =A0[<ffffffffa004da1f>] usb_hcd_giveback_urb+0x3f/0xa0 [usbcore]
+>> =A0[<ffffffffa0074ab4>] uhci_giveback_urb+0xb4/0x240 [uhci_hcd]
+>> =A0[<ffffffffa00750e7>] uhci_scan_schedule+0x357/0xab0 [uhci_hcd]
+>> =A0[<ffffffffa0077a01>] uhci_irq+0x91/0x190 [uhci_hcd]
+>> =A0[<ffffffffa004d44e>] usb_hcd_irq+0x2e/0x70 [usbcore]
+>> =A0[<ffffffff8108a4c7>] handle_IRQ_event+0xa7/0x1e0
+>> =A0[<ffffffff8108c58c>] handle_fasteoi_irq+0x7c/0xf0
+>> =A0[<ffffffff8100f176>] handle_irq+0x46/0xa0
+>> =A0[<ffffffff8100e49a>] do_IRQ+0x6a/0xf0
+>> =A0[<ffffffff8100c853>] ret_from_intr+0x0/0xa
+>>
+>> And I notice there's a HID merge from yesterday, Jiri CC'ed.
+>
+> Thanks for letting me know. The patch below should fix it.
+>
+>
+>
+> From: Jiri Kosina <jkosina@suse.cz>
+> Subject: [PATCH] HID: fix non-atomic allocation in hid_input_report
+>
+> 'interrupt' variable can't be used to safely determine whether
+> we are running in atomic context or not, as we might be called from
+> during control transfer completion through hid_ctrl() in atomic
+> context with interrupt =3D=3D 0.
 
-Thank you. I like this way.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I am not a USB expert so It might be dump comment. :)
 
+We have to change description of hid_input_report.
+
+ * @interrupt: called from atomic?
+
+I think it lost meaning.
+I am worried that interrupt variable is propagated down
+to sub functions. Is it right on sub functions?
+
+One more thing, I am concerned about increasing
+GFP_ATOMIC customers although we can avoid it.
+Is it called rarely?
+Could you find a alternative method to overcome this issue?
+
+
+>
+> Reported-by: Jens Axboe <jens.axboe@oracle.com>
+> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
 > ---
-> I've not built and tested the actual MIPS case, just hacked up x86
-> definitions to simulate it; had to drop the static from zero_pfn.
-> 
->  arch/mips/include/asm/pgtable.h |   14 +++++++++++
->  mm/memory.c                     |   36 ++++++++++++++++++++----------
->  2 files changed, 39 insertions(+), 11 deletions(-)
-> 
-> --- mm2/arch/mips/include/asm/pgtable.h	2009-09-09 23:13:59.000000000 +0100
-> +++ mm3/arch/mips/include/asm/pgtable.h	2009-09-15 17:32:19.000000000 +0100
-> @@ -76,6 +76,20 @@ extern unsigned long zero_page_mask;
->  #define ZERO_PAGE(vaddr) \
->  	(virt_to_page((void *)(empty_zero_page + (((unsigned long)(vaddr)) & zero_page_mask))))
->  
-> +#define is_zero_pfn is_zero_pfn
-> +static inline int is_zero_pfn(unsigned long pfn)
-> +{
-> +	extern unsigned long zero_pfn;
-> +	unsigned long offset_from_zero_pfn = pfn - zero_pfn;
-> +	return offset_from_zero_pfn <= (zero_page_mask >> PAGE_SHIFT);
-> +}
-> +
-> +#define my_zero_pfn my_zero_pfn
-> +static inline unsigned long my_zero_pfn(unsigned long addr)
-> +{
-> +	return page_to_pfn(ZERO_PAGE(addr));
-> +}
-> +
->  extern void paging_init(void);
->  
->  /*
-> --- mm2/mm/memory.c	2009-09-14 16:34:37.000000000 +0100
-> +++ mm3/mm/memory.c	2009-09-15 17:32:19.000000000 +0100
-> @@ -107,7 +107,7 @@ static int __init disable_randmaps(char
->  }
->  __setup("norandmaps", disable_randmaps);
->  
-> -static unsigned long zero_pfn __read_mostly;
-> +unsigned long zero_pfn __read_mostly;
->  
->  /*
->   * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
-> @@ -455,6 +455,20 @@ static inline int is_cow_mapping(unsigne
->  	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
->  }
->  
-> +#ifndef is_zero_pfn
-> +static inline int is_zero_pfn(unsigned long pfn)
-> +{
-> +	return pfn == zero_pfn;
-> +}
-> +#endif
-> +
-> +#ifndef my_zero_pfn
-> +static inline unsigned long my_zero_pfn(unsigned long addr)
-> +{
-> +	return zero_pfn;
-> +}
-> +#endif
-> +
->  /*
->   * vm_normal_page -- This function gets the "struct page" associated with a pte.
->   *
-> @@ -512,7 +526,7 @@ struct page *vm_normal_page(struct vm_ar
->  			goto check_pfn;
->  		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
->  			return NULL;
-> -		if (pfn != zero_pfn)
-> +		if (!is_zero_pfn(pfn))
->  			print_bad_pte(vma, addr, pte, NULL);
->  		return NULL;
->  	}
-> @@ -534,6 +548,8 @@ struct page *vm_normal_page(struct vm_ar
->  		}
->  	}
->  
-> +	if (is_zero_pfn(pfn))
-> +		return NULL;
->  check_pfn:
->  	if (unlikely(pfn > highest_memmap_pfn)) {
->  		print_bad_pte(vma, addr, pte, NULL);
-> @@ -1161,7 +1177,7 @@ struct page *follow_page(struct vm_area_
->  	page = vm_normal_page(vma, address, pte);
->  	if (unlikely(!page)) {
->  		if ((flags & FOLL_DUMP) ||
-> -		    pte_pfn(pte) != zero_pfn)
-> +		    !is_zero_pfn(pte_pfn(pte)))
->  			goto bad_page;
->  		page = pte_page(pte);
->  	}
-> @@ -1444,10 +1460,6 @@ struct page *get_dump_page(unsigned long
->  	if (__get_user_pages(current, current->mm, addr, 1,
->  			FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma) < 1)
->  		return NULL;
-> -	if (page == ZERO_PAGE(0)) {
-> -		page_cache_release(page);
-> -		return NULL;
-> -	}
->  	flush_cache_page(vma, addr, page_to_pfn(page));
->  	return page;
->  }
-> @@ -1630,7 +1642,8 @@ int vm_insert_mixed(struct vm_area_struc
->  	 * If we don't have pte special, then we have to use the pfn_valid()
->  	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
->  	 * refcount the page if pfn_valid is true (hence insert_page rather
-> -	 * than insert_pfn).
-> +	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
-> +	 * without pte special, it would there be refcounted as a normal page.
->  	 */
->  	if (!HAVE_PTE_SPECIAL && pfn_valid(pfn)) {
->  		struct page *page;
-> @@ -2098,7 +2111,7 @@ gotten:
->  	if (unlikely(anon_vma_prepare(vma)))
->  		goto oom;
->  
-> -	if (pte_pfn(orig_pte) == zero_pfn) {
-> +	if (is_zero_pfn(pte_pfn(orig_pte))) {
->  		new_page = alloc_zeroed_user_highpage_movable(vma, address);
->  		if (!new_page)
->  			goto oom;
-> @@ -2613,8 +2626,9 @@ static int do_anonymous_page(struct mm_s
->  	spinlock_t *ptl;
->  	pte_t entry;
->  
-> -	if (HAVE_PTE_SPECIAL && !(flags & FAULT_FLAG_WRITE)) {
-> -		entry = pte_mkspecial(pfn_pte(zero_pfn, vma->vm_page_prot));
-> +	if (!(flags & FAULT_FLAG_WRITE)) {
-> +		entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
-> +						vma->vm_page_prot));
->  		ptl = pte_lockptr(mm, pmd);
->  		spin_lock(ptl);
->  		if (!pte_none(*page_table))
-> 
+> =A0drivers/hid/hid-core.c | =A0 =A03 +--
+> =A01 files changed, 1 insertions(+), 2 deletions(-)
+>
+> diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
+> index 342b7d3..ca9bb26 100644
+> --- a/drivers/hid/hid-core.c
+> +++ b/drivers/hid/hid-core.c
+> @@ -1089,8 +1089,7 @@ int hid_input_report(struct hid_device *hid, int ty=
+pe, u8 *data, int size, int i
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -1;
+> =A0 =A0 =A0 =A0}
+>
+> - =A0 =A0 =A0 buf =3D kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE,
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 interrupt ? GFP_ATOMIC : GF=
+P_KERNEL);
+> + =A0 =A0 =A0 buf =3D kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMI=
+C);
+>
+> =A0 =A0 =A0 =A0if (!buf) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0report =3D hid_get_report(report_enum, dat=
+a);
+> --
+> 1.5.6
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
+n
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at =A0http://www.tux.org/lkml/
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
