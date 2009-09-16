@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EC856B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 06:21:17 -0400 (EDT)
-Date: Wed, 16 Sep 2009 11:21:24 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 6/6] hugetlb:  update hugetlb documentation for
-	mempolicy based management.
-Message-ID: <20090916102124.GC1993@csn.ul.ie>
-References: <alpine.DEB.1.00.0909081307100.13678@chino.kir.corp.google.com> <20090908214109.GB6481@csn.ul.ie> <alpine.DEB.1.00.0909081527320.26432@chino.kir.corp.google.com> <20090909081631.GB24614@csn.ul.ie> <alpine.DEB.1.00.0909091335050.7764@chino.kir.corp.google.com> <20090910122641.GA31153@csn.ul.ie> <alpine.DEB.1.00.0909111507540.22083@chino.kir.corp.google.com> <20090914133329.GC11778@csn.ul.ie> <alpine.DEB.1.00.0909141213150.14000@chino.kir.corp.google.com> <alpine.DEB.1.00.0909141421540.22563@chino.kir.corp.google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 243E86B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 07:17:53 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8GBHuOD031497
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 16 Sep 2009 20:17:56 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7154B45DE51
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 20:17:56 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F92C45DE4E
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 20:17:56 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3196CE1800B
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 20:17:56 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DB1F4E1800A
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 20:17:52 +0900 (JST)
+Message-ID: <1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
+References: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
+Date: Wed, 16 Sep 2009 20:17:52 +0900 (JST)
+Subject: Re: kcore patches (was Re: 2.6.32 -mm merge plans)
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.0909141421540.22563@chino.kir.corp.google.com>
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nishanth Aravamudan <nacc@us.ibm.com>, linux-numa@vger.kernel.org, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Eric Whitney <eric.whitney@hp.com>, Randy Dunlap <randy.dunlap@oracle.com>
+To: Am=?ISO-2022-JP?B?P3JpY29fV2FuZw==?= <xiyou.wangcong@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 14, 2009 at 02:28:27PM -0700, David Rientjes wrote:
-> On Mon, 14 Sep 2009, David Rientjes wrote:
-> 
-> > > On PPC64, the parameters behave differently. I couldn't convince it to
-> > > create more than one NUMA node. On x86-64, the NUMA nodes appeared to
-> > > exist and would be visible on /proc/buddyinfo for example but the sysfs
-> > > directories for the fake nodes were not created so nr_hugepages couldn't
-> > > be examined on a per-node basis for example.
-> > > 
-> > 
-> > I don't know anything about the ppc64 fake NUMA, but the sysfs node 
-> > directories should certainly be created on x86_64.  I'll look into it 
-> > because that's certainly a bug.  Thanks.
-> > 
-> 
-> This works on my machine just fine.
-> 
-> For example, with numa=fake=8:
-> 
-> 	$ ls /sys/devices/system/node
-> 	has_cpu  has_normal_memory  node0  node1  node2  node3  node4  
-> node5  node6  node7  online  possible
-> 
-> 	$ ls /sys/devices/system/node/node3
-> 	cpu4  cpu5  cpu6  cpu7  cpulist  cpumap  distance  meminfo  
-> numastat  scan_unevictable_pages
-> 
-> I don't see how this could differ if bootmem is setting up the nodes 
-> correctly, which dmesg | grep "^Bootmem setup node" would reveal.
-> 
-> The defconfig disables CONFIG_NUMA_EMU now, though, so perhaps it got 
-> turned off by accident in your kernel?
-> 
+Américo_Wang さんは書きました：
+> On Wed, Sep 16, 2009 at 7:15 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>>#kcore-fix-proc-kcores-statst_size.patch: is it right?
+>>kcore-fix-proc-kcores-statst_size.patch
+>
+> Hmm, I think KAMEZAWA Hiroyuki's patchset is a much better fix for this.
+> Hiroyuki?
+>
+Hmm ? My set is not agaisnt "file size" of /proc/kcore.
 
-I don't think so because my recollection is that the nodes existed
-according to meminfo and buddyinfo but not the sysfs files.
-Unfortunately I can't remember the reproduction scenario. I thought it
-was on mmotm-2009-08-27-16-51 on a particularly machine but when I went
-to reproduce, it didn't even boot so somewhere along the line I busted
-things.
+One problem of this patch is..this makes size of /proc/kcore as 0 bytes.
+Then, objdump cannot read this. (it checks file size.)
+readelf can read this. (it ignores file size.)
 
-> Let me know if there's any abnormalities with your particular setup.
-> 
+I wonder what you mention is.... because we know precise kclist_xxx
+after my series, we can calculate kcore's size in precise by
+get_kcore_size().
 
-Will try reproducing on more recent mmotm and see if anything odd falls
-out.
+It seems /proc's inode->i_size is "static" and we cannot
+provides return value of get_kcore_size() directly. It may need
+some work and should depends on my kclist_xxx patch sets which are not
+in merge candidates. If you can wait, I'll do some work for fixing this
+problem. (but will not be able to merge directly against upstream.)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+But for now, we have to use some fixed value....and using above
+patch for 2.6.31 is not very bad.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
