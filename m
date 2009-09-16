@@ -1,120 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B77956B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 08:21:37 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id c3so1723353ana.26
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2009 05:21:44 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9926B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 08:47:35 -0400 (EDT)
+Date: Wed, 16 Sep 2009 13:47:40 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/4] mm: m(un)lock avoid ZERO_PAGE
+Message-ID: <20090916124740.GD1993@csn.ul.ie>
+References: <Pine.LNX.4.64.0909072222070.15424@sister.anvils> <Pine.LNX.4.64.0909152127240.22199@sister.anvils> <Pine.LNX.4.64.0909152130260.22199@sister.anvils> <20090916093506.GB1993@csn.ul.ie> <Pine.LNX.4.64.0909161226500.12659@sister.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20090915122632.GC31840@csn.ul.ie>
-References: <202cde0e0909132218k70c31a5u922636914e603ad4@mail.gmail.com>
-	 <20090915122632.GC31840@csn.ul.ie>
-Date: Thu, 17 Sep 2009 00:21:42 +1200
-Message-ID: <202cde0e0909160521v41a0d9f2wb1e4fe1e379e8971@mail.gmail.com>
-Subject: Re: [PATCH 2/3] Helper which returns the huge page at a given address
-	(Take 3)
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0909161226500.12659@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 16, 2009 at 12:26 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Mon, Sep 14, 2009 at 05:18:53PM +1200, Alexey Korolev wrote:
->> This patch provides helper function which returns the huge page at a
->> given address for population before the page has been faulted.
->> It is possible to call hugetlb_get_user_page function in file mmap
->> procedure to get pages before they have been requested by user level.
->>
->
-> Worth spelling out that this is similar in principal to get_user_pages()
-> but not as painful to use in this specific context.
->
+On Wed, Sep 16, 2009 at 12:40:23PM +0100, Hugh Dickins wrote:
+> On Wed, 16 Sep 2009, Mel Gorman wrote:
+> > On Tue, Sep 15, 2009 at 09:31:49PM +0100, Hugh Dickins wrote:
+> > > 
+> > > And when munlocking, it turns out that FOLL_DUMP coincidentally does
+> > > what's needed to avoid all updates to ZERO_PAGE, so use that here also.
+> ...
+> > >  	for (addr = start; addr < end; addr += PAGE_SIZE) {
+> > > -		struct page *page = follow_page(vma, addr, FOLL_GET);
+> > > -		if (page) {
+> > > +		struct page *page;
+> > > +		/*
+> > > +		 * Although FOLL_DUMP is intended for get_dump_page(),
+> > > +		 * it just so happens that its special treatment of the
+> > > +		 * ZERO_PAGE (returning an error instead of doing get_page)
+> > > +		 * suits munlock very well (and if somehow an abnormal page
+> > > +		 * has sneaked into the range, we won't oops here: great).
+> > > +		 */
+> > > +		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
+> > 
+> > Ouch, now I get your depraved comment :) . This will be a tricky rule to
+> > remember in a years time, wouldn't it?
+> 
+> I rely more upon git and grep than memory; I hope others do too.
+> (And that's partly why I put "get_dump_page" into the comment line.)
+> 
 
-Right. I'll do this. Seems it is important to clearly mention that
-this function do not introduce new functionality.
+True and the comment is pretty explicit.
 
->> include/linux/hugetlb.h | =C2=A0 =C2=A03 +++
->> mm/hugetlb.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 23 ++++++=
-+++++++++++++++++
->> 2 files changed, 26 insertions(+)
->>
->> ---
->> Signed-off-by: Alexey Korolev <akorolev@infradead.org>
->
-> Patch formatting nit.
->
-> diffstat goes below the --- and signed-off-bys go above it.
->
-Right. To be fixed.
+> > Functionally, the patch seems fine and the avoidance of lock_page() is
+> > nice so.
+> > 
+> > Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> Thanks.
+> 
+> > 
+> > But, as FOLL_DUMP applies to more than core dumping, can it be renamed
+> > in another follow-on patch?  The fundamental underlying "thing" it does
+> > is to error instead of faulting the zero page so FOLL_NO_FAULT_ZEROPAGE,
+> > FOLL_ERRORZERO, FOLL_NOZERO etc? A name like that would simplify the comments
+> > as FOLL_DUMP would no longer just be a desirable side-effect.
+> 
+> At this moment, particularly after the years of FOLL_ANON confusion,
+> I feel pretty strongly that this flag is there for coredumping; and
+> it's just a happy accident that it happens also to be useful for munlock.
+> And if their needs diverge later, FOLL_DUMP will do whatever dumping
+> wants, and FOLL_MUNLOCK or something with a longer name will do
+> whatever munlocking wants.
+> 
 
->>
->> +/*
->> + * hugetlb_get_user_page returns the page at a given address for popula=
-tion
->> + * before the page has been faulted.
->> + */
->> +struct page *hugetlb_get_user_page(struct vm_area_struct *vma,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 unsigned long address)
->> +{
->
-> Your leader and comments say that the function can be used before the pag=
-es
-> have been faulted. It would presumably require that this function be call=
-ed
-> from within a mmap() handler.
->
-> What is happening because you call follow_hugetlb_page() is that the page=
-s
-> get faulted as part of your mmap() operation. This might make the overall
-> operation more expensive than you expected. I don't know if what you real=
-ly
-> intended was to allocate the huge page, insert it into the page cache and
-> have it faulted later if the process actually references the page.
->
-> Similarly the leader and comments imply that you expect this to be
-> called as part of the mmap() operation. However, nothing would appear to
-> prevent the driver calling this function once the page is already
-> faulted. Is this intentional?
+Ok, that's reasonable. You want to avoid any temptation of abuse of flag
+and a reviewer will spot abuse of something called FOLL_DUMP easier than
+something like FOLL_NOZERO.
 
-The implication was not intende. You are correct, the function can be
-called later. The leader and comment can be rewritten to make this
-clear.
+> I suspect that if I could think of a really snappy name for the flag,
+> that didn't just send us away to study the source to see what it
+> really does, I'd be glad to change to that.  But at the moment,
+> I'm happier sticking with FOLL_DUMP myself.
+> 
 
->> + =C2=A0 =C2=A0 int ret;
->> + =C2=A0 =C2=A0 int cnt =3D 1;
->> + =C2=A0 =C2=A0 struct page *pg;
->> + =C2=A0 =C2=A0 struct hstate *h =3D hstate_vma(vma);
->> +
->> + =C2=A0 =C2=A0 address =3D address & huge_page_mask(h);
->> + =C2=A0 =C2=A0 ret =3D follow_hugetlb_page(vma->vm_mm, vma, &pg,
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 NULL, &address, &cnt, 0, 0);
->> + =C2=A0 =C2=A0 if (ret < 0)
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ERR_PTR(ret);
->> + =C2=A0 =C2=A0 put_page(pg);
->> +
->> + =C2=A0 =C2=A0 return pg;
->> +}
->
-> I think the caller should be responsible for calling put_page(). =C2=A0Ot=
-herwise
-> there is an outside chance that the page would disappear from you unexpec=
-tedly
-> depending on exactly how the driver was implemented. It would also
-> behave slightly more like get_user_pages().
->
-Correct. Lets have behaviour similar to get_user_pages in order to prevent
-misunderstanding. Put_page will be removed.
+Grand. Thanks for clarifying and explaining.
 
-Thank you very much for review. Now I am about to clear out the
-mistakes and will pay a lot more attention to patch descriptions and
-comments.
-
-Thanks,
-Alexey
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
