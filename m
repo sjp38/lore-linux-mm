@@ -1,93 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6E46B004F
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 09:28:21 -0400 (EDT)
-Date: Thu, 17 Sep 2009 14:28:30 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/11] hugetlb:  add generic definition of NUMA_NO_NODE
-Message-ID: <20090917132830.GC7205@csn.ul.ie>
-References: <20090915204327.4828.4349.sendpatchset@localhost.localdomain> <20090915204452.4828.83793.sendpatchset@localhost.localdomain>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4F1986B004F
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 10:16:53 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so46004bwz.38
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2009 07:16:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090915204452.4828.83793.sendpatchset@localhost.localdomain>
+In-Reply-To: <4AB1A8FD.2010805@gmail.com>
+References: <cover.1251388414.git.mst@redhat.com> <4AAFF437.7060100@gmail.com>
+	 <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com>
+	 <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com>
+	 <4AB10B67.2050108@redhat.com> <4AB13B09.5040308@gmail.com>
+	 <4AB151D7.10402@redhat.com> <4AB1A8FD.2010805@gmail.com>
+Date: Thu, 17 Sep 2009 09:16:56 -0500
+Message-ID: <90eb1dc70909170716i5de0b909tf69c93e679f5fbc8@mail.gmail.com>
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+From: Javier Guerra <javier@guerrag.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: Avi Kivity <avi@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 15, 2009 at 04:44:52PM -0400, Lee Schermerhorn wrote:
-> [PATCH 5/11] - hugetlb:  promote NUMA_NO_NODE to generic constant
-> 
-> Against:  2.6.31-mmotm-090914-0157
-> 
-> New in V7 of series
-> 
-> Move definition of NUMA_NO_NODE from ia64 and x86_64 arch specific
-> headers to generic header 'linux/numa.h' for use in generic code.
-> NUMA_NO_NODE replaces bare '-1' where it's used in this series to
-> indicate "no node id specified".  Ultimately, it can be used
-> to replace the -1 elsewhere where it is used similarly.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
+On Wed, Sep 16, 2009 at 10:11 PM, Gregory Haskins
+<gregory.haskins@gmail.com> wrote:
+>=C2=A0It is certainly not a requirement to make said
+> chip somehow work with existing drivers/facilities on bare metal, per
+> se. =C2=A0Why should virtual systems be different?
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+i'd guess it's an issue of support resources.  a hardware developer
+creates a chip and immediately sells it, getting small but assured
+revenue, with it they write (or pays to write) drivers for a couple of
+releases, and stop to manufacture it as soon as it's not profitable.
 
->  arch/ia64/include/asm/numa.h    |    2 --
->  arch/x86/include/asm/topology.h |    5 ++---
->  include/linux/numa.h            |    2 ++
->  3 files changed, 4 insertions(+), 5 deletions(-)
-> 
-> Index: linux-2.6.31-mmotm-090914-0157/arch/ia64/include/asm/numa.h
-> ===================================================================
-> --- linux-2.6.31-mmotm-090914-0157.orig/arch/ia64/include/asm/numa.h	2009-09-15 13:19:02.000000000 -0400
-> +++ linux-2.6.31-mmotm-090914-0157/arch/ia64/include/asm/numa.h	2009-09-15 13:42:19.000000000 -0400
-> @@ -22,8 +22,6 @@
->  
->  #include <asm/mmzone.h>
->  
-> -#define NUMA_NO_NODE	-1
-> -
->  extern u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
->  extern cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
->  extern pg_data_t *pgdat_list[MAX_NUMNODES];
-> Index: linux-2.6.31-mmotm-090914-0157/arch/x86/include/asm/topology.h
-> ===================================================================
-> --- linux-2.6.31-mmotm-090914-0157.orig/arch/x86/include/asm/topology.h	2009-09-15 13:19:02.000000000 -0400
-> +++ linux-2.6.31-mmotm-090914-0157/arch/x86/include/asm/topology.h	2009-09-15 13:42:19.000000000 -0400
-> @@ -35,11 +35,10 @@
->  # endif
->  #endif
->  
-> -/* Node not present */
-> -#define NUMA_NO_NODE	(-1)
-> -
->  #ifdef CONFIG_NUMA
->  #include <linux/cpumask.h>
-> +#include <linux/numa.h>
-> +
->  #include <asm/mpspec.h>
->  
->  #ifdef CONFIG_X86_32
-> Index: linux-2.6.31-mmotm-090914-0157/include/linux/numa.h
-> ===================================================================
-> --- linux-2.6.31-mmotm-090914-0157.orig/include/linux/numa.h	2009-09-15 13:19:02.000000000 -0400
-> +++ linux-2.6.31-mmotm-090914-0157/include/linux/numa.h	2009-09-15 13:42:19.000000000 -0400
-> @@ -10,4 +10,6 @@
->  
->  #define MAX_NUMNODES    (1 << NODES_SHIFT)
->  
-> +#define	NUMA_NO_NODE	(-1)
-> +
->  #endif /* _LINUX_NUMA_H */
-> 
+software has a much longer lifetime, especially at the platform-level
+(and KVM is a platform for a lot of us). also, being GPL, it's cheaper
+to produce but has (much!) more limited resources.  creating a new
+support issue is a scary thought.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+--=20
+Javier
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
