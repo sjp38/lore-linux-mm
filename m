@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E27B56B004F
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 01:43:49 -0400 (EDT)
-Date: Wed, 16 Sep 2009 22:43:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv2 1/2] mm: export use_mm/unuse_mm to modules
-Message-Id: <20090916224345.3b5212b4.akpm@linux-foundation.org>
-In-Reply-To: <20090917053817.GB6770@redhat.com>
-References: <cover.1249992497.git.mst@redhat.com>
-	<20090811212752.GB26309@redhat.com>
-	<20090811151010.c9c56955.akpm@linux-foundation.org>
-	<20090917053817.GB6770@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 541D86B004F
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 01:55:13 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so1717077qwf.44
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2009 22:55:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090917114256.1f3971d8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
+	 <1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
+	 <20090917114138.e14a1183.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090917114256.1f3971d8.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 17 Sep 2009 13:55:20 +0800
+Message-ID: <2375c9f90909162255i3dca34e8w51e496294bb38916@mail.gmail.com>
+Subject: Re: [PATCH 1/3][mmotm] kcore: more fixes for init
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, hpa@zytor.com, aarcange@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Sep 2009 08:38:18 +0300 "Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Thu, Sep 17, 2009 at 10:42 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> proc_kcore_init() doesn't check NULL case.
+> fix it and remove unnecessary comments.
+>
+> Cc: WANG Cong <xiyou.wangcong@gmail.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> Hi Andrew,
-> On Tue, Aug 11, 2009 at 03:10:10PM -0700, Andrew Morton wrote:
-> > On Wed, 12 Aug 2009 00:27:52 +0300
-> > "Michael S. Tsirkin" <mst@redhat.com> wrote:
-> > 
-> > > vhost net module wants to do copy to/from user from a kernel thread,
-> > > which needs use_mm (like what fs/aio has).  Move that into mm/ and
-> > > export to modules.
-> > 
-> > OK by me.  Please include this change in the virtio patchset.  Which I
-> > shall cheerfully not be looking at :)
-> 
-> The virtio patches are somewhat delayed as we are ironing out the
-> kernel/user interface with Rusty. Can the patch moving use_mm to mm/ be
-> applied without exporting to modules for now? This will make it easier
-> for virtio which will only have to patch in the EXPORT line.
+Acked-by: WANG Cong <xiyou.wangcong@gmail.com>
 
-That was 10,000 patches ago.
+Thanks.
 
-> I also have a small patch optimizing atomic usage in use_mm (which I did for
-> virtio) and it's easier to apply it if the code is in the new place.
-> 
-> If ok, pls let me know and I'll post the patch without the EXPORT line.
-
-Please just send them all out.
+> ---
+> =C2=A0fs/proc/kcore.c | =C2=A0 =C2=A05 ++++-
+> =C2=A01 file changed, 4 insertions(+), 1 deletion(-)
+>
+> Index: mmotm-2.6.31-Sep14/fs/proc/kcore.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- mmotm-2.6.31-Sep14.orig/fs/proc/kcore.c
+> +++ mmotm-2.6.31-Sep14/fs/proc/kcore.c
+> @@ -606,6 +606,10 @@ static int __init proc_kcore_init(void)
+> =C2=A0{
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0proc_root_kcore =3D proc_create("kcore", S_IRU=
+SR, NULL,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0&proc_kcore_oper=
+ations);
+> + =C2=A0 =C2=A0 =C2=A0 if (!proc_root_kcore) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 printk(KERN_ERR "could=
+n't create /proc/kcore\n");
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0; /* Always re=
+turns 0. */
+> + =C2=A0 =C2=A0 =C2=A0 }
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Store text area if it's special */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0proc_kcore_text_init();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Store vmalloc area */
+> @@ -615,7 +619,6 @@ static int __init proc_kcore_init(void)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Store direct-map area from physical memory =
+map */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0kcore_update_ram();
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0hotplug_memory_notifier(kcore_callback, 0);
+> - =C2=A0 =C2=A0 =C2=A0 /* Other special area, area-for-module etc is arch=
+ specific. */
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;
+> =C2=A0}
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
