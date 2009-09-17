@@ -1,46 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4F1986B004F
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 10:16:53 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so46004bwz.38
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2009 07:16:57 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4AB1A8FD.2010805@gmail.com>
-References: <cover.1251388414.git.mst@redhat.com> <4AAFF437.7060100@gmail.com>
-	 <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com>
-	 <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com>
-	 <4AB10B67.2050108@redhat.com> <4AB13B09.5040308@gmail.com>
-	 <4AB151D7.10402@redhat.com> <4AB1A8FD.2010805@gmail.com>
-Date: Thu, 17 Sep 2009 09:16:56 -0500
-Message-ID: <90eb1dc70909170716i5de0b909tf69c93e679f5fbc8@mail.gmail.com>
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-From: Javier Guerra <javier@guerrag.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id D498A6B004F
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:21:43 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 1/7] fs: buffer_head writepage no invalidate
+Date: Thu, 17 Sep 2009 17:21:41 +0200
+Message-Id: <1253200907-31392-2-git-send-email-jack@suse.cz>
+In-Reply-To: <1253200907-31392-1-git-send-email-jack@suse.cz>
+References: <1253200907-31392-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: Avi Kivity <avi@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: linux-fsdevel@vger.kernel.org
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 16, 2009 at 10:11 PM, Gregory Haskins
-<gregory.haskins@gmail.com> wrote:
->=C2=A0It is certainly not a requirement to make said
-> chip somehow work with existing drivers/facilities on bare metal, per
-> se. =C2=A0Why should virtual systems be different?
+From: Nick Piggin <npiggin@suse.de>
 
-i'd guess it's an issue of support resources.  a hardware developer
-creates a chip and immediately sells it, getting small but assured
-revenue, with it they write (or pays to write) drivers for a couple of
-releases, and stop to manufacture it as soon as it's not profitable.
+invalidate should not be required in the writeout path. The truncate
+sequence will first reduce i_size, then clean and discard any existing
+pagecache (and no new dirty pagecache can be added because i_size was
+reduced and i_mutex is being held), then filesystem data structures
+are updated.
 
-software has a much longer lifetime, especially at the platform-level
-(and KVM is a platform for a lot of us). also, being GPL, it's cheaper
-to produce but has (much!) more limited resources.  creating a new
-support issue is a scary thought.
+Filesystem needs to be able to handle writeout at any point before
+the last step, and once the 2nd step completes, there should be no
+unfreeable dirty buffers anyway (truncate performs the do_invalidatepage).
 
+Having filesystem changes depend on reading i_size without holding
+i_mutex is confusing at least. There is still a case in writepage
+paths in buffer.c uses i_size (testing which block to write out), but
+this is a small improvement.
+---
+ fs/buffer.c |   20 ++------------------
+ 1 files changed, 2 insertions(+), 18 deletions(-)
 
---=20
-Javier
+diff --git a/fs/buffer.c b/fs/buffer.c
+index d8d1b46..67b260a 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2666,18 +2666,8 @@ int nobh_writepage(struct page *page, get_block_t *get_block,
+ 	/* Is the page fully outside i_size? (truncate in progress) */
+ 	offset = i_size & (PAGE_CACHE_SIZE-1);
+ 	if (page->index >= end_index+1 || !offset) {
+-		/*
+-		 * The page may have dirty, unmapped buffers.  For example,
+-		 * they may have been added in ext3_writepage().  Make them
+-		 * freeable here, so the page does not leak.
+-		 */
+-#if 0
+-		/* Not really sure about this  - do we need this ? */
+-		if (page->mapping->a_ops->invalidatepage)
+-			page->mapping->a_ops->invalidatepage(page, offset);
+-#endif
+ 		unlock_page(page);
+-		return 0; /* don't care */
++		return 0;
+ 	}
+ 
+ 	/*
+@@ -2870,14 +2860,8 @@ int block_write_full_page_endio(struct page *page, get_block_t *get_block,
+ 	/* Is the page fully outside i_size? (truncate in progress) */
+ 	offset = i_size & (PAGE_CACHE_SIZE-1);
+ 	if (page->index >= end_index+1 || !offset) {
+-		/*
+-		 * The page may have dirty, unmapped buffers.  For example,
+-		 * they may have been added in ext3_writepage().  Make them
+-		 * freeable here, so the page does not leak.
+-		 */
+-		do_invalidatepage(page, 0);
+ 		unlock_page(page);
+-		return 0; /* don't care */
++		return 0;
+ 	}
+ 
+ 	/*
+-- 
+1.6.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
