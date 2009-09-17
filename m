@@ -1,123 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EA566B005C
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 05:19:43 -0400 (EDT)
-Date: Thu, 17 Sep 2009 10:19:50 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6E46B004F
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 09:28:21 -0400 (EDT)
+Date: Thu, 17 Sep 2009 14:28:30 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] Helper which returns the huge page at a given
-	address (Take 3)
-Message-ID: <20090917091950.GD13002@csn.ul.ie>
-References: <202cde0e0909132218k70c31a5u922636914e603ad4@mail.gmail.com> <20090915122632.GC31840@csn.ul.ie> <202cde0e0909160521v41a0d9f2wb1e4fe1e379e8971@mail.gmail.com>
+Subject: Re: [PATCH 5/11] hugetlb:  add generic definition of NUMA_NO_NODE
+Message-ID: <20090917132830.GC7205@csn.ul.ie>
+References: <20090915204327.4828.4349.sendpatchset@localhost.localdomain> <20090915204452.4828.83793.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <202cde0e0909160521v41a0d9f2wb1e4fe1e379e8971@mail.gmail.com>
+In-Reply-To: <20090915204452.4828.83793.sendpatchset@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolex@gmail.com>
-Cc: Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 17, 2009 at 12:21:42AM +1200, Alexey Korolev wrote:
-> On Wed, Sep 16, 2009 at 12:26 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > On Mon, Sep 14, 2009 at 05:18:53PM +1200, Alexey Korolev wrote:
-> >> This patch provides helper function which returns the huge page at a
-> >> given address for population before the page has been faulted.
-> >> It is possible to call hugetlb_get_user_page function in file mmap
-> >> procedure to get pages before they have been requested by user level.
-> >>
-> >
-> > Worth spelling out that this is similar in principal to get_user_pages()
-> > but not as painful to use in this specific context.
-> >
+On Tue, Sep 15, 2009 at 04:44:52PM -0400, Lee Schermerhorn wrote:
+> [PATCH 5/11] - hugetlb:  promote NUMA_NO_NODE to generic constant
 > 
-> Right. I'll do this. Seems it is important to clearly mention that
-> this function do not introduce new functionality.
+> Against:  2.6.31-mmotm-090914-0157
 > 
-
-Indeed.
-
-> >> include/linux/hugetlb.h |    3 +++
-> >> mm/hugetlb.c            |   23 +++++++++++++++++++++++
-> >> 2 files changed, 26 insertions(+)
-> >>
-> >> ---
-> >> Signed-off-by: Alexey Korolev <akorolev@infradead.org>
-> >
-> > Patch formatting nit.
-> >
-> > diffstat goes below the --- and signed-off-bys go above it.
-> >
->
-> Right. To be fixed.
+> New in V7 of series
+> 
+> Move definition of NUMA_NO_NODE from ia64 and x86_64 arch specific
+> headers to generic header 'linux/numa.h' for use in generic code.
+> NUMA_NO_NODE replaces bare '-1' where it's used in this series to
+> indicate "no node id specified".  Ultimately, it can be used
+> to replace the -1 elsewhere where it is used similarly.
+> 
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> Acked-by: David Rientjes <rientjes@google.com>
 > 
 
-Thanks
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-> >>
-> >> +/*
-> >> + * hugetlb_get_user_page returns the page at a given address for population
-> >> + * before the page has been faulted.
-> >> + */
-> >> +struct page *hugetlb_get_user_page(struct vm_area_struct *vma,
-> >> +                                 unsigned long address)
-> >> +{
-> >
-> > Your leader and comments say that the function can be used before the pages
-> > have been faulted. It would presumably require that this function be called
-> > from within a mmap() handler.
-> >
-> > What is happening because you call follow_hugetlb_page() is that the pages
-> > get faulted as part of your mmap() operation. This might make the overall
-> > operation more expensive than you expected. I don't know if what you really
-> > intended was to allocate the huge page, insert it into the page cache and
-> > have it faulted later if the process actually references the page.
-> >
-> > Similarly the leader and comments imply that you expect this to be
-> > called as part of the mmap() operation. However, nothing would appear to
-> > prevent the driver calling this function once the page is already
-> > faulted. Is this intentional?
+>  arch/ia64/include/asm/numa.h    |    2 --
+>  arch/x86/include/asm/topology.h |    5 ++---
+>  include/linux/numa.h            |    2 ++
+>  3 files changed, 4 insertions(+), 5 deletions(-)
 > 
-> The implication was not intende. You are correct, the function can be
-> called later. The leader and comment can be rewritten to make this
-> clear.
+> Index: linux-2.6.31-mmotm-090914-0157/arch/ia64/include/asm/numa.h
+> ===================================================================
+> --- linux-2.6.31-mmotm-090914-0157.orig/arch/ia64/include/asm/numa.h	2009-09-15 13:19:02.000000000 -0400
+> +++ linux-2.6.31-mmotm-090914-0157/arch/ia64/include/asm/numa.h	2009-09-15 13:42:19.000000000 -0400
+> @@ -22,8 +22,6 @@
+>  
+>  #include <asm/mmzone.h>
+>  
+> -#define NUMA_NO_NODE	-1
+> -
+>  extern u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
+>  extern cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
+>  extern pg_data_t *pgdat_list[MAX_NUMNODES];
+> Index: linux-2.6.31-mmotm-090914-0157/arch/x86/include/asm/topology.h
+> ===================================================================
+> --- linux-2.6.31-mmotm-090914-0157.orig/arch/x86/include/asm/topology.h	2009-09-15 13:19:02.000000000 -0400
+> +++ linux-2.6.31-mmotm-090914-0157/arch/x86/include/asm/topology.h	2009-09-15 13:42:19.000000000 -0400
+> @@ -35,11 +35,10 @@
+>  # endif
+>  #endif
+>  
+> -/* Node not present */
+> -#define NUMA_NO_NODE	(-1)
+> -
+>  #ifdef CONFIG_NUMA
+>  #include <linux/cpumask.h>
+> +#include <linux/numa.h>
+> +
+>  #include <asm/mpspec.h>
+>  
+>  #ifdef CONFIG_X86_32
+> Index: linux-2.6.31-mmotm-090914-0157/include/linux/numa.h
+> ===================================================================
+> --- linux-2.6.31-mmotm-090914-0157.orig/include/linux/numa.h	2009-09-15 13:19:02.000000000 -0400
+> +++ linux-2.6.31-mmotm-090914-0157/include/linux/numa.h	2009-09-15 13:42:19.000000000 -0400
+> @@ -10,4 +10,6 @@
+>  
+>  #define MAX_NUMNODES    (1 << NODES_SHIFT)
+>  
+> +#define	NUMA_NO_NODE	(-1)
+> +
+>  #endif /* _LINUX_NUMA_H */
 > 
-
-Because it can be called later and you do not expect that, consider making
-it impossible or at least very difficult. Assuming you convert this to a
-page cache lookup and insert instead of a page fault, you could BUG_ON if
-the page was already in the page cache for example. This would catch already
-faulted pages as a side-effect.
-
-> >> +     int ret;
-> >> +     int cnt = 1;
-> >> +     struct page *pg;
-> >> +     struct hstate *h = hstate_vma(vma);
-> >> +
-> >> +     address = address & huge_page_mask(h);
-> >> +     ret = follow_hugetlb_page(vma->vm_mm, vma, &pg,
-> >> +                             NULL, &address, &cnt, 0, 0);
-> >> +     if (ret < 0)
-> >> +             return ERR_PTR(ret);
-> >> +     put_page(pg);
-> >> +
-> >> +     return pg;
-> >> +}
-> >
-> > I think the caller should be responsible for calling put_page().  Otherwise
-> > there is an outside chance that the page would disappear from you unexpectedly
-> > depending on exactly how the driver was implemented. It would also
-> > behave slightly more like get_user_pages().
-> >
-> Correct. Lets have behaviour similar to get_user_pages in order to prevent
-> misunderstanding. Put_page will be removed.
-> 
-> Thank you very much for review. Now I am about to clear out the
-> mistakes and will pay a lot more attention to patch descriptions and
-> comments.
-> 
-
-Thanks
 
 -- 
 Mel Gorman
