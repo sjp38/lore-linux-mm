@@ -1,80 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 879186B004F
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 00:13:07 -0400 (EDT)
-Received: by qw-out-1920.google.com with SMTP id 5so1704842qwf.44
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2009 21:13:10 -0700 (PDT)
-Message-ID: <4AB1B752.4010505@gmail.com>
-Date: Thu, 17 Sep 2009 00:13:06 -0400
-From: Gregory Haskins <gregory.haskins@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <4AAF8A03.5020806@redhat.com> <4AAF909F.9080306@gmail.com> <4AAF95D1.1080600@redhat.com> <4AAF9BAF.3030109@gmail.com> <4AAFACB5.9050808@redhat.com> <4AAFF437.7060100@gmail.com> <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com> <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com> <20090917035717.GB3088@redhat.com>
-In-Reply-To: <20090917035717.GB3088@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enigEC75824AD85A44F4912F87A4"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9220F6B005A
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 00:14:27 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8H4ERGk019618
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 17 Sep 2009 13:14:27 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA15145DE4E
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 13:14:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B4A2345DE4D
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 13:14:26 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A524E08002
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 13:14:26 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 516371DB8038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 13:14:26 +0900 (JST)
+Date: Thu, 17 Sep 2009 13:12:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/8] memcg: introduce mem_cgroup_cancel_charge()
+Message-Id: <20090917131206.86213fa7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090917112400.2d90c60d.nishimura@mxp.nes.nec.co.jp>
+References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
+	<20090917112400.2d90c60d.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Avi Kivity <avi@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enigEC75824AD85A44F4912F87A4
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Thu, 17 Sep 2009 11:24:00 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Michael S. Tsirkin wrote:
-> On Wed, Sep 16, 2009 at 10:10:55AM -0400, Gregory Haskins wrote:
->>> There is no role reversal.
->> So if I have virtio-blk driver running on the x86 and vhost-blk device=
+> There are some places calling both res_counter_uncharge() and css_put()
+> to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
+> 
+> This patch introduces mem_cgroup_cancel_charge() and call it in those places.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
->> running on the ppc board, I can use the ppc board as a block-device.
->> What if I really wanted to go the other way?
->=20
-> It seems ppc is the only one that can initiate DMA to an arbitrary
-> address, so you can't do this really, or you can by tunneling each
-> request back to ppc, or doing an extra data copy, but it's unlikely to
-> work well.
->=20
-> The limitation comes from hardware, not from the API we use.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Understood, but presumably it can be exposed as a sub-function of the
-ppc's board's register file as a DMA-controller service to the x86.
-This would fall into the "tunnel requests back" category you mention
-above, though I think "tunnel" implies a heavier protocol than it would
-actually require.  This would look more like a PIO cycle to a DMA
-controller than some higher layer protocol.
-
-You would then utilize that DMA service inside the memctx, and it the
-rest of vbus would work transparently with the existing devices/drivers.
-
-I do agree it would require some benchmarking to determine its
-feasibility, which is why I was careful to say things like "may work"
-;).  I also do not even know if its possible to expose the service this
-way on his system.  If this design is not possible or performs poorly, I
-admit vbus is just as hosed as vhost in regard to the "role correction"
-benefit.
-
-Kind Regards,
--Greg
-
-
---------------enigEC75824AD85A44F4912F87A4
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG/MacGPG2 v2.0.11 (Darwin)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
-
-iEYEARECAAYFAkqxt1IACgkQP5K2CMvXmqFcBACdEdK6dMDD1cgvHnfb47PWv9rw
-arAAn0YoNmyNwDHyndyfBYpZXKHxTcPt
-=/ezZ
------END PGP SIGNATURE-----
-
---------------enigEC75824AD85A44F4912F87A4--
+> ---
+>  mm/memcontrol.c |   35 ++++++++++++++---------------------
+>  1 files changed, 14 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e2b98a6..00f3f97 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1370,6 +1370,17 @@ nomem:
+>  	return -ENOMEM;
+>  }
+>  
+> +/* A helper function to cancel the charge and refcnt by try_charge */
+> +static inline void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
+> +{
+> +	if (!mem_cgroup_is_root(mem)) {
+> +		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+> +		if (do_swap_account)
+> +			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> +	}
+> +	css_put(&mem->css);
+> +}
+> +
+>  /*
+>   * A helper function to get mem_cgroup from ID. must be called under
+>   * rcu_read_lock(). The caller must check css_is_removed() or some if
+> @@ -1436,13 +1447,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+>  	lock_page_cgroup(pc);
+>  	if (unlikely(PageCgroupUsed(pc))) {
+>  		unlock_page_cgroup(pc);
+> -		if (!mem_cgroup_is_root(mem)) {
+> -			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+> -			if (do_swap_account)
+> -				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
+> -							NULL);
+> -		}
+> -		css_put(&mem->css);
+> +		mem_cgroup_cancel_charge(mem);
+>  		return;
+>  	}
+>  
+> @@ -1606,14 +1611,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+>  cancel:
+>  	put_page(page);
+>  uncharge:
+> -	/* drop extra refcnt by try_charge() */
+> -	css_put(&parent->css);
+> -	/* uncharge if move fails */
+> -	if (!mem_cgroup_is_root(parent)) {
+> -		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
+> -		if (do_swap_account)
+> -			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+> -	}
+> +	mem_cgroup_cancel_charge(parent);
+>  	return ret;
+>  }
+>  
+> @@ -1830,12 +1828,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+>  		return;
+>  	if (!mem)
+>  		return;
+> -	if (!mem_cgroup_is_root(mem)) {
+> -		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+> -		if (do_swap_account)
+> -			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+> -	}
+> -	css_put(&mem->css);
+> +	mem_cgroup_cancel_charge(mem);
+>  }
+>  
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
