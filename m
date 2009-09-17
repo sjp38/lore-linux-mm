@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2916B0055
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:08:34 -0400 (EDT)
-Date: Thu, 17 Sep 2009 11:24:00 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH 1/8] memcg: introduce mem_cgroup_cancel_charge()
-Message-Id: <20090917112400.2d90c60d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
-References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EB9016B005A
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:09:15 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so1695306qwf.44
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2009 20:09:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
+References: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
+	 <1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
+Date: Thu, 17 Sep 2009 11:09:17 +0800
+Message-ID: <2375c9f90909162009w5cca547ah5df74972694eab09@mail.gmail.com>
+Subject: Re: kcore patches (was Re: 2.6.32 -mm merge plans)
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There are some places calling both res_counter_uncharge() and css_put()
-to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
+2009/9/16 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>:
+> Am=EF=BF=BD+1rico_Wang =E3=81=95=E3=82=93=E3=81=AF=E6=9B=B8=E3=81=8D=E3=
+=81=BE=E3=81=97=E3=81=9F=EF=BC=9A
+>> On Wed, Sep 16, 2009 at 7:15 AM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>>>#kcore-fix-proc-kcores-statst_size.patch: is it right?
+>>>kcore-fix-proc-kcores-statst_size.patch
+>>
+>> Hmm, I think KAMEZAWA Hiroyuki's patchset is a much better fix for this.
+>> Hiroyuki?
+>>
+> Hmm ? My set is not agaisnt "file size" of /proc/kcore.
+>
+> One problem of this patch is..this makes size of /proc/kcore as 0 bytes.
+> Then, objdump cannot read this. (it checks file size.)
+> readelf can read this. (it ignores file size.)
 
-This patch introduces mem_cgroup_cancel_charge() and call it in those places.
+Hmm, ok.
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   35 ++++++++++++++---------------------
- 1 files changed, 14 insertions(+), 21 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e2b98a6..00f3f97 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1370,6 +1370,17 @@ nomem:
- 	return -ENOMEM;
- }
- 
-+/* A helper function to cancel the charge and refcnt by try_charge */
-+static inline void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
-+{
-+	if (!mem_cgroup_is_root(mem)) {
-+		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
-+		if (do_swap_account)
-+			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
-+	}
-+	css_put(&mem->css);
-+}
-+
- /*
-  * A helper function to get mem_cgroup from ID. must be called under
-  * rcu_read_lock(). The caller must check css_is_removed() or some if
-@@ -1436,13 +1447,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- 	lock_page_cgroup(pc);
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		if (!mem_cgroup_is_root(mem)) {
--			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
--			if (do_swap_account)
--				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
--							NULL);
--		}
--		css_put(&mem->css);
-+		mem_cgroup_cancel_charge(mem);
- 		return;
- 	}
- 
-@@ -1606,14 +1611,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
- cancel:
- 	put_page(page);
- uncharge:
--	/* drop extra refcnt by try_charge() */
--	css_put(&parent->css);
--	/* uncharge if move fails */
--	if (!mem_cgroup_is_root(parent)) {
--		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
--		if (do_swap_account)
--			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
--	}
-+	mem_cgroup_cancel_charge(parent);
- 	return ret;
- }
- 
-@@ -1830,12 +1828,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
- 		return;
- 	if (!mem)
- 		return;
--	if (!mem_cgroup_is_root(mem)) {
--		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
--		if (do_swap_account)
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
--	}
--	css_put(&mem->css);
-+	mem_cgroup_cancel_charge(mem);
- }
- 
- 
+>
+> I wonder what you mention is.... because we know precise kclist_xxx
+> after my series, we can calculate kcore's size in precise by
+> get_kcore_size().
+
+
+Yeah, that is why I think your patchset for kcore can replace this.
+
+>
+> It seems /proc's inode->i_size is "static" and we cannot
+> provides return value of get_kcore_size() directly. It may need
+> some work and should depends on my kclist_xxx patch sets which are not
+> in merge candidates. If you can wait, I'll do some work for fixing this
+> problem. (but will not be able to merge directly against upstream.)
+>
+> But for now, we have to use some fixed value....and using above
+> patch for 2.6.31 is not very bad.
+
+
+Just saw your new patchset for this, I will review them.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
