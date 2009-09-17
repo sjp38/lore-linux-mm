@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 45FFA6B0083
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:21:47 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C03E6B007E
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:23:03 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/7] fs: Remove zeroing from nobh_writepage
-Date: Thu, 17 Sep 2009 17:21:42 +0200
-Message-Id: <1253200907-31392-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 6/7] ext4: Convert ext4 to new mkwrite code
+Date: Thu, 17 Sep 2009 17:21:46 +0200
+Message-Id: <1253200907-31392-7-git-send-email-jack@suse.cz>
 In-Reply-To: <1253200907-31392-1-git-send-email-jack@suse.cz>
 References: <1253200907-31392-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,494 +13,402 @@ To: linux-fsdevel@vger.kernel.org
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-It isn't necessary to zero page in nobh_writepage() since mpage_writepage()
-takes care of that. We just have to use block_write_full_page() instead
-of __block_write_full_page() to properly zero the page in case we have
-to fallback to ordinary writepage.
-
-Since __block_write_full_page is then only used from
-block_write_full_page_endio() join them.
-
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/buffer.c |  426 +++++++++++++++++++++++++++--------------------------------
- 1 files changed, 196 insertions(+), 230 deletions(-)
+ fs/ext4/ext4.h    |    2 -
+ fs/ext4/extents.c |    4 -
+ fs/ext4/inode.c   |  239 +++++++++++++++++++++++------------------------------
+ 3 files changed, 102 insertions(+), 143 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 67b260a..0eaa961 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -1589,207 +1589,6 @@ void unmap_underlying_metadata(struct block_device *bdev, sector_t block)
- EXPORT_SYMBOL(unmap_underlying_metadata);
+diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+index 9714db3..9110114 100644
+--- a/fs/ext4/ext4.h
++++ b/fs/ext4/ext4.h
+@@ -1374,8 +1374,6 @@ extern void ext4_set_aops(struct inode *inode);
+ extern int ext4_writepage_trans_blocks(struct inode *);
+ extern int ext4_meta_trans_blocks(struct inode *, int nrblocks, int idxblocks);
+ extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
+-extern int ext4_block_truncate_page(handle_t *handle,
+-		struct address_space *mapping, loff_t from);
+ extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
+ extern qsize_t ext4_get_reserved_space(struct inode *inode);
+ 
+diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
+index 73ebfb4..76ece1b 100644
+--- a/fs/ext4/extents.c
++++ b/fs/ext4/extents.c
+@@ -2996,7 +2996,6 @@ out2:
+ 
+ void ext4_ext_truncate(struct inode *inode)
+ {
+-	struct address_space *mapping = inode->i_mapping;
+ 	struct super_block *sb = inode->i_sb;
+ 	ext4_lblk_t last_block;
+ 	handle_t *handle;
+@@ -3010,9 +3009,6 @@ void ext4_ext_truncate(struct inode *inode)
+ 	if (IS_ERR(handle))
+ 		return;
+ 
+-	if (inode->i_size & (sb->s_blocksize - 1))
+-		ext4_block_truncate_page(handle, mapping, inode->i_size);
+-
+ 	if (ext4_orphan_add(handle, inode))
+ 		goto out_stop;
+ 
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index be25874..1df027c 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -1451,6 +1451,53 @@ static int do_journal_get_write_access(handle_t *handle,
+ 	return ext4_journal_get_write_access(handle, bh);
+ }
+ 
++/*
++ * If we create a hole by this write, zero out a block partially under
++ * the hole created
++ */
++static int ext4_prepare_hole(handle_t *handle, struct inode *inode,
++			     loff_t from, loff_t to, unsigned flags)
++{
++	struct buffer_head *bh;
++	unsigned hole_start, hole_len;
++	unsigned bsize = 1 << inode->i_blkbits;
++	int ret;
++
++	/* No hole created? */
++	if (from >= to)
++		return 0;
++
++	bh = block_prepare_hole_bh(inode, from, to, flags, ext4_get_block);
++	if (IS_ERR(bh))
++		return PTR_ERR(bh);
++	if (!bh)
++		return 0;
++
++	if (ext4_should_journal_data(inode)) {
++		ret = ext4_journal_get_write_access(handle, bh);
++		if (ret)
++			goto out;
++	}
++	/* Zero the tail of the block upto 'from' */
++	hole_start = from & (PAGE_CACHE_SIZE - 1);
++	if (to > ALIGN(from, bsize))
++		hole_len = bsize - (hole_start & (bsize - 1));
++	else
++		hole_len = to - from;
++
++	zero_user(bh->b_page, hole_start, hole_len);
++	if (ext4_should_order_data(inode)) {
++		ret = ext4_jbd2_file_inode(handle, inode);
++		mark_buffer_dirty(bh);
++	} else if (ext4_should_journal_data(inode))
++		ret = ext4_handle_dirty_metadata(handle, inode, bh);
++	else
++		mark_buffer_dirty(bh);
++out:
++	brelse(bh);
++	return ret;
++}
++
+ static int ext4_write_begin(struct file *file, struct address_space *mapping,
+ 			    loff_t pos, unsigned len, unsigned flags,
+ 			    struct page **pagep, void **fsdata)
+@@ -1465,10 +1512,13 @@ static int ext4_write_begin(struct file *file, struct address_space *mapping,
+ 
+ 	trace_ext4_write_begin(inode, pos, len, flags);
+ 	/*
+-	 * Reserve one block more for addition to orphan list in case
+-	 * we allocate blocks but write fails for some reason
++	 * Reserve one block for addition to orphan list in case
++	 * we allocate blocks but write fails for some reason and
++	 * one block for zeroed block in case we create hole
++	 * (needed only if we journal data)
+ 	 */
+-	needed_blocks = ext4_writepage_trans_blocks(inode) + 1;
++	needed_blocks = ext4_writepage_trans_blocks(inode) + 1 +
++		(pos > inode->i_size && ext4_should_journal_data(inode));
+ 	index = pos >> PAGE_CACHE_SHIFT;
+ 	from = pos & (PAGE_CACHE_SIZE - 1);
+ 	to = from + len;
+@@ -1484,6 +1534,12 @@ retry:
+ 	 * started */
+ 	flags |= AOP_FLAG_NOFS;
+ 
++	ret = ext4_prepare_hole(handle, inode, inode->i_size, pos, flags);
++	if (ret) {
++		ext4_journal_stop(handle);
++		goto out;
++	}
++
+ 	page = grab_cache_page_write_begin(mapping, index, flags);
+ 	if (!page) {
+ 		ext4_journal_stop(handle);
+@@ -1548,23 +1604,17 @@ static int ext4_generic_write_end(struct file *file,
+ 				  loff_t pos, unsigned len, unsigned copied,
+ 				  struct page *page, void *fsdata)
+ {
+-	int i_size_changed = 0;
+ 	struct inode *inode = mapping->host;
+ 	handle_t *handle = ext4_journal_current_handle();
++	loff_t old_i_size = inode->i_size;
+ 
+ 	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+ 
+-	/*
+-	 * No need to use i_size_read() here, the i_size
+-	 * cannot change under us because we hold i_mutex.
+-	 *
+-	 * But it's important to update i_size while still holding page lock:
+-	 * page writeout could otherwise come in and zero beyond i_size.
+-	 */
+-	if (pos + copied > inode->i_size) {
++	unlock_page(page);
++	page_cache_release(page);
++
++	if (pos + copied > inode->i_size)
+ 		i_size_write(inode, pos + copied);
+-		i_size_changed = 1;
+-	}
+ 
+ 	if (pos + copied >  EXT4_I(inode)->i_disksize) {
+ 		/* We need to mark inode dirty even if
+@@ -1572,19 +1622,9 @@ static int ext4_generic_write_end(struct file *file,
+ 		 * bu greater than i_disksize.(hint delalloc)
+ 		 */
+ 		ext4_update_i_disksize(inode, (pos + copied));
+-		i_size_changed = 1;
+-	}
+-	unlock_page(page);
+-	page_cache_release(page);
+-
+-	/*
+-	 * Don't mark the inode dirty under page lock. First, it unnecessarily
+-	 * makes the holding time of page lock longer. Second, it forces lock
+-	 * ordering of page lock and transaction start for journaling
+-	 * filesystems.
+-	 */
+-	if (i_size_changed)
+ 		ext4_mark_inode_dirty(handle, inode);
++	}
++	block_finish_hole(inode, old_i_size, pos);
+ 
+ 	return copied;
+ }
+@@ -1691,7 +1731,7 @@ static int ext4_journalled_write_end(struct file *file,
+ 	int ret = 0, ret2;
+ 	int partial = 0;
+ 	unsigned from, to;
+-	loff_t new_i_size;
++	loff_t new_i_size, old_i_size = inode->i_size;
+ 
+ 	trace_ext4_journalled_write_end(inode, pos, len, copied);
+ 	from = pos & (PAGE_CACHE_SIZE - 1);
+@@ -1707,6 +1747,10 @@ static int ext4_journalled_write_end(struct file *file,
+ 				to, &partial, write_end_fn);
+ 	if (!partial)
+ 		SetPageUptodate(page);
++
++	unlock_page(page);
++	page_cache_release(page);
++
+ 	new_i_size = pos + copied;
+ 	if (new_i_size > inode->i_size)
+ 		i_size_write(inode, pos+copied);
+@@ -1718,8 +1762,8 @@ static int ext4_journalled_write_end(struct file *file,
+ 			ret = ret2;
+ 	}
+ 
+-	unlock_page(page);
+-	page_cache_release(page);
++	block_finish_hole(inode, old_i_size, pos);
++
+ 	if (pos + len > inode->i_size && ext4_can_truncate(inode))
+ 		/* if we have allocated more blocks and copied
+ 		 * less. We will have blocks allocated outside
+@@ -2967,6 +3011,12 @@ retry:
+ 	 * started */
+ 	flags |= AOP_FLAG_NOFS;
+ 
++	ret = ext4_prepare_hole(handle, inode, inode->i_size, pos, flags);
++	if (ret) {
++		ext4_journal_stop(handle);
++		goto out;
++	}
++
+ 	page = grab_cache_page_write_begin(mapping, index, flags);
+ 	if (!page) {
+ 		ext4_journal_stop(handle);
+@@ -3434,100 +3484,6 @@ void ext4_set_aops(struct inode *inode)
+ }
  
  /*
-- * NOTE! All mapped/uptodate combinations are valid:
-- *
-- *	Mapped	Uptodate	Meaning
-- *
-- *	No	No		"unknown" - must do get_block()
-- *	No	Yes		"hole" - zero-filled
-- *	Yes	No		"allocated" - allocated on disk, not read in
-- *	Yes	Yes		"valid" - allocated and up-to-date in memory.
-- *
-- * "Dirty" is valid only with the last case (mapped+uptodate).
+- * ext4_block_truncate_page() zeroes out a mapping from file offset `from'
+- * up to the end of the block which corresponds to `from'.
+- * This required during truncate. We need to physically zero the tail end
+- * of that block so it doesn't yield old data if the file is later grown.
 - */
--
--/*
-- * While block_write_full_page is writing back the dirty buffers under
-- * the page lock, whoever dirtied the buffers may decide to clean them
-- * again at any time.  We handle that by only looking at the buffer
-- * state inside lock_buffer().
-- *
-- * If block_write_full_page() is called for regular writeback
-- * (wbc->sync_mode == WB_SYNC_NONE) then it will redirty a page which has a
-- * locked buffer.   This only can happen if someone has written the buffer
-- * directly, with submit_bh().  At the address_space level PageWriteback
-- * prevents this contention from occurring.
-- *
-- * If block_write_full_page() is called with wbc->sync_mode ==
-- * WB_SYNC_ALL, the writes are posted using WRITE_SYNC_PLUG; this
-- * causes the writes to be flagged as synchronous writes, but the
-- * block device queue will NOT be unplugged, since usually many pages
-- * will be pushed to the out before the higher-level caller actually
-- * waits for the writes to be completed.  The various wait functions,
-- * such as wait_on_writeback_range() will ultimately call sync_page()
-- * which will ultimately call blk_run_backing_dev(), which will end up
-- * unplugging the device queue.
-- */
--static int __block_write_full_page(struct inode *inode, struct page *page,
--			get_block_t *get_block, struct writeback_control *wbc,
--			bh_end_io_t *handler)
+-int ext4_block_truncate_page(handle_t *handle,
+-		struct address_space *mapping, loff_t from)
 -{
--	int err;
--	sector_t block;
--	sector_t last_block;
--	struct buffer_head *bh, *head;
--	const unsigned blocksize = 1 << inode->i_blkbits;
--	int nr_underway = 0;
--	int write_op = (wbc->sync_mode == WB_SYNC_ALL ?
--			WRITE_SYNC_PLUG : WRITE);
+-	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+-	unsigned blocksize, length, pos;
+-	ext4_lblk_t iblock;
+-	struct inode *inode = mapping->host;
+-	struct buffer_head *bh;
+-	struct page *page;
+-	int err = 0;
 -
--	BUG_ON(!PageLocked(page));
+-	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
+-				   mapping_gfp_mask(mapping) & ~__GFP_FS);
+-	if (!page)
+-		return -EINVAL;
 -
--	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
+-	blocksize = inode->i_sb->s_blocksize;
+-	length = blocksize - (offset & (blocksize - 1));
+-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
 -
--	if (!page_has_buffers(page)) {
--		create_empty_buffers(page, blocksize,
--					(1 << BH_Dirty)|(1 << BH_Uptodate));
--	}
+-	if (!page_has_buffers(page))
+-		create_empty_buffers(page, blocksize, 0);
 -
--	/*
--	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
--	 * here, and the (potentially unmapped) buffers may become dirty at
--	 * any time.  If a buffer becomes dirty here after we've inspected it
--	 * then we just miss that fact, and the page stays dirty.
--	 *
--	 * Buffers outside i_size may be dirtied by __set_page_dirty_buffers;
--	 * handle that here by just cleaning them.
--	 */
--
--	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
--	head = page_buffers(page);
--	bh = head;
--
--	/*
--	 * Get all the dirty buffers mapped to disk addresses and
--	 * handle any aliases from the underlying blockdev's mapping.
--	 */
--	do {
--		if (block > last_block) {
--			/*
--			 * mapped buffers outside i_size will occur, because
--			 * this page can be outside i_size when there is a
--			 * truncate in progress.
--			 */
--			/*
--			 * The buffer was zeroed by block_write_full_page()
--			 */
--			clear_buffer_dirty(bh);
--			set_buffer_uptodate(bh);
--		} else if ((!buffer_mapped(bh) || buffer_delay(bh)) &&
--			   buffer_dirty(bh)) {
--			WARN_ON(bh->b_size != blocksize);
--			err = get_block(inode, block, bh, 1);
--			if (err)
--				goto recover;
--			clear_buffer_delay(bh);
--			if (buffer_new(bh)) {
--				/* blockdev mappings never come here */
--				clear_buffer_new(bh);
--				unmap_underlying_metadata(bh->b_bdev,
--							bh->b_blocknr);
--			}
--		}
+-	/* Find the buffer that contains "offset" */
+-	bh = page_buffers(page);
+-	pos = blocksize;
+-	while (offset >= pos) {
 -		bh = bh->b_this_page;
--		block++;
--	} while (bh != head);
--
--	do {
--		if (!buffer_mapped(bh))
--			continue;
--		/*
--		 * If it's a fully non-blocking write attempt and we cannot
--		 * lock the buffer then redirty the page.  Note that this can
--		 * potentially cause a busy-wait loop from pdflush and kswapd
--		 * activity, but those code paths have their own higher-level
--		 * throttling.
--		 */
--		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
--			lock_buffer(bh);
--		} else if (!trylock_buffer(bh)) {
--			redirty_page_for_writepage(wbc, page);
--			continue;
--		}
--		if (test_clear_buffer_dirty(bh)) {
--			mark_buffer_async_write_endio(bh, handler);
--		} else {
--			unlock_buffer(bh);
--		}
--	} while ((bh = bh->b_this_page) != head);
--
--	/*
--	 * The page and its buffers are protected by PageWriteback(), so we can
--	 * drop the bh refcounts early.
--	 */
--	BUG_ON(PageWriteback(page));
--	set_page_writeback(page);
--
--	do {
--		struct buffer_head *next = bh->b_this_page;
--		if (buffer_async_write(bh)) {
--			submit_bh(write_op, bh);
--			nr_underway++;
--		}
--		bh = next;
--	} while (bh != head);
--	unlock_page(page);
+-		iblock++;
+-		pos += blocksize;
+-	}
 -
 -	err = 0;
--done:
--	if (nr_underway == 0) {
--		/*
--		 * The page was marked dirty, but the buffers were
--		 * clean.  Someone wrote them back by hand with
--		 * ll_rw_block/submit_bh.  A rare case.
--		 */
--		end_page_writeback(page);
--
--		/*
--		 * The page and buffer_heads can be released at any time from
--		 * here on.
--		 */
+-	if (buffer_freed(bh)) {
+-		BUFFER_TRACE(bh, "freed: skip");
+-		goto unlock;
 -	}
--	return err;
 -
--recover:
--	/*
--	 * ENOSPC, or some other error.  We may already have added some
--	 * blocks to the file, so we need to write these out to avoid
--	 * exposing stale data.
--	 * The page is currently locked and not marked for writeback
--	 */
--	bh = head;
--	/* Recovery: lock and submit the mapped buffers */
--	do {
--		if (buffer_mapped(bh) && buffer_dirty(bh) &&
--		    !buffer_delay(bh)) {
--			lock_buffer(bh);
--			mark_buffer_async_write_endio(bh, handler);
--		} else {
--			/*
--			 * The buffer may have been set dirty during
--			 * attachment to a dirty page.
--			 */
--			clear_buffer_dirty(bh);
+-	if (!buffer_mapped(bh)) {
+-		BUFFER_TRACE(bh, "unmapped");
+-		ext4_get_block(inode, iblock, bh, 0);
+-		/* unmapped? It's a hole - nothing to do */
+-		if (!buffer_mapped(bh)) {
+-			BUFFER_TRACE(bh, "still unmapped");
+-			goto unlock;
 -		}
--	} while ((bh = bh->b_this_page) != head);
--	SetPageError(page);
--	BUG_ON(PageWriteback(page));
--	mapping_set_error(page->mapping, err);
--	set_page_writeback(page);
--	do {
--		struct buffer_head *next = bh->b_this_page;
--		if (buffer_async_write(bh)) {
--			clear_buffer_dirty(bh);
--			submit_bh(write_op, bh);
--			nr_underway++;
--		}
--		bh = next;
--	} while (bh != head);
+-	}
+-
+-	/* Ok, it's mapped. Make sure it's up-to-date */
+-	if (PageUptodate(page))
+-		set_buffer_uptodate(bh);
+-
+-	if (!buffer_uptodate(bh)) {
+-		err = -EIO;
+-		ll_rw_block(READ, 1, &bh);
+-		wait_on_buffer(bh);
+-		/* Uhhuh. Read error. Complain and punt. */
+-		if (!buffer_uptodate(bh))
+-			goto unlock;
+-	}
+-
+-	if (ext4_should_journal_data(inode)) {
+-		BUFFER_TRACE(bh, "get write access");
+-		err = ext4_journal_get_write_access(handle, bh);
+-		if (err)
+-			goto unlock;
+-	}
+-
+-	zero_user(page, offset, length);
+-
+-	BUFFER_TRACE(bh, "zeroed end of block");
+-
+-	err = 0;
+-	if (ext4_should_journal_data(inode)) {
+-		err = ext4_handle_dirty_metadata(handle, inode, bh);
+-	} else {
+-		if (ext4_should_order_data(inode))
+-			err = ext4_jbd2_file_inode(handle, inode);
+-		mark_buffer_dirty(bh);
+-	}
+-
+-unlock:
 -	unlock_page(page);
--	goto done;
+-	page_cache_release(page);
+-	return err;
 -}
 -
 -/*
-  * If a page has any new buffers, zero them out here, and mark them uptodate
-  * and dirty so they'll be written out (in order to prevent uninitialised
-  * block data from leaking). And clear the new bit.
-@@ -2653,36 +2452,11 @@ EXPORT_SYMBOL(nobh_write_end);
- int nobh_writepage(struct page *page, get_block_t *get_block,
- 			struct writeback_control *wbc)
- {
--	struct inode * const inode = page->mapping->host;
--	loff_t i_size = i_size_read(inode);
--	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
--	unsigned offset;
- 	int ret;
+  * Probably it should be a library function... search for first non-zero word
+  * or memcmp with zero_page, whatever is better for particular architecture.
+  * Linus?
+@@ -3932,7 +3888,6 @@ void ext4_truncate(struct inode *inode)
+ 	struct ext4_inode_info *ei = EXT4_I(inode);
+ 	__le32 *i_data = ei->i_data;
+ 	int addr_per_block = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+-	struct address_space *mapping = inode->i_mapping;
+ 	ext4_lblk_t offsets[4];
+ 	Indirect chain[4];
+ 	Indirect *partial;
+@@ -3960,10 +3915,6 @@ void ext4_truncate(struct inode *inode)
+ 	last_block = (inode->i_size + blocksize-1)
+ 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
  
--	/* Is the page fully inside i_size? */
--	if (page->index < end_index)
--		goto out;
+-	if (inode->i_size & (blocksize - 1))
+-		if (ext4_block_truncate_page(handle, mapping, inode->i_size))
+-			goto out_stop;
 -
--	/* Is the page fully outside i_size? (truncate in progress) */
--	offset = i_size & (PAGE_CACHE_SIZE-1);
--	if (page->index >= end_index+1 || !offset) {
--		unlock_page(page);
--		return 0;
--	}
--
--	/*
--	 * The page straddles i_size.  It must be zeroed out on each and every
--	 * writepage invocation because it may be mmapped.  "A file is mapped
--	 * in multiples of the page size.  For a file that is not a multiple of
--	 * the  page size, the remaining memory is zeroed when mapped, and
--	 * writes to that region are not written out to the file."
--	 */
--	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
--out:
- 	ret = mpage_writepage(page, get_block, wbc);
- 	if (ret == -EAGAIN)
--		ret = __block_write_full_page(inode, page, get_block, wbc,
--					      end_buffer_async_write);
-+		ret = block_write_full_page(page, get_block, wbc);
- 	return ret;
- }
- EXPORT_SYMBOL(nobh_writepage);
-@@ -2841,21 +2615,64 @@ out:
- }
+ 	n = ext4_block_to_path(inode, last_block, offsets, NULL);
+ 	if (n == 0)
+ 		goto out_stop;	/* error */
+@@ -4744,16 +4695,30 @@ static int ext4_setsize(struct inode *inode, loff_t newsize)
+ 				goto err_out;
+ 			}
+ 		}
+-	} else if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
+-		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
++	} else {
++		if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
++			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
  
- /*
-+ * NOTE! All mapped/uptodate combinations are valid:
-+ *
-+ *	Mapped	Uptodate	Meaning
-+ *
-+ *	No	No		"unknown" - must do get_block()
-+ *	No	Yes		"hole" - zero-filled
-+ *	Yes	No		"allocated" - allocated on disk, not read in
-+ *	Yes	Yes		"valid" - allocated and up-to-date in memory.
-+ *
-+ * "Dirty" is valid only with the last case (mapped+uptodate).
-+ */
-+
-+/*
-  * The generic ->writepage function for buffer-backed address_spaces
-  * this form passes in the end_io handler used to finish the IO.
-+ *
-+ * While block_write_full_page is writing back the dirty buffers under
-+ * the page lock, whoever dirtied the buffers may decide to clean them
-+ * again at any time.  We handle that by only looking at the buffer
-+ * state inside lock_buffer().
-+ *
-+ * If block_write_full_page() is called for regular writeback
-+ * (wbc->sync_mode == WB_SYNC_NONE) then it will redirty a page which has a
-+ * locked buffer. This only can happen if someone has written the buffer
-+ * directly, with submit_bh().  At the address_space level PageWriteback
-+ * prevents this contention from occurring.
-+ *
-+ * If block_write_full_page() is called with wbc->sync_mode ==
-+ * WB_SYNC_ALL, the writes are posted using WRITE_SYNC_PLUG; this
-+ * causes the writes to be flagged as synchronous writes, but the
-+ * block device queue will NOT be unplugged, since usually many pages
-+ * will be pushed to the out before the higher-level caller actually
-+ * waits for the writes to be completed.  The various wait functions,
-+ * such as wait_on_writeback_range() will ultimately call sync_page()
-+ * which will ultimately call blk_run_backing_dev(), which will end up
-+ * unplugging the device queue.
-  */
- int block_write_full_page_endio(struct page *page, get_block_t *get_block,
- 			struct writeback_control *wbc, bh_end_io_t *handler)
- {
-+	int err;
- 	struct inode * const inode = page->mapping->host;
- 	loff_t i_size = i_size_read(inode);
- 	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
- 	unsigned offset;
-+	sector_t block;
-+	sector_t last_block;
-+	struct buffer_head *bh, *head;
-+	const unsigned blocksize = 1 << inode->i_blkbits;
-+	int nr_underway = 0;
-+	int write_op = (wbc->sync_mode == WB_SYNC_ALL ?
-+			WRITE_SYNC_PLUG : WRITE);
-+
-+	BUG_ON(!PageLocked(page));
- 
- 	/* Is the page fully inside i_size? */
- 	if (page->index < end_index)
--		return __block_write_full_page(inode, page, get_block, wbc,
--					       handler);
-+		goto write_page;
- 
- 	/* Is the page fully outside i_size? (truncate in progress) */
- 	offset = i_size & (PAGE_CACHE_SIZE-1);
-@@ -2872,7 +2689,156 @@ int block_write_full_page_endio(struct page *page, get_block_t *get_block,
- 	 * writes to that region are not written out to the file."
- 	 */
- 	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
--	return __block_write_full_page(inode, page, get_block, wbc, handler);
-+write_page:
-+	last_block = i_size >> inode->i_blkbits;
-+
-+	if (!page_has_buffers(page)) {
-+		create_empty_buffers(page, blocksize,
-+					(1 << BH_Dirty)|(1 << BH_Uptodate));
-+	}
-+
-+	/*
-+	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
-+	 * here, and the (potentially unmapped) buffers may become dirty at
-+	 * any time.  If a buffer becomes dirty here after we've inspected it
-+	 * then we just miss that fact, and the page stays dirty.
-+	 *
-+	 * Buffers outside i_size may be dirtied by __set_page_dirty_buffers;
-+	 * handle that here by just cleaning them.
-+	 */
-+
-+	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-+	head = page_buffers(page);
-+	bh = head;
-+
-+	/*
-+	 * Get all the dirty buffers mapped to disk addresses and
-+	 * handle any aliases from the underlying blockdev's mapping.
-+	 */
-+	do {
-+		if (block > last_block) {
-+			/*
-+			 * mapped buffers outside i_size will occur, because
-+			 * this page can be outside i_size when there is a
-+			 * truncate in progress.
-+			 */
-+			/*
-+			 * The buffer was zeroed by block_write_full_page()
-+			 */
-+			clear_buffer_dirty(bh);
-+			set_buffer_uptodate(bh);
-+		} else if ((!buffer_mapped(bh) || buffer_delay(bh)) &&
-+			   buffer_dirty(bh)) {
-+			WARN_ON(bh->b_size != blocksize);
-+			err = get_block(inode, block, bh, 1);
-+			if (err)
-+				goto recover;
-+			clear_buffer_delay(bh);
-+			if (buffer_new(bh)) {
-+				/* blockdev mappings never come here */
-+				clear_buffer_new(bh);
-+				unmap_underlying_metadata(bh->b_bdev,
-+							bh->b_blocknr);
+-		if (newsize > sbi->s_bitmap_maxbytes) {
+-			error = -EFBIG;
+-			goto out;
++			if (newsize > sbi->s_bitmap_maxbytes) {
++				error = -EFBIG;
++				goto out;
 +			}
+ 		}
++		handle = ext4_journal_start(inode, 1);
++		if (IS_ERR(handle)) {
++			error = PTR_ERR(handle);
++			goto err_out;
 +		}
-+		bh = bh->b_this_page;
-+		block++;
-+	} while (bh != head);
-+
-+	do {
-+		if (!buffer_mapped(bh))
-+			continue;
-+		/*
-+		 * If it's a fully non-blocking write attempt and we cannot
-+		 * lock the buffer then redirty the page.  Note that this can
-+		 * potentially cause a busy-wait loop from pdflush and kswapd
-+		 * activity, but those code paths have their own higher-level
-+		 * throttling.
-+		 */
-+		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
-+			lock_buffer(bh);
-+		} else if (!trylock_buffer(bh)) {
-+			redirty_page_for_writepage(wbc, page);
-+			continue;
-+		}
-+		if (test_clear_buffer_dirty(bh)) {
-+			mark_buffer_async_write_endio(bh, handler);
-+		} else {
-+			unlock_buffer(bh);
-+		}
-+	} while ((bh = bh->b_this_page) != head);
-+
-+	/*
-+	 * The page and its buffers are protected by PageWriteback(), so we can
-+	 * drop the bh refcounts early.
-+	 */
-+	BUG_ON(PageWriteback(page));
-+	set_page_writeback(page);
-+
-+	do {
-+		struct buffer_head *next = bh->b_this_page;
-+		if (buffer_async_write(bh)) {
-+			submit_bh(write_op, bh);
-+			nr_underway++;
-+		}
-+		bh = next;
-+	} while (bh != head);
-+	unlock_page(page);
-+
-+	err = 0;
-+done:
-+	if (nr_underway == 0) {
-+		/*
-+		 * The page was marked dirty, but the buffers were
-+		 * clean.  Someone wrote them back by hand with
-+		 * ll_rw_block/submit_bh.  A rare case.
-+		 */
-+		end_page_writeback(page);
-+
-+		/*
-+		 * The page and buffer_heads can be released at any time from
-+		 * here on.
-+		 */
-+	}
-+	return err;
-+
-+recover:
-+	/*
-+	 * ENOSPC, or some other error.  We may already have added some
-+	 * blocks to the file, so we need to write these out to avoid
-+	 * exposing stale data.
-+	 * The page is currently locked and not marked for writeback
-+	 */
-+	bh = head;
-+	/* Recovery: lock and submit the mapped buffers */
-+	do {
-+		if (buffer_mapped(bh) && buffer_dirty(bh) &&
-+		    !buffer_delay(bh)) {
-+			lock_buffer(bh);
-+			mark_buffer_async_write_endio(bh, handler);
-+		} else {
-+			/*
-+			 * The buffer may have been set dirty during
-+			 * attachment to a dirty page.
-+			 */
-+			clear_buffer_dirty(bh);
-+		}
-+	} while ((bh = bh->b_this_page) != head);
-+	SetPageError(page);
-+	BUG_ON(PageWriteback(page));
-+	mapping_set_error(page->mapping, err);
-+	set_page_writeback(page);
-+	do {
-+		struct buffer_head *next = bh->b_this_page;
-+		if (buffer_async_write(bh)) {
-+			clear_buffer_dirty(bh);
-+			submit_bh(write_op, bh);
-+			nr_underway++;
-+		}
-+		bh = next;
-+	} while (bh != head);
-+	unlock_page(page);
-+	goto done;
- }
++		error = ext4_prepare_hole(handle, inode, oldsize, newsize,
++					  AOP_FLAG_NOFS);
++		ext4_journal_stop(handle);
++		if (error)
++			goto err_out;
+ 	}
  
- /*
+ 	i_size_write(inode, newsize);
++	if (newsize > oldsize)
++		block_finish_hole(inode, oldsize, newsize);
+ 	truncate_pagecache(inode, oldsize, newsize);
+ 	ext4_truncate(inode);
+ 
+@@ -5301,10 +5266,10 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	}
+ 	/*
+ 	 * OK, we need to fill the hole... Do write_begin write_end
+-	 * to do block allocation/reservation.We are not holding
+-	 * inode.i__mutex here. That allow * parallel write_begin,
+-	 * write_end call. lock_page prevent this from happening
+-	 * on the same page though
++	 * to do block allocation/reservation. We are not holding
++	 * inode->i_mutex here. That allows parallel write_begin,
++	 * write_end calls. lock_page prevent this from happening
++	 * on the same page though.
+ 	 */
+ 	ret = mapping->a_ops->write_begin(file, mapping, page_offset(page),
+ 			len, AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
 -- 
 1.6.0.2
 
