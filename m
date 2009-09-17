@@ -1,65 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8630A6B0085
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 18:26:42 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
-Date: Fri, 18 Sep 2009 00:27:37 +0200
-References: <20090915120538.GA26806@bizet.domek.prywatny> <200909170118.53965.rjw@sisk.pl> <4AB29F4A.3030102@intel.com>
-In-Reply-To: <4AB29F4A.3030102@intel.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200909180027.37387.rjw@sisk.pl>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 551F56B0088
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 18:44:30 -0400 (EDT)
+Received: by yxe10 with SMTP id 10so656606yxe.12
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2009 15:44:34 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Subject: [PATCH 0/4] compcache: in-memory compressed swapping v3
+Date: Fri, 18 Sep 2009 04:13:28 +0530
+Message-Id: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: david.graham@intel.com
-Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Greg KH <greg@kroah.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 17 September 2009, Graham, David wrote:
-> Rafael J. Wysocki wrote:
-> > On Tuesday 15 September 2009, Karol Lewandowski wrote:
-> >> Hello,
-> >>
-> >> I'm getting following oops sometimes during resume on my Thinkpad T21
-> >> (where "sometimes" means about 10/1 good/bad ratio):
-> >>
-> >> ifconfig: page allocation failure. order:5, mode:0x8020
-> > 
-> > Well, this only tells you that an attempt to make order 5 allocation failed,
-> > which is not unusual at all.
-> > 
-> > Allocations of this order are quite likely to fail if memory is fragmented,
-> > the probability of which rises with the number of suspend-resume cycles already
-> > carried out.
-> > 
-> > I guess the driver releases its DMA buffer during suspend and attempts to
-> > allocate it back on resume, which is not really smart (if that really is the
-> > case).
-> > 
-> Yes, we free a 70KB block (0x80 by 0x230 bytes) on suspend and 
-> reallocate on resume, and so that's an Order 5 request. It looks 
-> symmetric, and hasn't changed for years. I don't think we are leaking 
-> memory, which points back to that the memory is too fragmented to 
-> satisfy the request.
-> 
-> I also concur that Rafael's commit 6905b1f1 shouldn't change the logic 
-> in the driver for systems with e100 (like yours Karol) that could 
-> already sleep, and I don't see anything else in the driver that looks to 
-> be relevant. I'm expecting that your test result without commit 6905b1f1 
-> will still show the problem.
-> 
-> So I wonder if this new issue may be triggered by some other change in 
-> the memory subsystem ?
+Project home: http://compcache.googlecode.com/
 
-I think so.  There have been reports about order 2 allocations failing for
-2.6.31, so it looks like newer kernels are more likely to expose such problems.
+* Changelog: v3 vs v2
+ - All cleanups as suggested by Pekka.
+ - Move to staging (drivers/block/ramzswap/ -> drivers/staging/ramzswap/).
+ - Remove swap discard hooks -- swap notify support makes these redundant.
+ - Unify duplicate code between init_device() fail path and reset_device().
+ - Fix zero-page accounting.
+ - Do not accept backing swap with bad pages.
 
-Adding linux-mm to the CC list.
+* Changelog: v2 vs initial revision
+ - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and xvmalloc.
+   This is to make these 64-bit safe.
+ - xvmalloc is no longer a separate module and does not export any symbols.
+   Its compiled directly with ramzswap block driver. This is to avoid any
+   last bit of confusion with any other allocator.
+ - set_swap_free_notify() now accepts block_device as parameter instead of
+   swp_entry_t (interface cleanup).
+ - Fix: Make sure ramzswap disksize matches usable pages in backing swap file.
+   This caused initialization error in case backing swap file had intra-page
+   fragmentation.
 
-Thanks,
-Rafael
+It creates RAM based block devices which can be used (only) as swap disks.
+Pages swapped to these disks are compressed and stored in memory itself. This
+is a big win over swapping to slow hard-disk which are typically used as swap
+disk. For flash, these suffer from wear-leveling issues when used as swap disk
+- so again its helpful. For swapless systems, it allows more apps to run for a
+given amount of memory.
+
+It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
+Each of these devices can have separate backing swap (file or disk partition)
+which is used when incompressible page is found or memory limit for device is
+reached.
+
+A separate userspace utility called rzscontrol is used to manage individual
+ramzswap devices.
+
+* Testing notes
+
+Tested on x86, x64, ARM
+ARM:
+ - Cortex-A8 (Beagleboard)
+ - ARM11 (Android G1)
+ - OMAP2420 (Nokia N810)
+
+* Performance
+
+All performance numbers/plots can be found at:
+http://code.google.com/p/compcache/wiki/Performance
+
+Below is a summary of this data:
+
+General:
+ - Swap R/W times are reduced from milliseconds (in case of hard disks)
+down to microseconds.
+
+Positive cases:
+ - Shows 33% improvement in 'scan' benchmark which allocates given amount
+of memory and linearly reads/writes to this region. This benchmark also
+exposes bottlenecks in ramzswap code (global mutex) due to which this gain
+is so small.
+ - On Linux thin clients, it gives the effect of nearly doubling the amount of
+memory.
+
+Negative cases:
+Any workload that has active working set w.r.t. filesystem cache that is
+nearly equal to amount of RAM while has minimal anonymous memory requirement,
+is expected to suffer maximum loss in performance with ramzswap enabled.
+
+Iozone filesystem benchmark can simulate exactly this kind of workload.
+As expected, this test shows performance loss of ~25% with ramzswap.
+
+ drivers/staging/Kconfig                   |    2 +
+ drivers/staging/Makefile                  |    1 +
+ drivers/staging/ramzswap/Kconfig          |   21 +
+ drivers/staging/ramzswap/Makefile         |    3 +
+ drivers/staging/ramzswap/ramzswap.txt     |   51 +
+ drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
+ drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
+ drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
+ drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
+ drivers/staging/ramzswap/xvmalloc.h       |   30 +
+ drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
+ include/linux/swap.h                      |    5 +
+ mm/swapfile.c                             |   34 +
+ 13 files changed, 2451 insertions(+), 0 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
