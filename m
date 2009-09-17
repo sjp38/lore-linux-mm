@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 547226B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 22:47:10 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8H2lE7Y030835
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 17 Sep 2009 11:47:14 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D5FE45DE51
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:47:14 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F1B945DE4F
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:47:14 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D6281DB8043
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:56:25 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D6281DB8038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:56:25 +0900 (JST)
-Date: Thu, 17 Sep 2009 11:45:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/3][mmotm] updateing size of kcore
-Message-Id: <20090917114509.a9eb9f2c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090917114138.e14a1183.kamezawa.hiroyu@jp.fujitsu.com>
-References: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
-	<1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
-	<20090917114138.e14a1183.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A38A6B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:07:51 -0400 (EDT)
+Date: Thu, 17 Sep 2009 11:23:04 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [RFC][EXPERIMENTAL][PATCH 0/8] memcg: migrate charge at task move
+Message-Id: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Am?rico_Wang <xiyou.wangcong@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+Hi.
 
-After memory hotplug (or other events in future), kcore size
-can be modified.
+These are patches for migrating memcg's charge at task move.
 
-To update inode->i_size, we have to know inode/dentry but we
-can't get it from inside /proc directly.
-But considerinyg memory hotplug, kcore image is updated only when
-it's opened. Then, updating inode->i_size at open() is enough.
+I know we should fix res_counter's scalability problem first,
+but this feature is also important for me, so I tried making patches
+and they seem to work basically.
+I post them(based on mmotm-2009-09-14-01-57) before going further to get some feedbacks.
 
-Cc: WANG Cong <xiyou.wangcong@gmail.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- fs/proc/kcore.c |    5 +++++
- 1 file changed, 5 insertions(+)
 
-Index: mmotm-2.6.31-Sep14/fs/proc/kcore.c
-===================================================================
---- mmotm-2.6.31-Sep14.orig/fs/proc/kcore.c
-+++ mmotm-2.6.31-Sep14/fs/proc/kcore.c
-@@ -546,6 +546,11 @@ static int open_kcore(struct inode *inod
- 		return -EPERM;
- 	if (kcore_need_update)
- 		kcore_update_ram();
-+	if (i_size_read(inode) != proc_root_kcore->size) {
-+		mutex_lock(&inode->i_mutex);
-+		i_size_write(inode, proc_root_kcore->size);
-+		mutex_unlock(&inode->i_mutex);
-+	}
- 	return 0;
- }
- 
+Basic design:
+- Add flag file "memory.migrate_charge" to determine whether charges should be
+  migrated or not. Each bit of "memory.migrate_charge" has meaning(indicate the
+  type of pages the charges of which should be migrated).
+- At can_attach(), isolate pages of the task, call __mem_cgroup_try_charge,
+  and move them to a private list.
+- Call mem_cgroup_move_account() at attach() about all pages on the private list
+  after necessary checks under page_cgroup lock, and put back them to LRU.
+- Cancel charges about all pages remains on the private list on failure or at the end
+  of charge migration, and put back them to LRU.
+
+
+I think this design is simple but it has a problem when mounted on the same hierarchy
+with cpuset. This design isolate pages of the task at can_attach(), but attach() of cpuset
+also tries to isolate pages of the task and migrate them if cpuset.memory_migrate is set.
+As a result, pages cannot be memory migrated by cpuset if we set memory.migrate_charge.
+But I think this problem can be handled by user-space to some extent: for example,
+move the task back and move it again with memory.migrate_charge unset.
+So I went to this direction as a first step(I'm considering how to avoid this issue).
+
+
+Any comments or suggestions would be welcome.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
