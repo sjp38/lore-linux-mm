@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9479E6B0082
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 17:12:11 -0400 (EDT)
-Date: Thu, 17 Sep 2009 23:08:06 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: cgrooups && 2.6.32 -mm merge plans
-Message-ID: <20090917210806.GA31441@redhat.com>
-References: <20090915161535.db0a6904.akpm@linux-foundation.org> <20090917201516.GA29346@redhat.com> <20090917133846.a00daece.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8630A6B0085
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 18:26:42 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
+Date: Fri, 18 Sep 2009 00:27:37 +0200
+References: <20090915120538.GA26806@bizet.domek.prywatny> <200909170118.53965.rjw@sisk.pl> <4AB29F4A.3030102@intel.com>
+In-Reply-To: <4AB29F4A.3030102@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090917133846.a00daece.akpm@linux-foundation.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200909180027.37387.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, menage@google.com, bblum@google.com, ebiederm@xmission.com, lizf@cn.fujitsu.com, matthltc@us.ibm.com
+To: david.graham@intel.com
+Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 09/17, Andrew Morton wrote:
->
-> On Thu, 17 Sep 2009 22:15:16 +0200
-> Oleg Nesterov <oleg@redhat.com> wrote:
->
-> > On 09/15, Andrew Morton wrote:
-> > >
-> > > #cgroups-add-functionality-to-read-write-lock-clone_thread-forking-per-threadgroup.patch: Oleg conniptions
-> > > cgroups-add-functionality-to-read-write-lock-clone_thread-forking-per-threadgroup.patch
-> > > cgroups-add-functionality-to-read-write-lock-clone_thread-forking-per-threadgroup-fix.patch
-> > > cgroups-add-ability-to-move-all-threads-in-a-process-to-a-new-cgroup-atomically.patch
-> > >
-> > >   Merge after checking with Oleg.
-> >
-> > Well. I think these patches are buggy :/
-> >
->
-> Well that's never prevented us from merging stuff before.
->
-> Thanks, I'll disable the patches for now.  Do we have a grip on what's
-> wrong and what needs to be done to fix things?
+On Thursday 17 September 2009, Graham, David wrote:
+> Rafael J. Wysocki wrote:
+> > On Tuesday 15 September 2009, Karol Lewandowski wrote:
+> >> Hello,
+> >>
+> >> I'm getting following oops sometimes during resume on my Thinkpad T21
+> >> (where "sometimes" means about 10/1 good/bad ratio):
+> >>
+> >> ifconfig: page allocation failure. order:5, mode:0x8020
+> > 
+> > Well, this only tells you that an attempt to make order 5 allocation failed,
+> > which is not unusual at all.
+> > 
+> > Allocations of this order are quite likely to fail if memory is fragmented,
+> > the probability of which rises with the number of suspend-resume cycles already
+> > carried out.
+> > 
+> > I guess the driver releases its DMA buffer during suspend and attempts to
+> > allocate it back on resume, which is not really smart (if that really is the
+> > case).
+> > 
+> Yes, we free a 70KB block (0x80 by 0x230 bytes) on suspend and 
+> reallocate on resume, and so that's an Order 5 request. It looks 
+> symmetric, and hasn't changed for years. I don't think we are leaking 
+> memory, which points back to that the memory is too fragmented to 
+> satisfy the request.
+> 
+> I also concur that Rafael's commit 6905b1f1 shouldn't change the logic 
+> in the driver for systems with e100 (like yours Karol) that could 
+> already sleep, and I don't see anything else in the driver that looks to 
+> be relevant. I'm expecting that your test result without commit 6905b1f1 
+> will still show the problem.
+> 
+> So I wonder if this new issue may be triggered by some other change in 
+> the memory subsystem ?
 
-Afaics, ->threadgroup_fork_lock doesn't really work, we can race with exec.
+I think so.  There have been reports about order 2 allocations failing for
+2.6.31, so it looks like newer kernels are more likely to expose such problems.
 
-list_for_each_entry_rcu() loops in these patches are not safe.
+Adding linux-mm to the CC list.
 
-And in fact, personally I dislike even atomic_inc(&sighand->count). Just
-consider sys_unshare(CLONE_SIGHAND). Yes, this code is a joke, but still.
-
-
-Sadly, I don't have any ideas how to fix this... I'd wish I had a time
-to at least try to find the solution ;)
-
-Oleg.
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
