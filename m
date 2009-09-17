@@ -1,162 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E80E6B005A
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 05:18:12 -0400 (EDT)
-Date: Thu, 17 Sep 2009 10:18:18 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA566B005C
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 05:19:43 -0400 (EDT)
+Date: Thu, 17 Sep 2009 10:19:50 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] Identification of huge pages mapping (Take 3)
-Message-ID: <20090917091818.GC13002@csn.ul.ie>
-References: <202cde0e0909132216l79aae251ya3a6685587c7692c@mail.gmail.com> <20090915121456.GB31840@csn.ul.ie> <202cde0e0909160511y6f4542d1p38f9a8818c2a454d@mail.gmail.com>
+Subject: Re: [PATCH 2/3] Helper which returns the huge page at a given
+	address (Take 3)
+Message-ID: <20090917091950.GD13002@csn.ul.ie>
+References: <202cde0e0909132218k70c31a5u922636914e603ad4@mail.gmail.com> <20090915122632.GC31840@csn.ul.ie> <202cde0e0909160521v41a0d9f2wb1e4fe1e379e8971@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <202cde0e0909160511y6f4542d1p38f9a8818c2a454d@mail.gmail.com>
+In-Reply-To: <202cde0e0909160521v41a0d9f2wb1e4fe1e379e8971@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Alexey Korolev <akorolex@gmail.com>
 Cc: Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 17, 2009 at 12:11:33AM +1200, Alexey Korolev wrote:
-> Mel,
+On Thu, Sep 17, 2009 at 12:21:42AM +1200, Alexey Korolev wrote:
+> On Wed, Sep 16, 2009 at 12:26 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Mon, Sep 14, 2009 at 05:18:53PM +1200, Alexey Korolev wrote:
+> >> This patch provides helper function which returns the huge page at a
+> >> given address for population before the page has been faulted.
+> >> It is possible to call hugetlb_get_user_page function in file mmap
+> >> procedure to get pages before they have been requested by user level.
+> >>
+> >
+> > Worth spelling out that this is similar in principal to get_user_pages()
+> > but not as painful to use in this specific context.
+> >
 > 
-> > I suggest a subject change to
-> >
-> > "Identify huge page mappings from address_space->flags instead of file_operations comparison"
-> >
-> > for the purposes of having an easier-to-understand changelog.
-> >
->
-> Yes. It is a bit longer but it is definitely clear. Will be corrected.
+> Right. I'll do this. Seems it is important to clearly mention that
+> this function do not introduce new functionality.
 > 
 
-Thanks
+Indeed.
 
-> > On Mon, Sep 14, 2009 at 05:16:13PM +1200, Alexey Korolev wrote:
-> >> This patch changes a little bit the procedures of huge pages file
-> >> identification. We need this because we may have huge page mapping for
-> >> files which are not on hugetlbfs (the same case in ipc/shm.c).
+> >> include/linux/hugetlb.h |    3 +++
+> >> mm/hugetlb.c            |   23 +++++++++++++++++++++++
+> >> 2 files changed, 26 insertions(+)
+> >>
+> >> ---
+> >> Signed-off-by: Alexey Korolev <akorolev@infradead.org>
 > >
-> > Is this strictly-speaking true as there is still a file on hugetlbfs for
-> > the driver? Maybe something like
+> > Patch formatting nit.
 > >
-> > This patch identifies whether a mapping uses huge pages based on the
-> > address_space flags instead of the file operations. A later patch allows
-> > a driver to manage an underlying hugetlbfs file while exposing it via a
-> > different file_operations structure.
-> >
-> > I haven't read the rest of the series yet so take the suggestion with a
-> > grain of salt.
-> 
-> You understood properly. Thanks for the comments. I need to work on
-> the description more, it seems not to be completely clear.
-> 
-> >> Just file operations check will not work as drivers should have own
-> >> file operations. So if we need to identify if file has huge pages
-> >> mapping, we need to check the file mapping flags.
-> >> New identification procedure obsoletes existing workaround for hugetlb
-> >> file identification in ipc/shm.c
-> >> Also having huge page mapping for files which are not on hugetlbfs do
-> >> not allow us to get hstate based on file dentry, we need to be based
-> >> on file mapping instead.
-> >
-> > Can you clarify this a bit more? I think the reasoning is as follows but
-> > confirmation would be nice.
-> >
-> > "As part of this, the hstate for a given file as implemented by hstate_file()
-> > must be based on file mapping instead of dentry. Even if a driver is
-> > maintaining an underlying hugetlbfs file, the mmap() operation is still
-> > taking place on a device-specific file. That dentry is unlikely to be on
-> > a hugetlbfs file. A device driver must ensure that file->f_mapping->host
-> > resolves correctly."
-> >
-> > If this is accurate, a comment in hstate_file() wouldn't hurt in case
-> > someone later decides that dentry really was the way to go.
+> > diffstat goes below the --- and signed-off-bys go above it.
 > >
 >
-> Right. Getting hstate via mapping instead of dentry is important here, so it is
-> necessary to add a comment in order to prevent people breaking this.
-> A comment will be added.
+> Right. To be fixed.
 > 
 
 Thanks
 
 > >>
-> >>  static inline int is_file_hugepages(struct file *file)
-> >>  {
-> >> -     if (file->f_op == &hugetlbfs_file_operations)
-> >> -             return 1;
-> >> -     if (is_file_shm_hugepages(file))
-> >> -             return 1;
-> >> -
-> >> -     return 0;
-> >> -}
-> >> -
-> >> -static inline void set_file_hugepages(struct file *file)
-> >> -{
-> >> -     file->f_op = &hugetlbfs_file_operations;
-> >> +     return mapping_hugetlb(file->f_mapping);
-> >>  }
-> >>  #else /* !CONFIG_HUGETLBFS */
-> >>
-> >>  #define is_file_hugepages(file)                      0
-> >> -#define set_file_hugepages(file)             BUG()
-> >>  #define hugetlb_file_setup(name,size,acct,user,creat)        ERR_PTR(-ENOSYS)
-> >>
-> >
-> > Why do you remove this BUG()? It still seems to be a valid check.
->
-> I removed this function - because it has not been called since 2.6.15 and
-> it is confusing the user a bit after applying new changes. I think it
-> was necessary to write about this little change in description, sorry
-> about that.
-
-If it's really confusing, it should be a separate patch. It doesn't need to
-be folded into this one.
-
-> >>
-> >> +static inline void mapping_set_hugetlb(struct address_space *mapping)
+> >> +/*
+> >> + * hugetlb_get_user_page returns the page at a given address for population
+> >> + * before the page has been faulted.
+> >> + */
+> >> +struct page *hugetlb_get_user_page(struct vm_area_struct *vma,
+> >> +                                 unsigned long address)
 > >> +{
-> >> +     set_bit(AS_HUGETLB, &mapping->flags);
-> >> +}
+> >
+> > Your leader and comments say that the function can be used before the pages
+> > have been faulted. It would presumably require that this function be called
+> > from within a mmap() handler.
+> >
+> > What is happening because you call follow_hugetlb_page() is that the pages
+> > get faulted as part of your mmap() operation. This might make the overall
+> > operation more expensive than you expected. I don't know if what you really
+> > intended was to allocate the huge page, insert it into the page cache and
+> > have it faulted later if the process actually references the page.
+> >
+> > Similarly the leader and comments imply that you expect this to be
+> > called as part of the mmap() operation. However, nothing would appear to
+> > prevent the driver calling this function once the page is already
+> > faulted. Is this intentional?
+> 
+> The implication was not intende. You are correct, the function can be
+> called later. The leader and comment can be rewritten to make this
+> clear.
+> 
+
+Because it can be called later and you do not expect that, consider making
+it impossible or at least very difficult. Assuming you convert this to a
+page cache lookup and insert instead of a page fault, you could BUG_ON if
+the page was already in the page cache for example. This would catch already
+faulted pages as a side-effect.
+
+> >> +     int ret;
+> >> +     int cnt = 1;
+> >> +     struct page *pg;
+> >> +     struct hstate *h = hstate_vma(vma);
 > >> +
-> >> +static inline int mapping_hugetlb(struct address_space *mapping)
-> >> +{
-> >> +     if (likely(mapping))
-> >> +             return test_bit(AS_HUGETLB, &mapping->flags);
-> >> +     return 0;
+> >> +     address = address & huge_page_mask(h);
+> >> +     ret = follow_hugetlb_page(vma->vm_mm, vma, &pg,
+> >> +                             NULL, &address, &cnt, 0, 0);
+> >> +     if (ret < 0)
+> >> +             return ERR_PTR(ret);
+> >> +     put_page(pg);
+> >> +
+> >> +     return pg;
 > >> +}
 > >
-> > Is mapping_hugetlb necessary? Why not just make that the implementation
-> > of is_file_hugepages()
->
-> No. It is not necessary. The reason I wrote these functions is just
-> there are the
-> similar function for other mapping flags. I see no problem to have
-> only: is_file_hugepages and
-> set_file_huge_pages in hugetlb.h instead of mapping_set_hugetlb and
-> mapping_hugetlb.
-> 
-
-I'd also be ok with you converting is_file_hugepages and set_file_huge_pages()
-to mapping_set_hugetlb and mapping_hugetlb to bring hugetlb functions more
-in line with the core VM.
-
-> >> -     if (file->f_op == &shm_file_operations) {
-> >> -             struct shm_file_data *sfd;
-> >> -             sfd = shm_file_data(file);
-> >> -             ret = is_file_hugepages(sfd->file);
-> >> -     }
-> >> -     return ret;
-> >> -}
+> > I think the caller should be responsible for calling put_page().  Otherwise
+> > there is an outside chance that the page would disappear from you unexpectedly
+> > depending on exactly how the driver was implemented. It would also
+> > behave slightly more like get_user_pages().
 > >
-> > What about the declarations and definitions in include/linux/shm.h?
+> Correct. Lets have behaviour similar to get_user_pages in order to prevent
+> misunderstanding. Put_page will be removed.
 > 
-> Ahh. Thank you! Will be fixed.
+> Thank you very much for review. Now I am about to clear out the
+> mistakes and will pay a lot more attention to patch descriptions and
+> comments.
 > 
-> Thanks,
-> Alexey
-> 
+
+Thanks
 
 -- 
 Mel Gorman
