@@ -1,122 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 29BDE6B005C
+	by kanga.kvack.org (Postfix) with ESMTP id 834966B005A
 	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:21:45 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 3/7] ext4: Deprecate nobh mount option
-Date: Thu, 17 Sep 2009 17:21:43 +0200
-Message-Id: <1253200907-31392-4-git-send-email-jack@suse.cz>
+Subject: [PATCH 5/7] ext4: Convert filesystem to the new truncate calling convention
+Date: Thu, 17 Sep 2009 17:21:45 +0200
+Message-Id: <1253200907-31392-6-git-send-email-jack@suse.cz>
 In-Reply-To: <1253200907-31392-1-git-send-email-jack@suse.cz>
 References: <1253200907-31392-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 To: linux-fsdevel@vger.kernel.org
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, Jan Kara <jack@suse.cz>, tytso@mit.edu
 List-ID: <linux-mm.kvack.org>
 
-This option doesn't do anything interesting for ext4 anymore since we attach
-buffers to the page in page_mkwrite and in write_begin to support delayed
-allocation and properly handle ENOSPC caused by mmaped writes.
-
+CC: linux-ext4@vger.kernel.org
+CC: tytso@mit.edu
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/inode.c |   42 ++++++++++++------------------------------
- fs/ext4/super.c |   10 +++-------
- 2 files changed, 15 insertions(+), 37 deletions(-)
+ fs/ext4/file.c  |    2 +-
+ fs/ext4/inode.c |  166 ++++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 99 insertions(+), 69 deletions(-)
 
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 3f1873f..22f49d7 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -198,7 +198,7 @@ const struct file_operations ext4_file_operations = {
+ };
+ 
+ const struct inode_operations ext4_file_inode_operations = {
+-	.truncate	= ext4_truncate,
++	.new_truncate	= 1,
+ 	.setattr	= ext4_setattr,
+ 	.getattr	= ext4_getattr,
+ #ifdef CONFIG_EXT4_FS_XATTR
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index f9c642b..58492ab 100644
+index 58492ab..be25874 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -2481,20 +2481,17 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
+@@ -3354,6 +3354,7 @@ static int ext4_journalled_set_page_dirty(struct page *page)
+ }
+ 
+ static const struct address_space_operations ext4_ordered_aops = {
++	.new_writepage		= 1,
+ 	.readpage		= ext4_readpage,
+ 	.readpages		= ext4_readpages,
+ 	.writepage		= ext4_writepage,
+@@ -3369,6 +3370,7 @@ static const struct address_space_operations ext4_ordered_aops = {
+ };
+ 
+ static const struct address_space_operations ext4_writeback_aops = {
++	.new_writepage		= 1,
+ 	.readpage		= ext4_readpage,
+ 	.readpages		= ext4_readpages,
+ 	.writepage		= ext4_writepage,
+@@ -3384,6 +3386,7 @@ static const struct address_space_operations ext4_writeback_aops = {
+ };
+ 
+ static const struct address_space_operations ext4_journalled_aops = {
++	.new_writepage		= 1,
+ 	.readpage		= ext4_readpage,
+ 	.readpages		= ext4_readpages,
+ 	.writepage		= ext4_writepage,
+@@ -3398,6 +3401,7 @@ static const struct address_space_operations ext4_journalled_aops = {
+ };
+ 
+ static const struct address_space_operations ext4_da_aops = {
++	.new_writepage		= 1,
+ 	.readpage		= ext4_readpage,
+ 	.readpages		= ext4_readpages,
+ 	.writepage		= ext4_writepage,
+@@ -4682,28 +4686,97 @@ int ext4_write_inode(struct inode *inode, int wait)
  }
  
  /*
-- * This function is used as a standard get_block_t calback function
-- * when there is no desire to allocate any blocks.  It is used as a
-- * callback function for block_prepare_write(), nobh_writepage(), and
-- * block_write_full_page().  These functions should only try to map a
-- * single block at a time.
-+ * This function is used as a standard get_block_t calback function when there
-+ * is no desire to allocate any blocks.  It is used as a callback function for
-+ * block_prepare_write() and block_write_full_page().  These functions should
-+ * only try to map a single block at a time.
+- * ext4_setattr()
++ * ext4_setsize()
++ *
++ * This is a helper for ext4_setattr(). It sets i_size, truncates page cache
++ * and truncates inode blocks if they are over i_size.
   *
-- * Since this function doesn't do block allocations even if the caller
-- * requests it by passing in create=1, it is critically important that
-- * any caller checks to make sure that any buffer heads are returned
-- * by this function are either all already mapped or marked for
-- * delayed allocation before calling nobh_writepage() or
-- * block_write_full_page().  Otherwise, b_blocknr could be left
-- * unitialized, and the page write functions will be taken by
-- * surprise.
-+ * Since this function doesn't do block allocations even if the caller requests
-+ * it by passing in create=1, it is critically important that any caller checks
-+ * to make sure that any buffer heads are returned by this function are either
-+ * all already mapped or marked for delayed allocation before calling
-+ * block_write_full_page().  Otherwise, b_blocknr could be left unitialized,
-+ * and the page write functions will be taken by surprise.
+- * Called from notify_change.
++ * We take care of updating i_disksize and adding inode to the orphan list.
++ * That makes sure that we can guarantee that any commit will leave the blocks
++ * being truncated in an unused state on disk.  (On recovery, the inode will
++ * get truncated and the blocks will be freed, so we have a strong guarantee
++ * that no future commit will leave these blocks visible to the user.)
+  *
+- * We want to trap VFS attempts to truncate the file as soon as
+- * possible.  In particular, we want to make sure that when the VFS
+- * shrinks i_size, we put the inode on the orphan list and modify
+- * i_disksize immediately, so that during the subsequent flushing of
+- * dirty pages and freeing of disk blocks, we can guarantee that any
+- * commit will leave the blocks being flushed in an unused state on
+- * disk.  (On recovery, the inode will get truncated and the blocks will
+- * be freed, so we have a strong guarantee that no future commit will
+- * leave these blocks visible to the user.)
++ * Another thing we have to assure is that if we are in ordered mode and inode
++ * is still attached to the committing transaction, we must we start writeout
++ * of all the dirty pages which are being truncated.  This way we are sure that
++ * all the data written in the previous transaction are already on disk
++ * (truncate waits for pages under writeback).
++ */
++static int ext4_setsize(struct inode *inode, loff_t newsize)
++{
++	int error = 0, rc;
++	loff_t oldsize = inode->i_size;
++	handle_t *handle;
++
++	error = inode_newsize_ok(inode, newsize);
++	if (error)
++		goto out;
++	/* VFS should have checked these and return error... */
++	WARN_ON(!S_ISREG(inode->i_mode) || IS_APPEND(inode) ||
++		IS_IMMUTABLE(inode));
++
++	if (newsize < oldsize) {
++		handle = ext4_journal_start(inode, 3);
++		if (IS_ERR(handle)) {
++			error = PTR_ERR(handle);
++			goto err_out;
++		}
++
++		error = ext4_orphan_add(handle, inode);
++		EXT4_I(inode)->i_disksize = newsize;
++		rc = ext4_mark_inode_dirty(handle, inode);
++		if (!error)
++			error = rc;
++		ext4_journal_stop(handle);
++
++		if (ext4_should_order_data(inode)) {
++			error = ext4_begin_ordered_truncate(inode, newsize);
++			if (error) {
++				/* Do as much error cleanup as possible */
++				handle = ext4_journal_start(inode, 3);
++				if (IS_ERR(handle)) {
++					ext4_orphan_del(NULL, inode);
++					goto err_out;
++				}
++				ext4_orphan_del(handle, inode);
++				ext4_journal_stop(handle);
++				goto err_out;
++			}
++		}
++	} else if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
++		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
++
++		if (newsize > sbi->s_bitmap_maxbytes) {
++			error = -EFBIG;
++			goto out;
++		}
++	}
++
++	i_size_write(inode, newsize);
++	truncate_pagecache(inode, oldsize, newsize);
++	ext4_truncate(inode);
++
++	/*
++	 * If we failed to get a transaction handle at all, we need to clean up
++         * the in-core orphan list manually.
++	 */
++	if (inode->i_nlink)
++		ext4_orphan_del(NULL, inode);
++err_out:
++	ext4_std_error(inode->i_sb, error);
++out:
++	return error;
++}
++
++
++/*
++ * ext4_setattr()
+  *
+- * Another thing we have to assure is that if we are in ordered mode
+- * and inode is still attached to the committing transaction, we must
+- * we start writeout of all the dirty pages which are being truncated.
+- * This way we are sure that all the data written in the previous
+- * transaction are already on disk (truncate waits for pages under
+- * writeback).
++ * Handle special things ext4 needs for changing owner of the file, changing
++ * ACLs, or truncating file.
+  *
+- * Called with inode->i_mutex down.
++ * Called from notify_change with inode->i_mutex down.
   */
- static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
- 				   struct buffer_head *bh_result, int create)
-@@ -2690,11 +2687,7 @@ static int ext4_writepage(struct page *page,
- 		return __ext4_journalled_writepage(page, wbc, len);
+ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
+ {
+@@ -4743,61 +4816,18 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
  	}
  
--	if (test_opt(inode->i_sb, NOBH) && ext4_should_writeback_data(inode))
--		ret = nobh_writepage(page, noalloc_get_block_write, wbc);
--	else
--		ret = block_write_full_page(page, noalloc_get_block_write,
--					    wbc);
-+	ret = block_write_full_page(page, noalloc_get_block_write, wbc);
- 
- 	return ret;
- }
-@@ -3463,17 +3456,6 @@ int ext4_block_truncate_page(handle_t *handle,
- 	length = blocksize - (offset & (blocksize - 1));
- 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
- 
--	/*
--	 * For "nobh" option,  we can only work if we don't need to
--	 * read-in the page - otherwise we create buffers to do the IO.
--	 */
--	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH) &&
--	     ext4_should_writeback_data(inode) && PageUptodate(page)) {
--		zero_user(page, offset, length);
--		set_page_dirty(page);
--		goto unlock;
+ 	if (attr->ia_valid & ATTR_SIZE) {
+-		if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
+-			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+-
+-			if (attr->ia_size > sbi->s_bitmap_maxbytes) {
+-				error = -EFBIG;
+-				goto err_out;
+-			}
+-		}
 -	}
 -
- 	if (!page_has_buffers(page))
- 		create_empty_buffers(page, blocksize, 0);
- 
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 8f4f079..160051f 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -846,8 +846,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
- 	seq_puts(seq, test_opt(sb, BARRIER) ? "1" : "0");
- 	if (test_opt(sb, JOURNAL_ASYNC_COMMIT))
- 		seq_puts(seq, ",journal_async_commit");
--	if (test_opt(sb, NOBH))
--		seq_puts(seq, ",nobh");
- 	if (test_opt(sb, I_VERSION))
- 		seq_puts(seq, ",i_version");
- 	if (!test_opt(sb, DELALLOC))
-@@ -2775,11 +2773,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
- no_journal:
- 
- 	if (test_opt(sb, NOBH)) {
--		if (!(test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)) {
--			ext4_msg(sb, KERN_WARNING, "Ignoring nobh option - "
--				"its supported only with writeback mode");
--			clear_opt(sbi->s_mount_opt, NOBH);
+-	if (S_ISREG(inode->i_mode) &&
+-	    attr->ia_valid & ATTR_SIZE && attr->ia_size < inode->i_size) {
+-		handle_t *handle;
+-
+-		handle = ext4_journal_start(inode, 3);
+-		if (IS_ERR(handle)) {
+-			error = PTR_ERR(handle);
+-			goto err_out;
 -		}
-+		ext4_msg(sb, KERN_WARNING, "nobh option is deprecated. "
-+					   "Ignoring it.");
-+		clear_opt(sbi->s_mount_opt, NOBH);
+-
+-		error = ext4_orphan_add(handle, inode);
+-		EXT4_I(inode)->i_disksize = attr->ia_size;
+-		rc = ext4_mark_inode_dirty(handle, inode);
+-		if (!error)
+-			error = rc;
+-		ext4_journal_stop(handle);
+-
+-		if (ext4_should_order_data(inode)) {
+-			error = ext4_begin_ordered_truncate(inode,
+-							    attr->ia_size);
+-			if (error) {
+-				/* Do as much error cleanup as possible */
+-				handle = ext4_journal_start(inode, 3);
+-				if (IS_ERR(handle)) {
+-					ext4_orphan_del(NULL, inode);
+-					goto err_out;
+-				}
+-				ext4_orphan_del(handle, inode);
+-				ext4_journal_stop(handle);
+-				goto err_out;
+-			}
+-		}
++		error = ext4_setsize(inode, attr->ia_size);
++		if (error)
++			return error;
  	}
- 	/*
- 	 * The jbd2_journal_load will have done any necessary log recovery,
+ 
+-	rc = inode_setattr(inode, attr);
+-
+-	/* If inode_setattr's call to ext4_truncate failed to get a
+-	 * transaction handle at all, we need to clean up the in-core
+-	 * orphan list manually. */
+-	if (inode->i_nlink)
+-		ext4_orphan_del(NULL, inode);
++	generic_setattr(inode, attr);
+ 
+-	if (!rc && (ia_valid & ATTR_MODE))
++	if (ia_valid & ATTR_MODE)
+ 		rc = ext4_acl_chmod(inode);
+ 
++	/* Mark inode dirty due to changes done by generic_setattr() */
++	mark_inode_dirty(inode);
+ err_out:
+ 	ext4_std_error(inode->i_sb, error);
+ 	if (!error)
 -- 
 1.6.0.2
 
