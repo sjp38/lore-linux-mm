@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A38A6B004F
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:07:51 -0400 (EDT)
-Date: Thu, 17 Sep 2009 11:23:04 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D2916B0055
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:08:34 -0400 (EDT)
+Date: Thu, 17 Sep 2009 11:24:00 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][EXPERIMENTAL][PATCH 0/8] memcg: migrate charge at task move
-Message-Id: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH 1/8] memcg: introduce mem_cgroup_cancel_charge()
+Message-Id: <20090917112400.2d90c60d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
+References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,42 +16,83 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+There are some places calling both res_counter_uncharge() and css_put()
+to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
 
-These are patches for migrating memcg's charge at task move.
+This patch introduces mem_cgroup_cancel_charge() and call it in those places.
 
-I know we should fix res_counter's scalability problem first,
-but this feature is also important for me, so I tried making patches
-and they seem to work basically.
-I post them(based on mmotm-2009-09-14-01-57) before going further to get some feedbacks.
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |   35 ++++++++++++++---------------------
+ 1 files changed, 14 insertions(+), 21 deletions(-)
 
-
-Basic design:
-- Add flag file "memory.migrate_charge" to determine whether charges should be
-  migrated or not. Each bit of "memory.migrate_charge" has meaning(indicate the
-  type of pages the charges of which should be migrated).
-- At can_attach(), isolate pages of the task, call __mem_cgroup_try_charge,
-  and move them to a private list.
-- Call mem_cgroup_move_account() at attach() about all pages on the private list
-  after necessary checks under page_cgroup lock, and put back them to LRU.
-- Cancel charges about all pages remains on the private list on failure or at the end
-  of charge migration, and put back them to LRU.
-
-
-I think this design is simple but it has a problem when mounted on the same hierarchy
-with cpuset. This design isolate pages of the task at can_attach(), but attach() of cpuset
-also tries to isolate pages of the task and migrate them if cpuset.memory_migrate is set.
-As a result, pages cannot be memory migrated by cpuset if we set memory.migrate_charge.
-But I think this problem can be handled by user-space to some extent: for example,
-move the task back and move it again with memory.migrate_charge unset.
-So I went to this direction as a first step(I'm considering how to avoid this issue).
-
-
-Any comments or suggestions would be welcome.
-
-
-Thanks,
-Daisuke Nishimura.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e2b98a6..00f3f97 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1370,6 +1370,17 @@ nomem:
+ 	return -ENOMEM;
+ }
+ 
++/* A helper function to cancel the charge and refcnt by try_charge */
++static inline void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
++{
++	if (!mem_cgroup_is_root(mem)) {
++		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
++		if (do_swap_account)
++			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
++	}
++	css_put(&mem->css);
++}
++
+ /*
+  * A helper function to get mem_cgroup from ID. must be called under
+  * rcu_read_lock(). The caller must check css_is_removed() or some if
+@@ -1436,13 +1447,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+-		if (!mem_cgroup_is_root(mem)) {
+-			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+-			if (do_swap_account)
+-				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
+-							NULL);
+-		}
+-		css_put(&mem->css);
++		mem_cgroup_cancel_charge(mem);
+ 		return;
+ 	}
+ 
+@@ -1606,14 +1611,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+ cancel:
+ 	put_page(page);
+ uncharge:
+-	/* drop extra refcnt by try_charge() */
+-	css_put(&parent->css);
+-	/* uncharge if move fails */
+-	if (!mem_cgroup_is_root(parent)) {
+-		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
+-		if (do_swap_account)
+-			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+-	}
++	mem_cgroup_cancel_charge(parent);
+ 	return ret;
+ }
+ 
+@@ -1830,12 +1828,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+ 		return;
+ 	if (!mem)
+ 		return;
+-	if (!mem_cgroup_is_root(mem)) {
+-		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+-		if (do_swap_account)
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+-	}
+-	css_put(&mem->css);
++	mem_cgroup_cancel_charge(mem);
+ }
+ 
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
