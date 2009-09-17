@@ -1,96 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F9046B0055
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:12:49 -0400 (EDT)
-Date: Thu, 17 Sep 2009 11:29:17 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH 8/8] memcg: avoid oom during charge migration
-Message-Id: <20090917112917.3d766f8c.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
-References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id F07E56B0055
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 23:59:16 -0400 (EDT)
+Date: Thu, 17 Sep 2009 06:57:17 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+Message-ID: <20090917035717.GB3088@redhat.com>
+References: <4AAF8A03.5020806@redhat.com> <4AAF909F.9080306@gmail.com> <4AAF95D1.1080600@redhat.com> <4AAF9BAF.3030109@gmail.com> <4AAFACB5.9050808@redhat.com> <4AAFF437.7060100@gmail.com> <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com> <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4AB0F1EF.5050102@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: Avi Kivity <avi@redhat.com>, "Ira W. Snyder" <iws@ovro.caltech.edu>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-This charge migration feature has double charges on both "from" and "to" mem_cgroup
-during charge migration.
-This means unnecessary oom can happen because of charge migration.
+On Wed, Sep 16, 2009 at 10:10:55AM -0400, Gregory Haskins wrote:
+> > There is no role reversal.
+> 
+> So if I have virtio-blk driver running on the x86 and vhost-blk device
+> running on the ppc board, I can use the ppc board as a block-device.
+> What if I really wanted to go the other way?
 
-This patch tries to avoid such oom.
+It seems ppc is the only one that can initiate DMA to an arbitrary
+address, so you can't do this really, or you can by tunneling each
+request back to ppc, or doing an extra data copy, but it's unlikely to
+work well.
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   18 ++++++++++++++++++
- 1 files changed, 18 insertions(+), 0 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c8542e7..73da7e7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -288,6 +288,8 @@ struct migrate_charge {
- 	struct list_head list;
- };
- static struct migrate_charge *mc;
-+static struct task_struct *mc_task;
-+static DECLARE_WAIT_QUEUE_HEAD(mc_waitq);
- 
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
-@@ -1318,6 +1320,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	while (1) {
- 		int ret = 0;
- 		unsigned long flags = 0;
-+		DEFINE_WAIT(wait);
- 
- 		if (mem_cgroup_is_root(mem))
- 			goto done;
-@@ -1359,6 +1362,17 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 		if (mem_cgroup_check_under_limit(mem_over_limit))
- 			continue;
- 
-+		/* try to avoid oom while someone is migrating charge */
-+		if (current != mc_task) {
-+			prepare_to_wait(&mc_waitq, &wait, TASK_INTERRUPTIBLE);
-+			if (mc) {
-+				schedule();
-+				finish_wait(&mc_waitq, &wait);
-+				continue;
-+			}
-+			finish_wait(&mc_waitq, &wait);
-+		}
-+
- 		if (!nr_retries--) {
- 			if (oom) {
- 				mutex_lock(&memcg_tasklist);
-@@ -3432,6 +3446,8 @@ static void mem_cgroup_clear_migrate_charge(void)
- 
- 	kfree(mc);
- 	mc = NULL;
-+	mc_task = NULL;
-+	wake_up_all(&mc_waitq);
- }
- 
- static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
-@@ -3441,6 +3457,7 @@ static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
- 	struct mem_cgroup *from = mem_cgroup_from_task(p);
- 
- 	VM_BUG_ON(mc);
-+	VM_BUG_ON(mc_task);
- 
- 	if (from == mem)
- 		return 0;
-@@ -3453,6 +3470,7 @@ static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
- 	mc->from = from;
- 	mc->to = mem;
- 	INIT_LIST_HEAD(&mc->list);
-+	mc_task = current;
- 
- 	ret = migrate_charge_prepare();
- 
+The limitation comes from hardware, not from the API we use.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
