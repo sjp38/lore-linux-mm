@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C56546B0055
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 22:44:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8H2j0Ff029666
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 616426B004F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2009 22:46:08 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8H2kBZj027395
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 17 Sep 2009 11:45:00 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6466D45DE55
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:45:00 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4089C45DE62
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:45:00 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C9D91DB803C
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:45:00 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C265E1DB8042
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:44:59 +0900 (JST)
-Date: Thu, 17 Sep 2009 11:42:56 +0900
+	Thu, 17 Sep 2009 11:46:11 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B97145DE54
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:46:11 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F36D645DE4F
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:46:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B17301DB8040
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:46:10 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5371EE08007
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 11:46:07 +0900 (JST)
+Date: Thu, 17 Sep 2009 11:44:04 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/3][mmotm] kcore: more fixes for init
-Message-Id: <20090917114256.1f3971d8.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/3][mmotm] showing size of kcore
+Message-Id: <20090917114404.d87b155d.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090917114138.e14a1183.kamezawa.hiroyu@jp.fujitsu.com>
 References: <2375c9f90909160235m1f052df0qb001f8243ed9291e@mail.gmail.com>
 	<1bc66b163326564dafb5a7dd8959fd56.squirrel@webmail-b.css.fujitsu.com>
@@ -36,38 +36,65 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-proc_kcore_init() doesn't check NULL case.
-fix it and remove unnecessary comments.
+Now, size of /proc/kcore which can be read by 'ls -l' is 0.
+But it's not correct value.
+
+This is a patch for showing size of /proc/kcore as following.
+
+On x86-64, ls -l shows
+ ... root root 140737486266368 2009-09-17 10:29 /proc/kcore
+Then, 7FFFFFFE02000. This comes from vmalloc area's size.
+(*) This shows "core" size, not  memory size.
+
+This patch shows the size by updating "size" field in struct proc_dir_entry.
+Later, lookup routine will create inode and fill inode->i_size based
+on this value. Then, this has a problem.
+
+ - Once inode is cached, inode->i_size will never be updated.
+
+Then, this patch is not memory-hotplug-aware.
+
+To update inode->i_size, we have to know dentry or inode.
+But there is no way to lookup them by inside kernel. Hmmm....
+Next patch will try it.
 
 Cc: WANG Cong <xiyou.wangcong@gmail.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- fs/proc/kcore.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ fs/proc/kcore.c |    6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
 Index: mmotm-2.6.31-Sep14/fs/proc/kcore.c
 ===================================================================
 --- mmotm-2.6.31-Sep14.orig/fs/proc/kcore.c
 +++ mmotm-2.6.31-Sep14/fs/proc/kcore.c
-@@ -606,6 +606,10 @@ static int __init proc_kcore_init(void)
+@@ -107,6 +107,8 @@ static void free_kclist_ents(struct list
+  */
+ static void __kcore_update_ram(struct list_head *list)
  {
- 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL,
- 				      &proc_kcore_operations);
-+	if (!proc_root_kcore) {
-+		printk(KERN_ERR "couldn't create /proc/kcore\n");
-+		return 0; /* Always returns 0. */
-+	}
- 	/* Store text area if it's special */
- 	proc_kcore_text_init();
- 	/* Store vmalloc area */
-@@ -615,7 +619,6 @@ static int __init proc_kcore_init(void)
- 	/* Store direct-map area from physical memory map */
- 	kcore_update_ram();
- 	hotplug_memory_notifier(kcore_callback, 0);
--	/* Other special area, area-for-module etc is arch specific. */
++	int nphdr;
++	size_t size;
+ 	struct kcore_list *tmp, *pos;
+ 	LIST_HEAD(garbage);
  
- 	return 0;
+@@ -124,6 +126,7 @@ static void __kcore_update_ram(struct li
+ 	write_unlock(&kclist_lock);
+ 
+ 	free_kclist_ents(&garbage);
++	proc_root_kcore->size = get_kcore_size(&nphdr, &size);
  }
+ 
+ 
+@@ -429,7 +432,8 @@ read_kcore(struct file *file, char __use
+ 	unsigned long start;
+ 
+ 	read_lock(&kclist_lock);
+-	proc_root_kcore->size = size = get_kcore_size(&nphdr, &elf_buflen);
++	size = get_kcore_size(&nphdr, &elf_buflen);
++
+ 	if (buflen == 0 || *fpos >= size) {
+ 		read_unlock(&kclist_lock);
+ 		return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
