@@ -1,104 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 551F56B0088
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 18:44:30 -0400 (EDT)
-Received: by yxe10 with SMTP id 10so656606yxe.12
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2009 15:44:34 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 0/4] compcache: in-memory compressed swapping v3
-Date: Fri, 18 Sep 2009 04:13:28 +0530
-Message-Id: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 153A46B008A
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2009 18:44:36 -0400 (EDT)
+Date: Thu, 17 Sep 2009 15:44:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] Add MAP_HUGETLB for mmaping pseudo-anonymous huge
+ page regions
+Message-Id: <20090917154404.e1d3694e.akpm@linux-foundation.org>
+In-Reply-To: <8504342f7be19e416ef769d1edd24b8549f8dc39.1251197514.git.ebmunson@us.ibm.com>
+References: <cover.1251197514.git.ebmunson@us.ibm.com>
+	<25614b0d0581e2d49e1024dc1671b282f193e139.1251197514.git.ebmunson@us.ibm.com>
+	<8504342f7be19e416ef769d1edd24b8549f8dc39.1251197514.git.ebmunson@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
 List-ID: <linux-mm.kvack.org>
 
-Project home: http://compcache.googlecode.com/
+On Tue, 25 Aug 2009 12:14:53 +0100
+Eric B Munson <ebmunson@us.ibm.com> wrote:
 
-* Changelog: v3 vs v2
- - All cleanups as suggested by Pekka.
- - Move to staging (drivers/block/ramzswap/ -> drivers/staging/ramzswap/).
- - Remove swap discard hooks -- swap notify support makes these redundant.
- - Unify duplicate code between init_device() fail path and reset_device().
- - Fix zero-page accounting.
- - Do not accept backing swap with bad pages.
+> This patch adds a flag for mmap that will be used to request a huge
+> page region that will look like anonymous memory to user space.  This
+> is accomplished by using a file on the internal vfsmount.  MAP_HUGETLB
+> is a modifier of MAP_ANONYMOUS and so must be specified with it.  The
+> region will behave the same as a MAP_ANONYMOUS region using small pages.
+> 
+> Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+> ---
+>  include/asm-generic/mman-common.h |    1 +
+>  include/linux/hugetlb.h           |    7 +++++++
+>  mm/mmap.c                         |   19 +++++++++++++++++++
 
-* Changelog: v2 vs initial revision
- - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and xvmalloc.
-   This is to make these 64-bit safe.
- - xvmalloc is no longer a separate module and does not export any symbols.
-   Its compiled directly with ramzswap block driver. This is to avoid any
-   last bit of confusion with any other allocator.
- - set_swap_free_notify() now accepts block_device as parameter instead of
-   swp_entry_t (interface cleanup).
- - Fix: Make sure ramzswap disksize matches usable pages in backing swap file.
-   This caused initialization error in case backing swap file had intra-page
-   fragmentation.
+alpha fix:
 
-It creates RAM based block devices which can be used (only) as swap disks.
-Pages swapped to these disks are compressed and stored in memory itself. This
-is a big win over swapping to slow hard-disk which are typically used as swap
-disk. For flash, these suffer from wear-leveling issues when used as swap disk
-- so again its helpful. For swapless systems, it allows more apps to run for a
-given amount of memory.
+From: Andrew Morton <akpm@linux-foundation.org>
 
-It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
-Each of these devices can have separate backing swap (file or disk partition)
-which is used when incompressible page is found or memory limit for device is
-reached.
+mm/mmap.c: In function 'do_mmap_pgoff':
+mm/mmap.c:953: error: 'MAP_HUGETLB' undeclared (first use in this function)
+mm/mmap.c:953: error: (Each undeclared identifier is reported only once
+mm/mmap.c:953: error: for each function it appears in.)
 
-A separate userspace utility called rzscontrol is used to manage individual
-ramzswap devices.
+Cc: Adam Litke <agl@us.ibm.com>
+Cc: David Gibson <david@gibson.dropbear.id.au>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Eric B Munson <ebmunson@us.ibm.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Richard Henderson <rth@twiddle.net>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
-* Testing notes
+ arch/alpha/include/asm/mman.h |    1 +
+ 1 file changed, 1 insertion(+)
 
-Tested on x86, x64, ARM
-ARM:
- - Cortex-A8 (Beagleboard)
- - ARM11 (Android G1)
- - OMAP2420 (Nokia N810)
-
-* Performance
-
-All performance numbers/plots can be found at:
-http://code.google.com/p/compcache/wiki/Performance
-
-Below is a summary of this data:
-
-General:
- - Swap R/W times are reduced from milliseconds (in case of hard disks)
-down to microseconds.
-
-Positive cases:
- - Shows 33% improvement in 'scan' benchmark which allocates given amount
-of memory and linearly reads/writes to this region. This benchmark also
-exposes bottlenecks in ramzswap code (global mutex) due to which this gain
-is so small.
- - On Linux thin clients, it gives the effect of nearly doubling the amount of
-memory.
-
-Negative cases:
-Any workload that has active working set w.r.t. filesystem cache that is
-nearly equal to amount of RAM while has minimal anonymous memory requirement,
-is expected to suffer maximum loss in performance with ramzswap enabled.
-
-Iozone filesystem benchmark can simulate exactly this kind of workload.
-As expected, this test shows performance loss of ~25% with ramzswap.
-
- drivers/staging/Kconfig                   |    2 +
- drivers/staging/Makefile                  |    1 +
- drivers/staging/ramzswap/Kconfig          |   21 +
- drivers/staging/ramzswap/Makefile         |    3 +
- drivers/staging/ramzswap/ramzswap.txt     |   51 +
- drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
- drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
- drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
- drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
- drivers/staging/ramzswap/xvmalloc.h       |   30 +
- drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
- include/linux/swap.h                      |    5 +
- mm/swapfile.c                             |   34 +
- 13 files changed, 2451 insertions(+), 0 deletions(-)
+diff -puN arch/alpha/include/asm/mman.h~hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions-alpha-fix arch/alpha/include/asm/mman.h
+--- a/arch/alpha/include/asm/mman.h~hugetlb-add-map_hugetlb-for-mmaping-pseudo-anonymous-huge-page-regions-alpha-fix
++++ a/arch/alpha/include/asm/mman.h
+@@ -28,6 +28,7 @@
+ #define MAP_NORESERVE	0x10000		/* don't check for reservations */
+ #define MAP_POPULATE	0x20000		/* populate (prefault) pagetables */
+ #define MAP_NONBLOCK	0x40000		/* do not block on IO */
++#define MAP_HUGETLB	0x80000		/* create a huge page mapping */
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_SYNC		2		/* synchronous memory sync */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
