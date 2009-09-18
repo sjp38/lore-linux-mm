@@ -1,28 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 41D836B00C4
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 05:06:25 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 3CDAB6B00C5
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 05:08:11 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8I96Pws011713
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8I98BYY003896
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 18 Sep 2009 18:06:25 +0900
+	Fri, 18 Sep 2009 18:08:12 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 31D2545DE55
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:06:23 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 80BB145DE5D
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D232C45DE4F
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:06:22 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F92345DE4F
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 716368F8009
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:06:22 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 00B7F8F8006
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:06:22 +0900 (JST)
-Date: Fri, 18 Sep 2009 18:04:19 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 33095E78002
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D46611DB803C
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:10 +0900 (JST)
+Date: Fri, 18 Sep 2009 18:06:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 10/11][mmotm] memcg: clean up percpu and more
- commentary for soft limit
-Message-Id: <20090918180419.fc511373.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 11/11][mmotm] memcg: more commentary and clean up
+Message-Id: <20090918180606.8ca94758.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090918174757.672f1e8e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090918174757.672f1e8e.kamezawa.hiroyu@jp.fujitsu.com>
@@ -34,255 +33,248 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-yes, should be separeted to 2 patches...
-
+This patch itself should be sorted out ;)
 ==
-This patch does
-  - adds some commentary on softlimit codes.
-  - moves per-cpu statitics code right after percpu stat functions.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Signed-off-by: KAMEZAWA Hiroyuki  <kamezawa.hiroyu@jp.fujitsu.com>
+This patch does
+  - move mem_cgroup_move_lists() before swap-cache special LRU functions.
+  - move get_swappiness() around functions related to vmscan logic.
+  - grouping oom-killer functions.
+  - adds some commentary
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  161 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 97 insertions(+), 64 deletions(-)
+ mm/memcontrol.c |  144 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 85 insertions(+), 59 deletions(-)
 
 Index: mmotm-2.6.31-Sep17/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.31-Sep17.orig/mm/memcontrol.c
 +++ mmotm-2.6.31-Sep17/mm/memcontrol.c
-@@ -56,7 +56,7 @@ static int really_do_swap_account __init
- #endif
- 
- static DEFINE_MUTEX(memcg_tasklist);	/* can be hold under cgroup_mutex */
--#define SOFTLIMIT_EVENTS_THRESH (1000)
-+
- 
- /*
-  * Statistics for memory cgroup. accounted per cpu.
-@@ -118,8 +118,9 @@ struct mem_cgroup_lru_info {
- };
- 
- /*
-- * Cgroups above their limits are maintained in a RB-Tree, independent of
-- * their hierarchy representation
-+ * Cgroups above their soft-limits are maintained in a RB-Tree, independent of
-+ * their hierarchy representation. This RB-tree is system-wide but maintained
-+ * per zone.
-  */
- 
- struct mem_cgroup_tree_per_zone {
-@@ -415,6 +416,70 @@ static s64 mem_cgroup_local_usage(struct
+@@ -853,6 +853,15 @@ void mem_cgroup_add_lru_list(struct page
+ 	list_add(&pc->lru, &mz->lists[lru]);
  }
  
++void mem_cgroup_move_lists(struct page *page,
++			   enum lru_list from, enum lru_list to)
++{
++	if (mem_cgroup_disabled())
++		return;
++	mem_cgroup_del_lru_list(page, from);
++	mem_cgroup_add_lru_list(page, to);
++}
++
+ /*
+  * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+  * lru because the page may.be reused after it's fully uncharged (because of
+@@ -889,15 +898,10 @@ static void mem_cgroup_lru_add_after_com
+ 	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
  
-+static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
-+					 bool charge)
-+{
-+	int val = (charge) ? 1 : -1;
-+	mem_cgroup_stat_add_local(mem, MEM_CGROUP_STAT_SWAPOUT, val);
-+}
-+
-+static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
-+					 struct page_cgroup *pc,
-+					 bool charge)
-+{
-+	int val = (charge) ? 1 : -1;
-+	struct mem_cgroup_stat *stat = &mem->stat;
-+	struct mem_cgroup_stat_cpu *cstat;
-+	int cpu = get_cpu();
-+	/* for fast access, we use open-coded manner */
-+	cstat = &stat->cpustat[cpu];
-+	if (PageCgroupCache(pc))
-+		__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_CACHE, val);
-+	else
-+		__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_RSS, val);
-+
-+	if (charge)
-+		__mem_cgroup_stat_add_local(cstat,
-+				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
-+	else
-+		__mem_cgroup_stat_add_local(cstat,
-+				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
-+	__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_EVENTS, 1);
-+	put_cpu();
-+}
-+
+-
+-void mem_cgroup_move_lists(struct page *page,
+-			   enum lru_list from, enum lru_list to)
+-{
+-	if (mem_cgroup_disabled())
+-		return;
+-	mem_cgroup_del_lru_list(page, from);
+-	mem_cgroup_add_lru_list(page, to);
+-}
 +/*
-+ * Currently used to update mapped file statistics, but the routine can be
-+ * generalized to update other statistics as well.
++ * Check a task is under a mem_cgroup. Because we do hierarchical accounting,
++ * we have to check whether one of ancestors is "mem" or not.
 + */
-+void mem_cgroup_update_mapped_file_stat(struct page *page, int val)
-+{
-+	struct mem_cgroup *mem;
-+	struct page_cgroup *pc;
-+
-+	if (!page_is_file_cache(page))
-+		return;
-+
-+	pc = lookup_page_cgroup(page);
-+	if (unlikely(!pc))
-+		return;
-+
-+	lock_page_cgroup(pc);
-+	mem = pc->mem_cgroup;
-+	if (!mem)
-+		goto done;
-+
-+	if (!PageCgroupUsed(pc))
-+		goto done;
-+
-+	mem_cgroup_stat_add_local(mem, MEM_CGROUP_STAT_MAPPED_FILE, val);
-+done:
-+	unlock_page_cgroup(pc);
-+}
-+
-+/*
-+ * For per-zone statistics.
-+ */
- static struct mem_cgroup_per_zone *
- mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+ 
+ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
  {
-@@ -460,6 +525,17 @@ static unsigned long mem_cgroup_get_zone
+@@ -920,7 +924,7 @@ int task_in_mem_cgroup(struct task_struc
+ }
+ 
+ /*
+- * prev_priority control...this will be used in memory reclaim path.
++ * Functions for LRU managenet called by vmscan.c
+  */
+ int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+ {
+@@ -948,7 +952,13 @@ void mem_cgroup_record_reclaim_priority(
+ 	spin_unlock(&mem->reclaim_param_lock);
+ }
+ 
+-static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
++/*
++ * Inactive ratio is a parameter for what ratio of pages should be in
++ * inactive list. This is used by memory reclaim codes.(see vmscan.c)
++ * generic zone's inactive_ratio is calculated in page_alloc.c
++ */
++static int
++calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
+ {
+ 	unsigned long active;
+ 	unsigned long inactive;
+@@ -971,7 +981,10 @@ static int calc_inactive_ratio(struct me
+ 
+ 	return inactive_ratio;
+ }
+-
++/*
++ * If inactive_xxx is in short, active_xxx will be scanned. And
++ * rotation occurs.
++ */
+ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+ {
+ 	unsigned long active;
+@@ -1037,6 +1050,28 @@ mem_cgroup_get_reclaim_stat_from_page(st
+ 	return &mz->reclaim_stat;
+ }
+ 
++
++static unsigned int get_swappiness(struct mem_cgroup *memcg)
++{
++	struct cgroup *cgrp = memcg->css.cgroup;
++	unsigned int swappiness;
++
++	/* root ? */
++	if (cgrp->parent == NULL)
++		return vm_swappiness;
++
++	spin_lock(&memcg->reclaim_param_lock);
++	swappiness = memcg->swappiness;
++	spin_unlock(&memcg->reclaim_param_lock);
++
++	return swappiness;
++}
++
++/*
++ * Called by shrink_xxxx_list functions for grabbing pages as reclaim target.
++ * please see isolate_lru_pages() in mm/vmscan.c
++ */
++
+ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+ 					struct list_head *dst,
+ 					unsigned long *scanned, int order,
+@@ -1092,7 +1127,7 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	return nr_taken;
+ }
+ 
+-
++/* check we hit mem->res or mem->memsw hard-limit or not */
+ static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
+ {
+ 	if (do_swap_account) {
+@@ -1104,32 +1139,41 @@ static bool mem_cgroup_check_under_limit
+ 			return true;
+ 	return false;
+ }
+-
+-static unsigned int get_swappiness(struct mem_cgroup *memcg)
++/*
++ * OOM-Killer related stuff.
++ */
++bool mem_cgroup_oom_called(struct task_struct *task)
+ {
+-	struct cgroup *cgrp = memcg->css.cgroup;
+-	unsigned int swappiness;
+-
+-	/* root ? */
+-	if (cgrp->parent == NULL)
+-		return vm_swappiness;
+-
+-	spin_lock(&memcg->reclaim_param_lock);
+-	swappiness = memcg->swappiness;
+-	spin_unlock(&memcg->reclaim_param_lock);
++	bool ret = false;
++	struct mem_cgroup *mem;
++	struct mm_struct *mm;
+ 
+-	return swappiness;
++	rcu_read_lock();
++	mm = task->mm;
++	if (!mm)
++		mm = &init_mm;
++	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
++	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
++		ret = true;
++	rcu_read_unlock();
++	return ret;
+ }
+ 
+-static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
++static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+ {
+-	int *val = data;
+-	(*val)++;
++	mem->last_oom_jiffies = jiffies;
+ 	return 0;
+ }
+ 
++static void record_last_oom(struct mem_cgroup *mem)
++{
++	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
++}
++
++
+ /**
+- * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in read mode.
++ * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in
++ * read mode.
+  * @memcg: The memory cgroup that went over limit
+  * @p: Task that is going to be killed
+  *
+@@ -1195,6 +1239,14 @@ done:
+ 		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+ }
+ 
++
++
++static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
++{
++	int *val = data;
++	(*val)++;
++	return 0;
++}
+ /*
+  * This function returns the number of memcg under hierarchy tree. Returns
+  * 1(self count) if no children.
+@@ -1338,35 +1390,9 @@ static int mem_cgroup_hierarchical_recla
  	return total;
  }
  
-+/*
-+ * Followings are functions for per-zone memcg softlimit RB-tree management.
-+ * Tree is system-wide but maintained per zone.
-+ */
-+
-+/*
-+ * Soft limit uses percpu event counter for status check instead of checking
-+ * status at every charge/uncharge.
-+ */
-+#define SOFTLIMIT_EVENTS_THRESH (1000)
-+
- static struct mem_cgroup_tree_per_zone *
- soft_limit_tree_node_zone(int nid, int zid)
- {
-@@ -472,9 +548,14 @@ soft_limit_tree_from_page(struct page *p
- 	int nid = page_to_nid(page);
- 	int zid = page_zonenum(page);
- 
--	return &soft_limit_tree.rb_tree_per_node[nid]->rb_tree_per_zone[zid];
-+	return soft_limit_tree_node_zone(nid, zid);
- }
- 
-+/*
-+ * Insert memcg's per-zone struct onto softlimit RB-tree. For inserting,
-+ * mz should be not on tree. Tree-lock is held before calling this.
-+ * tree lock (mctz->lock) should be held.
-+ */
- static void
- __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
- 				struct mem_cgroup_per_zone *mz,
-@@ -530,6 +611,10 @@ mem_cgroup_remove_exceeded(struct mem_cg
- 	spin_unlock(&mctz->lock);
- }
- 
-+/*
-+ * Check per-cpu EVENT COUNTER. If it's over threshold, we check
-+ * how memory uasge exceeds softlimit and update tree.
-+ */
- static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
- {
- 	bool ret = false;
-@@ -543,6 +628,11 @@ static bool mem_cgroup_soft_limit_check(
- 	return ret;
- }
- 
-+/*
-+ * This function updates soft-limit RB-tree by checking "excess" of
-+ * memcgs. When hierarchy is used, all ancestors have to be updated, too.
-+ */
-+
- static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
- {
- 	unsigned long long excess;
-@@ -598,6 +688,9 @@ static inline unsigned long mem_cgroup_g
- 	return res_counter_soft_limit_excess(&mem->res) >> PAGE_SHIFT;
- }
- 
-+/*
-+ * Check RB-tree of a zone and find a memcg which has the largest "excess"
-+ */
- static struct mem_cgroup_per_zone *
- __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
- {
-@@ -634,38 +727,6 @@ mem_cgroup_largest_soft_limit_node(struc
- 	return mz;
- }
- 
--static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
--					 bool charge)
+-bool mem_cgroup_oom_called(struct task_struct *task)
 -{
--	int val = (charge) ? 1 : -1;
--	mem_cgroup_stat_add_local(mem, MEM_CGROUP_STAT_SWAPOUT, val);
--}
--
--static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
--					 struct page_cgroup *pc,
--					 bool charge)
--{
--	int val = (charge) ? 1 : -1;
--	struct mem_cgroup_stat *stat = &mem->stat;
--	struct mem_cgroup_stat_cpu *cstat;
--	int cpu = get_cpu();
--	/* for fast access, we use open-coded manner */
--	cstat = &stat->cpustat[cpu];
--	if (PageCgroupCache(pc))
--		__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_CACHE, val);
--	else
--		__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_RSS, val);
--
--	if (charge)
--		__mem_cgroup_stat_add_local(cstat,
--				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
--	else
--		__mem_cgroup_stat_add_local(cstat,
--				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
--	__mem_cgroup_stat_add_local(cstat, MEM_CGROUP_STAT_EVENTS, 1);
--	put_cpu();
--}
--
- 
- /*
-  * Call callback function against all cgroup under hierarchy tree.
-@@ -1305,34 +1366,6 @@ static void record_last_oom(struct mem_c
- 	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
- }
- 
--/*
-- * Currently used to update mapped file statistics, but the routine can be
-- * generalized to update other statistics as well.
-- */
--void mem_cgroup_update_mapped_file_stat(struct page *page, int val)
--{
+-	bool ret = false;
 -	struct mem_cgroup *mem;
--	struct page_cgroup *pc;
+-	struct mm_struct *mm;
 -
--	if (!page_is_file_cache(page))
--		return;
--
--	pc = lookup_page_cgroup(page);
--	if (unlikely(!pc))
--		return;
--
--	lock_page_cgroup(pc);
--	mem = pc->mem_cgroup;
--	if (!mem)
--		goto done;
--
--	if (!PageCgroupUsed(pc))
--		goto done;
--
--	mem_cgroup_stat_add_local(mem, MEM_CGROUP_STAT_MAPPED_FILE, val);
--done:
--	unlock_page_cgroup(pc);
+-	rcu_read_lock();
+-	mm = task->mm;
+-	if (!mm)
+-		mm = &init_mm;
+-	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+-	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
+-		ret = true;
+-	rcu_read_unlock();
+-	return ret;
 -}
- 
+-
+-static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
+-{
+-	mem->last_oom_jiffies = jiffies;
+-	return 0;
+-}
+-
+-static void record_last_oom(struct mem_cgroup *mem)
+-{
+-	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+-}
+-
+-
++/*
++ * For Batch charge.
++ */
  #define CHARGE_SIZE	(64 * PAGE_SIZE)
  struct memcg_stock_pcp {
+ 	struct mem_cgroup *cached;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
