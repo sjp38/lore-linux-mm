@@ -1,40 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 889456B00F5
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 16:11:43 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id n8IK8SJ0019544
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 13:08:28 -0700
-Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
-	by wpaz9.hot.corp.google.com with ESMTP id n8IK8Crh003902
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 13:08:25 -0700
-Received: by pxi1 with SMTP id 1so1003828pxi.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 13:08:25 -0700 (PDT)
-Date: Fri, 18 Sep 2009 13:08:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/7] Add MAP_HUGETLB for mmaping pseudo-anonymous huge
- page regions
-In-Reply-To: <08251014d2eb30e9016bab16404133f5c13beacf.1253272709.git.ebmunson@us.ibm.com>
-Message-ID: <alpine.DEB.1.00.0909181308110.27556@chino.kir.corp.google.com>
-References: <cover.1253272709.git.ebmunson@us.ibm.com> <653aa659fd7970f7428f4eb41fa10693064e4daf.1253272709.git.ebmunson@us.ibm.com> <08251014d2eb30e9016bab16404133f5c13beacf.1253272709.git.ebmunson@us.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6CD6D6B00F8
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 16:48:47 -0400 (EDT)
+Received: by fg-out-1718.google.com with SMTP id d23so528917fga.8
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 13:48:52 -0700 (PDT)
+Message-ID: <4AB3F227.3030602@gmail.com>
+Date: Fri, 18 Sep 2009 22:48:39 +0200
+From: Marcin Slusarz <marcin.slusarz@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 3/4] virtual block device driver (ramzswap)
+References: <1253227412-24342-1-git-send-email-ngupta@vflare.org> <1253227412-24342-4-git-send-email-ngupta@vflare.org>
+In-Reply-To: <1253227412-24342-4-git-send-email-ngupta@vflare.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <ebmunson@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, rdunlap@xenotime.net, michael@ellerman.id.au, ralf@linux-mips.org, wli@holomorphy.com, mel@csn.ul.ie, dhowells@redhat.com, arnd@arndb.de, fengguang.wu@intel.com, shuber2@gmail.com, hugh.dickins@tiscali.co.uk, zohar@us.ibm.com, hugh@veritas.com, mtk.manpages@gmail.com, chris@zankel.net, linux-man@vger.kernel.org, linux-doc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linux-arch@vger.kernel.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Sep 2009, Eric B Munson wrote:
+Nitin Gupta wrote:
+> (...)
+> +
+> +static int page_zero_filled(void *ptr)
+> +{
+> +	u32 pos;
+> +	u64 *page;
+> +
+> +	page = (u64 *)ptr;
+> +
+> +	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
+> +		if (page[pos])
+> +			return 0;
+> +	}
+> +
+> +	return 1;
+> +}
 
-> This patch adds a flag for mmap that will be used to request a huge
-> page region that will look like anonymous memory to user space.  This
-> is accomplished by using a file on the internal vfsmount.  MAP_HUGETLB
-> is a modifier of MAP_ANONYMOUS and so must be specified with it.  The
-> region will behave the same as a MAP_ANONYMOUS region using small pages.
-> 
-> Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+Wouldn't unsigned long *page be better for both 32-bit and 64-bit machines?
 
-Acked-by: David Rientjes <rientjes@google.com>
+(This function could return bool)
+
+> (...)
+> +static void create_device(struct ramzswap *rzs, int device_id)
+> +{
+> +	mutex_init(&rzs->lock);
+> +	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
+> +
+> +	rzs->queue = blk_alloc_queue(GFP_KERNEL);
+> +	if (!rzs->queue) {
+> +		pr_err("Error allocating disk queue for device %d\n",
+> +			device_id);
+> +		return;
+> +	}
+> +
+> +	blk_queue_make_request(rzs->queue, ramzswap_make_request);
+> +	rzs->queue->queuedata = rzs;
+> +
+> +	 /* gendisk structure */
+> +	rzs->disk = alloc_disk(1);
+> +	if (!rzs->disk) {
+> +		blk_cleanup_queue(rzs->queue);
+> +		pr_warning("Error allocating disk structure for device %d\n",
+> +			device_id);
+> +		return;
+> +	}
+> +
+> +	rzs->disk->major = ramzswap_major;
+> +	rzs->disk->first_minor = device_id;
+> +	rzs->disk->fops = &ramzswap_devops;
+> +	rzs->disk->queue = rzs->queue;
+> +	rzs->disk->private_data = rzs;
+> +	snprintf(rzs->disk->disk_name, 16, "ramzswap%d", device_id);
+> +
+> +	/*
+> +	 * Actual capacity set using RZSIO_SET_DISKSIZE_KB ioctl
+> +	 * or set equal to backing swap device (if provided)
+> +	 */
+> +	set_capacity(rzs->disk, 0);
+> +	add_disk(rzs->disk);
+> +
+> +	rzs->init_done = 0;
+> +
+> +	return;
+> +}
+
+needless return
+
+Marcin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
