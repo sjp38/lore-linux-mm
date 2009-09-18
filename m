@@ -1,134 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B67B96B00DE
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 08:38:13 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n8ICSFlQ015768
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 06:28:15 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8ICcD4B164148
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 06:38:13 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8ICcCol018453
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 06:38:13 -0600
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: [PATCH 1/7] hugetlbfs: Allow the creation of files suitable for MAP_PRIVATE on the vfs internal mount
-Date: Fri, 18 Sep 2009 06:37:58 -0600
-Message-Id: <0f28cb0d89a7b83f7edf92181c5d13422f5b009c.1253276847.git.ebmunson@us.ibm.com>
-In-Reply-To: <653aa659fd7970f7428f4eb41fa10693064e4daf.1253272709.git.ebmunson@us.ibm.com>
-References: <653aa659fd7970f7428f4eb41fa10693064e4daf.1253272709.git.ebmunson@us.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id EA5956B00E0
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 09:27:12 -0400 (EDT)
+Received: by ewy28 with SMTP id 28so1219777ewy.4
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 06:27:20 -0700 (PDT)
+MIME-Version: 1.0
+Date: Fri, 18 Sep 2009 15:27:20 +0200
+Message-ID: <8db1092f0909180627p7c6baaa9l8d1b840144676bd6@mail.gmail.com>
+Subject: [MTRR?] [2.6.31-git7] Xorg:2342 conflicting memory types
+	d0000000-e0000000 uncached-minus<->write-combining
+From: Maciej Rutecki <maciej.rutecki@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: rdunlap@xenotime.net, michael@ellerman.id.au, ralf@linux-mips.org, wli@holomorphy.com, mel@csn.ul.ie, dhowells@redhat.com, arnd@arndb.de, fengguang.wu@intel.com, shuber2@gmail.com, hugh.dickins@tiscali.co.uk, zohar@us.ibm.com, hugh@veritas.com, mtk.manpages@gmail.com, chris@zankel.net, linux-man@vger.kernel.org, linux-doc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linux-arch@vger.kernel.org, Eric B Munson <ebmunson@us.ibm.com>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, airlied@linux.ie
 List-ID: <linux-mm.kvack.org>
 
-There are two means of creating mappings backed by huge pages:
+Last known good: 2.6.31-git3
+Bad: 2.6.31-git7
 
-        1. mmap() a file created on hugetlbfs
-        2. Use shm which creates a file on an internal mount which essentially
-           maps it MAP_SHARED
+Hardware:
+00:02.0 VGA compatible controller: Intel Corporation 82G33/G31 Express
+Integrated Graphics Controller (rev 02)
 
-The internal mount is only used for shared mappings but there is very
-little that stops it being used for private mappings. This patch extends
-hugetlbfs_file_setup() to deal with the creation of files that will be
-mapped MAP_PRIVATE on the internal hugetlbfs mount. This extended API is
-used in a subsequent patch to implement the MAP_HUGETLB mmap() flag.
+When KDM starts stops workin Ctrl+Alt+Fn (n=1...7) keys
+When KDE4 starts keyboard stops working.
 
-Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
----
- fs/hugetlbfs/inode.c    |   11 +++++++++--
- include/linux/hugetlb.h |   12 ++++++++++--
- ipc/shm.c               |    2 +-
- 3 files changed, 20 insertions(+), 5 deletions(-)
+Dmesg shows:
+[   24.471355] [drm] Initialized drm 1.1.0 20060810
+[   24.488789] pci 0000:00:02.0: PCI INT A -> GSI 16 (level, low) -> IRQ 16
+[   24.488799] pci 0000:00:02.0: setting latency timer to 64
+[   24.495113] pci 0000:00:02.0: irq 27 for MSI/MSI-X
+[   24.495151] [drm] Initialized i915 1.6.0 20080730 for 0000:00:02.0 on minor 0
+[   25.645224] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   25.645231] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   25.698026] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   25.698034] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   25.721034] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   25.721042] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   25.725961] Xorg:2342 freeing invalid memtype d0000000-e0000000
+[   25.741993] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   25.742013] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   25.746995] Xorg:2342 freeing invalid memtype d0000000-e0000000
+[   25.762992] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   25.763013] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   25.767984] Xorg:2342 freeing invalid memtype d0000000-e0000000
+[   45.864618] CPU0 attaching NULL sched-domain.
+[   45.864626] CPU1 attaching NULL sched-domain.
+[   45.868189] CPU0 attaching sched-domain:
+[   45.868194]  domain 0: span 0-1 level MC
+[   45.868199]   groups: 0 1
+[   45.868206] CPU1 attaching sched-domain:
+[   45.868210]  domain 0: span 0-1 level MC
+[   45.868213]   groups: 1 0
+[   53.018506] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   53.018511] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   53.021711] Xorg:2342 freeing invalid memtype d0000000-e0000000
+[   53.490119] Xorg:2342 conflicting memory types d0000000-e0000000
+uncached-minus<->write-combining
+[   53.490139] reserve_memtype failed 0xd0000000-0xe0000000, track
+uncached-minus, req uncached-minus
+[   53.495587] Xorg:2342 freeing invalid memtype d0000000-e0000000
+[   87.989188] Xorg:2342 freeing invalid memtype d0000000-e0000000
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index a93b885..c50853e 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -507,6 +507,13 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
- 		INIT_LIST_HEAD(&inode->i_mapping->private_list);
- 		info = HUGETLBFS_I(inode);
-+		/*
-+		 * The policy is initialized here even if we are creating a
-+		 * private inode because initialization simply creates an
-+		 * an empty rb tree and calls spin_lock_init(), later when we
-+		 * call mpol_free_shared_policy() it will just return because
-+		 * the rb tree will still be empty.
-+		 */
- 		mpol_shared_policy_init(&info->policy, NULL);
- 		switch (mode & S_IFMT) {
- 		default:
-@@ -937,7 +944,7 @@ static int can_do_hugetlb_shm(void)
- }
- 
- struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
--						struct user_struct **user)
-+				struct user_struct **user, int creat_flags)
- {
- 	int error = -ENOMEM;
- 	struct file *file;
-@@ -949,7 +956,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
- 	if (!hugetlbfs_vfsmount)
- 		return ERR_PTR(-ENOENT);
- 
--	if (!can_do_hugetlb_shm()) {
-+	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
- 		*user = current_user();
- 		if (user_shm_lock(size, *user)) {
- 			WARN_ONCE(1,
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 5cbc620..38bb552 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -110,6 +110,14 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- 
- #endif /* !CONFIG_HUGETLB_PAGE */
- 
-+enum {
-+	/*
-+	 * The file will be used as an shm file so shmfs accounting rules
-+	 * apply
-+	 */
-+	HUGETLB_SHMFS_INODE     = 1,
-+};
-+
- #ifdef CONFIG_HUGETLBFS
- struct hugetlbfs_config {
- 	uid_t   uid;
-@@ -148,7 +156,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
- extern const struct file_operations hugetlbfs_file_operations;
- extern struct vm_operations_struct hugetlb_vm_ops;
- struct file *hugetlb_file_setup(const char *name, size_t size, int acct,
--						struct user_struct **user);
-+				struct user_struct **user, int creat_flags);
- int hugetlb_get_quota(struct address_space *mapping, long delta);
- void hugetlb_put_quota(struct address_space *mapping, long delta);
- 
-@@ -170,7 +178,7 @@ static inline void set_file_hugepages(struct file *file)
- 
- #define is_file_hugepages(file)			0
- #define set_file_hugepages(file)		BUG()
--#define hugetlb_file_setup(name,size,acct,user)	ERR_PTR(-ENOSYS)
-+#define hugetlb_file_setup(name,size,acct,user,creat)	ERR_PTR(-ENOSYS)
- 
- #endif /* !CONFIG_HUGETLBFS */
- 
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 30162a5..9eb1488 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -370,7 +370,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
- 		if (shmflg & SHM_NORESERVE)
- 			acctflag = VM_NORESERVE;
- 		file = hugetlb_file_setup(name, size, acctflag,
--							&shp->mlock_user);
-+					&shp->mlock_user, HUGETLB_SHMFS_INODE);
- 	} else {
- 		/*
- 		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
+
+Logs from X.org shows:
+(EE) XKB: Could not invoke xkbcomp
+(EE) XKB: Couldn't compile keymap
+(EE) XKB: Could not invoke xkbcomp
+(EE) XKB: Couldn't compile keymap
+(II) USB-compliant keyboard: Close
+(II) UnloadModule: "evdev"
+(II) USB-compliant keyboard: Close
+(II) UnloadModule: "evdev"
+(II) Power Button: Close
+(II) UnloadModule: "evdev"
+(II) Power Button: Close
+(II) UnloadModule: "evdev"
+(II) PATEN USB/PS2 Combo Receiver: Close
+(II) UnloadModule: "evdev"
+(II) Open ACPI successful (/var/run/acpid.socket)
+(II) APM registered successfully
+(II) intel(0): Kernel reported 746240 total, 1 used
+(II) intel(0): I830CheckAvailableMemory: 2984956 kB available
+(II) intel(0): [DRI2] Setup complete
+(**) intel(0): Framebuffer compression disabled
+(**) intel(0): Tiling enabled
+(**) intel(0): SwapBuffers wait enabled
+(EE) intel(0): Failed to initialize kernel memory manager
+(==) intel(0): VideoRam: 262144 KB
+(II) intel(0): Attempting memory allocation with tiled buffers.
+
+Backtrace:
+0: /usr/bin/X(xorg_backtrace+0x3b) [0x81314bb]
+1: /usr/bin/X(xf86SigHandler+0x51) [0x80c1c61]
+2: [0xb804b400]
+3: /usr/lib/xorg/modules/drivers//intel_drv.so(i830_allocate_memory+0x286)
+[0xb7b58576]
+4: /usr/lib/xorg/modules/drivers//intel_drv.so(i830_allocate_2d_memory+0xbf)
+[0xb7b5901f]
+5: /usr/lib/xorg/modules/drivers//intel_drv.so [0xb7b4de74]
+6: /usr/lib/xorg/modules/drivers//intel_drv.so [0xb7b52918]
+7: /usr/bin/X(AddScreen+0x19d) [0x807121d]
+8: /usr/bin/X(InitOutput+0x206) [0x80add66]
+9: /usr/bin/X(main+0x1db) [0x807190b]
+10: /lib/i686/cmov/libc.so.6(__libc_start_main+0xe5) [0xb7cf47a5]
+11: /usr/bin/X [0x8070fa1]
+
+Fatal server error:
+Caught signal 11.  Server aborting
+
+
+Please consult the The X.Org Foundation support
+	 at http://wiki.x.org
+ for help.
+Please also check the log file at "/var/log/Xorg.0.log" for additional
+information.
+
+>From 2.6.31:
+cat /proc/mtrr
+reg00: base=0x000000000 (    0MB), size= 2048MB, count=1: write-back
+reg01: base=0x080000000 ( 2048MB), size= 1024MB, count=1: write-back
+reg02: base=0x0bf600000 ( 3062MB), size=    2MB, count=1: uncachable
+reg03: base=0x0bf800000 ( 3064MB), size=    8MB, count=1: uncachable
+reg04: base=0x0d0000000 ( 3328MB), size=  256MB, count=1: write-combining
+
+
+Dmesg:
+http://unixy.pl/maciek/download/kernel/2.6.31-git7/zlom/dmesg-2.6.31-git7.txt
+
+Xorg.0.log:
+http://unixy.pl/maciek/download/kernel/2.6.31-git7/zlom/Xorg.0.log
+
+Config:
+http://unixy.pl/maciek/download/kernel/2.6.31-git7/zlom/config-2.6.31-git7
+
+lspci -vv -nn:
+http://unixy.pl/maciek/download/kernel/2.6.31-git7/zlom/lspci.txt
+
+Regards
+
 -- 
-1.6.3.2
+Maciej Rutecki
+http://www.maciek.unixy.pl
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
