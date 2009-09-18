@@ -1,318 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2241B6B00E4
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 11:19:53 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] Add MAP_HUGETLB for mmaping pseudo-anonymous huge page regions
-Date: Fri, 18 Sep 2009 17:19:46 +0200
-References: <cover.1251197514.git.ebmunson@us.ibm.com> <20090917154404.e1d3694e.akpm@linux-foundation.org> <20090917174616.f64123fb.akpm@linux-foundation.org>
-In-Reply-To: <20090917174616.f64123fb.akpm@linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5EFAD6B00E6
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:44:42 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so844773bwz.38
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 09:44:45 -0700 (PDT)
+Message-ID: <4AB3B8BF.1060302@vflare.org>
+Date: Fri, 18 Sep 2009 22:13:43 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Subject: [PATCH] ramzswap prefix for swap free callback
+References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
+In-Reply-To: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Message-Id: <200909181719.47240.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, rth@twiddle.net, ink@jurassic.park.msu.ru
+To: Greg KH <greg@kroah.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a flag for mmap that will be used to request a huge
-page region that will look like anonymous memory to user space.  This
-is accomplished by using a file on the internal vfsmount.  MAP_HUGETLB
-is a modifier of MAP_ANONYMOUS and so must be specified with it.  The
-region will behave the same as a MAP_ANONYMOUS region using small pages.
+Swap free callback is used to inform the underlying block
+device that a swap page has been freed. Currently, ramzswap
+is the only user of this callback. So, rename swap notify
+interface to reflect this.
 
-The patch also adds the MAP_STACK flag, which was previously defined
-only on some architectures but not on others. Since MAP_STACK is meant
-to be a hint only, architectures can define it without assigning a
-specific meaning to it.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Cc: Eric B Munson <ebmunson@us.ibm.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
 ---
-On Friday 18 September 2009, Andrew Morton wrote:
-> On Thu, 17 Sep 2009 15:44:04 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > mm/mmap.c: In function 'do_mmap_pgoff':
-> > mm/mmap.c:953: error: 'MAP_HUGETLB' undeclared (first use in this function)
-> 
-> mips breaks as well.
-> 
-> I don't know how many other architectures broke.  I disabled the patches.
+ drivers/staging/ramzswap/ramzswap_drv.c |    4 ++--
+ include/linux/swap.h                    |    7 ++++---
+ mm/swapfile.c                           |   14 +++++++-------
+ 3 files changed, 13 insertions(+), 12 deletions(-)
 
-two: parisc and xtensa.
+diff --git a/drivers/staging/ramzswap/ramzswap_drv.c b/drivers/staging/ramzswap/ramzswap_drv.c
+index 46c387a..1a7167f 100644
+--- a/drivers/staging/ramzswap/ramzswap_drv.c
++++ b/drivers/staging/ramzswap/ramzswap_drv.c
+@@ -761,7 +761,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
+ 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
-It's also done in a different way from the existing flags, which makes
-it more likely to break again if someone tries to add another flag.
+ 	if (unlikely(!rzs->init_notify_callback) && PageSwapCache(page)) {
+-		set_swap_free_notify(bio->bi_bdev, ramzswap_free_notify);
++		set_ramzswap_free_notify(bio->bi_bdev, ramzswap_free_notify);
+ 		rzs->init_notify_callback = 1;
+ 	}
 
-This patch is more along the lines of how I explained it could be done,
-adding the MAP_HUGETLB (and MAP_STACK) flags to the existing lists in
-a consistent way.
+@@ -1323,7 +1323,7 @@ static int ramzswap_ioctl(struct block_device *bdev, fmode_t mode,
+ 		 * can happen if another swapon is done before this reset.
+ 		 * TODO: A callback from swapoff() will solve this problem.
+ 		 */
+-		set_swap_free_notify(bdev, NULL);
++		set_ramzswap_free_notify(bdev, NULL);
+ 		rzs->init_notify_callback = 0;
+ 		break;
 
-A logical next step would be to replace the mman.h files that are basically
-copies of include/asm-generic/mman.h.
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 64796fc..ace7900 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -21,7 +21,7 @@ struct bio;
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
 
-	Arnd <><
----
- arch/alpha/include/asm/mman.h   |    2 ++
- arch/arm/include/asm/mman.h     |    2 ++
- arch/avr32/include/asm/mman.h   |    2 ++
- arch/cris/include/asm/mman.h    |    2 ++
- arch/frv/include/asm/mman.h     |    2 ++
- arch/h8300/include/asm/mman.h   |    2 ++
- arch/ia64/include/asm/mman.h    |    2 ++
- arch/m32r/include/asm/mman.h    |    2 ++
- arch/m68k/include/asm/mman.h    |    2 ++
- arch/mips/include/asm/mman.h    |    2 ++
- arch/mn10300/include/asm/mman.h |    2 ++
- arch/parisc/include/asm/mman.h  |    2 ++
- arch/powerpc/include/asm/mman.h |    2 ++
- arch/s390/include/asm/mman.h    |    2 ++
- arch/sparc/include/asm/mman.h   |    2 ++
- arch/x86/include/asm/mman.h     |    1 +
- arch/xtensa/include/asm/mman.h  |    2 ++
- include/asm-generic/mman.h      |    1 +
- 18 files changed, 34 insertions(+), 0 deletions(-)
+-typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
++typedef void (ramzswap_free_notify_fn) (struct block_device *, unsigned long);
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
-index 90d7c35..6e4d854 100644
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -28,6 +28,8 @@
- #define MAP_NORESERVE	0x10000		/* don't check for reservations */
- #define MAP_POPULATE	0x20000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x40000		/* do not block on IO */
-+#define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x100000	/* create a huge page mapping */
- 
- #define MS_ASYNC	1		/* sync memory asynchronously */
- #define MS_SYNC		2		/* synchronous memory sync */
-diff --git a/arch/arm/include/asm/mman.h b/arch/arm/include/asm/mman.h
-index fc26976..6464d47 100644
---- a/arch/arm/include/asm/mman.h
-+++ b/arch/arm/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) page tables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/avr32/include/asm/mman.h b/arch/avr32/include/asm/mman.h
-index 9a92b15..38cea1b 100644
---- a/arch/avr32/include/asm/mman.h
-+++ b/arch/avr32/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) page tables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/cris/include/asm/mman.h b/arch/cris/include/asm/mman.h
-index b7f0afb..de6b903 100644
---- a/arch/cris/include/asm/mman.h
-+++ b/arch/cris/include/asm/mman.h
-@@ -12,6 +12,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/frv/include/asm/mman.h b/arch/frv/include/asm/mman.h
-index 58c1d11..1939343 100644
---- a/arch/frv/include/asm/mman.h
-+++ b/arch/frv/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/h8300/include/asm/mman.h b/arch/h8300/include/asm/mman.h
-index cf35f0a..eacacd0 100644
---- a/arch/h8300/include/asm/mman.h
-+++ b/arch/h8300/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/ia64/include/asm/mman.h b/arch/ia64/include/asm/mman.h
-index 48cf8b9..cf55884 100644
---- a/arch/ia64/include/asm/mman.h
-+++ b/arch/ia64/include/asm/mman.h
-@@ -18,6 +18,8 @@
- #define MAP_NORESERVE	0x04000		/* don't check for reservations */
- #define MAP_POPULATE	0x08000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/m32r/include/asm/mman.h b/arch/m32r/include/asm/mman.h
-index 04a5f40..d191089 100644
---- a/arch/m32r/include/asm/mman.h
-+++ b/arch/m32r/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/m68k/include/asm/mman.h b/arch/m68k/include/asm/mman.h
-index 9f5c4c4..c421fef 100644
---- a/arch/m68k/include/asm/mman.h
-+++ b/arch/m68k/include/asm/mman.h
-@@ -10,6 +10,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
-index e4d6f1f..1578166 100644
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -46,6 +46,8 @@
- #define MAP_LOCKED	0x8000		/* pages are locked */
- #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
-+#define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x80000		/* create a huge page mapping */
- 
- /*
-  * Flags for msync
-diff --git a/arch/mn10300/include/asm/mman.h b/arch/mn10300/include/asm/mman.h
-index d04fac1..94611c3 100644
---- a/arch/mn10300/include/asm/mman.h
-+++ b/arch/mn10300/include/asm/mman.h
-@@ -21,6 +21,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
-index defe752..ce4b265 100644
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -22,6 +22,8 @@
- #define MAP_GROWSDOWN	0x8000		/* stack-like segment */
- #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
-+#define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x80000		/* create a huge page mapping */
- 
- #define MS_SYNC		1		/* synchronous memory sync */
- #define MS_ASYNC	2		/* sync memory asynchronously */
-diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
-index 7b1c498..d4a7f64 100644
---- a/arch/powerpc/include/asm/mman.h
-+++ b/arch/powerpc/include/asm/mman.h
-@@ -25,6 +25,8 @@
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #ifdef __KERNEL__
- #ifdef CONFIG_PPC64
-diff --git a/arch/s390/include/asm/mman.h b/arch/s390/include/asm/mman.h
-index f63fe7b..22714ca 100644
---- a/arch/s390/include/asm/mman.h
-+++ b/arch/s390/include/asm/mman.h
-@@ -18,6 +18,8 @@
- #define MAP_NORESERVE	0x4000		/* don't check for reservations */
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/sparc/include/asm/mman.h b/arch/sparc/include/asm/mman.h
-index 988192e..c3029ad 100644
---- a/arch/sparc/include/asm/mman.h
-+++ b/arch/sparc/include/asm/mman.h
-@@ -20,6 +20,8 @@
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-+#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #ifdef __KERNEL__
- #ifndef __ASSEMBLY__
-diff --git a/arch/x86/include/asm/mman.h b/arch/x86/include/asm/mman.h
-index 751af25..c719f36 100644
---- a/arch/x86/include/asm/mman.h
-+++ b/arch/x86/include/asm/mman.h
-@@ -13,6 +13,7 @@
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
-index 9b92620..f380d04 100644
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -53,6 +53,8 @@
- #define MAP_LOCKED	0x8000		/* pages are locked */
- #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
-+#define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x80000		/* create a huge page mapping */
- 
- /*
-  * Flags for msync
-diff --git a/include/asm-generic/mman.h b/include/asm-generic/mman.h
-index 7cab4de..32c8bd6 100644
---- a/include/asm-generic/mman.h
-+++ b/include/asm-generic/mman.h
-@@ -11,6 +11,7 @@
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-+#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
+ static inline int current_is_kswapd(void)
+ {
+@@ -158,7 +158,7 @@ struct swap_info_struct {
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+ 	unsigned int old_block_size;
+-	swap_free_notify_fn *swap_free_notify_fn;
++	ramzswap_free_notify_fn *ramzswap_free_notify_fn;
+ };
+
+ struct swap_list_t {
+@@ -299,7 +299,8 @@ extern sector_t swapdev_block(int, pgoff_t);
+ extern struct swap_info_struct *get_swap_info_struct(unsigned);
+ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
+-extern void set_swap_free_notify(struct block_device *, swap_free_notify_fn *);
++extern void set_ramzswap_free_notify(struct block_device *,
++				ramzswap_free_notify_fn *);
+ struct backing_dev_info;
+
+ /* linux/mm/thrash.c */
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index b165db0..0cc9c9c 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -558,8 +558,8 @@ out:
+  * Sets callback for event when swap_map[offset] == 0
+  * i.e. page at this swap offset is no longer used.
+  */
+-void set_swap_free_notify(struct block_device *bdev,
+-			swap_free_notify_fn *notify_fn)
++void set_ramzswap_free_notify(struct block_device *bdev,
++			ramzswap_free_notify_fn *notify_fn)
+ {
+ 	unsigned int i;
+ 	struct swap_info_struct *sis;
+@@ -579,12 +579,12 @@ void set_swap_free_notify(struct block_device *bdev,
+ 		return;
+ 	}
+
+-	BUG_ON(!sis || sis->swap_free_notify_fn);
+-	sis->swap_free_notify_fn = notify_fn;
++	BUG_ON(!sis || sis->ramzswap_free_notify_fn);
++	sis->ramzswap_free_notify_fn = notify_fn;
+ 	spin_unlock(&swap_lock);
+ 	return;
+ }
+-EXPORT_SYMBOL_GPL(set_swap_free_notify);
++EXPORT_SYMBOL_GPL(set_ramzswap_free_notify);
+
+ static int swap_entry_free(struct swap_info_struct *p,
+ 			   swp_entry_t ent, int cache)
+@@ -617,8 +617,8 @@ static int swap_entry_free(struct swap_info_struct *p,
+ 			swap_list.next = p - swap_info;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
+-		if (p->swap_free_notify_fn)
+-			p->swap_free_notify_fn(p->bdev, offset);
++		if (p->ramzswap_free_notify_fn)
++			p->ramzswap_free_notify_fn(p->bdev, offset);
+ 	}
+ 	if (!swap_count(count))
+ 		mem_cgroup_uncharge_swap(ent);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
