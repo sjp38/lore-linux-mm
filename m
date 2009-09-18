@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6CD6D6B00F8
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 16:48:47 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id d23so528917fga.8
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 13:48:52 -0700 (PDT)
-Message-ID: <4AB3F227.3030602@gmail.com>
-Date: Fri, 18 Sep 2009 22:48:39 +0200
-From: Marcin Slusarz <marcin.slusarz@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CA4DA6B00F9
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 17:04:32 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B849282C53E
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 17:06:23 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id t5ARF5zUNV9B for <linux-mm@kvack.org>;
+	Fri, 18 Sep 2009 17:06:23 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id ACF6C82C540
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 17:06:18 -0400 (EDT)
+Date: Fri, 18 Sep 2009 17:01:14 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/3] slqb: Treat pages freed on a memoryless node as
+ local node
+In-Reply-To: <1253302451-27740-3-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0909181657280.9490@V090114053VZO-1>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie> <1253302451-27740-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] virtual block device driver (ramzswap)
-References: <1253227412-24342-1-git-send-email-ngupta@vflare.org> <1253227412-24342-4-git-send-email-ngupta@vflare.org>
-In-Reply-To: <1253227412-24342-4-git-send-email-ngupta@vflare.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nitin Gupta wrote:
-> (...)
-> +
-> +static int page_zero_filled(void *ptr)
-> +{
-> +	u32 pos;
-> +	u64 *page;
-> +
-> +	page = (u64 *)ptr;
-> +
-> +	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
-> +		if (page[pos])
-> +			return 0;
-> +	}
-> +
-> +	return 1;
-> +}
+On Fri, 18 Sep 2009, Mel Gorman wrote:
 
-Wouldn't unsigned long *page be better for both 32-bit and 64-bit machines?
+> --- a/mm/slqb.c
+> +++ b/mm/slqb.c
+> @@ -1726,6 +1726,7 @@ static __always_inline void __slab_free(struct kmem_cache *s,
+>  	struct kmem_cache_cpu *c;
+>  	struct kmem_cache_list *l;
+>  	int thiscpu = smp_processor_id();
+> +	int thisnode = numa_node_id();
 
-(This function could return bool)
+thisnode must be the first reachable node with usable RAM. Not the current
+node. cpu 0 may be on node 0 but there is no memory on 0. Instead
+allocations fall back to node 2 (depends on policy effective as well. The
+round robin meory policy default on bootup may result in allocations from
+different nodes as well).
 
-> (...)
-> +static void create_device(struct ramzswap *rzs, int device_id)
-> +{
-> +	mutex_init(&rzs->lock);
-> +	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
-> +
-> +	rzs->queue = blk_alloc_queue(GFP_KERNEL);
-> +	if (!rzs->queue) {
-> +		pr_err("Error allocating disk queue for device %d\n",
-> +			device_id);
-> +		return;
-> +	}
-> +
-> +	blk_queue_make_request(rzs->queue, ramzswap_make_request);
-> +	rzs->queue->queuedata = rzs;
-> +
-> +	 /* gendisk structure */
-> +	rzs->disk = alloc_disk(1);
-> +	if (!rzs->disk) {
-> +		blk_cleanup_queue(rzs->queue);
-> +		pr_warning("Error allocating disk structure for device %d\n",
-> +			device_id);
-> +		return;
-> +	}
-> +
-> +	rzs->disk->major = ramzswap_major;
-> +	rzs->disk->first_minor = device_id;
-> +	rzs->disk->fops = &ramzswap_devops;
-> +	rzs->disk->queue = rzs->queue;
-> +	rzs->disk->private_data = rzs;
-> +	snprintf(rzs->disk->disk_name, 16, "ramzswap%d", device_id);
-> +
-> +	/*
-> +	 * Actual capacity set using RZSIO_SET_DISKSIZE_KB ioctl
-> +	 * or set equal to backing swap device (if provided)
-> +	 */
-> +	set_capacity(rzs->disk, 0);
-> +	add_disk(rzs->disk);
-> +
-> +	rzs->init_done = 0;
-> +
-> +	return;
-> +}
+>  	c = get_cpu_slab(s, thiscpu);
+>  	l = &c->list;
+> @@ -1733,12 +1734,14 @@ static __always_inline void __slab_free(struct kmem_cache *s,
+>  	slqb_stat_inc(l, FREE);
+>
+>  	if (!NUMA_BUILD || !slab_numa(s) ||
+> -			likely(slqb_page_to_nid(page) == numa_node_id())) {
+> +			likely(slqb_page_to_nid(page) == numa_node_id() ||
+> +			!node_state(thisnode, N_HIGH_MEMORY))) {
 
-needless return
+Same here.
 
-Marcin
+Note that page_to_nid can yield surprising results if you are trying to
+allocate from a node that has no memory and you get some fallback node.
+
+SLAB for some time had a bug that caused list corruption because of this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
