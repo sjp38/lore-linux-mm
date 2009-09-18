@@ -1,280 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 3CDAB6B00C5
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 05:08:11 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8I98BYY003896
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 18 Sep 2009 18:08:12 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 80BB145DE5D
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F92345DE4F
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 33095E78002
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:11 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D46611DB803C
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 18:08:10 +0900 (JST)
-Date: Fri, 18 Sep 2009 18:06:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 11/11][mmotm] memcg: more commentary and clean up
-Message-Id: <20090918180606.8ca94758.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090918174757.672f1e8e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090909173903.afc86d85.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090918174757.672f1e8e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id ECB206B00C6
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 05:33:13 -0400 (EDT)
+Subject: Re: [PATCH 2/4] send callback when swap slot is freed
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <Pine.LNX.4.64.0909180857170.5404@sister.anvils>
+References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
+	 <1253227412-24342-3-git-send-email-ngupta@vflare.org>
+	 <1253256805.4959.8.camel@penberg-laptop>
+	 <Pine.LNX.4.64.0909180809290.2882@sister.anvils>
+	 <1253260528.4959.13.camel@penberg-laptop>
+	 <Pine.LNX.4.64.0909180857170.5404@sister.anvils>
+Date: Fri, 18 Sep 2009 12:33:11 +0300
+Message-Id: <1253266391.4959.15.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Nitin Gupta <ngupta@vflare.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-This patch itself should be sorted out ;)
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hi Hugh,
 
-This patch does
-  - move mem_cgroup_move_lists() before swap-cache special LRU functions.
-  - move get_swappiness() around functions related to vmscan logic.
-  - grouping oom-killer functions.
-  - adds some commentary
+On Fri, 2009-09-18 at 08:59 +0100, Hugh Dickins wrote:
+> On Fri, 18 Sep 2009, Pekka Enberg wrote:
+> > 
+> > The *hook* looks OK to me but set_swap_free_notify() looks like an ugly
+> > hack. I don't understand why we're setting up the hook lazily in
+> > ramzswap_read() nor do I understand why we need to look up struct
+> > swap_info_struct with a bdev. Surely there's a cleaner way to do all
+> > this? Probably somewhere in sys_swapon()?
+> 
+> Sounds like you have something in mind, may well be better,
+> but please show us a patch...  (my mind is elsewhere!)
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hey, you tricked me into a world of pain! Here's a totally untested
+patch that adds a "swapon" funciton to struct block_device_operations
+that the ramzswap driver can implement to setup ->swap_free_notify_fn.
+
+			Pekka
+
+>From 41827c57196f7eae66701a6ae6565c226c0b7674 Mon Sep 17 00:00:00 2001
+From: Nitin Gupta <ngupta@vflare.org>
+Date: Fri, 18 Sep 2009 04:13:30 +0530
+Subject: [PATCH] mm: swap slot free notifier
+
+Currently, we have "swap discard" mechanism which sends a discard bio request
+when we find a free cluster during scan_swap_map(). This callback can come a
+long time after swap slots are actually freed.
+
+This delay in callback is a great problem when (compressed) RAM [1] is used
+as a swap device. So, this change adds a callback which is called as
+soon as a swap slot becomes free. For above mentioned case of swapping
+over compressed RAM device, this is very useful since we can immediately
+free memory allocated for this swap page.
+
+This callback does not replace swap discard support. It is called with
+swap_lock held, so it is meant to trigger action that finishes quickly.
+However, swap discard is an I/O request and can be used for taking longer
+actions.
+
+It is preferred to use this callback for ramzswap case even if discard
+mechanism could be improved such that it can be called as often as required.
+This is because, allocation of 'bio'(s) is undesirable since ramzswap always
+operates under low memory conditions (its a swap device). Also, batching of
+discard bio requests is not optimal since stale data can accumulate very
+quickly in ramzswap devices, pushing system further into low memory state.
+
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
 ---
- mm/memcontrol.c |  144 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 85 insertions(+), 59 deletions(-)
+ include/linux/blkdev.h |    2 ++
+ include/linux/swap.h   |   16 ++++++++++++++++
+ mm/swapfile.c          |    5 +++++
+ 3 files changed, 23 insertions(+), 0 deletions(-)
 
-Index: mmotm-2.6.31-Sep17/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.31-Sep17.orig/mm/memcontrol.c
-+++ mmotm-2.6.31-Sep17/mm/memcontrol.c
-@@ -853,6 +853,15 @@ void mem_cgroup_add_lru_list(struct page
- 	list_add(&pc->lru, &mz->lists[lru]);
- }
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index e23a86c..688e024 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -27,6 +27,7 @@ struct scsi_ioctl_command;
+ struct request_queue;
+ struct elevator_queue;
+ struct request_pm_state;
++struct swap_info_struct;
+ struct blk_trace;
+ struct request;
+ struct sg_io_hdr;
+@@ -1239,6 +1240,7 @@ struct block_device_operations {
+ 						unsigned long long);
+ 	int (*revalidate_disk) (struct gendisk *);
+ 	int (*getgeo)(struct block_device *, struct hd_geometry *);
++	int (*swapon)(struct block_device *, struct swap_info_struct *);
+ 	struct module *owner;
+ };
  
-+void mem_cgroup_move_lists(struct page *page,
-+			   enum lru_list from, enum lru_list to)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7c15334..6603009 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -8,6 +8,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/sched.h>
+ #include <linux/node.h>
++#include <linux/blkdev.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/page.h>
+@@ -20,6 +21,8 @@ struct bio;
+ #define SWAP_FLAG_PRIO_MASK	0x7fff
+ #define SWAP_FLAG_PRIO_SHIFT	0
+ 
++typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
++
+ static inline int current_is_kswapd(void)
+ {
+ 	return current->flags & PF_KSWAPD;
+@@ -155,6 +158,7 @@ struct swap_info_struct {
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+ 	unsigned int old_block_size;
++	swap_free_notify_fn *swap_free_notify_fn;
+ };
+ 
+ struct swap_list_t {
+@@ -297,6 +301,18 @@ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
+ struct backing_dev_info;
+ 
++static inline int
++blkdev_swapon(struct block_device *bdev, struct swap_info_struct *sis)
 +{
-+	if (mem_cgroup_disabled())
-+		return;
-+	mem_cgroup_del_lru_list(page, from);
-+	mem_cgroup_add_lru_list(page, to);
++	struct gendisk *disk = bdev->bd_disk;
++	int err = 0;
++
++	if (disk->fops->swapon)
++		err = disk->fops->swapon(bdev, sis);
++
++	return err;
 +}
 +
- /*
-  * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
-  * lru because the page may.be reused after it's fully uncharged (because of
-@@ -889,15 +898,10 @@ static void mem_cgroup_lru_add_after_com
- 	spin_unlock_irqrestore(&zone->lru_lock, flags);
- }
- 
--
--void mem_cgroup_move_lists(struct page *page,
--			   enum lru_list from, enum lru_list to)
--{
--	if (mem_cgroup_disabled())
--		return;
--	mem_cgroup_del_lru_list(page, from);
--	mem_cgroup_add_lru_list(page, to);
--}
-+/*
-+ * Check a task is under a mem_cgroup. Because we do hierarchical accounting,
-+ * we have to check whether one of ancestors is "mem" or not.
-+ */
- 
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
- {
-@@ -920,7 +924,7 @@ int task_in_mem_cgroup(struct task_struc
- }
- 
- /*
-- * prev_priority control...this will be used in memory reclaim path.
-+ * Functions for LRU managenet called by vmscan.c
-  */
- int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
- {
-@@ -948,7 +952,13 @@ void mem_cgroup_record_reclaim_priority(
- 	spin_unlock(&mem->reclaim_param_lock);
- }
- 
--static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
-+/*
-+ * Inactive ratio is a parameter for what ratio of pages should be in
-+ * inactive list. This is used by memory reclaim codes.(see vmscan.c)
-+ * generic zone's inactive_ratio is calculated in page_alloc.c
-+ */
-+static int
-+calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
- {
- 	unsigned long active;
- 	unsigned long inactive;
-@@ -971,7 +981,10 @@ static int calc_inactive_ratio(struct me
- 
- 	return inactive_ratio;
- }
--
-+/*
-+ * If inactive_xxx is in short, active_xxx will be scanned. And
-+ * rotation occurs.
-+ */
- int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
- {
- 	unsigned long active;
-@@ -1037,6 +1050,28 @@ mem_cgroup_get_reclaim_stat_from_page(st
- 	return &mz->reclaim_stat;
- }
- 
-+
-+static unsigned int get_swappiness(struct mem_cgroup *memcg)
-+{
-+	struct cgroup *cgrp = memcg->css.cgroup;
-+	unsigned int swappiness;
-+
-+	/* root ? */
-+	if (cgrp->parent == NULL)
-+		return vm_swappiness;
-+
-+	spin_lock(&memcg->reclaim_param_lock);
-+	swappiness = memcg->swappiness;
-+	spin_unlock(&memcg->reclaim_param_lock);
-+
-+	return swappiness;
-+}
-+
-+/*
-+ * Called by shrink_xxxx_list functions for grabbing pages as reclaim target.
-+ * please see isolate_lru_pages() in mm/vmscan.c
-+ */
-+
- unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
-@@ -1092,7 +1127,7 @@ unsigned long mem_cgroup_isolate_pages(u
- 	return nr_taken;
- }
- 
--
-+/* check we hit mem->res or mem->memsw hard-limit or not */
- static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
- {
- 	if (do_swap_account) {
-@@ -1104,32 +1139,41 @@ static bool mem_cgroup_check_under_limit
- 			return true;
- 	return false;
- }
--
--static unsigned int get_swappiness(struct mem_cgroup *memcg)
-+/*
-+ * OOM-Killer related stuff.
-+ */
-+bool mem_cgroup_oom_called(struct task_struct *task)
- {
--	struct cgroup *cgrp = memcg->css.cgroup;
--	unsigned int swappiness;
--
--	/* root ? */
--	if (cgrp->parent == NULL)
--		return vm_swappiness;
--
--	spin_lock(&memcg->reclaim_param_lock);
--	swappiness = memcg->swappiness;
--	spin_unlock(&memcg->reclaim_param_lock);
-+	bool ret = false;
-+	struct mem_cgroup *mem;
-+	struct mm_struct *mm;
- 
--	return swappiness;
-+	rcu_read_lock();
-+	mm = task->mm;
-+	if (!mm)
-+		mm = &init_mm;
-+	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-+	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
-+		ret = true;
-+	rcu_read_unlock();
-+	return ret;
- }
- 
--static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
-+static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
- {
--	int *val = data;
--	(*val)++;
-+	mem->last_oom_jiffies = jiffies;
- 	return 0;
- }
- 
-+static void record_last_oom(struct mem_cgroup *mem)
-+{
-+	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
-+}
-+
-+
- /**
-- * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in read mode.
-+ * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in
-+ * read mode.
-  * @memcg: The memory cgroup that went over limit
-  * @p: Task that is going to be killed
-  *
-@@ -1195,6 +1239,14 @@ done:
- 		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
- }
- 
-+
-+
-+static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
-+{
-+	int *val = data;
-+	(*val)++;
-+	return 0;
-+}
- /*
-  * This function returns the number of memcg under hierarchy tree. Returns
-  * 1(self count) if no children.
-@@ -1338,35 +1390,9 @@ static int mem_cgroup_hierarchical_recla
- 	return total;
- }
- 
--bool mem_cgroup_oom_called(struct task_struct *task)
--{
--	bool ret = false;
--	struct mem_cgroup *mem;
--	struct mm_struct *mm;
--
--	rcu_read_lock();
--	mm = task->mm;
--	if (!mm)
--		mm = &init_mm;
--	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
--	if (mem && time_before(jiffies, mem->last_oom_jiffies + HZ/10))
--		ret = true;
--	rcu_read_unlock();
--	return ret;
--}
--
--static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
--{
--	mem->last_oom_jiffies = jiffies;
--	return 0;
--}
--
--static void record_last_oom(struct mem_cgroup *mem)
--{
--	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
--}
--
--
-+/*
-+ * For Batch charge.
-+ */
- #define CHARGE_SIZE	(64 * PAGE_SIZE)
- struct memcg_stock_pcp {
- 	struct mem_cgroup *cached;
+ /* linux/mm/thrash.c */
+ extern struct mm_struct *swap_token_mm;
+ extern void grab_swap_token(struct mm_struct *);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 74f1102..9d10f02 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -585,6 +585,8 @@ static int swap_entry_free(struct swap_info_struct *p,
+ 			swap_list.next = p - swap_info;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
++		if (p->swap_free_notify_fn)
++			p->swap_free_notify_fn(p->bdev, offset);
+ 	}
+ 	if (!swap_count(count))
+ 		mem_cgroup_uncharge_swap(ent);
+@@ -1845,6 +1847,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 		if (error < 0)
+ 			goto bad_swap;
+ 		p->bdev = bdev;
++		error = blkdev_swapon(bdev, p);
++		if (error < 0)
++			goto bad_swap;
+ 	} else if (S_ISREG(inode->i_mode)) {
+ 		p->bdev = inode->i_sb->s_bdev;
+ 		mutex_lock(&inode->i_mutex);
+-- 
+1.5.6.3
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
