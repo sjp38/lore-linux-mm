@@ -1,85 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 10E086B00ED
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 15:34:14 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
-Date: Fri, 18 Sep 2009 20:34:09 +0100
-Message-Id: <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
-References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 492EF6B00F2
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 15:37:30 -0400 (EDT)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id n8IJbSZ7012235
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:37:28 -0700
+Received: from pxi4 (pxi4.prod.google.com [10.243.27.4])
+	by spaceape14.eur.corp.google.com with ESMTP id n8IJahDO019999
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:37:25 -0700
+Received: by pxi4 with SMTP id 4so1027838pxi.23
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:37:24 -0700 (PDT)
+Date: Fri, 18 Sep 2009 12:37:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] remove duplicate asm/mman.h files
+In-Reply-To: <200909181848.42192.arnd@arndb.de>
+Message-ID: <alpine.DEB.1.00.0909181236190.27556@chino.kir.corp.google.com>
+References: <cover.1251197514.git.ebmunson@us.ibm.com> <20090917174616.f64123fb.akpm@linux-foundation.org> <200909181719.47240.arnd@arndb.de> <200909181848.42192.arnd@arndb.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
-Cc: heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, rth@twiddle.net, ink@jurassic.park.msu.ru
 List-ID: <linux-mm.kvack.org>
 
-SLQB used a seemingly nice hack to allocate per-node data for the statically
-initialised caches. Unfortunately, due to some unknown per-cpu
-optimisation, these regions are being reused by something else as the
-per-node data is getting randomly scrambled. This patch fixes the
-problem but it's not fully understood *why* it fixes the problem at the
-moment.
+On Fri, 18 Sep 2009, Arnd Bergmann wrote:
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/slqb.c |   16 ++++++++--------
- 1 files changed, 8 insertions(+), 8 deletions(-)
+> diff --git a/arch/ia64/include/asm/mman.h b/arch/ia64/include/asm/mman.h
+> index cf55884..4459028 100644
+> --- a/arch/ia64/include/asm/mman.h
+> +++ b/arch/ia64/include/asm/mman.h
+> @@ -8,21 +8,9 @@
+>   *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co
+>   */
+>  
+> -#include <asm-generic/mman-common.h>
+> +#include <asm-generic/mman.h>
+>  
+> -#define MAP_GROWSDOWN	0x00100		/* stack-like segment */
+> -#define MAP_GROWSUP	0x00200		/* register stack-like segment */
+> -#define MAP_DENYWRITE	0x00800		/* ETXTBSY */
+> -#define MAP_EXECUTABLE	0x01000		/* mark it as an executable */
+> -#define MAP_LOCKED	0x02000		/* pages are locked */
+> -#define MAP_NORESERVE	0x04000		/* don't check for reservations */
+> -#define MAP_POPULATE	0x08000		/* populate (prefault) pagetables */
+> -#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+> -#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+> -#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+> -
+> -#define MCL_CURRENT	1		/* lock all current mappings */
+> -#define MCL_FUTURE	2		/* lock all future mappings */
+> +#define MAP_GROWSUP	0x0200		/* register stack-like segment */
+>  
+>  #ifdef __KERNEL__
+>  #ifndef __ASSEMBLY__
 
-diff --git a/mm/slqb.c b/mm/slqb.c
-index 4ca85e2..4d72be2 100644
---- a/mm/slqb.c
-+++ b/mm/slqb.c
-@@ -1944,16 +1944,16 @@ static void init_kmem_cache_node(struct kmem_cache *s,
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cache_cpus);
- #endif
- #ifdef CONFIG_NUMA
--/* XXX: really need a DEFINE_PER_NODE for per-node data, but this is better than
-- * a static array */
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cache_nodes);
-+/* XXX: really need a DEFINE_PER_NODE for per-node data because a static
-+ *      array is wasteful */
-+static struct kmem_cache_node kmem_cache_nodes[MAX_NUMNODES];
- #endif
- 
- #ifdef CONFIG_SMP
- static struct kmem_cache kmem_cpu_cache;
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cpu_cpus);
- #ifdef CONFIG_NUMA
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cpu_nodes); /* XXX per-nid */
-+static struct kmem_cache_node kmem_cpu_nodes[MAX_NUMNODES]; /* XXX per-nid */
- #endif
- #endif
- 
-@@ -1962,7 +1962,7 @@ static struct kmem_cache kmem_node_cache;
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_node_cpus);
- #endif
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_node_nodes); /*XXX per-nid */
-+static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES]; /*XXX per-nid */
- #endif
- 
- #ifdef CONFIG_SMP
-@@ -2918,15 +2918,15 @@ void __init kmem_cache_init(void)
- 	for_each_node_state(i, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n;
- 
--		n = &per_cpu(kmem_cache_nodes, i);
-+		n = &kmem_cache_nodes[i];
- 		init_kmem_cache_node(&kmem_cache_cache, n);
- 		kmem_cache_cache.node_slab[i] = n;
- #ifdef CONFIG_SMP
--		n = &per_cpu(kmem_cpu_nodes, i);
-+		n = &kmem_cpu_nodes[i];
- 		init_kmem_cache_node(&kmem_cpu_cache, n);
- 		kmem_cpu_cache.node_slab[i] = n;
- #endif
--		n = &per_cpu(kmem_node_nodes, i);
-+		n = &kmem_node_nodes[i];
- 		init_kmem_cache_node(&kmem_node_cache, n);
- 		kmem_node_cache.node_slab[i] = n;
- 	}
--- 
-1.6.3.3
+ia64 doesn't use MAP_GROWSUP, so it's probably not necessary to carry it 
+along with your cleanup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
