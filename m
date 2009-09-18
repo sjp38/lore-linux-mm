@@ -1,133 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5EFAD6B00E6
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:44:42 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so844773bwz.38
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2009 09:44:45 -0700 (PDT)
-Message-ID: <4AB3B8BF.1060302@vflare.org>
-Date: Fri, 18 Sep 2009 22:13:43 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 521336B00E7
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2009 12:50:08 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] remove duplicate asm/mman.h files
+Date: Fri, 18 Sep 2009 18:48:42 +0200
+References: <cover.1251197514.git.ebmunson@us.ibm.com> <20090917174616.f64123fb.akpm@linux-foundation.org> <200909181719.47240.arnd@arndb.de>
+In-Reply-To: <200909181719.47240.arnd@arndb.de>
 MIME-Version: 1.0
-Subject: [PATCH] ramzswap prefix for swap free callback
-References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
-In-Reply-To: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200909181848.42192.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, rth@twiddle.net, ink@jurassic.park.msu.ru
 List-ID: <linux-mm.kvack.org>
 
-Swap free callback is used to inform the underlying block
-device that a swap page has been freed. Currently, ramzswap
-is the only user of this callback. So, rename swap notify
-interface to reflect this.
+A number of architectures have identical asm/mman.h files,
+x86 differs only in a single line, so they can all be merged
+by using the new generic file.
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+The remaining asm/mman.h files are substantially different
+from each other.
 
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 ---
- drivers/staging/ramzswap/ramzswap_drv.c |    4 ++--
- include/linux/swap.h                    |    7 ++++---
- mm/swapfile.c                           |   14 +++++++-------
- 3 files changed, 13 insertions(+), 12 deletions(-)
+On Friday 18 September 2009, Arnd Bergmann wrote:
+> A logical next step would be to replace the mman.h files that are basically
+> copies of include/asm-generic/mman.h.
 
-diff --git a/drivers/staging/ramzswap/ramzswap_drv.c b/drivers/staging/ramzswap/ramzswap_drv.c
-index 46c387a..1a7167f 100644
---- a/drivers/staging/ramzswap/ramzswap_drv.c
-+++ b/drivers/staging/ramzswap/ramzswap_drv.c
-@@ -761,7 +761,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
- 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
+We might as well do it now, since we're touching them anyway...
+Patch applies on top of the previous one.
 
- 	if (unlikely(!rzs->init_notify_callback) && PageSwapCache(page)) {
--		set_swap_free_notify(bio->bi_bdev, ramzswap_free_notify);
-+		set_ramzswap_free_notify(bio->bi_bdev, ramzswap_free_notify);
- 		rzs->init_notify_callback = 1;
- 	}
+ arch/arm/include/asm/mman.h     |   20 +-------------------
+ arch/avr32/include/asm/mman.h   |   20 +-------------------
+ arch/cris/include/asm/mman.h    |   22 +---------------------
+ arch/frv/include/asm/mman.h     |   21 +--------------------
+ arch/h8300/include/asm/mman.h   |   20 +-------------------
+ arch/ia64/include/asm/mman.h    |   16 ++--------------
+ arch/m32r/include/asm/mman.h    |   20 +-------------------
+ arch/m68k/include/asm/mman.h    |   20 +-------------------
+ arch/mn10300/include/asm/mman.h |   31 +------------------------------
+ arch/s390/include/asm/mman.h    |   15 +--------------
+ arch/x86/include/asm/mman.h     |   15 +--------------
+ 11 files changed, 12 insertions(+), 208 deletions(-)
 
-@@ -1323,7 +1323,7 @@ static int ramzswap_ioctl(struct block_device *bdev, fmode_t mode,
- 		 * can happen if another swapon is done before this reset.
- 		 * TODO: A callback from swapoff() will solve this problem.
- 		 */
--		set_swap_free_notify(bdev, NULL);
-+		set_ramzswap_free_notify(bdev, NULL);
- 		rzs->init_notify_callback = 0;
- 		break;
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 64796fc..ace7900 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -21,7 +21,7 @@ struct bio;
- #define SWAP_FLAG_PRIO_MASK	0x7fff
- #define SWAP_FLAG_PRIO_SHIFT	0
-
--typedef void (swap_free_notify_fn) (struct block_device *, unsigned long);
-+typedef void (ramzswap_free_notify_fn) (struct block_device *, unsigned long);
-
- static inline int current_is_kswapd(void)
- {
-@@ -158,7 +158,7 @@ struct swap_info_struct {
- 	unsigned int max;
- 	unsigned int inuse_pages;
- 	unsigned int old_block_size;
--	swap_free_notify_fn *swap_free_notify_fn;
-+	ramzswap_free_notify_fn *ramzswap_free_notify_fn;
- };
-
- struct swap_list_t {
-@@ -299,7 +299,8 @@ extern sector_t swapdev_block(int, pgoff_t);
- extern struct swap_info_struct *get_swap_info_struct(unsigned);
- extern int reuse_swap_page(struct page *);
- extern int try_to_free_swap(struct page *);
--extern void set_swap_free_notify(struct block_device *, swap_free_notify_fn *);
-+extern void set_ramzswap_free_notify(struct block_device *,
-+				ramzswap_free_notify_fn *);
- struct backing_dev_info;
-
- /* linux/mm/thrash.c */
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index b165db0..0cc9c9c 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -558,8 +558,8 @@ out:
-  * Sets callback for event when swap_map[offset] == 0
-  * i.e. page at this swap offset is no longer used.
+diff --git a/arch/arm/include/asm/mman.h b/arch/arm/include/asm/mman.h
+index 6464d47..8eebf89 100644
+--- a/arch/arm/include/asm/mman.h
++++ b/arch/arm/include/asm/mman.h
+@@ -1,19 +1 @@
+-#ifndef __ARM_MMAN_H__
+-#define __ARM_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) page tables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __ARM_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/avr32/include/asm/mman.h b/arch/avr32/include/asm/mman.h
+index 38cea1b..8eebf89 100644
+--- a/arch/avr32/include/asm/mman.h
++++ b/arch/avr32/include/asm/mman.h
+@@ -1,19 +1 @@
+-#ifndef __ASM_AVR32_MMAN_H__
+-#define __ASM_AVR32_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) page tables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __ASM_AVR32_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/cris/include/asm/mman.h b/arch/cris/include/asm/mman.h
+index de6b903..8eebf89 100644
+--- a/arch/cris/include/asm/mman.h
++++ b/arch/cris/include/asm/mman.h
+@@ -1,21 +1 @@
+-#ifndef __CRIS_MMAN_H__
+-#define __CRIS_MMAN_H__
+-
+-/* verbatim copy of asm-i386/ version */
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __CRIS_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/frv/include/asm/mman.h b/arch/frv/include/asm/mman.h
+index 1939343..8eebf89 100644
+--- a/arch/frv/include/asm/mman.h
++++ b/arch/frv/include/asm/mman.h
+@@ -1,20 +1 @@
+-#ifndef __ASM_MMAN_H__
+-#define __ASM_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __ASM_MMAN_H__ */
+-
++#include <asm-generic/mman.h>
+diff --git a/arch/h8300/include/asm/mman.h b/arch/h8300/include/asm/mman.h
+index eacacd0..8eebf89 100644
+--- a/arch/h8300/include/asm/mman.h
++++ b/arch/h8300/include/asm/mman.h
+@@ -1,19 +1 @@
+-#ifndef __H8300_MMAN_H__
+-#define __H8300_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __H8300_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/ia64/include/asm/mman.h b/arch/ia64/include/asm/mman.h
+index cf55884..4459028 100644
+--- a/arch/ia64/include/asm/mman.h
++++ b/arch/ia64/include/asm/mman.h
+@@ -8,21 +8,9 @@
+  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co
   */
--void set_swap_free_notify(struct block_device *bdev,
--			swap_free_notify_fn *notify_fn)
-+void set_ramzswap_free_notify(struct block_device *bdev,
-+			ramzswap_free_notify_fn *notify_fn)
- {
- 	unsigned int i;
- 	struct swap_info_struct *sis;
-@@ -579,12 +579,12 @@ void set_swap_free_notify(struct block_device *bdev,
- 		return;
- 	}
-
--	BUG_ON(!sis || sis->swap_free_notify_fn);
--	sis->swap_free_notify_fn = notify_fn;
-+	BUG_ON(!sis || sis->ramzswap_free_notify_fn);
-+	sis->ramzswap_free_notify_fn = notify_fn;
- 	spin_unlock(&swap_lock);
- 	return;
- }
--EXPORT_SYMBOL_GPL(set_swap_free_notify);
-+EXPORT_SYMBOL_GPL(set_ramzswap_free_notify);
-
- static int swap_entry_free(struct swap_info_struct *p,
- 			   swp_entry_t ent, int cache)
-@@ -617,8 +617,8 @@ static int swap_entry_free(struct swap_info_struct *p,
- 			swap_list.next = p - swap_info;
- 		nr_swap_pages++;
- 		p->inuse_pages--;
--		if (p->swap_free_notify_fn)
--			p->swap_free_notify_fn(p->bdev, offset);
-+		if (p->ramzswap_free_notify_fn)
-+			p->ramzswap_free_notify_fn(p->bdev, offset);
- 	}
- 	if (!swap_count(count))
- 		mem_cgroup_uncharge_swap(ent);
+ 
+-#include <asm-generic/mman-common.h>
++#include <asm-generic/mman.h>
+ 
+-#define MAP_GROWSDOWN	0x00100		/* stack-like segment */
+-#define MAP_GROWSUP	0x00200		/* register stack-like segment */
+-#define MAP_DENYWRITE	0x00800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x01000		/* mark it as an executable */
+-#define MAP_LOCKED	0x02000		/* pages are locked */
+-#define MAP_NORESERVE	0x04000		/* don't check for reservations */
+-#define MAP_POPULATE	0x08000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
++#define MAP_GROWSUP	0x0200		/* register stack-like segment */
+ 
+ #ifdef __KERNEL__
+ #ifndef __ASSEMBLY__
+diff --git a/arch/m32r/include/asm/mman.h b/arch/m32r/include/asm/mman.h
+index d191089..8eebf89 100644
+--- a/arch/m32r/include/asm/mman.h
++++ b/arch/m32r/include/asm/mman.h
+@@ -1,19 +1 @@
+-#ifndef __M32R_MMAN_H__
+-#define __M32R_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __M32R_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/m68k/include/asm/mman.h b/arch/m68k/include/asm/mman.h
+index c421fef..8eebf89 100644
+--- a/arch/m68k/include/asm/mman.h
++++ b/arch/m68k/include/asm/mman.h
+@@ -1,19 +1 @@
+-#ifndef __M68K_MMAN_H__
+-#define __M68K_MMAN_H__
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* __M68K_MMAN_H__ */
++#include <asm-generic/mman.h>
+diff --git a/arch/mn10300/include/asm/mman.h b/arch/mn10300/include/asm/mman.h
+index 94611c3..8eebf89 100644
+--- a/arch/mn10300/include/asm/mman.h
++++ b/arch/mn10300/include/asm/mman.h
+@@ -1,30 +1 @@
+-/* MN10300 Constants for mmap and co.
+- *
+- * Copyright (C) 2007 Matsushita Electric Industrial Co., Ltd.
+- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+- * - Derived from asm-x86/mman.h
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public Licence
+- * as published by the Free Software Foundation; either version
+- * 2 of the Licence, or (at your option) any later version.
+- */
+-#ifndef _ASM_MMAN_H
+-#define _ASM_MMAN_H
+-
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+-#endif /* _ASM_MMAN_H */
++#include <asm-generic/mman.h>
+diff --git a/arch/s390/include/asm/mman.h b/arch/s390/include/asm/mman.h
+index 22714ca..4e9c8ae 100644
+--- a/arch/s390/include/asm/mman.h
++++ b/arch/s390/include/asm/mman.h
+@@ -9,20 +9,7 @@
+ #ifndef __S390_MMAN_H__
+ #define __S390_MMAN_H__
+ 
+-#include <asm-generic/mman-common.h>
+-
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
++#include <asm-generic/mman.h>
+ 
+ #if defined(__KERNEL__) && !defined(__ASSEMBLY__) && defined(CONFIG_64BIT)
+ int s390_mmap_check(unsigned long addr, unsigned long len);
+diff --git a/arch/x86/include/asm/mman.h b/arch/x86/include/asm/mman.h
+index c719f36..c582add 100644
+--- a/arch/x86/include/asm/mman.h
++++ b/arch/x86/include/asm/mman.h
+@@ -1,21 +1,8 @@
+ #ifndef _ASM_X86_MMAN_H
+ #define _ASM_X86_MMAN_H
+ 
+-#include <asm-generic/mman-common.h>
++#include <asm-generic/mman.h>
+ 
+ #define MAP_32BIT	0x40		/* only give out 32bit addresses */
+ 
+-#define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+-#define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+-#define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+-#define MAP_LOCKED	0x2000		/* pages are locked */
+-#define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-#define MCL_CURRENT	1		/* lock all current mappings */
+-#define MCL_FUTURE	2		/* lock all future mappings */
+-
+ #endif /* _ASM_X86_MMAN_H */
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
