@@ -1,95 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CF43A6B010A
-	for <linux-mm@kvack.org>; Sun, 20 Sep 2009 07:26:05 -0400 (EDT)
-Date: Sun, 20 Sep 2009 13:26:09 +0200
-From: Stephan von Krawczynski <skraw@ithnet.com>
-Subject: What about this message (2.6.31) ?
-Message-Id: <20090920132609.c9021d36.skraw@ithnet.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 224D06B010C
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2009 10:04:21 -0400 (EDT)
+Date: Sun, 20 Sep 2009 15:04:21 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+Message-ID: <20090920140421.GB18162@csn.ul.ie>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie> <1253302451-27740-2-git-send-email-mel@csn.ul.ie> <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: jesse.brandeburg@gmail.com, khc@pm.waw.pl, jeffrey.t.kirsher@intel.com, gregkh@suse.de, davem@davemloft.net, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello again,
+On Sun, Sep 20, 2009 at 11:45:54AM +0300, Pekka Enberg wrote:
+> On Fri, Sep 18, 2009 at 10:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > SLQB used a seemingly nice hack to allocate per-node data for the statically
+> > initialised caches. Unfortunately, due to some unknown per-cpu
+> > optimisation, these regions are being reused by something else as the
+> > per-node data is getting randomly scrambled. This patch fixes the
+> > problem but it's not fully understood *why* it fixes the problem at the
+> > moment.
+> 
+> Ouch, that sounds bad. I guess it's architecture specific bug as x86
+> works ok? Lets CC Tejun.
+> 
+> Nick, are you okay with this patch being merged for now?
+> 
 
-today - after several hangs without any messages - we finally got this one:
+I don't think it should be merged as-is. This patch might be treating
+symptons so needs further thought. The second patch is a hatchet job and
+as Christoph points out, it may be suffering a subtle list-corruption
+bug.
 
-Sep 20 12:10:48 box2 kernel: ------------[ cut here ]------------
-Sep 20 12:10:48 box2 kernel: WARNING: at include/linux/skbuff.h:1382 skb_trim+0x1a/0x2b()
-Sep 20 12:10:48 box2 kernel: Hardware name:  
-Sep 20 12:10:48 box2 kernel: Modules linked in: speedstep_lib freq_table nfs lockd sunrpc e100 mii e1000
-Sep 20 12:10:48 box2 kernel: Pid: 0, comm: swapper Not tainted 2.6.31 #1
-Sep 20 12:10:48 box2 kernel: Call Trace:
-Sep 20 12:10:48 box2 kernel:  [<c011c652>] ? warn_slowpath_common+0x5e/0x71
-Sep 20 12:10:48 box2 kernel:  [<c011c69a>] ? warn_slowpath_null+0xa/0xd
-Sep 20 12:10:48 box2 kernel:  [<c0283801>] ? skb_trim+0x1a/0x2b
-Sep 20 12:10:48 box2 kernel:  [<f81399c6>] ? e1000_alloc_rx_buffers+0x70/0x299 [e1000]
-Sep 20 12:10:48 box2 kernel:  [<f813992b>] ? e1000_clean_rx_irq+0x38a/0x3b5 [e1000]
-Sep 20 12:10:48 box2 kernel:  [<f8139266>] ? e1000_clean+0x43/0x87 [e1000]
-Sep 20 12:10:48 box2 kernel:  [<c028ab37>] ? net_rx_action+0x5e/0xfe
-Sep 20 12:10:48 box2 kernel:  [<c011fb04>] ? __do_softirq+0x5f/0xc8
-Sep 20 12:10:48 box2 kernel:  [<c011fb8f>] ? do_softirq+0x22/0x26
-Sep 20 12:10:48 box2 kernel:  [<c01042fa>] ? do_IRQ+0x66/0x76
-Sep 20 12:10:48 box2 kernel:  [<c0102ea9>] ? common_interrupt+0x29/0x30
-Sep 20 12:10:48 box2 kernel:  [<c011007b>] ? nmi_watchdog_tick+0x109/0x117
-Sep 20 12:10:48 box2 kernel:  [<c02e007b>] ? schedule+0x1eb/0x280
-Sep 20 12:10:48 box2 kernel:  [<c010714d>] ? default_idle+0x28/0x3f
-Sep 20 12:10:48 box2 kernel:  [<c0101524>] ? cpu_idle+0x1a/0x2e
-Sep 20 12:10:48 box2 kernel:  [<c03e7626>] ? start_kernel+0x1dc/0x1de
-Sep 20 12:10:48 box2 kernel: ---[ end trace 94392a5ad56b9fbd ]---
-
-The hardware looks like this:
-
-0000:00:00.0 Host bridge: Intel Corp. 82875P Memory Controller Hub (rev 02)
-0000:00:01.0 PCI bridge: Intel Corp. 82875P Processor to AGP Controller (rev 02)
-0000:00:03.0 PCI bridge: Intel Corp. 82875P Processor to PCI to CSA Bridge (rev 02)
-0000:00:06.0 System peripheral: Intel Corp. 82875P Processor to I/O Memory Interface (rev 02)
-0000:00:1d.0 USB Controller: Intel Corp. 82801EB USB (rev 02)
-0000:00:1d.1 USB Controller: Intel Corp. 82801EB USB (rev 02)
-0000:00:1d.2 USB Controller: Intel Corp. 82801EB USB (rev 02)
-0000:00:1d.3 USB Controller: Intel Corp. 82801EB USB (rev 02)
-0000:00:1d.7 USB Controller: Intel Corp. 82801EB USB2 (rev 02)
-0000:00:1e.0 PCI bridge: Intel Corp. 82801BA/CA/DB/EB PCI Bridge (rev c2)
-0000:00:1f.0 ISA bridge: Intel Corp. 82801EB LPC Interface Controller (rev 02)
-0000:00:1f.1 IDE interface: Intel Corp. 82801EB Ultra ATA Storage Controller (rev 02)
-0000:00:1f.3 SMBus: Intel Corp. 82801EB SMBus Controller (rev 02)
-0000:02:01.0 Ethernet controller: Intel Corp. 82547EI Gigabit Ethernet Controller (LOM)
-0000:03:02.0 Ethernet controller: Intel Corp. 82541EI Gigabit Ethernet Controller (Copper)
-0000:03:07.0 VGA compatible controller: ATI Technologies Inc Rage XL (rev 27)
-0000:03:08.0 Ethernet controller: Intel Corp.: Unknown device 1051 (rev 02)
-
-The kernel is 32bit, CPU:
-
-processor       : 0
-vendor_id       : GenuineIntel
-cpu family      : 15
-model           : 2
-model name      : Intel(R) Pentium(R) 4 CPU 2.66GHz
-stepping        : 9
-cpu MHz         : 2672.905
-cache size      : 512 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe pebs bts cid xtpr
-bogomips        : 5345.81
-clflush size    : 64
-power management:
-
-After this output the box feels dead, at least all userspace dead, no login, open shells are dead.
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  mm/slqb.c |   16 ++++++++--------
+> >  1 files changed, 8 insertions(+), 8 deletions(-)
+> >
+> > diff --git a/mm/slqb.c b/mm/slqb.c
+> > index 4ca85e2..4d72be2 100644
+> > --- a/mm/slqb.c
+> > +++ b/mm/slqb.c
+> > @@ -1944,16 +1944,16 @@ static void init_kmem_cache_node(struct kmem_cache *s,
+> >  static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cache_cpus);
+> >  #endif
+> >  #ifdef CONFIG_NUMA
+> > -/* XXX: really need a DEFINE_PER_NODE for per-node data, but this is better than
+> > - * a static array */
+> > -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cache_nodes);
+> > +/* XXX: really need a DEFINE_PER_NODE for per-node data because a static
+> > + *      array is wasteful */
+> > +static struct kmem_cache_node kmem_cache_nodes[MAX_NUMNODES];
+> >  #endif
+> >
+> >  #ifdef CONFIG_SMP
+> >  static struct kmem_cache kmem_cpu_cache;
+> >  static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cpu_cpus);
+> >  #ifdef CONFIG_NUMA
+> > -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cpu_nodes); /* XXX per-nid */
+> > +static struct kmem_cache_node kmem_cpu_nodes[MAX_NUMNODES]; /* XXX per-nid */
+> >  #endif
+> >  #endif
+> >
+> > @@ -1962,7 +1962,7 @@ static struct kmem_cache kmem_node_cache;
+> >  #ifdef CONFIG_SMP
+> >  static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_node_cpus);
+> >  #endif
+> > -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_node_nodes); /*XXX per-nid */
+> > +static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES]; /*XXX per-nid */
+> >  #endif
+> >
+> >  #ifdef CONFIG_SMP
+> > @@ -2918,15 +2918,15 @@ void __init kmem_cache_init(void)
+> >        for_each_node_state(i, N_NORMAL_MEMORY) {
+> >                struct kmem_cache_node *n;
+> >
+> > -               n = &per_cpu(kmem_cache_nodes, i);
+> > +               n = &kmem_cache_nodes[i];
+> >                init_kmem_cache_node(&kmem_cache_cache, n);
+> >                kmem_cache_cache.node_slab[i] = n;
+> >  #ifdef CONFIG_SMP
+> > -               n = &per_cpu(kmem_cpu_nodes, i);
+> > +               n = &kmem_cpu_nodes[i];
+> >                init_kmem_cache_node(&kmem_cpu_cache, n);
+> >                kmem_cpu_cache.node_slab[i] = n;
+> >  #endif
+> > -               n = &per_cpu(kmem_node_nodes, i);
+> > +               n = &kmem_node_nodes[i];
+> >                init_kmem_cache_node(&kmem_node_cache, n);
+> >                kmem_node_cache.node_slab[i] = n;
+> >        }
+> > --
+> > 1.6.3.3
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
+> 
 
 -- 
-Regards,
-Stephan
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
