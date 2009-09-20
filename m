@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 52F056B010E
-	for <linux-mm@kvack.org>; Sun, 20 Sep 2009 11:03:55 -0400 (EDT)
-Received: by pzk31 with SMTP id 31so1758083pzk.23
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2009 08:03:55 -0700 (PDT)
-Message-ID: <4AB6441D.5070805@vflare.org>
-Date: Sun, 20 Sep 2009 20:32:53 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB7B6B0110
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2009 11:56:27 -0400 (EDT)
+Message-ID: <4AB6508C.4070602@kernel.org>
+Date: Mon, 21 Sep 2009 00:55:56 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] send callback when swap slot is freed
-References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>	 <1253227412-24342-3-git-send-email-ngupta@vflare.org>	 <1253256805.4959.8.camel@penberg-laptop>	 <Pine.LNX.4.64.0909180809290.2882@sister.anvils>	 <1253260528.4959.13.camel@penberg-laptop>	 <Pine.LNX.4.64.0909180857170.5404@sister.anvils> <1253266391.4959.15.camel@penberg-laptop> <4AB3A16B.90009@vflare.org> <4AB487FD.5060207@cs.helsinki.fi>
-In-Reply-To: <4AB487FD.5060207@cs.helsinki.fi>
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>	 <1253302451-27740-2-git-send-email-mel@csn.ul.ie> <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com> <4AB5FD4D.3070005@kernel.org> <4AB5FFF8.7000602@cs.helsinki.fi>
+In-Reply-To: <4AB5FFF8.7000602@cs.helsinki.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Pekka,
-
-On 09/19/2009 12:57 PM, Pekka Enberg wrote:
+Pekka Enberg wrote:
+> Tejun Heo wrote:
+>> Pekka Enberg wrote:
+>>> On Fri, Sep 18, 2009 at 10:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+>>>> SLQB used a seemingly nice hack to allocate per-node data for the
+>>>> statically
+>>>> initialised caches. Unfortunately, due to some unknown per-cpu
+>>>> optimisation, these regions are being reused by something else as the
+>>>> per-node data is getting randomly scrambled. This patch fixes the
+>>>> problem but it's not fully understood *why* it fixes the problem at the
+>>>> moment.
+>>> Ouch, that sounds bad. I guess it's architecture specific bug as x86
+>>> works ok? Lets CC Tejun.
+>>
+>> Is the corruption being seen on ppc or s390?
 > 
-> Nitin Gupta wrote:
->> It is understood that this swap notify callback is bit of a hack. I think
->> we will not gain much trying to beautify this hack. However, I agree with
->> Hugh's suggestion to rename this notify callback related
->> function/variables
->> to make it explicit that its completely ramzswap related. I will send
->> a path that affects these renames as reply to patch 0/4.
-> 
-> I don't quite agree and do think that my approach is a better long-term
-> solution. That said, it's Hugh's call, not mine. Hugh?
-> 
+> On ppc.
 
-Ok, lets discard all this. I will soon start working on a generic notifier based
-interface for various swap events: swapon, swapoff, swap slot free that I hope would
-be more acceptable. I will now surely miss this merge window but I hope the end result
-would be better.
+Can you please post full dmesg showing the corruption?  Also, if you
+apply the attached patch, does the added BUG_ON() trigger?
 
-The issue of swap_lock is still bugging me but I think atomic notifier list should
-be acceptable for swap slot free event, at least for the initial revision. If this
-particular event finds more users then we will have to work on reducing contention
-on swap_lock (per-swap file lock?).
+Thanks.
 
-Thanks,
-Nitin
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index 878836c..fb690d2 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -127,7 +127,7 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
+  * dynamically allocated. Non-atomic access to the current CPU's
+  * version should probably be combined with get_cpu()/put_cpu().
+  */
+-#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
++#define per_cpu_ptr(ptr, cpu)	({ BUG_ON(!(ptr)); SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu))); })
+
+ extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
