@@ -1,71 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ACB76B0100
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2009 07:46:17 -0400 (EDT)
-Date: Sat, 19 Sep 2009 12:46:21 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] slqb: Treat pages freed on a memoryless node as
-	local node
-Message-ID: <20090919114621.GC1225@csn.ul.ie>
-References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie> <1253302451-27740-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0909181657280.9490@V090114053VZO-1>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D77B16B0104
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2009 04:45:51 -0400 (EDT)
+Received: by fxm2 with SMTP id 2so1584743fxm.4
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2009 01:45:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0909181657280.9490@V090114053VZO-1>
+In-Reply-To: <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
+	 <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
+Date: Sun, 20 Sep 2009 11:45:54 +0300
+Message-ID: <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 18, 2009 at 05:01:14PM -0400, Christoph Lameter wrote:
-> On Fri, 18 Sep 2009, Mel Gorman wrote:
-> 
-> > --- a/mm/slqb.c
-> > +++ b/mm/slqb.c
-> > @@ -1726,6 +1726,7 @@ static __always_inline void __slab_free(struct kmem_cache *s,
-> >  	struct kmem_cache_cpu *c;
-> >  	struct kmem_cache_list *l;
-> >  	int thiscpu = smp_processor_id();
-> > +	int thisnode = numa_node_id();
-> 
-> thisnode must be the first reachable node with usable RAM. Not the current
-> node. cpu 0 may be on node 0 but there is no memory on 0. Instead
-> allocations fall back to node 2 (depends on policy effective as well. The
-> round robin meory policy default on bootup may result in allocations from
-> different nodes as well).
-> 
+On Fri, Sep 18, 2009 at 10:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> SLQB used a seemingly nice hack to allocate per-node data for the statica=
+lly
+> initialised caches. Unfortunately, due to some unknown per-cpu
+> optimisation, these regions are being reused by something else as the
+> per-node data is getting randomly scrambled. This patch fixes the
+> problem but it's not fully understood *why* it fixes the problem at the
+> moment.
 
-Agreed. Note that this is the free path and the point was to illustrate
-that SLQB is always trying to allocate full pages locally and always
-freeing them remotely. It always going to the allocator instead of going
-to the remote lists first. On a memoryless system, this acts as a leak.
+Ouch, that sounds bad. I guess it's architecture specific bug as x86
+works ok? Lets CC Tejun.
 
-A more appropriate fix may be for the kmem_cache_cpu to remember what it
-considers a local node. Ordinarily it'll be numa_node_id() but on memoryless
-node it would be the closest reachable node. How would that sound?
+Nick, are you okay with this patch being merged for now?
 
-> >  	c = get_cpu_slab(s, thiscpu);
-> >  	l = &c->list;
-> > @@ -1733,12 +1734,14 @@ static __always_inline void __slab_free(struct kmem_cache *s,
-> >  	slqb_stat_inc(l, FREE);
-> >
-> >  	if (!NUMA_BUILD || !slab_numa(s) ||
-> > -			likely(slqb_page_to_nid(page) == numa_node_id())) {
-> > +			likely(slqb_page_to_nid(page) == numa_node_id() ||
-> > +			!node_state(thisnode, N_HIGH_MEMORY))) {
-> 
-> Same here.
-> 
-> Note that page_to_nid can yield surprising results if you are trying to
-> allocate from a node that has no memory and you get some fallback node.
-> 
-> SLAB for some time had a bug that caused list corruption because of this.
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+> =A0mm/slqb.c | =A0 16 ++++++++--------
+> =A01 files changed, 8 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/slqb.c b/mm/slqb.c
+> index 4ca85e2..4d72be2 100644
+> --- a/mm/slqb.c
+> +++ b/mm/slqb.c
+> @@ -1944,16 +1944,16 @@ static void init_kmem_cache_node(struct kmem_cach=
+e *s,
+> =A0static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cache_cpus);
+> =A0#endif
+> =A0#ifdef CONFIG_NUMA
+> -/* XXX: really need a DEFINE_PER_NODE for per-node data, but this is bet=
+ter than
+> - * a static array */
+> -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cache_nodes);
+> +/* XXX: really need a DEFINE_PER_NODE for per-node data because a static
+> + * =A0 =A0 =A0array is wasteful */
+> +static struct kmem_cache_node kmem_cache_nodes[MAX_NUMNODES];
+> =A0#endif
+>
+> =A0#ifdef CONFIG_SMP
+> =A0static struct kmem_cache kmem_cpu_cache;
+> =A0static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cpu_cpus);
+> =A0#ifdef CONFIG_NUMA
+> -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cpu_nodes); /* XXX pe=
+r-nid */
+> +static struct kmem_cache_node kmem_cpu_nodes[MAX_NUMNODES]; /* XXX per-n=
+id */
+> =A0#endif
+> =A0#endif
+>
+> @@ -1962,7 +1962,7 @@ static struct kmem_cache kmem_node_cache;
+> =A0#ifdef CONFIG_SMP
+> =A0static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_node_cpus);
+> =A0#endif
+> -static DEFINE_PER_CPU(struct kmem_cache_node, kmem_node_nodes); /*XXX pe=
+r-nid */
+> +static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES]; /*XXX per-n=
+id */
+> =A0#endif
+>
+> =A0#ifdef CONFIG_SMP
+> @@ -2918,15 +2918,15 @@ void __init kmem_cache_init(void)
+> =A0 =A0 =A0 =A0for_each_node_state(i, N_NORMAL_MEMORY) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct kmem_cache_node *n;
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &per_cpu(kmem_cache_nodes, i);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &kmem_cache_nodes[i];
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0init_kmem_cache_node(&kmem_cache_cache, n)=
+;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kmem_cache_cache.node_slab[i] =3D n;
+> =A0#ifdef CONFIG_SMP
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &per_cpu(kmem_cpu_nodes, i);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &kmem_cpu_nodes[i];
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0init_kmem_cache_node(&kmem_cpu_cache, n);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kmem_cpu_cache.node_slab[i] =3D n;
+> =A0#endif
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &per_cpu(kmem_node_nodes, i);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &kmem_node_nodes[i];
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0init_kmem_cache_node(&kmem_node_cache, n);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kmem_node_cache.node_slab[i] =3D n;
+> =A0 =A0 =A0 =A0}
+> --
+> 1.6.3.3
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
