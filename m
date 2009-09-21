@@ -1,111 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 599B46B0140
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 07:02:54 -0400 (EDT)
-Date: Mon, 21 Sep 2009 12:02:53 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: ipw2200: firmware DMA loading rework
-Message-ID: <20090921110253.GM12726@csn.ul.ie>
-References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <200909211159.27344.bzolnier@gmail.com> <20090921100813.GL12726@csn.ul.ie> <200909211246.34774.bzolnier@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 484AF6B0141
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 07:07:26 -0400 (EDT)
+Date: Mon, 21 Sep 2009 12:07:24 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 2/4] send callback when swap slot is freed
+In-Reply-To: <4AB487FD.5060207@cs.helsinki.fi>
+Message-ID: <Pine.LNX.4.64.0909211149360.32504@sister.anvils>
+References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>
+ <1253227412-24342-3-git-send-email-ngupta@vflare.org>
+ <1253256805.4959.8.camel@penberg-laptop>  <Pine.LNX.4.64.0909180809290.2882@sister.anvils>
+  <1253260528.4959.13.camel@penberg-laptop>  <Pine.LNX.4.64.0909180857170.5404@sister.anvils>
+ <1253266391.4959.15.camel@penberg-laptop> <4AB3A16B.90009@vflare.org>
+ <4AB487FD.5060207@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200909211246.34774.bzolnier@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
-Cc: "Luis R. Rodriguez" <mcgrof@gmail.com>, Tso Ted <tytso@mit.edu>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Zhu Yi <yi.zhu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: ngupta@vflare.org, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 12:46:34PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> > > > > <SNIP>
-> > > > >
-> > > > > This time it is an order-6 page allocation failure for rt2870sta
-> > > > > (w/ upcoming driver changes) and Linus' tree from few days ago..
-> > > > > 
-> > > > 
-> > > > It's another high-order atomic allocation which is difficult to grant.
-> > > > I didn't look closely, but is this the same type of thing - large allocation
-> > > > failure during firmware loading? If so, is this during resume or is the
-> > > > device being reloaded for some other reason?
-> > > 
-> > > Just modprobing the driver on a system running for some time.
-> > > 
-> > 
-> > Was this a common situation before?
+On Sat, 19 Sep 2009, Pekka Enberg wrote:
+> Nitin Gupta wrote:
+> > It is understood that this swap notify callback is bit of a hack. I think
+> > we will not gain much trying to beautify this hack. However, I agree with
+> > Hugh's suggestion to rename this notify callback related function/variables
+> > to make it explicit that its completely ramzswap related. I will send a path
+> > that affects these renames as reply to patch 0/4.
 > 
-> Yes, just like firmware restarts with ipw2200.
-> 
-> > > > I suspect that there are going to be a few of these bugs cropping up
-> > > > every so often where network devices are assuming large atomic
-> > > > allocations will succeed because the "only time they happen" is during
-> > > > boot but these days are happening at runtime for other reasons.
-> > > 
-> > > I wouldn't go so far as calling a normal order-6 (256kB) allocation on
-> > > 512MB machine with 1024MB swap a bug.  Moreover such failures just never
-> > > happened before 2.6.31-rc1.
-> > 
-> > It's not that normal, it's an allocation that cannot sleep and cannot
-> > reclaim. Why is something like firmware loading allocating memory like
-> 
-> OK.
-> 
-> > that? Is this use of GFP_ATOMIC relatively recent or has it always been
-> > that way?
-> 
-> It has always been like that.
-> 
+> I don't quite agree and do think that my approach is a better long-term
+> solution. That said, it's Hugh's call, not mine. Hugh?
 
-Nuts, why is firmware loading depending on GFP_ATOMIC?
+Sorry, Pekka, I do prefer Nitin's more explicit hackery.
 
-> > > I don't know why people don't see it but for me it has a memory management
-> > > regression and reliability issue written all over it.
-> > > 
-> > 
-> > Possibly but drivers that reload their firmware as a response to an
-> > error condition is relatively new and loading network drivers while the
-> > system is already up and running a long time does not strike me as
-> > typical system behaviour.
-> 
-> Loading drivers after boot is a typical desktop/laptop behavior, please
-> think about hotplug (the hardware in question is an USB dongle).
-> 
+Yours of course looks nicer: but again this method is actually just
+for the one single use, and it is "exporting" the swap_info_struct to
+the block device, whereas I'd prefer to move in the opposite direction,
+making that struct internal to swapfile.c.  (I'd have done so already,
+but noticed TuxOnIce making use of it, and don't want to make life
+awkward there.)
 
-In that case, how reproducible is this problem so it can be
-bisected? Basically, there are no guarantees that GFP_ATOMIC allocations
-of this order will succeed although you can improve the odds by increasing
-min_free_kbytes. Network drivers should never have been depending on GFP_ATOMIC
-succeeding like this but the hole has been dug now.
+Is the main basis for your disgust at the way that Nitin installs the
+callback, that loop down the swap_info_structs?  I should point out
+that it was I who imposed that on Nitin: before that he was passing a
+swap entry (or was it a swap type extracted from a swap entry?
+I forget), which was the sole reference to a swp_entry_t in his
+driver - I advised a bdev interface.
 
-If it's happening more frequently now than it used to then either
+Would a compromise be to extend the #ifdef CONFIG_HIBERNATION around
+swap_type_of() to cover ramzswap too, then Nitin use swap_type_of()
+on his bdev to get a swap type to use to install the notifier?
 
-1. The allocations are occuring more frequently where as previously a
-   pool might have been reused or the memory not freed for the lifetime of
-   the system.
+I'm not saying that would be better, haven't even thought through
+if it works: I'm just looking for a compromise, whereby you and I
+don't keep sending Nitin scurrying off in opposite directions.
 
-2. Something has changed in the allocator. I'm not aware of recent
-   changes that could cause this though in such a recent time-frame.
-
-3. Something has changed recently with respect to reclaim. There have
-   been changes made recently to lumpy reclaim and that might be impacting
-   kswapd's efforts at keeping large contiguous regions free.
-
-4. Hotplug events that involve driver loads are more common now than they
-   were previously for some reason. You mention that this is a USB dongle for
-   example. Was it a case before that the driver loaded early and remained
-   resident but only active after a hotplug event? If that was the case,
-   the memory would be allocated once at boot. However, if an optimisation
-   made recently unloads those unused drivers and re-loads them later, there
-   would be more order-6 allocations than they were previously and manifest
-   as these bug reports. Is this a possibility?
-
-The ideal would be that network drivers not make allocations like this
-in the first place by, for example, DMAing the firmware across in
-page-size chunks instead of one contiguous lump :/
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
