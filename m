@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C3D6B0096
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:07:37 -0400 (EDT)
-Date: Mon, 21 Sep 2009 19:07:39 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 98F116B004D
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:21:08 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 33FFE82C6D8
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:23:22 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id HV-Lgfk4rnJA for <linux-mm@kvack.org>;
+	Mon, 21 Sep 2009 14:23:22 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id BA03A82C6DC
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:23:13 -0400 (EDT)
+Date: Mon, 21 Sep 2009 14:17:40 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-Message-ID: <20090921180739.GT12726@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
+In-Reply-To: <20090921180739.GT12726@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0909211412050.3106@V090114053VZO-1>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1> <20090921180739.GT12726@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 01:54:12PM -0400, Christoph Lameter wrote:
-> Lets just keep SLQB back until the basic issues with memoryless nodes are
-> resolved.
+On Mon, 21 Sep 2009, Mel Gorman wrote:
+> Can you spot if there is something fundamentally wrong with patch 2? I.e. what
+> is wrong with treating the closest node as local instead of only the
+> closest node?
 
-It's not even super-clear that the memoryless nodes issues are entirely
-related to SLQB. Sachin for example says that there was a stall issue
-with memoryless nodes that could be triggered without SLQB. Sachin, is
-that still accurate?
+Depends on the way locking is done for percpu queues (likely lockless).
+A misidentification of the numa locality of an object may result in locks
+not being taken that should have been taken.
 
-If so, it's possible that SLQB somehow exasperates the problem in some
-unknown fashion.
+> > Or just allow SLQB for !NUMA configurations and merge it now.
+> >
+>
+> Forcing SLQB !NUMA will not rattle out any existing list issues
+> unfortunately :(.
 
-> There does not seem to be an easy way to deal with this. Some
-> thought needs to go into how memoryless node handling relates to per cpu
-> lists and locking. List handling issues need to be addressed before SLQB.
-> can work reliably. The same issues can surface on x86 platforms with weird
-> NUMA memory setups.
-> 
+But it will make SLQB work right in permitted configurations. The NUMA
+issues can then be fixed later upstream.
 
-Can you spot if there is something fundamentally wrong with patch 2? I.e. what
-is wrong with treating the closest node as local instead of only the
-closest node?
-
-> Or just allow SLQB for !NUMA configurations and merge it now.
-> 
-
-Forcing SLQB !NUMA will not rattle out any existing list issues
-unfortunately :(.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
