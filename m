@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 865676B00A3
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:04:45 -0400 (EDT)
-Date: Mon, 21 Sep 2009 10:04:46 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DE8896B012A
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:09:19 -0400 (EDT)
+Date: Mon, 21 Sep 2009 10:09:23 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: HugeTLB: Driver example
-Message-ID: <20090921090445.GG12726@csn.ul.ie>
-References: <202cde0e0909132230y52b805a4i8792f2e287b01acb@mail.gmail.com> <20090914165435.GA21554@infradead.org> <202cde0e0909162342xb2a8daeia90b33a172fc714b@mail.gmail.com> <20090917091408.GB13002@csn.ul.ie> <202cde0e0909202216i36e3eca3rc56ddde345b12bf9@mail.gmail.com>
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+Message-ID: <20090921090923.GH12726@csn.ul.ie>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie> <1253302451-27740-2-git-send-email-mel@csn.ul.ie> <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com> <4AB5FD4D.3070005@kernel.org> <4AB5FFF8.7000602@cs.helsinki.fi> <4AB6508C.4070602@kernel.org> <4AB739A6.5060807@in.ibm.com> <20090921084248.GC12726@csn.ul.ie> <4AB74129.90402@in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <202cde0e0909202216i36e3eca3rc56ddde345b12bf9@mail.gmail.com>
+In-Reply-To: <4AB74129.90402@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Korolev <akorolex@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sachin Sant <sachinp@in.ibm.com>
+Cc: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 05:16:26PM +1200, Alexey Korolev wrote:
-> Mel,
-> 
-> > I think Christoph's point is that there should be an in-kernel user of the
-> > altered interface to hugetlbfs before the patches are merged. This example
-> > driver could move to samples/ and then add another patch converting some
-> > existing driver to use the new interface. Looking at the example driver,
-> > I'm hoping that converting an existing driver of interest would not be a
-> > massive undertaking.
-> 
-> Converting an existing driver may be a very difficult task as this
-> assumes involving in development process of the particular driver i.e.
-> having enough details about h/w and drivers and  having ability to
-> test the results.
+On Mon, Sep 21, 2009 at 02:32:33PM +0530, Sachin Sant wrote:
+> Mel Gorman wrote:
+>>> I applied the three patches from Mel and one from Tejun.
+>>>     
+>>
+>> Thanks Sachin
+>>
+>> Was there any useful result from Tejun's patch applied on its own?
+>>   
+> Haven't tried with just the patch from Tejun. I will give this a try.
+> I might not get a chance to test this until late in the evening my time.
+> (Today being a holiday for me )
+>
 
-I had assumed that you had a driver in mind as you discussed test data.
-I assumed you had a prototype conversion of some driver and with
-performance gains like that, they would be willing to get it in a
-mergeable state.
+Ok, I've blatently nabbed your machine again then (yoink haha) and
+a relevant kernel is building at the moment. I'll put the dmesg when it
+becomes available. Go enjoy your holiday
 
-> Also it is necessary to motivate maintainers to
-> accept this conversion. So I likely would not to be able change the
-> third party drivers for these reasons, but I'm open to help other
-> people to migrate if they want.
-> I heard that other people were asking you about driver interfaces for
-> huge pages, if this was about in-tree drivers then we could help each
-> other. Could you put me in touch with other developers you know of who
-> are interested in using htlb in drivers?
+>>> Tejun, the above hang looks exactly the same as the one
+>>> i have reported here :
+>>>
+>>> http://lists.ozlabs.org/pipermail/linuxppc-dev/2009-September/075791.html
+>>>
+>>> This particular hang was bisected to the following patch
+>>>
+>>> powerpc64: convert to dynamic percpu allocator
+>>>
+>>> This hang can be recreated without SLQB. So i think this is a different
+>>> problem. 
+>>>
+>>>     
+>>
+>> Was that bug ever resolved?
+>>   
+> The bug was still present with git9(78f28b..). With latest git
+> git10(ebc79c4 ..)i haven't tested it yet because of perf counter
+> build errors.
+>
 
-I can't. The request was from 9-10 months ago for drivers about about 18
-months ago for Xen when they were looking at this area. The authors are no
-longer working in that area AFAIK as once it was discussed what would need
-to be done to use huge pages, they balked. It's far easier now as most of
-the difficulties have been addressed but the interested parties are not
-likely to be looking at this area for some time.
+Ok, so right now there are three separate bugs with this machine
 
-The most recent expression of interest was from KVM developers within the
-company. On discussion, using huge pages was something they were going to
-push out as there are other concerns that should be addressed first. I'd
-say it'd be at least a year before they looked at huge pages for KVM.
+1. SLQB + Memoryless shots itself in the face due to suspected
+	per-cpu area corruption
+2. SLQB with memoryless nodes frees pages remotely and allocates
+	locally with a similar effect as if it was a memory leak.
+3. pcpu_alloc can hang but is not related to SLQB
 
-> It makes sense to get this
-> feature merged as it provides a quite efficient way for performance
-> increase. According to our test data, applying these little changes
-> gives about 7-10% gain.
-> 
-
-What is this test data based on?
-
-> > I tend to agree with him.
-> >
-> > As I'm having trouble envisioning what a real driver would look like,
-> > converting an in-kernel driver ensures that the interface was sane instead
-> > of exporting symbols that turn out to be unusable later. It'll also force
-> > any objectors out of the closet sooner rather than later.
-> >
-> > As it stands, I have no problems with the patches as such other than they
-> > need a bit more spit and polish. The basic principal seems ok.
-> 
+Thanks
 
 -- 
 Mel Gorman
