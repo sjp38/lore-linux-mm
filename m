@@ -1,215 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0A46B0062
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:33:59 -0400 (EDT)
-Date: Mon, 21 Sep 2009 19:33:38 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: a patch drop request in -mm
-Message-ID: <20090921173338.GA2578@cmpxchg.org>
-References: <2f11576a0909210800l639560e4jad6cfc2e7f74538f@mail.gmail.com> <2f11576a0909210808r7912478cyd7edf3550fe5ce6@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A86F16B006A
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:34:13 -0400 (EDT)
+Subject: Re: [PATCH 2/3] slqb: Treat pages freed on a memoryless node as
+ local node
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090919114621.GC1225@csn.ul.ie>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
+	 <1253302451-27740-3-git-send-email-mel@csn.ul.ie>
+	 <alpine.DEB.1.10.0909181657280.9490@V090114053VZO-1>
+	 <20090919114621.GC1225@csn.ul.ie>
+Content-Type: text/plain
+Date: Mon, 21 Sep 2009 13:34:09 -0400
+Message-Id: <1253554449.7017.256.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2f11576a0909210808r7912478cyd7edf3550fe5ce6@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Tue, Sep 22, 2009 at 12:08:28AM +0900, KOSAKI Motohiro wrote:
-> 2009/9/22 KOSAKI Motohiro <kosaki.motohiro@gmail.com>:
-> > Mel,
-> >
-> > Today, my test found following patch makes false-positive warning.
-> > because, truncate can free the pages
-> > although the pages are mlock()ed.
-> >
-> > So, I think following patch should be dropped.
-> > .. or, do you think truncate should clear PG_mlock before free the page?
-> >
-> > Can I ask your patch intention?
+On Sat, 2009-09-19 at 12:46 +0100, Mel Gorman wrote:
+> On Fri, Sep 18, 2009 at 05:01:14PM -0400, Christoph Lameter wrote:
+> > On Fri, 18 Sep 2009, Mel Gorman wrote:
+> > 
+> > > --- a/mm/slqb.c
+> > > +++ b/mm/slqb.c
+> > > @@ -1726,6 +1726,7 @@ static __always_inline void __slab_free(struct kmem_cache *s,
+> > >  	struct kmem_cache_cpu *c;
+> > >  	struct kmem_cache_list *l;
+> > >  	int thiscpu = smp_processor_id();
+> > > +	int thisnode = numa_node_id();
+> > 
+> > thisnode must be the first reachable node with usable RAM. Not the current
+> > node. cpu 0 may be on node 0 but there is no memory on 0. Instead
+> > allocations fall back to node 2 (depends on policy effective as well. The
+> > round robin meory policy default on bootup may result in allocations from
+> > different nodes as well).
+> > 
 > 
-> stacktrace is here.
+> Agreed. Note that this is the free path and the point was to illustrate
+> that SLQB is always trying to allocate full pages locally and always
+> freeing them remotely. It always going to the allocator instead of going
+> to the remote lists first. On a memoryless system, this acts as a leak.
 > 
+> A more appropriate fix may be for the kmem_cache_cpu to remember what it
+> considers a local node. Ordinarily it'll be numa_node_id() but on memoryless
+> node it would be the closest reachable node. How would that sound?
 > 
-> ------------[ cut here ]------------
-> WARNING: at mm/page_alloc.c:502 free_page_mlock+0x84/0xce()
-> Hardware name: PowerEdge T105
-> Page flag mlocked set for process dd at pfn:172d4b
-> page:ffffea00096a6678 flags:0x700000000400000
-> Modules linked in: fuse usbhid bridge stp llc nfsd lockd nfs_acl
-> exportfs sunrpc cpufreq_ondemand powernow_k8 freq_table dm_multipath
-> kvm_amd kvm serio_raw e1000e i2c_nforce2 i2c_core tg3 dcdbas sr_mod
-> cdrom pata_acpi sata_nv uhci_hcd ohci_hcd ehci_hcd usbcore [last
-> unloaded: scsi_wait_scan]
-> Pid: 27030, comm: dd Tainted: G        W  2.6.31-rc9-mm1 #13
-> Call Trace:
->  [<ffffffff8105fd76>] warn_slowpath_common+0x8d/0xbb
->  [<ffffffff8105fe31>] warn_slowpath_fmt+0x50/0x66
->  [<ffffffff81102483>] ? mempool_alloc+0x80/0x146
->  [<ffffffff811060fb>] free_page_mlock+0x84/0xce
->  [<ffffffff8110640a>] free_hot_cold_page+0x105/0x20b
->  [<ffffffff81106597>] __pagevec_free+0x87/0xb2
->  [<ffffffff8110ad61>] release_pages+0x17c/0x1e8
->  [<ffffffff810a24b8>] ? trace_hardirqs_on_caller+0x32/0x17b
->  [<ffffffff8112ff82>] free_pages_and_swap_cache+0x72/0xa3
->  [<ffffffff8111f2f4>] tlb_flush_mmu+0x46/0x68
->  [<ffffffff8111f935>] unmap_vmas+0x61f/0x85b
->  [<ffffffff810a24b8>] ? trace_hardirqs_on_caller+0x32/0x17b
->  [<ffffffff8111fc2b>] zap_page_range+0xba/0xf9
->  [<ffffffff8111fce4>] unmap_mapping_range_vma+0x7a/0xff
->  [<ffffffff8111ff2f>] unmap_mapping_range+0x1c6/0x26d
->  [<ffffffff8110c407>] truncate_pagecache+0x49/0x85
->  [<ffffffff8117bd84>] simple_setsize+0x44/0x64
->  [<ffffffff8110b856>] vmtruncate+0x25/0x5f
 
-This calls unmap_mapping_range() before actually munlocking the page.
+Interesting.  I've been working on a somewhat similar issue on SLAB and
+ia64.  SLAB doesn't handle fallback very efficiently when local
+allocations fail.
 
-Other unmappers like do_munmap() and exit_mmap() munlock explicitely
-before unmapping.
+We noticed, recently,  on a 2.6.72-based kernel that our large ia64
+platforms, when configured in "fully interleaved" mode [all memory on a
+separate memory-only "pseudo-node"] ran significantly slower on, e.g.,
+AIM, hackbench, ... than in "100% cell local memory" mode.   In the
+interleaved mode [0%CLM], all of the actual nodes appear as memoryless,
+so ALL allocations are, effectively, off node.
 
-We could do the same here but I would argue that mlock lifetime
-depends on actual userspace mappings and then move the munlocking a
-few levels down into the unmapping guts to make this implicit.
+I had a patch for SLES11 that addressed this [and eliminated the
+regression] by doing pretty much what Christoph suggests:  treating the
+first node in the zone list for memoryless nodes as the local node for
+slab allocations.  This is, after all, where all "local" allocations
+will come from, or at least will look first.  Apparently my patch is
+incomplete, esp in handling of alien caches, as it plain doesn't work on
+mainline kernels.  I.e., the regression is still there.  
 
-Because truncation makes sure pages get unmapped, this is handled too.
+The regression is easily visible with hackbench:
+hackbench 400 process 200
+Running with 400*40 (== 16000) tasks
 
-Below is roughly outlined and untested demonstration patch.  What do
-you think?
+100% CLM [no memoryless nodes]:
+	Of 100 samples, Average: 10.388; Min: 9.901; Max: 12.382
 
->  [<ffffffff81170558>] inode_setattr+0x4a/0x83
->  [<ffffffff811e817b>] ext4_setattr+0x26b/0x314
->  [<ffffffff8117088f>] ? notify_change+0x19c/0x31d
->  [<ffffffff811708ac>] notify_change+0x1b9/0x31d
->  [<ffffffff81150556>] do_truncate+0x7b/0xac
->  [<ffffffff811606c1>] ? get_write_access+0x59/0x76
->  [<ffffffff81163019>] may_open+0x1c0/0x1d3
->  [<ffffffff811638bd>] do_filp_open+0x4c3/0x998
->  [<ffffffff81171d80>] ? alloc_fd+0x4a/0x14b
->  [<ffffffff81171e5b>] ? alloc_fd+0x125/0x14b
->  [<ffffffff8114f472>] do_sys_open+0x6f/0x14f
->  [<ffffffff8114f5bf>] sys_open+0x33/0x49
->  [<ffffffff8100bf72>] system_call_fastpath+0x16/0x1b
-> ---[ end trace e76f92f117e9e06e ]---
+0% CLM [all cpus on memoryless nodes; memory on 1 memory only
+pseudo-node]:
+	Of 50 samples, Average: 242.453; Min: 237.719; Max: 245.671
 
----
+That's from a mainline kernel ~13Aug--2.3.30-ish.  I verified the
+regression still exists in 2.6.31-rc6 a couple of weeks back.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index f290c4d..0d3c6c6 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -67,10 +67,6 @@ extern long mlock_vma_pages_range(struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end);
- extern void munlock_vma_pages_range(struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end);
--static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
--{
--	munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end);
--}
- #endif
- 
- /*
-diff --git a/mm/memory.c b/mm/memory.c
-index aede2ce..f8c5ac6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -971,7 +971,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
- 
- 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
- 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
--		unsigned long end;
-+		unsigned long end, nr_pages;
- 
- 		start = max(vma->vm_start, start_addr);
- 		if (start >= vma->vm_end)
-@@ -980,8 +980,15 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
- 		if (end <= vma->vm_start)
- 			continue;
- 
-+		nr_pages = (end - start) >> PAGE_SHIFT;
-+
-+		if (vma->vm_flags & VM_LOCKED) {
-+			mm->locked_vm -= nr_pages;
-+			munlock_vma_pages_range(vma, start, end);
-+		}
-+
- 		if (vma->vm_flags & VM_ACCOUNT)
--			*nr_accounted += (end - start) >> PAGE_SHIFT;
-+			*nr_accounted += nr_pages;
- 
- 		if (unlikely(is_pfn_mapping(vma)))
- 			untrack_pfn_vma(vma, 0, 0);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 8101de4..02189f3 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1921,20 +1921,6 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
- 	vma = prev? prev->vm_next: mm->mmap;
- 
- 	/*
--	 * unlock any mlock()ed ranges before detaching vmas
--	 */
--	if (mm->locked_vm) {
--		struct vm_area_struct *tmp = vma;
--		while (tmp && tmp->vm_start < end) {
--			if (tmp->vm_flags & VM_LOCKED) {
--				mm->locked_vm -= vma_pages(tmp);
--				munlock_vma_pages_all(tmp);
--			}
--			tmp = tmp->vm_next;
--		}
--	}
--
--	/*
- 	 * Remove the vma's, and unmap the actual pages
- 	 */
- 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
-@@ -2089,15 +2075,6 @@ void exit_mmap(struct mm_struct *mm)
- 	/* mm's last user has gone, and its about to be pulled down */
- 	mmu_notifier_release(mm);
- 
--	if (mm->locked_vm) {
--		vma = mm->mmap;
--		while (vma) {
--			if (vma->vm_flags & VM_LOCKED)
--				munlock_vma_pages_all(vma);
--			vma = vma->vm_next;
--		}
--	}
--
- 	arch_exit_mmap(mm);
- 
- 	vma = mm->mmap;
-diff --git a/mm/truncate.c b/mm/truncate.c
-index ccc3ecf..a4e3b8f 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -104,7 +104,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 
- 	cancel_dirty_page(page, PAGE_CACHE_SIZE);
- 
--	clear_page_mlock(page);
- 	remove_from_page_cache(page);
- 	ClearPageMappedToDisk(page);
- 	page_cache_release(page);	/* pagecache ref */
-@@ -129,7 +128,6 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
- 	if (page_has_private(page) && !try_to_release_page(page, 0))
- 		return 0;
- 
--	clear_page_mlock(page);
- 	ret = remove_mapping(mapping, page);
- 
- 	return ret;
-@@ -348,7 +346,6 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
- 	if (PageDirty(page))
- 		goto failed;
- 
--	clear_page_mlock(page);
- 	BUG_ON(page_has_private(page));
- 	__remove_from_page_cache(page);
- 	spin_unlock_irq(&mapping->tree_lock);
+Hope to get back to this soon...
+
+SLUB doesn't seem to have this problem with memoryless nodes and I
+haven't tested SLQB on this config.  x86_64 does not see this issue
+because in doesn't support memoryless nodes--all cpus on memoryless
+nodes are moved to other nodes with memory.  [I'm not sure the current
+strategy of ingoring distance when "rehoming" the cpus is a good long
+term strategy, but that's a topic for another discussion :).]
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
