@@ -1,40 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C686B0062
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 12:27:28 -0400 (EDT)
-Date: Mon, 21 Sep 2009 09:27:18 -0700
-From: Chris Wright <chrisw@sous-sol.org>
-Subject: Re: [RFC] Virtual Machine Device Queues(VMDq) support on KVM
-Message-ID: <20090921162718.GM26034@sequoia.sous-sol.org>
-References: <C85CEDA13AB1CF4D9D597824A86D2B9006AEB94861@PDSMSX501.ccr.corp.intel.com> <20090901090518.1193e412@nehalam> <200909211637.23299.rusty@rustcorp.com.au> <20090921092130.30984dbd@s6510>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090921092130.30984dbd@s6510>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 50EEC6B0062
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:17:46 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
-To: Stephen Hemminger <shemminger@vyatta.com>
-Cc: Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, "Xin, Xiaohui" <xiaohui.xin@intel.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@elte.hu" <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] powerpc: Allocate per-cpu areas for node IDs for
+ SLQB to use as per-node areas
+From: Daniel Walker <dwalker@fifo99.com>
+In-Reply-To: <1253549426-917-2-git-send-email-mel@csn.ul.ie>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
+	 <1253549426-917-2-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain
+Date: Mon, 21 Sep 2009 10:17:52 -0700
+Message-Id: <1253553472.9654.236.camel@desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-* Stephen Hemminger (shemminger@vyatta.com) wrote:
-> On Mon, 21 Sep 2009 16:37:22 +0930
-> Rusty Russell <rusty@rustcorp.com.au> wrote:
+On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
+> SLQB uses DEFINE_PER_CPU to define per-node areas. An implicit
+> assumption is made that all valid node IDs will have matching valid CPU
+> ids. In memoryless configurations, it is possible to have a node ID with
+> no CPU having the same ID. When this happens, a per-cpu are is not
+> created and the value of paca[cpu].data_offset is some random value.
+> This is later deferenced and the system crashes after accessing some
+> invalid address.
 > 
-> > > > Actually this framework can apply to traditional network adapters which have
-> > > > just one tx/rx queue pair. And applications using the same user/kernel interface
-> > > > can utilize this framework to send/receive network traffic directly thru a tx/rx
-> > > > queue pair in a network adapter.
-> > > > 
+> This patch hacks powerpc to allocate per-cpu areas for node IDs that
+> have no corresponding CPU id. This gets around the immediate problem but
+> it should be discussed if there is a requirement for a DEFINE_PER_NODE
+> and how it should be implemented.
 > 
-> More importantly, when virtualizations is used with multi-queue NIC's the virtio-net
-> NIC is a single CPU bottleneck. The virtio-net NIC should preserve the parallelism (lock
-> free) using multiple receive/transmit queues. The number of queues should equal the
-> number of CPUs.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  arch/powerpc/kernel/setup_64.c |   20 ++++++++++++++++++++
+>  1 files changed, 20 insertions(+), 0 deletions(-)
+> 
+> diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
+> index 1f68160..a5f52d4 100644
+> --- a/arch/powerpc/kernel/setup_64.c
+> +++ b/arch/powerpc/kernel/setup_64.c
+> @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
+>  		paca[i].data_offset = ptr - __per_cpu_start;
+>  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+>  	}
+> +#ifdef CONFIG_SLQB
+> +	/* 
+> +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
+> +	 * assumes that ever node ID will have a CPU of that ID to match.
+> +	 * On systems with memoryless nodes, this may not hold true. Hence,
+> +	 * we take a second pass initialising a "per-cpu" area for node-ids
+> +	 * that SLQB can use
+> +	 */
 
-Yup, multiqueue virtio is on todo list ;-)
+Very trivial, but there's a little trailing whitespace in the first line
+of the comment (checkpatch warns on it.) You also spelled initializing
+wrong.
 
-thanks,
--chris
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
