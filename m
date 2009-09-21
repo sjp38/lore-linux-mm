@@ -1,212 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0A2A26B0160
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:35:08 -0400 (EDT)
-Received: by pxi3 with SMTP id 3so2496923pxi.31
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 06:35:09 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH RFC 2/2] example usage of swap notifiers in ramzswap
-Date: Mon, 21 Sep 2009 19:04:00 +0530
-Message-Id: <1253540040-24860-2-git-send-email-ngupta@vflare.org>
-In-Reply-To: <1253540040-24860-1-git-send-email-ngupta@vflare.org>
-References: <1253540040-24860-1-git-send-email-ngupta@vflare.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 01FFC6B0161
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:37:02 -0400 (EDT)
+Date: Mon, 21 Sep 2009 14:37:04 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: ipw2200: firmware DMA loading rework
+Message-ID: <20090921133704.GO12726@csn.ul.ie>
+References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <200909211246.34774.bzolnier@gmail.com> <1253530608.5216.17.camel@penberg-laptop> <200909211512.14785.bzolnier@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <200909211512.14785.bzolnier@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Luis R. Rodriguez" <mcgrof@gmail.com>, Tso Ted <tytso@mit.edu>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Zhu Yi <yi.zhu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-This patch is against a version of ramzswap which uses module sepcific hacks
-to register a callback for swap slot free event and does not use any notifier.
+On Mon, Sep 21, 2009 at 03:12:14PM +0200, Bartlomiej Zolnierkiewicz wrote:
+> On Monday 21 September 2009 12:56:48 Pekka Enberg wrote:
+> > On Mon, 2009-09-21 at 12:46 +0200, Bartlomiej Zolnierkiewicz wrote:
+> > > > > I don't know why people don't see it but for me it has a memory management
+> > > > > regression and reliability issue written all over it.
+> > > > 
+> > > > Possibly but drivers that reload their firmware as a response to an
+> > > > error condition is relatively new and loading network drivers while the
+> > > > system is already up and running a long time does not strike me as
+> > > > typical system behaviour.
+> > > 
+> > > Loading drivers after boot is a typical desktop/laptop behavior, please
+> > > think about hotplug (the hardware in question is an USB dongle).
+> > 
+> > Yeah, I wonder what broke things. Did the wireless stack change in
+> > 2.6.31-rc1 too? IIRC Mel ruled out page allocator changes as a suspect.
+> 
+> The thing is that the mm behavior change has been narrowed down already
+> over a month ago to -mm merge in 2.6.31-rc1 (as has been noted in my initial
+> reports), I first though that that it was -next breakage but it turned out
+> that it came the other way around (because -mm is not even pulled into -next
+> currently -- great way to set an example for other kernel maintainers BTW).
+> 
 
-It shows improvments in the ramzswap module (in terms of code flow) that
-resulted from swap notifier support added in patch 1/2.
+Is there a reliable reproduction case for this that narrowed it down to
+2.6.31-rc1? That is the window where a number of page-allocator optimisation
+patches made it in. None of them should have affected the allocator from a
+fragmentation perspective though.
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+If you have a reliable reproduction case, testing between commits
+d239171e4f6efd58d7e423853056b1b6a74f1446..a1dd268cf6306565a31a48deff8bf4f6b4b105f7
+would be nice, particularly if it can be bisected within that small
+window rather than a full bisect of an rc1 which I know can be a major
+mess.
 
----
+> I understand that behavior change may be justified and technically correct
+> in itself.  I also completely agree that high order allocations in certain
+> drivers need fixing anyway.
+> 
+> However there is something wrong with the big picture and the way changes
+> are happening.  I'm not saying that I'm surprised though, especially given
+> the recent decline in the quality assurance and the paradigm shift that
+> I'm seeing (some influential top level people talking that -rc1 is fine for
+> testing new code now or the "new kernel new hardware" thing).
+> 
 
-diff --git a/drivers/staging/ramzswap/ramzswap_drv.c b/drivers/staging/ramzswap/ramzswap_drv.c
-index 1a7167f..1c5326e 100644
---- a/drivers/staging/ramzswap/ramzswap_drv.c
-+++ b/drivers/staging/ramzswap/ramzswap_drv.c
-@@ -647,19 +647,6 @@ out:
- 	rzs->table[index].offset = 0;
- }
- 
--/*
-- * callback function called when swap_map[offset] == 0
-- * i.e page at this swap offset is no longer used
-- */
--static void ramzswap_free_notify(struct block_device *bdev,
--				unsigned long index)
--{
--	struct ramzswap *rzs = bdev->bd_disk->private_data;
--
--	ramzswap_free_page(rzs, index);
--	stat_inc(rzs->stats.notify_free);
--}
--
- static int handle_zero_page(struct bio *bio)
- {
- 	void *user_mem;
-@@ -760,11 +747,6 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
- 	page = bio->bi_io_vec[0].bv_page;
- 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
- 
--	if (unlikely(!rzs->init_notify_callback) && PageSwapCache(page)) {
--		set_ramzswap_free_notify(bio->bi_bdev, ramzswap_free_notify);
--		rzs->init_notify_callback = 1;
--	}
--
- 	if (rzs_test_flag(rzs, index, RZS_ZERO))
- 		return handle_zero_page(bio);
- 
-@@ -1318,13 +1300,6 @@ static int ramzswap_ioctl(struct block_device *bdev, fmode_t mode,
- 			goto out;
- 		}
- 		ret = ramzswap_ioctl_reset_device(rzs);
--		/*
--		 * Racy! Device has already been swapoff'ed.  Bad things
--		 * can happen if another swapon is done before this reset.
--		 * TODO: A callback from swapoff() will solve this problem.
--		 */
--		set_ramzswap_free_notify(bdev, NULL);
--		rzs->init_notify_callback = 0;
- 		break;
- 
- 	default:
-@@ -1395,13 +1370,62 @@ static void destroy_device(struct ramzswap *rzs)
- 		blk_cleanup_queue(rzs->queue);
- }
- 
-+static int ramzswap_slot_free_notify(struct notifier_block *self,
-+			unsigned long index, void *swap_file)
-+{
-+	struct block_device *bdev;
-+	struct inode *inode;
-+	struct ramzswap *rzs;
-+
-+	inode = ((struct file *)swap_file)->f_mapping->host;
-+	bdev = I_BDEV(inode);
-+	rzs = bdev->bd_disk->private_data;
-+
-+	ramzswap_free_page(rzs, index);
-+	stat_inc(rzs->stats.notify_free);
-+	return 0;
-+}
-+
-+static struct notifier_block ramzswap_slot_free_nb = {
-+	.notifier_call = ramzswap_slot_free_notify
-+};
-+
-+static int ramzswap_swapon_notify(struct notifier_block *self,
-+			unsigned long swap_id, void *swap_file)
-+{
-+	int ret = 0;
-+
-+	ret = register_swap_event_notifier(&ramzswap_slot_free_nb,
-+				SWAP_EVENT_SLOT_FREE, swap_id);
-+	if (ret)
-+		pr_err("Error registering swap free notifier\n");
-+	return ret;
-+}
-+
-+static int ramzswap_swapoff_notify(struct notifier_block *self,
-+			unsigned long swap_id, void *swap_file)
-+{
-+	unregister_swap_event_notifier(&ramzswap_slot_free_nb,
-+				SWAP_EVENT_SLOT_FREE, swap_id);
-+	return 0;
-+}
-+
-+
-+static struct notifier_block ramzswap_swapon_nb = {
-+	.notifier_call = ramzswap_swapon_notify
-+};
-+
-+static struct notifier_block ramzswap_swapoff_nb = {
-+	.notifier_call = ramzswap_swapoff_notify
-+};
-+
- static int __init ramzswap_init(void)
- {
--	int i;
-+	int i, ret;
- 
- 	if (num_devices > max_num_devices) {
- 		pr_warning("Invalid value for num_devices: %u\n",
--							num_devices);
-+				num_devices);
- 		return -EINVAL;
- 	}
- 
-@@ -1419,17 +1443,32 @@ static int __init ramzswap_init(void)
- 	/* Allocate the device array and initialize each one */
- 	pr_info("Creating %u devices ...\n", num_devices);
- 	devices = kzalloc(num_devices * sizeof(struct ramzswap), GFP_KERNEL);
--	if (!devices)
-+	if (!devices) {
-+		ret = -ENOMEM;
- 		goto out;
-+	}
- 
- 	for (i = 0; i < num_devices; i++)
- 		create_device(&devices[i], i);
- 
-+	ret = register_swap_event_notifier(&ramzswap_swapon_nb,
-+				SWAP_EVENT_SWAPON, 0);
-+	if (ret) {
-+		pr_err("Error registering swapon notifier\n");
-+		goto out;
-+	}
-+
-+	ret = register_swap_event_notifier(&ramzswap_swapoff_nb,
-+				SWAP_EVENT_SWAPOFF, 0);
-+	if (ret) {
-+		pr_err("Error registering swapoff notifier\n");
-+		goto out;
-+	}
- 	return 0;
- 
- out:
- 	unregister_blkdev(ramzswap_major, "ramzswap");
--	return -ENOMEM;
-+	return ret;
- }
- 
- static void __exit ramzswap_exit(void)
-@@ -1437,6 +1476,11 @@ static void __exit ramzswap_exit(void)
- 	int i;
- 	struct ramzswap *rzs;
- 
-+	unregister_swap_event_notifier(&ramzswap_swapon_nb,
-+				SWAP_EVENT_SWAPON, 0);
-+	unregister_swap_event_notifier(&ramzswap_swapoff_nb,
-+				SWAP_EVENT_SWAPOFF, 0);
-+
- 	for (i = 0; i < num_devices; i++) {
- 		rzs = &devices[i];
- 
-diff --git a/drivers/staging/ramzswap/ramzswap_drv.h b/drivers/staging/ramzswap/ramzswap_drv.h
-index f7f273f..350db81 100644
---- a/drivers/staging/ramzswap/ramzswap_drv.h
-+++ b/drivers/staging/ramzswap/ramzswap_drv.h
-@@ -143,7 +143,6 @@ struct ramzswap {
- 	struct request_queue *queue;
- 	struct gendisk *disk;
- 	int init_done;
--	int init_notify_callback;
- 	/*
- 	 * This is limit on compressed data size (stats.compr_size)
- 	 * Its applicable only when backing swap device is present.
-@@ -162,6 +161,7 @@ struct ramzswap {
- 	struct ramzswap_backing_extent *curr_extent;
- 	struct list_head backing_swap_extent_list;
- 	unsigned long num_extents;
-+	struct notifier_block *slot_free_nb;
- 	char backing_swap_name[MAX_SWAP_NAME_LEN];
- 	struct block_device *backing_swap;
- 	struct file *swap_file;
+The quality assurance comment is a bit unfair with respect to the page
+allocator. There are a lot of things that can have changed that would hose
+order-6 atomic allocations. Furthermore, test cases used for mm patches
+would not have taken into account such allocations as being critical. Even
+if it was considered, it would have been dismissed as "it makes no sense
+for drivers to be doing order-6 GFP_ATOMIC" allocations.
+
+> Sorry but I have no more time currently to narrow down the issue some more
+> (guess what, there are other kernel bugs standing in the way to bisect it
+> and I would have to provide some reliable way to reproduce it first) so I
+> see no more point in wasting people's time on this.  I can certainly get by
+> with allocation failure here and there.  Not a big deal for me personally..
+> 
+
+That is somewhat unfortunate. Even testing within the window above if
+possible would be very helpful if you get the chance.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
