@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EF5E76B0114
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 01:16:21 -0400 (EDT)
-Received: by yxe10 with SMTP id 10so3420274yxe.12
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2009 22:16:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090917091408.GB13002@csn.ul.ie>
-References: <202cde0e0909132230y52b805a4i8792f2e287b01acb@mail.gmail.com>
-	 <20090914165435.GA21554@infradead.org>
-	 <202cde0e0909162342xb2a8daeia90b33a172fc714b@mail.gmail.com>
-	 <20090917091408.GB13002@csn.ul.ie>
-Date: Mon, 21 Sep 2009 17:16:26 +1200
-Message-ID: <202cde0e0909202216i36e3eca3rc56ddde345b12bf9@mail.gmail.com>
-Subject: Re: HugeTLB: Driver example
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 50A8D6B0116
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 02:23:55 -0400 (EDT)
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <4AB6508C.4070602@kernel.org>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
+	 <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
+	 <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
+	 <4AB5FD4D.3070005@kernel.org> <4AB5FFF8.7000602@cs.helsinki.fi>
+	 <4AB6508C.4070602@kernel.org>
+Date: Mon, 21 Sep 2009 09:24:00 +0300
+Message-Id: <1253514240.5216.3.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Hellwig <hch@infradead.org>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel,
+Hi Tejun,
 
-> I think Christoph's point is that there should be an in-kernel user of the
-> altered interface to hugetlbfs before the patches are merged. This example
-> driver could move to samples/ and then add another patch converting some
-> existing driver to use the new interface. Looking at the example driver,
-> I'm hoping that converting an existing driver of interest would not be a
-> massive undertaking.
+On Mon, 2009-09-21 at 00:55 +0900, Tejun Heo wrote:
+> Pekka Enberg wrote:
+> > Tejun Heo wrote:
+> >> Pekka Enberg wrote:
+> >>> On Fri, Sep 18, 2009 at 10:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> >>>> SLQB used a seemingly nice hack to allocate per-node data for the
+> >>>> statically
+> >>>> initialised caches. Unfortunately, due to some unknown per-cpu
+> >>>> optimisation, these regions are being reused by something else as the
+> >>>> per-node data is getting randomly scrambled. This patch fixes the
+> >>>> problem but it's not fully understood *why* it fixes the problem at the
+> >>>> moment.
+> >>> Ouch, that sounds bad. I guess it's architecture specific bug as x86
+> >>> works ok? Lets CC Tejun.
+> >>
+> >> Is the corruption being seen on ppc or s390?
+> > 
+> > On ppc.
+> 
+> Can you please post full dmesg showing the corruption?  Also, if you
+> apply the attached patch, does the added BUG_ON() trigger?
 
-Converting an existing driver may be a very difficult task as this
-assumes involving in development process of the particular driver i.e.
-having enough details about h/w and drivers and  having ability to
-test the results. Also it is necessary to motivate maintainers to
-accept this conversion. So I likely would not to be able change the
-third party drivers for these reasons, but I'm open to help other
-people to migrate if they want.
-I heard that other people were asking you about driver interfaces for
-huge pages, if this was about in-tree drivers then we could help each
-other. Could you put me in touch with other developers you know of who
-are interested in using htlb in drivers? It makes sense to get this
-feature merged as it provides a quite efficient way for performance
-increase. According to our test data, applying these little changes
-gives about 7-10% gain.
+I don't have the affected machines, Sachin and Mel do.
 
+			Pekka
 
-> I tend to agree with him.
->
-> As I'm having trouble envisioning what a real driver would look like,
-> converting an in-kernel driver ensures that the interface was sane instead
-> of exporting symbols that turn out to be unusable later. It'll also force
-> any objectors out of the closet sooner rather than later.
->
-> As it stands, I have no problems with the patches as such other than they
-> need a bit more spit and polish. The basic principal seems ok.
-
-Thanks,
-Alexey
+> diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+> index 878836c..fb690d2 100644
+> --- a/include/linux/percpu.h
+> +++ b/include/linux/percpu.h
+> @@ -127,7 +127,7 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
+>   * dynamically allocated. Non-atomic access to the current CPU's
+>   * version should probably be combined with get_cpu()/put_cpu().
+>   */
+> -#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+> +#define per_cpu_ptr(ptr, cpu)	({ BUG_ON(!(ptr)); SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu))); })
+> 
+>  extern void *__alloc_reserved_percpu(size_t size, size_t align);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
