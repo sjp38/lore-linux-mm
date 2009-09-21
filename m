@@ -1,86 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8202F6B016C
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 11:22:14 -0400 (EDT)
-Date: Mon, 21 Sep 2009 16:22:19 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E83A6B00A3
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 12:10:29 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: a patch drop request in -mm
-Message-ID: <20090921152219.GQ12726@csn.ul.ie>
-References: <2f11576a0909210800l639560e4jad6cfc2e7f74538f@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <2f11576a0909210800l639560e4jad6cfc2e7f74538f@mail.gmail.com>
+Subject: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+Date: Mon, 21 Sep 2009 17:10:23 +0100
+Message-Id: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+Cc: heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 22, 2009 at 12:00:51AM +0900, KOSAKI Motohiro wrote:
-> Mel,
-> 
-> Today, my test found following patch makes false-positive warning.
-> because, truncate can free the pages
-> although the pages are mlock()ed.
-> 
-> So, I think following patch should be dropped.
-> .. or, do you think truncate should clear PG_mlock before free the page?
-> 
+Currently SLQB is not allowed to be configured on PPC and S390 machines as
+CPUs can belong to memoryless nodes. SLQB does not deal with this very well
+and crashes reliably.
 
-Is there a reason that truncate cannot clear PG_mlock before freeing the
-page?
+These patches fix the problem on PPC64 and it appears to be fairly stable.
+At least, basic actions that were previously silently halting the machine
+complete successfully. There might still be per-cpu problems as Sachin
+reported the stability problems on this machine did not depend on SLQB.
 
-> Can I ask your patch intention?
+Patch 1 notes that the per-node hack in SLQB only works if every node in
+	the system has a CPU of the same ID. If this is not the case,
+	the per-node areas are not necessarily allocated. This fix only
+	applies to ppc64. It's possible that s390 needs a similar hack. The
+	alternative is to statically allocate the per-node structures but
+	this is both sub-optimal in terms of performance and memory usage.
 
+Patch 2 notes that on memoryless configurations, memory is always freed
+	remotely but always allocates locally and falls back to the page
+	allocator on failure. This effectively is a memory leak. This patch
+	records in kmem_cache_cpu what node it considers local to be either
+	the real local node or the closest node available
 
-Locked pages being freed to the page allocator were considered
-unexpected and a counter was in place to determine how often that
-situation occurred. However, I considered it unlikely that the counter
-would be noticed so the warning was put in place to catch what class of
-pages were getting freed locked inappropriately. I think a few anomolies
-have been cleared up since. Ultimately, it should have been safe to
-delete the check.
+Patch 3 allows SLQB to be configured on PPC again. It's not enabled on
+	S390 because I can't test for sure on a suitable configuration there.
 
-> 
-> 
-> =============================================================
-> commit 7a06930af46eb39351cbcdc1ab98701259f9a72c
-> Author: Mel Gorman <mel@csn.ul.ie>
-> Date:   Tue Aug 25 00:43:07 2009 +0200
-> 
->     When a page is freed with the PG_mlocked set, it is considered an
->     unexpected but recoverable situation.  A counter records how often this
->     event happens but it is easy to miss that this event has occured at
->     all.  This patch warns once when PG_mlocked is set to prompt debuggers
->     to check the counter to see how often it is happening.
-> 
->     Signed-off-by: Mel Gorman <mel@csn.ul.ie>
->     Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
->     Acked-by: Johannes Weiner <hannes@cmpxchg.org>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 28c2f3e..251fd73 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -494,6 +494,11 @@ static inline void __free_one_page(struct page *page,
->   */
->  static inline void free_page_mlock(struct page *page)
->  {
-> +       WARN_ONCE(1, KERN_WARNING
-> +               "Page flag mlocked set for process %s at pfn:%05lx\n"
-> +               "page:%p flags:%#lx\n",
-> +               current->comm, page_to_pfn(page),
-> +               page, page->flags|__PG_MLOCKED);
->         __dec_zone_page_state(page, NR_MLOCK);
->         __count_vm_event(UNEVICTABLE_MLOCKFREED);
->  }
-> 
+This is not ready for merging just yet.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+It needs signed-off from the powerpc side because it's now allocating more
+memory potentially (Ben?). An alternative to this patch is in V1 that
+statically declares the per-node structures but this is potentially
+sub-optimal but from a performance and memory utilisation perspective.
+
+>From an SLQB side, how does patch 2 now look from a potential list-corruption
+point of view (Christoph, Nick, Pekka?). Certainly this version seems a
+lot more sensible than the patch in V1 because the per-cpu list is now
+always being used for pages from the closest node.
+
+It would also be nice if the S390 guys could retest as well with SLQB to see
+if special action with respect to per-cpu areas is still needed.
+
+ arch/powerpc/kernel/setup_64.c |   20 ++++++++++++++++++++
+ include/linux/slqb_def.h       |    3 +++
+ init/Kconfig                   |    2 +-
+ mm/slqb.c                      |   23 +++++++++++++++++------
+ 4 files changed, 41 insertions(+), 7 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
