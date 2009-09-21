@@ -1,61 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5C8776B015B
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:12:05 -0400 (EDT)
-Received: by fxm2 with SMTP id 2so2127575fxm.4
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 06:12:04 -0700 (PDT)
-From: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
-Subject: Re: ipw2200: firmware DMA loading rework
-Date: Mon, 21 Sep 2009 15:12:14 +0200
-References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <200909211246.34774.bzolnier@gmail.com> <1253530608.5216.17.camel@penberg-laptop>
-In-Reply-To: <1253530608.5216.17.camel@penberg-laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F0FB36B010F
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:31:43 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so2036350bwz.38
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 06:31:42 -0700 (PDT)
 MIME-Version: 1.0
-Message-Id: <200909211512.14785.bzolnier@gmail.com>
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090921130440.GN12726@csn.ul.ie>
+References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
+	 <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
+	 <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
+	 <4AB5FD4D.3070005@kernel.org> <4AB5FFF8.7000602@cs.helsinki.fi>
+	 <4AB6508C.4070602@kernel.org> <4AB739A6.5060807@in.ibm.com>
+	 <20090921084248.GC12726@csn.ul.ie> <20090921130440.GN12726@csn.ul.ie>
+Date: Mon, 21 Sep 2009 16:31:42 +0300
+Message-ID: <84144f020909210631h23bf3292q1d87c063c7b5c126@mail.gmail.com>
+Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, "Luis R. Rodriguez" <mcgrof@gmail.com>, Tso Ted <tytso@mit.edu>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Zhu Yi <yi.zhu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Sachin Sant <sachinp@in.ibm.com>, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 21 September 2009 12:56:48 Pekka Enberg wrote:
-> On Mon, 2009-09-21 at 12:46 +0200, Bartlomiej Zolnierkiewicz wrote:
-> > > > I don't know why people don't see it but for me it has a memory management
-> > > > regression and reliability issue written all over it.
-> > > 
-> > > Possibly but drivers that reload their firmware as a response to an
-> > > error condition is relatively new and loading network drivers while the
-> > > system is already up and running a long time does not strike me as
-> > > typical system behaviour.
-> > 
-> > Loading drivers after boot is a typical desktop/laptop behavior, please
-> > think about hotplug (the hardware in question is an USB dongle).
-> 
-> Yeah, I wonder what broke things. Did the wireless stack change in
-> 2.6.31-rc1 too? IIRC Mel ruled out page allocator changes as a suspect.
+On Mon, Sep 21, 2009 at 4:04 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+>> The "per-cpu" area in this case is actually a per-node area. This implied that
+>> it was either racing (but the locking looked sound), a buffer overflow (but
+>> I couldn't find one) or the per-cpu areas were being written to by something
+>> else unrelated.
+>
+> This latter guess was close to the mark but not for the reasons I was
+> guessing. There isn't magic per-cpu-area-freeing going on. Once I examined
+> the implementation of per-cpu data, it was clear that the per-cpu areas for
+> the node IDs were never being allocated in the first place on PowerPC. It's
+> probable that this never worked but that it took a long time before SLQB
+> was run on a memoryless configuration.
+>
+> This patch would replace patch 1 of the first hatchet job I did. It's possible
+> a similar patch is needed for S390. I haven't looked at the implementation
+> there and I don't have a means of testing it.
 
-The thing is that the mm behavior change has been narrowed down already
-over a month ago to -mm merge in 2.6.31-rc1 (as has been noted in my initial
-reports), I first though that that it was -next breakage but it turned out
-that it came the other way around (because -mm is not even pulled into -next
-currently -- great way to set an example for other kernel maintainers BTW).
+Other architectures could be affected as well which makes me think
+"hatchet job number one" is the way forward. Nick?
 
-I understand that behavior change may be justified and technically correct
-in itself.  I also completely agree that high order allocations in certain
-drivers need fixing anyway.
-
-However there is something wrong with the big picture and the way changes
-are happening.  I'm not saying that I'm surprised though, especially given
-the recent decline in the quality assurance and the paradigm shift that
-I'm seeing (some influential top level people talking that -rc1 is fine for
-testing new code now or the "new kernel new hardware" thing).
-
-Sorry but I have no more time currently to narrow down the issue some more
-(guess what, there are other kernel bugs standing in the way to bisect it
-and I would have to provide some reliable way to reproduce it first) so I
-see no more point in wasting people's time on this.  I can certainly get by
-with allocation failure here and there.  Not a big deal for me personally..
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
