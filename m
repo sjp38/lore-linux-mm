@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 783DD6B012B
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:14:05 -0400 (EDT)
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id n8L9E5gV021273
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 10:14:05 +0100
-Received: from pzk10 (pzk10.prod.google.com [10.243.19.138])
-	by zps38.corp.google.com with ESMTP id n8L9E2rE019329
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 02:14:02 -0700
-Received: by pzk10 with SMTP id 10so2054603pzk.19
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 02:14:02 -0700 (PDT)
-Date: Mon, 21 Sep 2009 02:13:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] remove duplicate asm/mman.h files
-In-Reply-To: <200909211031.25369.arnd@arndb.de>
-Message-ID: <alpine.DEB.1.00.0909210208180.16086@chino.kir.corp.google.com>
-References: <cover.1251197514.git.ebmunson@us.ibm.com> <200909181848.42192.arnd@arndb.de> <alpine.DEB.1.00.0909181236190.27556@chino.kir.corp.google.com> <200909211031.25369.arnd@arndb.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B05A66B012D
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:17:49 -0400 (EDT)
+Date: Mon, 21 Sep 2009 11:17:53 +0200 (CEST)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: BUG: sleeping function called from invalid context at
+ mm/slub.c:1717
+In-Reply-To: <28c262360909160016m19edee02g9215669f854e1026@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.0909211114400.17028@wotan.suse.de>
+References: <20090915085441.GF23126@kernel.dk>  <alpine.LNX.2.00.0909151202560.17028@wotan.suse.de> <28c262360909160016m19edee02g9215669f854e1026@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Fenghua Yu <fenghua.yu@intel.com>, Tony Luck <tony.luck@intel.com>
-Cc: ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, rth@twiddle.net, ink@jurassic.park.msu.ru, linux-ia64@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Sep 2009, Arnd Bergmann wrote:
+On Wed, 16 Sep 2009, Minchan Kim wrote:
 
-> > > -#define MCL_CURRENT	1		/* lock all current mappings */
-> > > -#define MCL_FUTURE	2		/* lock all future mappings */
-> > > +#define MAP_GROWSUP	0x0200		/* register stack-like segment */
-> > >  
-> > >  #ifdef __KERNEL__
-> > >  #ifndef __ASSEMBLY__
-> > 
-> > ia64 doesn't use MAP_GROWSUP, so it's probably not necessary to carry it 
-> > along with your cleanup.
+> We have to change description of hid_input_report.
 > 
-> ia64 is the only architecture defining it, nobody uses it in the kernel.
-> If the ia64 maintainers want to remove it in a separate patch, that
-> would probably be a good idea.
-> 
+>  * @interrupt: called from atomic?
+> I think it lost meaning.
 
-I'll do it then.
+Good point, I will change it, thanks.
 
-> I tried not to change the ABI in any way in my patch, and there is
-> a theoretical possibility that some user space program on ia64 currently
-> depends on that definition.
-> 
+> I am worried that interrupt variable is propagated down to sub 
+> functions. Is it right on sub functions?
 
-I don't buy that as justification, if some userspace program uses it based 
-on the false belief that it actually does what it says, it's probably 
-better to break their build than perpetuating the lie that it's different 
-than ~MAP_GROWSDOWN.
+Yes. This variable is not used for chosing correct allocation flags 
+anywhere else, it is just carrying the semantics what the HID core should 
+do, what callbacks to call, etc. So it's correct.
+But you are right that the name and kerneldocs is confusing, and I will 
+fix that.
 
+> One more thing, I am concerned about increasing GFP_ATOMIC customers 
+> although we can avoid it. Is it called rarely? Could you find a 
+> alternative method to overcome this issue?
 
-ia64: remove definition for MAP_GROWSUP
+This is just a temporary buffer for debugging output, it is freed almost 
+immediately later in the function, and even if the allocation fails, 
+nothing bad happens (just the debugging output is not delivered to the 
+debugfs buffer).
 
-MAP_GROWSUP is unused.
+Thanks,
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
-diff --git a/arch/ia64/include/asm/mman.h b/arch/ia64/include/asm/mman.h
---- a/arch/ia64/include/asm/mman.h
-+++ b/arch/ia64/include/asm/mman.h
-@@ -11,7 +11,6 @@
- #include <asm-generic/mman-common.h>
- 
- #define MAP_GROWSDOWN	0x00100		/* stack-like segment */
--#define MAP_GROWSUP	0x00200		/* register stack-like segment */
- #define MAP_DENYWRITE	0x00800		/* ETXTBSY */
- #define MAP_EXECUTABLE	0x01000		/* mark it as an executable */
- #define MAP_LOCKED	0x02000		/* pages are locked */
+-- 
+Jiri Kosina
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
