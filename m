@@ -1,36 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 80F456B0096
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:05:02 -0400 (EDT)
-Received: by fxm2 with SMTP id 2so2332890fxm.4
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 11:05:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
-	 <20090921174656.GS12726@csn.ul.ie>
-	 <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
-Date: Mon, 21 Sep 2009 21:05:01 +0300
-Message-ID: <84144f020909211105p4772920at1a20d286710d19b8@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 45C3D6B0096
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 14:07:37 -0400 (EDT)
+Date: Mon, 21 Sep 2009 19:07:39 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <20090921180739.GT12726@csn.ul.ie>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 8:54 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
+On Mon, Sep 21, 2009 at 01:54:12PM -0400, Christoph Lameter wrote:
 > Lets just keep SLQB back until the basic issues with memoryless nodes are
-> resolved. There does not seem to be an easy way to deal with this. Some
+> resolved.
+
+It's not even super-clear that the memoryless nodes issues are entirely
+related to SLQB. Sachin for example says that there was a stall issue
+with memoryless nodes that could be triggered without SLQB. Sachin, is
+that still accurate?
+
+If so, it's possible that SLQB somehow exasperates the problem in some
+unknown fashion.
+
+> There does not seem to be an easy way to deal with this. Some
 > thought needs to go into how memoryless node handling relates to per cpu
 > lists and locking. List handling issues need to be addressed before SLQB.
 > can work reliably. The same issues can surface on x86 platforms with weird
 > NUMA memory setups.
->
-> Or just allow SLQB for !NUMA configurations and merge it now.
+> 
 
-I'm holding on to it until the issues are resolved.
+Can you spot if there is something fundamentally wrong with patch 2? I.e. what
+is wrong with treating the closest node as local instead of only the
+closest node?
+
+> Or just allow SLQB for !NUMA configurations and merge it now.
+> 
+
+Forcing SLQB !NUMA will not rattle out any existing list issues
+unfortunately :(.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
