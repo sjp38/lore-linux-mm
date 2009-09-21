@@ -1,60 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3D2826B0153
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 08:30:44 -0400 (EDT)
-Received: by ywh3 with SMTP id 3so3547750ywh.22
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:30:43 -0700 (PDT)
-Message-ID: <4AB771B3.8080603@vflare.org>
-Date: Mon, 21 Sep 2009 17:59:39 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7006C6B0154
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 08:43:14 -0400 (EDT)
+Date: Mon, 21 Sep 2009 13:43:15 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: [PATCH] ksm: fix rare page leak
+Message-ID: <Pine.LNX.4.64.0909211336300.4809@sister.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] send callback when swap slot is freed
-References: <1253227412-24342-1-git-send-email-ngupta@vflare.org>	 <Pine.LNX.4.64.0909180809290.2882@sister.anvils>	 <1253260528.4959.13.camel@penberg-laptop>	 <Pine.LNX.4.64.0909180857170.5404@sister.anvils>	 <1253266391.4959.15.camel@penberg-laptop> <4AB3A16B.90009@vflare.org>	 <4AB487FD.5060207@cs.helsinki.fi>	 <Pine.LNX.4.64.0909211149360.32504@sister.anvils>	 <1253531550.5216.32.camel@penberg-laptop>	 <Pine.LNX.4.64.0909211244510.6209@sister.anvils> <84144f020909210508i7e8b1b3bif61dcb5b576c878d@mail.gmail.com>
-In-Reply-To: <84144f020909210508i7e8b1b3bif61dcb5b576c878d@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Izik Eidus <ieidus@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/21/2009 05:38 PM, Pekka Enberg wrote:
-> Hi Hugh,
-> 
-> On Mon, Sep 21, 2009 at 2:55 PM, Hugh Dickins
-> <hugh.dickins@tiscali.co.uk> wrote:
->> Though exporting the swap_info_struct still bothers me, and it
->> seems convoluted that the block device should have a method, so
->> swapon can call the block device, so the block device can call
->> swapfile.c to install a callout, so that swapfile.c can call the
->> block device when freeing swap.  I'm not saying there is a better
->> way, just that I'd be glad of a better way.
-> 
-> I guess we can combine my ->swapon() hook in struct
-> block_device_operations with Nitin's set_swap_free_notify() function
-> to avoid exporting struct swap_info_struct. Alternatively, we could
-> add the ->swap_free() hook too struct block_device_operations. In any
-> case, I don't think we can do the setup at sys_open() if we keep
-> Nitin's hook as struct swap_info_struct is not set up until
-> sys_swapon().
-> 
->                      
+In the rare case when stable_tree_insert() finds a match when the prior
+stable_tree_search() did not, it forgot to free the page reference (the
+omission looks intentional, but I think that's because something else
+used to be done there).
 
+Fix that by one put_page() for all three cases, call it tree_page
+rather than page2[0], clarify the comment on this exceptional case,
+and remove the comment in stable_tree_search() which contradicts it!
 
-I just converted all this to use more generic notifier interface and tested
-it by adding ramzswap notifier to list and it all works. I will shortly send
-RFC patches for swapfile.c changes and corresponding ramzswap changes to show
-its usage.
+Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+---
 
-I'm still not sure if these notifiers will find more users, making all this
-look like a mere decoration. But, at least it looks better than whatever
-hack we currently have :)
+ mm/ksm.c |   29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)
 
-(I will do better patch division when I post the next revision).
-
-Thanks,
-Nitin
+--- mmotm/mm/ksm.c	2009-09-14 16:34:37.000000000 +0100
++++ linux/mm/ksm.c	2009-09-21 13:12:07.000000000 +0100
+@@ -904,10 +904,6 @@ static struct rmap_item *stable_tree_sea
+ 		if (!tree_rmap_item)
+ 			return NULL;
+ 
+-		/*
+-		 * We can trust the value of the memcmp as we know the pages
+-		 * are write protected.
+-		 */
+ 		ret = memcmp_pages(page, page2[0]);
+ 
+ 		if (ret < 0) {
+@@ -939,18 +935,18 @@ static struct rmap_item *stable_tree_ins
+ {
+ 	struct rb_node **new = &root_stable_tree.rb_node;
+ 	struct rb_node *parent = NULL;
+-	struct page *page2[1];
+ 
+ 	while (*new) {
+ 		struct rmap_item *tree_rmap_item, *next_rmap_item;
++		struct page *tree_page;
+ 		int ret;
+ 
+ 		tree_rmap_item = rb_entry(*new, struct rmap_item, node);
+ 		while (tree_rmap_item) {
+ 			BUG_ON(!in_stable_tree(tree_rmap_item));
+ 			cond_resched();
+-			page2[0] = get_ksm_page(tree_rmap_item);
+-			if (page2[0])
++			tree_page = get_ksm_page(tree_rmap_item);
++			if (tree_page)
+ 				break;
+ 			next_rmap_item = tree_rmap_item->next;
+ 			remove_rmap_item_from_tree(tree_rmap_item);
+@@ -959,22 +955,19 @@ static struct rmap_item *stable_tree_ins
+ 		if (!tree_rmap_item)
+ 			return NULL;
+ 
+-		ret = memcmp_pages(page, page2[0]);
++		ret = memcmp_pages(page, tree_page);
++		put_page(tree_page);
+ 
+ 		parent = *new;
+-		if (ret < 0) {
+-			put_page(page2[0]);
++		if (ret < 0)
+ 			new = &parent->rb_left;
+-		} else if (ret > 0) {
+-			put_page(page2[0]);
++		else if (ret > 0)
+ 			new = &parent->rb_right;
+-		} else {
++		else {
+ 			/*
+-			 * It is not a bug when we come here (the fact that
+-			 * we didn't find the page inside the stable tree):
+-			 * because when we searched for the page inside the
+-			 * stable tree it was still not write-protected,
+-			 * so therefore it could have changed later.
++			 * It is not a bug that stable_tree_search() didn't
++			 * find this node: because at that time our page was
++			 * not yet write-protected, so may have changed since.
+ 			 */
+ 			return NULL;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
