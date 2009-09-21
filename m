@@ -1,68 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1700E6B0089
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:42:20 -0400 (EDT)
-Date: Mon, 21 Sep 2009 18:42:23 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E286B008C
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:46:51 -0400 (EDT)
+Date: Mon, 21 Sep 2009 18:46:57 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] powerpc: Allocate per-cpu areas for node IDs for
-	SLQB to use as per-node areas
-Message-ID: <20090921174223.GR12726@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253549426-917-2-git-send-email-mel@csn.ul.ie> <1253553472.9654.236.camel@desktop>
+Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+Message-ID: <20090921174656.GS12726@csn.ul.ie>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1253553472.9654.236.camel@desktop>
+In-Reply-To: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Walker <dwalker@fifo99.com>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+Cc: heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 10:17:52AM -0700, Daniel Walker wrote:
-> On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
-> > SLQB uses DEFINE_PER_CPU to define per-node areas. An implicit
-> > assumption is made that all valid node IDs will have matching valid CPU
-> > ids. In memoryless configurations, it is possible to have a node ID with
-> > no CPU having the same ID. When this happens, a per-cpu are is not
-> > created and the value of paca[cpu].data_offset is some random value.
-> > This is later deferenced and the system crashes after accessing some
-> > invalid address.
-> > 
-> > This patch hacks powerpc to allocate per-cpu areas for node IDs that
-> > have no corresponding CPU id. This gets around the immediate problem but
-> > it should be discussed if there is a requirement for a DEFINE_PER_NODE
-> > and how it should be implemented.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  arch/powerpc/kernel/setup_64.c |   20 ++++++++++++++++++++
-> >  1 files changed, 20 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
-> > index 1f68160..a5f52d4 100644
-> > --- a/arch/powerpc/kernel/setup_64.c
-> > +++ b/arch/powerpc/kernel/setup_64.c
-> > @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
-> >  		paca[i].data_offset = ptr - __per_cpu_start;
-> >  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-> >  	}
-> > +#ifdef CONFIG_SLQB
-> > +	/* 
-> > +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
-> > +	 * assumes that ever node ID will have a CPU of that ID to match.
-> > +	 * On systems with memoryless nodes, this may not hold true. Hence,
-> > +	 * we take a second pass initialising a "per-cpu" area for node-ids
-> > +	 * that SLQB can use
-> > +	 */
+On Mon, Sep 21, 2009 at 05:10:23PM +0100, Mel Gorman wrote:
+> Currently SLQB is not allowed to be configured on PPC and S390 machines as
+> CPUs can belong to memoryless nodes. SLQB does not deal with this very well
+> and crashes reliably.
 > 
-> Very trivial, but there's a little trailing whitespace in the first line
-> of the comment (checkpatch warns on it.)
+> These patches fix the problem on PPC64 and it appears to be fairly stable.
+> At least, basic actions that were previously silently halting the machine
+> complete successfully.
 
-D'oh, will clean it up in the next revision if the substance of the
-patch is agreed upon.
-
-> You also spelled initializing wrong.
-
-It's spelt correctly for British English.
+I spoke too soon. Stress tests result in application failure, nothing to
+dmesg even with the patches applied so it looks like patch 2 is still the
+wrong way to fix the OOM-kill storm.
 
 -- 
 Mel Gorman
