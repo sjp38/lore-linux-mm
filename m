@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 50EEC6B0062
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:17:46 -0400 (EDT)
-Sender: owner-linux-mm@kvack.org
+	by kanga.kvack.org (Postfix) with SMTP id 791796B004F
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 13:24:15 -0400 (EDT)
+Received: from chimera.site ([96.253.169.185]) by xenotime.net for <linux-mm@kvack.org>; Mon, 21 Sep 2009 10:24:20 -0700
+Date: Mon, 21 Sep 2009 10:24:18 -0700
+From: Randy Dunlap <rdunlap@xenotime.net>
 Subject: Re: [PATCH 1/3] powerpc: Allocate per-cpu areas for node IDs for
  SLQB to use as per-node areas
-From: Daniel Walker <dwalker@fifo99.com>
-In-Reply-To: <1253549426-917-2-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090921102418.4692d62c.rdunlap@xenotime.net>
+In-Reply-To: <1253553472.9654.236.camel@desktop>
 References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
-	 <1253549426-917-2-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 21 Sep 2009 10:17:52 -0700
-Message-Id: <1253553472.9654.236.camel@desktop>
+	<1253549426-917-2-git-send-email-mel@csn.ul.ie>
+	<1253553472.9654.236.camel@desktop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Sender: owner-linux-mm@kvack.org
+To: Daniel Walker <dwalker@fifo99.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
-> SLQB uses DEFINE_PER_CPU to define per-node areas. An implicit
-> assumption is made that all valid node IDs will have matching valid CPU
-> ids. In memoryless configurations, it is possible to have a node ID with
-> no CPU having the same ID. When this happens, a per-cpu are is not
-> created and the value of paca[cpu].data_offset is some random value.
-> This is later deferenced and the system crashes after accessing some
-> invalid address.
-> 
-> This patch hacks powerpc to allocate per-cpu areas for node IDs that
-> have no corresponding CPU id. This gets around the immediate problem but
-> it should be discussed if there is a requirement for a DEFINE_PER_NODE
-> and how it should be implemented.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  arch/powerpc/kernel/setup_64.c |   20 ++++++++++++++++++++
->  1 files changed, 20 insertions(+), 0 deletions(-)
-> 
-> diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
-> index 1f68160..a5f52d4 100644
-> --- a/arch/powerpc/kernel/setup_64.c
-> +++ b/arch/powerpc/kernel/setup_64.c
-> @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
->  		paca[i].data_offset = ptr - __per_cpu_start;
->  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
->  	}
-> +#ifdef CONFIG_SLQB
-> +	/* 
-> +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
-> +	 * assumes that ever node ID will have a CPU of that ID to match.
-> +	 * On systems with memoryless nodes, this may not hold true. Hence,
-> +	 * we take a second pass initialising a "per-cpu" area for node-ids
-> +	 * that SLQB can use
-> +	 */
+On Mon, 21 Sep 2009 10:17:52 -0700 Daniel Walker wrote:
 
-Very trivial, but there's a little trailing whitespace in the first line
-of the comment (checkpatch warns on it.) You also spelled initializing
-wrong.
+> On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
+> > SLQB uses DEFINE_PER_CPU to define per-node areas. An implicit
+> > assumption is made that all valid node IDs will have matching valid CPU
+> > ids. In memoryless configurations, it is possible to have a node ID with
+> > no CPU having the same ID. When this happens, a per-cpu are is not
+> > created and the value of paca[cpu].data_offset is some random value.
+> > This is later deferenced and the system crashes after accessing some
+> > invalid address.
+> > 
+> > This patch hacks powerpc to allocate per-cpu areas for node IDs that
+> > have no corresponding CPU id. This gets around the immediate problem but
+> > it should be discussed if there is a requirement for a DEFINE_PER_NODE
+> > and how it should be implemented.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  arch/powerpc/kernel/setup_64.c |   20 ++++++++++++++++++++
+> >  1 files changed, 20 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
+> > index 1f68160..a5f52d4 100644
+> > --- a/arch/powerpc/kernel/setup_64.c
+> > +++ b/arch/powerpc/kernel/setup_64.c
+> > @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
+> >  		paca[i].data_offset = ptr - __per_cpu_start;
+> >  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+> >  	}
+> > +#ifdef CONFIG_SLQB
+> > +	/* 
+> > +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
+> > +	 * assumes that ever node ID will have a CPU of that ID to match.
+> > +	 * On systems with memoryless nodes, this may not hold true. Hence,
+> > +	 * we take a second pass initialising a "per-cpu" area for node-ids
+> > +	 * that SLQB can use
+> > +	 */
+> 
+> Very trivial, but there's a little trailing whitespace in the first line
+> of the comment (checkpatch warns on it.) You also spelled initializing
+> wrong.
 
-Daniel
+re: spelling.  Not really.  Think internationally.
+
+---
+~Randy
+LPC 2009, Sept. 23-25, Portland, Oregon
+http://linuxplumbersconf.org/2009/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
