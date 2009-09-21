@@ -1,47 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B32876B004D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 19:56:14 -0400 (EDT)
-Subject: Re: [PATCH 1/3] slqb: Do not use DEFINE_PER_CPU for per-node data
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <20090921135733.GP12726@csn.ul.ie>
-References: <1253302451-27740-1-git-send-email-mel@csn.ul.ie>
-	 <1253302451-27740-2-git-send-email-mel@csn.ul.ie>
-	 <84144f020909200145w74037ab9vb66dae65d3b8a048@mail.gmail.com>
-	 <4AB5FD4D.3070005@kernel.org> <4AB5FFF8.7000602@cs.helsinki.fi>
-	 <4AB6508C.4070602@kernel.org> <4AB739A6.5060807@in.ibm.com>
-	 <20090921084248.GC12726@csn.ul.ie> <20090921130440.GN12726@csn.ul.ie>
-	 <4AB78385.6020900@kernel.org>  <20090921135733.GP12726@csn.ul.ie>
-Content-Type: text/plain
-Date: Tue, 22 Sep 2009 09:54:21 +1000
-Message-Id: <1253577261.7103.169.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4EA8A6B004D
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 19:59:13 -0400 (EDT)
+Message-ID: <4AB8133D.7060506@redhat.com>
+Date: Mon, 21 Sep 2009 16:58:53 -0700
+From: Ulrich Drepper <drepper@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] remove duplicate asm/mman.h files
+References: <cover.1251197514.git.ebmunson@us.ibm.com> <200909181848.42192.arnd@arndb.de> <alpine.DEB.1.00.0909181236190.27556@chino.kir.corp.google.com> <200909211031.25369.arnd@arndb.de> <alpine.DEB.1.00.0909210208180.16086@chino.kir.corp.google.com> <Pine.LNX.4.64.0909211258570.7831@sister.anvils> <alpine.DEB.1.00.0909211553000.30561@chino.kir.corp.google.com> <57C9024A16AD2D4C97DC78E552063EA3E29CC3F1@orsmsx505.amr.corp.intel.com> <alpine.DEB.1.00.0909211638001.2388@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.0909211638001.2388@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Tejun Heo <tj@kernel.org>, Sachin Sant <sachinp@in.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, "Yu, Fenghua" <fenghua.yu@intel.com>, ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, Randy Dunlap <randy.dunlap@oracle.com>, rth@twiddle.net, ink@jurassic.park.msu.ru, linux-ia64@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Alan Cox <alan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-09-21 at 14:57 +0100, Mel Gorman wrote:
-> Sachin should be enjoying his holiday and I'm hogging his machine at
-> the
-> moment.  However, I can report that with this patch applied as well as
-> the
-> remote-free patch that the machine locks up after a random amount of
-> time
-> has passed and doesn't respond to sysrq. Setting
-> CONFIG_RCU_CPU_STALL_DETECTOR=y didn't help throw up an error. Will
-> enable a few other debug options related to stall detection and see
-> does
-> it pop out.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-You can also throw it into xmon (provided you have it enabled) using the
-"dump restart" command from the HMC. This does the equivalent of an NMI.
+David Rientjes wrote:
+> Ulrich wanted to do this last year but it appears to have been dropped.
 
-Cheers,
-Ben.
+I've mentioned that at that time, these flags cannot be used at all for
+stacks.  And I don't know for what else it is useful.  They should
+really be removed.
 
+- --
+a?? Ulrich Drepper a?? Red Hat, Inc. a?? 444 Castro St a?? Mountain View, CA a??
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+Comment: Using GnuPG with Fedora - http://enigmail.mozdev.org/
 
+iEYEARECAAYFAkq4Ez0ACgkQ2ijCOnn/RHQNtACfX+y5pIQhDusikKiQwQ8nvGRN
+cI8An0oThAXSwXRALt9598vbPbiVwEeJ
+=sxfU
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
