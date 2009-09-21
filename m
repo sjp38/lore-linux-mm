@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B05A66B012D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:17:49 -0400 (EDT)
-Date: Mon, 21 Sep 2009 11:17:53 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: BUG: sleeping function called from invalid context at
- mm/slub.c:1717
-In-Reply-To: <28c262360909160016m19edee02g9215669f854e1026@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.0909211114400.17028@wotan.suse.de>
-References: <20090915085441.GF23126@kernel.dk>  <alpine.LNX.2.00.0909151202560.17028@wotan.suse.de> <28c262360909160016m19edee02g9215669f854e1026@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 01DAB6B012F
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 05:30:51 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] remove duplicate asm/mman.h files
+Date: Mon, 21 Sep 2009 11:30:26 +0200
+References: <cover.1251197514.git.ebmunson@us.ibm.com> <200909211031.25369.arnd@arndb.de> <alpine.DEB.1.00.0909210208180.16086@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.0909210208180.16086@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200909211130.26377.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fenghua Yu <fenghua.yu@intel.com>, Tony Luck <tony.luck@intel.com>, ebmunson@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, randy.dunlap@oracle.com, rth@twiddle.net, ink@jurassic.park.msu.ru, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Sep 2009, Minchan Kim wrote:
-
-> We have to change description of hid_input_report.
+On Monday 21 September 2009, David Rientjes wrote:
+> > I tried not to change the ABI in any way in my patch, and there is
+> > a theoretical possibility that some user space program on ia64 currently
+> > depends on that definition.
+> > 
 > 
->  * @interrupt: called from atomic?
-> I think it lost meaning.
+> I don't buy that as justification, if some userspace program uses it based 
+> on the false belief that it actually does what it says, it's probably 
+> better to break their build than perpetuating the lie that it's different 
+> than ~MAP_GROWSDOWN.
 
-Good point, I will change it, thanks.
+It's more a matter of principle of my patches. I try to strictly separate
+patches that move code around (like the one I sent) from those that
+change contents (like yours, or the one before that adds MAP_STACK and
+MAP_HUGETLB).
 
-> I am worried that interrupt variable is propagated down to sub 
-> functions. Is it right on sub functions?
+Removing a definition from an exported header file either requires
+specific knowledge about why it is there to start with, or more
+research on the topic than I wanted to do. For instance, a theoretical
+program might have a helper function correctly doing
 
-Yes. This variable is not used for chosing correct allocation flags 
-anywhere else, it is just carrying the semantics what the HID core should 
-do, what callbacks to call, etc. So it's correct.
-But you are right that the name and kerneldocs is confusing, and I will 
-fix that.
+void *xmmap(void *addr, size_t length, int prot, int flags,
+                  int fd, off_t offset)
+{
+	if (flags & MAP_GROWSUP) { /* MAP_GROWSUP is not supported */
+		errno = -EINVAL;
+		return MAP_FAILED;
+	}
 
-> One more thing, I am concerned about increasing GFP_ATOMIC customers 
-> although we can avoid it. Is it called rarely? Could you find a 
-> alternative method to overcome this issue?
+	return mmap(addr, length, prot, flags, fd, offset);
+}
 
-This is just a temporary buffer for debugging output, it is freed almost 
-immediately later in the function, and even if the allocation fails, 
-nothing bad happens (just the debugging output is not delivered to the 
-debugfs buffer).
+Of course, such a program would only work on ia64 currently, so
+it should be safe to make ia64 behave like the other architectures
+in this regard.
 
-Thanks,
+> ia64: remove definition for MAP_GROWSUP
+> 
+> MAP_GROWSUP is unused.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
--- 
-Jiri Kosina
-SUSE Labs, Novell Inc.
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
