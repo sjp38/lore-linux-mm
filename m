@@ -1,88 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 01FFC6B0161
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:37:02 -0400 (EDT)
-Date: Mon, 21 Sep 2009 14:37:04 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: ipw2200: firmware DMA loading rework
-Message-ID: <20090921133704.GO12726@csn.ul.ie>
-References: <riPp5fx5ECC.A.2IG.qsGlKB@chimera> <200909211246.34774.bzolnier@gmail.com> <1253530608.5216.17.camel@penberg-laptop> <200909211512.14785.bzolnier@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200909211512.14785.bzolnier@gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B42C56B0164
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 09:41:11 -0400 (EDT)
+Received: by pxi3 with SMTP id 3so2500828pxi.31
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 06:41:14 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Subject: [PATCH RFC 1/2] Add notifiers for various swap events
+Date: Mon, 21 Sep 2009 19:03:59 +0530
+Message-Id: <1253540040-24860-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Luis R. Rodriguez" <mcgrof@gmail.com>, Tso Ted <tytso@mit.edu>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Zhu Yi <yi.zhu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Mel Gorman <mel@skynet.ie>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Ketrenos <jketreno@linux.intel.com>, "Chatre, Reinette" <reinette.chatre@intel.com>, "linux-wireless@vger.kernel.org" <linux-wireless@vger.kernel.org>, "ipw2100-devel@lists.sourceforge.net" <ipw2100-devel@lists.sourceforge.net>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 21, 2009 at 03:12:14PM +0200, Bartlomiej Zolnierkiewicz wrote:
-> On Monday 21 September 2009 12:56:48 Pekka Enberg wrote:
-> > On Mon, 2009-09-21 at 12:46 +0200, Bartlomiej Zolnierkiewicz wrote:
-> > > > > I don't know why people don't see it but for me it has a memory management
-> > > > > regression and reliability issue written all over it.
-> > > > 
-> > > > Possibly but drivers that reload their firmware as a response to an
-> > > > error condition is relatively new and loading network drivers while the
-> > > > system is already up and running a long time does not strike me as
-> > > > typical system behaviour.
-> > > 
-> > > Loading drivers after boot is a typical desktop/laptop behavior, please
-> > > think about hotplug (the hardware in question is an USB dongle).
-> > 
-> > Yeah, I wonder what broke things. Did the wireless stack change in
-> > 2.6.31-rc1 too? IIRC Mel ruled out page allocator changes as a suspect.
-> 
-> The thing is that the mm behavior change has been narrowed down already
-> over a month ago to -mm merge in 2.6.31-rc1 (as has been noted in my initial
-> reports), I first though that that it was -next breakage but it turned out
-> that it came the other way around (because -mm is not even pulled into -next
-> currently -- great way to set an example for other kernel maintainers BTW).
-> 
+Add notifiers for following swap events:
+ - Swapon
+ - Swapoff
+ - When a swap slot is freed
 
-Is there a reliable reproduction case for this that narrowed it down to
-2.6.31-rc1? That is the window where a number of page-allocator optimisation
-patches made it in. None of them should have affected the allocator from a
-fragmentation perspective though.
+This is required for ramzswap module which implements RAM based block
+devices to be used as swap disks. These devices require a notification
+on these events to function properly (as shown in patch 2/2).
 
-If you have a reliable reproduction case, testing between commits
-d239171e4f6efd58d7e423853056b1b6a74f1446..a1dd268cf6306565a31a48deff8bf4f6b4b105f7
-would be nice, particularly if it can be bisected within that small
-window rather than a full bisect of an rc1 which I know can be a major
-mess.
+Currently, I'm not sure if any of these event notifiers have any other
+users. However, adding ramzswap specific hooks instead of this generic
+approach resulted in a bad/hacky code.
 
-> I understand that behavior change may be justified and technically correct
-> in itself.  I also completely agree that high order allocations in certain
-> drivers need fixing anyway.
-> 
-> However there is something wrong with the big picture and the way changes
-> are happening.  I'm not saying that I'm surprised though, especially given
-> the recent decline in the quality assurance and the paradigm shift that
-> I'm seeing (some influential top level people talking that -rc1 is fine for
-> testing new code now or the "new kernel new hardware" thing).
-> 
+For SWAP_EVENT_SLOT_FREE, callbacks are made under swap_lock. Currently, this
+is not a problem since ramzswap is the only user and the callback it registers
+can be safely made under this lock. However, if this event finds more users,
+we might have to work on reducing contention on this lock.
 
-The quality assurance comment is a bit unfair with respect to the page
-allocator. There are a lot of things that can have changed that would hose
-order-6 atomic allocations. Furthermore, test cases used for mm patches
-would not have taken into account such allocations as being critical. Even
-if it was considered, it would have been dismissed as "it makes no sense
-for drivers to be doing order-6 GFP_ATOMIC" allocations.
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
-> Sorry but I have no more time currently to narrow down the issue some more
-> (guess what, there are other kernel bugs standing in the way to bisect it
-> and I would have to provide some reliable way to reproduce it first) so I
-> see no more point in wasting people's time on this.  I can certainly get by
-> with allocation failure here and there.  Not a big deal for me personally..
-> 
+---
+ include/linux/swap.h |   12 +++++++++
+ mm/swapfile.c        |   67 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 0 deletions(-)
 
-That is somewhat unfortunate. Even testing within the window above if
-possible would be very helpful if you get the chance.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7c15334..2873aad 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -127,6 +127,12 @@ enum {
+ 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
+ };
+ 
++enum swap_event {
++	SWAP_EVENT_SWAPON,
++	SWAP_EVENT_SWAPOFF,
++	SWAP_EVENT_SLOT_FREE,
++};
++
+ #define SWAP_CLUSTER_MAX 32
+ 
+ #define SWAP_MAP_MAX	0x7ffe
+@@ -155,6 +161,7 @@ struct swap_info_struct {
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+ 	unsigned int old_block_size;
++	struct atomic_notifier_head slot_free_notify_list;
+ };
+ 
+ struct swap_list_t {
+@@ -295,8 +302,13 @@ extern sector_t swapdev_block(int, pgoff_t);
+ extern struct swap_info_struct *get_swap_info_struct(unsigned);
+ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
++extern int register_swap_event_notifier(struct notifier_block *nb,
++                                enum swap_event event, unsigned long val);
++extern int unregister_swap_event_notifier(struct notifier_block *nb,
++                                enum swap_event event, unsigned long val);
+ struct backing_dev_info;
+ 
++
+ /* linux/mm/thrash.c */
+ extern struct mm_struct *swap_token_mm;
+ extern void grab_swap_token(struct mm_struct *);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 74f1102..f63643c 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -52,6 +52,9 @@ static struct swap_list_t swap_list = {-1, -1};
+ static struct swap_info_struct swap_info[MAX_SWAPFILES];
+ 
+ static DEFINE_MUTEX(swapon_mutex);
++static BLOCKING_NOTIFIER_HEAD(swapon_notify_list);
++static BLOCKING_NOTIFIER_HEAD(swapoff_notify_list);
++
+ 
+ /* For reference count accounting in swap_map */
+ /* enum for swap_map[] handling. internal use only */
+@@ -585,6 +588,8 @@ static int swap_entry_free(struct swap_info_struct *p,
+ 			swap_list.next = p - swap_info;
+ 		nr_swap_pages++;
+ 		p->inuse_pages--;
++		atomic_notifier_call_chain(&p->slot_free_notify_list,
++					offset, p->swap_file);
+ 	}
+ 	if (!swap_count(count))
+ 		mem_cgroup_uncharge_swap(ent);
+@@ -1626,6 +1631,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
+ 	spin_unlock(&swap_lock);
++	blocking_notifier_call_chain(&swapoff_notify_list, type, swap_file);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
+ 	/* Destroy swap account informatin */
+@@ -2014,7 +2020,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	} else {
+ 		swap_info[prev].next = p - swap_info;
+ 	}
++	ATOMIC_INIT_NOTIFIER_HEAD(&p->slot_free_notify_list);
+ 	spin_unlock(&swap_lock);
++	blocking_notifier_call_chain(&swapon_notify_list, type, swap_file);
+ 	mutex_unlock(&swapon_mutex);
+ 	error = 0;
+ 	goto out;
+@@ -2216,3 +2224,62 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
+ 	*offset = ++toff;
+ 	return nr_pages? ++nr_pages: 0;
+ }
++
++int register_swap_event_notifier(struct notifier_block *nb,
++				enum swap_event event, unsigned long val)
++{
++	switch (event) {
++	case SWAP_EVENT_SWAPON:
++		return blocking_notifier_chain_register(
++					&swapon_notify_list, nb);
++	case SWAP_EVENT_SWAPOFF:
++		return blocking_notifier_chain_register(
++					&swapoff_notify_list, nb);
++	case SWAP_EVENT_SLOT_FREE:
++		{
++		struct swap_info_struct *sis;
++
++		if (val > nr_swapfiles)
++			goto out;
++		sis = get_swap_info_struct(val);
++		return atomic_notifier_chain_register(
++				&sis->slot_free_notify_list, nb);
++		}
++	default:
++		pr_err("Invalid swap event: %d\n", event);
++	};
++
++out:
++	return -EINVAL;
++}
++EXPORT_SYMBOL_GPL(register_swap_event_notifier);
++
++int unregister_swap_event_notifier(struct notifier_block *nb,
++				enum swap_event event, unsigned long val)
++{
++	switch (event) {
++	case SWAP_EVENT_SWAPON:
++		return blocking_notifier_chain_unregister(
++					&swapon_notify_list, nb);
++	case SWAP_EVENT_SWAPOFF:
++		return blocking_notifier_chain_unregister(
++					&swapoff_notify_list, nb);
++	case SWAP_EVENT_SLOT_FREE:
++		{
++		struct swap_info_struct *sis;
++
++		if (val > nr_swapfiles)
++			goto out;
++		sis = get_swap_info_struct(val);
++		return atomic_notifier_chain_unregister(
++				&sis->slot_free_notify_list, nb);
++		}
++	default:
++		pr_err("Invalid swap event: %d\n", event);
++	};
++
++out:
++	return -EINVAL;
++}
++EXPORT_SYMBOL_GPL(unregister_swap_event_notifier);
++
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
