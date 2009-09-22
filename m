@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 262536B00B4
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:37:23 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n8MFUE4q032359
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:30:14 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8MFavPD194012
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:36:57 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8MFatbv024582
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:36:57 -0400
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: [PATCH] hugetlbfs: Do not call user_shm_lock() for MAP_HUGETLB fix
-Date: Tue, 22 Sep 2009 09:29:22 -0600
-Message-Id: <1253633362-19751-1-git-send-email-ebmunson@us.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7396B00B6
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:39:50 -0400 (EDT)
+Date: Tue, 22 Sep 2009 08:37:52 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/3] compcache: in-memory compressed swapping v4
+Message-ID: <20090922153752.GA24256@kroah.com>
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
+ <1253600030.30406.2.camel@penberg-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1253600030.30406.2.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, Eric B Munson <ebmunson@us.ibm.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+On Tue, Sep 22, 2009 at 09:13:50AM +0300, Pekka Enberg wrote:
+> On Tue, 2009-09-22 at 10:26 +0530, Nitin Gupta wrote:
+> >  drivers/staging/Kconfig                   |    2 +
+> >  drivers/staging/Makefile                  |    1 +
+> >  drivers/staging/ramzswap/Kconfig          |   21 +
+> >  drivers/staging/ramzswap/Makefile         |    3 +
+> >  drivers/staging/ramzswap/ramzswap.txt     |   51 +
+> >  drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
+> >  drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
+> >  drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
+> >  drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
+> >  drivers/staging/ramzswap/xvmalloc.h       |   30 +
+> >  drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
+> >  include/linux/swap.h                      |    5 +
+> >  mm/swapfile.c                             |   34 +
+> >  13 files changed, 2451 insertions(+), 0 deletions(-)
+> 
+> This diffstat is not up to date, I think.
+> 
+> Greg, would you mind taking this driver into staging? There are some
+> issues that need to be ironed out for it to be merged to kernel proper
+> but I think it would benefit from being exposed to mainline.
 
-This patch seems to have slipped through the cracks during the discussion
-on the MAP_HUGETLB flag, I am sorry for letting it slip.  Please fold this
-into the indicated patch in -mm.
+That would be fine, will there be a new set of patches for me to apply,
+or is this the correct series?
 
---- Cut here ---
+thanks,
 
-The patch
-hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-internal-mount.patch
-alters can_do_hugetlb_shm() to check if a file is being created for shared
-memory or mmap(). If this returns false, we then unconditionally call
-user_shm_lock() triggering a warning. This block should never be entered
-for MAP_HUGETLB. This patch partially reverts the problem and fixes the check.
-
-This patch should be considered a fix to
-hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-internal-mount.patch.
-
-From: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
----
- fs/hugetlbfs/inode.c |   12 +++---------
- 1 files changed, 3 insertions(+), 9 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index e1a4ac4..0bf9d02 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -931,15 +931,9 @@ static struct file_system_type hugetlbfs_fs_type = {
- 
- static struct vfsmount *hugetlbfs_vfsmount;
- 
--static int can_do_hugetlb_shm(int creat_flags)
-+static int can_do_hugetlb_shm(void)
- {
--	if (creat_flags != HUGETLBFS_SHMFS_INODE)
--		return 0;
--	if (capable(CAP_IPC_LOCK))
--		return 1;
--	if (in_group_p(sysctl_hugetlb_shm_group))
--		return 1;
--	return 0;
-+	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
- }
- 
- struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
-@@ -955,7 +949,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
- 	if (!hugetlbfs_vfsmount)
- 		return ERR_PTR(-ENOENT);
- 
--	if (!can_do_hugetlb_shm(creat_flags)) {
-+	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
- 		*user = current_user();
- 		if (user_shm_lock(size, *user)) {
- 			WARN_ONCE(1,
--- 
-1.6.3.2
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
