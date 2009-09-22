@@ -1,42 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0A66B008A
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 06:24:07 -0400 (EDT)
-Date: Tue, 22 Sep 2009 11:24:16 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-Message-ID: <20090922102415.GF12254@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1> <20090921180739.GT12726@csn.ul.ie> <alpine.DEB.1.10.0909211412050.3106@V090114053VZO-1> <20090922100540.GD12254@csn.ul.ie> <1253614875.30406.12.camel@penberg-laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 71B6D6B0092
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 06:40:12 -0400 (EDT)
+Date: Tue, 22 Sep 2009 13:38:07 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC] Virtual Machine Device Queues(VMDq) support on KVM
+Message-ID: <20090922103807.GA2555@redhat.com>
+References: <C85CEDA13AB1CF4D9D597824A86D2B9006AEB94861@PDSMSX501.ccr.corp.intel.com> <20090901090518.1193e412@nehalam> <200909211637.23299.rusty@rustcorp.com.au> <20090921092130.30984dbd@s6510> <20090921162718.GM26034@sequoia.sous-sol.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1253614875.30406.12.camel@penberg-laptop>
+In-Reply-To: <20090921162718.GM26034@sequoia.sous-sol.org>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Chris Wright <chrisw@sous-sol.org>
+Cc: Stephen Hemminger <shemminger@vyatta.com>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, "Xin, Xiaohui" <xiaohui.xin@intel.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@elte.hu" <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 22, 2009 at 01:21:15PM +0300, Pekka Enberg wrote:
-> Hi Mel,
+On Mon, Sep 21, 2009 at 09:27:18AM -0700, Chris Wright wrote:
+> * Stephen Hemminger (shemminger@vyatta.com) wrote:
+> > On Mon, 21 Sep 2009 16:37:22 +0930
+> > Rusty Russell <rusty@rustcorp.com.au> wrote:
+> > 
+> > > > > Actually this framework can apply to traditional network adapters which have
+> > > > > just one tx/rx queue pair. And applications using the same user/kernel interface
+> > > > > can utilize this framework to send/receive network traffic directly thru a tx/rx
+> > > > > queue pair in a network adapter.
+> > > > > 
+> > 
+> > More importantly, when virtualizations is used with multi-queue
+> > NIC's the virtio-net NIC is a single CPU bottleneck. The virtio-net
+> > NIC should preserve the parallelism (lock free) using multiple
+> > receive/transmit queues. The number of queues should equal the
+> > number of CPUs.
 > 
-> On Tue, 2009-09-22 at 11:05 +0100, Mel Gorman wrote:
-> > I'm going to punt the decision on this one to Pekka or Nick. My feeling
-> > is leave it enabled for NUMA so it can be identified if it gets fixed
-> > for some other reason - e.g. the stalls are due to a per-cpu problem as
-> > stated by Sachin and SLQB happens to exasperate the problem.
+> Yup, multiqueue virtio is on todo list ;-)
 > 
-> Can I have a tested patch that uses MAX_NUMNODES to allocate the
-> structs, please? We can convert SLQB over to per-cpu allocator if the
-> memoryless node issue is resolved.
-> 
+> thanks,
+> -chris
 
-Patch set in the process of testing. Should have something in a few
-hours.
+Note we'll need multiqueue tap for that to help.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
