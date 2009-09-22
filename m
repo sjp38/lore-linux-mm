@@ -1,97 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 88EFA6B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 01:03:27 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id n8M53C2x028231
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 10:33:12 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8M53CeQ2031822
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 10:33:12 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n8M53BRA028285
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 15:03:12 +1000
-Message-ID: <4AB85A8F.6010106@in.ibm.com>
-Date: Tue, 22 Sep 2009 10:33:11 +0530
-From: Sachin Sant <sachinp@in.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1> <20090921180739.GT12726@csn.ul.ie>
-In-Reply-To: <20090921180739.GT12726@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FF056B004D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:13:50 -0400 (EDT)
+Subject: Re: [PATCH 0/3] compcache: in-memory compressed swapping v4
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
+Date: Tue, 22 Sep 2009 09:13:50 +0300
+Message-Id: <1253600030.30406.2.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
-> On Mon, Sep 21, 2009 at 01:54:12PM -0400, Christoph Lameter wrote:
->   
->> Lets just keep SLQB back until the basic issues with memoryless nodes are
->> resolved.
->>     
->
-> It's not even super-clear that the memoryless nodes issues are entirely
-> related to SLQB. Sachin for example says that there was a stall issue
-> with memoryless nodes that could be triggered without SLQB. Sachin, is
-> that still accurate?
->   
-I think there are two different problems that we are dealing with.
+On Tue, 2009-09-22 at 10:26 +0530, Nitin Gupta wrote:
+>  drivers/staging/Kconfig                   |    2 +
+>  drivers/staging/Makefile                  |    1 +
+>  drivers/staging/ramzswap/Kconfig          |   21 +
+>  drivers/staging/ramzswap/Makefile         |    3 +
+>  drivers/staging/ramzswap/ramzswap.txt     |   51 +
+>  drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
+>  drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
+>  drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
+>  drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
+>  drivers/staging/ramzswap/xvmalloc.h       |   30 +
+>  drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
+>  include/linux/swap.h                      |    5 +
+>  mm/swapfile.c                             |   34 +
+>  13 files changed, 2451 insertions(+), 0 deletions(-)
 
-First one is the SLQB not working on a ppc64 box which seems to be specific
-to only one machine and i haven't seen that on other power boxes.The patches
-that you have posted seems to allow the box to boot, but eventually it hits
-the stall issue(related to percpu dynamic allocator not working on ppc64),
-which is the second problem we are dealing with.
+This diffstat is not up to date, I think.
 
-The stall issue seems to be much more critical as it is affecting almost
-all of the power boxes that i have tested with (4 in all).
-This issue is seen with Linus tree as well and was first seen with
-2.6.31-git5 (0cb583fd..) 
+Greg, would you mind taking this driver into staging? There are some
+issues that need to be ironed out for it to be merged to kernel proper
+but I think it would benefit from being exposed to mainline.
 
-The stall issue was reported here:
-http://lists.ozlabs.org/pipermail/linuxppc-dev/2009-September/075791.html
+Nitin, you probably should also submit a patch that adds a TODO file
+similar to other staging drivers to remind us that swap notifiers and
+the CONFIG_ARM thing need to be resolved.
 
-Thanks
--Sachin
-
-
-> If so, it's possible that SLQB somehow exasperates the problem in some
-> unknown fashion.
->
->   
->> There does not seem to be an easy way to deal with this. Some
->> thought needs to go into how memoryless node handling relates to per cpu
->> lists and locking. List handling issues need to be addressed before SLQB.
->> can work reliably. The same issues can surface on x86 platforms with weird
->> NUMA memory setups.
->>
->>     
->
-> Can you spot if there is something fundamentally wrong with patch 2? I.e. what
-> is wrong with treating the closest node as local instead of only the
-> closest node?
->
->   
->> Or just allow SLQB for !NUMA configurations and merge it now.
->>
->>     
->
-> Forcing SLQB !NUMA will not rattle out any existing list issues
-> unfortunately :(.
->
->   
-
-
--- 
-
----------------------------------
-Sachin Sant
-IBM Linux Technology Center
-India Systems and Technology Labs
-Bangalore, India
----------------------------------
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
