@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B47236B004D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 20:01:22 -0400 (EDT)
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain
-Date: Tue, 22 Sep 2009 10:00:03 +1000
-Message-Id: <1253577603.7103.174.camel@pasglop>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 181D96B004D
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 20:02:35 -0400 (EDT)
+Message-ID: <4AB813F3.8060102@kernel.org>
+Date: Tue, 22 Sep 2009 09:01:55 +0900
+From: Tejun Heo <tj@kernel.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/3] powerpc: Allocate per-cpu areas for node IDs for
+ SLQB to use as per-node areas
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253549426-917-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1253549426-917-2-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
-> 
-> It needs signed-off from the powerpc side because it's now allocating
-> more
-> memory potentially (Ben?). An alternative to this patch is in V1 that
-> statically declares the per-node structures but this is potentially
-> sub-optimal but from a performance and memory utilisation perspective.
+Hello,
 
-So if I understand correctly, we have a problem with both cpu-less and
-memory-less nodes. Interesting setups :-)
+Mel Gorman wrote:
+> diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
+> index 1f68160..a5f52d4 100644
+> --- a/arch/powerpc/kernel/setup_64.c
+> +++ b/arch/powerpc/kernel/setup_64.c
+> @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
+>  		paca[i].data_offset = ptr - __per_cpu_start;
+>  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+>  	}
+> +#ifdef CONFIG_SLQB
+> +	/* 
+> +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
+> +	 * assumes that ever node ID will have a CPU of that ID to match.
+> +	 * On systems with memoryless nodes, this may not hold true. Hence,
+> +	 * we take a second pass initialising a "per-cpu" area for node-ids
+> +	 * that SLQB can use
+> +	 */
+> +	for_each_node_state(i, N_NORMAL_MEMORY) {
+> +
+> +		/* Skip node IDs that a valid CPU id exists for */
+> +		if (paca[i].data_offset)
+> +			continue;
+> +
+> +		ptr = alloc_bootmem_pages_node(NODE_DATA(cpu_to_node(i)), size);
+> +
+> +		paca[i].data_offset = ptr - __per_cpu_start;
+> +		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+> +	}
+> +#endif /* CONFIG_SLQB */
+>  }
+>  #endif
 
-I have no strong objection on the allocating of the per-cpu data for
-the cpu-less nodes. However, I wonder if we should do that a bit more
-nicely, maybe with some kind of "adjusted" cpu_possible_mask() (could be
-something like cpu_node_valid_mask or similar) to be used by percpu.
+Eh... I don't know.  This seems too hacky to me.  Why not just
+allocate pointer array of MAX_NUMNODES and allocate per-node memory
+there?  This will be slightly more expensive but I doubt it will be
+noticeable.  The only extra overhead is the cachline footprint for the
+extra array.
 
-Mostly because it would be nice to have built-in debug features in
-per-cpu and in that case, it would need some way to know a valid
-number from an invalid one). Either that or just keep track of the
-mask of cpus that had percpu data allocated to them
+Thanks.
 
-Cheers,
-Ben.
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
