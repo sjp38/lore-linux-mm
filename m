@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7097D6B0095
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 07:51:01 -0400 (EDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [RFC] Virtual Machine Device Queues(VMDq) support on KVM
-Date: Tue, 22 Sep 2009 13:50:54 +0200
-References: <C85CEDA13AB1CF4D9D597824A86D2B9006AEB94861@PDSMSX501.ccr.corp.intel.com> <20090921162718.GM26034@sequoia.sous-sol.org> <20090922103807.GA2555@redhat.com>
-In-Reply-To: <20090922103807.GA2555@redhat.com>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200909221350.54847.arnd@arndb.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F8146B0098
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 08:54:11 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 0/3] Fix SLQB on memoryless configurations V3
+Date: Tue, 22 Sep 2009 13:54:11 +0100
+Message-Id: <1253624054-10882-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Chris Wright <chrisw@sous-sol.org>, Stephen Hemminger <shemminger@vyatta.com>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, "Xin, Xiaohui" <xiaohui.xin@intel.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@elte.hu" <mingo@elte.hu>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
+Cc: heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 22 September 2009, Michael S. Tsirkin wrote:
-> > > More importantly, when virtualizations is used with multi-queue
-> > > NIC's the virtio-net NIC is a single CPU bottleneck. The virtio-net
-> > > NIC should preserve the parallelism (lock free) using multiple
-> > > receive/transmit queues. The number of queues should equal the
-> > > number of CPUs.
-> > 
-> > Yup, multiqueue virtio is on todo list ;-)
-> > 
-> 
-> Note we'll need multiqueue tap for that to help.
+Changelog since V2
+  o Turned out that allocating per-cpu areas for node ids on ppc64 just
+    wasn't stable. This series statically declares the per-node data. This
+    wastes memory but it appears to work.
 
-My idea for that was to open multiple file descriptors to the same
-macvtap device and let the kernel figure out the  right thing to
-do with that. You can do the same with raw packed sockets in case
-of vhost_net, but I wouldn't want to add more complexity to the
-tun/tap driver for this.
+Currently SLQB is not allowed to be configured on PPC and S390 machines as
+CPUs can belong to memoryless nodes. SLQB does not deal with this very well
+and crashes reliably.
 
-	Arnd <><
+These patches partially fix the memoryless node problem for SLQB. The
+machine will boot successfully but is unstable under stress indicating
+that SLQB has some serious problems when dealing with pages from remote
+nodes. The remote node stability may be linked to the per-cpu stability
+problem so should be treated as separate bugs.
+
+Patch 1 statically defines some per-node structures instead of using a fun
+        hack with DEFINE_PER_CPU. The per-node areas are not always getting
+        initialised by the architecture which led to a crash.
+
+Patch 2 notes that on memoryless configurations, memory is always freed
+	remotely but always allocates locally and falls back to the page
+	allocator on failure. This effectively is a memory leak. This patch
+	records in kmem_cache_cpu what node it considers local to be either
+	the real local node or the closest node available.
+
+Patch 3 allows SLQB to be configured on PPC again and S390. These patches
+	address most of the memoryless node issues on PPC and the expectation
+	is that the remaining bugs in SLQB are to do with remote nodes,
+	per-cpu area allocation or both. This patch enables SLQB on S390
+	as it has been reported by Heiko Carstens that issues there have
+	been independently resolved.
+
+I believe these are ready for merging although it would be preferred if
+Nick signed-off.  Christoph has suggested that SLQB should be disabled for
+NUMA but I feel if it's disabled, the problem may never be resolved. Hence
+I didn't patch accordingly but Pekka or Nick may feel different.
+
+ include/linux/slqb_def.h |    3 ++
+ init/Kconfig             |    1 -
+ mm/slqb.c                |   52 ++++++++++++++++++++++++++++-----------------
+ 3 files changed, 35 insertions(+), 21 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
