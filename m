@@ -1,163 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 606936B004D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 23:51:34 -0400 (EDT)
-Received: by ywh41 with SMTP id 41so4750005ywh.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 20:51:40 -0700 (PDT)
-Message-ID: <4AB8498C.6040804@vflare.org>
-Date: Tue, 22 Sep 2009 09:20:36 +0530
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B03C46B004D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 00:57:57 -0400 (EDT)
+Received: by yxe10 with SMTP id 10so4616410yxe.12
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 21:58:05 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] xvmalloc memory allocator
-References: <1253227412-24342-1-git-send-email-ngupta@vflare.org> <1253227412-24342-2-git-send-email-ngupta@vflare.org> <4AB3F60D.2030808@gmail.com>
-In-Reply-To: <4AB3F60D.2030808@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 0/3] compcache: in-memory compressed swapping v4
+Date: Tue, 22 Sep 2009 10:26:51 +0530
+Message-Id: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Marcin Slusarz <marcin.slusarz@gmail.com>
-Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Greg KH <greg@kroah.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry for late reply. I nearly missed this mail. My comments inline.
+Project home: http://compcache.googlecode.com/
 
-On 09/19/2009 02:35 AM, Marcin Slusarz wrote:
-> Nitin Gupta wrote:
->> (...)
->> +
->> +/*
->> + * Allocate a memory page. Called when a pool needs to grow.
->> + */
->> +static struct page *xv_alloc_page(gfp_t flags)
->> +{
->> +	struct page *page;
->> +
->> +	page = alloc_page(flags);
->> +	if (unlikely(!page))
->> +		return 0;
->> +
->> +	return page;
->> +}
-> 
-> When alloc_page returns 0 it returns 0, when not - it returns page.
-> Why not call alloc_page directly?
-> 
+* Changelog: v4 vs v3
+ - Remove swap notify callback and related bits. This make ramzswap
+   contained entirely within drivers/staging/.
+ - Above changes can cause ramzswap to work poorly since it cannot
+   cleanup stale data from memory unless overwritten by some other data.
+   (this will be fixed when swap notifer patches are accepted)
+ - Some cleanups suggested by Marcin.
 
-We now call alloc_page() and __free_page directly. Removed these wrappers.
+* Changelog: v3 vs v2
+ - All cleanups as suggested by Pekka.
+ - Move to staging (drivers/block/ramzswap/ -> drivers/staging/ramzswap/).
+ - Remove swap discard hooks -- swap notify support makes these redundant.
+ - Unify duplicate code between init_device() fail path and reset_device().
+ - Fix zero-page accounting.
+ - Do not accept backing swap with bad pages.
 
->> (...)
->> +/*
->> + * Remove block from freelist. Index 'slindex' identifies the freelist.
->> + */
->> +static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
->> +			struct block_header *block, u32 slindex)
->> +{
->> +	u32 flindex;
->> +	struct block_header *tmpblock;
-<snip>
->> +
->> +	return;
->> +}
-> 
-> needless return
-> 
+* Changelog: v2 vs initial revision
+ - Use 'struct page' instead of 32-bit PFNs in ramzswap driver and xvmalloc.
+   This is to make these 64-bit safe.
+ - xvmalloc is no longer a separate module and does not export any symbols.
+   Its compiled directly with ramzswap block driver. This is to avoid any
+   last bit of confusion with any other allocator.
+ - set_swap_free_notify() now accepts block_device as parameter instead of
+   swp_entry_t (interface cleanup).
+ - Fix: Make sure ramzswap disksize matches usable pages in backing swap file.
+   This caused initialization error in case backing swap file had intra-page
+   fragmentation.
 
-Removed.
+It creates RAM based block devices which can be used (only) as swap disks.
+Pages swapped to these disks are compressed and stored in memory itself. This
+is a big win over swapping to slow hard-disk which are typically used as swap
+disk. For flash, these suffer from wear-leveling issues when used as swap disk
+- so again its helpful. For swapless systems, it allows more apps to run for a
+given amount of memory.
 
+It can create multiple ramzswap devices (/dev/ramzswapX, X = 0, 1, 2, ...).
+Each of these devices can have separate backing swap (file or disk partition)
+which is used when incompressible page is found or memory limit for device is
+reached.
 
->> +int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
->> +		u32 *offset, gfp_t flags)
->> +{
->> +	int error;
->> +	
-<snip>
->> +	if (!*page) {
->> +		spin_unlock(&pool->lock);
->> +		if (flags & GFP_NOWAIT)
->> +			return -ENOMEM;
->> +		error = grow_pool(pool, flags);
->> +		if (unlikely(error))
->> +			return -ENOMEM;
-> 
-> shouldn't it return error? (grow_pool returns 0 or -ENOMEM for now but...)
->
+A separate userspace utility called rzscontrol is used to manage individual
+ramzswap devices.
 
-Yes, it should return error. Corrected.
+* Testing notes
 
- 
->> +
->> +		spin_lock(&pool->lock);
->> +		index = find_block(pool, size, page, offset);
->> +	}
->> +
->> +	if (!*page) {
->> +		spin_unlock(&pool->lock);
->> +		return -ENOMEM;
->> +	}
->> +
->> +	block = get_ptr_atomic(*page, *offset, KM_USER0);
->> +
->> +	remove_block_head(pool, block, index);
->> +
->> +	/* Split the block if required */
->> +	tmpoffset = *offset + size + XV_ALIGN;
->> +	tmpsize = block->size - size;
->> +	tmpblock = (struct block_header *)((char *)block + size + XV_ALIGN);
->> +	if (tmpsize) {
->> +		tmpblock->size = tmpsize - XV_ALIGN;
->> +		set_flag(tmpblock, BLOCK_FREE);
->> +		clear_flag(tmpblock, PREV_FREE);
->> +
->> +		set_blockprev(tmpblock, *offset);
->> +		if (tmpblock->size >= XV_MIN_ALLOC_SIZE)
->> +			insert_block(pool, *page, tmpoffset, tmpblock);
->> +
->> +		if (tmpoffset + XV_ALIGN + tmpblock->size != PAGE_SIZE) {
->> +			tmpblock = BLOCK_NEXT(tmpblock);
->> +			set_blockprev(tmpblock, tmpoffset);
->> +		}
->> +	} else {
->> +		/* This block is exact fit */
->> +		if (tmpoffset != PAGE_SIZE)
->> +			clear_flag(tmpblock, PREV_FREE);
->> +	}
->> +
->> +	block->size = origsize;
->> +	clear_flag(block, BLOCK_FREE);
->> +
->> +	put_ptr_atomic(block, KM_USER0);
->> +	spin_unlock(&pool->lock);
->> +
->> +	*offset += XV_ALIGN;
->> +
->> +	return 0;
->> +}
->> +
->> +/*
->> + * Free block identified with <page, offset>
->> + */
->> +void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
->> +{
-<snip>
->> +	return;
->> +}
-> 
-> needless return
-> 
-> 
+Tested on x86, x64, ARM
+ARM:
+ - Cortex-A8 (Beagleboard)
+ - ARM11 (Android G1)
+ - OMAP2420 (Nokia N810)
 
-Removed.
+* Performance
 
+All performance numbers/plots can be found at:
+http://code.google.com/p/compcache/wiki/Performance
 
-Regarding your comments on page_zero_filled: I'm not sure if using unsigned
-long is better or just u64 irrespective of arch. I just changed it to ulong
- -- some bechmarks can help decide which one is optimal. Maybe we need arch
-specific optimized versions which means moving it to lib/ or something.
+Below is a summary of this data:
 
+General:
+ - Swap R/W times are reduced from milliseconds (in case of hard disks)
+down to microseconds.
 
-Thanks for your feedback.
+Positive cases:
+ - Shows 33% improvement in 'scan' benchmark which allocates given amount
+of memory and linearly reads/writes to this region. This benchmark also
+exposes bottlenecks in ramzswap code (global mutex) due to which this gain
+is so small.
+ - On Linux thin clients, it gives the effect of nearly doubling the amount of
+memory.
 
-Nitin
+Negative cases:
+Any workload that has active working set w.r.t. filesystem cache that is
+nearly equal to amount of RAM while has minimal anonymous memory requirement,
+is expected to suffer maximum loss in performance with ramzswap enabled.
+
+Iozone filesystem benchmark can simulate exactly this kind of workload.
+As expected, this test shows performance loss of ~25% with ramzswap.
+
+ drivers/staging/Kconfig                   |    2 +
+ drivers/staging/Makefile                  |    1 +
+ drivers/staging/ramzswap/Kconfig          |   21 +
+ drivers/staging/ramzswap/Makefile         |    3 +
+ drivers/staging/ramzswap/ramzswap.txt     |   51 +
+ drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
+ drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
+ drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
+ drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
+ drivers/staging/ramzswap/xvmalloc.h       |   30 +
+ drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
+ include/linux/swap.h                      |    5 +
+ mm/swapfile.c                             |   34 +
+ 13 files changed, 2451 insertions(+), 0 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
