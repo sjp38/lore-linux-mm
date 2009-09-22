@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9FB576B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:40:10 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id c3so1432157ana.26
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 23:40:13 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D77696B004D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 03:59:30 -0400 (EDT)
+Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
+	by smtp-out.google.com with ESMTP id n8M7xPXM012994
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 08:59:25 +0100
+Received: from pzk31 (pzk31.prod.google.com [10.243.19.159])
+	by spaceape9.eur.corp.google.com with ESMTP id n8M7wr0m018605
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 00:59:22 -0700
+Received: by pzk31 with SMTP id 31so2994120pzk.23
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2009 00:59:22 -0700 (PDT)
+Date: Tue, 22 Sep 2009 00:59:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+In-Reply-To: <alpine.DEB.1.10.0909220227050.3719@V090114053VZO-1>
+Message-ID: <alpine.DEB.1.00.0909220023070.9061@chino.kir.corp.google.com>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253577603.7103.174.camel@pasglop> <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com> <alpine.DEB.1.10.0909220227050.3719@V090114053VZO-1>
 MIME-Version: 1.0
-In-Reply-To: <20090921090445.GG12726@csn.ul.ie>
-References: <202cde0e0909132230y52b805a4i8792f2e287b01acb@mail.gmail.com>
-	 <20090914165435.GA21554@infradead.org>
-	 <202cde0e0909162342xb2a8daeia90b33a172fc714b@mail.gmail.com>
-	 <20090917091408.GB13002@csn.ul.ie>
-	 <202cde0e0909202216i36e3eca3rc56ddde345b12bf9@mail.gmail.com>
-	 <20090921090445.GG12726@csn.ul.ie>
-Date: Tue, 22 Sep 2009 18:40:13 +1200
-Message-ID: <202cde0e0909212340h740adb51pbab6981aa3c994da@mail.gmail.com>
-Subject: Re: HugeTLB: Driver example
-From: Alexey Korolev <akorolex@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Hellwig <hch@infradead.org>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
->
-> I can't. The request was from 9-10 months ago for drivers about about 18
-> months ago for Xen when they were looking at this area. The authors are no
-> longer working in that area AFAIK as once it was discussed what would need
-> to be done to use huge pages, they balked. It's far easier now as most of
-> the difficulties have been addressed but the interested parties are not
-> likely to be looking at this area for some time.
->
-> The most recent expression of interest was from KVM developers within the
-> company. On discussion, using huge pages was something they were going to
-> push out as there are other concerns that should be addressed first. I'd
-> say it'd be at least a year before they looked at huge pages for KVM.
->
-Ok. I see. Thanks.
+On Tue, 22 Sep 2009, Christoph Lameter wrote:
 
->> It makes sense to get this
->> feature merged as it provides a quite efficient way for performance
->> increase. According to our test data, applying these little changes
->> gives about 7-10% gain.
->>
->
-> What is this test data based on?
+> How would you deal with a memoryless node that has lets say 4 processors
+> and some I/O devices? Now the memory policy is round robin and there are 4
+> nodes at the same distance with 4G memory each. Does one of the nodes now
+> become priviledged under your plan? How do you equally use memory from all
+> these nodes?
+> 
 
-The test is based on the throughput of network packets processing. We
-read the data from DMA buffers whose are mmaped to user space and then
-parse packets by applications. If mapping is based on huge pages we
-have gain ~7-10% (more mbps).  Actually I was surprised a bit when
-find out that there is no possibility to have huge page mappings for
-device drivers. Probably people just don't know about this.
+If the distance between the memoryless node with the cpus/devices and all 
+4G nodes is the same, then this is UMA and no abstraction is necessary: 
+there's no reason to support interleaving of memory allocations amongst 
+four different regions of memory if there's no difference in latencies to 
+those regions.
 
-Thanks,
-Alexey
+It is possible, however, to have a system configured in such a way that 
+representing all devices, including memory, at a single level of 
+abstraction isn't possible.  An example is a four cpu system where cpus 
+0-1 have local distance to all memory and cpus 2-3 have remote distance.
+
+A solution would be to abstract everything into "system localities" like 
+the ACPI specification does.  These localities in my plan are slightly 
+different, though: they are limited to only a single class of device.
+
+A locality is simply an aggregate of a particular type of device; a device 
+is bound to a locality if it shares the same proximity as all other 
+devices in that locality to all other localities.  In other words, the  
+previous example would have two cpu localities: one with cpus 0-1 and one 
+with cpus 2-3.  If cpu 0 had a different proximity than cpu 1 to a pci 
+bus, however, there would be three cpu localities.
+
+The equivalent of proximity domains then describes the distance between 
+all localities; these distances need not be one-way, it is possible for 
+distance in one direction to be different from the opposite direction, 
+just as ACPI pxm's allow.
+
+A "node" in this plan is simply a system locality consisting of memory.
+
+For subsystems such as slab allocators, all we require is cpu_to_node() 
+tables which would map cpu localities to nodes and describe them in terms 
+of local or remote distance (or whatever the SLIT says, if provided).  All 
+present day information can still be represented in this model, we've just 
+added additional layers of abstraction internally.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
