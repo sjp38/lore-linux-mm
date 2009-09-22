@@ -1,55 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC976B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 04:13:20 -0400 (EDT)
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.DEB.1.00.0909220023070.9061@chino.kir.corp.google.com>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
-	 <1253577603.7103.174.camel@pasglop>
-	 <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com>
-	 <alpine.DEB.1.10.0909220227050.3719@V090114053VZO-1>
-	 <alpine.DEB.1.00.0909220023070.9061@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Tue, 22 Sep 2009 18:11:17 +1000
-Message-Id: <1253607077.7103.219.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id EE0B16B004D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 04:36:11 -0400 (EDT)
+Received: by pzk10 with SMTP id 10so2884711pzk.19
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2009 01:36:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1253600030.30406.2.camel@penberg-laptop>
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
+	 <1253600030.30406.2.camel@penberg-laptop>
+Date: Tue, 22 Sep 2009 14:06:12 +0530
+Message-ID: <d760cf2d0909220136g38c0541bxab93f9b5a2b22d7@mail.gmail.com>
+Subject: Re: [PATCH 0/3] compcache: in-memory compressed swapping v4
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-09-22 at 00:59 -0700, David Rientjes wrote:
-> The equivalent of proximity domains then describes the distance between 
-> all localities; these distances need not be one-way, it is possible for 
-> distance in one direction to be different from the opposite direction, 
-> just as ACPI pxm's allow.
-> 
-> A "node" in this plan is simply a system locality consisting of memory.
-> 
-> For subsystems such as slab allocators, all we require is cpu_to_node() 
-> tables which would map cpu localities to nodes and describe them in terms 
-> of local or remote distance (or whatever the SLIT says, if provided).  All 
-> present day information can still be represented in this model, we've just 
-> added additional layers of abstraction internally.
+On Tue, Sep 22, 2009 at 11:43 AM, Pekka Enberg <penberg@cs.helsinki.fi> wro=
+te:
+> On Tue, 2009-09-22 at 10:26 +0530, Nitin Gupta wrote:
+>> =A0drivers/staging/Kconfig =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 | =A0 =A0=
+2 +
+>> =A0drivers/staging/Makefile =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A0=
+1 +
+>> =A0drivers/staging/ramzswap/Kconfig =A0 =A0 =A0 =A0 =A0| =A0 21 +
+>> =A0drivers/staging/ramzswap/Makefile =A0 =A0 =A0 =A0 | =A0 =A03 +
+>> =A0drivers/staging/ramzswap/ramzswap.txt =A0 =A0 | =A0 51 +
+>> =A0drivers/staging/ramzswap/ramzswap_drv.c =A0 | 1462 ++++++++++++++++++=
++++++++++++
+>> =A0drivers/staging/ramzswap/ramzswap_drv.h =A0 | =A0173 ++++
+>> =A0drivers/staging/ramzswap/ramzswap_ioctl.h | =A0 50 +
+>> =A0drivers/staging/ramzswap/xvmalloc.c =A0 =A0 =A0 | =A0533 +++++++++++
+>> =A0drivers/staging/ramzswap/xvmalloc.h =A0 =A0 =A0 | =A0 30 +
+>> =A0drivers/staging/ramzswap/xvmalloc_int.h =A0 | =A0 86 ++
+>> =A0include/linux/swap.h =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0=
+ =A05 +
+>> =A0mm/swapfile.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ | =A0 34 +
+>> =A013 files changed, 2451 insertions(+), 0 deletions(-)
+>
+> This diffstat is not up to date, I think.
+>
 
-While I like the idea of NUMA nodes being strictly memory and everything
-else being expressed by distances, we'll have to clean up quite a few
-corners with skeletons in various states of decompositions waiting for
-us there.
+Oh! this is from v3. I forgot to update it. I don't have access to my git t=
+ree
+here in office, so cannot send updated version right now.
 
-For example, we have code here or there that (ab)uses the NUMA node
-information to link devices with their iommu, that sort of thing. IE, a
-hard dependency which isn't really related to a concept of distance to
-any memory.
+> Greg, would you mind taking this driver into staging? There are some
+> issues that need to be ironed out for it to be merged to kernel proper
+> but I think it would benefit from being exposed to mainline.
+>
+> Nitin, you probably should also submit a patch that adds a TODO file
+> similar to other staging drivers to remind us that swap notifiers and
+> the CONFIG_ARM thing need to be resolved.
+>
 
-At least on powerpc, nowadays, I can pretty much make everything
-fallback to some representation in the device-tree though, thus it
-shouldn't be -that- hard to fix I suppose.
+ok, I will send patch for TODO file.
 
-Cheers,
-Ben.
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
