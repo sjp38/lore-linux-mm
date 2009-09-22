@@ -1,66 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF526B0085
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 06:07:02 -0400 (EDT)
-Date: Tue, 22 Sep 2009 11:07:06 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D485A6B0088
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 06:21:14 -0400 (EDT)
 Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-Message-ID: <20090922100706.GE12254@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1> <20090921180739.GT12726@csn.ul.ie> <4AB85A8F.6010106@in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4AB85A8F.6010106@in.ibm.com>
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20090922100540.GD12254@csn.ul.ie>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
+	 <20090921174656.GS12726@csn.ul.ie>
+	 <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>
+	 <20090921180739.GT12726@csn.ul.ie>
+	 <alpine.DEB.1.10.0909211412050.3106@V090114053VZO-1>
+	 <20090922100540.GD12254@csn.ul.ie>
+Date: Tue, 22 Sep 2009 13:21:15 +0300
+Message-Id: <1253614875.30406.12.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Sachin Sant <sachinp@in.ibm.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 22, 2009 at 10:33:11AM +0530, Sachin Sant wrote:
-> Mel Gorman wrote:
->> On Mon, Sep 21, 2009 at 01:54:12PM -0400, Christoph Lameter wrote:
->>   
->>> Lets just keep SLQB back until the basic issues with memoryless nodes are
->>> resolved.
->>>     
->>
->> It's not even super-clear that the memoryless nodes issues are entirely
->> related to SLQB. Sachin for example says that there was a stall issue
->> with memoryless nodes that could be triggered without SLQB. Sachin, is
->> that still accurate?
->>   
->
-> I think there are two different problems that we are dealing with.
->
+Hi Mel,
 
-Agreed.
+On Tue, 2009-09-22 at 11:05 +0100, Mel Gorman wrote:
+> I'm going to punt the decision on this one to Pekka or Nick. My feeling
+> is leave it enabled for NUMA so it can be identified if it gets fixed
+> for some other reason - e.g. the stalls are due to a per-cpu problem as
+> stated by Sachin and SLQB happens to exasperate the problem.
 
-> First one is the SLQB not working on a ppc64 box which seems to be specific
-> to only one machine and i haven't seen that on other power boxes.The patches
-> that you have posted seems to allow the box to boot, but eventually it hits
-> the stall issue(related to percpu dynamic allocator not working on ppc64),
-> which is the second problem we are dealing with.
->
-> The stall issue seems to be much more critical as it is affecting almost
-> all of the power boxes that i have tested with (4 in all).
-> This issue is seen with Linus tree as well and was first seen with
-> 2.6.31-git5 (0cb583fd..) 
->
-> The stall issue was reported here:
-> http://lists.ozlabs.org/pipermail/linuxppc-dev/2009-September/075791.html
->
+Can I have a tested patch that uses MAX_NUMNODES to allocate the
+structs, please? We can convert SLQB over to per-cpu allocator if the
+memoryless node issue is resolved.
 
-Because of this, I'd like to try and get SLQB as far as it can at the
-moment and then treat this problem from scratch. I'd rather not treat
-multiple different bugs as if they were one problem when they probably
-are not.
-
-Thanks
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
