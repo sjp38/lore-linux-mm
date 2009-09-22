@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3666A6B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 04:45:08 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id n8M8j71L008411
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 09:45:07 +0100
-Received: from pzk3 (pzk3.prod.google.com [10.243.19.131])
-	by spaceape8.eur.corp.google.com with ESMTP id n8M8j1F4025153
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 01:45:01 -0700
-Received: by pzk3 with SMTP id 3so2778787pzk.20
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2009 01:45:01 -0700 (PDT)
-Date: Tue, 22 Sep 2009 01:44:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-In-Reply-To: <1253607077.7103.219.camel@pasglop>
-Message-ID: <alpine.DEB.1.00.0909220132250.19097@chino.kir.corp.google.com>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253577603.7103.174.camel@pasglop> <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com> <alpine.DEB.1.10.0909220227050.3719@V090114053VZO-1> <alpine.DEB.1.00.0909220023070.9061@chino.kir.corp.google.com>
- <1253607077.7103.219.camel@pasglop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B2A676B0055
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 05:31:04 -0400 (EDT)
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate3.uk.ibm.com (8.14.3/8.13.8) with ESMTP id n8M9UfCT092062
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 09:30:46 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8M9UPEf667792
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 10:30:31 +0100
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8M9UNql009329
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 10:30:25 +0100
+Date: Tue, 22 Sep 2009 11:30:23 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH 3/3] slqb: Allow SLQB to be used on PPC
+Message-ID: <20090922093023.GA22441@osiris.boeblingen.de.ibm.com>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>
+ <1253549426-917-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1253549426-917-4-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Sep 2009, Benjamin Herrenschmidt wrote:
-
-> While I like the idea of NUMA nodes being strictly memory and everything
-> else being expressed by distances, we'll have to clean up quite a few
-> corners with skeletons in various states of decompositions waiting for
-> us there.
+On Mon, Sep 21, 2009 at 05:10:26PM +0100, Mel Gorman wrote:
+> SLQB was disabled on PPC as it would stab itself in the face when running
+> on machines with CPUs on memoryless nodes. As those configurations should
+> now work, allow SLQB to be configured again on PPC.
 > 
-
-Agreed, it's invasive.
-
-> For example, we have code here or there that (ab)uses the NUMA node
-> information to link devices with their iommu, that sort of thing. IE, a
-> hard dependency which isn't really related to a concept of distance to
-> any memory.
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  init/Kconfig |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-
-ACPI's slit uses a distance of 0xff to specify that one locality is 
-unreachable from another.  We could easily adopt that convention.
-
-> At least on powerpc, nowadays, I can pretty much make everything
-> fallback to some representation in the device-tree though, thus it
-> shouldn't be -that- hard to fix I suppose.
+> diff --git a/init/Kconfig b/init/Kconfig
+> index adc10ab..8f55fde 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1033,7 +1033,7 @@ config SLUB
 > 
+>  config SLQB
+>  	bool "SLQB (Queued allocator)"
+> -	depends on !PPC && !S390
+> +	depends on !S390
 
-Cool, that's encouraging.
-
-I really think that this type of abstraction would make things simpler in 
-the long term.  For example, I just finished fixing a bug in tip where 
-cpumask_of_pcibus() wasn't returning cpu_all_mask for busses without any 
-affinity on x86.  This was a consequence of cpumask_of_pcibus() being 
-forced to rely on pcibus_to_node() since there is no other abstraction 
-available.  For busses without affinity to any specific cpus, the 
-implementation had relied on returning the mapping's default node of -1 to 
-represent all cpus.  That type of complexity could easily be avoided if 
-the bus was isolated into its own locality and the mapping to all cpu 
-localities was of local distance.
+You can remove S390 from the list independently from this patch set.
+As already mentioned SLQB works again on s390 and whatever caused the
+bug I reported a few weeks back is gone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
