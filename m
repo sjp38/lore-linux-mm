@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0336B00B2
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:26:40 -0400 (EDT)
-Date: Tue, 22 Sep 2009 16:26:49 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-Message-ID: <20090922152649.GG25965@csn.ul.ie>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253577603.7103.174.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1253577603.7103.174.camel@pasglop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 262536B00B4
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:37:23 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n8MFUE4q032359
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:30:14 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8MFavPD194012
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:36:57 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8MFatbv024582
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 11:36:57 -0400
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: [PATCH] hugetlbfs: Do not call user_shm_lock() for MAP_HUGETLB fix
+Date: Tue, 22 Sep 2009 09:29:22 -0600
+Message-Id: <1253633362-19751-1-git-send-email-ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mel@csn.ul.ie, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 22, 2009 at 10:00:03AM +1000, Benjamin Herrenschmidt wrote:
-> On Mon, 2009-09-21 at 17:10 +0100, Mel Gorman wrote:
-> > 
-> > It needs signed-off from the powerpc side because it's now allocating
-> > more
-> > memory potentially (Ben?). An alternative to this patch is in V1 that
-> > statically declares the per-node structures but this is potentially
-> > sub-optimal but from a performance and memory utilisation perspective.
-> 
-> So if I understand correctly, we have a problem with both cpu-less and
-> memory-less nodes. Interesting setups :-)
-> 
+Andrew,
 
-memoryless anyway because of the per-node trick. I'm not aware of
-cpuless problems but I suspect cpuless nodes exist for more than ppc64.
+This patch seems to have slipped through the cracks during the discussion
+on the MAP_HUGETLB flag, I am sorry for letting it slip.  Please fold this
+into the indicated patch in -mm.
 
-> I have no strong objection on the allocating of the per-cpu data for
-> the cpu-less nodes. However, I wonder if we should do that a bit more
-> nicely, maybe with some kind of "adjusted" cpu_possible_mask() (could be
-> something like cpu_node_valid_mask or similar) to be used by percpu.
-> 
+--- Cut here ---
 
-That would be reasonable if per-node data becomes more popular although
-with only SLQB depending on per-node data, it's hard to justify unless
-SLQB *really* benefits from per-node.
+The patch
+hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-internal-mount.patch
+alters can_do_hugetlb_shm() to check if a file is being created for shared
+memory or mmap(). If this returns false, we then unconditionally call
+user_shm_lock() triggering a warning. This block should never be entered
+for MAP_HUGETLB. This patch partially reverts the problem and fixes the check.
 
-Lumping the per-cpu allocator to cover per-cpu and per-node feels a bit
-confusing. Maybe it would have been easier if there simply were never
-memoryless nodes and cpus were always mapped to their closest, instead of
-their local, node. There likely would be a few corner cases though and memory
-hotplug would add to the mess. I haven't been able to decide on a sensible
-way forward that doesn't involve a number of invasive changes.
+This patch should be considered a fix to
+hugetlbfs-allow-the-creation-of-files-suitable-for-map_private-on-the-vfs-internal-mount.patch.
 
-> Mostly because it would be nice to have built-in debug features in
-> per-cpu and in that case, it would need some way to know a valid
-> number from an invalid one). Either that or just keep track of the
-> mask of cpus that had percpu data allocated to them
-> 
+From: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+---
+ fs/hugetlbfs/inode.c |   12 +++---------
+ 1 files changed, 3 insertions(+), 9 deletions(-)
 
-The former would be nice, the latter would be a requirement if per-node data
-was pursued.
-
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index e1a4ac4..0bf9d02 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -931,15 +931,9 @@ static struct file_system_type hugetlbfs_fs_type = {
+ 
+ static struct vfsmount *hugetlbfs_vfsmount;
+ 
+-static int can_do_hugetlb_shm(int creat_flags)
++static int can_do_hugetlb_shm(void)
+ {
+-	if (creat_flags != HUGETLBFS_SHMFS_INODE)
+-		return 0;
+-	if (capable(CAP_IPC_LOCK))
+-		return 1;
+-	if (in_group_p(sysctl_hugetlb_shm_group))
+-		return 1;
+-	return 0;
++	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+ }
+ 
+ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
+@@ -955,7 +949,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
+ 	if (!hugetlbfs_vfsmount)
+ 		return ERR_PTR(-ENOENT);
+ 
+-	if (!can_do_hugetlb_shm(creat_flags)) {
++	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+ 		*user = current_user();
+ 		if (user_shm_lock(size, *user)) {
+ 			WARN_ONCE(1,
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.6.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
