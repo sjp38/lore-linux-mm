@@ -1,44 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A8BB46B005A
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:20:29 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E8C3F82C6E6
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:22:51 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id upzv+gwh58fm for <linux-mm@kvack.org>;
-	Tue, 22 Sep 2009 19:22:51 -0400 (EDT)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6FA0882C8BF
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:13:45 -0400 (EDT)
-Date: Tue, 22 Sep 2009 19:07:28 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-In-Reply-To: <363172900909220629j2f5174cbo9fe027354948d37@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0909221904550.24141@V090114053VZO-1>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>  <20090921174656.GS12726@csn.ul.ie>  <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>  <20090921180739.GT12726@csn.ul.ie> <4AB85A8F.6010106@in.ibm.com>  <20090922125546.GA25965@csn.ul.ie>
- <4AB8CB81.4080309@in.ibm.com>  <20090922132018.GB25965@csn.ul.ie> <363172900909220629j2f5174cbo9fe027354948d37@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 37BA66B005C
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:35:36 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so183587bwz.38
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2009 16:35:36 -0700 (PDT)
+Date: Wed, 23 Sep 2009 01:35:31 +0200
+From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
+Message-ID: <20090922233531.GA3198@bizet.domek.prywatny>
+References: <20090915120538.GA26806@bizet.domek.prywatny> <200909170118.53965.rjw@sisk.pl> <4AB29F4A.3030102@intel.com> <200909180027.37387.rjw@sisk.pl>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200909180027.37387.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: =?GB2312?B?t8nR1Q==?= <win847@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Sachin Sant <sachinp@in.ibm.com>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: david.graham@intel.com, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Sep 2009, ?? wrote:
+On Fri, Sep 18, 2009 at 12:27:37AM +0200, Rafael J. Wysocki wrote:
+> On Thursday 17 September 2009, Graham, David wrote:
+> > Rafael J. Wysocki wrote:
+> > > I guess the driver releases its DMA buffer during suspend and attempts to
+> > > allocate it back on resume, which is not really smart (if that really is the
+> > > case).
 
-> 800KB. How can I config kernel config to reduce kernel size, I want to get
-> smaller size  like 500KB.
+> > Yes, we free a 70KB block (0x80 by 0x230 bytes) on suspend and 
+> > reallocate on resume, and so that's an Order 5 request. It looks 
+> > symmetric, and hasn't changed for years. I don't think we are leaking 
+> > memory, which points back to that the memory is too fragmented to 
+> > satisfy the request.
+> > 
+> > I also concur that Rafael's commit 6905b1f1 shouldn't change the logic 
+> > in the driver for systems with e100 (like yours Karol) that could 
+> > already sleep, and I don't see anything else in the driver that looks to 
+> > be relevant. I'm expecting that your test result without commit 6905b1f1 
+> > will still show the problem.
+> > 
+> > So I wonder if this new issue may be triggered by some other change in 
+> > the memory subsystem ?
 
+> I think so.  There have been reports about order 2 allocations failing for
+> 2.6.31, so it looks like newer kernels are more likely to expose such problems.
+> 
+> Adding linux-mm to the CC list.
 
-500kb? That may be a tough call.
+I've hit this bug 2 times since my last email.  Is there anything I
+could do?
 
-> *CONFIG_NETFILTER=y*
+Maybe I should revert following commits (chosen somewhat randomly)?
 
-Can you drop this one?
+1. 49255c619fbd482d704289b5eb2795f8e3b7ff2e
 
-Is CONFIG_EMBEDDED set? Maybe I skipped it.
+2. dd5d241ea955006122d76af88af87de73fec25b4 - alters changes made by
+commit above
+
+Any ideas?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
