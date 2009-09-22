@@ -1,101 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D21A56B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:00:40 -0400 (EDT)
-Date: Tue, 22 Sep 2009 16:01:25 -0700 (PDT)
-From: Vincent Li <macli@brc.ubc.ca>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
- sc->isolate_pages() return value.
-In-Reply-To: <20090922140206.293586cc.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.0909221548230.7432@kernelhack.brc.ubc.ca>
-References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090922140206.293586cc.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A8BB46B005A
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:20:29 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id E8C3F82C6E6
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:22:51 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id upzv+gwh58fm for <linux-mm@kvack.org>;
+	Tue, 22 Sep 2009 19:22:51 -0400 (EDT)
+Received: from V090114053VZO-1 (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6FA0882C8BF
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:13:45 -0400 (EDT)
+Date: Tue, 22 Sep 2009 19:07:28 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+In-Reply-To: <363172900909220629j2f5174cbo9fe027354948d37@mail.gmail.com>
+Message-ID: <alpine.DEB.1.10.0909221904550.24141@V090114053VZO-1>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie>  <20090921174656.GS12726@csn.ul.ie>  <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1>  <20090921180739.GT12726@csn.ul.ie> <4AB85A8F.6010106@in.ibm.com>  <20090922125546.GA25965@csn.ul.ie>
+ <4AB8CB81.4080309@in.ibm.com>  <20090922132018.GB25965@csn.ul.ie> <363172900909220629j2f5174cbo9fe027354948d37@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vincent Li <macli@brc.ubc.ca>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, minchan.kim@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: =?GB2312?B?t8nR1Q==?= <win847@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Sachin Sant <sachinp@in.ibm.com>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Sep 2009, Andrew Morton wrote:
+On Tue, 22 Sep 2009, ?? wrote:
 
-> On Wed,  2 Sep 2009 16:49:25 -0700
-> Vincent Li <macli@brc.ubc.ca> wrote:
-> 
-> > If we can't isolate pages from LRU list, we don't have to account page movement, either.
-> > Already, in commit 5343daceec, KOSAKI did it about shrink_inactive_list.
-> > 
-> > This patch removes unnecessary overhead of page accounting
-> > and locking in shrink_active_list as follow-up work of commit 5343daceec.
-> > 
-> 
-> I didn't merge this.  It's still unclear to me that the benefit of the
-> patch exceeds the (small) maintainability cost.
-> 
-> Did we end up getting any usable data on the frequency of `nr_taken == 0'?
+> 800KB. How can I config kernel config to reduce kernel size, I want to get
+> smaller size  like 500KB.
 
-Sorry not to able to follow up on this in timely manner (busy at $work 
-and family event), I will try to follow Mel's event tracing suggestions to 
-get some frequency data of 'nr_taken == 0' in the next few weeks. I 
-suspect 'nr_taken == 0' would be very few in normal situation.
 
-> 
-> 
-> 
-> 
-> From: Vincent Li <macli@brc.ubc.ca>
-> 
-> If we can't isolate pages from LRU list, we don't have to account page
-> movement, either.  Already, in commit 5343daceec, KOSAKI did it about
-> shrink_inactive_list.
-> 
-> This patch removes unnecessary overhead of page accounting and locking in
-> shrink_active_list as follow-up work of commit 5343daceec.
-> 
-> Signed-off-by: Vincent Li <macli@brc.ubc.ca>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/vmscan.c |    8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/vmscan.c~mm-vsmcan-check-shrink_active_list-sc-isolate_pages-return-value mm/vmscan.c
-> --- a/mm/vmscan.c~mm-vsmcan-check-shrink_active_list-sc-isolate_pages-return-value
-> +++ a/mm/vmscan.c
-> @@ -1323,9 +1323,12 @@ static void shrink_active_list(unsigned 
->  	if (scanning_global_lru(sc)) {
->  		zone->pages_scanned += pgscanned;
->  	}
-> -	reclaim_stat->recent_scanned[file] += nr_taken;
-> -
->  	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-> +
-> +	if (nr_taken == 0)
-> +		goto done;
-> +
-> +	reclaim_stat->recent_scanned[file] += nr_taken;
->  	if (file)
->  		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
->  	else
-> @@ -1383,6 +1386,7 @@ static void shrink_active_list(unsigned 
->  	move_active_pages_to_lru(zone, &l_inactive,
->  						LRU_BASE   + file * LRU_FILE);
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
-> +done:
->  	spin_unlock_irq(&zone->lru_lock);
->  }
->  
-> _
-> 
-> 
-> 
+500kb? That may be a tough call.
 
-Vincent Li
-Biomedical Research Center
-University of British Columbia
+> *CONFIG_NETFILTER=y*
+
+Can you drop this one?
+
+Is CONFIG_EMBEDDED set? Maybe I skipped it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
