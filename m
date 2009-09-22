@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0666B009C
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 08:54:12 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 98CE56B009E
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 08:55:36 -0400 (EDT)
+Date: Tue, 22 Sep 2009 13:55:46 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/4] slqb: Do not use DEFINE_PER_CPU for per-node data
-Date: Tue, 22 Sep 2009 13:54:12 +0100
-Message-Id: <1253624054-10882-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1253624054-10882-1-git-send-email-mel@csn.ul.ie>
-References: <1253624054-10882-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+Message-ID: <20090922125546.GA25965@csn.ul.ie>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <20090921174656.GS12726@csn.ul.ie> <alpine.DEB.1.10.0909211349530.3106@V090114053VZO-1> <20090921180739.GT12726@csn.ul.ie> <4AB85A8F.6010106@in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4AB85A8F.6010106@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>
-Cc: heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Sachin Sant <sachinp@in.ibm.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-SLQB uses DEFINE_PER_CPU to define per-node areas. An implicit
-assumption is made that all valid node IDs will have matching valid CPU
-ids. In memoryless configurations, it is possible to have a node ID with
-no CPU having the same ID. When this happens, per-cpu areas are not
-initialised and the per-node data is effectively random.
+On Tue, Sep 22, 2009 at 10:33:11AM +0530, Sachin Sant wrote:
+> Mel Gorman wrote:
+>> On Mon, Sep 21, 2009 at 01:54:12PM -0400, Christoph Lameter wrote:
+>>   
+>>> Lets just keep SLQB back until the basic issues with memoryless nodes are
+>>> resolved.
+>>>     
+>>
+>> It's not even super-clear that the memoryless nodes issues are entirely
+>> related to SLQB. Sachin for example says that there was a stall issue
+>> with memoryless nodes that could be triggered without SLQB. Sachin, is
+>> that still accurate?
+>>   
+> I think there are two different problems that we are dealing with.
+>
+> First one is the SLQB not working on a ppc64 box which seems to be specific
+> to only one machine and i haven't seen that on other power boxes.The patches
+> that you have posted seems to allow the box to boot, but eventually it hits
+> the stall issue(related to percpu dynamic allocator not working on ppc64),
+> which is the second problem we are dealing with.
+>
 
-An attempt was made to force the allocation of per-cpu areas corresponding
-to active node IDs. However, for reasons unknown this led to silent
-lockups. Instead, this patch fixes the SLQB problem by forcing the per-node
-data to be statically declared.
+Ok, I've sent out V3 of this. It's only a partial fix but it's about as
+far as it can be brought until the other difficulties are resolved.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/slqb.c |   16 ++++++++--------
- 1 files changed, 8 insertions(+), 8 deletions(-)
+> The stall issue seems to be much more critical as it is affecting almost
+> all of the power boxes that i have tested with (4 in all).
+> This issue is seen with Linus tree as well and was first seen with
+> 2.6.31-git5 (0cb583fd..) 
+>
+> The stall issue was reported here:
+> http://lists.ozlabs.org/pipermail/linuxppc-dev/2009-September/075791.html
+>
 
-diff --git a/mm/slqb.c b/mm/slqb.c
-index 4ca85e2..4d72be2 100644
---- a/mm/slqb.c
-+++ b/mm/slqb.c
-@@ -1944,16 +1944,16 @@ static void init_kmem_cache_node(struct kmem_cache *s,
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cache_cpus);
- #endif
- #ifdef CONFIG_NUMA
--/* XXX: really need a DEFINE_PER_NODE for per-node data, but this is better than
-- * a static array */
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cache_nodes);
-+/* XXX: really need a DEFINE_PER_NODE for per-node data because a static
-+ *      array is wasteful */
-+static struct kmem_cache_node kmem_cache_nodes[MAX_NUMNODES];
- #endif
- 
- #ifdef CONFIG_SMP
- static struct kmem_cache kmem_cpu_cache;
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_cpu_cpus);
- #ifdef CONFIG_NUMA
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_cpu_nodes); /* XXX per-nid */
-+static struct kmem_cache_node kmem_cpu_nodes[MAX_NUMNODES]; /* XXX per-nid */
- #endif
- #endif
- 
-@@ -1962,7 +1962,7 @@ static struct kmem_cache kmem_node_cache;
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmem_node_cpus);
- #endif
--static DEFINE_PER_CPU(struct kmem_cache_node, kmem_node_nodes); /*XXX per-nid */
-+static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES]; /*XXX per-nid */
- #endif
- 
- #ifdef CONFIG_SMP
-@@ -2918,15 +2918,15 @@ void __init kmem_cache_init(void)
- 	for_each_node_state(i, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n;
- 
--		n = &per_cpu(kmem_cache_nodes, i);
-+		n = &kmem_cache_nodes[i];
- 		init_kmem_cache_node(&kmem_cache_cache, n);
- 		kmem_cache_cache.node_slab[i] = n;
- #ifdef CONFIG_SMP
--		n = &per_cpu(kmem_cpu_nodes, i);
-+		n = &kmem_cpu_nodes[i];
- 		init_kmem_cache_node(&kmem_cpu_cache, n);
- 		kmem_cpu_cache.node_slab[i] = n;
- #endif
--		n = &per_cpu(kmem_node_nodes, i);
-+		n = &kmem_node_nodes[i];
- 		init_kmem_cache_node(&kmem_node_cache, n);
- 		kmem_node_cache.node_slab[i] = n;
- 	}
+Can you bisect this please?
+
 -- 
-1.6.3.3
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
