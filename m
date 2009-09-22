@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9EA6B00AC
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 09:54:45 -0400 (EDT)
-Date: Tue, 22 Sep 2009 14:54:53 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/4] slqb: Record what node is local to a kmem_cache_cpu
-Message-ID: <20090922135453.GF25965@csn.ul.ie>
-References: <1253624054-10882-1-git-send-email-mel@csn.ul.ie> <1253624054-10882-3-git-send-email-mel@csn.ul.ie> <84144f020909220638l79329905sf9a35286130e88d0@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D236B00B0
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 10:36:07 -0400 (EDT)
+Date: Tue, 22 Sep 2009 15:36:04 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 5/7] ext4: Convert filesystem to the new truncate
+	calling convention
+Message-ID: <20090922143604.GA2183@ZenIV.linux.org.uk>
+References: <1253200907-31392-1-git-send-email-jack@suse.cz> <1253200907-31392-6-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <84144f020909220638l79329905sf9a35286130e88d0@mail.gmail.com>
+In-Reply-To: <1253200907-31392-6-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, tytso@mit.edu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 22, 2009 at 04:38:32PM +0300, Pekka Enberg wrote:
-> Hi Mel,
+On Thu, Sep 17, 2009 at 05:21:45PM +0200, Jan Kara wrote:
+> CC: linux-ext4@vger.kernel.org
+> CC: tytso@mit.edu
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  fs/ext4/file.c  |    2 +-
+>  fs/ext4/inode.c |  166 ++++++++++++++++++++++++++++++++----------------------
+>  2 files changed, 99 insertions(+), 69 deletions(-)
 > 
-> On Tue, Sep 22, 2009 at 3:54 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > When freeing a page, SLQB checks if the page belongs to the local node.
-> > If it is not, it is considered a remote free. On the allocation side, it
-> > always checks the local lists and if they are empty, the page allocator
-> > is called. On memoryless configurations, this is effectively a memory
-> > leak and the machine quickly kills itself in an OOM storm.
-> >
-> > This patch records what node ID is considered local to a CPU. As the
-> > management structure for the CPU is always allocated from the closest
-> > node, the node the CPU structure resides on is considered "local".
-> >
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> I don't understand how the memory leak happens from the above
-> description (or reading the code). page_to_nid() returns some crazy
-> value at free time?
+> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+> index 3f1873f..22f49d7 100644
+> --- a/fs/ext4/file.c
+> +++ b/fs/ext4/file.c
+> @@ -198,7 +198,7 @@ const struct file_operations ext4_file_operations = {
+>  };
+>  
+>  const struct inode_operations ext4_file_inode_operations = {
+> -	.truncate	= ext4_truncate,
+> +	.new_truncate	= 1,
+>  	.setattr	= ext4_setattr,
+>  	.getattr	= ext4_getattr,
+>  #ifdef CONFIG_EXT4_FS_XATTR
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index 58492ab..be25874 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -3354,6 +3354,7 @@ static int ext4_journalled_set_page_dirty(struct page *page)
+>  }
+>  
+>  static const struct address_space_operations ext4_ordered_aops = {
+> +	.new_writepage		= 1,
 
-Nope, it isn't a leak as such, the allocator knows where the memory is.
-The problem is that is always frees remote but on allocation, it sees
-the per-cpu list is empty and calls the page allocator again. The remote
-lists just grow.
+No.  We already have one half-finished series here; mixing it with another
+one is not going to happen.  Such flags are tolerable only as bisectability
+helpers.  They *must* disappear by the end of series.  Before it can be
+submitted for merge.
 
-> The remote list isn't drained properly?
-> 
-
-That is another way of looking at it. When the remote lists get to a
-watermark, they should drain. However, it's worth pointing out if it's
-repaired in this fashion, the performance of SLQB will suffer as it'll
-never reuse the local list of pages and instead always get cold pages
-from the allocator.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+In effect, you are mixing truncate switchover with your writepage one.
+Please, split and reorder.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
