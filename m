@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 181D96B004D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 20:02:35 -0400 (EDT)
-Message-ID: <4AB813F3.8060102@kernel.org>
-Date: Tue, 22 Sep 2009 09:01:55 +0900
-From: Tejun Heo <tj@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id DC1456B004D
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 20:19:17 -0400 (EDT)
+Received: from zps19.corp.google.com (zps19.corp.google.com [172.25.146.19])
+	by smtp-out.google.com with ESMTP id n8M0JJBF019969
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 17:19:19 -0700
+Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
+	by zps19.corp.google.com with ESMTP id n8M0FuO4031246
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2009 17:19:16 -0700
+Received: by pzk38 with SMTP id 38so411066pzk.11
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 17:19:16 -0700 (PDT)
+Date: Mon, 21 Sep 2009 17:19:13 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
+In-Reply-To: <1253577603.7103.174.camel@pasglop>
+Message-ID: <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com>
+References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253577603.7103.174.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] powerpc: Allocate per-cpu areas for node IDs for
- SLQB to use as per-node areas
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253549426-917-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1253549426-917-2-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Tue, 22 Sep 2009, Benjamin Herrenschmidt wrote:
 
-Mel Gorman wrote:
-> diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
-> index 1f68160..a5f52d4 100644
-> --- a/arch/powerpc/kernel/setup_64.c
-> +++ b/arch/powerpc/kernel/setup_64.c
-> @@ -588,6 +588,26 @@ void __init setup_per_cpu_areas(void)
->  		paca[i].data_offset = ptr - __per_cpu_start;
->  		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
->  	}
-> +#ifdef CONFIG_SLQB
-> +	/* 
-> +	 * SLQB abuses DEFINE_PER_CPU to setup a per-node area. This trick
-> +	 * assumes that ever node ID will have a CPU of that ID to match.
-> +	 * On systems with memoryless nodes, this may not hold true. Hence,
-> +	 * we take a second pass initialising a "per-cpu" area for node-ids
-> +	 * that SLQB can use
-> +	 */
-> +	for_each_node_state(i, N_NORMAL_MEMORY) {
-> +
-> +		/* Skip node IDs that a valid CPU id exists for */
-> +		if (paca[i].data_offset)
-> +			continue;
-> +
-> +		ptr = alloc_bootmem_pages_node(NODE_DATA(cpu_to_node(i)), size);
-> +
-> +		paca[i].data_offset = ptr - __per_cpu_start;
-> +		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-> +	}
-> +#endif /* CONFIG_SLQB */
->  }
->  #endif
+> So if I understand correctly, we have a problem with both cpu-less and
+> memory-less nodes. Interesting setups :-)
+> 
 
-Eh... I don't know.  This seems too hacky to me.  Why not just
-allocate pointer array of MAX_NUMNODES and allocate per-node memory
-there?  This will be slightly more expensive but I doubt it will be
-noticeable.  The only extra overhead is the cachline footprint for the
-extra array.
+I agree with Christoph that we need to resolve the larger kernel issue of 
+memoryless nodes in the kernel and the result of that work will most 
+likely become the basis from which the slqb fixes originate.
 
-Thanks.
+I disagree that we need kernel support for memoryless nodes on x86 and 
+probably on all architectures period.  "NUMA nodes" will always contain 
+memory by definition and I think hijacking the node abstraction away from 
+representing anything but memory affinity is wrong in the interest of a 
+long-term maintainable kernel and will continue to cause issues such as 
+this in other subsystems.
 
--- 
-tejun
+I do understand the asymmetries of these machines, including the ppc that 
+is triggering this particular hang with slqb.  But I believe the support 
+can be implemented in a different way: I would offer an alternative 
+representation based entirely on node distances.  This would isolate each 
+region of memory that has varying affinity to cpus, pci busses, etc., into 
+nodes and then report a distance, whether local or remote, to other nodes 
+much in the way the ACPI specification does with proximity domains.
+
+Using node distances instead of memoryless nodes would still be able to 
+represent all asymmetric machines that currently benefit from the support 
+by binding devices to memory regions to which they have the closest 
+affinity and then reporting relative distances to other nodes via 
+node_distance().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
