@@ -1,63 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B90976B004D
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:34:34 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 5AFED82C687
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:36:47 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bU6i9dQUGAvM for <linux-mm@kvack.org>;
-	Tue, 22 Sep 2009 02:36:47 -0400 (EDT)
-Received: from V090114053VZO-1 (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id BF02E82C735
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:36:25 -0400 (EDT)
-Date: Tue, 22 Sep 2009 02:30:34 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/3] Fix SLQB on memoryless configurations V2
-In-Reply-To: <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.1.10.0909220227050.3719@V090114053VZO-1>
-References: <1253549426-917-1-git-send-email-mel@csn.ul.ie> <1253577603.7103.174.camel@pasglop> <alpine.DEB.1.00.0909211704180.4798@chino.kir.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9FB576B004D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 02:40:10 -0400 (EDT)
+Received: by an-out-0708.google.com with SMTP id c3so1432157ana.26
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2009 23:40:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20090921090445.GG12726@csn.ul.ie>
+References: <202cde0e0909132230y52b805a4i8792f2e287b01acb@mail.gmail.com>
+	 <20090914165435.GA21554@infradead.org>
+	 <202cde0e0909162342xb2a8daeia90b33a172fc714b@mail.gmail.com>
+	 <20090917091408.GB13002@csn.ul.ie>
+	 <202cde0e0909202216i36e3eca3rc56ddde345b12bf9@mail.gmail.com>
+	 <20090921090445.GG12726@csn.ul.ie>
+Date: Tue, 22 Sep 2009 18:40:13 +1200
+Message-ID: <202cde0e0909212340h740adb51pbab6981aa3c994da@mail.gmail.com>
+Subject: Re: HugeTLB: Driver example
+From: Alexey Korolev <akorolex@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Hellwig <hch@infradead.org>, Eric Munson <linux-mm@mgebm.net>, Alexey Korolev <akorolev@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Sep 2009, David Rientjes wrote:
+>
+> I can't. The request was from 9-10 months ago for drivers about about 18
+> months ago for Xen when they were looking at this area. The authors are no
+> longer working in that area AFAIK as once it was discussed what would need
+> to be done to use huge pages, they balked. It's far easier now as most of
+> the difficulties have been addressed but the interested parties are not
+> likely to be looking at this area for some time.
+>
+> The most recent expression of interest was from KVM developers within the
+> company. On discussion, using huge pages was something they were going to
+> push out as there are other concerns that should be addressed first. I'd
+> say it'd be at least a year before they looked at huge pages for KVM.
+>
+Ok. I see. Thanks.
 
-> I disagree that we need kernel support for memoryless nodes on x86 and
-> probably on all architectures period.  "NUMA nodes" will always contain
-> memory by definition and I think hijacking the node abstraction away from
-> representing anything but memory affinity is wrong in the interest of a
-> long-term maintainable kernel and will continue to cause issues such as
-> this in other subsystems.
+>> It makes sense to get this
+>> feature merged as it provides a quite efficient way for performance
+>> increase. According to our test data, applying these little changes
+>> gives about 7-10% gain.
+>>
+>
+> What is this test data based on?
 
-Amen. Sadly my past opinions on this did not seem convincing enough.
+The test is based on the throughput of network packets processing. We
+read the data from DMA buffers whose are mmaped to user space and then
+parse packets by applications. If mapping is based on huge pages we
+have gain ~7-10% (more mbps).  Actually I was surprised a bit when
+find out that there is no possibility to have huge page mappings for
+device drivers. Probably people just don't know about this.
 
-> I do understand the asymmetries of these machines, including the ppc that
-> is triggering this particular hang with slqb.  But I believe the support
-> can be implemented in a different way: I would offer an alternative
-> representation based entirely on node distances.  This would isolate each
-> region of memory that has varying affinity to cpus, pci busses, etc., into
-> nodes and then report a distance, whether local or remote, to other nodes
-> much in the way the ACPI specification does with proximity domains.
-
-Good idea.
-
-> Using node distances instead of memoryless nodes would still be able to
-> represent all asymmetric machines that currently benefit from the support
-> by binding devices to memory regions to which they have the closest
-> affinity and then reporting relative distances to other nodes via
-> node_distance().
-
-How would you deal with a memoryless node that has lets say 4 processors
-and some I/O devices? Now the memory policy is round robin and there are 4
-nodes at the same distance with 4G memory each. Does one of the nodes now
-become priviledged under your plan? How do you equally use memory from all
-these nodes?
-
+Thanks,
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
