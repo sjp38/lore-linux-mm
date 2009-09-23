@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C1D746B00A0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9766B007E
 	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:35 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 31/80] c/r: detect resource leaks for whole-container checkpoint
-Date: Wed, 23 Sep 2009 19:51:11 -0400
-Message-Id: <1253749920-18673-32-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 30/80] c/r: infrastructure for shared objects
+Date: Wed, 23 Sep 2009 19:51:10 -0400
+Message-Id: <1253749920-18673-31-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,446 +13,701 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Add a 'users' count to objhash items, and, for a !CHECKPOINT_SUBTREE
-checkpoint, return an error code if the actual objects' counts are
-higher, indicating leaks (references to the objects from a task not
-being checkpointed).
+The state of shared objects is saved once. On the first encounter, the
+state is dumped and the object is assigned a unique identifier (objref)
+and also stored in a hash table (indexed by its physical kernel address).
+>From then on the object will be found in the hash and only its identifier
+is saved.
 
-The comparison of the objhash user counts to object refcounts as a
-basis for checking for leaks comes from Alexey's OpenVZ-based c/r
-patchset.
+On restart the identifier is looked up in the hash table; if not found
+then the state is read, the object is created, and added to the hash
+table (this time indexed by its identifier). Otherwise, the object in
+the hash table is used.
 
-"Leak detection" occurs _before_ any real state is saved, as a
-pre-step. This prevents races due to sharing with outside world where
-the sharing ceases before the leak test takes place, thus protecting
-the checkpoint image from inconsistencies.
+The hash is "one-way": objects added to it are never deleted until the
+hash it discarded. The hash is discarded at the end of checkpoint or
+restart, whether successful or not.
 
-Once leak testing concludes, checkpoint will proceed. Because objects
-are already in the objhash, checkpoint_obj() cannot distinguish
-between the first and subsequent encounters. This is solved with a
-flag (CKPT_OBJ_CHECKPOINTED) per object.
-
-Two additional checks take place during checkpoint: for objects that
-were created during, and objects destroyed, while the leak-detection
-pre-step took place. (By the time this occurs part of the checkpoint
-image has been written out to disk, so this is purely advisory).
+The hash keeps a reference to every object that is added to it, matching
+the object's type, and maintains this reference during its lifetime.
+Therefore, it is always safe to use an object that is stored in the hash.
 
 Changelog[v18]:
-  - [Dan Smith] Fix ckpt_obj_lookup_add() leak detection logic
-  - Replace some EAGAIN with EBUSY
-  - Add a few more ckpt_write_err()s
-  - Introduce CKPT_OBJ_VISITED
-  - ckpt_obj_collect() returns objref for new objects, 0 otherwise
-  - Rename ckpt_obj_checkpointed() to ckpt_obj_visited()
-  - Introduce ckpt_obj_visit() to mark objects as visited
-  - Set the CHECKPOINTED flag on objects before calling checkpoint
+  - Add ckpt_obj_reserve()
+  - Change ref_drop() to accept a @lastref argument (useful for cleanup)
+  - Disallow multiple objects with same objref in restart
+  - Allow _ckpt_read_obj_type() to read object header only (w/o payload)
 Changelog[v17]:
-  - Leak detection is performed in two-steps
-  - Detect reverse-leaks (objects disappearing unexpectedly)
-  - Skip reverse-leak detection if ops->ref_users isn't defined
+  - Add ckpt_obj->flags with CKPT_OBJ_CHECKPOINTED flag
+  - Add prototype of ckpt_obj_lookup
+  - Complain on attempt to add NULL ptr to objhash
+  - Prepare for 'leaks detection'
+Changelog[v16]:
+  - Introduce ckpt_obj_lookup() to find an object by its ptr
+Changelog[v14]:
+  - Introduce 'struct ckpt_obj_ops' to better modularize shared objs.
+  - Replace long 'switch' statements with table lookups and callbacks.
+  - Introduce checkpoint_obj() and restart_obj() helpers
+  - Shared objects now dumped/saved right before they are referenced
+  - Cleanup interface of shared objects
+Changelog[v13]:
+  - Use hash_long() with 'unsigned long' cast to support 64bit archs
+    (Nathan Lynch <ntl@pobox.com>)
+Changelog[v11]:
+  - Doc: be explicit about grabbing a reference and object lifetime
+Changelog[v4]:
+  - Fix calculation of hash table size
+Changelog[v3]:
+  - Use standard hlist_... for hash table
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- checkpoint/checkpoint.c    |   41 ++++++++++
- checkpoint/objhash.c       |  188 +++++++++++++++++++++++++++++++++++++++++++-
- checkpoint/process.c       |    5 +
- include/linux/checkpoint.h |    7 ++
- 4 files changed, 237 insertions(+), 4 deletions(-)
+ checkpoint/Makefile              |    1 +
+ checkpoint/objhash.c             |  439 ++++++++++++++++++++++++++++++++++++++
+ checkpoint/restart.c             |   42 ++++
+ checkpoint/sys.c                 |    6 +
+ include/linux/checkpoint.h       |   18 ++
+ include/linux/checkpoint_hdr.h   |   14 ++
+ include/linux/checkpoint_types.h |    2 +
+ 7 files changed, 522 insertions(+), 0 deletions(-)
+ create mode 100644 checkpoint/objhash.c
 
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index 93d7860..c21646d 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -473,6 +473,24 @@ static int checkpoint_pids(struct ckpt_ctx *ctx)
- 	return ret;
- }
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+index 99364cc..5aa6a75 100644
+--- a/checkpoint/Makefile
++++ b/checkpoint/Makefile
+@@ -4,6 +4,7 @@
  
-+static int collect_objects(struct ckpt_ctx *ctx)
-+{
-+	int n, ret = 0;
-+
-+	for (n = 0; n < ctx->nr_tasks; n++) {
-+		ckpt_debug("dumping task #%d\n", n);
-+		ret = ckpt_collect_task(ctx, ctx->tasks_arr[n]);
-+		if (ret < 0) {
-+			ctx->tsk = ctx->tasks_arr[n];
-+			ckpt_write_err(ctx, "TE", "collect failed", ret);
-+			ctx->tsk = NULL;
-+			break;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
- /* count number of tasks in tree (and optionally fill pid's in array) */
- static int tree_count_tasks(struct ckpt_ctx *ctx)
- {
-@@ -719,6 +737,21 @@ long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid)
- 	if (ret < 0)
- 		goto out;
- 
-+	if (!(ctx->uflags & CHECKPOINT_SUBTREE)) {
-+		/*
-+		 * Verify that all objects are contained (no leaks):
-+		 * First collect them all into the while counting users
-+		 * and then compare to the objects' real user counts.
-+		 */
-+		ret = collect_objects(ctx);
-+		if (ret < 0)
-+			goto out;
-+		if (!ckpt_obj_contained(ctx)) {
-+			ret = -EBUSY;
-+			goto out;
-+		}
-+	}
-+
- 	ret = checkpoint_write_header(ctx);
- 	if (ret < 0)
- 		goto out;
-@@ -728,6 +761,14 @@ long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid)
- 	ret = checkpoint_all_tasks(ctx);
- 	if (ret < 0)
- 		goto out;
-+
-+	/* verify that all objects were indeed visited */
-+	if (!ckpt_obj_visited(ctx)) {
-+		ckpt_write_err(ctx, "E", "leak: unvisited", -EBUSY);
-+		ret = -EBUSY;
-+		goto out;
-+	}
-+
- 	ret = checkpoint_write_tail(ctx);
- 	if (ret < 0)
- 		goto out;
+ obj-$(CONFIG_CHECKPOINT) += \
+ 	sys.o \
++	objhash.o \
+ 	checkpoint.o \
+ 	restart.o \
+ 	process.o
 diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
-index e7f5393..dd1f3e5 100644
---- a/checkpoint/objhash.c
+new file mode 100644
+index 0000000..e7f5393
+--- /dev/null
 +++ b/checkpoint/objhash.c
-@@ -25,27 +25,32 @@ struct ckpt_obj_ops {
- 	enum obj_type obj_type;
- 	void (*ref_drop)(void *ptr, int lastref);
- 	int (*ref_grab)(void *ptr);
-+	int (*ref_users)(void *ptr);
- 	int (*checkpoint)(struct ckpt_ctx *ctx, void *ptr);
- 	void *(*restore)(struct ckpt_ctx *ctx);
- };
- 
- struct ckpt_obj {
-+	int users;
- 	int objref;
- 	int flags;
- 	void *ptr;
- 	struct ckpt_obj_ops *ops;
- 	struct hlist_node hash;
-+	struct hlist_node next;
- };
- 
- /* object internal flags */
- #define CKPT_OBJ_CHECKPOINTED		0x1   /* object already checkpointed */
-+#define CKPT_OBJ_VISITED		0x2   /* object already visited */
- 
- struct ckpt_obj_hash {
- 	struct hlist_head *head;
-+	struct hlist_head list;
- 	int next_free_objref;
- };
- 
--/* helper grab/drop functions: */
-+/* helper grab/drop/users functions */
- 
- static void obj_no_drop(void *ptr, int lastref)
- {
-@@ -114,6 +119,7 @@ int ckpt_obj_hash_alloc(struct ckpt_ctx *ctx)
- 
- 	obj_hash->head = head;
- 	obj_hash->next_free_objref = 1;
-+	INIT_HLIST_HEAD(&obj_hash->list);
- 
- 	ctx->obj_hash = obj_hash;
- 	return 0;
-@@ -181,6 +187,7 @@ static struct ckpt_obj *obj_new(struct ckpt_ctx *ctx, void *ptr,
- 
- 	obj->ptr = ptr;
- 	obj->ops = ops;
-+	obj->users = 2;  /* extra reference that objhash itself takes */
- 
- 	if (!objref) {
- 		/* use @obj->ptr to index, assign objref (checkpoint) */
-@@ -198,6 +205,7 @@ static struct ckpt_obj *obj_new(struct ckpt_ctx *ctx, void *ptr,
- 		obj = ERR_PTR(ret);
- 	} else {
- 		hlist_add_head(&obj->hash, &ctx->obj_hash->head[i]);
-+		hlist_add_head(&obj->next, &ctx->obj_hash->list);
- 	}
- 
- 	return obj;
-@@ -230,12 +238,35 @@ static struct ckpt_obj *obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
- 		*first = 1;
- 	} else {
- 		BUG_ON(obj->ops->obj_type != type);
-+		obj->users++;
- 		*first = 0;
- 	}
- 	return obj;
- }
- 
- /**
-+ * ckpt_obj_collect - collect object into objhash
-+ * @ctx: checkpoint context
-+ * @ptr: pointer to object
-+ * @type: object type
+@@ -0,0 +1,439 @@
++/*
++ *  Checkpoint-restart - object hash infrastructure to manage shared objects
 + *
-+ * [used during checkpoint].
-+ * Return: objref if object is new, 0 otherwise, or an error
++ *  Copyright (C) 2008-2009 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
 + */
-+int ckpt_obj_collect(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
-+{
-+	struct ckpt_obj *obj;
-+	int first;
 +
-+	obj = obj_lookup_add(ctx, ptr, type, &first);
-+	if (IS_ERR(obj))
-+		return PTR_ERR(obj);
-+	ckpt_debug("%s objref %d first %d\n",
-+		   obj->ops->obj_name, obj->objref, first);
-+	return (first ? obj->objref : 0);
++/* default debug level for output */
++#define CKPT_DFLAG  CKPT_DOBJ
++
++#include <linux/kernel.h>
++#include <linux/hash.h>
++#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
++
++struct ckpt_obj;
++struct ckpt_obj_ops;
++
++/* object operations */
++struct ckpt_obj_ops {
++	char *obj_name;
++	enum obj_type obj_type;
++	void (*ref_drop)(void *ptr, int lastref);
++	int (*ref_grab)(void *ptr);
++	int (*checkpoint)(struct ckpt_ctx *ctx, void *ptr);
++	void *(*restore)(struct ckpt_ctx *ctx);
++};
++
++struct ckpt_obj {
++	int objref;
++	int flags;
++	void *ptr;
++	struct ckpt_obj_ops *ops;
++	struct hlist_node hash;
++};
++
++/* object internal flags */
++#define CKPT_OBJ_CHECKPOINTED		0x1   /* object already checkpointed */
++
++struct ckpt_obj_hash {
++	struct hlist_head *head;
++	int next_free_objref;
++};
++
++/* helper grab/drop functions: */
++
++static void obj_no_drop(void *ptr, int lastref)
++{
++	return;
 +}
 +
-+/**
-  * ckpt_obj_lookup - lookup object (by pointer) in objhash
-  * @ctx: checkpoint context
-  * @ptr: pointer to object
-@@ -255,6 +286,21 @@ int ckpt_obj_lookup(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
- 	return obj ? obj->objref : 0;
- }
- 
-+static inline int obj_reverse_leak(struct ckpt_ctx *ctx, struct ckpt_obj *obj)
++static int obj_no_grab(void *ptr)
 +{
-+	/*
-+	 * A "reverse" leak ?  All objects should already be in the
-+	 * objhash by now. But an outside task may have created an
-+	 * object while we were collecting, which we didn't catch.
-+	 */
-+	if (obj->ops->ref_users && !(ctx->uflags & CHECKPOINT_SUBTREE)) {
-+		ckpt_write_err(ctx, "OP", "leak: reverse added late (%s)",
-+			       obj->objref, obj->ptr, obj->ops->obj_name);
-+		return -EBUSY;
-+	}
 +	return 0;
 +}
 +
- /**
-  * ckpt_obj_lookup_add - lookup object and add if not in objhash
-  * @ctx: checkpoint context
-@@ -275,7 +321,11 @@ int ckpt_obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
- 		return PTR_ERR(obj);
- 	ckpt_debug("%s objref %d first %d\n",
- 		   obj->ops->obj_name, obj->objref, *first);
--	obj->flags |= CKPT_OBJ_CHECKPOINTED;
++static struct ckpt_obj_ops ckpt_obj_ops[] = {
++	/* ignored object */
++	{
++		.obj_name = "IGNORED",
++		.obj_type = CKPT_OBJ_IGNORE,
++		.ref_drop = obj_no_drop,
++		.ref_grab = obj_no_grab,
++	},
++};
 +
-+	if (*first && obj_reverse_leak(ctx, obj))
-+		return -EBUSY;
 +
-+	obj->flags |= CKPT_OBJ_VISITED;
- 	return obj->objref;
- }
- 
-@@ -315,6 +365,9 @@ int checkpoint_obj(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
- 	if (IS_ERR(obj))
- 		return PTR_ERR(obj);
- 
-+	if (new && obj_reverse_leak(ctx, obj))
-+		return -EBUSY;
++#define CKPT_OBJ_HASH_NBITS  10
++#define CKPT_OBJ_HASH_TOTAL  (1UL << CKPT_OBJ_HASH_NBITS)
 +
- 	if (!(obj->flags & CKPT_OBJ_CHECKPOINTED)) {
- 		h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_OBJREF);
- 		if (!h)
-@@ -329,14 +382,141 @@ int checkpoint_obj(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
- 			return ret;
- 
- 		/* invoke callback to actually dump the state */
--		if (obj->ops->checkpoint)
--			ret = obj->ops->checkpoint(ctx, ptr);
-+		BUG_ON(!obj->ops->checkpoint);
- 
- 		obj->flags |= CKPT_OBJ_CHECKPOINTED;
-+		ret = obj->ops->checkpoint(ctx, ptr);
- 	}
++static void obj_hash_clear(struct ckpt_obj_hash *obj_hash)
++{
++	struct hlist_head *h = obj_hash->head;
++	struct hlist_node *n, *t;
++	struct ckpt_obj *obj;
++	int i;
 +
-+	obj->flags |= CKPT_OBJ_VISITED;
- 	return (ret < 0 ? ret : obj->objref);
- }
- 
++	for (i = 0; i < CKPT_OBJ_HASH_TOTAL; i++) {
++		hlist_for_each_entry_safe(obj, n, t, &h[i], hash) {
++			obj->ops->ref_drop(obj->ptr, 1);
++			kfree(obj);
++		}
++	}
++}
++
++void ckpt_obj_hash_free(struct ckpt_ctx *ctx)
++{
++	struct ckpt_obj_hash *obj_hash = ctx->obj_hash;
++
++	if (obj_hash) {
++		obj_hash_clear(obj_hash);
++		kfree(obj_hash->head);
++		kfree(ctx->obj_hash);
++		ctx->obj_hash = NULL;
++	}
++}
++
++int ckpt_obj_hash_alloc(struct ckpt_ctx *ctx)
++{
++	struct ckpt_obj_hash *obj_hash;
++	struct hlist_head *head;
++
++	obj_hash = kzalloc(sizeof(*obj_hash), GFP_KERNEL);
++	if (!obj_hash)
++		return -ENOMEM;
++	head = kzalloc(CKPT_OBJ_HASH_TOTAL * sizeof(*head), GFP_KERNEL);
++	if (!head) {
++		kfree(obj_hash);
++		return -ENOMEM;
++	}
++
++	obj_hash->head = head;
++	obj_hash->next_free_objref = 1;
++
++	ctx->obj_hash = obj_hash;
++	return 0;
++}
++
++static struct ckpt_obj *obj_find_by_ptr(struct ckpt_ctx *ctx, void *ptr)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct ckpt_obj *obj;
++
++	h = &ctx->obj_hash->head[hash_long((unsigned long) ptr,
++					   CKPT_OBJ_HASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->ptr == ptr)
++			return obj;
++	return NULL;
++}
++
++static struct ckpt_obj *obj_find_by_objref(struct ckpt_ctx *ctx, int objref)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct ckpt_obj *obj;
++
++	h = &ctx->obj_hash->head[hash_long((unsigned long) objref,
++					   CKPT_OBJ_HASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->objref == objref)
++			return obj;
++	return NULL;
++}
++
++static inline int obj_alloc_objref(struct ckpt_ctx *ctx)
++{
++	return ctx->obj_hash->next_free_objref++;
++}
++
 +/**
-+ * ckpt_obj_visit - mark object as visited
++ * ckpt_obj_new - add an object to the obj_hash
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: object unique id
++ * @ops: object operations
++ *
++ * Add the object to the obj_hash. If @objref is zero, assign a unique
++ * object id and use @ptr as a hash key [checkpoint]. Else use @objref
++ * as a key [restart].
++ */
++static struct ckpt_obj *obj_new(struct ckpt_ctx *ctx, void *ptr,
++				int objref, enum obj_type type)
++{
++	struct ckpt_obj_ops *ops = &ckpt_obj_ops[type];
++	struct ckpt_obj *obj;
++	int i, ret;
++
++	/* explicitly disallow null pointers */
++	BUG_ON(!ptr);
++	/* make sure we don't change this accidentally */
++	BUG_ON(ops->obj_type != type);
++
++	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
++	if (!obj)
++		return ERR_PTR(-ENOMEM);
++
++	obj->ptr = ptr;
++	obj->ops = ops;
++
++	if (!objref) {
++		/* use @obj->ptr to index, assign objref (checkpoint) */
++		obj->objref = obj_alloc_objref(ctx);
++		i = hash_long((unsigned long) ptr, CKPT_OBJ_HASH_NBITS);
++	} else {
++		/* use @obj->objref to index (restart) */
++		obj->objref = objref;
++		i = hash_long((unsigned long) objref, CKPT_OBJ_HASH_NBITS);
++	}
++
++	ret = ops->ref_grab(obj->ptr);
++	if (ret < 0) {
++		kfree(obj);
++		obj = ERR_PTR(ret);
++	} else {
++		hlist_add_head(&obj->hash, &ctx->obj_hash->head[i]);
++	}
++
++	return obj;
++}
++
++/**************************************************************************
++ * Checkpoint
++ */
++
++/**
++ * obj_lookup_add - lookup object and add if not in objhash
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ * @first: [output] first encounter (added to table)
++ *
++ * Look up the object pointed to by @ptr in the hash table. If it isn't
++ * already found there, add the object, and allocate a unique object
++ * id. Grab a reference to every object that is added, and maintain the
++ * reference until the entire hash is freed.
++ */
++static struct ckpt_obj *obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
++				       enum obj_type type, int *first)
++{
++	struct ckpt_obj *obj;
++
++	obj = obj_find_by_ptr(ctx, ptr);
++	if (!obj) {
++		obj = obj_new(ctx, ptr, 0, type);
++		*first = 1;
++	} else {
++		BUG_ON(obj->ops->obj_type != type);
++		*first = 0;
++	}
++	return obj;
++}
++
++/**
++ * ckpt_obj_lookup - lookup object (by pointer) in objhash
 + * @ctx: checkpoint context
 + * @ptr: pointer to object
 + * @type: object type
 + *
 + * [used during checkpoint].
-+ * Marks the object as visited, or fail if not found
++ * Return: objref (or zero if not found)
 + */
-+int ckpt_obj_visit(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
++int ckpt_obj_lookup(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
 +{
 +	struct ckpt_obj *obj;
 +
 +	obj = obj_find_by_ptr(ctx, ptr);
 +	BUG_ON(obj && obj->ops->obj_type != type);
-+
-+	if (!obj) {
-+		if (!(ctx->uflags & CHECKPOINT_SUBTREE)) {
-+			/* if not found report reverse leak (full container) */
-+			ckpt_write_err(ctx, "OP", "leak: reverse unknown (%s)",
-+				       obj->objref, obj->ptr,
-+				       obj->ops->obj_name);
-+			return -EBUSY;
-+		}
-+	} else {
-+		ckpt_debug("visit %s objref %d\n",
-+			   obj->ops->obj_name, obj->objref);
-+		obj->flags |= CKPT_OBJ_VISITED;
-+	}
-+	return 0;
-+}
-+
-+/* increment the 'users' count of an object */
-+static void ckpt_obj_users_inc(struct ckpt_ctx *ctx, void *ptr, int increment)
-+{
-+	struct ckpt_obj *obj;
-+
-+	obj = obj_find_by_ptr(ctx, ptr);
 +	if (obj)
-+		obj->users += increment;
-+}
-+
-+/*
-+ * "Leak detection" - to guarantee a consistent checkpoint of a full
-+ * container we verify that all resources are confined and isolated in
-+ * that container:
-+ *
-+ * c/r code first walks through all tasks and collects all shared
-+ * resources into the objhash, while counting the references to them;
-+ * then, it compares this count to the object's real reference count,
-+ * and if they don't match it means that an object has "leaked" to the
-+ * outside.
-+ *
-+ * Otherwise, it is guaranteed that there are no references outside
-+ * (of container). c/r code now proceeds to walk through all tasks,
-+ * again, and checkpoints the resources. It ensures that all resources
-+ * are already in the objhash, and that all of them are checkpointed.
-+ * Otherwise it means that due to a race, an object was created or
-+ * destroyed during the first walk but not accounted for.
-+ *
-+ * For instance, consider an outside task A that shared files_struct
-+ * with inside task B. Then, after B's files where collected, A opens
-+ * or closes a file, and immediately exits - before the first leak
-+ * test is performed, such that the test passes.
-+ */
-+
-+/**
-+ * ckpt_obj_contained - test if shared objects are contained in checkpoint
-+ * @ctx: checkpoint context
-+ *
-+ * Loops through all objects in the table and compares the number of
-+ * references accumulated during checkpoint, with the reference count
-+ * reported by the kernel.
-+ *
-+ * Return 1 if respective counts match for all objects, 0 otherwise.
-+ */
-+int ckpt_obj_contained(struct ckpt_ctx *ctx)
-+{
-+	struct ckpt_obj *obj;
-+	struct hlist_node *node;
-+
-+	/* account for ctx->file reference (if in the table already) */
-+	ckpt_obj_users_inc(ctx, ctx->file, 1);
-+
-+	hlist_for_each_entry(obj, node, &ctx->obj_hash->list, next) {
-+		if (!obj->ops->ref_users)
-+			continue;
-+		if (obj->ops->ref_users(obj->ptr) != obj->users) {
-+			ckpt_debug("usage leak: %s\n", obj->ops->obj_name);
-+			ckpt_write_err(ctx, "OP", "leak: usage (%d != %d (%s)",
-+				       obj->objref, obj->ptr,
-+				       obj->ops->ref_users(obj->ptr),
-+				       obj->users, obj->ops->obj_name);
-+			return 0;
-+		}
-+	}
-+
-+	return 1;
++		ckpt_debug("%s objref %d\n", obj->ops->obj_name, obj->objref);
++	return obj ? obj->objref : 0;
 +}
 +
 +/**
-+ * ckpt_obj_visited - test that all shared objects were visited
++ * ckpt_obj_lookup_add - lookup object and add if not in objhash
 + * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ * @first: [output] first encoutner (added to table)
 + *
-+ * Return 1 if all objects where visited, 0 otherwise.
++ * [used during checkpoint].
++ * Return: objref
 + */
-+int ckpt_obj_visited(struct ckpt_ctx *ctx)
++int ckpt_obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
++			enum obj_type type, int *first)
 +{
 +	struct ckpt_obj *obj;
-+	struct hlist_node *node;
 +
-+	hlist_for_each_entry(obj, node, &ctx->obj_hash->list, next) {
-+		if (!(obj->flags & CKPT_OBJ_VISITED)) {
-+			ckpt_debug("reverse leak: %s (%d)\n",
-+				   obj->ops->obj_name, obj->objref);
-+			ckpt_write_err(ctx, "OP", "leak: not visited (%s)",
-+				       obj->objref, obj->ptr,
-+				       obj->ops->obj_name);
-+			return 0;
-+		}
-+	}
-+
-+	return 1;
++	obj = obj_lookup_add(ctx, ptr, type, first);
++	if (IS_ERR(obj))
++		return PTR_ERR(obj);
++	ckpt_debug("%s objref %d first %d\n",
++		   obj->ops->obj_name, obj->objref, *first);
++	obj->flags |= CKPT_OBJ_CHECKPOINTED;
++	return obj->objref;
 +}
 +
- /**************************************************************************
-  * Restart
-  */
-diff --git a/checkpoint/process.c b/checkpoint/process.c
-index 2580b31..5e690d3 100644
---- a/checkpoint/process.c
-+++ b/checkpoint/process.c
-@@ -246,6 +246,11 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- 	return ret;
++/**
++ * ckpt_obj_reserve - reserve an objref
++ * @ctx: checkpoint context
++ *
++ * The reserved objref will not be used for subsequent objects. This
++ * gives an objref that can be safely used during restart without a
++ * matching object in checkpoint.  [used during checkpoint].
++ */
++int ckpt_obj_reserve(struct ckpt_ctx *ctx)
++{
++	return obj_alloc_objref(ctx);
++}
++
++/**
++ * checkpoint_obj - if not already in hash, add object and checkpoint
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ *
++ * Use obj_lookup_add() to lookup (and possibly add) the object to the
++ * hash table. If the CKPT_OBJ_CHECKPOINTED flag isn't set, then also
++ * save the object's state using its ops->checkpoint().
++ *
++ * [This is used during checkpoint].
++ * Returns: objref
++ */
++int checkpoint_obj(struct ckpt_ctx *ctx, void *ptr, enum obj_type type)
++{
++	struct ckpt_hdr_objref *h;
++	struct ckpt_obj *obj;
++	int new, ret = 0;
++
++	obj = obj_lookup_add(ctx, ptr, type, &new);
++	if (IS_ERR(obj))
++		return PTR_ERR(obj);
++
++	if (!(obj->flags & CKPT_OBJ_CHECKPOINTED)) {
++		h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_OBJREF);
++		if (!h)
++			return -ENOMEM;
++
++		h->objtype = type;
++		h->objref = obj->objref;
++		ret = ckpt_write_obj(ctx, &h->h);
++		ckpt_hdr_put(ctx, h);
++
++		if (ret < 0)
++			return ret;
++
++		/* invoke callback to actually dump the state */
++		if (obj->ops->checkpoint)
++			ret = obj->ops->checkpoint(ctx, ptr);
++
++		obj->flags |= CKPT_OBJ_CHECKPOINTED;
++	}
++	return (ret < 0 ? ret : obj->objref);
++}
++
++/**************************************************************************
++ * Restart
++ */
++
++/**
++ * restore_obj - read in and restore a (first seen) shared object
++ * @ctx: checkpoint context
++ * @h: ckpt_hdr of shared object
++ *
++ * Read in the header payload (struct ckpt_hdr_objref). Lookup the
++ * object to verify it isn't there.  Then restore the object's state
++ * and add it to the objash. No need to explicitly grab a reference -
++ * we hold the initial instance of this object. (Object maintained
++ * until the entire hash is free).
++ *
++ * [This is used during restart].
++ */
++int restore_obj(struct ckpt_ctx *ctx, struct ckpt_hdr_objref *h)
++{
++	struct ckpt_obj_ops *ops;
++	struct ckpt_obj *obj;
++	void *ptr = NULL;
++
++	ckpt_debug("len %d ref %d type %d\n", h->h.len, h->objref, h->objtype);
++	if (h->objtype >= CKPT_OBJ_MAX)
++		return -EINVAL;
++
++	ops = &ckpt_obj_ops[h->objtype];
++	BUG_ON(ops->obj_type != h->objtype);
++
++	if (ops->restore)
++		ptr = ops->restore(ctx);
++	if (IS_ERR(ptr))
++		return PTR_ERR(ptr);
++
++	if (obj_find_by_objref(ctx, h->objref))
++		obj = ERR_PTR(-EINVAL);
++	else
++		obj = obj_new(ctx, ptr, h->objref, h->objtype);
++	/*
++	 * Drop an extra reference to the object returned by ops->restore:
++	 * On success, this clears the extra reference taken by obj_new(),
++	 * and on failure, this cleans up the object itself.
++	 */
++	ops->ref_drop(ptr, 0);
++	if (IS_ERR(obj)) {
++		ops->ref_drop(ptr, 1);
++		return PTR_ERR(obj);
++	}
++	return obj->objref;
++}
++
++/**
++ * ckpt_obj_insert - add an object with a given objref to obj_hash
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object id
++ * @type: object type
++ *
++ * Add the object pointer to by @ptr and identified by unique object id
++ * @objref to the hash table (indexed by @objref).  Grab a reference to
++ * every object added, and maintain it until the entire hash is freed.
++ *
++ * [This is used during restart].
++ */
++int ckpt_obj_insert(struct ckpt_ctx *ctx, void *ptr,
++		    int objref, enum obj_type type)
++{
++	struct ckpt_obj *obj;
++
++	if (obj_find_by_objref(ctx, objref))
++		return -EINVAL;
++	obj = obj_new(ctx, ptr, objref, type);
++	if (IS_ERR(obj))
++		return PTR_ERR(obj);
++	ckpt_debug("%s objref %d\n", obj->ops->obj_name, objref);
++	return obj->objref;
++}
++
++/**
++ * ckpt_obj_fetch - fetch an object by its identifier
++ * @ctx: checkpoint context
++ * @objref: object id
++ * @type: object type
++ *
++ * Lookup the objref identifier by @objref in the hash table. Return
++ * an error not found.
++ *
++ * [This is used during restart].
++ */
++void *ckpt_obj_fetch(struct ckpt_ctx *ctx, int objref, enum obj_type type)
++{
++	struct ckpt_obj *obj;
++
++	obj = obj_find_by_objref(ctx, objref);
++	if (!obj)
++		return ERR_PTR(-EINVAL);
++	ckpt_debug("%s ref %d\n", obj->ops->obj_name, obj->objref);
++	return (obj->ops->obj_type == type ? obj->ptr : ERR_PTR(-ENOMSG));
++}
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index d43eec7..73db44a 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -47,6 +47,34 @@ static int _ckpt_read_err(struct ckpt_ctx *ctx, struct ckpt_hdr *h)
  }
  
-+int ckpt_collect_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ /**
++ * _ckpt_read_objref - dispatch handling of a shared object
++ * @ctx: checkpoint context
++ * @hh: objrect descriptor
++ */
++static int _ckpt_read_objref(struct ckpt_ctx *ctx, struct ckpt_hdr *hh)
 +{
-+	return 0;
++	struct ckpt_hdr *h;
++	int ret;
++
++	h = ckpt_hdr_get(ctx, hh->len);
++	if (!h)
++		return -ENOMEM;
++
++	*h = *hh;	/* yay ! */
++
++	_ckpt_debug(CKPT_DOBJ, "shared len %d type %d\n", h->len, h->type);
++	ret = ckpt_kread(ctx, (h + 1), hh->len - sizeof(struct ckpt_hdr));
++	if (ret < 0)
++		goto out;
++
++	ret = restore_obj(ctx, (struct ckpt_hdr_objref *) h);
++ out:
++	ckpt_hdr_put(ctx, h);
++	return ret;
 +}
 +
- /***********************************************************************
-  * Restart
-  */
++
++/**
+  * _ckpt_read_obj - read an object (ckpt_hdr followed by payload)
+  * @ctx: checkpoint context
+  * @h: desired ckpt_hdr
+@@ -75,6 +103,11 @@ static int _ckpt_read_obj(struct ckpt_ctx *ctx, struct ckpt_hdr *h,
+ 		if (ret < 0)
+ 			return ret;
+ 		goto again;
++	} else if (h->type == CKPT_HDR_OBJREF) {
++		ret = _ckpt_read_objref(ctx, h);
++		if (ret < 0)
++			return ret;
++		goto again;
+ 	}
+ 
+ 	/* if len specified, enforce, else if maximum specified, enforce */
+@@ -164,6 +197,7 @@ static void *ckpt_read_obj(struct ckpt_ctx *ctx, int len, int max)
+ 	struct ckpt_hdr *h;
+ 	int ret;
+ 
++ again:
+ 	ret = ckpt_kread(ctx, &hh, sizeof(hh));
+ 	if (ret < 0)
+ 		return ERR_PTR(ret);
+@@ -171,6 +205,14 @@ static void *ckpt_read_obj(struct ckpt_ctx *ctx, int len, int max)
+ 		    hh.type, hh.len, len, max);
+ 	if (hh.len < sizeof(*h))
+ 		return ERR_PTR(-EINVAL);
++
++	if (hh.type == CKPT_HDR_OBJREF) {
++		ret = _ckpt_read_objref(ctx, &hh);
++		if (ret < 0)
++			return ERR_PTR(ret);
++		goto again;
++	}
++
+ 	/* if len specified, enforce, else if maximum specified, enforce */
+ 	if ((len && hh.len != len) || (!len && max && hh.len > max))
+ 		return ERR_PTR(-EINVAL);
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index c8921f0..d16d48f 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -194,6 +194,8 @@ static void ckpt_ctx_free(struct ckpt_ctx *ctx)
+ 	if (ctx->file)
+ 		fput(ctx->file);
+ 
++	ckpt_obj_hash_free(ctx);
++
+ 	if (ctx->tasks_arr)
+ 		task_arr_free(ctx);
+ 
+@@ -231,6 +233,10 @@ static struct ckpt_ctx *ckpt_ctx_alloc(int fd, unsigned long uflags,
+ 	if (!ctx->file)
+ 		goto err;
+ 
++	err = -ENOMEM;
++	if (ckpt_obj_hash_alloc(ctx) < 0)
++		goto err;
++
+ 	atomic_inc(&ctx->refcount);
+ 	return ctx;
+  err:
 diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 1315884..b698b19 100644
+index 5c02d9b..1315884 100644
 --- a/include/linux/checkpoint.h
 +++ b/include/linux/checkpoint.h
-@@ -96,6 +96,12 @@ extern int ckpt_obj_hash_alloc(struct ckpt_ctx *ctx);
- extern int restore_obj(struct ckpt_ctx *ctx, struct ckpt_hdr_objref *h);
- extern int checkpoint_obj(struct ckpt_ctx *ctx, void *ptr,
- 			  enum obj_type type);
-+extern int ckpt_obj_collect(struct ckpt_ctx *ctx, void *ptr,
-+			    enum obj_type type);
-+extern int ckpt_obj_contained(struct ckpt_ctx *ctx);
-+extern int ckpt_obj_visited(struct ckpt_ctx *ctx);
-+extern int ckpt_obj_visit(struct ckpt_ctx *ctx, void *ptr,
+@@ -89,6 +89,23 @@ static inline void ckpt_set_ctx_error(struct ckpt_ctx *ctx, int errno)
+ #define ckpt_test_ctx_complete(ctx)  \
+ 	((ctx)->kflags & (CKPT_CTX_SUCCESS | CKPT_CTX_ERROR))
+ 
++/* obj_hash */
++extern void ckpt_obj_hash_free(struct ckpt_ctx *ctx);
++extern int ckpt_obj_hash_alloc(struct ckpt_ctx *ctx);
++
++extern int restore_obj(struct ckpt_ctx *ctx, struct ckpt_hdr_objref *h);
++extern int checkpoint_obj(struct ckpt_ctx *ctx, void *ptr,
 +			  enum obj_type type);
- extern int ckpt_obj_lookup(struct ckpt_ctx *ctx, void *ptr,
- 			   enum obj_type type);
- extern int ckpt_obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
-@@ -114,6 +120,7 @@ extern long do_restart(struct ckpt_ctx *ctx, pid_t pid);
++extern int ckpt_obj_lookup(struct ckpt_ctx *ctx, void *ptr,
++			   enum obj_type type);
++extern int ckpt_obj_lookup_add(struct ckpt_ctx *ctx, void *ptr,
++			       enum obj_type type, int *first);
++extern void *ckpt_obj_fetch(struct ckpt_ctx *ctx, int objref,
++			    enum obj_type type);
++extern int ckpt_obj_insert(struct ckpt_ctx *ctx, void *ptr, int objref,
++			   enum obj_type type);
++extern int ckpt_obj_reserve(struct ckpt_ctx *ctx);
++
+ extern void ckpt_ctx_get(struct ckpt_ctx *ctx);
+ extern void ckpt_ctx_put(struct ckpt_ctx *ctx);
  
- /* task */
- extern int ckpt_activate_next(struct ckpt_ctx *ctx);
-+extern int ckpt_collect_task(struct ckpt_ctx *ctx, struct task_struct *t);
- extern int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t);
- extern int restore_task(struct ckpt_ctx *ctx);
+@@ -122,6 +139,7 @@ static inline int ckpt_validate_errno(int errno)
+ #define CKPT_DBASE	0x1		/* anything */
+ #define CKPT_DSYS	0x2		/* generic (system) */
+ #define CKPT_DRW	0x4		/* image read/write */
++#define CKPT_DOBJ	0x8		/* shared objects */
  
+ #define CKPT_DDEFAULT	0xffff		/* default debug level */
+ 
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index b56fe71..7a4015b 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -50,6 +50,7 @@ enum {
+ 	CKPT_HDR_HEADER_ARCH,
+ 	CKPT_HDR_BUFFER,
+ 	CKPT_HDR_STRING,
++	CKPT_HDR_OBJREF,
+ 
+ 	CKPT_HDR_TREE = 101,
+ 	CKPT_HDR_TASK,
+@@ -69,6 +70,19 @@ enum {
+ 	CKPT_ARCH_X86_32 = 1,
+ };
+ 
++/* shared objrects (objref) */
++struct ckpt_hdr_objref {
++	struct ckpt_hdr h;
++	__u32 objtype;
++	__s32 objref;
++} __attribute__((aligned(8)));
++
++/* shared objects types */
++enum obj_type {
++	CKPT_OBJ_IGNORE = 0,
++	CKPT_OBJ_MAX
++};
++
+ /* kernel constants */
+ struct ckpt_const {
+ 	/* task */
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index f74deac..f11fd07 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -38,6 +38,8 @@ struct ckpt_ctx {
+ 
+ 	atomic_t refcount;
+ 
++	struct ckpt_obj_hash *obj_hash;	/* repository for shared objects */
++
+ 	struct task_struct *tsk;/* checkpoint: current target task */
+ 	char err_string[256];	/* checkpoint: error string */
+ 	int errno;		/* restart: errno that caused failure */
 -- 
 1.6.0.4
 
