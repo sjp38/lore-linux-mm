@@ -1,318 +1,318 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A9E76B0085
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4926B0083
 	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:26 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 28/80] c/r: support for zombie processes
-Date: Wed, 23 Sep 2009 19:51:08 -0400
-Message-Id: <1253749920-18673-29-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 17/80] pids 7/7: Define clone_with_pids syscall
+Date: Wed, 23 Sep 2009 19:50:57 -0400
+Message-Id: <1253749920-18673-18-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-During checkpoint, a zombie processes need only save p->comm,
-p->state, p->exit_state, and p->exit_code.
+From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
 
-During restart, zombie processes are created like all other
-processes. They validate the saved exit_code restore p->comm
-and p->exit_code. Then they call do_exit() instead of waking
-up the next task in line.
+Container restart requires that a task have the same pid it had when it was
+checkpointed. When containers are nested the tasks within the containers
+exist in multiple pid namespaces and hence have multiple pids to specify
+during restart.
 
-But before, they place the @ctx in p->checkpoint_ctx, so that
-only at exit time they will wake up the next task in line,
-and drop the reference to the @ctx.
+clone_with_pids(), intended for use during restart, is the same as clone(),
+except that it takes a 'target_pid_set' paramter. This parameter lets caller
+choose specific pid numbers for the child process, in the process's active
+and ancestor pid namespaces. (Descendant pid namespaces in general don't
+matter since processes don't have pids in them anyway, but see comments
+in copy_target_pids() regarding CLONE_NEWPID).
 
-This provides the guarantee that when the coordinator's wait
-completes, all normal tasks completed their restart, and all
-zombie tasks are already zombified (as opposed to perhap only
-becoming a zombie).
+Unlike clone(), clone_with_pids() needs CAP_SYS_ADMIN, at least for now, to
+prevent unprivileged processes from misusing this interface.
 
-Changelog[v18]:
-  - Fix leak of ckpt_ctx when restoring zombie tasks
-  - Add a few more ckpt_write_err()s
-Changelog[v17]:
-  - Validate t->exit_signal for both threads and leader
-  - Skip zombies in most of may_checkpoint_task()
-  - Save/restore t->pdeath_signal
-  - Validate ->exit_signal and ->pdeath_signal
+Call clone_with_pids as follows:
 
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+	pid_t pids[] = { 0, 77, 99 };
+	struct target_pid_set pid_set;
+
+	pid_set.num_pids = sizeof(pids) / sizeof(int);
+	pid_set.target_pids = &pids;
+
+	syscall(__NR_clone_with_pids, flags, stack, NULL, NULL, NULL, &pid_set);
+
+If a target-pid is 0, the kernel continues to assign a pid for the process in
+that namespace. In the above example, pids[0] is 0, meaning the kernel will
+assign next available pid to the process in init_pid_ns. But kernel will assign
+pid 77 in the child pid namespace 1 and pid 99 in pid namespace 2. If either
+77 or 99 are taken, the system call fails with -EBUSY.
+
+If 'pid_set.num_pids' exceeds the current nesting level of pid namespaces,
+the system call fails with -EINVAL.
+
+Its mostly an exploratory patch seeking feedback on the interface.
+
+NOTE:
+	Compared to clone(), clone_with_pids() needs to pass in two more
+	pieces of information:
+
+		- number of pids in the set
+		- user buffer containing the list of pids.
+
+	But since clone() already takes 5 parameters, use a 'struct
+	target_pid_set'.
+
+TODO:
+	- Gently tested.
+	- May need additional sanity checks in do_fork_with_pids().
+
+Changelog[v3]:
+	- (Oren Laadan) Allow CLONE_NEWPID flag (by allocating an extra pid
+	  in the target_pids[] list and setting it 0. See copy_target_pids()).
+	- (Oren Laadan) Specified target pids should apply only to youngest
+	  pid-namespaces (see copy_target_pids())
+	- (Matt Helsley) Update patch description.
+
+Changelog[v2]:
+	- Remove unnecessary printk and add a note to callers of
+	  copy_target_pids() to free target_pids.
+	- (Serge Hallyn) Mention CAP_SYS_ADMIN restriction in patch description.
+	- (Oren Laadan) Add checks for 'num_pids < 0' (return -EINVAL) and
+	  'num_pids == 0' (fall back to normal clone()).
+	- Move arch-independent code (sanity checks and copy-in of target-pids)
+	  into kernel/fork.c and simplify sys_clone_with_pids()
+
+Changelog[v1]:
+	- Fixed some compile errors (had fixed these errors earlier in my
+	  git tree but had not refreshed patches before emailing them)
+
+Signed-off-by: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
 ---
- checkpoint/checkpoint.c        |   10 ++++--
- checkpoint/process.c           |   69 +++++++++++++++++++++++++++++++++++-----
- checkpoint/restart.c           |   41 +++++++++++++++++++++--
- include/linux/checkpoint.h     |    1 +
- include/linux/checkpoint_hdr.h |    1 +
- 5 files changed, 107 insertions(+), 15 deletions(-)
+ arch/x86/include/asm/syscalls.h    |    2 +
+ arch/x86/include/asm/unistd_32.h   |    1 +
+ arch/x86/kernel/entry_32.S         |    1 +
+ arch/x86/kernel/process_32.c       |   21 +++++++
+ arch/x86/kernel/syscall_table_32.S |    1 +
+ kernel/fork.c                      |  108 +++++++++++++++++++++++++++++++++++-
+ 6 files changed, 133 insertions(+), 1 deletions(-)
 
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index fc02436..93d7860 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -377,7 +377,7 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+diff --git a/arch/x86/include/asm/syscalls.h b/arch/x86/include/asm/syscalls.h
+index 372b76e..df3c4a8 100644
+--- a/arch/x86/include/asm/syscalls.h
++++ b/arch/x86/include/asm/syscalls.h
+@@ -40,6 +40,8 @@ long sys_iopl(struct pt_regs *);
  
- 	ckpt_debug("check %d\n", task_pid_nr_ns(t, ctx->root_nsproxy->pid_ns));
+ /* kernel/process_32.c */
+ int sys_clone(struct pt_regs *);
++int sys_clone_with_pids(struct pt_regs *);
++int sys_vfork(struct pt_regs *);
+ int sys_execve(struct pt_regs *);
  
--	if (t->state == TASK_DEAD) {
-+	if (t->exit_state == EXIT_DEAD) {
- 		__ckpt_write_err(ctx, "TE", "task state EXIT_DEAD\n", -EBUSY);
- 		return -EBUSY;
- 	}
-@@ -387,6 +387,10 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- 		return -EPERM;
- 	}
+ /* kernel/signal.c */
+diff --git a/arch/x86/include/asm/unistd_32.h b/arch/x86/include/asm/unistd_32.h
+index 732a307..f65b750 100644
+--- a/arch/x86/include/asm/unistd_32.h
++++ b/arch/x86/include/asm/unistd_32.h
+@@ -342,6 +342,7 @@
+ #define __NR_pwritev		334
+ #define __NR_rt_tgsigqueueinfo	335
+ #define __NR_perf_counter_open	336
++#define __NR_clone_with_pids	337
  
-+	/* zombies are cool (and also don't have nsproxy, below...) */
-+	if (t->exit_state)
-+		return 0;
+ #ifdef __KERNEL__
+ 
+diff --git a/arch/x86/kernel/entry_32.S b/arch/x86/kernel/entry_32.S
+index c097e7d..c7bd1f6 100644
+--- a/arch/x86/kernel/entry_32.S
++++ b/arch/x86/kernel/entry_32.S
+@@ -718,6 +718,7 @@ ptregs_##name: \
+ PTREGSCALL(iopl)
+ PTREGSCALL(fork)
+ PTREGSCALL(clone)
++PTREGSCALL(clone_with_pids)
+ PTREGSCALL(vfork)
+ PTREGSCALL(execve)
+ PTREGSCALL(sigaltstack)
+diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
+index 59f4524..9965c06 100644
+--- a/arch/x86/kernel/process_32.c
++++ b/arch/x86/kernel/process_32.c
+@@ -443,6 +443,27 @@ int sys_clone(struct pt_regs *regs)
+ 	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
+ }
+ 
++int sys_clone_with_pids(struct pt_regs *regs)
++{
++	unsigned long clone_flags;
++	unsigned long newsp;
++	int __user *parent_tidptr;
++	int __user *child_tidptr;
++	void __user *upid_setp;
 +
- 	/* verify that all tasks belongs to same freezer cgroup */
- 	if (t != current && !in_same_cgroup_freezer(t, ctx->root_freezer)) {
- 		__ckpt_write_err(ctx, "TE", "unfrozen or wrong cgroup", -EBUSY);
-@@ -403,8 +407,8 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- 	 * FIX: for now, disallow siblings of container init created
- 	 * via CLONE_PARENT (unclear if they will remain possible)
- 	 */
--	if (ctx->root_init && t != root && t->tgid != root->tgid &&
--	    t->real_parent == root->real_parent) {
-+	if (ctx->root_init && t != root &&
-+	    t->real_parent == root->real_parent && t->tgid != root->tgid) {
- 		__ckpt_write_err(ctx, "TE", "task is sibling of root", -EINVAL);
- 		return -EINVAL;
- 	}
-diff --git a/checkpoint/process.c b/checkpoint/process.c
-index 330c8d4..62ae72d 100644
---- a/checkpoint/process.c
-+++ b/checkpoint/process.c
-@@ -35,12 +35,18 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
- 	h->state = t->state;
- 	h->exit_state = t->exit_state;
- 	h->exit_code = t->exit_code;
--	h->exit_signal = t->exit_signal;
- 
--	h->set_child_tid = (unsigned long) t->set_child_tid;
--	h->clear_child_tid = (unsigned long) t->clear_child_tid;
-+	if (t->exit_state) {
-+		/* zombie - skip remaining state */
-+		BUG_ON(t->exit_state != EXIT_ZOMBIE);
-+	} else {
-+		/* FIXME: save remaining relevant task_struct fields */
-+		h->exit_signal = t->exit_signal;
-+		h->pdeath_signal = t->pdeath_signal;
- 
--	/* FIXME: save remaining relevant task_struct fields */
-+		h->set_child_tid = (unsigned long) t->set_child_tid;
-+		h->clear_child_tid = (unsigned long) t->clear_child_tid;
-+	}
- 
- 	ret = ckpt_write_obj(ctx, &h->h);
- 	ckpt_hdr_put(ctx, h);
-@@ -172,6 +178,11 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- 
- 	if (ret < 0)
- 		goto out;
++	clone_flags = regs->bx;
++	newsp = regs->cx;
++	parent_tidptr = (int __user *)regs->dx;
++	child_tidptr = (int __user *)regs->di;
++	upid_setp = (void __user *)regs->bp;
 +
-+	/* zombie - we're done here */
-+	if (t->exit_state)
-+		return 0;
++	if (!newsp)
++		newsp = regs->sp;
 +
- 	ret = checkpoint_thread(ctx, t);
- 	ckpt_debug("thread %d\n", ret);
- 	if (ret < 0)
-@@ -191,6 +202,19 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
-  * Restart
++	return do_fork_with_pids(clone_flags, newsp, regs, 0, parent_tidptr,
++			child_tidptr, upid_setp);
++}
++
+ /*
+  * sys_execve() executes a new program.
   */
- 
-+static inline int valid_exit_code(int exit_code)
-+{
-+	if (exit_code >= 0x10000)
-+		return 0;
-+	if (exit_code & 0xff) {
-+		if (exit_code & ~0xff)
-+			return 0;
-+		if (!valid_signal(exit_code & 0xff))
-+			return 0;
-+	}
-+	return 1;
-+}
-+
- /* read the task_struct into the current task */
- static int restore_task_struct(struct ckpt_ctx *ctx)
- {
-@@ -202,15 +226,39 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
- 	if (IS_ERR(h))
- 		return PTR_ERR(h);
- 
-+	ret = -EINVAL;
-+	if (h->state == TASK_DEAD) {
-+		if (h->exit_state != EXIT_ZOMBIE)
-+			goto out;
-+		if (!valid_exit_code(h->exit_code))
-+			goto out;
-+		t->exit_code = h->exit_code;
-+	} else {
-+		if (h->exit_code)
-+			goto out;
-+		if ((thread_group_leader(t) && !valid_signal(h->exit_signal)) ||
-+		    (!thread_group_leader(t) && h->exit_signal != -1))
-+			goto out;
-+		if (!valid_signal(h->pdeath_signal))
-+			goto out;
-+
-+		/* FIXME: restore remaining relevant task_struct fields */
-+		t->exit_signal = h->exit_signal;
-+		t->pdeath_signal = h->pdeath_signal;
-+
-+		t->set_child_tid =
-+			(int __user *) (unsigned long) h->set_child_tid;
-+		t->clear_child_tid =
-+			(int __user *) (unsigned long) h->clear_child_tid;
-+	}
-+
- 	memset(t->comm, 0, TASK_COMM_LEN);
- 	ret = _ckpt_read_string(ctx, t->comm, TASK_COMM_LEN);
- 	if (ret < 0)
- 		goto out;
- 
--	t->set_child_tid = (int __user *) (unsigned long) h->set_child_tid;
--	t->clear_child_tid = (int __user *) (unsigned long) h->clear_child_tid;
--
--	/* FIXME: restore remaining relevant task_struct fields */
-+	/* return 1 for zombie, 0 otherwise */
-+	ret = (h->state == TASK_DEAD ? 1 : 0);
-  out:
- 	ckpt_hdr_put(ctx, h);
- 	return ret;
-@@ -330,6 +378,11 @@ int restore_task(struct ckpt_ctx *ctx)
- 	ckpt_debug("task %d\n", ret);
- 	if (ret < 0)
- 		goto out;
-+
-+	/* zombie - we're done here */
-+	if (ret)
-+		goto out;
-+
- 	ret = restore_thread(ctx);
- 	ckpt_debug("thread %d\n", ret);
- 	if (ret < 0)
-diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index 4da09b7..d43eec7 100644
---- a/checkpoint/restart.c
-+++ b/checkpoint/restart.c
-@@ -473,17 +473,14 @@ do { \
- static int restore_activate_next(struct ckpt_ctx *ctx)
- {
- 	struct task_struct *task;
--	int active;
- 	pid_t pid;
- 
--	active = ++ctx->active_pid;
--	if (active >= ctx->nr_pids) {
-+	if (++ctx->active_pid >= ctx->nr_pids) {
- 		complete(&ctx->complete);
- 		return 0;
- 	}
- 
- 	pid = get_active_pid(ctx);
--	ckpt_debug("active pid %d (%d < %d)\n", pid, active, ctx->nr_pids);
- 
- 	rcu_read_lock();
- 	task = find_task_by_pid_ns(pid, ctx->root_nsproxy->pid_ns);
-@@ -511,6 +508,8 @@ static int wait_task_active(struct ckpt_ctx *ctx)
- 	ret = wait_event_interruptible(ctx->waitq,
- 				       is_task_active(ctx, pid) ||
- 				       ckpt_test_ctx_error(ctx));
-+	ckpt_debug("active %d < %d (ret %d)\n",
-+		   ctx->active_pid, ctx->nr_pids, ret);
- 	if (!ret && ckpt_test_ctx_error(ctx)) {
- 		force_sig(SIGKILL, current);
- 		ret = -EBUSY;
-@@ -567,6 +566,8 @@ static int do_restore_task(void)
- 		return -EAGAIN;
- 	}
- 
-+	current->flags |= PF_RESTARTING;
-+
- 	/* wait for our turn, do the restore, and tell next task in line */
- 	ret = wait_task_active(ctx);
- 	if (ret < 0)
-@@ -576,6 +577,16 @@ static int do_restore_task(void)
- 	if (ret < 0)
- 		goto out;
- 
-+	/*
-+	 * zombie: we're done here; do_exit() will notice the @ctx on
-+	 * our current->checkpoint_ctx (and our PF_RESTARTING) - it
-+	 * will call restore_activate_next() and release the @ctx.
-+	 */
-+	if (ret) {
-+		ckpt_ctx_put(ctx);
-+		do_exit(current->exit_code);
-+	}
-+
- 	ret = restore_activate_next(ctx);
- 	if (ret < 0)
- 		goto out;
-@@ -592,6 +603,7 @@ static int do_restore_task(void)
- 		wake_up_all(&ctx->waitq);
- 	}
- 
-+	current->flags &= ~PF_RESTARTING;
- 	ckpt_ctx_put(ctx);
- 	return ret;
+diff --git a/arch/x86/kernel/syscall_table_32.S b/arch/x86/kernel/syscall_table_32.S
+index d51321d..879e5ec 100644
+--- a/arch/x86/kernel/syscall_table_32.S
++++ b/arch/x86/kernel/syscall_table_32.S
+@@ -336,3 +336,4 @@ ENTRY(sys_call_table)
+ 	.long sys_pwritev
+ 	.long sys_rt_tgsigqueueinfo	/* 335 */
+ 	.long sys_perf_counter_open
++	.long ptregs_clone_with_pids
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 59b21db..f5a0cef 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1327,6 +1327,97 @@ struct task_struct * __cpuinit fork_idle(int cpu)
  }
-@@ -929,3 +941,24 @@ long do_restart(struct ckpt_ctx *ctx, pid_t pid)
  
- 	return ret;
- }
-+
-+/**
-+ * exit_checkpoint - callback from do_exit to cleanup checkpoint state
-+ * @tsk: terminating task
+ /*
++ * If user specified any 'target-pids' in @upid_setp, copy them from
++ * user and return a pointer to a local copy of the list of pids. The
++ * caller must free the list, when they are done using it.
++ *
++ * If user did not specify any target pids, return NULL (caller should
++ * treat this like normal clone).
++ *
++ * On any errors, return the error code
 + */
-+void exit_checkpoint(struct task_struct *tsk)
++static pid_t *copy_target_pids(void __user *upid_setp)
 +{
-+	struct ckpt_ctx *ctx;
++	int j;
++	int rc;
++	int size;
++	int unum_pids;		/* # of pids specified by user */
++	int knum_pids;		/* # of pids needed in kernel */
++	pid_t *target_pids;
++	struct target_pid_set pid_set;
 +
-+	/* no one else will touch this, because @tsk is dead already */
-+	ctx = xchg(&tsk->checkpoint_ctx, NULL);
++	if (!upid_setp)
++		return NULL;
 +
-+	/* restarting zombies will activate next task in restart */
-+	if (tsk->flags & PF_RESTARTING) {
-+		BUG_ON(ctx->active_pid == -1);
-+		if (restore_activate_next(ctx) < 0)
-+			pr_warning("c/r: [%d] failed zombie exit\n", tsk->pid);
++	rc = copy_from_user(&pid_set, upid_setp, sizeof(pid_set));
++	if (rc)
++		return ERR_PTR(-EFAULT);
++
++	unum_pids = pid_set.num_pids;
++	knum_pids = task_pid(current)->level + 1;
++
++	if (!unum_pids)
++		return NULL;
++
++	if (unum_pids < 0 || unum_pids > knum_pids)
++		return ERR_PTR(-EINVAL);
++
++	/*
++	 * To keep alloc_pid() simple, allocate an extra pid_t in target_pids[]
++	 * and set it to 0. This last entry in target_pids[] corresponds to the
++	 * (yet-to-be-created) descendant pid-namespace if CLONE_NEWPID was
++	 * specified. If CLONE_NEWPID was not specified, this last entry will
++	 * simply be ignored.
++	 */
++	target_pids = kzalloc((knum_pids + 1) * sizeof(pid_t), GFP_KERNEL);
++	if (!target_pids)
++		return ERR_PTR(-ENOMEM);
++
++	/*
++	 * A process running in a level 2 pid namespace has three pid namespaces
++	 * and hence three pid numbers. If this process is checkpointed,
++	 * information about these three namespaces are saved. We refer to these
++	 * namespaces as 'known namespaces'.
++	 *
++	 * If this checkpointed process is however restarted in a level 3 pid
++	 * namespace, the restarted process has an extra ancestor pid namespace
++	 * (i.e 'unknown namespace') and 'knum_pids' exceeds 'unum_pids'.
++	 *
++	 * During restart, the process requests specific pids for its 'known
++	 * namespaces' and lets kernel assign pids to its 'unknown namespaces'.
++	 *
++	 * Since the requested-pids correspond to 'known namespaces' and since
++	 * 'known-namespaces' are younger than (i.e descendants of) 'unknown-
++	 * namespaces', copy requested pids to the back-end of target_pids[]
++	 * (i.e before the last entry for CLONE_NEWPID mentioned above).
++	 * Any entries in target_pids[] not corresponding to a requested pid
++	 * will be set to zero and kernel assigns a pid in those namespaces.
++	 *
++	 * NOTE: The order of pids in target_pids[] is oldest pid namespace to
++	 * 	 youngest (target_pids[0] corresponds to init_pid_ns). i.e.
++	 * 	 the order is:
++	 *
++	 * 		- pids for 'unknown-namespaces' (if any)
++	 * 		- pids for 'known-namespaces' (requested pids)
++	 * 		- 0 in the last entry (for CLONE_NEWPID).
++	 */
++	j = knum_pids - unum_pids;
++	size = unum_pids * sizeof(pid_t);
++
++	rc = copy_from_user(&target_pids[j], pid_set.target_pids, size);
++	if (rc) {
++		rc = -EFAULT;
++		goto out_free;
 +	}
 +
-+	ckpt_ctx_put(ctx);
++	return target_pids;
++
++out_free:
++	kfree(target_pids);
++	return ERR_PTR(rc);
 +}
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 4227b31..5c02d9b 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -96,6 +96,7 @@ extern long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid);
- extern long do_restart(struct ckpt_ctx *ctx, pid_t pid);
++
++/*
+  *  Ok, this is the main fork-routine.
+  *
+  * It copies the process, and if successful kick-starts
+@@ -1343,7 +1434,7 @@ long do_fork_with_pids(unsigned long clone_flags,
+ 	struct task_struct *p;
+ 	int trace = 0;
+ 	long nr;
+-	pid_t *target_pids = NULL;
++	pid_t *target_pids;
  
- /* task */
-+extern int ckpt_activate_next(struct ckpt_ctx *ctx);
- extern int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t);
- extern int restore_task(struct ckpt_ctx *ctx);
+ 	/*
+ 	 * Do some preliminary argument and permissions checking before we
+@@ -1377,6 +1468,17 @@ long do_fork_with_pids(unsigned long clone_flags,
+ 		}
+ 	}
  
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 26e10fb..8ae3bbe 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -132,6 +132,7 @@ struct ckpt_hdr_task {
- 	__u32 exit_state;
- 	__u32 exit_code;
- 	__u32 exit_signal;
-+	__u32 pdeath_signal;
++	target_pids = copy_target_pids(pid_setp);
++
++	if (target_pids) {
++		if (IS_ERR(target_pids))
++			return PTR_ERR(target_pids);
++
++		nr = -EPERM;
++		if (!capable(CAP_SYS_ADMIN))
++			goto out_free;
++	}
++
+ 	/*
+ 	 * When called from kernel_thread, don't do user tracing stuff.
+ 	 */
+@@ -1438,6 +1540,10 @@ long do_fork_with_pids(unsigned long clone_flags,
+ 	} else {
+ 		nr = PTR_ERR(p);
+ 	}
++
++out_free:
++	kfree(target_pids);
++
+ 	return nr;
+ }
  
- 	__u64 set_child_tid;
- 	__u64 clear_child_tid;
 -- 
 1.6.0.4
 
