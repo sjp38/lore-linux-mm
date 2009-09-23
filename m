@@ -1,847 +1,491 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E35D36B0087
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:39 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BC5C6B00A8
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:40 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 52/80] c/r: support share-memory sysv-ipc
-Date: Wed, 23 Sep 2009 19:51:32 -0400
-Message-Id: <1253749920-18673-53-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 57/80] c/r: define s390-specific checkpoint-restart code
+Date: Wed, 23 Sep 2009 19:51:37 -0400
+Message-Id: <1253749920-18673-58-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Dan Smith <danms@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Checkpoint of sysvipc shared memory is performed in two steps: first,
-the entire ipc namespace is dumped as a whole by iterating through all
-shm objects and dumping the contents of each one. The shmem inode is
-registered in the objhash. Second, for each vma that refers to ipc
-shared memory we find the inode in the objhash, and save the objref.
+From: Dan Smith <danms@us.ibm.com>
 
-(If we find a new inode, that indicates that the ipc namespace is not
-entirely frozen and someone must have manipulated it since step 1).
+Implement the s390 arch-specific checkpoint/restart helpers.  This
+is on top of Oren Laadan's c/r code.
 
-Handling of shm objects that have been deleted (via IPC_RMID) is left
-to a later patch in this series.
+With these, I am able to checkpoint and restart simple programs as per
+Oren's patch intro.  While on x86 I never had to freeze a single task
+to checkpoint it, on s390 I do need to.  That is a prereq for consistent
+snapshots (esp with multiple processes) anyway so I don't see that as
+a problem.
 
-Changelog[v18]:
-  - Collect files used by shm objects
-  - Use file instead of inode as shared object during checkpoint
-Changelog[v17]:
-  - Restore objects in the right namespace
-  - Properly initialize ctx->deferqueue
-  - Fix compilation with CONFIG_CHECKPOINT=n
+Changelog:
+    Jun 15:
+            . Fix checkpoint and restart compat wrappers
+    May 28:
+            . Export asm/checkpoint_hdr.h to userspace
+            . Define CKPT_ARCH_ID for S390
+    Apr 11:
+            . Introduce ckpt_arch_vdso()
+    Feb 27:
+            . Add checkpoint_s390.h
+            . Fixed up save and restore of PSW, with the non-address bits
+              properly masked out
+    Feb 25:
+            . Make checkpoint_hdr.h safe for inclusion in userspace
+            . Replace comment about vsdo code
+            . Add comment about restoring access registers
+            . Write and read an empty ckpt_hdr_head_arch record to appease
+              code (mktree) that expects it to be there
+            . Utilize NUM_CKPT_WORDS in checkpoint_hdr.h
+    Feb 24:
+            . Use CKPT_COPY() to unify the un/loading of cpu and mm state
+            . Fix fprs definition in ckpt_hdr_cpu
+            . Remove debug WARN_ON() from checkpoint.c
+    Feb 23:
+            . Macro-ize the un/packing of trace flags
+            . Fix the crash when externally-linked
+            . Break out the restart functions into restart.c
+            . Remove unneeded s390_enable_sie() call
+    Jan 30:
+            . Switched types in ckpt_hdr_cpu to __u64 etc.
+              (Per Oren suggestion)
+            . Replaced direct inclusion of structs in
+              ckpt_hdr_cpu with the struct members.
+              (Per Oren suggestion)
+            . Also ended up adding a bunch of new things
+              into restart (mm_segment, ksp, etc) in vain
+              attempt to get code using fpu to not segfault
+              after restart.
 
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Signed-off-by: Dan Smith <danms@us.ibm.com>
 ---
- checkpoint/checkpoint.c          |    5 +
- checkpoint/memory.c              |   28 ++++-
- checkpoint/restart.c             |    5 +
- checkpoint/sys.c                 |    7 +
- include/linux/checkpoint.h       |   10 ++
- include/linux/checkpoint_hdr.h   |   19 +++-
- include/linux/checkpoint_types.h |    1 +
- include/linux/shm.h              |   15 ++
- ipc/Makefile                     |    2 +-
- ipc/checkpoint.c                 |   25 +++-
- ipc/checkpoint_shm.c             |  277 ++++++++++++++++++++++++++++++++++++++
- ipc/shm.c                        |   84 +++++++++++-
- ipc/util.h                       |    9 ++
- kernel/nsproxy.c                 |    8 +
- mm/shmem.c                       |    2 +-
- 15 files changed, 482 insertions(+), 15 deletions(-)
- create mode 100644 ipc/checkpoint_shm.c
+ arch/s390/include/asm/Kbuild           |    1 +
+ arch/s390/include/asm/checkpoint_hdr.h |   89 +++++++++++++++
+ arch/s390/include/asm/unistd.h         |    4 +-
+ arch/s390/kernel/compat_wrapper.S      |   14 +++
+ arch/s390/kernel/syscalls.S            |    2 +
+ arch/s390/mm/Makefile                  |    1 +
+ arch/s390/mm/checkpoint.c              |  194 ++++++++++++++++++++++++++++++++
+ arch/s390/mm/checkpoint_s390.h         |   23 ++++
+ include/linux/checkpoint_hdr.h         |    2 +
+ 9 files changed, 329 insertions(+), 1 deletions(-)
+ create mode 100644 arch/s390/include/asm/checkpoint_hdr.h
+ create mode 100644 arch/s390/mm/checkpoint.c
+ create mode 100644 arch/s390/mm/checkpoint_s390.h
 
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index e35c5a8..27eec5c 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -24,6 +24,7 @@
- #include <linux/utsname.h>
- #include <linux/magic.h>
- #include <linux/hrtimer.h>
-+#include <linux/deferqueue.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
+diff --git a/arch/s390/include/asm/Kbuild b/arch/s390/include/asm/Kbuild
+index 63a2341..3282a6e 100644
+--- a/arch/s390/include/asm/Kbuild
++++ b/arch/s390/include/asm/Kbuild
+@@ -8,6 +8,7 @@ header-y += ucontext.h
+ header-y += vtoc.h
+ header-y += zcrypt.h
+ header-y += chsc.h
++header-y += checkpoint_hdr.h
  
-@@ -793,6 +794,10 @@ long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid)
- 	if (ret < 0)
- 		goto out;
- 
-+	ret = deferqueue_run(ctx->deferqueue);  /* run deferred work */
-+	if (ret < 0)
-+		goto out;
-+
- 	/* verify that all objects were indeed visited */
- 	if (!ckpt_obj_visited(ctx)) {
- 		ckpt_write_err(ctx, "E", "leak: unvisited", -EBUSY);
-diff --git a/checkpoint/memory.c b/checkpoint/memory.c
-index f765993..0da948f 100644
---- a/checkpoint/memory.c
-+++ b/checkpoint/memory.c
-@@ -20,6 +20,7 @@
- #include <linux/mman.h>
- #include <linux/pagemap.h>
- #include <linux/mm_types.h>
-+#include <linux/shm.h>
- #include <linux/proc_fs.h>
- #include <linux/swap.h>
- #include <linux/checkpoint.h>
-@@ -459,9 +460,9 @@ static int vma_dump_pages(struct ckpt_ctx *ctx, int total)
-  * virtual addresses into ctx->pgarr_list page-array chain. Then dump
-  * the addresses, followed by the page contents.
-  */
--static int checkpoint_memory_contents(struct ckpt_ctx *ctx,
--				      struct vm_area_struct *vma,
--				      struct inode *inode)
-+int checkpoint_memory_contents(struct ckpt_ctx *ctx,
-+			       struct vm_area_struct *vma,
-+			       struct inode *inode)
- {
- 	struct ckpt_hdr_pgarr *h;
- 	unsigned long addr, end;
-@@ -1084,6 +1085,13 @@ static int anon_private_restore(struct ckpt_ctx *ctx,
- 	return private_vma_restore(ctx, mm, NULL, h);
- }
- 
-+static int bad_vma_restore(struct ckpt_ctx *ctx,
-+			   struct mm_struct *mm,
-+			   struct ckpt_hdr_vma *h)
-+{
-+	return -EINVAL;
-+}
-+
- /* callbacks to restore vma per its type: */
- struct restore_vma_ops {
- 	char *vma_name;
-@@ -1136,6 +1144,20 @@ static struct restore_vma_ops restore_vma_ops[] = {
- 		.vma_type = CKPT_VMA_SHM_FILE,
- 		.restore = filemap_restore,
- 	},
-+	/* sysvipc shared */
-+	{
-+		.vma_name = "IPC SHARED",
-+		.vma_type = CKPT_VMA_SHM_IPC,
-+		/* ipc inode itself is restore by restore_ipc_ns()... */
-+		.restore = bad_vma_restore,
-+
-+	},
-+	/* sysvipc shared (skip) */
-+	{
-+		.vma_name = "IPC SHARED (skip)",
-+		.vma_type = CKPT_VMA_SHM_IPC_SKIP,
-+		.restore = ipcshm_restore,
-+	},
- };
- 
- /**
-diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index e48ad68..53a759a 100644
---- a/checkpoint/restart.c
-+++ b/checkpoint/restart.c
-@@ -21,6 +21,7 @@
- #include <linux/utsname.h>
- #include <asm/syscall.h>
- #include <linux/elf.h>
-+#include <linux/deferqueue.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
- 
-@@ -881,6 +882,10 @@ static int do_restore_coord(struct ckpt_ctx *ctx, pid_t pid)
- 			goto out;
- 	}
- 
-+	ret = deferqueue_run(ctx->deferqueue);  /* run deferred work */
-+	if (ret < 0)
-+		goto out;
-+
- 	ret = restore_read_tail(ctx);
- 	if (ret < 0)
- 		goto out;
-diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-index 1c98eee..d6a1650 100644
---- a/checkpoint/sys.c
-+++ b/checkpoint/sys.c
-@@ -21,6 +21,7 @@
- #include <linux/uaccess.h>
- #include <linux/capability.h>
- #include <linux/checkpoint.h>
-+#include <linux/deferqueue.h>
- 
- /*
-  * ckpt_unpriv_allowed - sysctl controlled, do not allow checkpoints or
-@@ -191,6 +192,9 @@ static void ckpt_ctx_free(struct ckpt_ctx *ctx)
- {
- 	BUG_ON(atomic_read(&ctx->refcount));
- 
-+	if (ctx->deferqueue)
-+		deferqueue_destroy(ctx->deferqueue);
-+
- 	if (ctx->files_deferq)
- 		deferqueue_destroy(ctx->files_deferq);
- 
-@@ -243,6 +247,9 @@ static struct ckpt_ctx *ckpt_ctx_alloc(int fd, unsigned long uflags,
- 	err = -ENOMEM;
- 	if (ckpt_obj_hash_alloc(ctx) < 0)
- 		goto err;
-+	ctx->deferqueue = deferqueue_create();
-+	if (!ctx->deferqueue)
-+		goto err;
- 
- 	ctx->files_deferq = deferqueue_create();
- 	if (!ctx->files_deferq)
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index c8501b8..4c1c13e 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -158,9 +158,16 @@ extern void *restore_uts_ns(struct ckpt_ctx *ctx);
- #ifdef CONFIG_SYSVIPC
- extern int checkpoint_ipc_ns(struct ckpt_ctx *ctx, void *ptr);
- extern void *restore_ipc_ns(struct ckpt_ctx *ctx);
-+extern int ckpt_collect_ipc_ns(struct ckpt_ctx *ctx,
-+			       struct ipc_namespace *ipc_ns);
- #else
- #define checkpoint_ipc_ns  checkpoint_bad
- #define restore_ipc_ns  restore_bad
-+static inline int ckpt_collect_ipc_ns(struct ckpt_ctx *ctx,
-+				      struct ipc_namespace *ipc_ns)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_SYSVIPC */
- 
- /* file table */
-@@ -215,6 +222,9 @@ extern unsigned long generic_vma_restore(struct mm_struct *mm,
- extern int private_vma_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
- 			       struct file *file, struct ckpt_hdr_vma *h);
- 
-+extern int checkpoint_memory_contents(struct ckpt_ctx *ctx,
-+				      struct vm_area_struct *vma,
-+				      struct inode *inode);
- extern int restore_memory_contents(struct ckpt_ctx *ctx, struct inode *inode);
- 
- 
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 1ecec60..a4cf7a9 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -314,7 +314,9 @@ enum vma_type {
- 	CKPT_VMA_SHM_ANON,	/* shared anonymous */
- 	CKPT_VMA_SHM_ANON_SKIP,	/* shared anonymous (skip contents) */
- 	CKPT_VMA_SHM_FILE,	/* shared mapped file, only msync */
--	CKPT_VMA_MAX
-+	CKPT_VMA_SHM_IPC,	/* shared sysvipc */
-+	CKPT_VMA_SHM_IPC_SKIP,	/* shared sysvipc (skip contents) */
-+	CKPT_VMA_MAX,
- };
- 
- /* vma descriptor */
-@@ -364,6 +366,7 @@ struct ckpt_hdr_ipc {
- } __attribute__((aligned(8)));
- 
- struct ckpt_hdr_ipc_perms {
-+	struct ckpt_hdr h;
- 	__s32 id;
- 	__u32 key;
- 	__u32 uid;
-@@ -375,6 +378,20 @@ struct ckpt_hdr_ipc_perms {
- 	__u64 seq;
- } __attribute__((aligned(8)));
- 
-+struct ckpt_hdr_ipc_shm {
-+	struct ckpt_hdr h;
-+	struct ckpt_hdr_ipc_perms perms;
-+	__u64 shm_segsz;
-+	__u64 shm_atim;
-+	__u64 shm_dtim;
-+	__u64 shm_ctim;
-+	__s32 shm_cprid;
-+	__s32 shm_lprid;
-+	__u32 mlock_uid;
-+	__u32 flags;
-+	__u32 objref;
-+} __attribute__((aligned(8)));
-+
- 
- #define CKPT_TST_OVERFLOW_16(a, b) \
- 	((sizeof(a) > sizeof(b)) && ((a) > SHORT_MAX))
-diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
-index 7e6051f..9632aa4 100644
---- a/include/linux/checkpoint_types.h
-+++ b/include/linux/checkpoint_types.h
-@@ -48,6 +48,7 @@ struct ckpt_ctx {
- 	atomic_t refcount;
- 
- 	struct ckpt_obj_hash *obj_hash;	/* repository for shared objects */
-+	struct deferqueue_head *deferqueue;	/* deferred c/r work */
- 	struct deferqueue_head *files_deferq;	/* deferred file-table work */
- 
- 	struct path fs_mnt;     /* container root (FIXME) */
-diff --git a/include/linux/shm.h b/include/linux/shm.h
-index eca6235..94ac1a7 100644
---- a/include/linux/shm.h
-+++ b/include/linux/shm.h
-@@ -118,6 +118,21 @@ static inline int is_file_shm_hugepages(struct file *file)
- }
- #endif
- 
-+struct ipc_namespace;
-+extern int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
-+		       struct shmid_ds __user *buf, int version);
-+
-+#ifdef CONFIG_CHECKPOINT
-+#ifdef CONFIG_SYSVIPC
-+struct ckpt_ctx;
-+struct ckpt_hdr_vma;
-+extern int ipcshm_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
-+			  struct ckpt_hdr_vma *h);
-+#else
-+#define ipcshm_restore NULL
-+#endif
-+#endif
-+
- #endif /* __KERNEL__ */
- 
- #endif /* _LINUX_SHM_H_ */
-diff --git a/ipc/Makefile b/ipc/Makefile
-index b747127..db4b076 100644
---- a/ipc/Makefile
-+++ b/ipc/Makefile
-@@ -9,4 +9,4 @@ obj_mq-$(CONFIG_COMPAT) += compat_mq.o
- obj-$(CONFIG_POSIX_MQUEUE) += mqueue.o msgutil.o $(obj_mq-y)
- obj-$(CONFIG_IPC_NS) += namespace.o
- obj-$(CONFIG_POSIX_MQUEUE_SYSCTL) += mq_sysctl.o
--obj-$(CONFIG_SYSVIPC_CHECKPOINT) += checkpoint.o
-+obj-$(CONFIG_SYSVIPC_CHECKPOINT) += checkpoint.o checkpoint_shm.o
-diff --git a/ipc/checkpoint.c b/ipc/checkpoint.c
-index 4eb1a97..b360861 100644
---- a/ipc/checkpoint.c
-+++ b/ipc/checkpoint.c
-@@ -113,9 +113,9 @@ static int do_checkpoint_ipc_ns(struct ckpt_ctx *ctx,
- 	if (ret < 0)
- 		return ret;
- 
--#if 0 /* NEXT FEW PATCHES */
- 	ret = checkpoint_ipc_any(ctx, ipc_ns, IPC_SHM_IDS,
- 				 CKPT_HDR_IPC_SHM, checkpoint_ipc_shm);
-+#if 0 /* NEXT FEW PATCHES */
- 	if (ret < 0)
- 		return ret;
- 	ret = checkpoint_ipc_any(ctx, ipc_ns, IPC_MSG_IDS,
-@@ -134,6 +134,27 @@ int checkpoint_ipc_ns(struct ckpt_ctx *ctx, void *ptr)
- }
- 
- /**************************************************************************
-+ * Collect
-+ */
-+
-+int ckpt_collect_ipc_ns(struct ckpt_ctx *ctx, struct ipc_namespace *ipc_ns)
-+{
-+	struct ipc_ids *ipc_ids;
-+	int ret;
-+
-+	/*
-+	 * Each shm object holds a reference to a file pointer, so
-+	 * collect them. Nothing to do for msg and sem.
-+	 */
-+	ipc_ids = &ipc_ns->ids[IPC_SHM_IDS];
-+	down_read(&ipc_ids->rw_mutex);
-+	ret = idr_for_each(&ipc_ids->ipcs_idr, ckpt_collect_ipc_shm, ctx);
-+	up_read(&ipc_ids->rw_mutex);
-+
-+	return ret;
-+}
-+
-+/**************************************************************************
-  * Restart
-  */
- 
-@@ -286,9 +307,9 @@ static struct ipc_namespace *do_restore_ipc_ns(struct ckpt_ctx *ctx)
- 	get_ipc_ns(ipc_ns);
- #endif
- 
--#if 0 /* NEXT FEW PATCHES */
- 	ret = restore_ipc_any(ctx, ipc_ns, IPC_SHM_IDS,
- 			      CKPT_HDR_IPC_SHM, restore_ipc_shm);
-+#if 0 /* NEXT FEW PATCHES */
- 	if (ret < 0)
- 		goto out;
- 	ret = restore_ipc_any(ctx, ipc_ns, IPC_MSG_IDS,
-diff --git a/ipc/checkpoint_shm.c b/ipc/checkpoint_shm.c
+ unifdef-y += cmb.h
+ unifdef-y += debug.h
+diff --git a/arch/s390/include/asm/checkpoint_hdr.h b/arch/s390/include/asm/checkpoint_hdr.h
 new file mode 100644
-index 0000000..826e430
+index 0000000..ad9449e
 --- /dev/null
-+++ b/ipc/checkpoint_shm.c
-@@ -0,0 +1,277 @@
++++ b/arch/s390/include/asm/checkpoint_hdr.h
+@@ -0,0 +1,89 @@
++#ifndef __ASM_S390_CKPT_HDR_H
++#define __ASM_S390_CKPT_HDR_H
 +/*
-+ *  Checkpoint/restart - dump state of sysvipc shm
++ *  Checkpoint/restart - architecture specific headers s/390
 + *
-+ *  Copyright (C) 2009 Oren Laadan
++ *  Copyright IBM Corp. 2009
 + *
 + *  This file is subject to the terms and conditions of the GNU General Public
 + *  License.  See the file COPYING in the main directory of the Linux
 + *  distribution for more details.
 + */
 +
-+/* default debug level for output */
-+#define CKPT_DFLAG  CKPT_DIPC
++#ifndef _CHECKPOINT_CKPT_HDR_H_
++#error asm/checkpoint_hdr.h included directly
++#endif
 +
-+#include <linux/mm.h>
-+#include <linux/shm.h>
-+#include <linux/shmem_fs.h>
-+#include <linux/hugetlb.h>
-+#include <linux/rwsem.h>
-+#include <linux/sched.h>
-+#include <linux/file.h>
-+#include <linux/syscalls.h>
-+#include <linux/nsproxy.h>
-+#include <linux/ipc_namespace.h>
-+#include <linux/deferqueue.h>
++#include <linux/types.h>
++#include <asm/ptrace.h>
 +
-+#include <linux/msg.h>	/* needed for util.h that uses 'struct msg_msg' */
-+#include "util.h"
++#ifdef __KERNEL__
++#include <asm/processor.h>
++#else
++#include <sys/user.h>
++#endif
++
++#ifdef CONFIG_64BIT
++#define CKPT_ARCH_ID	CKPT_ARCH_S390X
++/* else - if we ever support 32bit - CKPT_ARCH_S390 */
++#endif
++
++/*
++ * Notes
++ * NUM_GPRS defined in <asm/ptrace.h> to be 16
++ * NUM_FPRS defined in <asm/ptrace.h> to be 16
++ * NUM_APRS defined in <asm/ptrace.h> to be 16
++ * NUM_CR_WORDS defined in <asm/ptrace.h> to be 3
++ */
++struct ckpt_hdr_cpu {
++	struct ckpt_hdr h;
++	__u64 args[1];
++	__u64 gprs[NUM_GPRS];
++	__u64 orig_gpr2;
++	__u16 svcnr;
++	__u16 ilc;
++	__u32 acrs[NUM_ACRS];
++	__u64 ieee_instruction_pointer;
++
++	/* psw_t */
++	__u64 psw_t_mask;
++	__u64 psw_t_addr;
++
++	/* s390_fp_regs_t */
++	__u32 fpc;
++	union {
++		float f;
++		double d;
++		__u64 ui;
++		struct {
++			__u32 fp_hi;
++			__u32 fp_lo;
++		} fp;
++	} fprs[NUM_FPRS];
++
++	/* per_struct */
++	__u64 per_control_regs[NUM_CR_WORDS];
++	__u64 starting_addr;
++	__u64 ending_addr;
++	__u64 address;
++	__u16 perc_atmid;
++	__u8 access_id;
++	__u8 single_step;
++	__u8 instruction_fetch;
++};
++
++struct ckpt_hdr_mm_context {
++	struct ckpt_hdr h;
++	unsigned long vdso_base;
++	int noexec;
++	int has_pgste;
++	int alloc_pgste;
++	unsigned long asce_bits;
++	unsigned long asce_limit;
++};
++
++struct ckpt_hdr_header_arch {
++	struct ckpt_hdr h;
++};
++
++#endif /* __ASM_S390_CKPT_HDR__H */
+diff --git a/arch/s390/include/asm/unistd.h b/arch/s390/include/asm/unistd.h
+index c80602d..5d1678a 100644
+--- a/arch/s390/include/asm/unistd.h
++++ b/arch/s390/include/asm/unistd.h
+@@ -269,7 +269,9 @@
+ #define	__NR_pwritev		329
+ #define __NR_rt_tgsigqueueinfo	330
+ #define __NR_perf_counter_open	331
+-#define NR_syscalls 332
++#define __NR_checkpoint		332
++#define __NR_restart		333
++#define NR_syscalls 334
+ 
+ /* 
+  * There are some system calls that are not present on 64 bit, some
+diff --git a/arch/s390/kernel/compat_wrapper.S b/arch/s390/kernel/compat_wrapper.S
+index 88a8336..e882f99 100644
+--- a/arch/s390/kernel/compat_wrapper.S
++++ b/arch/s390/kernel/compat_wrapper.S
+@@ -1840,3 +1840,17 @@ sys_perf_counter_open_wrapper:
+ 	lgfr	%r5,%r5			# int
+ 	llgfr	%r6,%r6			# unsigned long
+ 	jg	sys_perf_counter_open	# branch to system call
++
++	.globl sys_checkpoint_wrapper
++sys_checkpoint_wrapper:
++	lgfr	%r2,%r2			# pid_t
++	lgfr	%r3,%r3			# int
++	llgfr	%r4,%r4			# unsigned long
++	jg	compat_sys_checkpoint
++
++	.globl sys_restore_wrapper
++sys_restore_wrapper:
++	lgfr	%r2,%r2			# int
++	lgfr	%r3,%r3			# int
++	llgfr	%r4,%r4			# unsigned long
++	jg	compat_sys_restore
+diff --git a/arch/s390/kernel/syscalls.S b/arch/s390/kernel/syscalls.S
+index ad1acd2..67518e2 100644
+--- a/arch/s390/kernel/syscalls.S
++++ b/arch/s390/kernel/syscalls.S
+@@ -340,3 +340,5 @@ SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv_wrapper)
+ SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev_wrapper)
+ SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo_wrapper) /* 330 */
+ SYSCALL(sys_perf_counter_open,sys_perf_counter_open,sys_perf_counter_open_wrapper)
++SYSCALL(sys_checkpoint,sys_checkpoint,sys_checkpoint_wrapper)
++SYSCALL(sys_restart,sys_restart,sys_restore_wrapper)
+diff --git a/arch/s390/mm/Makefile b/arch/s390/mm/Makefile
+index db05661..e3d356d 100644
+--- a/arch/s390/mm/Makefile
++++ b/arch/s390/mm/Makefile
+@@ -6,3 +6,4 @@ obj-y	 := init.o fault.o extmem.o mmap.o vmem.o pgtable.o maccess.o
+ obj-$(CONFIG_CMM) += cmm.o
+ obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
+ obj-$(CONFIG_PAGE_STATES) += page-states.o
++obj-$(CONFIG_CHECKPOINT) += checkpoint.o
+diff --git a/arch/s390/mm/checkpoint.c b/arch/s390/mm/checkpoint.c
+new file mode 100644
+index 0000000..40dd417
+--- /dev/null
++++ b/arch/s390/mm/checkpoint.c
+@@ -0,0 +1,194 @@
++/*
++ *  Checkpoint/restart - architecture specific support for s390
++ *
++ *  Copyright IBM Corp. 2009
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/kernel.h>
++#include <asm/system.h>
++#include <asm/pgtable.h>
++#include <asm/elf.h>
 +
 +#include <linux/checkpoint.h>
 +#include <linux/checkpoint_hdr.h>
 +
-+/************************************************************************
-+ * ipc checkpoint
++/**************************************************************************
++ * Checkpoint
 + */
 +
-+static int fill_ipc_shm_hdr(struct ckpt_ctx *ctx,
-+			    struct ckpt_hdr_ipc_shm *h,
-+			    struct shmid_kernel *shp)
++static void s390_copy_regs(int op, struct ckpt_hdr_cpu *h,
++			   struct task_struct *t)
 +{
-+	int ret = 0;
++	struct pt_regs *regs = task_pt_regs(t);
++	struct thread_struct *thr = &t->thread;
 +
-+	ipc_lock_by_ptr(&shp->shm_perm);
-+
-+	ret = checkpoint_fill_ipc_perms(&h->perms, &shp->shm_perm);
-+	if (ret < 0)
-+		goto unlock;
-+
-+	h->shm_segsz = shp->shm_segsz;
-+	h->shm_atim = shp->shm_atim;
-+	h->shm_dtim = shp->shm_dtim;
-+	h->shm_ctim = shp->shm_ctim;
-+	h->shm_cprid = shp->shm_cprid;
-+	h->shm_lprid = shp->shm_lprid;
-+
-+	if (shp->mlock_user)
-+		h->mlock_uid = shp->mlock_user->uid;
-+	else
-+		h->mlock_uid = (unsigned int) -1;
-+
-+	h->flags = 0;
-+	/* check if shm was setup with SHM_NORESERVE */
-+	if (SHMEM_I(shp->shm_file->f_dentry->d_inode)->flags & VM_NORESERVE)
-+		h->flags |= SHM_NORESERVE;
-+	/* check if shm was setup with SHM_HUGETLB (unsupported yet) */
-+	if (is_file_hugepages(shp->shm_file)) {
-+		pr_warning("c/r: unsupported SHM_HUGETLB\n");
-+		ret = -ENOSYS;
++	/* Save the whole PSW to facilitate forensic debugging, but only
++	 * restore the address portion to avoid letting userspace do
++	 * bad things by manipulating its value.
++	 */
++	if (op == CKPT_CPT) {
++		CKPT_COPY(op, h->psw_t_addr, regs->psw.addr);
++	} else {
++		regs->psw.addr &= ~PSW_ADDR_INSN;
++		regs->psw.addr |= h->psw_t_addr;
 +	}
 +
-+ unlock:
-+	ipc_unlock(&shp->shm_perm);
-+	ckpt_debug("shm: cprid %d lprid %d segsz %lld mlock %d\n",
-+		 h->shm_cprid, h->shm_lprid, h->shm_segsz, h->mlock_uid);
++	CKPT_COPY(op, h->args[0], regs->args[0]);
++	CKPT_COPY(op, h->orig_gpr2, regs->orig_gpr2);
++	CKPT_COPY(op, h->svcnr, regs->svcnr);
++	CKPT_COPY(op, h->ilc, regs->ilc);
++	CKPT_COPY(op, h->ieee_instruction_pointer,
++		thr->ieee_instruction_pointer);
++	CKPT_COPY(op, h->psw_t_mask, regs->psw.mask);
++	CKPT_COPY(op, h->fpc, thr->fp_regs.fpc);
++	CKPT_COPY(op, h->starting_addr, thr->per_info.starting_addr);
++	CKPT_COPY(op, h->ending_addr, thr->per_info.ending_addr);
++	CKPT_COPY(op, h->address, thr->per_info.lowcore.words.address);
++	CKPT_COPY(op, h->perc_atmid, thr->per_info.lowcore.words.perc_atmid);
++	CKPT_COPY(op, h->access_id, thr->per_info.lowcore.words.access_id);
++	CKPT_COPY(op, h->single_step, thr->per_info.single_step);
++	CKPT_COPY(op, h->instruction_fetch, thr->per_info.instruction_fetch);
 +
-+	return ret;
-+}
-+
-+int checkpoint_ipc_shm(int id, void *p, void *data)
-+{
-+	struct ckpt_hdr_ipc_shm *h;
-+	struct ckpt_ctx *ctx = (struct ckpt_ctx *) data;
-+	struct kern_ipc_perm *perm = (struct kern_ipc_perm *) p;
-+	struct shmid_kernel *shp;
-+	struct inode *inode;
-+	int first, objref;
-+	int ret;
-+
-+	shp = container_of(perm, struct shmid_kernel, shm_perm);
-+	inode = shp->shm_file->f_dentry->d_inode;
-+
-+	/* we collected the file but we don't checkpoint it per-se */
-+	ret = ckpt_obj_visit(ctx, shp->shm_file, CKPT_OBJ_FILE);
-+	if (ret < 0)
-+		return ret;
-+
-+	objref = ckpt_obj_lookup_add(ctx, inode, CKPT_OBJ_INODE, &first);
-+	if (objref < 0)
-+		return objref;
-+
-+	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_IPC_SHM);
-+	if (!h)
-+		return -ENOMEM;
-+
-+	ret = fill_ipc_shm_hdr(ctx, h, shp);
-+	if (ret < 0)
-+		goto out;
-+
-+	h->objref = objref;
-+	ckpt_debug("shm: objref %d\n", h->objref);
-+
-+	ret = ckpt_write_obj(ctx, &h->h);
-+	if (ret < 0)
-+		goto out;
-+
-+	ret = checkpoint_memory_contents(ctx, NULL, inode);
-+ out:
-+	ckpt_hdr_put(ctx, h);
-+	return ret;
-+}
-+
-+/************************************************************************
-++ * ipc collect
-++ */
-+int ckpt_collect_ipc_shm(int id, void *p, void *data)
-+{
-+	struct ckpt_ctx *ctx = (struct ckpt_ctx *) data;
-+	struct kern_ipc_perm *perm = (struct kern_ipc_perm *) p;
-+	struct shmid_kernel *shp;
-+
-+	shp = container_of(perm, struct shmid_kernel, shm_perm);
-+	return ckpt_collect_file(ctx, shp->shm_file);
-+}
-+
-+/************************************************************************
-+ * ipc restart
-+ */
-+
-+struct dq_ipcshm_del {
++	CKPT_COPY_ARRAY(op, h->gprs, regs->gprs, NUM_GPRS);
 +	/*
-+	 * XXX: always keep ->ipcns first so that put_ipc_ns() can
-+	 * be safely provided as the dtor for this deferqueue object
++	 * for checkpoint in process context (from within a container),
++	 * the actual syscall is taking place at this very moment; so
++	 * we (optimistically) subtitute the future return value (0) of
++	 * this syscall into the orig_eax, so that upon restart it will
++	 * succeed (or it will endlessly retry checkpoint...)
 +	 */
-+	struct ipc_namespace *ipcns;
-+	int id;
-+};
-+
-+static int ipc_shm_delete(void *data)
-+{
-+	struct dq_ipcshm_del *dq = (struct dq_ipcshm_del *) data;
-+	mm_segment_t old_fs;
-+	int ret;
-+
-+	old_fs = get_fs();
-+	set_fs(get_ds());
-+	ret = shmctl_down(dq->ipcns, dq->id, IPC_RMID, NULL, 0);
-+	set_fs(old_fs);
-+
-+	put_ipc_ns(dq->ipcns);
-+	return ret;
++	if (op == CKPT_CPT && t==current) {
++		BUG_ON(h->gprs[2] < 0);
++		h->gprs[2] = 0;
++	}
++	CKPT_COPY_ARRAY(op, h->fprs, thr->fp_regs.fprs, NUM_FPRS);
++	CKPT_COPY_ARRAY(op, h->acrs, thr->acrs, NUM_ACRS);
++	CKPT_COPY_ARRAY(op, h->per_control_regs,
++		      thr->per_info.control_regs.words.cr, NUM_CR_WORDS);
 +}
 +
-+static int load_ipc_shm_hdr(struct ckpt_ctx *ctx,
-+			    struct ckpt_hdr_ipc_shm *h,
-+			    struct shmid_kernel *shp)
++static void s390_mm(int op, struct ckpt_hdr_mm_context *h,
++		    struct mm_struct *mm)
 +{
-+	int ret;
++	CKPT_COPY(op, h->noexec, mm->context.noexec);
++	CKPT_COPY(op, h->has_pgste, mm->context.has_pgste);
++	CKPT_COPY(op, h->alloc_pgste, mm->context.alloc_pgste);
++	CKPT_COPY(op, h->asce_bits, mm->context.asce_bits);
++	CKPT_COPY(op, h->asce_limit, mm->context.asce_limit);
++}
 +
-+	ret = restore_load_ipc_perms(&h->perms, &shp->shm_perm);
-+	if (ret < 0)
-+		return ret;
-+
-+	ckpt_debug("shm: cprid %d lprid %d segsz %lld mlock %d\n",
-+		 h->shm_cprid, h->shm_lprid, h->shm_segsz, h->mlock_uid);
-+
-+	if (h->shm_cprid < 0 || h->shm_lprid < 0)
-+		return -EINVAL;
-+
-+	shp->shm_segsz = h->shm_segsz;
-+	shp->shm_atim = h->shm_atim;
-+	shp->shm_dtim = h->shm_dtim;
-+	shp->shm_ctim = h->shm_ctim;
-+	shp->shm_cprid = h->shm_cprid;
-+	shp->shm_lprid = h->shm_lprid;
-+
++int checkpoint_thread(struct ckpt_ctx *ctx, struct task_struct *t)
++{
 +	return 0;
 +}
 +
-+int restore_ipc_shm(struct ckpt_ctx *ctx, struct ipc_namespace *ns)
++/* dump the cpu state and registers of a given task */
++int checkpoint_cpu(struct ckpt_ctx *ctx, struct task_struct *t)
 +{
-+	struct ckpt_hdr_ipc_shm *h;
-+	struct kern_ipc_perm *perms;
-+	struct shmid_kernel *shp;
-+	struct ipc_ids *shm_ids = &ns->ids[IPC_SHM_IDS];
-+	struct file *file;
-+	int shmflag;
++	struct ckpt_hdr_cpu *h;
 +	int ret;
 +
-+	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_IPC_SHM);
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_CPU);
++	if (!h)
++		return -ENOMEM;
++
++	s390_copy_regs(CKPT_CPT, h, t);
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++/* Write an empty header since it is assumed to be there */
++int checkpoint_write_header_arch(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_header_arch *h;
++	int ret;
++
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_HEADER_ARCH);
++	if (!h)
++		return -ENOMEM;
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++int checkpoint_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
++{
++	struct ckpt_hdr_mm_context *h;
++	int ret;
++
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_MM_CONTEXT);
++	if (!h)
++		return -ENOMEM;
++
++	s390_mm(CKPT_CPT, h, mm);
++
++	ret = ckpt_write_obj(ctx, (struct ckpt_hdr *) h);
++	ckpt_hdr_put(ctx, h);
++
++	return ret;
++}
++
++/**************************************************************************
++ * Restart
++ */
++
++int restore_thread(struct ckpt_ctx *ctx)
++{
++	return 0;
++}
++
++int restore_cpu(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_cpu *h;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_CPU);
 +	if (IS_ERR(h))
 +		return PTR_ERR(h);
 +
-+	ret = -EINVAL;
-+	if (h->perms.id < 0)
-+		goto out;
++	s390_copy_regs(CKPT_RST, h, current);
 +
-+#define CKPT_SHMFL_MASK  (SHM_NORESERVE | SHM_HUGETLB)
-+	if (h->flags & ~CKPT_SHMFL_MASK)
-+		goto out;
-+
-+	ret = -ENOSYS;
-+	if (h->mlock_uid != (unsigned int) -1)	/* FIXME: support SHM_LOCK */
-+		goto out;
-+	if (h->flags & SHM_HUGETLB)	/* FIXME: support SHM_HUGETLB */
-+		goto out;
-+
-+	/*
-+	 * SHM_DEST means that the shm is to be deleted after creation.
-+	 * However, deleting before it's actually attached is quite silly.
-+	 * Instead, we defer this task to until restart has succeeded.
++	/* s390 does not restore the access registers after a syscall,
++	 * but does on a task switch.  Since we're switching tasks (in
++	 * a way), we need to replicate that behavior here.
 +	 */
-+	if (h->perms.mode & SHM_DEST) {
-+		struct dq_ipcshm_del dq;
++	restore_access_regs(h->acrs);
 +
-+		/* to not confuse the rest of the code */
-+		h->perms.mode &= ~SHM_DEST;
-+
-+		dq.id = h->perms.id;
-+		dq.ipcns = ns;
-+		get_ipc_ns(dq.ipcns);
-+
-+		/* XXX can safely use put_ipc_ns() as dtor, see above */
-+		ret = deferqueue_add(ctx->deferqueue, &dq, sizeof(dq),
-+				     (deferqueue_func_t) ipc_shm_delete,
-+				     (deferqueue_func_t) put_ipc_ns);
-+		if (ret < 0)
-+			goto out;
-+	}
-+
-+	shmflag = h->flags | h->perms.mode | IPC_CREAT | IPC_EXCL;
-+	ckpt_debug("shm: do_shmget size %lld flag %#x id %d\n",
-+		 h->shm_segsz, shmflag, h->perms.id);
-+	ret = do_shmget(ns, h->perms.key, h->shm_segsz, shmflag, h->perms.id);
-+	ckpt_debug("shm: do_shmget ret %d\n", ret);
-+	if (ret < 0)
-+		goto out;
-+
-+	down_write(&shm_ids->rw_mutex);
-+
-+	/* we are the sole owners/users of this ipc_ns, it can't go away */
-+	perms = ipc_lock(shm_ids, h->perms.id);
-+	BUG_ON(IS_ERR(perms));  /* ipc_ns is private to us */
-+
-+	shp = container_of(perms, struct shmid_kernel, shm_perm);
-+	file = shp->shm_file;
-+	get_file(file);
-+
-+	ret = load_ipc_shm_hdr(ctx, h, shp);
-+	if (ret < 0)
-+		goto mutex;
-+
-+	/* deposit in objhash and read contents in */
-+	ret = ckpt_obj_insert(ctx, file, h->objref, CKPT_OBJ_FILE);
-+	if (ret < 0)
-+		goto mutex;
-+	ret = restore_memory_contents(ctx, file->f_dentry->d_inode);
-+ mutex:
-+	fput(file);
-+	if (ret < 0) {
-+		ckpt_debug("shm: need to remove (%d)\n", ret);
-+		do_shm_rmid(ns, perms);
-+	} else
-+		ipc_unlock(perms);
-+	up_write(&shm_ids->rw_mutex);
-+ out:
 +	ckpt_hdr_put(ctx, h);
-+	return ret;
++	return 0;
 +}
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 749dd57..26f9253 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -40,6 +40,7 @@
- #include <linux/mount.h>
- #include <linux/ipc_namespace.h>
- #include <linux/ima.h>
-+#include <linux/checkpoint.h>
- 
- #include <asm/uaccess.h>
- 
-@@ -305,6 +306,74 @@ int is_file_shm_hugepages(struct file *file)
- 	return ret;
- }
- 
-+#ifdef CONFIG_CHECKPOINT
-+static int ipcshm_checkpoint(struct ckpt_ctx *ctx, struct vm_area_struct *vma)
++
++int restore_read_header_arch(struct ckpt_ctx *ctx)
 +{
-+	int ino_objref;
-+	int first;
++	struct ckpt_hdr_header_arch *h;
 +
-+	ino_objref = ckpt_obj_lookup_add(ctx, vma->vm_file->f_dentry->d_inode,
-+				       CKPT_OBJ_INODE, &first);
-+	if (ino_objref < 0)
-+		return ino_objref;
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_HEADER_ARCH);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
 +
-+	/*
-+	 * This shouldn't happen, because all IPC regions should have
-+	 * been already dumped by now via ipc namespaces; It means
-+	 * the ipc_ns has been modified recently during checkpoint.
-+	 */
-+	if (first)
-+		return -EBUSY;
-+
-+	return generic_vma_checkpoint(ctx, vma, CKPT_VMA_SHM_IPC_SKIP,
-+				      0, ino_objref);
++	ckpt_hdr_put(ctx, h);
++	return 0;
 +}
 +
-+int ipcshm_restore(struct ckpt_ctx *ctx, struct mm_struct *mm,
-+		   struct ckpt_hdr_vma *h)
++
++int restore_mm_context(struct ckpt_ctx *ctx, struct mm_struct *mm)
 +{
-+	struct file *file;
-+	int shmid, shmflg = 0;
-+	mm_segment_t old_fs;
-+	unsigned long start;
-+	unsigned long addr;
-+	int ret;
++	struct ckpt_hdr_mm_context *h;
 +
-+	if (!h->ino_objref)
-+		return -EINVAL;
-+	/* FIX: verify the vm_flags too */
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_MM_CONTEXT);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
 +
-+	file = ckpt_obj_fetch(ctx, h->ino_objref, CKPT_OBJ_FILE);
-+	if (IS_ERR(file))
-+		PTR_ERR(file);
++	s390_mm(CKPT_RST, h, mm);
 +
-+	shmid = file->f_dentry->d_inode->i_ino;
-+
-+	if (!(h->vm_flags & VM_WRITE))
-+		shmflg |= SHM_RDONLY;
-+
-+	/*
-+	 * FIX: do_shmat() has limited interface: all-or-nothing
-+	 * mapping. If the vma, however, reflects a partial mapping
-+	 * then we need to modify that function to accomplish the
-+	 * desired outcome.  Partial mapping can exist due to the user
-+	 * call shmat() and then unmapping part of the region.
-+	 * Currently, we at least detect this and call it a foul play.
-+	 */
-+	if (((h->vm_end - h->vm_start) != h->ino_size) || h->vm_pgoff)
-+		return -ENOSYS;
-+
-+	old_fs = get_fs();
-+	set_fs(get_ds());
-+	start = h->vm_start;
-+	ret = do_shmat(shmid, (char __user *) start, shmflg, &addr);
-+	set_fs(old_fs);
-+
-+	BUG_ON(ret >= 0 && addr != h->vm_start);
-+	return ret;
++	ckpt_hdr_put(ctx, h);
++	return 0;
 +}
-+#endif
+diff --git a/arch/s390/mm/checkpoint_s390.h b/arch/s390/mm/checkpoint_s390.h
+new file mode 100644
+index 0000000..c3bf24d
+--- /dev/null
++++ b/arch/s390/mm/checkpoint_s390.h
+@@ -0,0 +1,23 @@
++/*
++ *  Checkpoint/restart - architecture specific support for s390
++ *
++ *  Copyright IBM Corp. 2009
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
 +
- static const struct file_operations shm_file_operations = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
-@@ -320,6 +389,9 @@ static struct vm_operations_struct shm_vm_ops = {
- 	.set_policy = shm_set_policy,
- 	.get_policy = shm_get_policy,
- #endif
-+#if defined(CONFIG_CHECKPOINT)
-+	.checkpoint = ipcshm_checkpoint,
-+#endif
++#ifndef _S390_CHECKPOINT_H
++#define _S390_CHECKPOINT_H
++
++#include <linux/checkpoint_hdr.h>
++#include <linux/sched.h>
++#include <linux/mm_types.h>
++
++extern void checkpoint_s390_regs(int op, struct ckpt_hdr_cpu *h,
++				 struct task_struct *t);
++extern void checkpoint_s390_mm(int op, struct ckpt_hdr_mm_context *h,
++			       struct mm_struct *mm);
++
++#endif /* _S390_CHECKPOINT_H */
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index cb7dfc8..ef260a0 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -88,7 +88,9 @@ enum {
+ 
+ /* architecture */
+ enum {
++	/* do not change order (will break ABI) */
+ 	CKPT_ARCH_X86_32 = 1,
++	CKPT_ARCH_S390X,
  };
  
- /**
-@@ -447,14 +519,12 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
- 	return 0;
- }
- 
--int do_shmget(key_t key, size_t size, int shmflg, int req_id)
-+int do_shmget(struct ipc_namespace *ns, key_t key, size_t size,
-+	      int shmflg, int req_id)
- {
--	struct ipc_namespace *ns;
- 	struct ipc_ops shm_ops;
- 	struct ipc_params shm_params;
- 
--	ns = current->nsproxy->ipc_ns;
--
- 	shm_ops.getnew = newseg;
- 	shm_ops.associate = shm_security;
- 	shm_ops.more_checks = shm_more_checks;
-@@ -468,7 +538,7 @@ int do_shmget(key_t key, size_t size, int shmflg, int req_id)
- 
- SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
- {
--	return do_shmget(key, size, shmflg, -1);
-+	return do_shmget(current->nsproxy->ipc_ns, key, size, shmflg, -1);
- }
- 
- static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_ds *in, int version)
-@@ -599,8 +669,8 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
-  * to be held in write mode.
-  * NOTE: no locks must be held, the rw_mutex is taken inside this function.
-  */
--static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
--		       struct shmid_ds __user *buf, int version)
-+int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
-+		struct shmid_ds __user *buf, int version)
- {
- 	struct kern_ipc_perm *ipcp;
- 	struct shmid64_ds shmid64;
-diff --git a/ipc/util.h b/ipc/util.h
-index 8ae1f8e..e0007dc 100644
---- a/ipc/util.h
-+++ b/ipc/util.h
-@@ -178,11 +178,20 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
- 
- struct ipc_namespace *create_ipc_ns(void);
- 
-+int do_shmget(struct ipc_namespace *ns, key_t key, size_t size, int shmflg,
-+	      int req_id);
-+void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp);
-+
-+
- #ifdef CONFIG_CHECKPOINT
- extern int checkpoint_fill_ipc_perms(struct ckpt_hdr_ipc_perms *h,
- 				     struct kern_ipc_perm *perm);
- extern int restore_load_ipc_perms(struct ckpt_hdr_ipc_perms *h,
- 				  struct kern_ipc_perm *perm);
-+
-+extern int ckpt_collect_ipc_shm(int id, void *p, void *data);
-+extern int checkpoint_ipc_shm(int id, void *p, void *data);
-+extern int restore_ipc_shm(struct ckpt_ctx *ctx, struct ipc_namespace *ns);
- #endif
- 
- #endif
-diff --git a/kernel/nsproxy.c b/kernel/nsproxy.c
-index fddc724..e7aaa00 100644
---- a/kernel/nsproxy.c
-+++ b/kernel/nsproxy.c
-@@ -249,6 +249,14 @@ int ckpt_collect_ns(struct ckpt_ctx *ctx, struct task_struct *t)
- 	if (ret < 0)
- 		goto out;
- 	ret = ckpt_obj_collect(ctx, nsproxy->ipc_ns, CKPT_OBJ_IPC_NS);
-+	if (ret < 0)
-+		goto out;
-+	/*
-+	 * ipc_ns (shm) may keep references to files: if this is the
-+	 * first time we see this ipc_ns (ret > 0), proceed inside.
-+	 */
-+	if (ret)
-+		ret = ckpt_collect_ipc_ns(ctx, nsproxy->ipc_ns);
- 
- 	/* TODO: collect other namespaces here */
-  out:
-diff --git a/mm/shmem.c b/mm/shmem.c
-index d1e348f..2cfff8d 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2387,7 +2387,7 @@ static int shmem_checkpoint(struct ckpt_ctx *ctx, struct vm_area_struct *vma)
- {
- 	enum vma_type vma_type;
- 	int ino_objref;
--	int first;
-+	int first, ret;
- 
- 	/* should be private anonymous ... verify that this is the case */
- 	if (vma->vm_flags & CKPT_VMA_NOT_SUPPORTED) {
+ /* shared objrects (objref) */
 -- 
 1.6.0.4
 
