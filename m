@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 77EA86B0096
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:52 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DF66B0093
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:53 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 67/80] Expose may_setuid() in user.h and add may_setgid() (v2)
-Date: Wed, 23 Sep 2009 19:51:47 -0400
-Message-Id: <1253749920-18673-68-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 78/80] powerpc: wire up checkpoint and restart syscalls
+Date: Wed, 23 Sep 2009 19:51:58 -0400
+Message-Id: <1253749920-18673-79-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Dan Smith <danms@us.ibm.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Nathan Lynch <ntl@pobox.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Dan Smith <danms@us.ibm.com>
+From: Nathan Lynch <ntl@pobox.com>
 
-Make these helpers available to others.
-
-Changes in v2:
- - Avoid checking the groupinfo in ctx->realcred against the current in
-   may_setgid()
-
-Cc: Serge Hallyn <serue@us.ibm.com>
-Signed-off-by: Dan Smith <danms@us.ibm.com>
+Signed-off-by: Nathan Lynch <ntl@pobox.com>
 ---
- include/linux/user.h |    9 +++++++++
- kernel/user.c        |   13 ++++++++++++-
- 2 files changed, 21 insertions(+), 1 deletions(-)
+ arch/powerpc/include/asm/systbl.h |    2 ++
+ arch/powerpc/include/asm/unistd.h |    4 +++-
+ 2 files changed, 5 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/user.h b/include/linux/user.h
-index 68daf84..c231e9c 100644
---- a/include/linux/user.h
-+++ b/include/linux/user.h
-@@ -1 +1,10 @@
-+#ifndef _LINUX_USER_H
-+#define _LINUX_USER_H
-+
- #include <asm/user.h>
-+#include <linux/sched.h>
-+
-+extern int may_setuid(struct user_namespace *ns, uid_t uid);
-+extern int may_setgid(gid_t gid);
-+
-+#endif
-diff --git a/kernel/user.c b/kernel/user.c
-index a535ed6..a78fde7 100644
---- a/kernel/user.c
-+++ b/kernel/user.c
-@@ -604,7 +604,7 @@ int checkpoint_user(struct ckpt_ctx *ctx, void *ptr)
- 	return do_checkpoint_user(ctx, (struct user_struct *) ptr);
- }
+diff --git a/arch/powerpc/include/asm/systbl.h b/arch/powerpc/include/asm/systbl.h
+index 370600c..3d44cf3 100644
+--- a/arch/powerpc/include/asm/systbl.h
++++ b/arch/powerpc/include/asm/systbl.h
+@@ -326,3 +326,5 @@ SYSCALL_SPU(perf_counter_open)
+ COMPAT_SYS_SPU(preadv)
+ COMPAT_SYS_SPU(pwritev)
+ COMPAT_SYS(rt_tgsigqueueinfo)
++SYSCALL(checkpoint)
++SYSCALL(restart)
+diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+index cef080b..ef41ebb 100644
+--- a/arch/powerpc/include/asm/unistd.h
++++ b/arch/powerpc/include/asm/unistd.h
+@@ -345,10 +345,12 @@
+ #define __NR_preadv		320
+ #define __NR_pwritev		321
+ #define __NR_rt_tgsigqueueinfo	322
++#define __NR_checkpoint		323
++#define __NR_restart		324
  
--static int may_setuid(struct user_namespace *ns, uid_t uid)
-+int may_setuid(struct user_namespace *ns, uid_t uid)
- {
- 	/*
- 	 * this next check will one day become
-@@ -631,6 +631,17 @@ static int may_setuid(struct user_namespace *ns, uid_t uid)
- 	return 0;
- }
+ #ifdef __KERNEL__
  
-+int may_setgid(gid_t gid)
-+{
-+	if (capable(CAP_SETGID))
-+		return 1;
-+
-+	if (in_egroup_p(gid))
-+		return 1;
-+
-+	return 0;
-+}
-+
- static struct user_struct *do_restore_user(struct ckpt_ctx *ctx)
- {
- 	struct user_struct *u;
+-#define __NR_syscalls		323
++#define __NR_syscalls		325
+ 
+ #define __NR__exit __NR_exit
+ #define NR_syscalls	__NR_syscalls
 -- 
 1.6.0.4
 
