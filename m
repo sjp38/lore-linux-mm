@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 70B3C6B004D
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 15:56:50 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6424C6B004D
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 16:13:44 -0400 (EDT)
+Date: Wed, 23 Sep 2009 23:22:21 +0300
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH] ksm: change default values to better fit into mainline kernel
-Date: Wed, 23 Sep 2009 23:05:47 +0300
-Message-Id: <1253736347-3779-1-git-send-email-ieidus@redhat.com>
+Subject: update_mmu_cache() when write protecting pte.
+Message-ID: <20090923232221.1d566a5c@woof.woof>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, Izik Eidus <ieidus@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, davem@redhat.com, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, gleb@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Now that ksm is in mainline it is better to change the default values
-to better fit to most of the users.
+Hi, Hugh just found out that ksm was not calling to update_mmu_cache()
+after it set new pte when it changed ptes mapping to point into the new
+shared-readonly page (ksmpage).
 
-This patch change the ksm default values to be:
-ksm_thread_pages_to_scan = 100 (instead of 200)
-ksm_thread_sleep_millisecs = 20 (like before)
-ksm_run = KSM_RUN_STOP (instead of KSM_RUN_MERGE - meaning ksm is
-                        disabled by default)
-ksm_max_kernel_pages = nr_free_buffer_pages / 4 (instead of 2046)
+It is understandable that it is a bug and ksm have to call it right
+after set_pte_at_notify() get called, but the question is: does ksm
+have to call it only there or should it call it even when it
+write-protect pte (while not changing the physical address the pte is
+pointing to).
 
-The important aspect of this patch is: it disable ksm by default, and set
-the number of the kernel_pages that can be allocated to be a reasonable
-number.
+I am asking this question because it seems that fork() dont call it...
+
+(below a patch that fix the problem in case we need it just when we
+change the physical mapping, if we need it even when we write protect
+the pages, then we need to add another update_mmu_cache()  call)
+
+Thanks.
+
+=46rom 82d27f67a8b20767dc6119422189f73b52168c8d Mon Sep 17 00:00:00 2001
+From: Izik Eidus <ieidus@redhat.com>
+Date: Wed, 23 Sep 2009 22:37:34 +0300
+Subject: [PATCH] ksm: add update_mmu_cache() when changing pte mapping.
+
+This patch add update_mmu_cache() call right after set_pte_at_notify()
+Without this function ksm is probably broken for powerpc and sparc archs.
+
+(Noticed by Hugh Dickins)
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
 ---
- mm/ksm.c |   14 +++++++++++---
- 1 files changed, 11 insertions(+), 3 deletions(-)
+ mm/ksm.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 37cc373..f7edac3 100644
+index f7edac3..e8d16eb 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -30,6 +30,7 @@
- #include <linux/slab.h>
- #include <linux/rbtree.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/swap.h>
- #include <linux/ksm.h>
- 
- #include <asm/tlbflush.h>
-@@ -162,10 +163,10 @@ static unsigned long ksm_pages_unshared;
- static unsigned long ksm_rmap_items;
- 
- /* Limit on the number of unswappable pages used */
--static unsigned long ksm_max_kernel_pages = 2000;
-+static unsigned long ksm_max_kernel_pages;
- 
- /* Number of pages ksmd should scan in one batch */
--static unsigned int ksm_thread_pages_to_scan = 200;
-+static unsigned int ksm_thread_pages_to_scan = 100;
- 
- /* Milliseconds ksmd should sleep between batches */
- static unsigned int ksm_thread_sleep_millisecs = 20;
-@@ -173,7 +174,7 @@ static unsigned int ksm_thread_sleep_millisecs = 20;
- #define KSM_RUN_STOP	0
- #define KSM_RUN_MERGE	1
- #define KSM_RUN_UNMERGE	2
--static unsigned int ksm_run = KSM_RUN_MERGE;
-+static unsigned int ksm_run = KSM_RUN_STOP;
- 
- static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
- static DEFINE_MUTEX(ksm_thread_mutex);
-@@ -183,6 +184,11 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
- 		sizeof(struct __struct), __alignof__(struct __struct),\
- 		(__flags), NULL)
- 
-+static void __init ksm_init_max_kernel_pages(void)
-+{
-+	ksm_max_kernel_pages = nr_free_buffer_pages() / 4;
-+}
-+
- static int __init ksm_slab_init(void)
- {
- 	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
-@@ -1667,6 +1673,8 @@ static int __init ksm_init(void)
- 	struct task_struct *ksm_thread;
- 	int err;
- 
-+	ksm_init_max_kernel_pages();
-+
- 	err = ksm_slab_init();
- 	if (err)
- 		goto out;
--- 
+@@ -719,6 +719,7 @@ static int replace_page(struct vm_area_struct *vma, str=
+uct page *oldpage,
+ 	flush_cache_page(vma, addr, pte_pfn(*ptep));
+ 	ptep_clear_flush(vma, addr, ptep);
+ 	set_pte_at_notify(mm, addr, ptep, mk_pte(newpage, prot));
++	update_mmu_cache(vma, addr, pte);
+=20
+ 	page_remove_rmap(oldpage);
+ 	put_page(oldpage);
+--=20
 1.5.6.5
 
 --
