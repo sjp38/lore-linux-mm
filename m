@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6424C6B004D
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 16:13:44 -0400 (EDT)
-Date: Wed, 23 Sep 2009 23:22:21 +0300
-From: Izik Eidus <ieidus@redhat.com>
-Subject: update_mmu_cache() when write protecting pte.
-Message-ID: <20090923232221.1d566a5c@woof.woof>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 14BDA6B004D
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 16:23:42 -0400 (EDT)
+Date: Wed, 23 Sep 2009 21:23:40 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+In-Reply-To: <4AB9A0D6.1090004@crca.org.au>
+Message-ID: <Pine.LNX.4.64.0909232056020.3360@sister.anvils>
+References: <4AB9A0D6.1090004@crca.org.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, davem@redhat.com, hugh.dickins@tiscali.co.uk, aarcange@redhat.com, gleb@redhat.com
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Hugh just found out that ksm was not calling to update_mmu_cache()
-after it set new pte when it changed ptes mapping to point into the new
-shared-readonly page (ksmpage).
+On Wed, 23 Sep 2009, Nigel Cunningham wrote:
+> 
+> With the addition of the VM_MERGEABLE flag to vm_flags post-2.6.31, the
+> last bit in vm_flags has been used.
 
-It is understandable that it is a bug and ksm have to call it right
-after set_pte_at_notify() get called, but the question is: does ksm
-have to call it only there or should it call it even when it
-write-protect pte (while not changing the physical address the pte is
-pointing to).
+Yes, it was rather selfish to take that, without even pointing out
+that was the last of 32 bits in the changelog, and without mapping
+out where to go next - sorry.
 
-I am asking this question because it seems that fork() dont call it...
+> 
+> I have some code in TuxOnIce that needs a bit too (explicitly mark the
+> VMA as needing to be atomically copied, for GEM objects), and am not
 
-(below a patch that fix the problem in case we need it just when we
-change the physical mapping, if we need it even when we write protect
-the pages, then we need to add another update_mmu_cache()  call)
+(I wonder what atomically copied means there.)
 
-Thanks.
+> sure what the canonical way to proceed is. Should a new unsigned long be
+> added? The difficulty I see with that is that my flag was used in
+> shmem_file_setup's flags parameter (drm_gem_object_alloc), so that
+> function would need an extra parameter too..
 
-=46rom 82d27f67a8b20767dc6119422189f73b52168c8d Mon Sep 17 00:00:00 2001
-From: Izik Eidus <ieidus@redhat.com>
-Date: Wed, 23 Sep 2009 22:37:34 +0300
-Subject: [PATCH] ksm: add update_mmu_cache() when changing pte mapping.
+I've assumed that, when necessary, we'll retype vm_flags from
+unsigned long to unsigned long long (or u64).  But I've not yet
+checked how much bloat that would add to 32-bit code: whether we
+should put it off as long as we can, or be lazy and do it soon.
 
-This patch add update_mmu_cache() call right after set_pte_at_notify()
-Without this function ksm is probably broken for powerpc and sparc archs.
+I'm thinking that we should use the full 32-bit vm_flags as a
+prompt to dispose of a few.  VM_RESERVED is the one I always claim
+I'm going to remove, then more important jobs intervene; and we seem
+to have grown more weird variants of VM_PFNMAP than I care for in
+the last year or two.  Suspect VM_PFN_AT_MMAP could make reasonable
+use of VM_NONLINEAR, but probably not without some small change.
 
-(Noticed by Hugh Dickins)
+Does TuxOnIce rely on CONFIG_MMU?  If so, then the TuxOnIce patch
+could presumably reuse VM_MAPPED_COPY for now - but don't be
+surprised if that's one we clean away later on.
 
-Signed-off-by: Izik Eidus <ieidus@redhat.com>
----
- mm/ksm.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index f7edac3..e8d16eb 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -719,6 +719,7 @@ static int replace_page(struct vm_area_struct *vma, str=
-uct page *oldpage,
- 	flush_cache_page(vma, addr, pte_pfn(*ptep));
- 	ptep_clear_flush(vma, addr, ptep);
- 	set_pte_at_notify(mm, addr, ptep, mk_pte(newpage, prot));
-+	update_mmu_cache(vma, addr, pte);
-=20
- 	page_remove_rmap(oldpage);
- 	put_page(oldpage);
---=20
-1.5.6.5
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
