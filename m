@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 605436B007E
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:25 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9E76B0085
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:26 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 24/80] c/r: restart-blocks
-Date: Wed, 23 Sep 2009 19:51:04 -0400
-Message-Id: <1253749920-18673-25-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 28/80] c/r: support for zombie processes
+Date: Wed, 23 Sep 2009 19:51:08 -0400
+Message-Id: <1253749920-18673-29-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,438 +13,306 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-(Paraphrasing what's said this message:
-http://lists.openwall.net/linux-kernel/2007/12/05/64)
+During checkpoint, a zombie processes need only save p->comm,
+p->state, p->exit_state, and p->exit_code.
 
-Restart blocks are callbacks used cause a system call to be restarted
-with the arguments specified in the system call restart block. It is
-useful for system call that are not idempotent, i.e. the argument(s)
-might be a relative timeout, where some adjustments are required when
-restarting the system call. It relies on the system call itself to set
-up its restart point and the argument save area.  They are rare: an
-actual signal would turn that it an EINTR. The only case that should
-ever trigger this is some kernel action that interrupts the system
-call, but does not actually result in any user-visible state changes -
-like freeze and thaw.
+During restart, zombie processes are created like all other
+processes. They validate the saved exit_code restore p->comm
+and p->exit_code. Then they call do_exit() instead of waking
+up the next task in line.
 
-So restart blocks are about time remaining for the system call to
-sleep/wait. Generally in c/r, there are two possible time models that
-we can follow: absolute, relative. Here, I chose to save the relative
-timeout, measured from the beginning of the checkpoint. The time when
-the checkpoint (and restart) begin is also saved. This information is
-sufficient to restart in either model (absolute or negative).
+But before, they place the @ctx in p->checkpoint_ctx, so that
+only at exit time they will wake up the next task in line,
+and drop the reference to the @ctx.
 
-Which model to use should eventually be a per application choice (and
-possible configurable via cradvise() or some sort). For now, we adopt
-the relative model, namely, at restart the timeout is set relative to
-the beginning of the restart.
+This provides the guarantee that when the coordinator's wait
+completes, all normal tasks completed their restart, and all
+zombie tasks are already zombified (as opposed to perhap only
+becoming a zombie).
 
-To checkpoint, we check if a task has a valid restart block, and if so
-we save the *remaining* time that is has to wait/sleep, and the type
-of the restart block.
-
-To restart, we fill in the data required at the proper place in the
-thread information. If the system call return an error (which is
-possibly an -ERESTARTSYS eg), we not only use that error as our own
-return value, but also arrange for the task to execute the signal
-handler (by faking a signal). The handler, in turn, already has the
-code to handle these restart request gracefully.
-
-Changelog[v1]:
-  - [Nathan Lynch] fix compilation errors with CONFIG_COMPAT=y
+Changelog[v18]:
+  - Fix leak of ckpt_ctx when restoring zombie tasks
+  - Add a few more ckpt_write_err()s
+Changelog[v17]:
+  - Validate t->exit_signal for both threads and leader
+  - Skip zombies in most of may_checkpoint_task()
+  - Save/restore t->pdeath_signal
+  - Validate ->exit_signal and ->pdeath_signal
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- checkpoint/checkpoint.c          |    1 +
- checkpoint/process.c             |  226 ++++++++++++++++++++++++++++++++++++++
- checkpoint/restart.c             |    5 +-
- checkpoint/sys.c                 |    1 +
- include/linux/checkpoint.h       |    4 +
- include/linux/checkpoint_hdr.h   |   22 ++++
- include/linux/checkpoint_types.h |    3 +
- 7 files changed, 260 insertions(+), 2 deletions(-)
+ checkpoint/checkpoint.c        |   10 ++++--
+ checkpoint/process.c           |   69 +++++++++++++++++++++++++++++++++++-----
+ checkpoint/restart.c           |   41 +++++++++++++++++++++--
+ include/linux/checkpoint.h     |    1 +
+ include/linux/checkpoint_hdr.h |    1 +
+ 5 files changed, 107 insertions(+), 15 deletions(-)
 
 diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index ad89f50..554400c 100644
+index fc02436..93d7860 100644
 --- a/checkpoint/checkpoint.c
 +++ b/checkpoint/checkpoint.c
-@@ -22,6 +22,7 @@
- #include <linux/mount.h>
- #include <linux/utsname.h>
- #include <linux/magic.h>
-+#include <linux/hrtimer.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
+@@ -377,7 +377,7 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
  
+ 	ckpt_debug("check %d\n", task_pid_nr_ns(t, ctx->root_nsproxy->pid_ns));
+ 
+-	if (t->state == TASK_DEAD) {
++	if (t->exit_state == EXIT_DEAD) {
+ 		__ckpt_write_err(ctx, "TE", "task state EXIT_DEAD\n", -EBUSY);
+ 		return -EBUSY;
+ 	}
+@@ -387,6 +387,10 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 		return -EPERM;
+ 	}
+ 
++	/* zombies are cool (and also don't have nsproxy, below...) */
++	if (t->exit_state)
++		return 0;
++
+ 	/* verify that all tasks belongs to same freezer cgroup */
+ 	if (t != current && !in_same_cgroup_freezer(t, ctx->root_freezer)) {
+ 		__ckpt_write_err(ctx, "TE", "unfrozen or wrong cgroup", -EBUSY);
+@@ -403,8 +407,8 @@ static int may_checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	 * FIX: for now, disallow siblings of container init created
+ 	 * via CLONE_PARENT (unclear if they will remain possible)
+ 	 */
+-	if (ctx->root_init && t != root && t->tgid != root->tgid &&
+-	    t->real_parent == root->real_parent) {
++	if (ctx->root_init && t != root &&
++	    t->real_parent == root->real_parent && t->tgid != root->tgid) {
+ 		__ckpt_write_err(ctx, "TE", "task is sibling of root", -EINVAL);
+ 		return -EINVAL;
+ 	}
 diff --git a/checkpoint/process.c b/checkpoint/process.c
-index 1d1170c..330c8d4 100644
+index 330c8d4..62ae72d 100644
 --- a/checkpoint/process.c
 +++ b/checkpoint/process.c
-@@ -12,6 +12,9 @@
- #define CKPT_DFLAG  CKPT_DSYS
+@@ -35,12 +35,18 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	h->state = t->state;
+ 	h->exit_state = t->exit_state;
+ 	h->exit_code = t->exit_code;
+-	h->exit_signal = t->exit_signal;
  
- #include <linux/sched.h>
-+#include <linux/posix-timers.h>
-+#include <linux/futex.h>
-+#include <linux/poll.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
- 
-@@ -47,6 +50,116 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
- 	return ckpt_write_string(ctx, t->comm, TASK_COMM_LEN);
- }
- 
-+/* dump the task_struct of a given task */
-+int checkpoint_restart_block(struct ckpt_ctx *ctx, struct task_struct *t)
-+{
-+	struct ckpt_hdr_restart_block *h;
-+	struct restart_block *restart_block;
-+	long (*fn)(struct restart_block *);
-+	s64 base, expire = 0;
-+	int ret;
-+
-+	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
-+	if (!h)
-+		return -ENOMEM;
-+
-+	base = ktime_to_ns(ctx->ktime_begin);
-+	restart_block = &task_thread_info(t)->restart_block;
-+	fn = restart_block->fn;
-+
-+	/* FIX: enumerate clockid_t so we're immune to changes */
-+
-+	if (fn == do_no_restart_syscall) {
-+
-+		h->function_type = CKPT_RESTART_BLOCK_NONE;
-+		ckpt_debug("restart_block: non\n");
-+
-+	} else if (fn == hrtimer_nanosleep_restart) {
-+
-+		h->function_type = CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP;
-+		h->arg_0 = restart_block->nanosleep.index;
-+		h->arg_1 = (unsigned long) restart_block->nanosleep.rmtp;
-+		expire = restart_block->nanosleep.expires;
-+		ckpt_debug("restart_block: hrtimer expire %lld now %lld\n",
-+			 expire, base);
-+
-+	} else if (fn == posix_cpu_nsleep_restart) {
-+		struct timespec ts;
-+
-+		h->function_type = CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP;
-+		h->arg_0 = restart_block->arg0;
-+		h->arg_1 = restart_block->arg1;
-+		ts.tv_sec = restart_block->arg2;
-+		ts.tv_nsec = restart_block->arg3;
-+		expire = timespec_to_ns(&ts);
-+		ckpt_debug("restart_block: posix_cpu expire %lld now %lld\n",
-+			 expire, base);
-+
-+#ifdef CONFIG_COMPAT
-+	} else if (fn == compat_nanosleep_restart) {
-+
-+		h->function_type = CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP;
-+		h->arg_0 = restart_block->nanosleep.index;
-+		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
-+		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
-+		expire = restart_block->nanosleep.expires;
-+		ckpt_debug("restart_block: compat expire %lld now %lld\n",
-+			 expire, base);
-+
-+	} else if (fn == compat_clock_nanosleep_restart) {
-+
-+		h->function_type = CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP;
-+		h->arg_0 = restart_block->nanosleep.index;
-+		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
-+		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
-+		expire = restart_block->nanosleep.expires;
-+		ckpt_debug("restart_block: compat_clock expire %lld now %lld\n",
-+			 expire, base);
-+
-+#endif
-+	} else if (fn == futex_wait_restart) {
-+
-+		h->function_type = CKPT_RESTART_BLOCK_FUTEX;
-+		h->arg_0 = (unsigned long) restart_block->futex.uaddr;
-+		h->arg_1 = restart_block->futex.val;
-+		h->arg_2 = restart_block->futex.flags;
-+		h->arg_3 = restart_block->futex.bitset;
-+		expire = restart_block->futex.time;
-+		ckpt_debug("restart_block: futex expire %lld now %lld\n",
-+			 expire, base);
-+
-+	} else if (fn == do_restart_poll) {
-+		struct timespec ts;
-+
-+		h->function_type = CKPT_RESTART_BLOCK_POLL;
-+		h->arg_0 = (unsigned long) restart_block->poll.ufds;
-+		h->arg_1 = restart_block->poll.nfds;
-+		h->arg_2 = restart_block->poll.has_timeout;
-+		ts.tv_sec = restart_block->poll.tv_sec;
-+		ts.tv_nsec = restart_block->poll.tv_nsec;
-+		expire = timespec_to_ns(&ts);
-+		ckpt_debug("restart_block: poll expire %lld now %lld\n",
-+			 expire, base);
-+
+-	h->set_child_tid = (unsigned long) t->set_child_tid;
+-	h->clear_child_tid = (unsigned long) t->clear_child_tid;
++	if (t->exit_state) {
++		/* zombie - skip remaining state */
++		BUG_ON(t->exit_state != EXIT_ZOMBIE);
 +	} else {
-+
-+		BUG();
-+
-+	}
-+
-+	/* common to all restart blocks: */
-+	h->arg_4 = (base < expire ? expire - base : 0);
-+
-+	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
-+		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
-+
-+	ret = ckpt_write_obj(ctx, &h->h);
-+	ckpt_hdr_put(ctx, h);
-+
-+	ckpt_debug("restart_block ret %d\n", ret);
-+	return ret;
-+}
-+
- /* dump the entire state of a given task */
- int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- {
-@@ -63,6 +176,10 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
- 	ckpt_debug("thread %d\n", ret);
- 	if (ret < 0)
- 		goto out;
-+	ret = checkpoint_restart_block(ctx, t);
-+	ckpt_debug("restart-blocks %d\n", ret);
-+	if (ret < 0)
-+		goto out;
- 	ret = checkpoint_cpu(ctx, t);
- 	ckpt_debug("cpu %d\n", ret);
-  out:
-@@ -99,6 +216,111 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
- 	return ret;
- }
++		/* FIXME: save remaining relevant task_struct fields */
++		h->exit_signal = t->exit_signal;
++		h->pdeath_signal = t->pdeath_signal;
  
-+int restore_restart_block(struct ckpt_ctx *ctx)
-+{
-+	struct ckpt_hdr_restart_block *h;
-+	struct restart_block restart_block;
-+	struct timespec ts;
-+	clockid_t clockid;
-+	s64 expire;
-+	int ret = 0;
-+
-+	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
-+	if (IS_ERR(h))
-+		return PTR_ERR(h);
-+
-+	expire = ktime_to_ns(ctx->ktime_begin) + h->arg_4;
-+	restart_block.fn = NULL;
-+
-+	ckpt_debug("restart_block: expire %lld begin %lld\n",
-+		 expire, ktime_to_ns(ctx->ktime_begin));
-+	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
-+		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
-+
-+	switch (h->function_type) {
-+	case CKPT_RESTART_BLOCK_NONE:
-+		restart_block.fn = do_no_restart_syscall;
-+		break;
-+	case CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP:
-+		clockid = h->arg_0;
-+		if (clockid < 0 || invalid_clockid(clockid))
-+			break;
-+		restart_block.fn = hrtimer_nanosleep_restart;
-+		restart_block.nanosleep.index = clockid;
-+		restart_block.nanosleep.rmtp =
-+			(struct timespec __user *) (unsigned long) h->arg_1;
-+		restart_block.nanosleep.expires = expire;
-+		break;
-+	case CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP:
-+		clockid = h->arg_0;
-+		if (clockid < 0 || invalid_clockid(clockid))
-+			break;
-+		restart_block.fn = posix_cpu_nsleep_restart;
-+		restart_block.arg0 = clockid;
-+		restart_block.arg1 = h->arg_1;
-+		ts = ns_to_timespec(expire);
-+		restart_block.arg2 = ts.tv_sec;
-+		restart_block.arg3 = ts.tv_nsec;
-+		break;
-+#ifdef CONFIG_COMPAT
-+	case CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP:
-+		clockid = h->arg_0;
-+		if (clockid < 0 || invalid_clockid(clockid))
-+			break;
-+		restart_block.fn = compat_nanosleep_restart;
-+		restart_block.nanosleep.index = clockid;
-+		restart_block.nanosleep.rmtp =
-+			(struct timespec __user *) (unsigned long) h->arg_1;
-+		restart_block.nanosleep.compat_rmtp =
-+			(struct compat_timespec __user *)
-+				(unsigned long) h->arg_2;
-+		restart_block.nanosleep.expires = expire;
-+		break;
-+	case CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP:
-+		clockid = h->arg_0;
-+		if (clockid < 0 || invalid_clockid(clockid))
-+			break;
-+		restart_block.fn = compat_clock_nanosleep_restart;
-+		restart_block.nanosleep.index = clockid;
-+		restart_block.nanosleep.rmtp =
-+			(struct timespec __user *) (unsigned long) h->arg_1;
-+		restart_block.nanosleep.compat_rmtp =
-+			(struct compat_timespec __user *)
-+				(unsigned long) h->arg_2;
-+		restart_block.nanosleep.expires = expire;
-+		break;
-+#endif
-+	case CKPT_RESTART_BLOCK_FUTEX:
-+		restart_block.fn = futex_wait_restart;
-+		restart_block.futex.uaddr = (u32 *) (unsigned long) h->arg_0;
-+		restart_block.futex.val = h->arg_1;
-+		restart_block.futex.flags = h->arg_2;
-+		restart_block.futex.bitset = h->arg_3;
-+		restart_block.futex.time = expire;
-+		break;
-+	case CKPT_RESTART_BLOCK_POLL:
-+		restart_block.fn = do_restart_poll;
-+		restart_block.poll.ufds =
-+			(struct pollfd __user *) (unsigned long) h->arg_0;
-+		restart_block.poll.nfds = h->arg_1;
-+		restart_block.poll.has_timeout = h->arg_2;
-+		ts = ns_to_timespec(expire);
-+		restart_block.poll.tv_sec = ts.tv_sec;
-+		restart_block.poll.tv_nsec = ts.tv_nsec;
-+		break;
-+	default:
-+		break;
+-	/* FIXME: save remaining relevant task_struct fields */
++		h->set_child_tid = (unsigned long) t->set_child_tid;
++		h->clear_child_tid = (unsigned long) t->clear_child_tid;
 +	}
-+
-+	if (restart_block.fn)
-+		task_thread_info(current)->restart_block = restart_block;
-+	else
-+		ret = -EINVAL;
-+
-+	ckpt_hdr_put(ctx, h);
-+	return ret;
-+}
-+
- /* read the entire state of the current task */
- int restore_task(struct ckpt_ctx *ctx)
- {
-@@ -112,6 +334,10 @@ int restore_task(struct ckpt_ctx *ctx)
- 	ckpt_debug("thread %d\n", ret);
+ 
+ 	ret = ckpt_write_obj(ctx, &h->h);
+ 	ckpt_hdr_put(ctx, h);
+@@ -172,6 +178,11 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 
  	if (ret < 0)
  		goto out;
-+	ret = restore_restart_block(ctx);
-+	ckpt_debug("restart-blocks %d\n", ret);
-+	if (ret < 0)
-+		goto out;
- 	ret = restore_cpu(ctx);
- 	ckpt_debug("cpu %d\n", ret);
++
++	/* zombie - we're done here */
++	if (t->exit_state)
++		return 0;
++
+ 	ret = checkpoint_thread(ctx, t);
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+@@ -191,6 +202,19 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+  * Restart
+  */
+ 
++static inline int valid_exit_code(int exit_code)
++{
++	if (exit_code >= 0x10000)
++		return 0;
++	if (exit_code & 0xff) {
++		if (exit_code & ~0xff)
++			return 0;
++		if (!valid_signal(exit_code & 0xff))
++			return 0;
++	}
++	return 1;
++}
++
+ /* read the task_struct into the current task */
+ static int restore_task_struct(struct ckpt_ctx *ctx)
+ {
+@@ -202,15 +226,39 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
+ 	if (IS_ERR(h))
+ 		return PTR_ERR(h);
+ 
++	ret = -EINVAL;
++	if (h->state == TASK_DEAD) {
++		if (h->exit_state != EXIT_ZOMBIE)
++			goto out;
++		if (!valid_exit_code(h->exit_code))
++			goto out;
++		t->exit_code = h->exit_code;
++	} else {
++		if (h->exit_code)
++			goto out;
++		if ((thread_group_leader(t) && !valid_signal(h->exit_signal)) ||
++		    (!thread_group_leader(t) && h->exit_signal != -1))
++			goto out;
++		if (!valid_signal(h->pdeath_signal))
++			goto out;
++
++		/* FIXME: restore remaining relevant task_struct fields */
++		t->exit_signal = h->exit_signal;
++		t->pdeath_signal = h->pdeath_signal;
++
++		t->set_child_tid =
++			(int __user *) (unsigned long) h->set_child_tid;
++		t->clear_child_tid =
++			(int __user *) (unsigned long) h->clear_child_tid;
++	}
++
+ 	memset(t->comm, 0, TASK_COMM_LEN);
+ 	ret = _ckpt_read_string(ctx, t->comm, TASK_COMM_LEN);
+ 	if (ret < 0)
+ 		goto out;
+ 
+-	t->set_child_tid = (int __user *) (unsigned long) h->set_child_tid;
+-	t->clear_child_tid = (int __user *) (unsigned long) h->clear_child_tid;
+-
+-	/* FIXME: restore remaining relevant task_struct fields */
++	/* return 1 for zombie, 0 otherwise */
++	ret = (h->state == TASK_DEAD ? 1 : 0);
   out:
+ 	ckpt_hdr_put(ctx, h);
+ 	return ret;
+@@ -330,6 +378,11 @@ int restore_task(struct ckpt_ctx *ctx)
+ 	ckpt_debug("task %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++
++	/* zombie - we're done here */
++	if (ret)
++		goto out;
++
+ 	ret = restore_thread(ctx);
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
 diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index cb02ffb..fdad264 100644
+index 4da09b7..d43eec7 100644
 --- a/checkpoint/restart.c
 +++ b/checkpoint/restart.c
-@@ -16,6 +16,8 @@
- #include <linux/file.h>
- #include <linux/magic.h>
- #include <linux/utsname.h>
-+#include <asm/syscall.h>
-+#include <linux/elf.h>
- #include <linux/checkpoint.h>
- #include <linux/checkpoint_hdr.h>
+@@ -473,17 +473,14 @@ do { \
+ static int restore_activate_next(struct ckpt_ctx *ctx)
+ {
+ 	struct task_struct *task;
+-	int active;
+ 	pid_t pid;
  
-@@ -482,6 +484,5 @@ long do_restart(struct ckpt_ctx *ctx, pid_t pid)
+-	active = ++ctx->active_pid;
+-	if (active >= ctx->nr_pids) {
++	if (++ctx->active_pid >= ctx->nr_pids) {
+ 		complete(&ctx->complete);
+ 		return 0;
+ 	}
+ 
+ 	pid = get_active_pid(ctx);
+-	ckpt_debug("active pid %d (%d < %d)\n", pid, active, ctx->nr_pids);
+ 
+ 	rcu_read_lock();
+ 	task = find_task_by_pid_ns(pid, ctx->root_nsproxy->pid_ns);
+@@ -511,6 +508,8 @@ static int wait_task_active(struct ckpt_ctx *ctx)
+ 	ret = wait_event_interruptible(ctx->waitq,
+ 				       is_task_active(ctx, pid) ||
+ 				       ckpt_test_ctx_error(ctx));
++	ckpt_debug("active %d < %d (ret %d)\n",
++		   ctx->active_pid, ctx->nr_pids, ret);
+ 	if (!ret && ckpt_test_ctx_error(ctx)) {
+ 		force_sig(SIGKILL, current);
+ 		ret = -EBUSY;
+@@ -567,6 +566,8 @@ static int do_restore_task(void)
+ 		return -EAGAIN;
+ 	}
+ 
++	current->flags |= PF_RESTARTING;
++
+ 	/* wait for our turn, do the restore, and tell next task in line */
+ 	ret = wait_task_active(ctx);
  	if (ret < 0)
- 		return ret;
+@@ -576,6 +577,16 @@ static int do_restore_task(void)
+ 	if (ret < 0)
+ 		goto out;
  
--	/* on success, adjust the return value if needed [TODO] */
--	return restore_retval(ctx);
-+	return restore_retval();
++	/*
++	 * zombie: we're done here; do_exit() will notice the @ctx on
++	 * our current->checkpoint_ctx (and our PF_RESTARTING) - it
++	 * will call restore_activate_next() and release the @ctx.
++	 */
++	if (ret) {
++		ckpt_ctx_put(ctx);
++		do_exit(current->exit_code);
++	}
++
+ 	ret = restore_activate_next(ctx);
+ 	if (ret < 0)
+ 		goto out;
+@@ -592,6 +603,7 @@ static int do_restore_task(void)
+ 		wake_up_all(&ctx->waitq);
+ 	}
+ 
++	current->flags &= ~PF_RESTARTING;
+ 	ckpt_ctx_put(ctx);
+ 	return ret;
  }
-diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-index dda2c21..b37bc8c 100644
---- a/checkpoint/sys.c
-+++ b/checkpoint/sys.c
-@@ -193,6 +193,7 @@ static struct ckpt_ctx *ckpt_ctx_alloc(int fd, unsigned long uflags,
+@@ -929,3 +941,24 @@ long do_restart(struct ckpt_ctx *ctx, pid_t pid)
  
- 	ctx->uflags = uflags;
- 	ctx->kflags = kflags;
-+	ctx->ktime_begin = ktime_get();
- 
- 	err = -EBADF;
- 	ctx->file = fget(fd);
+ 	return ret;
+ }
++
++/**
++ * exit_checkpoint - callback from do_exit to cleanup checkpoint state
++ * @tsk: terminating task
++ */
++void exit_checkpoint(struct task_struct *tsk)
++{
++	struct ckpt_ctx *ctx;
++
++	/* no one else will touch this, because @tsk is dead already */
++	ctx = xchg(&tsk->checkpoint_ctx, NULL);
++
++	/* restarting zombies will activate next task in restart */
++	if (tsk->flags & PF_RESTARTING) {
++		BUG_ON(ctx->active_pid == -1);
++		if (restore_activate_next(ctx) < 0)
++			pr_warning("c/r: [%d] failed zombie exit\n", tsk->pid);
++	}
++
++	ckpt_ctx_put(ctx);
++}
 diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index aa8ce11..14c0a7f 100644
+index 4227b31..5c02d9b 100644
 --- a/include/linux/checkpoint.h
 +++ b/include/linux/checkpoint.h
-@@ -70,6 +70,10 @@ extern int restore_read_header_arch(struct ckpt_ctx *ctx);
- extern int restore_thread(struct ckpt_ctx *ctx);
- extern int restore_cpu(struct ckpt_ctx *ctx);
+@@ -96,6 +96,7 @@ extern long do_checkpoint(struct ckpt_ctx *ctx, pid_t pid);
+ extern long do_restart(struct ckpt_ctx *ctx, pid_t pid);
  
-+extern int checkpoint_restart_block(struct ckpt_ctx *ctx,
-+				    struct task_struct *t);
-+extern int restore_restart_block(struct ckpt_ctx *ctx);
-+
- static inline int ckpt_validate_errno(int errno)
- {
- 	return (errno >= 0) && (errno < MAX_ERRNO);
+ /* task */
++extern int ckpt_activate_next(struct ckpt_ctx *ctx);
+ extern int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t);
+ extern int restore_task(struct ckpt_ctx *ctx);
+ 
 diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 92d082e..b72c59c 100644
+index 26e10fb..8ae3bbe 100644
 --- a/include/linux/checkpoint_hdr.h
 +++ b/include/linux/checkpoint_hdr.h
-@@ -52,6 +52,7 @@ enum {
- 	CKPT_HDR_STRING,
+@@ -132,6 +132,7 @@ struct ckpt_hdr_task {
+ 	__u32 exit_state;
+ 	__u32 exit_code;
+ 	__u32 exit_signal;
++	__u32 pdeath_signal;
  
- 	CKPT_HDR_TASK = 101,
-+	CKPT_HDR_RESTART_BLOCK,
- 	CKPT_HDR_THREAD,
- 	CKPT_HDR_CPU,
- 
-@@ -122,4 +123,25 @@ struct ckpt_hdr_task {
+ 	__u64 set_child_tid;
  	__u64 clear_child_tid;
- } __attribute__((aligned(8)));
- 
-+/* restart blocks */
-+struct ckpt_hdr_restart_block {
-+	struct ckpt_hdr h;
-+	__u64 function_type;
-+	__u64 arg_0;
-+	__u64 arg_1;
-+	__u64 arg_2;
-+	__u64 arg_3;
-+	__u64 arg_4;
-+} __attribute__((aligned(8)));
-+
-+enum restart_block_type {
-+	CKPT_RESTART_BLOCK_NONE = 1,
-+	CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP,
-+	CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP,
-+	CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP,
-+	CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP,
-+	CKPT_RESTART_BLOCK_POLL,
-+	CKPT_RESTART_BLOCK_FUTEX
-+};
-+
- #endif /* _CHECKPOINT_CKPT_HDR_H_ */
-diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
-index 15dbe1b..046bdc4 100644
---- a/include/linux/checkpoint_types.h
-+++ b/include/linux/checkpoint_types.h
-@@ -15,10 +15,13 @@
- #include <linux/sched.h>
- #include <linux/nsproxy.h>
- #include <linux/fs.h>
-+#include <linux/ktime.h>
- 
- struct ckpt_ctx {
- 	int crid;		/* unique checkpoint id */
- 
-+	ktime_t ktime_begin;	/* checkpoint start time */
-+
- 	pid_t root_pid;				/* [container] root pid */
- 	struct task_struct *root_task;		/* [container] root task */
- 	struct nsproxy *root_nsproxy;		/* [container] root nsproxy */
 -- 
 1.6.0.4
 
