@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0136B005C
+	by kanga.kvack.org (Postfix) with ESMTP id 605436B007E
 	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:25 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 74/80] c/r: support for controlling terminal and job control
-Date: Wed, 23 Sep 2009 19:51:54 -0400
-Message-Id: <1253749920-18673-75-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 24/80] c/r: restart-blocks
+Date: Wed, 23 Sep 2009 19:51:04 -0400
+Message-Id: <1253749920-18673-25-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,281 +13,438 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Add checkpoint/restart of controlling terminal: current->signal->tty.
-This is only done for session leaders.
+(Paraphrasing what's said this message:
+http://lists.openwall.net/linux-kernel/2007/12/05/64)
 
-If the session leader belongs to the ancestor pid-ns, then checkpoint
-skips this tty; On restart, it will not be restored, and whatever tty
-is in place from parent pid-ns (at restart) will be inherited.
+Restart blocks are callbacks used cause a system call to be restarted
+with the arguments specified in the system call restart block. It is
+useful for system call that are not idempotent, i.e. the argument(s)
+might be a relative timeout, where some adjustments are required when
+restarting the system call. It relies on the system call itself to set
+up its restart point and the argument save area.  They are rare: an
+actual signal would turn that it an EINTR. The only case that should
+ever trigger this is some kernel action that interrupts the system
+call, but does not actually result in any user-visible state changes -
+like freeze and thaw.
 
-Chagnelog [v1]:
-  - Don't restore tty_old_pgrp it pgid is CKPT_PID_NULL
-  - Initialize pgrp to NULL in restore_signal
+So restart blocks are about time remaining for the system call to
+sleep/wait. Generally in c/r, there are two possible time models that
+we can follow: absolute, relative. Here, I chose to save the relative
+timeout, measured from the beginning of the checkpoint. The time when
+the checkpoint (and restart) begin is also saved. This information is
+sufficient to restart in either model (absolute or negative).
+
+Which model to use should eventually be a per application choice (and
+possible configurable via cradvise() or some sort). For now, we adopt
+the relative model, namely, at restart the timeout is set relative to
+the beginning of the restart.
+
+To checkpoint, we check if a task has a valid restart block, and if so
+we save the *remaining* time that is has to wait/sleep, and the type
+of the restart block.
+
+To restart, we fill in the data required at the proper place in the
+thread information. If the system call return an error (which is
+possibly an -ERESTARTSYS eg), we not only use that error as our own
+return value, but also arrange for the task to execute the signal
+handler (by faking a signal). The handler, in turn, already has the
+code to handle these restart request gracefully.
+
+Changelog[v1]:
+  - [Nathan Lynch] fix compilation errors with CONFIG_COMPAT=y
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- checkpoint/signal.c            |   79 +++++++++++++++++++++++++++++++++++++++-
- drivers/char/tty_io.c          |   33 +++++++++++++----
- include/linux/checkpoint.h     |    1 +
- include/linux/checkpoint_hdr.h |    6 +++
- include/linux/tty.h            |    5 +++
- 5 files changed, 115 insertions(+), 9 deletions(-)
+ checkpoint/checkpoint.c          |    1 +
+ checkpoint/process.c             |  226 ++++++++++++++++++++++++++++++++++++++
+ checkpoint/restart.c             |    5 +-
+ checkpoint/sys.c                 |    1 +
+ include/linux/checkpoint.h       |    4 +
+ include/linux/checkpoint_hdr.h   |   22 ++++
+ include/linux/checkpoint_types.h |    3 +
+ 7 files changed, 260 insertions(+), 2 deletions(-)
 
-diff --git a/checkpoint/signal.c b/checkpoint/signal.c
-index 5ff0734..cd3956d 100644
---- a/checkpoint/signal.c
-+++ b/checkpoint/signal.c
-@@ -316,11 +316,12 @@ static int checkpoint_signal(struct ckpt_ctx *ctx, struct task_struct *t)
- 	struct ckpt_hdr_signal *h;
- 	struct signal_struct *signal;
- 	struct sigpending shared_pending;
-+	struct tty_struct *tty = NULL;
- 	struct rlimit *rlim;
- 	struct timeval tval;
- 	cputime_t cputime;
- 	unsigned long flags;
--	int i, ret;
-+	int i, ret = 0;
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index ad89f50..554400c 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -22,6 +22,7 @@
+ #include <linux/mount.h>
+ #include <linux/utsname.h>
+ #include <linux/magic.h>
++#include <linux/hrtimer.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
  
- 	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_SIGNAL);
- 	if (!h)
-@@ -398,9 +399,34 @@ static int checkpoint_signal(struct ckpt_ctx *ctx, struct task_struct *t)
- 	cputime_to_timeval(signal->it_prof_incr, &tval);
- 	h->it_prof_incr = timeval_to_ns(&tval);
+diff --git a/checkpoint/process.c b/checkpoint/process.c
+index 1d1170c..330c8d4 100644
+--- a/checkpoint/process.c
++++ b/checkpoint/process.c
+@@ -12,6 +12,9 @@
+ #define CKPT_DFLAG  CKPT_DSYS
  
-+	/* tty */
-+	if (signal->leader) {
-+		h->tty_old_pgrp = ckpt_pid_nr(ctx, signal->tty_old_pgrp);
-+		tty = tty_kref_get(signal->tty);
-+		if (tty) {
-+			/* irq is already disabled */
-+			spin_lock(&tty->ctrl_lock);
-+			h->tty_pgrp = ckpt_pid_nr(ctx, tty->pgrp);
-+			spin_unlock(&tty->ctrl_lock);
-+			tty_kref_put(tty);
-+		}
-+	}
-+
- 	unlock_task_sighand(t, &flags);
+ #include <linux/sched.h>
++#include <linux/posix-timers.h>
++#include <linux/futex.h>
++#include <linux/poll.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
  
--	ret = ckpt_write_obj(ctx, &h->h);
-+	/*
-+	 * If the session is in an ancestor namespace, skip this tty
-+	 * and set tty_objref = 0. It will not be explicitly restored,
-+	 * but rather inherited from parent pid-ns at restart time.
-+	 */
-+	if (tty && ckpt_pid_nr(ctx, tty->session) > 0) {
-+		h->tty_objref = checkpoint_obj(ctx, tty, CKPT_OBJ_TTY);
-+		if (h->tty_objref < 0)
-+			ret = h->tty_objref;
-+	}
-+
-+	if (!ret)
-+		ret = ckpt_write_obj(ctx, &h->h);
- 	if (!ret)
- 		ret = checkpoint_sigpending(ctx, &shared_pending);
- 
-@@ -471,8 +497,10 @@ static int restore_signal(struct ckpt_ctx *ctx)
- 	struct ckpt_hdr_signal *h;
- 	struct sigpending new_pending;
- 	struct sigpending *pending;
-+	struct tty_struct *tty = NULL;
- 	struct itimerval itimer;
- 	struct rlimit rlim;
-+	struct pid *pgrp = NULL;
- 	int i, ret;
- 
- 	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_SIGNAL);
-@@ -492,6 +520,40 @@ static int restore_signal(struct ckpt_ctx *ctx)
- 	if (ret < 0)
- 		goto out;
- 
-+	/* tty - session */
-+	if (h->tty_objref) {
-+		tty = ckpt_obj_fetch(ctx, h->tty_objref, CKPT_OBJ_TTY);
-+		if (IS_ERR(tty)) {
-+			ret = PTR_ERR(tty);
-+			goto out;
-+		}
-+		/* this will fail unless we're the session leader */
-+		ret = tiocsctty(tty, 0);
-+		if (ret < 0)
-+			goto out;
-+		/* now restore the foreground group (job control) */
-+		if (h->tty_pgrp) {
-+			/*
-+			 * If tty_pgrp == CKPT_PID_NULL, below will
-+			 * fail, so no need for explicit test
-+			 */
-+			ret = do_tiocspgrp(tty, tty_pair_get_tty(tty),
-+					   h->tty_pgrp);
-+			if (ret < 0)
-+				goto out;
-+		}
-+	} else {
-+		/*
-+		 * If tty_objref isn't set, we _keep_ whatever tty we
-+		 * already have as a ctty. Why does this make sense ?
-+		 * - If our session is "within" the restart context,
-+		 * then that session has no controlling terminal.
-+		 * - If out session is "outside" the restart context,
-+                 * then we're like to keep whatever we inherit from
-+                 * the parent pid-ns.
-+		 */
-+	}
-+
- 	/*
- 	 * Reset real/virt/prof itimer (in case they were set), to
- 	 * prevent unwanted signals after flushing current signals
-@@ -503,7 +565,20 @@ static int restore_signal(struct ckpt_ctx *ctx)
- 	do_setitimer(ITIMER_VIRTUAL, &itimer, NULL);
- 	do_setitimer(ITIMER_PROF, &itimer, NULL);
- 
-+	/* tty - tty_old_pgrp */
-+	if (current->signal->leader && h->tty_old_pgrp != CKPT_PID_NULL) {
-+		rcu_read_lock();
-+		pgrp = get_pid(_ckpt_find_pgrp(ctx, h->tty_old_pgrp));
-+		rcu_read_unlock();
-+		if (!pgrp)
-+			goto out;
-+	}
-+
- 	spin_lock_irq(&current->sighand->siglock);
-+	/* tty - tty_old_pgrp */
-+	put_pid(current->signal->tty_old_pgrp);
-+	current->signal->tty_old_pgrp = pgrp;
-+	/* pending signals */
- 	pending = &current->signal->shared_pending;
- 	flush_sigqueue(pending);
- 	pending->signal = new_pending.signal;
-diff --git a/drivers/char/tty_io.c b/drivers/char/tty_io.c
-index 72f4432..1b220c1 100644
---- a/drivers/char/tty_io.c
-+++ b/drivers/char/tty_io.c
-@@ -2130,7 +2130,7 @@ static int fionbio(struct file *file, int __user *p)
-  *		Takes ->siglock() when updating signal->tty
-  */
- 
--static int tiocsctty(struct tty_struct *tty, int arg)
-+int tiocsctty(struct tty_struct *tty, int arg)
- {
- 	int ret = 0;
- 	if (current->signal->leader && (task_session(current) == tty->session))
-@@ -2219,10 +2219,10 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
+@@ -47,6 +50,116 @@ static int checkpoint_task_struct(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	return ckpt_write_string(ctx, t->comm, TASK_COMM_LEN);
  }
  
- /**
-- *	tiocspgrp		-	attempt to set process group
-+ *	do_tiocspgrp		-	attempt to set process group
-  *	@tty: tty passed by user
-  *	@real_tty: tty side device matching tty passed by user
-- *	@p: pid pointer
-+ *	@pid: pgrp_nr
-  *
-  *	Set the process group of the tty to the session passed. Only
-  *	permitted where the tty session is our session.
-@@ -2230,10 +2230,10 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
-  *	Locking: RCU, ctrl lock
-  */
- 
--static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
-+int do_tiocspgrp(struct tty_struct *tty,
-+		 struct tty_struct *real_tty, pid_t pgrp_nr)
- {
- 	struct pid *pgrp;
--	pid_t pgrp_nr;
- 	int retval = tty_check_change(real_tty);
- 	unsigned long flags;
- 
-@@ -2245,8 +2245,6 @@ static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
- 	    (current->signal->tty != real_tty) ||
- 	    (real_tty->session != task_session(current)))
- 		return -ENOTTY;
--	if (get_user(pgrp_nr, p))
--		return -EFAULT;
- 	if (pgrp_nr < 0)
- 		return -EINVAL;
- 	rcu_read_lock();
-@@ -2268,6 +2266,27 @@ out_unlock:
- }
- 
- /**
-+ *	tiocspgrp		-	attempt to set process group
-+ *	@tty: tty passed by user
-+ *	@real_tty: tty side device matching tty passed by user
-+ *	@p: pid pointer
-+ *
-+ *	Set the process group of the tty to the session passed. Only
-+ *	permitted where the tty session is our session.
-+ *
-+ *	Locking: RCU, ctrl lock
-+ */
-+
-+static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
++/* dump the task_struct of a given task */
++int checkpoint_restart_block(struct ckpt_ctx *ctx, struct task_struct *t)
 +{
-+	pid_t pgrp_nr;
++	struct ckpt_hdr_restart_block *h;
++	struct restart_block *restart_block;
++	long (*fn)(struct restart_block *);
++	s64 base, expire = 0;
++	int ret;
 +
-+	if (get_user(pgrp_nr, p))
-+		return -EFAULT;
-+	return do_tiocspgrp(tty, real_tty, pgrp_nr);
++	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
++	if (!h)
++		return -ENOMEM;
++
++	base = ktime_to_ns(ctx->ktime_begin);
++	restart_block = &task_thread_info(t)->restart_block;
++	fn = restart_block->fn;
++
++	/* FIX: enumerate clockid_t so we're immune to changes */
++
++	if (fn == do_no_restart_syscall) {
++
++		h->function_type = CKPT_RESTART_BLOCK_NONE;
++		ckpt_debug("restart_block: non\n");
++
++	} else if (fn == hrtimer_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long) restart_block->nanosleep.rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: hrtimer expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == posix_cpu_nsleep_restart) {
++		struct timespec ts;
++
++		h->function_type = CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP;
++		h->arg_0 = restart_block->arg0;
++		h->arg_1 = restart_block->arg1;
++		ts.tv_sec = restart_block->arg2;
++		ts.tv_nsec = restart_block->arg3;
++		expire = timespec_to_ns(&ts);
++		ckpt_debug("restart_block: posix_cpu expire %lld now %lld\n",
++			 expire, base);
++
++#ifdef CONFIG_COMPAT
++	} else if (fn == compat_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
++		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: compat expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == compat_clock_nanosleep_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP;
++		h->arg_0 = restart_block->nanosleep.index;
++		h->arg_1 = (unsigned long)restart_block->nanosleep.rmtp;
++		h->arg_2 = (unsigned long)restart_block->nanosleep.compat_rmtp;
++		expire = restart_block->nanosleep.expires;
++		ckpt_debug("restart_block: compat_clock expire %lld now %lld\n",
++			 expire, base);
++
++#endif
++	} else if (fn == futex_wait_restart) {
++
++		h->function_type = CKPT_RESTART_BLOCK_FUTEX;
++		h->arg_0 = (unsigned long) restart_block->futex.uaddr;
++		h->arg_1 = restart_block->futex.val;
++		h->arg_2 = restart_block->futex.flags;
++		h->arg_3 = restart_block->futex.bitset;
++		expire = restart_block->futex.time;
++		ckpt_debug("restart_block: futex expire %lld now %lld\n",
++			 expire, base);
++
++	} else if (fn == do_restart_poll) {
++		struct timespec ts;
++
++		h->function_type = CKPT_RESTART_BLOCK_POLL;
++		h->arg_0 = (unsigned long) restart_block->poll.ufds;
++		h->arg_1 = restart_block->poll.nfds;
++		h->arg_2 = restart_block->poll.has_timeout;
++		ts.tv_sec = restart_block->poll.tv_sec;
++		ts.tv_nsec = restart_block->poll.tv_nsec;
++		expire = timespec_to_ns(&ts);
++		ckpt_debug("restart_block: poll expire %lld now %lld\n",
++			 expire, base);
++
++	} else {
++
++		BUG();
++
++	}
++
++	/* common to all restart blocks: */
++	h->arg_4 = (base < expire ? expire - base : 0);
++
++	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
++		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
++
++	ret = ckpt_write_obj(ctx, &h->h);
++	ckpt_hdr_put(ctx, h);
++
++	ckpt_debug("restart_block ret %d\n", ret);
++	return ret;
 +}
 +
-+/**
-  *	tiocgsid		-	get session id
-  *	@tty: tty passed by user
-  *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+ /* dump the entire state of a given task */
+ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ {
+@@ -63,6 +176,10 @@ int checkpoint_task(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = checkpoint_restart_block(ctx, t);
++	ckpt_debug("restart-blocks %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = checkpoint_cpu(ctx, t);
+ 	ckpt_debug("cpu %d\n", ret);
+  out:
+@@ -99,6 +216,111 @@ static int restore_task_struct(struct ckpt_ctx *ctx)
+ 	return ret;
+ }
+ 
++int restore_restart_block(struct ckpt_ctx *ctx)
++{
++	struct ckpt_hdr_restart_block *h;
++	struct restart_block restart_block;
++	struct timespec ts;
++	clockid_t clockid;
++	s64 expire;
++	int ret = 0;
++
++	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_RESTART_BLOCK);
++	if (IS_ERR(h))
++		return PTR_ERR(h);
++
++	expire = ktime_to_ns(ctx->ktime_begin) + h->arg_4;
++	restart_block.fn = NULL;
++
++	ckpt_debug("restart_block: expire %lld begin %lld\n",
++		 expire, ktime_to_ns(ctx->ktime_begin));
++	ckpt_debug("restart_block: args %#llx %#llx %#llx %#llx %#llx\n",
++		 h->arg_0, h->arg_1, h->arg_2, h->arg_3, h->arg_4);
++
++	switch (h->function_type) {
++	case CKPT_RESTART_BLOCK_NONE:
++		restart_block.fn = do_no_restart_syscall;
++		break;
++	case CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = hrtimer_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.expires = expire;
++		break;
++	case CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = posix_cpu_nsleep_restart;
++		restart_block.arg0 = clockid;
++		restart_block.arg1 = h->arg_1;
++		ts = ns_to_timespec(expire);
++		restart_block.arg2 = ts.tv_sec;
++		restart_block.arg3 = ts.tv_nsec;
++		break;
++#ifdef CONFIG_COMPAT
++	case CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = compat_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.compat_rmtp =
++			(struct compat_timespec __user *)
++				(unsigned long) h->arg_2;
++		restart_block.nanosleep.expires = expire;
++		break;
++	case CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP:
++		clockid = h->arg_0;
++		if (clockid < 0 || invalid_clockid(clockid))
++			break;
++		restart_block.fn = compat_clock_nanosleep_restart;
++		restart_block.nanosleep.index = clockid;
++		restart_block.nanosleep.rmtp =
++			(struct timespec __user *) (unsigned long) h->arg_1;
++		restart_block.nanosleep.compat_rmtp =
++			(struct compat_timespec __user *)
++				(unsigned long) h->arg_2;
++		restart_block.nanosleep.expires = expire;
++		break;
++#endif
++	case CKPT_RESTART_BLOCK_FUTEX:
++		restart_block.fn = futex_wait_restart;
++		restart_block.futex.uaddr = (u32 *) (unsigned long) h->arg_0;
++		restart_block.futex.val = h->arg_1;
++		restart_block.futex.flags = h->arg_2;
++		restart_block.futex.bitset = h->arg_3;
++		restart_block.futex.time = expire;
++		break;
++	case CKPT_RESTART_BLOCK_POLL:
++		restart_block.fn = do_restart_poll;
++		restart_block.poll.ufds =
++			(struct pollfd __user *) (unsigned long) h->arg_0;
++		restart_block.poll.nfds = h->arg_1;
++		restart_block.poll.has_timeout = h->arg_2;
++		ts = ns_to_timespec(expire);
++		restart_block.poll.tv_sec = ts.tv_sec;
++		restart_block.poll.tv_nsec = ts.tv_nsec;
++		break;
++	default:
++		break;
++	}
++
++	if (restart_block.fn)
++		task_thread_info(current)->restart_block = restart_block;
++	else
++		ret = -EINVAL;
++
++	ckpt_hdr_put(ctx, h);
++	return ret;
++}
++
+ /* read the entire state of the current task */
+ int restore_task(struct ckpt_ctx *ctx)
+ {
+@@ -112,6 +334,10 @@ int restore_task(struct ckpt_ctx *ctx)
+ 	ckpt_debug("thread %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = restore_restart_block(ctx);
++	ckpt_debug("restart-blocks %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = restore_cpu(ctx);
+ 	ckpt_debug("cpu %d\n", ret);
+  out:
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index cb02ffb..fdad264 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -16,6 +16,8 @@
+ #include <linux/file.h>
+ #include <linux/magic.h>
+ #include <linux/utsname.h>
++#include <asm/syscall.h>
++#include <linux/elf.h>
+ #include <linux/checkpoint.h>
+ #include <linux/checkpoint_hdr.h>
+ 
+@@ -482,6 +484,5 @@ long do_restart(struct ckpt_ctx *ctx, pid_t pid)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	/* on success, adjust the return value if needed [TODO] */
+-	return restore_retval(ctx);
++	return restore_retval();
+ }
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index dda2c21..b37bc8c 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -193,6 +193,7 @@ static struct ckpt_ctx *ckpt_ctx_alloc(int fd, unsigned long uflags,
+ 
+ 	ctx->uflags = uflags;
+ 	ctx->kflags = kflags;
++	ctx->ktime_begin = ktime_get();
+ 
+ 	err = -EBADF;
+ 	ctx->file = fget(fd);
 diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 8e1cce7..e00dd70 100644
+index aa8ce11..14c0a7f 100644
 --- a/include/linux/checkpoint.h
 +++ b/include/linux/checkpoint.h
-@@ -84,6 +84,7 @@ extern char *ckpt_fill_fname(struct path *path, struct path *root,
+@@ -70,6 +70,10 @@ extern int restore_read_header_arch(struct ckpt_ctx *ctx);
+ extern int restore_thread(struct ckpt_ctx *ctx);
+ extern int restore_cpu(struct ckpt_ctx *ctx);
  
- /* pids */
- extern pid_t ckpt_pid_nr(struct ckpt_ctx *ctx, struct pid *pid);
-+extern struct pid *_ckpt_find_pgrp(struct ckpt_ctx *ctx, pid_t pgid);
- 
- /* socket functions */
- extern int ckpt_sock_getnames(struct ckpt_ctx *ctx,
++extern int checkpoint_restart_block(struct ckpt_ctx *ctx,
++				    struct task_struct *t);
++extern int restore_restart_block(struct ckpt_ctx *ctx);
++
+ static inline int ckpt_validate_errno(int errno)
+ {
+ 	return (errno >= 0) && (errno < MAX_ERRNO);
 diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index 842177f..9ae35a0 100644
+index 92d082e..b72c59c 100644
 --- a/include/linux/checkpoint_hdr.h
 +++ b/include/linux/checkpoint_hdr.h
-@@ -578,13 +578,19 @@ struct ckpt_rlimit {
+@@ -52,6 +52,7 @@ enum {
+ 	CKPT_HDR_STRING,
  
- struct ckpt_hdr_signal {
- 	struct ckpt_hdr h;
-+	/* rlimit */
- 	struct ckpt_rlimit rlim[CKPT_RLIM_NLIMITS];
-+	/* itimer */
- 	__u64 it_real_value;
- 	__u64 it_real_incr;
- 	__u64 it_virt_value;
- 	__u64 it_virt_incr;
- 	__u64 it_prof_value;
- 	__u64 it_prof_incr;
-+	/* tty */
-+	__s32 tty_objref;
-+	__s32 tty_pgrp;
-+	__s32 tty_old_pgrp;
+ 	CKPT_HDR_TASK = 101,
++	CKPT_HDR_RESTART_BLOCK,
+ 	CKPT_HDR_THREAD,
+ 	CKPT_HDR_CPU,
+ 
+@@ -122,4 +123,25 @@ struct ckpt_hdr_task {
+ 	__u64 clear_child_tid;
  } __attribute__((aligned(8)));
  
- struct ckpt_hdr_signal_task {
-diff --git a/include/linux/tty.h b/include/linux/tty.h
-index 295447b..9447251 100644
---- a/include/linux/tty.h
-+++ b/include/linux/tty.h
-@@ -471,6 +471,11 @@ extern void tty_ldisc_enable(struct tty_struct *tty);
- /* This one is for ptmx_close() */
- extern int tty_release(struct inode *inode, struct file *filp);
- 
-+/* These are for checkpoint/restart */
-+extern int tiocsctty(struct tty_struct *tty, int arg);
-+extern int do_tiocspgrp(struct tty_struct *tty,
-+			struct tty_struct *real_tty, pid_t pgrp_nr);
++/* restart blocks */
++struct ckpt_hdr_restart_block {
++	struct ckpt_hdr h;
++	__u64 function_type;
++	__u64 arg_0;
++	__u64 arg_1;
++	__u64 arg_2;
++	__u64 arg_3;
++	__u64 arg_4;
++} __attribute__((aligned(8)));
 +
- #ifdef CONFIG_CHECKPOINT
- struct ckpt_ctx;
- struct ckpt_hdr_file;
++enum restart_block_type {
++	CKPT_RESTART_BLOCK_NONE = 1,
++	CKPT_RESTART_BLOCK_HRTIMER_NANOSLEEP,
++	CKPT_RESTART_BLOCK_POSIX_CPU_NANOSLEEP,
++	CKPT_RESTART_BLOCK_COMPAT_NANOSLEEP,
++	CKPT_RESTART_BLOCK_COMPAT_CLOCK_NANOSLEEP,
++	CKPT_RESTART_BLOCK_POLL,
++	CKPT_RESTART_BLOCK_FUTEX
++};
++
+ #endif /* _CHECKPOINT_CKPT_HDR_H_ */
+diff --git a/include/linux/checkpoint_types.h b/include/linux/checkpoint_types.h
+index 15dbe1b..046bdc4 100644
+--- a/include/linux/checkpoint_types.h
++++ b/include/linux/checkpoint_types.h
+@@ -15,10 +15,13 @@
+ #include <linux/sched.h>
+ #include <linux/nsproxy.h>
+ #include <linux/fs.h>
++#include <linux/ktime.h>
+ 
+ struct ckpt_ctx {
+ 	int crid;		/* unique checkpoint id */
+ 
++	ktime_t ktime_begin;	/* checkpoint start time */
++
+ 	pid_t root_pid;				/* [container] root pid */
+ 	struct task_struct *root_task;		/* [container] root task */
+ 	struct nsproxy *root_nsproxy;		/* [container] root nsproxy */
 -- 
 1.6.0.4
 
