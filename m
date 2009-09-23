@@ -1,156 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CEFA6B005A
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:24 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0136B005C
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:25 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 58/80] c/r: clone_with_pids: define the s390 syscall
-Date: Wed, 23 Sep 2009 19:51:38 -0400
-Message-Id: <1253749920-18673-59-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 74/80] c/r: support for controlling terminal and job control
+Date: Wed, 23 Sep 2009 19:51:54 -0400
+Message-Id: <1253749920-18673-75-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Serge E. Hallyn <serue@us.ibm.com>
+Add checkpoint/restart of controlling terminal: current->signal->tty.
+This is only done for session leaders.
 
-Hook up the clone_with_pids system call for s390x.  clone_with_pids()
-takes an additional argument over clone(), which we pass in through
-register 7.  Stub code for using the syscall looks like:
+If the session leader belongs to the ancestor pid-ns, then checkpoint
+skips this tty; On restart, it will not be restored, and whatever tty
+is in place from parent pid-ns (at restart) will be inherited.
 
-struct target_pid_set {
-        int num_pids;
-        pid_t *target_pids;
-        unsigned long flags;
-};
+Chagnelog [v1]:
+  - Don't restore tty_old_pgrp it pgid is CKPT_PID_NULL
+  - Initialize pgrp to NULL in restore_signal
 
-    register unsigned long int __r2 asm ("2") = (unsigned long int)(stack);
-    register unsigned long int __r3 asm ("3") = (unsigned long int)(flags);
-    register unsigned long int __r4 asm ("4") = (unsigned long int)(NULL);
-    register unsigned long int __r5 asm ("5") = (unsigned long int)(NULL);
-    register unsigned long int __r6 asm ("6") = (unsigned long int)(NULL);
-    register unsigned long int __r7 asm ("7") = (unsigned long int)(setp);
-    register unsigned long int __result asm ("2");
-    __asm__ __volatile__(
-            " lghi %%r1,332\n"
-            " svc 0\n"
-            : "=d" (__result)
-            : "0" (__r2), "d" (__r3),
-              "d" (__r4), "d" (__r5), "d" (__r6), "d" (__r7)
-            : "1", "cc", "memory"
-    );
-            __result;
-    })
-
-    struct target_pid_set pid_set;
-    int pids[1] = { 19799 };
-    pid_set.num_pids = 1;
-    pid_set.target_pids = &pids[0];
-    pid_set.flags = 0;
-
-    rc = do_clone_with_pids(topstack, clone_flags, setp);
-    if (rc == 0)
-	printf("Child\n");
-    else if (rc > 0)
-	printf("Parent: child pid %d\n", rc);
-    else
-	printf("Error %d\n", rc);
-
-Changelog[v18]:
-  - Set return value for self-checkpoint
-
-Signed-off-by: Serge E. Hallyn <serue@us.ibm.com>
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 ---
- arch/s390/include/asm/unistd.h  |    3 ++-
- arch/s390/kernel/compat_linux.c |   19 +++++++++++++++++++
- arch/s390/kernel/process.c      |   19 +++++++++++++++++++
- arch/s390/kernel/syscalls.S     |    1 +
- 4 files changed, 41 insertions(+), 1 deletions(-)
+ checkpoint/signal.c            |   79 +++++++++++++++++++++++++++++++++++++++-
+ drivers/char/tty_io.c          |   33 +++++++++++++----
+ include/linux/checkpoint.h     |    1 +
+ include/linux/checkpoint_hdr.h |    6 +++
+ include/linux/tty.h            |    5 +++
+ 5 files changed, 115 insertions(+), 9 deletions(-)
 
-diff --git a/arch/s390/include/asm/unistd.h b/arch/s390/include/asm/unistd.h
-index 5d1678a..2a84f9c 100644
---- a/arch/s390/include/asm/unistd.h
-+++ b/arch/s390/include/asm/unistd.h
-@@ -271,7 +271,8 @@
- #define __NR_perf_counter_open	331
- #define __NR_checkpoint		332
- #define __NR_restart		333
--#define NR_syscalls 334
-+#define __NR_clone_with_pids	334
-+#define NR_syscalls 335
+diff --git a/checkpoint/signal.c b/checkpoint/signal.c
+index 5ff0734..cd3956d 100644
+--- a/checkpoint/signal.c
++++ b/checkpoint/signal.c
+@@ -316,11 +316,12 @@ static int checkpoint_signal(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	struct ckpt_hdr_signal *h;
+ 	struct signal_struct *signal;
+ 	struct sigpending shared_pending;
++	struct tty_struct *tty = NULL;
+ 	struct rlimit *rlim;
+ 	struct timeval tval;
+ 	cputime_t cputime;
+ 	unsigned long flags;
+-	int i, ret;
++	int i, ret = 0;
  
- /* 
-  * There are some system calls that are not present on 64 bit, some
-diff --git a/arch/s390/kernel/compat_linux.c b/arch/s390/kernel/compat_linux.c
-index 9ab188d..c6dc681 100644
---- a/arch/s390/kernel/compat_linux.c
-+++ b/arch/s390/kernel/compat_linux.c
-@@ -818,6 +818,25 @@ asmlinkage long sys32_clone(void)
- 		       parent_tidptr, child_tidptr);
+ 	h = ckpt_hdr_get_type(ctx, sizeof(*h), CKPT_HDR_SIGNAL);
+ 	if (!h)
+@@ -398,9 +399,34 @@ static int checkpoint_signal(struct ckpt_ctx *ctx, struct task_struct *t)
+ 	cputime_to_timeval(signal->it_prof_incr, &tval);
+ 	h->it_prof_incr = timeval_to_ns(&tval);
+ 
++	/* tty */
++	if (signal->leader) {
++		h->tty_old_pgrp = ckpt_pid_nr(ctx, signal->tty_old_pgrp);
++		tty = tty_kref_get(signal->tty);
++		if (tty) {
++			/* irq is already disabled */
++			spin_lock(&tty->ctrl_lock);
++			h->tty_pgrp = ckpt_pid_nr(ctx, tty->pgrp);
++			spin_unlock(&tty->ctrl_lock);
++			tty_kref_put(tty);
++		}
++	}
++
+ 	unlock_task_sighand(t, &flags);
+ 
+-	ret = ckpt_write_obj(ctx, &h->h);
++	/*
++	 * If the session is in an ancestor namespace, skip this tty
++	 * and set tty_objref = 0. It will not be explicitly restored,
++	 * but rather inherited from parent pid-ns at restart time.
++	 */
++	if (tty && ckpt_pid_nr(ctx, tty->session) > 0) {
++		h->tty_objref = checkpoint_obj(ctx, tty, CKPT_OBJ_TTY);
++		if (h->tty_objref < 0)
++			ret = h->tty_objref;
++	}
++
++	if (!ret)
++		ret = ckpt_write_obj(ctx, &h->h);
+ 	if (!ret)
+ 		ret = checkpoint_sigpending(ctx, &shared_pending);
+ 
+@@ -471,8 +497,10 @@ static int restore_signal(struct ckpt_ctx *ctx)
+ 	struct ckpt_hdr_signal *h;
+ 	struct sigpending new_pending;
+ 	struct sigpending *pending;
++	struct tty_struct *tty = NULL;
+ 	struct itimerval itimer;
+ 	struct rlimit rlim;
++	struct pid *pgrp = NULL;
+ 	int i, ret;
+ 
+ 	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_SIGNAL);
+@@ -492,6 +520,40 @@ static int restore_signal(struct ckpt_ctx *ctx)
+ 	if (ret < 0)
+ 		goto out;
+ 
++	/* tty - session */
++	if (h->tty_objref) {
++		tty = ckpt_obj_fetch(ctx, h->tty_objref, CKPT_OBJ_TTY);
++		if (IS_ERR(tty)) {
++			ret = PTR_ERR(tty);
++			goto out;
++		}
++		/* this will fail unless we're the session leader */
++		ret = tiocsctty(tty, 0);
++		if (ret < 0)
++			goto out;
++		/* now restore the foreground group (job control) */
++		if (h->tty_pgrp) {
++			/*
++			 * If tty_pgrp == CKPT_PID_NULL, below will
++			 * fail, so no need for explicit test
++			 */
++			ret = do_tiocspgrp(tty, tty_pair_get_tty(tty),
++					   h->tty_pgrp);
++			if (ret < 0)
++				goto out;
++		}
++	} else {
++		/*
++		 * If tty_objref isn't set, we _keep_ whatever tty we
++		 * already have as a ctty. Why does this make sense ?
++		 * - If our session is "within" the restart context,
++		 * then that session has no controlling terminal.
++		 * - If out session is "outside" the restart context,
++                 * then we're like to keep whatever we inherit from
++                 * the parent pid-ns.
++		 */
++	}
++
+ 	/*
+ 	 * Reset real/virt/prof itimer (in case they were set), to
+ 	 * prevent unwanted signals after flushing current signals
+@@ -503,7 +565,20 @@ static int restore_signal(struct ckpt_ctx *ctx)
+ 	do_setitimer(ITIMER_VIRTUAL, &itimer, NULL);
+ 	do_setitimer(ITIMER_PROF, &itimer, NULL);
+ 
++	/* tty - tty_old_pgrp */
++	if (current->signal->leader && h->tty_old_pgrp != CKPT_PID_NULL) {
++		rcu_read_lock();
++		pgrp = get_pid(_ckpt_find_pgrp(ctx, h->tty_old_pgrp));
++		rcu_read_unlock();
++		if (!pgrp)
++			goto out;
++	}
++
+ 	spin_lock_irq(&current->sighand->siglock);
++	/* tty - tty_old_pgrp */
++	put_pid(current->signal->tty_old_pgrp);
++	current->signal->tty_old_pgrp = pgrp;
++	/* pending signals */
+ 	pending = &current->signal->shared_pending;
+ 	flush_sigqueue(pending);
+ 	pending->signal = new_pending.signal;
+diff --git a/drivers/char/tty_io.c b/drivers/char/tty_io.c
+index 72f4432..1b220c1 100644
+--- a/drivers/char/tty_io.c
++++ b/drivers/char/tty_io.c
+@@ -2130,7 +2130,7 @@ static int fionbio(struct file *file, int __user *p)
+  *		Takes ->siglock() when updating signal->tty
+  */
+ 
+-static int tiocsctty(struct tty_struct *tty, int arg)
++int tiocsctty(struct tty_struct *tty, int arg)
+ {
+ 	int ret = 0;
+ 	if (current->signal->leader && (task_session(current) == tty->session))
+@@ -2219,10 +2219,10 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
  }
  
-+asmlinkage long sys32_clone_with_pids(void)
-+{
-+	struct pt_regs *regs = task_pt_regs(current);
-+	unsigned long clone_flags;
-+	unsigned long newsp;
-+	int __user *parent_tidptr, *child_tidptr;
-+	void __user *upid_setp;
-+
-+	clone_flags = regs->gprs[3] & 0xffffffffUL;
-+	newsp = regs->orig_gpr2 & 0x7fffffffUL;
-+	parent_tidptr = compat_ptr(regs->gprs[4]);
-+	child_tidptr = compat_ptr(regs->gprs[5]);
-+	upid_setp = compat_ptr(regs->gprs[7]);
-+	if (!newsp)
-+		newsp = regs->gprs[15];
-+	return do_fork_with_pids(clone_flags, newsp, regs, 0,
-+		       parent_tidptr, child_tidptr, upid_setp);
-+}
-+
- /*
-  * 31 bit emulation wrapper functions for sys_fadvise64/fadvise64_64.
-  * These need to rewrite the advise values for POSIX_FADV_{DONTNEED,NOREUSE}
-diff --git a/arch/s390/kernel/process.c b/arch/s390/kernel/process.c
-index 5a43f27..263d3ab 100644
---- a/arch/s390/kernel/process.c
-+++ b/arch/s390/kernel/process.c
-@@ -247,6 +247,25 @@ SYSCALL_DEFINE0(clone)
- 		       parent_tidptr, child_tidptr);
+ /**
+- *	tiocspgrp		-	attempt to set process group
++ *	do_tiocspgrp		-	attempt to set process group
+  *	@tty: tty passed by user
+  *	@real_tty: tty side device matching tty passed by user
+- *	@p: pid pointer
++ *	@pid: pgrp_nr
+  *
+  *	Set the process group of the tty to the session passed. Only
+  *	permitted where the tty session is our session.
+@@ -2230,10 +2230,10 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
+  *	Locking: RCU, ctrl lock
+  */
+ 
+-static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
++int do_tiocspgrp(struct tty_struct *tty,
++		 struct tty_struct *real_tty, pid_t pgrp_nr)
+ {
+ 	struct pid *pgrp;
+-	pid_t pgrp_nr;
+ 	int retval = tty_check_change(real_tty);
+ 	unsigned long flags;
+ 
+@@ -2245,8 +2245,6 @@ static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t
+ 	    (current->signal->tty != real_tty) ||
+ 	    (real_tty->session != task_session(current)))
+ 		return -ENOTTY;
+-	if (get_user(pgrp_nr, p))
+-		return -EFAULT;
+ 	if (pgrp_nr < 0)
+ 		return -EINVAL;
+ 	rcu_read_lock();
+@@ -2268,6 +2266,27 @@ out_unlock:
  }
  
-+SYSCALL_DEFINE0(clone_with_pids)
-+{
-+	struct pt_regs *regs = task_pt_regs(current);
-+	unsigned long clone_flags;
-+	unsigned long newsp;
-+	int __user *parent_tidptr, *child_tidptr;
-+	void __user *upid_setp;
+ /**
++ *	tiocspgrp		-	attempt to set process group
++ *	@tty: tty passed by user
++ *	@real_tty: tty side device matching tty passed by user
++ *	@p: pid pointer
++ *
++ *	Set the process group of the tty to the session passed. Only
++ *	permitted where the tty session is our session.
++ *
++ *	Locking: RCU, ctrl lock
++ */
 +
-+	clone_flags = regs->gprs[3];
-+	newsp = regs->orig_gpr2;
-+	parent_tidptr = (int __user *) regs->gprs[4];
-+	child_tidptr = (int __user *) regs->gprs[5];
-+	upid_setp = (void __user *) regs->gprs[7];
-+	if (!newsp)
-+		newsp = regs->gprs[15];
-+	return do_fork_with_pids(clone_flags, newsp, regs, 0, parent_tidptr,
-+			child_tidptr, upid_setp);
++static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
++{
++	pid_t pgrp_nr;
++
++	if (get_user(pgrp_nr, p))
++		return -EFAULT;
++	return do_tiocspgrp(tty, real_tty, pgrp_nr);
 +}
 +
- /*
-  * This is trivial, and on the face of it looks like it
-  * could equally well be done in user mode.
-diff --git a/arch/s390/kernel/syscalls.S b/arch/s390/kernel/syscalls.S
-index 67518e2..db850e7 100644
---- a/arch/s390/kernel/syscalls.S
-+++ b/arch/s390/kernel/syscalls.S
-@@ -342,3 +342,4 @@ SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo
- SYSCALL(sys_perf_counter_open,sys_perf_counter_open,sys_perf_counter_open_wrapper)
- SYSCALL(sys_checkpoint,sys_checkpoint,sys_checkpoint_wrapper)
- SYSCALL(sys_restart,sys_restart,sys_restore_wrapper)
-+SYSCALL(sys_clone_with_pids,sys_clone_with_pids,sys_clone_with_pids_wrapper)
++/**
+  *	tiocgsid		-	get session id
+  *	@tty: tty passed by user
+  *	@real_tty: tty side of the tty pased by the user if a pty else the tty
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 8e1cce7..e00dd70 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -84,6 +84,7 @@ extern char *ckpt_fill_fname(struct path *path, struct path *root,
+ 
+ /* pids */
+ extern pid_t ckpt_pid_nr(struct ckpt_ctx *ctx, struct pid *pid);
++extern struct pid *_ckpt_find_pgrp(struct ckpt_ctx *ctx, pid_t pgid);
+ 
+ /* socket functions */
+ extern int ckpt_sock_getnames(struct ckpt_ctx *ctx,
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index 842177f..9ae35a0 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -578,13 +578,19 @@ struct ckpt_rlimit {
+ 
+ struct ckpt_hdr_signal {
+ 	struct ckpt_hdr h;
++	/* rlimit */
+ 	struct ckpt_rlimit rlim[CKPT_RLIM_NLIMITS];
++	/* itimer */
+ 	__u64 it_real_value;
+ 	__u64 it_real_incr;
+ 	__u64 it_virt_value;
+ 	__u64 it_virt_incr;
+ 	__u64 it_prof_value;
+ 	__u64 it_prof_incr;
++	/* tty */
++	__s32 tty_objref;
++	__s32 tty_pgrp;
++	__s32 tty_old_pgrp;
+ } __attribute__((aligned(8)));
+ 
+ struct ckpt_hdr_signal_task {
+diff --git a/include/linux/tty.h b/include/linux/tty.h
+index 295447b..9447251 100644
+--- a/include/linux/tty.h
++++ b/include/linux/tty.h
+@@ -471,6 +471,11 @@ extern void tty_ldisc_enable(struct tty_struct *tty);
+ /* This one is for ptmx_close() */
+ extern int tty_release(struct inode *inode, struct file *filp);
+ 
++/* These are for checkpoint/restart */
++extern int tiocsctty(struct tty_struct *tty, int arg);
++extern int do_tiocspgrp(struct tty_struct *tty,
++			struct tty_struct *real_tty, pid_t pgrp_nr);
++
+ #ifdef CONFIG_CHECKPOINT
+ struct ckpt_ctx;
+ struct ckpt_hdr_file;
 -- 
 1.6.0.4
 
