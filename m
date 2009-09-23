@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C58E56B006A
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 19:50:46 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
-Date: Wed, 23 Sep 2009 01:51:36 +0200
-References: <20090915120538.GA26806@bizet.domek.prywatny> <200909180027.37387.rjw@sisk.pl> <20090922233531.GA3198@bizet.domek.prywatny>
-In-Reply-To: <20090922233531.GA3198@bizet.domek.prywatny>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AD106B0055
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2009 20:40:33 -0400 (EDT)
+Date: Tue, 22 Sep 2009 17:40:20 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/3] compcache: in-memory compressed swapping v4
+Message-ID: <20090923004020.GA2237@kroah.com>
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org> <1253600030.30406.2.camel@penberg-laptop> <20090922153752.GA24256@kroah.com> <4AB8F2BE.8060007@vflare.org>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200909230151.36678.rjw@sisk.pl>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4AB8F2BE.8060007@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Cc: david.graham@intel.com, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 23 September 2009, Karol Lewandowski wrote:
-> On Fri, Sep 18, 2009 at 12:27:37AM +0200, Rafael J. Wysocki wrote:
-> > On Thursday 17 September 2009, Graham, David wrote:
-> > > Rafael J. Wysocki wrote:
-> > > > I guess the driver releases its DMA buffer during suspend and attempts to
-> > > > allocate it back on resume, which is not really smart (if that really is the
-> > > > case).
-> 
-> > > Yes, we free a 70KB block (0x80 by 0x230 bytes) on suspend and 
-> > > reallocate on resume, and so that's an Order 5 request. It looks 
-> > > symmetric, and hasn't changed for years. I don't think we are leaking 
-> > > memory, which points back to that the memory is too fragmented to 
-> > > satisfy the request.
-> > > 
-> > > I also concur that Rafael's commit 6905b1f1 shouldn't change the logic 
-> > > in the driver for systems with e100 (like yours Karol) that could 
-> > > already sleep, and I don't see anything else in the driver that looks to 
-> > > be relevant. I'm expecting that your test result without commit 6905b1f1 
-> > > will still show the problem.
-> > > 
-> > > So I wonder if this new issue may be triggered by some other change in 
-> > > the memory subsystem ?
-> 
-> > I think so.  There have been reports about order 2 allocations failing for
-> > 2.6.31, so it looks like newer kernels are more likely to expose such problems.
+On Tue, Sep 22, 2009 at 09:22:30PM +0530, Nitin Gupta wrote:
+> On 09/22/2009 09:07 PM, Greg KH wrote:
+> > On Tue, Sep 22, 2009 at 09:13:50AM +0300, Pekka Enberg wrote:
+> >> On Tue, 2009-09-22 at 10:26 +0530, Nitin Gupta wrote:
+> >>>  drivers/staging/Kconfig                   |    2 +
+> >>>  drivers/staging/Makefile                  |    1 +
+> >>>  drivers/staging/ramzswap/Kconfig          |   21 +
+> >>>  drivers/staging/ramzswap/Makefile         |    3 +
+> >>>  drivers/staging/ramzswap/ramzswap.txt     |   51 +
+> >>>  drivers/staging/ramzswap/ramzswap_drv.c   | 1462 +++++++++++++++++++++++++++++
+> >>>  drivers/staging/ramzswap/ramzswap_drv.h   |  173 ++++
+> >>>  drivers/staging/ramzswap/ramzswap_ioctl.h |   50 +
+> >>>  drivers/staging/ramzswap/xvmalloc.c       |  533 +++++++++++
+> >>>  drivers/staging/ramzswap/xvmalloc.h       |   30 +
+> >>>  drivers/staging/ramzswap/xvmalloc_int.h   |   86 ++
+> >>>  include/linux/swap.h                      |    5 +
+> >>>  mm/swapfile.c                             |   34 +
+> >>>  13 files changed, 2451 insertions(+), 0 deletions(-)
+> >>
+> >> This diffstat is not up to date, I think.
+> >>
+> >> Greg, would you mind taking this driver into staging? There are some
+> >> issues that need to be ironed out for it to be merged to kernel proper
+> >> but I think it would benefit from being exposed to mainline.
 > > 
-> > Adding linux-mm to the CC list.
+> > That would be fine, will there be a new set of patches for me to apply,
+> > or is this the correct series?
+> > 
 > 
-> I've hit this bug 2 times since my last email.  Is there anything I
-> could do?
-> 
-> Maybe I should revert following commits (chosen somewhat randomly)?
-> 
-> 1. 49255c619fbd482d704289b5eb2795f8e3b7ff2e
-> 
-> 2. dd5d241ea955006122d76af88af87de73fec25b4 - alters changes made by
-> commit above
-> 
-> Any ideas?
+> This is the correct series.
 
-You can try that IMO.
+Ok, thanks, I'll queue it up when I get back from the Plumbers
+conference.
 
-Best,
-Rafael
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
