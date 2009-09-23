@@ -1,93 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D038D6B008A
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:45 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 15CD76B00B6
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:46 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 56/80] c/r: add CKPT_COPY() macro
-Date: Wed, 23 Sep 2009 19:51:36 -0400
-Message-Id: <1253749920-18673-57-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 27/80] c/r: introduce PF_RESTARTING, and skip notification on exit
+Date: Wed, 23 Sep 2009 19:51:07 -0400
+Message-Id: <1253749920-18673-28-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Dan Smith <danms@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-From: Dan Smith <danms@us.ibm.com>
+To restore zombie's we will create the a task, that, on its turn to
+run, calls do_exit(). Unlike normal tasks that exit, we need to
+prevent notification side effects that send signals to other
+processes, e.g. parent (SIGCHLD) or child tasks (per child's request).
 
-As suggested by Dave[1], this provides us a way to make the copy-in and
-copy-out processes symmetric.  CKPT_COPY_ARRAY() provides us a way to do
-the same thing but for arrays.  It's not critical, but it helps us unify
-the checkpoint and restart paths for some things.
+There are three main cases for such notifications:
 
-Changelog:
-    Mar 04:
-            . Removed semicolons
-            . Added build-time check for __must_be_array in CKPT_COPY_ARRAY
-    Feb 27:
-            . Changed CKPT_COPY() to use assignment, eliminating the need
-              for the CKPT_COPY_BIT() macro
-            . Add CKPT_COPY_ARRAY() macro to help copying register arrays,
-              etc
-            . Move the macro definitions inside the CR #ifdef
-    Feb 25:
-            . Changed WARN_ON() to BUILD_BUG_ON()
+1) do_notify_parent(): parent of a process is notified about a change
+ in status (e.g. become zombie, reparent, etc). If parent ignores,
+ then mark child for immediate release (skip zombie).
 
-Signed-off-by: Dan Smith <danms@us.ibm.com>
+2) kill_orphan_pgrp(): a process group that becomes orphaned will
+ signal stopped jobs (HUP then CONT).
+
+3) reparent_thread(): children of a process are signaled (per request)
+ with p->pdeath_signal
+
+Remember that restoring signal state (for any restarting task) must
+complete _before_ it is allowed to resume execution, and not during
+the resume. Otherwise, a running task may send a signal to another
+task that hasn't restored yet, so the new signal will be lost
+soon-after.
+
+I considered two possible way to address this:
+
+1. Add another sync point to restart: all tasks will first restore
+their state without signals (all signals blocked), and zombies call
+do_exit(). A sync point then will ensure that all zombies are gone and
+their effects done. Then all tasks restore their signal state (and
+mask), and sync (new point) again. Only then they may resume
+execution.
+The main disadvantage is the added complexity and inefficiency,
+for no good reason.
+
+2. Introduce PF_RESTARTING: mark all restarting tasks with a new flag,
+and teach the above three notifications to skip sending the signal if
+theis flag is set.
+The main advantage is simplicity and completeness. Also, such a flag
+may to be useful later on. This the method implemented.
+
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
-
-1: https://lists.linux-foundation.org/pipermail/containers/2009-February/015821.html (all the way at the bottom)
 ---
- include/linux/checkpoint.h |   29 +++++++++++++++++++++++++++++
- 1 files changed, 29 insertions(+), 0 deletions(-)
+ kernel/exit.c   |    7 ++++++-
+ kernel/signal.c |    4 ++++
+ 2 files changed, 10 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 4c1c13e..561232d 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -238,6 +238,34 @@ static inline int ckpt_validate_errno(int errno)
- 	return (errno >= 0) && (errno < MAX_ERRNO);
- }
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 912b1fa..41ac4cf 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -299,6 +299,10 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
+ 	struct pid *pgrp = task_pgrp(tsk);
+ 	struct task_struct *ignored_task = tsk;
  
-+/* useful macros to copy fields and buffers to/from ckpt_hdr_xxx structures */
-+#define CKPT_CPT 1
-+#define CKPT_RST 2
++	/* restarting zombie doesn't trigger signals */
++	if (tsk->flags & PF_RESTARTING)
++		return;
 +
-+#define CKPT_COPY(op, SAVE, LIVE)				        \
-+	do {							\
-+		if (op == CKPT_CPT)				\
-+			SAVE = LIVE;				\
-+		else						\
-+			LIVE = SAVE;				\
-+	} while (0)
-+
-+/*
-+ * Copy @count items from @LIVE to @SAVE if op is CKPT_CPT (otherwise,
-+ * copy in the reverse direction)
-+ */
-+#define CKPT_COPY_ARRAY(op, SAVE, LIVE, count)				\
-+	do {								\
-+		(void)__must_be_array(SAVE);				\
-+		(void)__must_be_array(LIVE);				\
-+		BUILD_BUG_ON(sizeof(*SAVE) != sizeof(*LIVE));		\
-+		if (op == CKPT_CPT)					\
-+			memcpy(SAVE, LIVE, count * sizeof(*SAVE));	\
-+		else							\
-+			memcpy(LIVE, SAVE, count * sizeof(*SAVE));	\
-+	} while (0)
-+
-+
- /* debugging flags */
- #define CKPT_DBASE	0x1		/* anything */
- #define CKPT_DSYS	0x2		/* generic (system) */
-@@ -270,6 +298,7 @@ extern unsigned long ckpt_debug_level;
-  * CKPT_DBASE is the base flags, doesn't change
-  * CKPT_DFLAG is to be redfined in each source file
-  */
-+
- #define ckpt_debug(fmt, args...)  \
- 	_ckpt_debug(CKPT_DBASE | CKPT_DFLAG, fmt, ## args)
+ 	if (!parent)
+ 		 /* exit: our father is in a different pgrp than
+ 		  * we are and we were the only connection outside.
+@@ -739,7 +743,8 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
+ static void reparent_thread(struct task_struct *father, struct task_struct *p,
+ 				struct list_head *dead)
+ {
+-	if (p->pdeath_signal)
++	/* restarting zombie doesn't trigger signals */
++	if (p->pdeath_signal && !(p->flags & PF_RESTARTING))
+ 		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
  
+ 	list_move_tail(&p->sibling, &p->real_parent->children);
+diff --git a/kernel/signal.c b/kernel/signal.c
+index 64c5dee..ea217b0 100644
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -1413,6 +1413,10 @@ int do_notify_parent(struct task_struct *tsk, int sig)
+ 	BUG_ON(!task_ptrace(tsk) &&
+ 	       (tsk->group_leader != tsk || !thread_group_empty(tsk)));
+ 
++	/* restarting zombie doesn't notify parent */
++	if (tsk->flags & PF_RESTARTING)
++		return ret;
++
+ 	info.si_signo = sig;
+ 	info.si_errno = 0;
+ 	/*
 -- 
 1.6.0.4
 
