@@ -1,167 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 811046B00C3
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 77EA86B0096
 	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:29:52 -0400 (EDT)
 From: Oren Laadan <orenl@librato.com>
-Subject: [PATCH v18 45/80] splice: export pipe/file-to-pipe/file functionality
-Date: Wed, 23 Sep 2009 19:51:25 -0400
-Message-Id: <1253749920-18673-46-git-send-email-orenl@librato.com>
+Subject: [PATCH v18 67/80] Expose may_setuid() in user.h and add may_setgid() (v2)
+Date: Wed, 23 Sep 2009 19:51:47 -0400
+Message-Id: <1253749920-18673-68-git-send-email-orenl@librato.com>
 In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
 References: <1253749920-18673-1-git-send-email-orenl@librato.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@librato.com>, Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Dan Smith <danms@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-During pipes c/r pipes we need to save and restore pipe buffers. But
-do_splice() requires two file descriptors, therefore we can't use it,
-as we always have one file descriptor (checkpoint image) and one
-pipe_inode_info.
+From: Dan Smith <danms@us.ibm.com>
 
-This patch exports interfaces that work at the pipe_inode_info level,
-namely link_pipe(), do_splice_to() and do_splice_from(). They are used
-in the following patch to to save and restore pipe buffers without
-unnecessary data copy.
+Make these helpers available to others.
 
-It slightly modifies both do_splice_to() and do_splice_from() to
-detect the case of pipe-to-pipe transfer, in which case they invoke
-splice_pipe_to_pipe() directly.
+Changes in v2:
+ - Avoid checking the groupinfo in ctx->realcred against the current in
+   may_setgid()
 
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dan Smith <danms@us.ibm.com>
 ---
- fs/splice.c            |   61 ++++++++++++++++++++++++++++++++---------------
- include/linux/splice.h |    9 +++++++
- 2 files changed, 50 insertions(+), 20 deletions(-)
+ include/linux/user.h |    9 +++++++++
+ kernel/user.c        |   13 ++++++++++++-
+ 2 files changed, 21 insertions(+), 1 deletions(-)
 
-diff --git a/fs/splice.c b/fs/splice.c
-index 73766d2..f251b4c 100644
---- a/fs/splice.c
-+++ b/fs/splice.c
-@@ -1055,18 +1055,43 @@ ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
- EXPORT_SYMBOL(generic_splice_sendpage);
- 
- /*
-+ * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
-+ * location, so checking ->i_pipe is not enough to verify that this is a
-+ * pipe.
-+ */
-+static inline struct pipe_inode_info *pipe_info(struct inode *inode)
-+{
-+	if (S_ISFIFO(inode->i_mode))
-+		return inode->i_pipe;
+diff --git a/include/linux/user.h b/include/linux/user.h
+index 68daf84..c231e9c 100644
+--- a/include/linux/user.h
++++ b/include/linux/user.h
+@@ -1 +1,10 @@
++#ifndef _LINUX_USER_H
++#define _LINUX_USER_H
 +
-+	return NULL;
+ #include <asm/user.h>
++#include <linux/sched.h>
++
++extern int may_setuid(struct user_namespace *ns, uid_t uid);
++extern int may_setgid(gid_t gid);
++
++#endif
+diff --git a/kernel/user.c b/kernel/user.c
+index a535ed6..a78fde7 100644
+--- a/kernel/user.c
++++ b/kernel/user.c
+@@ -604,7 +604,7 @@ int checkpoint_user(struct ckpt_ctx *ctx, void *ptr)
+ 	return do_checkpoint_user(ctx, (struct user_struct *) ptr);
+ }
+ 
+-static int may_setuid(struct user_namespace *ns, uid_t uid)
++int may_setuid(struct user_namespace *ns, uid_t uid)
+ {
+ 	/*
+ 	 * this next check will one day become
+@@ -631,6 +631,17 @@ static int may_setuid(struct user_namespace *ns, uid_t uid)
+ 	return 0;
+ }
+ 
++int may_setgid(gid_t gid)
++{
++	if (capable(CAP_SETGID))
++		return 1;
++
++	if (in_egroup_p(gid))
++		return 1;
++
++	return 0;
 +}
 +
-+static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
-+			       struct pipe_inode_info *opipe,
-+			       size_t len, unsigned int flags);
-+
-+/*
-  * Attempt to initiate a splice from pipe to file.
-  */
--static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
--			   loff_t *ppos, size_t len, unsigned int flags)
-+long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
-+		    loff_t *ppos, size_t len, unsigned int flags)
+ static struct user_struct *do_restore_user(struct ckpt_ctx *ctx)
  {
- 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
- 				loff_t *, size_t, unsigned int);
-+	struct pipe_inode_info *opipe;
- 	int ret;
- 
- 	if (unlikely(!(out->f_mode & FMODE_WRITE)))
- 		return -EBADF;
- 
-+	/* When called directly (e.g. from c/r) output may be a pipe */
-+	opipe = pipe_info(out->f_path.dentry->d_inode);
-+	if (opipe) {
-+		BUG_ON(opipe == pipe);
-+		return splice_pipe_to_pipe(pipe, opipe, len, flags);
-+	}
-+
- 	if (unlikely(out->f_flags & O_APPEND))
- 		return -EINVAL;
- 
-@@ -1084,17 +1109,25 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
- /*
-  * Attempt to initiate a splice from a file to a pipe.
-  */
--static long do_splice_to(struct file *in, loff_t *ppos,
--			 struct pipe_inode_info *pipe, size_t len,
--			 unsigned int flags)
-+long do_splice_to(struct file *in, loff_t *ppos,
-+		  struct pipe_inode_info *pipe, size_t len,
-+		  unsigned int flags)
- {
- 	ssize_t (*splice_read)(struct file *, loff_t *,
- 			       struct pipe_inode_info *, size_t, unsigned int);
-+	struct pipe_inode_info *ipipe;
- 	int ret;
- 
- 	if (unlikely(!(in->f_mode & FMODE_READ)))
- 		return -EBADF;
- 
-+	/* When called firectly (e.g. from c/r) input may be a pipe */
-+	ipipe = pipe_info(in->f_path.dentry->d_inode);
-+	if (ipipe) {
-+		BUG_ON(ipipe == pipe);
-+		return splice_pipe_to_pipe(ipipe, pipe, len, flags);
-+	}
-+
- 	ret = rw_verify_area(READ, in, ppos, len);
- 	if (unlikely(ret < 0))
- 		return ret;
-@@ -1273,18 +1306,6 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
- static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
- 			       struct pipe_inode_info *opipe,
- 			       size_t len, unsigned int flags);
--/*
-- * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
-- * location, so checking ->i_pipe is not enough to verify that this is a
-- * pipe.
-- */
--static inline struct pipe_inode_info *pipe_info(struct inode *inode)
--{
--	if (S_ISFIFO(inode->i_mode))
--		return inode->i_pipe;
--
--	return NULL;
--}
- 
- /*
-  * Determine where to splice to/from.
-@@ -1887,9 +1908,9 @@ retry:
- /*
-  * Link contents of ipipe to opipe.
-  */
--static int link_pipe(struct pipe_inode_info *ipipe,
--		     struct pipe_inode_info *opipe,
--		     size_t len, unsigned int flags)
-+int link_pipe(struct pipe_inode_info *ipipe,
-+	      struct pipe_inode_info *opipe,
-+	      size_t len, unsigned int flags)
- {
- 	struct pipe_buffer *ibuf, *obuf;
- 	int ret = 0, i = 0, nbuf;
-diff --git a/include/linux/splice.h b/include/linux/splice.h
-index 18e7c7c..431662c 100644
---- a/include/linux/splice.h
-+++ b/include/linux/splice.h
-@@ -82,4 +82,13 @@ extern ssize_t splice_to_pipe(struct pipe_inode_info *,
- extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,
- 				      splice_direct_actor *);
- 
-+extern int link_pipe(struct pipe_inode_info *ipipe,
-+		     struct pipe_inode_info *opipe,
-+		     size_t len, unsigned int flags);
-+extern long do_splice_to(struct file *in, loff_t *ppos,
-+			 struct pipe_inode_info *pipe, size_t len,
-+			 unsigned int flags);
-+extern long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
-+			   loff_t *ppos, size_t len, unsigned int flags);
-+
- #endif
+ 	struct user_struct *u;
 -- 
 1.6.0.4
 
