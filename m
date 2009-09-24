@@ -1,82 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5B11B6B0082
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 20:40:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O0eatV010910
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 24 Sep 2009 09:40:36 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 398662AEA90
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:40:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EAB521EF084
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:40:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 995DDE78004
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:40:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49FD51DB8042
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:40:35 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: a patch drop request in -mm
-In-Reply-To: <20090921152219.GQ12726@csn.ul.ie>
-References: <2f11576a0909210800l639560e4jad6cfc2e7f74538f@mail.gmail.com> <20090921152219.GQ12726@csn.ul.ie>
-Message-Id: <20090924092903.B648.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 44EEA6B004D
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2009 21:07:26 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O17QkY000869
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 24 Sep 2009 10:07:26 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E919945DE5D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 10:07:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BCC845DE55
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 10:07:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 65527E78002
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 10:07:25 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C80E1DB803B
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 10:07:25 +0900 (JST)
+Date: Thu, 24 Sep 2009 10:05:18 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+Message-Id: <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4AB9A0D6.1090004@crca.org.au>
+References: <4AB9A0D6.1090004@crca.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu, 24 Sep 2009 09:40:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Sep 22, 2009 at 12:00:51AM +0900, KOSAKI Motohiro wrote:
-> > Mel,
-> > 
-> > Today, my test found following patch makes false-positive warning.
-> > because, truncate can free the pages
-> > although the pages are mlock()ed.
-> > 
-> > So, I think following patch should be dropped.
-> > .. or, do you think truncate should clear PG_mlock before free the page?
+On Wed, 23 Sep 2009 14:15:18 +1000
+Nigel Cunningham <ncunningham@crca.org.au> wrote:
+
+> Hi all.
 > 
-> Is there a reason that truncate cannot clear PG_mlock before freeing the
-> page?
-
-CC to Lee.
-IIRC, Lee tried it at first. but after some trouble, he decided change free_hot_cold_page().
-but unfortunately, I don't recall the reason ;-)
-
-Lee, Can you recall it?
-
-
-> > Can I ask your patch intention?
+> With the addition of the VM_MERGEABLE flag to vm_flags post-2.6.31, the
+> last bit in vm_flags has been used.
 > 
-> Locked pages being freed to the page allocator were considered
-> unexpected and a counter was in place to determine how often that
-> situation occurred. However, I considered it unlikely that the counter
-> would be noticed so the warning was put in place to catch what class of
-> pages were getting freed locked inappropriately. I think a few anomolies
-> have been cleared up since. Ultimately, it should have been safe to
-> delete the check.
 
-OK. it seems reasonable. so, I only hope no see linus tree output false-positive warnings.
-Thus, I propse 
-
-  - don't merge this patch to linus tree
-  - but, no drop from -mm
-    it be holded in mm until this issue fixed.
-  - I'll working on fixing this issue.
-
-I think this is enough fair.
+Wow...that's bad.
 
 
-Hannes, I'm sorry. I haven't review your patch. I'm too busy now. please gime me more
-sevaral time.
+
+> I have some code in TuxOnIce that needs a bit too (explicitly mark the
+> VMA as needing to be atomically copied, for GEM objects), and am not
+> sure what the canonical way to proceed is. Should a new unsigned long be
+> added? The difficulty I see with that is that my flag was used in
+> shmem_file_setup's flags parameter (drm_gem_object_alloc), so that
+> function would need an extra parameter too..
+> 
+
+Hmm, how about adding vma->vm_flags2 ?
+
+Thanks,
+-Kame
 
 
+> Regards,
+> 
+> Nigel
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
