@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DA1326B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 12:02:51 -0400 (EDT)
-Message-ID: <4ABB99FE.3060105@redhat.com>
-Date: Thu, 24 Sep 2009 19:10:38 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] ksm: change default values to better fit into mainline
- kernel
-References: <1253736347-3779-1-git-send-email-ieidus@redhat.com> <Pine.LNX.4.64.0909241644110.16561@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909241644110.16561@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B28466B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 12:03:55 -0400 (EDT)
+Subject: Re: [PATCH v18 20/80] c/r: basic infrastructure for checkpoint/restart
+From: Daniel Walker <dwalker@fifo99.com>
+In-Reply-To: <1253749920-18673-21-git-send-email-orenl@librato.com>
+References: <1253749920-18673-1-git-send-email-orenl@librato.com>
+	 <1253749920-18673-21-git-send-email-orenl@librato.com>
+Content-Type: text/plain
+Date: Thu, 24 Sep 2009 09:03:41 -0700
+Message-Id: <1253808221.20648.196.camel@desktop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com
+To: Oren Laadan <orenl@librato.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-On 09/24/2009 06:52 PM, Hugh Dickins wrote:
-> You rather caught me by surprise with this one, Izik: I was thinking
-> more rc7 than rc1 for switching it off;
+On Wed, 2009-09-23 at 19:51 -0400, Oren Laadan wrote:
+> /
+> +static char *__ckpt_generate_fmt(struct ckpt_ctx *ctx, char *prefmt, char *fmt)
+> +{
+> +	static int warn_notask = 0;
+> +	static int warn_prefmt = 0;
 
-I thought that after the merge window -> only fixes can get in, but I 
-guess I was wrong...
+Shouldn't need the initializer since it's static..
 
-> +#else
-> +	ksm_run = KSM_RUN_MERGE;	/* no way for user to start it */
+
+> +/* read the checkpoint header */
+> +static int restore_read_header(struct ckpt_ctx *ctx)
+> +{
+> +	struct ckpt_hdr_header *h;
+> +	struct new_utsname *uts = NULL;
+> +	int ret;
 > +
->    
+> +	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_HEADER);
+> +	if (IS_ERR(h))
+> +		return PTR_ERR(h);
+> +
+> +	ret = -EINVAL;
+> +	if (h->magic != CHECKPOINT_MAGIC_HEAD ||
+> +	    h->rev != CHECKPOINT_VERSION ||
+> +	    h->major != ((LINUX_VERSION_CODE >> 16) & 0xff) ||
+> +	    h->minor != ((LINUX_VERSION_CODE >> 8) & 0xff) ||
+> +	    h->patch != ((LINUX_VERSION_CODE) & 0xff))
+> +		goto out;
 
-That is a good point, didnt notice that I am blocking the usage of it 
-when sysfs is not build.
+Do you still need this LINUX_VERSION_CODE stuff ? I would think once
+it's in mainline you wouldn't need to track that..
 
->   #endif /* CONFIG_SYSFS */
->
->   	return 0;
->    
+These both got flagged by checkpatch .. Your series is marked in a
+couple other places with checkpatch errors .. If you haven't already
+reviewed those errors, it would be a good idea to review them.
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
