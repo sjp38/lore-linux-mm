@@ -1,32 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 86C7F6B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 02:35:18 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O6ZHgd008385
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 462B76B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 02:39:55 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O6du0e010157
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 24 Sep 2009 15:35:17 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 821AB45DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 645B145DE50
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 46C99E38003
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF51FE08002
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:16 +0900 (JST)
-Date: Thu, 24 Sep 2009 15:33:09 +0900
+	Thu, 24 Sep 2009 15:39:56 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EA4C45DE50
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:39:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 22AF745DE4E
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:39:56 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F40C6E08002
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:39:55 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D59E1DB803A
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:39:55 +0900 (JST)
+Date: Thu, 24 Sep 2009 15:37:50 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/8] cgroup: introduce cancel_attach()
-Message-Id: <20090924153309.ed78007f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 3/8] memcg: cleanup mem_cgroup_move_parent()
+Message-Id: <20090924153750.bb64f85e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090924144602.da3c3ab0.nishimura@mxp.nes.nec.co.jp>
 References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 	<20090917160103.1bcdddee.nishimura@mxp.nes.nec.co.jp>
 	<20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
-	<20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
+	<20090924144602.da3c3ab0.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,171 +35,218 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Sep 2009 14:43:27 +0900
+On Thu, 24 Sep 2009 14:46:02 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> This patch adds cancel_attach() operation to struct cgroup_subsys.
-> cancel_attach() can be used when can_attach() operation prepares something
-> for the subsys, but we should discard what can_attach() operation has prepared
-> if attach task/proc fails afterwards.
+> mem_cgroup_move_parent() calls try_charge first and cancel_charge on failure.
+> IMHO, charge/uncharge(especially charge) is high cost operation, so we should
+> avoid it as far as possible.
+> 
+> This patch tries to delay try_charge in mem_cgroup_move_parent() by re-ordering
+> checks it does.
+> 
+> And this patch renames mem_cgroup_move_account() to __mem_cgroup_move_account(),
+> changes the return value of __mem_cgroup_move_account() from int to void,
+> and adds a new wrapper(mem_cgroup_move_account()), which checks whether a @pc
+> is valid for account move and calls __mem_cgroup_move_account().
+> 
+> This patch removes the last caller of trylock_page_cgroup(), so removes its
+> definition too.
 > 
 > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > ---
->  Documentation/cgroups/cgroups.txt |   12 ++++++++++++
->  include/linux/cgroup.h            |    2 ++
->  kernel/cgroup.c                   |   36 ++++++++++++++++++++++++++++--------
->  3 files changed, 42 insertions(+), 8 deletions(-)
+>  include/linux/page_cgroup.h |    7 +--
+>  mm/memcontrol.c             |   92 ++++++++++++++++++++-----------------------
+>  2 files changed, 45 insertions(+), 54 deletions(-)
 > 
-> diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-> index 3df4b9a..07bb678 100644
-> --- a/Documentation/cgroups/cgroups.txt
-> +++ b/Documentation/cgroups/cgroups.txt
-> @@ -544,6 +544,18 @@ remain valid while the caller holds cgroup_mutex. If threadgroup is
->  true, then a successful result indicates that all threads in the given
->  thread's threadgroup can be moved together.
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 7a3627e..fffa835 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -57,6 +57,8 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
 >  
-> +void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> +	       struct task_struct *task, bool threadgroup)
-> +(cgroup_mutex held by caller)
+> +TESTPCGFLAG(Locked, LOCK)
 > +
-> +Called when a task attach operation has failed after can_attach() has succeeded.
-> +For example, this will be called if some subsystems are mounted on the same
-> +hierarchy, can_attach() operations have succeeded about part of the subsystems,
-> +but has failed about next subsystem. This will be called only about subsystems
-> +whose can_attach() operation has succeeded. This may be useful for subsystems
-> +which prepare something in can_attach() operation but should discard what has
-> +been prepared on failure.
-> +
-
-Hmm..I'd like to add a text like this ..
-==
-  +A subsystem whose can_attach() has some side-effects should provide this function.
-  +Then, the subsytem can implement a rollback. If not, not necessary.
-==
-
->  void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  	    struct cgroup *old_cgrp, struct task_struct *task,
->  	    bool threadgroup)
-> diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-> index 642a47f..a08edbc 100644
-> --- a/include/linux/cgroup.h
-> +++ b/include/linux/cgroup.h
-> @@ -429,6 +429,8 @@ struct cgroup_subsys {
->  	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
->  	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  			  struct task_struct *tsk, bool threadgroup);
-> +	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> +			  struct task_struct *tsk, bool threadgroup);
->  	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
->  			struct cgroup *old_cgrp, struct task_struct *tsk,
->  			bool threadgroup);
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index 7da6004..2d9a808 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -1700,7 +1700,7 @@ void threadgroup_fork_unlock(struct sighand_struct *sighand)
->  int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+>  /* Cache flag is set only once (at allocation) */
+>  TESTPCGFLAG(Cache, CACHE)
+>  CLEARPCGFLAG(Cache, CACHE)
+> @@ -86,11 +88,6 @@ static inline void lock_page_cgroup(struct page_cgroup *pc)
+>  	bit_spin_lock(PCG_LOCK, &pc->flags);
+>  }
+>  
+> -static inline int trylock_page_cgroup(struct page_cgroup *pc)
+> -{
+> -	return bit_spin_trylock(PCG_LOCK, &pc->flags);
+> -}
+> -
+>  static inline void unlock_page_cgroup(struct page_cgroup *pc)
 >  {
->  	int retval;
-> -	struct cgroup_subsys *ss;
-> +	struct cgroup_subsys *ss, *fail = NULL;
->  	struct cgroup *oldcgrp;
->  	struct cgroupfs_root *root = cgrp->root;
+>  	bit_spin_unlock(PCG_LOCK, &pc->flags);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b2b68b4..7e8874d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1484,27 +1484,22 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+>  }
 >  
-> @@ -1712,14 +1712,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  	for_each_subsys(root, ss) {
->  		if (ss->can_attach) {
->  			retval = ss->can_attach(ss, cgrp, tsk, false);
-> -			if (retval)
-> -				return retval;
-> +			if (retval) {
-> +				fail = ss;
-> +				goto out;
-> +			}
->  		}
->  	}
+>  /**
+> - * mem_cgroup_move_account - move account of the page
+> + * __mem_cgroup_move_account - move account of the page
+>   * @pc:	page_cgroup of the page.
+>   * @from: mem_cgroup which the page is moved from.
+>   * @to:	mem_cgroup which the page is moved to. @from != @to.
+>   *
+>   * The caller must confirm following.
+>   * - page is not on LRU (isolate_page() is useful.)
+> - *
+> - * returns 0 at success,
+> - * returns -EBUSY when lock is busy or "pc" is unstable.
+> + * - the pc is locked, used, and ->mem_cgroup points to @from.
+>   *
+>   * This function does "uncharge" from old cgroup but doesn't do "charge" to
+>   * new cgroup. It should be done by a caller.
+>   */
 >  
->  	retval = cgroup_task_migrate(cgrp, oldcgrp, tsk, 0);
->  	if (retval)
-> -		return retval;
-> +		goto out;
+> -static int mem_cgroup_move_account(struct page_cgroup *pc,
+> +static void __mem_cgroup_move_account(struct page_cgroup *pc,
+>  	struct mem_cgroup *from, struct mem_cgroup *to)
+>  {
+> -	struct mem_cgroup_per_zone *from_mz, *to_mz;
+> -	int nid, zid;
+> -	int ret = -EBUSY;
+>  	struct page *page;
+>  	int cpu;
+>  	struct mem_cgroup_stat *stat;
+> @@ -1512,20 +1507,9 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 >  
-
-Hmm...maybe we don't have this code in the latest tree.
-Ah...ok, this is from
-cgroups-add-ability-to-move-all-threads-in-a-process-to-a-new-cgroup-atomically
-.patch
-which is now hidden.
-
-
-
->  	for_each_subsys(root, ss) {
->  		if (ss->attach)
-> @@ -1733,7 +1735,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
->  	 * is no longer empty.
+>  	VM_BUG_ON(from == to);
+>  	VM_BUG_ON(PageLRU(pc->page));
+> -
+> -	nid = page_cgroup_nid(pc);
+> -	zid = page_cgroup_zid(pc);
+> -	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
+> -	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
+> -
+> -	if (!trylock_page_cgroup(pc))
+> -		return ret;
+> -
+> -	if (!PageCgroupUsed(pc))
+> -		goto out;
+> -
+> -	if (pc->mem_cgroup != from)
+> -		goto out;
+> +	VM_BUG_ON(!PageCgroupLocked(pc));
+> +	VM_BUG_ON(!PageCgroupUsed(pc));
+> +	VM_BUG_ON(pc->mem_cgroup != from);
+>  
+>  	if (!mem_cgroup_is_root(from))
+>  		res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
+> @@ -1554,15 +1538,28 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+>  	css_get(&to->css);
+>  	pc->mem_cgroup = to;
+>  	mem_cgroup_charge_statistics(to, pc, true);
+> -	ret = 0;
+> -out:
+> -	unlock_page_cgroup(pc);
+>  	/*
+>  	 * We charges against "to" which may not have any tasks. Then, "to"
+>  	 * can be under rmdir(). But in current implementation, caller of
+>  	 * this function is just force_empty() and it's garanteed that
+>  	 * "to" is never removed. So, we don't check rmdir status here.
 >  	 */
->  	cgroup_wakeup_rmdir_waiter(cgrp);
-> -	return 0;
-> +out:
-> +	if (retval)
-> +		for_each_subsys(root, ss) {
-> +			if (ss == fail)
-> +				break;
-> +			if (ss->cancel_attach)
-> +				ss->cancel_attach(ss, cgrp, tsk, false);
-> +		}
-> +	return retval;
+> +}
+> +
+> +/*
+> + * check whether the @pc is valid for account move and call
+> + * __mem_cgroup_move_account()
+> + */
+> +static int mem_cgroup_move_account(struct page_cgroup *pc,
+> +				struct mem_cgroup *from, struct mem_cgroup *to)
+> +{
+> +	int ret = -EINVAL;
+> +	lock_page_cgroup(pc);
+> +	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
+> +		__mem_cgroup_move_account(pc, from, to);
+> +		ret = 0;
+> +	}
+> +	unlock_page_cgroup(pc);
+>  	return ret;
 >  }
 >  
->  /*
-> @@ -1813,7 +1823,7 @@ static int css_set_prefetch(struct cgroup *cgrp, struct css_set *cg,
->  int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
->  {
->  	int retval;
-> -	struct cgroup_subsys *ss;
-> +	struct cgroup_subsys *ss, *fail = NULL;
->  	struct cgroup *oldcgrp;
->  	struct css_set *oldcg;
->  	struct cgroupfs_root *root = cgrp->root;
-> @@ -1839,8 +1849,10 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
->  	for_each_subsys(root, ss) {
->  		if (ss->can_attach) {
->  			retval = ss->can_attach(ss, cgrp, leader, true);
-> -			if (retval)
-> -				return retval;
-> +			if (retval) {
-> +				fail = ss;
-> +				goto out;
-> +			}
->  		}
->  	}
+> @@ -1584,38 +1581,35 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+>  	if (!pcg)
+>  		return -EINVAL;
 >  
-> @@ -1978,6 +1990,14 @@ list_teardown:
->  		put_css_set(cg_entry->cg);
->  		kfree(cg_entry);
->  	}
-> +out:
-> +	if (retval)
-> +		for_each_subsys(root, ss) {
-> +			if (ss == fail)
-> +				break;
-> +			if (ss->cancel_attach)
-> +				ss->cancel_attach(ss, cgrp, tsk, true);
-> +		}
->  	/* done! */
->  	return retval;
->  }
+> +	ret = -EBUSY;
+> +	if (!get_page_unless_zero(page))
+> +		goto out;
+> +	if (isolate_lru_page(page))
+> +		goto put;
+>  
+> -	parent = mem_cgroup_from_cont(pcg);
+> -
+> +	ret = -EINVAL;
+> +	lock_page_cgroup(pc);
+> +	if (!PageCgroupUsed(pc) || pc->mem_cgroup != child) { /* early check */
+> +		unlock_page_cgroup(pc);
+> +		goto put_back;
+> +	}
 
-No objections from me. just wait for comments from Paul or Li.
-
-I wonder if we add cancel_attach(), can_attach() should be renamed to
-prepare_attach() or some. ;)
-
+I wonder...it's ok to remove this check. We'll do later and
+racy case will be often. Then, the codes will be simpler.
+Any ideas ?
 
 Thanks,
 -Kame
 
-
+> +	unlock_page_cgroup(pc);
+>  
+> +	parent = mem_cgroup_from_cont(pcg);
+>  	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
+>  	if (ret || !parent)
+> -		return ret;
+> -
+> -	if (!get_page_unless_zero(page)) {
+> -		ret = -EBUSY;
+> -		goto uncharge;
+> -	}
+> -
+> -	ret = isolate_lru_page(page);
+> -
+> -	if (ret)
+> -		goto cancel;
+> +		goto put_back;
+>  
+>  	ret = mem_cgroup_move_account(pc, child, parent);
+> -
+> +	if (!ret)
+> +		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
+> +	else
+> +		__mem_cgroup_cancel_charge(parent);	/* does css_put */
+> +put_back:
+>  	putback_lru_page(page);
+> -	if (!ret) {
+> -		put_page(page);
+> -		/* drop extra refcnt by try_charge() */
+> -		css_put(&parent->css);
+> -		return 0;
+> -	}
+> -
+> -cancel:
+> +put:
+>  	put_page(page);
+> -uncharge:
+> -	__mem_cgroup_cancel_charge(parent);
+> +out:
+>  	return ret;
+>  }
+>  
+> -- 
+> 1.5.6.1
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
