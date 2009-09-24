@@ -1,48 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CDC766B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 07:28:57 -0400 (EDT)
-Subject: [PATCH] mm: includecheck fix: vmalloc.c
-From: Jaswinder Singh Rajput <jaswinder@kernel.org>
-Content-Type: text/plain
-Date: Thu, 24 Sep 2009 16:58:47 +0530
-Message-Id: <1253791727.5860.18.camel@ht.satnam>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 26FF36B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 08:39:35 -0400 (EDT)
+Date: Thu, 24 Sep 2009 13:39:33 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: update_mmu_cache() when write protecting pte.
+In-Reply-To: <20090923232221.1d566a5c@woof.woof>
+Message-ID: <Pine.LNX.4.64.0909241310350.9528@sister.anvils>
+References: <20090923232221.1d566a5c@woof.woof>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, WANG Cong <xiyou.wangcong@gmail.com>, Mike Smith <scgtrp@gmail.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, davem@redhat.com, aarcange@redhat.com, gleb@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+Added linux-arch to Cc list.
 
-fix the following 'make includecheck' warning:
+On Wed, 23 Sep 2009, Izik Eidus wrote:
 
-  mm/vmalloc.c: linux/highmem.h is included more than once.
+> Hi, Hugh just found out that ksm was not calling to update_mmu_cache()
+> after it set new pte when it changed ptes mapping to point into the new
+> shared-readonly page (ksmpage).
+> 
+> It is understandable that it is a bug and ksm have to call it right
+> after set_pte_at_notify() get called, but the question is: does ksm
+> have to call it only there or should it call it even when it
+> write-protect pte (while not changing the physical address the pte is
+> pointing to).
 
-Signed-off-by: Jaswinder Singh Rajput <jaswinderrajput@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: WANG Cong <xiyou.wangcong@gmail.com>
-Cc: Mike Smith <scgtrp@gmail.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/vmalloc.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+I'm currently inclining to the view that it's only necessary to call
+update_mmu_cache() in faulting paths (as cachetlb.txt says), and would
+just be a waste of time and cache to call it from KSM (which, like
+mprotect, has no reason to suppose that the pte will soon be faulted).
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 69511e6..2f7c9d7 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -25,7 +25,6 @@
- #include <linux/rcupdate.h>
- #include <linux/pfn.h>
- #include <linux/kmemleak.h>
--#include <linux/highmem.h>
- #include <asm/atomic.h>
- #include <asm/uaccess.h>
- #include <asm/tlbflush.h>
--- 
-1.6.0.6
+Documentation/cachetlb.txt is specific when it says:
+	At the end of every page fault, this routine is invoked...
+But less so when it says:
+	A port may use this information in any way it so chooses.
 
+In private mail, I was worrying about how mprotect does not call
+update_mmu_cache, and thinking of the race when mprotect makes a pte
+writable while a write access is coming down through handle_pte_fault:
+such that handle_pte_fault skips its update_mmu_cache: but hadn't
+noticed the "else" there, which will flush_tlb_page to reset the
+condition, so we don't have repeated faults on those architectures
+which are liable to that if the update_mmu_cache() is missed.
+
+I think now that neither replace_page() nor write_protect_page() should
+update_mmu_cache(); but my mind may change in a few moments time ;)
+
+Hugh
+
+> 
+> I am asking this question because it seems that fork() dont call it...
+> 
+> (below a patch that fix the problem in case we need it just when we
+> change the physical mapping, if we need it even when we write protect
+> the pages, then we need to add another update_mmu_cache()  call)
+> 
+> Thanks.
+> 
+> From 82d27f67a8b20767dc6119422189f73b52168c8d Mon Sep 17 00:00:00 2001
+> From: Izik Eidus <ieidus@redhat.com>
+> Date: Wed, 23 Sep 2009 22:37:34 +0300
+> Subject: [PATCH] ksm: add update_mmu_cache() when changing pte mapping.
+> 
+> This patch add update_mmu_cache() call right after set_pte_at_notify()
+> Without this function ksm is probably broken for powerpc and sparc archs.
+> 
+> (Noticed by Hugh Dickins)
+> 
+> Signed-off-by: Izik Eidus <ieidus@redhat.com>
+> ---
+>  mm/ksm.c |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index f7edac3..e8d16eb 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -719,6 +719,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *oldpage,
+>  	flush_cache_page(vma, addr, pte_pfn(*ptep));
+>  	ptep_clear_flush(vma, addr, ptep);
+>  	set_pte_at_notify(mm, addr, ptep, mk_pte(newpage, prot));
+> +	update_mmu_cache(vma, addr, pte);
+>  
+>  	page_remove_rmap(oldpage);
+>  	put_page(oldpage);
+> -- 
+> 1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
