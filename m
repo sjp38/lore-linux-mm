@@ -1,129 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB126B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 01:58:21 -0400 (EDT)
-Date: Thu, 24 Sep 2009 14:50:41 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][PATCH 8/8] memcg: migrate charge of shmem swap
-Message-Id: <20090924145041.bcf98ab6.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 86C7F6B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 02:35:18 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O6ZHgd008385
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 24 Sep 2009 15:35:17 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 821AB45DE4D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 645B145DE50
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 46C99E38003
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:17 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF51FE08002
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 15:35:16 +0900 (JST)
+Date: Thu, 24 Sep 2009 15:33:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/8] cgroup: introduce cancel_attach()
+Message-Id: <20090924153309.ed78007f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
 References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 	<20090917160103.1bcdddee.nishimura@mxp.nes.nec.co.jp>
 	<20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
+	<20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch enables charge migration of shmem's swap.
+On Thu, 24 Sep 2009 14:43:27 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-To find the shmem's page or swap entry corresponding to a !pte_present pte,
-this patch add a function to search them from the inode and the offset.
+> This patch adds cancel_attach() operation to struct cgroup_subsys.
+> cancel_attach() can be used when can_attach() operation prepares something
+> for the subsys, but we should discard what can_attach() operation has prepared
+> if attach task/proc fails afterwards.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  Documentation/cgroups/cgroups.txt |   12 ++++++++++++
+>  include/linux/cgroup.h            |    2 ++
+>  kernel/cgroup.c                   |   36 ++++++++++++++++++++++++++++--------
+>  3 files changed, 42 insertions(+), 8 deletions(-)
+> 
+> diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
+> index 3df4b9a..07bb678 100644
+> --- a/Documentation/cgroups/cgroups.txt
+> +++ b/Documentation/cgroups/cgroups.txt
+> @@ -544,6 +544,18 @@ remain valid while the caller holds cgroup_mutex. If threadgroup is
+>  true, then a successful result indicates that all threads in the given
+>  thread's threadgroup can be moved together.
+>  
+> +void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+> +	       struct task_struct *task, bool threadgroup)
+> +(cgroup_mutex held by caller)
+> +
+> +Called when a task attach operation has failed after can_attach() has succeeded.
+> +For example, this will be called if some subsystems are mounted on the same
+> +hierarchy, can_attach() operations have succeeded about part of the subsystems,
+> +but has failed about next subsystem. This will be called only about subsystems
+> +whose can_attach() operation has succeeded. This may be useful for subsystems
+> +which prepare something in can_attach() operation but should discard what has
+> +been prepared on failure.
+> +
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- include/linux/swap.h |    4 ++++
- mm/memcontrol.c      |   21 +++++++++++++++++----
- mm/shmem.c           |   37 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 58 insertions(+), 4 deletions(-)
+Hmm..I'd like to add a text like this ..
+==
+  +A subsystem whose can_attach() has some side-effects should provide this function.
+  +Then, the subsytem can implement a rollback. If not, not necessary.
+==
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 4ec9001..e232653 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -278,6 +278,10 @@ extern int kswapd_run(int nid);
- /* linux/mm/shmem.c */
- extern int shmem_unuse(swp_entry_t entry, struct page *page);
- #endif /* CONFIG_MMU */
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
-+					struct page **pagep, swp_entry_t *ent);
-+#endif
- 
- extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fe0902c..1c674b0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3310,10 +3310,23 @@ static int is_target_pte_for_migration(struct vm_area_struct *vma,
- 	if (!pte_present(ptent)) {
- 		if (!do_swap_account)
- 			return 0;
--		/* TODO: handle swap of shmes/tmpfs */
--		if (pte_none(ptent) || pte_file(ptent))
--			return 0;
--		else if (is_swap_pte(ptent)) {
-+		if (pte_none(ptent) || pte_file(ptent)) {
-+			if (!vma->vm_file)
-+				return 0;
-+			if (mapping_cap_swap_backed(vma->vm_file->f_mapping)) {
-+				struct inode *inode;
-+				pgoff_t pgoff = 0;
-+
-+				inode = vma->vm_file->f_path.dentry->d_inode;
-+				if (pte_none(ptent))
-+					pgoff = linear_page_index(vma, addr);
-+				if (pte_file(ptent))
-+					pgoff = pte_to_pgoff(ptent);
-+
-+				mem_cgroup_get_shmem_target(inode, pgoff,
-+								&page, &ent);
-+			}
-+		} else if (is_swap_pte(ptent)) {
- 			ent = pte_to_swp_entry(ptent);
- 			if (is_migration_entry(ent))
- 				return 0;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 10b7f37..96bc1b7 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2714,3 +2714,40 @@ int shmem_zero_setup(struct vm_area_struct *vma)
- 	vma->vm_ops = &shmem_vm_ops;
- 	return 0;
- }
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-+/**
-+ * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
-+ * @inode: the inode to be searched
-+ * @pgoff: the offset to be searched
-+ * @pagep: the pointer for the found page to be stored
-+ * @ent: the pointer for the found swap entry to be stored
-+ *
-+ * If a page is found, refcount of it is incremented. Callers should handle
-+ * these refcount.
-+ */
-+void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
-+					struct page **pagep, swp_entry_t *ent)
-+{
-+	swp_entry_t entry = { .val = 0 }, *ptr;
-+	struct page *page = NULL;
-+	struct shmem_inode_info *info = SHMEM_I(inode);
-+
-+	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
-+		goto out;
-+
-+	spin_lock(&info->lock);
-+	ptr = shmem_swp_entry(info, pgoff, NULL);
-+	if (ptr && ptr->val) {
-+		entry.val = ptr->val;
-+		page = find_get_page(&swapper_space, entry.val);
-+	} else
-+		page = find_get_page(inode->i_mapping, pgoff);
-+	if (ptr)
-+		shmem_swp_unmap(ptr);
-+	spin_unlock(&info->lock);
-+out:
-+	*pagep = page;
-+	*ent = entry;
-+}
-+#endif
--- 
-1.5.6.1
+>  void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+>  	    struct cgroup *old_cgrp, struct task_struct *task,
+>  	    bool threadgroup)
+> diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+> index 642a47f..a08edbc 100644
+> --- a/include/linux/cgroup.h
+> +++ b/include/linux/cgroup.h
+> @@ -429,6 +429,8 @@ struct cgroup_subsys {
+>  	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
+>  	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
+>  			  struct task_struct *tsk, bool threadgroup);
+> +	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
+> +			  struct task_struct *tsk, bool threadgroup);
+>  	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
+>  			struct cgroup *old_cgrp, struct task_struct *tsk,
+>  			bool threadgroup);
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 7da6004..2d9a808 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -1700,7 +1700,7 @@ void threadgroup_fork_unlock(struct sighand_struct *sighand)
+>  int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+>  {
+>  	int retval;
+> -	struct cgroup_subsys *ss;
+> +	struct cgroup_subsys *ss, *fail = NULL;
+>  	struct cgroup *oldcgrp;
+>  	struct cgroupfs_root *root = cgrp->root;
+>  
+> @@ -1712,14 +1712,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+>  	for_each_subsys(root, ss) {
+>  		if (ss->can_attach) {
+>  			retval = ss->can_attach(ss, cgrp, tsk, false);
+> -			if (retval)
+> -				return retval;
+> +			if (retval) {
+> +				fail = ss;
+> +				goto out;
+> +			}
+>  		}
+>  	}
+>  
+>  	retval = cgroup_task_migrate(cgrp, oldcgrp, tsk, 0);
+>  	if (retval)
+> -		return retval;
+> +		goto out;
+>  
+
+Hmm...maybe we don't have this code in the latest tree.
+Ah...ok, this is from
+cgroups-add-ability-to-move-all-threads-in-a-process-to-a-new-cgroup-atomically
+.patch
+which is now hidden.
+
+
+
+>  	for_each_subsys(root, ss) {
+>  		if (ss->attach)
+> @@ -1733,7 +1735,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+>  	 * is no longer empty.
+>  	 */
+>  	cgroup_wakeup_rmdir_waiter(cgrp);
+> -	return 0;
+> +out:
+> +	if (retval)
+> +		for_each_subsys(root, ss) {
+> +			if (ss == fail)
+> +				break;
+> +			if (ss->cancel_attach)
+> +				ss->cancel_attach(ss, cgrp, tsk, false);
+> +		}
+> +	return retval;
+>  }
+>  
+>  /*
+> @@ -1813,7 +1823,7 @@ static int css_set_prefetch(struct cgroup *cgrp, struct css_set *cg,
+>  int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
+>  {
+>  	int retval;
+> -	struct cgroup_subsys *ss;
+> +	struct cgroup_subsys *ss, *fail = NULL;
+>  	struct cgroup *oldcgrp;
+>  	struct css_set *oldcg;
+>  	struct cgroupfs_root *root = cgrp->root;
+> @@ -1839,8 +1849,10 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
+>  	for_each_subsys(root, ss) {
+>  		if (ss->can_attach) {
+>  			retval = ss->can_attach(ss, cgrp, leader, true);
+> -			if (retval)
+> -				return retval;
+> +			if (retval) {
+> +				fail = ss;
+> +				goto out;
+> +			}
+>  		}
+>  	}
+>  
+> @@ -1978,6 +1990,14 @@ list_teardown:
+>  		put_css_set(cg_entry->cg);
+>  		kfree(cg_entry);
+>  	}
+> +out:
+> +	if (retval)
+> +		for_each_subsys(root, ss) {
+> +			if (ss == fail)
+> +				break;
+> +			if (ss->cancel_attach)
+> +				ss->cancel_attach(ss, cgrp, tsk, true);
+> +		}
+>  	/* done! */
+>  	return retval;
+>  }
+
+No objections from me. just wait for comments from Paul or Li.
+
+I wonder if we add cancel_attach(), can_attach() should be renamed to
+prepare_attach() or some. ;)
+
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
