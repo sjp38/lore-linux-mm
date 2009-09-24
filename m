@@ -1,32 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F0BF26B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 03:36:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O7amBw002632
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2DF626B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 03:43:40 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8O7hgeK018446
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 24 Sep 2009 16:36:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D062F45DE4D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:36:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81CBE45DD75
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:36:47 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 447BEE1800B
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:36:47 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A56D3E18005
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:36:46 +0900 (JST)
-Date: Thu, 24 Sep 2009 16:34:40 +0900
+	Thu, 24 Sep 2009 16:43:42 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A608F45DE51
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:43:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7482145DE4F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:43:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 58E8DE38001
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:43:42 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F3C31E08006
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 16:43:41 +0900 (JST)
+Date: Thu, 24 Sep 2009 16:41:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 6/8] memcg: avoid oom during charge migration
-Message-Id: <20090924163440.758ead95.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090924144902.f4e5854c.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 8/8] memcg: migrate charge of shmem swap
+Message-Id: <20090924164131.b2795e37.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090924145041.bcf98ab6.nishimura@mxp.nes.nec.co.jp>
 References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 	<20090917160103.1bcdddee.nishimura@mxp.nes.nec.co.jp>
 	<20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
-	<20090924144902.f4e5854c.nishimura@mxp.nes.nec.co.jp>
+	<20090924145041.bcf98ab6.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,121 +35,133 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Sep 2009 14:49:02 +0900
+On Thu, 24 Sep 2009 14:50:41 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> This charge migration feature has double charges on both "from" and "to"
-> mem_cgroup during charge migration.
-> This means unnecessary oom can happen because of charge migration.
+> This patch enables charge migration of shmem's swap.
 > 
-> This patch tries to avoid such oom.
+> To find the shmem's page or swap entry corresponding to a !pte_present pte,
+> this patch add a function to search them from the inode and the offset.
 > 
 > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  mm/memcontrol.c |   19 +++++++++++++++++++
->  1 files changed, 19 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index fbcc195..25de11c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -287,6 +287,8 @@ struct migrate_charge {
->  	unsigned long precharge;
->  };
->  static struct migrate_charge *mc;
-> +static struct task_struct *mc_task;
-> +static DECLARE_WAIT_QUEUE_HEAD(mc_waitq);
->  
->  static void mem_cgroup_get(struct mem_cgroup *mem);
->  static void mem_cgroup_put(struct mem_cgroup *mem);
-> @@ -1317,6 +1319,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  	while (1) {
->  		int ret = 0;
->  		unsigned long flags = 0;
-> +		DEFINE_WAIT(wait);
->  
->  		if (mem_cgroup_is_root(mem))
->  			goto done;
-> @@ -1358,6 +1361,17 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  		if (mem_cgroup_check_under_limit(mem_over_limit))
->  			continue;
->  
-> +		/* try to avoid oom while someone is migrating charge */
-> +		if (mc_task && current != mc_task) {
 
-Hmm, I like
+I think it's not good to recharge shmem pages based on tasks while
+we don't do it against file caches.
 
-==
-	if (mc && mc->to == mem)
-or
-	if (mc) {
-		if (mem is ancestor of mc->to)
-			wait for a while
-==
-
-?
-
-
-> +			prepare_to_wait(&mc_waitq, &wait, TASK_INTERRUPTIBLE);
-> +			if (mc) {
-> +				schedule();
-> +				finish_wait(&mc_waitq, &wait);
-> +				continue;
-> +			}
-> +			finish_wait(&mc_waitq, &wait);
-> +		}
-> +
->  		if (!nr_retries--) {
->  			if (oom) {
->  				mutex_lock(&memcg_tasklist);
-> @@ -3345,6 +3359,8 @@ static void mem_cgroup_clear_migrate_charge(void)
->  		__mem_cgroup_cancel_charge(mc->to);
->  	kfree(mc);
->  	mc = NULL;
-> +	mc_task = NULL;
-> +	wake_up_all(&mc_waitq);
->  }
-
-Hmm. I think this wake_up is too late.
-How about waking up when we release page_table_lock() or
-once per vma ?
-
-Or, just skip nr_retries-- like
-
-if (mc && mc->to_is_not_ancestor(mem) && nr_retries--) {
-}
-
-?
-
-I think page-reclaim war itself is not bad.
-(Anyway, we'll have to fix cgroup_lock if the move cost is a problem.)
-
+I recommend you to implement madivce() for recharging file caches or
+shmem. Maybe there will use cases to isoalte some files/shmems's charge
+to some special groups.
 
 Thanks,
 -Kame
 
+
+> ---
+>  include/linux/swap.h |    4 ++++
+>  mm/memcontrol.c      |   21 +++++++++++++++++----
+>  mm/shmem.c           |   37 +++++++++++++++++++++++++++++++++++++
+>  3 files changed, 58 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 4ec9001..e232653 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -278,6 +278,10 @@ extern int kswapd_run(int nid);
+>  /* linux/mm/shmem.c */
+>  extern int shmem_unuse(swp_entry_t entry, struct page *page);
+>  #endif /* CONFIG_MMU */
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+> +					struct page **pagep, swp_entry_t *ent);
+> +#endif
 >  
->  static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
-> @@ -3354,6 +3370,7 @@ static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
->  	struct mem_cgroup *from = mem_cgroup_from_task(p);
+>  extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
 >  
->  	VM_BUG_ON(mc);
-> +	VM_BUG_ON(mc_task);
->  
->  	if (from == mem)
->  		return 0;
-> @@ -3367,6 +3384,8 @@ static int mem_cgroup_can_migrate_charge(struct mem_cgroup *mem,
->  	mc->to = mem;
->  	mc->precharge = 0;
->  
-> +	mc_task = current;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index fe0902c..1c674b0 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3310,10 +3310,23 @@ static int is_target_pte_for_migration(struct vm_area_struct *vma,
+>  	if (!pte_present(ptent)) {
+>  		if (!do_swap_account)
+>  			return 0;
+> -		/* TODO: handle swap of shmes/tmpfs */
+> -		if (pte_none(ptent) || pte_file(ptent))
+> -			return 0;
+> -		else if (is_swap_pte(ptent)) {
+> +		if (pte_none(ptent) || pte_file(ptent)) {
+> +			if (!vma->vm_file)
+> +				return 0;
+> +			if (mapping_cap_swap_backed(vma->vm_file->f_mapping)) {
+> +				struct inode *inode;
+> +				pgoff_t pgoff = 0;
 > +
->  	ret = migrate_charge_prepare();
->  
->  	if (ret)
+> +				inode = vma->vm_file->f_path.dentry->d_inode;
+> +				if (pte_none(ptent))
+> +					pgoff = linear_page_index(vma, addr);
+> +				if (pte_file(ptent))
+> +					pgoff = pte_to_pgoff(ptent);
+> +
+> +				mem_cgroup_get_shmem_target(inode, pgoff,
+> +								&page, &ent);
+> +			}
+> +		} else if (is_swap_pte(ptent)) {
+>  			ent = pte_to_swp_entry(ptent);
+>  			if (is_migration_entry(ent))
+>  				return 0;
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 10b7f37..96bc1b7 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2714,3 +2714,40 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+>  	vma->vm_ops = &shmem_vm_ops;
+>  	return 0;
+>  }
+> +
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +/**
+> + * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
+> + * @inode: the inode to be searched
+> + * @pgoff: the offset to be searched
+> + * @pagep: the pointer for the found page to be stored
+> + * @ent: the pointer for the found swap entry to be stored
+> + *
+> + * If a page is found, refcount of it is incremented. Callers should handle
+> + * these refcount.
+> + */
+> +void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+> +					struct page **pagep, swp_entry_t *ent)
+> +{
+> +	swp_entry_t entry = { .val = 0 }, *ptr;
+> +	struct page *page = NULL;
+> +	struct shmem_inode_info *info = SHMEM_I(inode);
+> +
+> +	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+> +		goto out;
+> +
+> +	spin_lock(&info->lock);
+> +	ptr = shmem_swp_entry(info, pgoff, NULL);
+> +	if (ptr && ptr->val) {
+> +		entry.val = ptr->val;
+> +		page = find_get_page(&swapper_space, entry.val);
+> +	} else
+> +		page = find_get_page(inode->i_mapping, pgoff);
+> +	if (ptr)
+> +		shmem_swp_unmap(ptr);
+> +	spin_unlock(&info->lock);
+> +out:
+> +	*pagep = page;
+> +	*ent = entry;
+> +}
+> +#endif
 > -- 
 > 1.5.6.1
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
