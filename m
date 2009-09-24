@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8044A6B005A
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 19:51:06 -0400 (EDT)
-Date: Fri, 25 Sep 2009 08:39:54 +0900
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 389EA6B005C
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 19:51:53 -0400 (EDT)
+Date: Fri, 25 Sep 2009 08:39:56 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 1/8] cgroup: introduce cancel_attach()
-Message-Id: <20090925083954.90baa2b0.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090924153309.ed78007f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 4/8] memcg: add interface to migrate charge
+Message-Id: <20090925083956.39e652e4.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090924155459.a137a9b6.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 	<20090917160103.1bcdddee.nishimura@mxp.nes.nec.co.jp>
 	<20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
-	<20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
-	<20090924153309.ed78007f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090924144718.d779ed0e.nishimura@mxp.nes.nec.co.jp>
+	<20090924155459.a137a9b6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -20,183 +20,85 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: nishimura@mxp.nes.nec.co.jp, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Sep 2009 15:33:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 24 Sep 2009 14:43:27 +0900
+On Thu, 24 Sep 2009 15:54:59 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 24 Sep 2009 14:47:18 +0900
 > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> > This patch adds cancel_attach() operation to struct cgroup_subsys.
-> > cancel_attach() can be used when can_attach() operation prepares something
-> > for the subsys, but we should discard what can_attach() operation has prepared
-> > if attach task/proc fails afterwards.
+> > This patch adds "memory.migrate_charge" file and handlers of it.
 > > 
 > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > > ---
-> >  Documentation/cgroups/cgroups.txt |   12 ++++++++++++
-> >  include/linux/cgroup.h            |    2 ++
-> >  kernel/cgroup.c                   |   36 ++++++++++++++++++++++++++++--------
-> >  3 files changed, 42 insertions(+), 8 deletions(-)
+> >  mm/memcontrol.c |   65 +++++++++++++++++++++++++++++++++++++++++++++++++++---
+> >  1 files changed, 61 insertions(+), 4 deletions(-)
 > > 
-> > diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-> > index 3df4b9a..07bb678 100644
-> > --- a/Documentation/cgroups/cgroups.txt
-> > +++ b/Documentation/cgroups/cgroups.txt
-> > @@ -544,6 +544,18 @@ remain valid while the caller holds cgroup_mutex. If threadgroup is
-> >  true, then a successful result indicates that all threads in the given
-> >  thread's threadgroup can be moved together.
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 7e8874d..30499d9 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -225,6 +225,8 @@ struct mem_cgroup {
+> >  	/* set when res.limit == memsw.limit */
+> >  	bool		memsw_is_minimum;
 > >  
-> > +void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> > +	       struct task_struct *task, bool threadgroup)
-> > +(cgroup_mutex held by caller)
+> > +	bool	 	migrate_charge;
 > > +
-> > +Called when a task attach operation has failed after can_attach() has succeeded.
-> > +For example, this will be called if some subsystems are mounted on the same
-> > +hierarchy, can_attach() operations have succeeded about part of the subsystems,
-> > +but has failed about next subsystem. This will be called only about subsystems
-> > +whose can_attach() operation has succeeded. This may be useful for subsystems
-> > +which prepare something in can_attach() operation but should discard what has
-> > +been prepared on failure.
+> >  	/*
+> >  	 * statistics. This must be placed at the end of memcg.
+> >  	 */
+> > @@ -2843,6 +2845,27 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+> >  	return 0;
+> >  }
+> >  
+> > +static u64 mem_cgroup_migrate_charge_read(struct cgroup *cgrp,
+> > +					struct cftype *cft)
+> > +{
+> > +	return mem_cgroup_from_cont(cgrp)->migrate_charge;
+> > +}
 > > +
+> > +static int mem_cgroup_migrate_charge_write(struct cgroup *cgrp,
+> > +					struct cftype *cft, u64 val)
+> > +{
+> > +	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+> > +
+> > +	if (val != 0 && val != 1)
+> > +		return -EINVAL;
+> > +
+> > +	cgroup_lock();
+> > +	mem->migrate_charge = val;
+> > +	cgroup_unlock();
+> > +
+> > +	return 0;
+> > +}
 > 
-> Hmm..I'd like to add a text like this ..
-> ==
->   +A subsystem whose can_attach() has some side-effects should provide this function.
->   +Then, the subsytem can implement a rollback. If not, not necessary.
-> ==
+> Do we need cgroup_lock() here ?
+> Is this lock agaisnt race with attach() ?
+> If so, adding commentary is better.
 > 
-O.K.
-will add in next post.
+I thought so..., but, considering more, it would be unnecessary because we check it
+only once in mem_cgroup_can_attach() in current implementation.
+I'll add some comments anyway.
 
-> >  void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> >  	    struct cgroup *old_cgrp, struct task_struct *task,
-> >  	    bool threadgroup)
-> > diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-> > index 642a47f..a08edbc 100644
-> > --- a/include/linux/cgroup.h
-> > +++ b/include/linux/cgroup.h
-> > @@ -429,6 +429,8 @@ struct cgroup_subsys {
-> >  	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
-> >  	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> >  			  struct task_struct *tsk, bool threadgroup);
-> > +	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> > +			  struct task_struct *tsk, bool threadgroup);
-> >  	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-> >  			struct cgroup *old_cgrp, struct task_struct *tsk,
-> >  			bool threadgroup);
-> > diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> > index 7da6004..2d9a808 100644
-> > --- a/kernel/cgroup.c
-> > +++ b/kernel/cgroup.c
-> > @@ -1700,7 +1700,7 @@ void threadgroup_fork_unlock(struct sighand_struct *sighand)
-> >  int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
-> >  {
-> >  	int retval;
-> > -	struct cgroup_subsys *ss;
-> > +	struct cgroup_subsys *ss, *fail = NULL;
-> >  	struct cgroup *oldcgrp;
-> >  	struct cgroupfs_root *root = cgrp->root;
-> >  
-> > @@ -1712,14 +1712,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
-> >  	for_each_subsys(root, ss) {
-> >  		if (ss->can_attach) {
-> >  			retval = ss->can_attach(ss, cgrp, tsk, false);
-> > -			if (retval)
-> > -				return retval;
-> > +			if (retval) {
-> > +				fail = ss;
-> > +				goto out;
-> > +			}
-> >  		}
-> >  	}
-> >  
-> >  	retval = cgroup_task_migrate(cgrp, oldcgrp, tsk, 0);
-> >  	if (retval)
-> > -		return retval;
-> > +		goto out;
-> >  
+> BTW, migrate_charge is an ambiguous name.
 > 
-> Hmm...maybe we don't have this code in the latest tree.
-> Ah...ok, this is from
-> cgroups-add-ability-to-move-all-threads-in-a-process-to-a-new-cgroup-atomically
-> .patch
-> which is now hidden.
+>   Does migrate_charge mean
+>   (1) When a task is migrated "into" this cgroup, charges of that
+>       will be moved from the orignal cgroup ?
+>   (2) When a task is migrated "from" this cgroup, charges of that
+>       will be moved to a destination cgroup ?
 > 
-Indeed.. these part are different now.
-My patches are based on mmotm-2009-09-14-01-57, I'm sorry for cunfusing you.
+> And I don't like using word as "migrate" here because it is associated
+> with page-migration ;)
+> 
+Agreed.
+
+> If you don't mind, how about "recharge_at_immigrate" or some ?
+> (But I believe there will be better words....)
+> 
+Seems good for me.
+Thank you for your suggestion.
 
 
 Thanks,
 Daisuke Nishimura.
-
-> 
-> 
-> >  	for_each_subsys(root, ss) {
-> >  		if (ss->attach)
-> > @@ -1733,7 +1735,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
-> >  	 * is no longer empty.
-> >  	 */
-> >  	cgroup_wakeup_rmdir_waiter(cgrp);
-> > -	return 0;
-> > +out:
-> > +	if (retval)
-> > +		for_each_subsys(root, ss) {
-> > +			if (ss == fail)
-> > +				break;
-> > +			if (ss->cancel_attach)
-> > +				ss->cancel_attach(ss, cgrp, tsk, false);
-> > +		}
-> > +	return retval;
-> >  }
-> >  
-> >  /*
-> > @@ -1813,7 +1823,7 @@ static int css_set_prefetch(struct cgroup *cgrp, struct css_set *cg,
-> >  int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
-> >  {
-> >  	int retval;
-> > -	struct cgroup_subsys *ss;
-> > +	struct cgroup_subsys *ss, *fail = NULL;
-> >  	struct cgroup *oldcgrp;
-> >  	struct css_set *oldcg;
-> >  	struct cgroupfs_root *root = cgrp->root;
-> > @@ -1839,8 +1849,10 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
-> >  	for_each_subsys(root, ss) {
-> >  		if (ss->can_attach) {
-> >  			retval = ss->can_attach(ss, cgrp, leader, true);
-> > -			if (retval)
-> > -				return retval;
-> > +			if (retval) {
-> > +				fail = ss;
-> > +				goto out;
-> > +			}
-> >  		}
-> >  	}
-> >  
-> > @@ -1978,6 +1990,14 @@ list_teardown:
-> >  		put_css_set(cg_entry->cg);
-> >  		kfree(cg_entry);
-> >  	}
-> > +out:
-> > +	if (retval)
-> > +		for_each_subsys(root, ss) {
-> > +			if (ss == fail)
-> > +				break;
-> > +			if (ss->cancel_attach)
-> > +				ss->cancel_attach(ss, cgrp, tsk, true);
-> > +		}
-> >  	/* done! */
-> >  	return retval;
-> >  }
-> 
-> No objections from me. just wait for comments from Paul or Li.
-> 
-> I wonder if we add cancel_attach(), can_attach() should be renamed to
-> prepare_attach() or some. ;)
-> 
-> 
-> Thanks,
-> -Kame
-> 
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
