@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6025B6B005A
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 12:27:24 -0400 (EDT)
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-References: <1253749920-18673-1-git-send-email-orenl@librato.com>
-	<4ABB6EB6.2040204@linux.vnet.ibm.com>
-From: Dan Smith <danms@us.ibm.com>
-Date: Thu, 24 Sep 2009 09:27:30 -0700
-Message-ID: <878wg41f65.fsf@caffeine.danplanet.com>
+	by kanga.kvack.org (Postfix) with SMTP id 953766B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 12:55:50 -0400 (EDT)
+Received: by bwz24 with SMTP id 24so1484144bwz.38
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:55:57 -0700 (PDT)
+Message-ID: <4ABBA45A.8010305@vflare.org>
+Date: Thu, 24 Sep 2009 22:24:50 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/3] virtual block device driver (ramzswap)
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>	<1253595414-2855-3-git-send-email-ngupta@vflare.org> <20090924141135.833474ad.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090924141135.833474ad.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rishikesh <risrajak@linux.vnet.ibm.com>
-Cc: Oren Laadan <orenl@librato.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-R> I am getting following build error while compiling linux-cr kernel.
 
-With CONFIG_CHECKPOINT=3Dn, right?
+On 09/24/2009 10:41 AM, KAMEZAWA Hiroyuki wrote:
+> On Tue, 22 Sep 2009 10:26:53 +0530
+> Nitin Gupta <ngupta@vflare.org> wrote:
+> 
+> <snip>
+>> +	if (unlikely(clen > max_zpage_size)) {
+>> +		if (rzs->backing_swap) {
+>> +			mutex_unlock(&rzs->lock);
+>> +			fwd_write_request = 1;
+>> +			goto out;
+>> +		}
+>> +
+>> +		clen = PAGE_SIZE;
+>> +		page_store = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
+> Here, and...
+> 
+>> +		if (unlikely(!page_store)) {
+>> +			mutex_unlock(&rzs->lock);
+>> +			pr_info("Error allocating memory for incompressible "
+>> +				"page: %u\n", index);
+>> +			stat_inc(rzs->stats.failed_writes);
+>> +			goto out;
+>> +		}
+>> +
+>> +		offset = 0;
+>> +		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
+>> +		stat_inc(rzs->stats.pages_expand);
+>> +		rzs->table[index].page = page_store;
+>> +		src = kmap_atomic(page, KM_USER0);
+>> +		goto memstore;
+>> +	}
+>> +
+>> +	if (xv_malloc(rzs->mem_pool, clen + sizeof(*zheader),
+>> +			&rzs->table[index].page, &offset,
+>> +			GFP_NOIO | __GFP_HIGHMEM)) {
+> 
+> Here.
+>     
+> Do we need to wait until here for detecting page-allocation-failure ?
+> Detecting it here means -EIO for end_swap_bio_write()....unhappy
+> ALERT messages etc..
+> 
+> Can't we add a hook to get_swap_page() for preparing this ("do we have
+> enough pool?") and use only GFP_ATOMIC throughout codes ?
+> (memory pool for this swap should be big to some extent.)
+>
 
-R> 76569 net/unix/af_unix.c:528: error: =E2=80=98unix_collect=E2=80=99 unde=
-clared here (not=20
-R> in a function)
+Yes, we do need to wait until this step for detecting alloc failure since
+we don't really know when pool grow will (almost) surely wail.
+What we can probably do is, hook into OOM notify chain (oom_notify_list)
+and whenever we get this callback, we can start sending pages directly
+to backing swap and do not even attempt to do any allocation.
 
-Try the patch below.
 
---=20
-Dan Smith
-IBM Linux Technology Center
-email: danms@us.ibm.com
+ 
+>>From my user support experience for heavy swap customers,  extra memory allocation for swapping out is just bad...in many cases.
+> (*) I know GFP_IO works well to some extent.
+> 
 
-diff --git a/include/net/af_unix.h b/include/net/af_unix.h
-index e42a714..ee423d1 100644
---- a/include/net/af_unix.h
-+++ b/include/net/af_unix.h
-@@ -80,6 +80,7 @@ extern int unix_collect(struct ckpt_ctx *ctx, struct sock=
-et *sock);
- #else
- #define unix_checkpoint NULL
- #define unix_restore NULL
-+#define unix_collect NULL
- #endif /* CONFIG_CHECKPOINT */
-=20
- #endif
+We cannot use GFP_IO here as it can cause a deadlock:
+ramzswap alloc() --> not enough memory, try to reclaim some --> swap out ...
+... some pages to ramzswap --> ramzswap alloc()
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
