@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 910636B0055
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 01:49:53 -0400 (EDT)
-Date: Thu, 24 Sep 2009 14:43:27 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C656B005A
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 01:50:19 -0400 (EDT)
+Date: Thu, 24 Sep 2009 14:44:50 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][PATCH 1/8] cgroup: introduce cancel_attach()
-Message-Id: <20090924144327.a3d09d36.nishimura@mxp.nes.nec.co.jp>
+Subject: [RFC][PATCH 2/8] memcg: introduce mem_cgroup_cancel_charge()
+Message-Id: <20090924144450.4b97b1e6.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20090924144214.508469d1.nishimura@mxp.nes.nec.co.jp>
 References: <20090917112304.6cd4e6f6.nishimura@mxp.nes.nec.co.jp>
 	<20090917160103.1bcdddee.nishimura@mxp.nes.nec.co.jp>
@@ -18,141 +18,89 @@ To: linux-mm <linux-mm@kvack.org>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds cancel_attach() operation to struct cgroup_subsys.
-cancel_attach() can be used when can_attach() operation prepares something
-for the subsys, but we should discard what can_attach() operation has prepared
-if attach task/proc fails afterwards.
+(This is the same patch which is merged into KAMEZAWA-san's set)
+
+There are some places calling both res_counter_uncharge() and css_put()
+to cancel the charge and the refcnt we have got by mem_cgroup_tyr_charge().
+
+This patch introduces mem_cgroup_cancel_charge() and call it in those places.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- Documentation/cgroups/cgroups.txt |   12 ++++++++++++
- include/linux/cgroup.h            |    2 ++
- kernel/cgroup.c                   |   36 ++++++++++++++++++++++++++++--------
- 3 files changed, 42 insertions(+), 8 deletions(-)
+ mm/memcontrol.c |   39 ++++++++++++++++++---------------------
+ 1 files changed, 18 insertions(+), 21 deletions(-)
 
-diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-index 3df4b9a..07bb678 100644
---- a/Documentation/cgroups/cgroups.txt
-+++ b/Documentation/cgroups/cgroups.txt
-@@ -544,6 +544,18 @@ remain valid while the caller holds cgroup_mutex. If threadgroup is
- true, then a successful result indicates that all threads in the given
- thread's threadgroup can be moved together.
- 
-+void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+	       struct task_struct *task, bool threadgroup)
-+(cgroup_mutex held by caller)
-+
-+Called when a task attach operation has failed after can_attach() has succeeded.
-+For example, this will be called if some subsystems are mounted on the same
-+hierarchy, can_attach() operations have succeeded about part of the subsystems,
-+but has failed about next subsystem. This will be called only about subsystems
-+whose can_attach() operation has succeeded. This may be useful for subsystems
-+which prepare something in can_attach() operation but should discard what has
-+been prepared on failure.
-+
- void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 	    struct cgroup *old_cgrp, struct task_struct *task,
- 	    bool threadgroup)
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 642a47f..a08edbc 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -429,6 +429,8 @@ struct cgroup_subsys {
- 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
- 	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			  struct task_struct *tsk, bool threadgroup);
-+	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+			  struct task_struct *tsk, bool threadgroup);
- 	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			struct cgroup *old_cgrp, struct task_struct *tsk,
- 			bool threadgroup);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 7da6004..2d9a808 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -1700,7 +1700,7 @@ void threadgroup_fork_unlock(struct sighand_struct *sighand)
- int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- {
- 	int retval;
--	struct cgroup_subsys *ss;
-+	struct cgroup_subsys *ss, *fail = NULL;
- 	struct cgroup *oldcgrp;
- 	struct cgroupfs_root *root = cgrp->root;
- 
-@@ -1712,14 +1712,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	for_each_subsys(root, ss) {
- 		if (ss->can_attach) {
- 			retval = ss->can_attach(ss, cgrp, tsk, false);
--			if (retval)
--				return retval;
-+			if (retval) {
-+				fail = ss;
-+				goto out;
-+			}
- 		}
- 	}
- 
- 	retval = cgroup_task_migrate(cgrp, oldcgrp, tsk, 0);
- 	if (retval)
--		return retval;
-+		goto out;
- 
- 	for_each_subsys(root, ss) {
- 		if (ss->attach)
-@@ -1733,7 +1735,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	 * is no longer empty.
- 	 */
- 	cgroup_wakeup_rmdir_waiter(cgrp);
--	return 0;
-+out:
-+	if (retval)
-+		for_each_subsys(root, ss) {
-+			if (ss == fail)
-+				break;
-+			if (ss->cancel_attach)
-+				ss->cancel_attach(ss, cgrp, tsk, false);
-+		}
-+	return retval;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e2b98a6..b2b68b4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1371,6 +1371,21 @@ nomem:
  }
  
  /*
-@@ -1813,7 +1823,7 @@ static int css_set_prefetch(struct cgroup *cgrp, struct css_set *cg,
- int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
- {
- 	int retval;
--	struct cgroup_subsys *ss;
-+	struct cgroup_subsys *ss, *fail = NULL;
- 	struct cgroup *oldcgrp;
- 	struct css_set *oldcg;
- 	struct cgroupfs_root *root = cgrp->root;
-@@ -1839,8 +1849,10 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
- 	for_each_subsys(root, ss) {
- 		if (ss->can_attach) {
- 			retval = ss->can_attach(ss, cgrp, leader, true);
--			if (retval)
--				return retval;
-+			if (retval) {
-+				fail = ss;
-+				goto out;
-+			}
- 		}
++ * Somemtimes we have to undo a charge we got by try_charge().
++ * This function is for that and do uncharge, put css's refcnt.
++ * gotten by try_charge().
++ */
++static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem)
++{
++	if (!mem_cgroup_is_root(mem)) {
++		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
++		if (do_swap_account)
++			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
++	}
++	css_put(&mem->css);
++}
++
++/*
+  * A helper function to get mem_cgroup from ID. must be called under
+  * rcu_read_lock(). The caller must check css_is_removed() or some if
+  * it's concern. (dropping refcnt from swap can be called against removed
+@@ -1436,13 +1451,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+-		if (!mem_cgroup_is_root(mem)) {
+-			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+-			if (do_swap_account)
+-				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
+-							NULL);
+-		}
+-		css_put(&mem->css);
++		__mem_cgroup_cancel_charge(mem);
+ 		return;
  	}
  
-@@ -1978,6 +1990,14 @@ list_teardown:
- 		put_css_set(cg_entry->cg);
- 		kfree(cg_entry);
- 	}
-+out:
-+	if (retval)
-+		for_each_subsys(root, ss) {
-+			if (ss == fail)
-+				break;
-+			if (ss->cancel_attach)
-+				ss->cancel_attach(ss, cgrp, tsk, true);
-+		}
- 	/* done! */
- 	return retval;
+@@ -1606,14 +1615,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+ cancel:
+ 	put_page(page);
+ uncharge:
+-	/* drop extra refcnt by try_charge() */
+-	css_put(&parent->css);
+-	/* uncharge if move fails */
+-	if (!mem_cgroup_is_root(parent)) {
+-		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
+-		if (do_swap_account)
+-			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+-	}
++	__mem_cgroup_cancel_charge(parent);
+ 	return ret;
  }
+ 
+@@ -1830,12 +1832,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+ 		return;
+ 	if (!mem)
+ 		return;
+-	if (!mem_cgroup_is_root(mem)) {
+-		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+-		if (do_swap_account)
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+-	}
+-	css_put(&mem->css);
++	__mem_cgroup_cancel_charge(mem);
+ }
+ 
+ 
 -- 
 1.5.6.1
 
