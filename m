@@ -1,90 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 953766B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 12:55:50 -0400 (EDT)
-Received: by bwz24 with SMTP id 24so1484144bwz.38
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2009 09:55:57 -0700 (PDT)
-Message-ID: <4ABBA45A.8010305@vflare.org>
-Date: Thu, 24 Sep 2009 22:24:50 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D7A366B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 13:33:35 -0400 (EDT)
+Message-ID: <4ABBAD65.3080706@librato.com>
+Date: Thu, 24 Sep 2009 13:33:25 -0400
+From: Oren Laadan <orenl@librato.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] virtual block device driver (ramzswap)
-References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>	<1253595414-2855-3-git-send-email-ngupta@vflare.org> <20090924141135.833474ad.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090924141135.833474ad.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v18 20/80] c/r: basic infrastructure for checkpoint/restart
+References: <1253749920-18673-1-git-send-email-orenl@librato.com>	 <1253749920-18673-21-git-send-email-orenl@librato.com> <1253808221.20648.196.camel@desktop>
+In-Reply-To: <1253808221.20648.196.camel@desktop>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
+To: Daniel Walker <dwalker@fifo99.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Pavel Emelyanov <xemul@openvz.org>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
 
-On 09/24/2009 10:41 AM, KAMEZAWA Hiroyuki wrote:
-> On Tue, 22 Sep 2009 10:26:53 +0530
-> Nitin Gupta <ngupta@vflare.org> wrote:
+
+Daniel Walker wrote:
+> On Wed, 2009-09-23 at 19:51 -0400, Oren Laadan wrote:
+>> /
+>> +static char *__ckpt_generate_fmt(struct ckpt_ctx *ctx, char *prefmt, char *fmt)
+>> +{
+>> +	static int warn_notask = 0;
+>> +	static int warn_prefmt = 0;
 > 
-> <snip>
->> +	if (unlikely(clen > max_zpage_size)) {
->> +		if (rzs->backing_swap) {
->> +			mutex_unlock(&rzs->lock);
->> +			fwd_write_request = 1;
->> +			goto out;
->> +		}
+> Shouldn't need the initializer since it's static..
+> 
+
+Yup ...
+
+> 
+>> +/* read the checkpoint header */
+>> +static int restore_read_header(struct ckpt_ctx *ctx)
+>> +{
+>> +	struct ckpt_hdr_header *h;
+>> +	struct new_utsname *uts = NULL;
+>> +	int ret;
 >> +
->> +		clen = PAGE_SIZE;
->> +		page_store = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
-> Here, and...
-> 
->> +		if (unlikely(!page_store)) {
->> +			mutex_unlock(&rzs->lock);
->> +			pr_info("Error allocating memory for incompressible "
->> +				"page: %u\n", index);
->> +			stat_inc(rzs->stats.failed_writes);
->> +			goto out;
->> +		}
+>> +	h = ckpt_read_obj_type(ctx, sizeof(*h), CKPT_HDR_HEADER);
+>> +	if (IS_ERR(h))
+>> +		return PTR_ERR(h);
 >> +
->> +		offset = 0;
->> +		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
->> +		stat_inc(rzs->stats.pages_expand);
->> +		rzs->table[index].page = page_store;
->> +		src = kmap_atomic(page, KM_USER0);
->> +		goto memstore;
->> +	}
->> +
->> +	if (xv_malloc(rzs->mem_pool, clen + sizeof(*zheader),
->> +			&rzs->table[index].page, &offset,
->> +			GFP_NOIO | __GFP_HIGHMEM)) {
+>> +	ret = -EINVAL;
+>> +	if (h->magic != CHECKPOINT_MAGIC_HEAD ||
+>> +	    h->rev != CHECKPOINT_VERSION ||
+>> +	    h->major != ((LINUX_VERSION_CODE >> 16) & 0xff) ||
+>> +	    h->minor != ((LINUX_VERSION_CODE >> 8) & 0xff) ||
+>> +	    h->patch != ((LINUX_VERSION_CODE) & 0xff))
+>> +		goto out;
 > 
-> Here.
->     
-> Do we need to wait until here for detecting page-allocation-failure ?
-> Detecting it here means -EIO for end_swap_bio_write()....unhappy
-> ALERT messages etc..
+> Do you still need this LINUX_VERSION_CODE stuff ? I would think once
+> it's in mainline you wouldn't need to track that..
+
+In short: yes.
+
+This is our poor-man's way to telling the kernel version on which
+a given checkpoint image was generated.
+
+The image format is a blob that may change between kernel releases.
+Conversion between version formats will be done by userspace tools.
+Tagging the image with the version of the kernel serves two goals:
+it indicates the image version to the kernel at restart time, and
+it will be used by userspace conversion tools.
+
+How the kernel and image versions are encoded is WIP and is likely
+to become more comprehensive soon.
+
 > 
-> Can't we add a hook to get_swap_page() for preparing this ("do we have
-> enough pool?") and use only GFP_ATOMIC throughout codes ?
-> (memory pool for this swap should be big to some extent.)
->
-
-Yes, we do need to wait until this step for detecting alloc failure since
-we don't really know when pool grow will (almost) surely wail.
-What we can probably do is, hook into OOM notify chain (oom_notify_list)
-and whenever we get this callback, we can start sending pages directly
-to backing swap and do not even attempt to do any allocation.
-
-
- 
->>From my user support experience for heavy swap customers,  extra memory allocation for swapping out is just bad...in many cases.
-> (*) I know GFP_IO works well to some extent.
+> These both got flagged by checkpatch .. Your series is marked in a
+> couple other places with checkpatch errors .. If you haven't already
+> reviewed those errors, it would be a good idea to review them.
 > 
 
-We cannot use GFP_IO here as it can cause a deadlock:
-ramzswap alloc() --> not enough memory, try to reclaim some --> swap out ...
-... some pages to ramzswap --> ramzswap alloc()
+Sure, will re-review to remove remaining errors that sneaked in.
 
 Thanks,
-Nitin
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
