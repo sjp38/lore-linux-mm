@@ -1,69 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C04036B004D
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 18:42:17 -0400 (EDT)
-Date: Thu, 24 Sep 2009 15:41:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-Message-Id: <20090924154139.2a7dd5ec.akpm@linux-foundation.org>
-In-Reply-To: <1253749920-18673-1-git-send-email-orenl@librato.com>
-References: <1253749920-18673-1-git-send-email-orenl@librato.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 60E9C6B004D
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2009 19:48:48 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8ONmqBa020041
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 25 Sep 2009 08:48:52 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B4FA45DE51
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 08:48:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D980F45DE4E
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 08:48:51 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5A5E08002
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 08:48:51 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 550CBE08001
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 08:48:51 +0900 (JST)
+Date: Fri, 25 Sep 2009 08:46:30 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/3] virtual block device driver (ramzswap)
+Message-Id: <20090925084630.990a4193.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4ABBA45A.8010305@vflare.org>
+References: <1253595414-2855-1-git-send-email-ngupta@vflare.org>
+	<1253595414-2855-3-git-send-email-ngupta@vflare.org>
+	<20090924141135.833474ad.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ABBA45A.8010305@vflare.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oren Laadan <orenl@librato.com>
-Cc: torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, serue@us.ibm.com, mingo@elte.hu, xemul@openvz.org
+To: ngupta@vflare.org
+Cc: Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Pekka Enberg <penberg@cs.helsinki.fi>, Marcin Slusarz <marcin.slusarz@gmail.com>, Ed Tomlinson <edt@aei.ca>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-mm-cc <linux-mm-cc@laptop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Sep 2009 19:50:40 -0400
-Oren Laadan <orenl@librato.com> wrote:
+On Thu, 24 Sep 2009 22:24:50 +0530
+Nitin Gupta <ngupta@vflare.org> wrote:
 
-> Q: How useful is this code as it stands in real-world usage?
-> A: The application can be single- or multi-processes and threads. It
->    handles open files (regular files/directories on most file systems,
->    pipes, fifos, af_unix sockets, /dev/{null,zero,random,urandom} and
->    pseudo-terminals. It supports shared memory. sysv IPC (except undo
->    of sempahores). It's suitable for many types of batch jobs as well
->    as some interactive jobs. (Note: it is assumed that the fs view is
->    available at restart).
+> 
+> On 09/24/2009 10:41 AM, KAMEZAWA Hiroyuki wrote:
+> > On Tue, 22 Sep 2009 10:26:53 +0530
+> > Nitin Gupta <ngupta@vflare.org> wrote:
+> > 
+> > <snip>
+> >> +	if (unlikely(clen > max_zpage_size)) {
+> >> +		if (rzs->backing_swap) {
+> >> +			mutex_unlock(&rzs->lock);
+> >> +			fwd_write_request = 1;
+> >> +			goto out;
+> >> +		}
+> >> +
+> >> +		clen = PAGE_SIZE;
+> >> +		page_store = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
+> > Here, and...
+> > 
+> >> +		if (unlikely(!page_store)) {
+> >> +			mutex_unlock(&rzs->lock);
+> >> +			pr_info("Error allocating memory for incompressible "
+> >> +				"page: %u\n", index);
+> >> +			stat_inc(rzs->stats.failed_writes);
+> >> +			goto out;
+> >> +		}
+> >> +
+> >> +		offset = 0;
+> >> +		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
+> >> +		stat_inc(rzs->stats.pages_expand);
+> >> +		rzs->table[index].page = page_store;
+> >> +		src = kmap_atomic(page, KM_USER0);
+> >> +		goto memstore;
+> >> +	}
+> >> +
+> >> +	if (xv_malloc(rzs->mem_pool, clen + sizeof(*zheader),
+> >> +			&rzs->table[index].page, &offset,
+> >> +			GFP_NOIO | __GFP_HIGHMEM)) {
+> > 
+> > Here.
+> >     
+> > Do we need to wait until here for detecting page-allocation-failure ?
+> > Detecting it here means -EIO for end_swap_bio_write()....unhappy
+> > ALERT messages etc..
+> > 
+> > Can't we add a hook to get_swap_page() for preparing this ("do we have
+> > enough pool?") and use only GFP_ATOMIC throughout codes ?
+> > (memory pool for this swap should be big to some extent.)
+> >
+> 
+> Yes, we do need to wait until this step for detecting alloc failure since
+> we don't really know when pool grow will (almost) surely wail.
+> What we can probably do is, hook into OOM notify chain (oom_notify_list)
+> and whenever we get this callback, we can start sending pages directly
+> to backing swap and do not even attempt to do any allocation.
+> 
+> 
+Hmm...then, I never see -EIO ?
 
-That's encouraging.
+>  
+> >>From my user support experience for heavy swap customers,  extra memory allocation for swapping out is just bad...in many cases.
+> > (*) I know GFP_IO works well to some extent.
+> > 
+> 
+> We cannot use GFP_IO here as it can cause a deadlock:
+> ramzswap alloc() --> not enough memory, try to reclaim some --> swap out ...
+> ... some pages to ramzswap --> ramzswap alloc()
+> 
+Ah, sorry. just my mistake. I wanted to write GFP_NOIO.
 
-> Q: What can it checkpoint and restart ?
-> A: A (single threaded) process can checkpoint itself, aka "self"
->    checkpoint, if it calls the new system calls. Otherise, for an
->    "external" checkpoint, the caller must first freeze the target
->    processes. One can either checkpoint an entire container (and
->    we make best effort to ensure that the result is self-contained),
->    or merely a subtree of a process hierarchy.
-
-What is "best effort"?  Will the operation appear to have succeeded,
-only it didn't?
-
-IOW, how reliable and robust is code at detecting that it was unable to
-successfully generate a restartable image?
-
-> Q: What about namespaces ?
-> A: Currrently, UTS and IPC namespaces are restored. They demonstrate
->    how namespaces are handled. More to come.
-
-Will this new code muck up the kernel?
-
-> Q: What additional work needs to be done to it?
-> A: Fill in the gory details following the examples so far. Current WIP
->    includes inet sockets, event-poll, and early work on inotify, mount
->    namespace and mount-points, pseudo file systems
-
-Will this new code muck up the kernel, or will it be clean?
-
-> and x86_64 support.
-
-eh?  You mean the code doesn't work on x86_64 at present?
+Thanks,
+-Kame
 
 
-What is the story on migration?  Moving the process(es) to a different
-machine?
+
+> Thanks,
+> Nitin
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
