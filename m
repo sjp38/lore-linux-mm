@@ -1,73 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB5756B009E
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 04:30:25 -0400 (EDT)
-Message-ID: <4ABC7FBC.4050409@crca.org.au>
-Date: Fri, 25 Sep 2009 18:30:52 +1000
-From: Nigel Cunningham <ncunningham@crca.org.au>
-MIME-Version: 1.0
-Subject: Re: No more bits in vm_area_struct's vm_flags.
-References: <4AB9A0D6.1090004@crca.org.au> <Pine.LNX.4.64.0909232056020.3360@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0909232056020.3360@sister.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 75DAB6B00A0
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 04:31:03 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8P8V114018019
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 25 Sep 2009 17:31:01 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E0BE145DE51
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E3C45DE4E
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A16981DB8062
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5153F1DB8038
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
+Date: Fri, 25 Sep 2009 17:28:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 8/10] memcg: clean up charge/uncharge anon
+Message-Id: <20090925172850.265abe78.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090925171721.b1bbbbe2.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090925171721.b1bbbbe2.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+This may need careful review.
 
-Hugh Dickins wrote:
-> On Wed, 23 Sep 2009, Nigel Cunningham wrote:
->> With the addition of the VM_MERGEABLE flag to vm_flags post-2.6.31, the
->> last bit in vm_flags has been used.
-> 
-> Yes, it was rather selfish to take that, without even pointing out
-> that was the last of 32 bits in the changelog, and without mapping
-> out where to go next - sorry.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Not at all! I'm only asking because I wasn't sure where to go next.
+In old codes, this function was used for other purposes rather
+than charginc new anon pages. But now, this function is (ranamed) and
+used only for new pages.
 
->> I have some code in TuxOnIce that needs a bit too (explicitly mark the
->> VMA as needing to be atomically copied, for GEM objects), and am not
-> 
-> (I wonder what atomically copied means there.)
+For the same kind of reason, ucharge_page() should use VM_BUG_ON().
 
-Copied together, with interrupts disabled (to get as consistent an image
-as possible). Swsusp and uswsusp atomically copy everything, and so
-don't need this flag. TuxOnIce relies on the freezer to stop userspace
-pages changing, and saves them separately in order to get a full image
-of memory. The flag is needed because these pages would otherwise not be
-included in the set of pages that are atomic copied.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)
 
->> sure what the canonical way to proceed is. Should a new unsigned long be
->> added? The difficulty I see with that is that my flag was used in
->> shmem_file_setup's flags parameter (drm_gem_object_alloc), so that
->> function would need an extra parameter too..
-> 
-> I've assumed that, when necessary, we'll retype vm_flags from
-> unsigned long to unsigned long long (or u64).  But I've not yet
-> checked how much bloat that would add to 32-bit code: whether we
-> should put it off as long as we can, or be lazy and do it soon.
-> 
-> I'm thinking that we should use the full 32-bit vm_flags as a
-> prompt to dispose of a few.  VM_RESERVED is the one I always claim
-> I'm going to remove, then more important jobs intervene; and we seem
-> to have grown more weird variants of VM_PFNMAP than I care for in
-> the last year or two.  Suspect VM_PFN_AT_MMAP could make reasonable
-> use of VM_NONLINEAR, but probably not without some small change.
-> 
-> Does TuxOnIce rely on CONFIG_MMU?  If so, then the TuxOnIce patch
-> could presumably reuse VM_MAPPED_COPY for now - but don't be
-> surprised if that's one we clean away later on.
-
-Hmm. I'm not sure. The requirements are the same as for swsusp and
-uswsusp. Is there some tool to graph config dependencies?
-
-Regards,
-
-Nigel
+Index: temp-mmotm/mm/memcontrol.c
+===================================================================
+--- temp-mmotm.orig/mm/memcontrol.c
++++ temp-mmotm/mm/memcontrol.c
+@@ -1638,15 +1638,8 @@ int mem_cgroup_newpage_charge(struct pag
+ 		return 0;
+ 	if (PageCompound(page))
+ 		return 0;
+-	/*
+-	 * If already mapped, we don't have to account.
+-	 * If page cache, page->mapping has address_space.
+-	 * But page->mapping may have out-of-use anon_vma pointer,
+-	 * detecit it by PageAnon() check. newly-mapped-anon's page->mapping
+-	 * is NULL.
+-  	 */
+-	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
+-		return 0;
++	/* This function is "newpage_charge" and called right after alloc */
++	VM_BUG_ON(page_mapped(page) || (page->mapping && !PageAnon(page)));
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 	return mem_cgroup_charge_common(page, mm, gfp_mask,
+@@ -1901,11 +1894,11 @@ unlock_out:
+ 
+ void mem_cgroup_uncharge_page(struct page *page)
+ {
+-	/* early check. */
+-	if (page_mapped(page))
+-		return;
+-	if (page->mapping && !PageAnon(page))
+-		return;
++	/*
++ 	 * Called when anonymous page's page->mapcount goes down to zero,
++ 	 * or cancel a charge gotten by newpage_charge().
++	 */
++	VM_BUG_ON(page_mapped(page) || (page->mapping && !PageAnon(page)));
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
