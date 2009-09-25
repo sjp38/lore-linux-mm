@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 75DAB6B00A0
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 04:31:03 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8P8V114018019
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A6F2C6B00A1
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 04:31:50 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8P8VneH028071
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 25 Sep 2009 17:31:01 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E0BE145DE51
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E3C45DE4E
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A16981DB8062
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
+	Fri, 25 Sep 2009 17:31:49 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C87145DE55
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:49 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D365F45DE51
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AF8241DB803E
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:48 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5153F1DB8038
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:00 +0900 (JST)
-Date: Fri, 25 Sep 2009 17:28:50 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6209B1DB803A
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:31:48 +0900 (JST)
+Date: Fri, 25 Sep 2009 17:29:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 8/10] memcg: clean up charge/uncharge anon
-Message-Id: <20090925172850.265abe78.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 9/10] memcg: clean up perzone stat
+Message-Id: <20090925172940.38f140bf.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090925171721.b1bbbbe2.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090925171721.b1bbbbe2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,61 +32,75 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This may need careful review.
+This patch renames
+  mem_cgroup_get_local_zonestat() to be
+  mem_cgroup_get_lru_stat().
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-In old codes, this function was used for other purposes rather
-than charginc new anon pages. But now, this function is (ranamed) and
-used only for new pages.
-
-For the same kind of reason, ucharge_page() should use VM_BUG_ON().
+That "local" means "don't consider hierarchy" but ...ambiguous.
+We all know lru is per memcg private, this name is better.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 ---
- mm/memcontrol.c |   27 +++++++++++++--------------
- 1 file changed, 13 insertions(+), 14 deletions(-)
+ mm/memcontrol.c |   20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
 Index: temp-mmotm/mm/memcontrol.c
 ===================================================================
 --- temp-mmotm.orig/mm/memcontrol.c
 +++ temp-mmotm/mm/memcontrol.c
-@@ -1638,15 +1638,8 @@ int mem_cgroup_newpage_charge(struct pag
- 		return 0;
- 	if (PageCompound(page))
- 		return 0;
--	/*
--	 * If already mapped, we don't have to account.
--	 * If page cache, page->mapping has address_space.
--	 * But page->mapping may have out-of-use anon_vma pointer,
--	 * detecit it by PageAnon() check. newly-mapped-anon's page->mapping
--	 * is NULL.
--  	 */
--	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
--		return 0;
-+	/* This function is "newpage_charge" and called right after alloc */
-+	VM_BUG_ON(page_mapped(page) || (page->mapping && !PageAnon(page)));
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
-@@ -1901,11 +1894,11 @@ unlock_out:
- 
- void mem_cgroup_uncharge_page(struct page *page)
- {
--	/* early check. */
--	if (page_mapped(page))
--		return;
--	if (page->mapping && !PageAnon(page))
--		return;
-+	/*
-+ 	 * Called when anonymous page's page->mapcount goes down to zero,
-+ 	 * or cancel a charge gotten by newpage_charge().
-+	 */
-+	VM_BUG_ON(page_mapped(page) || (page->mapping && !PageAnon(page)));
- 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+@@ -488,7 +488,7 @@ unsigned long mem_cgroup_zone_nr_pages(s
  }
  
+ 
+-static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
++static unsigned long mem_cgroup_get_lru_stat(struct mem_cgroup *mem,
+ 					enum lru_list idx)
+ {
+ 	int nid, zid;
+@@ -885,8 +885,8 @@ static int calc_inactive_ratio(struct me
+ 	unsigned long gb;
+ 	unsigned long inactive_ratio;
+ 
+-	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_ANON);
+-	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
++	inactive = mem_cgroup_get_lru_stat(memcg, LRU_INACTIVE_ANON);
++	active = mem_cgroup_get_lru_stat(memcg, LRU_ACTIVE_ANON);
+ 
+ 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+ 	if (gb)
+@@ -925,8 +925,8 @@ int mem_cgroup_inactive_file_is_low(stru
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 
+-	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_FILE);
+-	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_FILE);
++	inactive = mem_cgroup_get_lru_stat(memcg, LRU_INACTIVE_FILE);
++	active = mem_cgroup_get_lru_stat(memcg, LRU_ACTIVE_FILE);
+ 
+ 	return (active > inactive);
+ }
+@@ -2779,15 +2779,15 @@ static int mem_cgroup_get_local_stat(str
+ 	}
+ 
+ 	/* per zone stat */
+-	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
++	val = mem_cgroup_get_lru_stat(mem, LRU_INACTIVE_ANON);
+ 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
+-	val = mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_ANON);
++	val = mem_cgroup_get_lru_stat(mem, LRU_ACTIVE_ANON);
+ 	s->stat[MCS_ACTIVE_ANON] += val * PAGE_SIZE;
+-	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_FILE);
++	val = mem_cgroup_get_lru_stat(mem, LRU_INACTIVE_FILE);
+ 	s->stat[MCS_INACTIVE_FILE] += val * PAGE_SIZE;
+-	val = mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_FILE);
++	val = mem_cgroup_get_lru_stat(mem, LRU_ACTIVE_FILE);
+ 	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
+-	val = mem_cgroup_get_local_zonestat(mem, LRU_UNEVICTABLE);
++	val = mem_cgroup_get_lru_stat(mem, LRU_UNEVICTABLE);
+ 	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
