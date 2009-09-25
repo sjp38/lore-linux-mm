@@ -1,38 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EC6456B00AC
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 05:12:37 -0400 (EDT)
-Received: by an-out-0708.google.com with SMTP id c37so854049anc.26
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2009 02:12:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 69BE06B00AE
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 05:20:56 -0400 (EDT)
+Received: by yxe36 with SMTP id 36so3075950yxe.11
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2009 02:20:57 -0700 (PDT)
 From: Huang Shijie <shijie8@gmail.com>
-Subject: [PATCH] swap : remove unused field of swapper_space
-Date: Fri, 25 Sep 2009 17:12:33 +0800
-Message-Id: <1253869953-4747-1-git-send-email-shijie8@gmail.com>
+Subject: [PATCH] memory : adjust the ugly comment
+Date: Fri, 25 Sep 2009 17:20:51 +0800
+Message-Id: <1253870451-4887-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-There is no place to use the i_mmap_nonlinear of swapper_space, so
-remove it.
+The origin comment is too ugly, so modify it more beautiful.
 
 Signed-off-by: Huang Shijie <shijie8@gmail.com>
 ---
- mm/swap_state.c |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+ mm/memory.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 6d1daeb..be16a6b 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -43,7 +43,6 @@ struct address_space swapper_space = {
- 	.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
- 	.tree_lock	= __SPIN_LOCK_UNLOCKED(swapper_space.tree_lock),
- 	.a_ops		= &swap_aops,
--	.i_mmap_nonlinear = LIST_HEAD_INIT(swapper_space.i_mmap_nonlinear),
- 	.backing_dev_info = &swap_backing_dev_info,
- };
+diff --git a/mm/memory.c b/mm/memory.c
+index 7e91b5f..6a38caa 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2405,7 +2405,10 @@ restart:
+ }
  
+ /**
+- * unmap_mapping_range - unmap the portion of all mmaps in the specified address_space corresponding to the specified page range in the underlying file.
++ * unmap_mapping_range - unmap the portion of all mmaps in the specified
++ *	 		address_space corresponding to the specified page range
++ * 			in the underlying file.
++ *
+  * @mapping: the address space containing mmaps to be unmapped.
+  * @holebegin: byte in first page to unmap, relative to the start of
+  * the underlying file.  This will be rounded down to a PAGE_SIZE
 -- 
 1.6.0.6
 
