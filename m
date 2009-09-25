@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C41E76B005D
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 03:44:00 -0400 (EDT)
-Message-ID: <4ABC74B3.9070102@redhat.com>
-Date: Fri, 25 Sep 2009 10:43:47 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <4AB1A8FD.2010805@gmail.com> <20090921214312.GJ7182@ovro.caltech.edu> <4AB89C48.4020903@redhat.com> <4ABA3005.60905@gmail.com> <4ABA32AF.50602@redhat.com> <4ABA3A73.5090508@gmail.com> <4ABA61D1.80703@gmail.com> <4ABA78DC.7070604@redhat.com> <4ABA8FDC.5010008@gmail.com> <4ABB1D44.5000007@redhat.com> <20090924192754.GA14341@ovro.caltech.edu>
-In-Reply-To: <20090924192754.GA14341@ovro.caltech.edu>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C98136B005C
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 04:19:27 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8P8JVEl022258
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 25 Sep 2009 17:19:32 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B3F3945DE52
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:19:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 863E045DE4F
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:19:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CDE9E08003
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:19:30 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 297621DB803E
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2009 17:19:29 +0900 (JST)
+Date: Fri, 25 Sep 2009 17:17:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/10] memcg  clean up and some fixes for softlimit
+ (Sep25)
+Message-Id: <20090925171721.b1bbbbe2.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Ira W. Snyder" <iws@ovro.caltech.edu>
-Cc: Gregory Haskins <gregory.haskins@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 09/24/2009 10:27 PM, Ira W. Snyder wrote:
->>> Ira can make ira-bus, and ira-eventfd, etc, etc.
->>>
->>> Each iteration will invariably introduce duplicated parts of the stack.
->>>
->>>        
->> Invariably?  Use libraries (virtio-shmem.ko, libvhost.so).
->>
->>      
-> Referencing libraries that don't yet exist doesn't seem like a good
-> argument against vbus from my point of view. I'm not speficially
-> advocating for vbus; I'm just letting you know how it looks to another
-> developer in the trenches.
->    
 
-My argument is that we shouldn't write a new framework instead of fixing 
-or extending an existing one.
+As I posted Sep/18, I'm now planning to make memcontrol.c cleaner.
+I'll post this to Andrew in the next week if no objections.
+(IOW, I'll post this again. So, review itself is not very urgent.)
 
-> If you'd like to see the amount of duplication present, look at the code
-> I'm currently working on.
+In this version, I dropped batched-charge/uncharge set.
+They includes something delicate and should not be discussed in this thread.
+The patches are organized as..
 
-Yes, virtio-phys-guest looks pretty much duplicated.  Looks like it 
-should be pretty easy to deduplicate.
+Clean up/ fix softlimit charge/uncharge under hierarchy.
+1. softlimit uncharge fix
+2. softlimit charge fix
+These 2 are not changed for 3 weeks.
 
->   It mostly works at this point, though I
-> haven't finished my userspace, nor figured out how to actually transfer
-> data.
->
-> The current question I have (just to let you know where I am in
-> development) is:
->
-> I have the physical address of the remote data, but how do I get it into
-> a userspace buffer, so I can pass it to tun?
->    
+Followings are new (no functional changes.)
+3.  reorder layout in memcontrol.c
+4.  memcg_charge_cancel.patch from Nishimura's one
+5.  clean up for memcg's percpu statistics
+6.  removing unsued macro
+7.  rename "cont" to "cgroup"
+8.  remove unused check in charge/uncharge
+9.  clean up for memcg's perzone statistics
+10. Add commentary.
 
-vhost does guest physical address to host userspace address (it your 
-scenario, remote physical to local virtual) using a table of memory 
-slots; there's an ioctl that allows userspace to initialize that table.
+Because my commentary is tend to be not very good, review
+for 10. is helpful ;)
 
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+I think this kind of fixes should be done while -mm queue is empty.
+Then, do this first.
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
