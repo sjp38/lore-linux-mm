@@ -1,46 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2E76B0055
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2009 10:56:06 -0400 (EDT)
-Date: Sat, 26 Sep 2009 16:56:06 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-Message-ID: <20090926145606.GA30071@elte.hu>
-References: <1253749920-18673-1-git-send-email-orenl@librato.com> <20090924154139.2a7dd5ec.akpm@linux-foundation.org> <87ljk39lcl.fsf@caffeine.danplanet.com>
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFB56B0055
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2009 11:05:56 -0400 (EDT)
+Date: Sat, 26 Sep 2009 17:05:55 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
+Message-ID: <20090926150555.GM30185@one.firstfloor.org>
+References: <20090926031537.GA10176@localhost> <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926114806.GA12419@localhost>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87ljk39lcl.fsf@caffeine.danplanet.com>
+In-Reply-To: <20090926114806.GA12419@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Dan Smith <danms@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oren Laadan <orenl@librato.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, xemul@openvz.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+> However we may well end up to accept the fact that "we just cannot do
+> hwpoison 100% correct", and settle with a simple and 99% correct code.
 
-* Dan Smith <danms@us.ibm.com> wrote:
+I would prefer to avoid any oopses, but if they are unlikely enough
+and too hard to fix that's bearable. The race window here is certainly rather 
+small. 
 
-> >> Q: What additional work needs to be done to it?  A: Fill in the
-> >> gory details following the examples so far. Current WIP includes
-> >> inet sockets, event-poll, and early work on inotify, mount
-> >> namespace and mount-points, pseudo file systems
-> 
-> AM> Will this new code muck up the kernel, or will it be clean?
-> 
-> I have (and have previously posted) prototype code to do c/r of open 
-> sockets, ignoring some things like updating timers and such.  It looks 
-> rather similar to the existing UNIX bits, and is even easier in some 
-> ways.
-> 
-> One particular use case is only migrating listening sockets and 
-> allowing the connected ones to be reset upon restart.  That enables a 
-> bunch of things like apache, postfix, vncserver, and even sshd.  I 
-> will pull the listen-only bits out of my current patch, scrape off a 
-> little bitrot, and post them in a few days.
+On the other hand if you cannot detect a difference in benchmarks I see
+no reason not to add the additional steps, as long as the code isn't
+complicated or ugly. These changes are neither.
 
-That looks useful. (Btw., the other four questions Andrew asked look 
-relevant too.)
-
-	Ingo
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
