@@ -1,32 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 877306B0055
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2009 15:14:51 -0400 (EDT)
-Date: Sat, 26 Sep 2009 21:14:54 +0200
-From: Nick Piggin <npiggin@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id E0A7A6B0055
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2009 17:32:06 -0400 (EDT)
+Date: Sat, 26 Sep 2009 23:32:04 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20090926191454.GD14368@wotan.suse.de>
-References: <20090926031537.GA10176@localhost> <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926114806.GA12419@localhost>
+Message-ID: <20090926213204.GX30185@one.firstfloor.org>
+References: <20090926031537.GA10176@localhost> <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926190645.GB14368@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090926114806.GA12419@localhost>
+In-Reply-To: <20090926190645.GB14368@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 26, 2009 at 07:48:06PM +0800, Wu Fengguang wrote:
-> On Sat, Sep 26, 2009 at 07:09:21PM +0800, Hugh Dickins wrote:
-> > It seems to me that the Intel hardware guys have done half a job
-> > here: the sooner they get to remapping the bad pages, the better.
-> 
-> When we can offer to set aside half memory :)
+> This is a bit tricky to do right now; you have a chicken and egg
+> problem between locking the page and pinning the inode mapping.
 
-Maybe even adding to the ECC error codes so uncorrected errors
-are reduced to a similar frequency to other sources of errors in
-the hardware. That seems like the sanest thing to me, but it's
-not mine to wonder...
+One possibly simple solution would be to just allocate the page
+locked (GFP_LOCKED). When the allocator clears the flags it already
+modifies the state, so it could as well set the lock bit too. No
+atomics needed.  And then clearing it later is also atomic free.
+
+Would that satisfy the concerns?
+
+Again another way is to just ignore it.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
