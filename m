@@ -1,430 +1,558 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3887C6B0055
-	for <linux-mm@kvack.org>; Sun, 27 Sep 2009 05:43:30 -0400 (EDT)
-Message-ID: <4ABF33B2.4000805@redhat.com>
-Date: Sun, 27 Sep 2009 11:43:14 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 787F66B0055
+	for <linux-mm@kvack.org>; Sun, 27 Sep 2009 06:47:49 -0400 (EDT)
+Date: Sun, 27 Sep 2009 18:47:39 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
+Message-ID: <20090927104739.GA1666@localhost>
+References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-References: <4AAFACB5.9050808@redhat.com> <4AAFF437.7060100@gmail.com> <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com> <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com> <4AB10B67.2050108@redhat.com> <4AB13B09.5040308@gmail.com> <4AB151D7.10402@redhat.com> <4AB1A8FD.2010805@gmail.com> <20090921214312.GJ7182@ovro.caltech.edu> <4AB89C48.4020903@redhat.com> <4ABA3005.60905@gmail.com> <4ABA32AF.50602@redhat.com> <4ABA3A73.5090508@gmail.com> <4ABA61D1.80703@gmail.com> <4ABA78DC.7070604@redhat.com> <4ABA8FDC.5010008@gmail.com> <4ABB1D44.5000007@redhat.com> <4ABBB46D.2000102@gmail.com> <4ABC7DCE.2000404@redhat.com> <4ABD36E3.9070503@gmail.com>
-In-Reply-To: <4ABD36E3.9070503@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090926113156.GA12240@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Gregory Haskins <gregory.haskins@gmail.com>
-Cc: "Ira W. Snyder" <iws@ovro.caltech.edu>, "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 09/26/2009 12:32 AM, Gregory Haskins wrote:
->>>
->>> I realize in retrospect that my choice of words above implies vbus _is_
->>> complete, but this is not what I was saying.  What I was trying to
->>> convey is that vbus is _more_ complete.  Yes, in either case some kind
->>> of glue needs to be written.  The difference is that vbus implements
->>> more of the glue generally, and leaves less required to be customized
->>> for each iteration.
->>>
->>>        
->>
->> No argument there.  Since you care about non-virt scenarios and virtio
->> doesn't, naturally vbus is a better fit for them as the code stands.
->>      
-> Thanks for finally starting to acknowledge there's a benefit, at least.
->    
-
-I think I've mentioned vbus' finer grained layers as helpful here, 
-though I doubt the value of this.  Hypervisors are added rarely, while 
-devices and drivers are added (and modified) much more often.  I don't 
-buy the anything-to-anything promise.
-
-> To be more precise, IMO virtio is designed to be a performance oriented
-> ring-based driver interface that supports all types of hypervisors (e.g.
-> shmem based kvm, and non-shmem based Xen).  vbus is designed to be a
-> high-performance generic shared-memory interconnect (for rings or
-> otherwise) framework for environments where linux is the underpinning
-> "host" (physical or virtual).  They are distinctly different, but
-> complementary (the former addresses the part of the front-end, and
-> latter addresses the back-end, and a different part of the front-end).
->    
-
-They're not truly complementary since they're incompatible.  A 2.6.27 
-guest, or Windows guest with the existing virtio drivers, won't work 
-over vbus.  Further, non-shmem virtio can't work over vbus.  Since 
-virtio is guest-oriented and host-agnostic, it can't ignore 
-non-shared-memory hosts (even though it's unlikely virtio will be 
-adopted there).
-
-> In addition, the kvm-connector used in AlacrityVM's design strives to
-> add value and improve performance via other mechanisms, such as dynamic
->   allocation, interrupt coalescing (thus reducing exit-ratio, which is a
-> serious issue in KVM)
-
-Do you have measurements of inter-interrupt coalescing rates (excluding 
-intra-interrupt coalescing).
-
-> and priortizable/nestable signals.
->    
-
-That doesn't belong in a bus.
-
-> Today there is a large performance disparity between what a KVM guest
-> sees and what a native linux application sees on that same host.  Just
-> take a look at some of my graphs between "virtio", and "native", for
-> example:
->
-> http://developer.novell.com/wiki/images/b/b7/31-rc4_throughput.png
->    
-
-That's a red herring.  The problem is not with virtio as an ABI, but 
-with its implementation in userspace.  vhost-net should offer equivalent 
-performance to vbus.
-
-> A dominant vbus design principle is to try to achieve the same IO
-> performance for all "linux applications" whether they be literally
-> userspace applications, or things like KVM vcpus or Ira's physical
-> boards.  It also aims to solve problems not previously expressible with
-> current technologies (even virtio), like nested real-time.
->
-> And even though you repeatedly insist otherwise, the neat thing here is
-> that the two technologies mesh (at least under certain circumstances,
-> like when virtio is deployed on a shared-memory friendly linux backend
-> like KVM).  I hope that my stack diagram below depicts that clearly.
->    
-
-Right, when you ignore the points where they don't fit, it's a perfect mesh.
-
->> But that's not a strong argument for vbus; instead of adding vbus you
->> could make virtio more friendly to non-virt
->>      
-> Actually, it _is_ a strong argument then because adding vbus is what
-> helps makes virtio friendly to non-virt, at least for when performance
-> matters.
->    
-
-As vhost-net shows, you can do that without vbus and without breaking 
-compatibility.
-
-
-
->> Right.  virtio assumes that it's in a virt scenario and that the guest
->> architecture already has enumeration and hotplug mechanisms which it
->> would prefer to use.  That happens to be the case for kvm/x86.
->>      
-> No, virtio doesn't assume that.  It's stack provides the "virtio-bus"
-> abstraction and what it does assume is that it will be wired up to
-> something underneath. Kvm/x86 conveniently has pci, so the virtio-pci
-> adapter was created to reuse much of that facility.  For other things
-> like lguest and s360, something new had to be created underneath to make
-> up for the lack of pci-like support.
->    
-
-Right, I was wrong there.  But it does allow you to have a 1:1 mapping 
-between native devices and virtio devices.
-
-
->>> So to answer your question, the difference is that the part that has to
->>> be customized in vbus should be a fraction of what needs to be
->>> customized with vhost because it defines more of the stack.
->>>        
->> But if you want to use the native mechanisms, vbus doesn't have any
->> added value.
->>      
-> First of all, thats incorrect.  If you want to use the "native"
-> mechanisms (via the way the vbus-connector is implemented, for instance)
-> you at least still have the benefit that the backend design is more
-> broadly re-useable in more environments (like non-virt, for instance),
-> because vbus does a proper job of defining the requisite
-> layers/abstractions compared to vhost.  So it adds value even in that
-> situation.
->    
-
-Maybe.  If vhost-net isn't sufficient I'm sure there will be patches sent.
-
-> Second of all, with PV there is no such thing as "native".  It's
-> software so it can be whatever we want.  Sure, you could argue that the
-> guest may have built-in support for something like PCI protocol.
-> However, PCI protocol itself isn't suitable for high-performance PV out
-> of the can.  So you will therefore invariably require new software
-> layers on top anyway, even if part of the support is already included.
->    
-
-Of course there is such a thing as native, a pci-ready guest has tons of 
-support built into it that doesn't need to be retrofitted.  Since 
-practically everyone (including Xen) does their paravirt drivers atop 
-pci, the claim that pci isn't suitable for high performance is incorrect.
-
-
-> And lastly, why would you _need_ to use the so called "native"
-> mechanism?  The short answer is, "you don't".  Any given system (guest
-> or bare-metal) already have a wide-range of buses (try running "tree
-> /sys/bus" in Linux).  More importantly, the concept of adding new buses
-> is widely supported in both the Windows and Linux driver model (and
-> probably any other guest-type that matters).  Therefore, despite claims
-> to the contrary, its not hard or even unusual to add a new bus to the mix.
->    
-
-The short answer is "compatibility".
-
-
-> In summary, vbus is simply one more bus of many, purpose built to
-> support high-end IO in a virt-like model, giving controlled access to
-> the linux-host underneath it.  You can write a high-performance layer
-> below the OS bus-model (vbus), or above it (virtio-pci) but either way
-> you are modifying the stack to add these capabilities, so we might as
-> well try to get this right.
->
-> With all due respect, you are making a big deal out of a minor issue.
->    
-
-It's not minor to me.
-
->>> And, as
->>> eluded to in my diagram, both virtio-net and vhost (with some
->>> modifications to fit into the vbus framework) are potentially
->>> complementary, not competitors.
->>>
->>>        
->> Only theoretically.  The existing installed base would have to be thrown
->> away
->>      
-> "Thrown away" is pure hyperbole.  The installed base, worse case, needs
-> to load a new driver for a missing device.
-
-Yes, we all know how fun this is.  Especially if the device changed is 
-your boot disk.  You may not care about the pain caused to users, but I 
-do, so I will continue to insist on compatibility.
-
->> or we'd need to support both.
->>
->>
->>      
-> No matter what model we talk about, there's always going to be a "both"
-> since the userspace virtio models are probably not going to go away (nor
-> should they).
->    
-
-virtio allows you to have userspace-only, kernel-only, or 
-start-with-userspace-and-move-to-kernel-later, all transparent to the 
-guest.  In many cases we'll stick with userspace-only.
-
->> All this is after kvm has decoded that vbus is addresses.  It can't work
->> without someone outside vbus deciding that.
->>      
-> How the connector message is delivered is really not relevant.  Some
-> architectures will simply deliver the message point-to-point (like the
-> original hypercall design for KVM, or something like Ira's rig), and
-> some will need additional demuxing (like pci-bridge/pio based KVM).
-> It's an implementation detail of the connector.
->
-> However, the real point here is that something needs to establish a
-> scoped namespace mechanism, add items to that namespace, and advertise
-> the presence of the items to the guest.  vbus has this facility built in
-> to its stack.  vhost doesn't, so it must come from elsewhere.
->    
-
-So we have: vbus needs a connector, vhost needs a connector.  vbus 
-doesn't need userspace to program the addresses (but does need userspace 
-to instantiate the devices and to program the bus address decode), vhost 
-needs userspace to instantiate the devices and program the addresses.
-
->>> In fact, it's actually a simpler design to unify things this way because
->>> you avoid splitting the device model up. Consider how painful the vhost
->>> implementation would be if it didn't already have the userspace
->>> virtio-net to fall-back on.  This is effectively what we face for new
->>> devices going forward if that model is to persist.
->>>
->>>        
->>
->> It doesn't have just virtio-net, it has userspace-based hostplug
->>      
-> vbus has hotplug too: mkdir and rmdir
->    
-
-Does that work from nonprivileged processes?  Does it work on Windows?
-
-> As an added bonus, its device-model is modular.  A developer can write a
-> new device model, compile it, insmod it to the host kernel, hotplug it
-> to the running guest with mkdir/ln, and the come back out again
-> (hotunplug with rmdir, rmmod, etc).  They may do this all without taking
-> the guest down, and while eating QEMU based IO solutions for breakfast
-> performance wise.
->
-> Afaict, qemu can't do either of those things.
->    
-
-We've seen that herring before, and it's redder than ever.
-
-
-
->> Refactor instead of duplicating.
->>      
-> There is no duplicating.  vbus has no equivalent today as virtio doesn't
-> define these layers.
->    
-
-So define them if they're missing.
-
-
->>>
->>>        
->>>>    Use libraries (virtio-shmem.ko, libvhost.so).
->>>>
->>>>          
->>> What do you suppose vbus is?  vbus-proxy.ko = virtio-shmem.ko, and you
->>> dont need libvhost.so per se since you can just use standard kernel
->>> interfaces (like configfs/sysfs).  I could create an .so going forward
->>> for the new ioctl-based interface, I suppose.
->>>
->>>        
->> Refactor instead of rewriting.
->>      
-> There is no rewriting.  vbus has no equivalent today as virtio doesn't
-> define these layers.
->
-> By your own admission, you said if you wanted that capability, use a
-> library.  What I think you are not understanding is vbus _is_ that
-> library.  So what is the problem, exactly?
->    
-
-It's not compatible.  If you were truly worried about code duplication 
-in virtio, you'd refactor it to remove the duplication, without 
-affecting existing guests.
-
->>>> For kvm/x86 pci definitely remains king.
->>>>
->>>>          
->>> For full virtualization, sure.  I agree.  However, we are talking about
->>> PV here.  For PV, PCI is not a requirement and is a technical dead-end
->>> IMO.
->>>
->>> KVM seems to be the only virt solution that thinks otherwise (*), but I
->>> believe that is primarily a condition of its maturity.  I aim to help
->>> advance things here.
->>>
->>> (*) citation: xen has xenbus, lguest has lguest-bus, vmware has some
->>> vmi-esq thing (I forget what its called) to name a few.  Love 'em or
->>> hate 'em, most other hypervisors do something along these lines.  I'd
->>> like to try to create one for KVM, but to unify them all (at least for
->>> the Linux-based host designs).
->>>
->>>        
->> VMware are throwing VMI away (won't be supported in their new product,
->> and they've sent a patch to rip it off from Linux);
->>      
-> vmware only cares about x86 iiuc, so probably not a good example.
->    
-
-Well, you brought it up.  Between you and me, I only care about x86 too.
-
->> Xen has to tunnel
->> xenbus in pci for full virtualization (which is where Windows is, and
->> where Linux will be too once people realize it's faster).  lguest is
->> meant as an example hypervisor, not an attempt to take over the world.
->>      
-> So pick any other hypervisor, and the situation is often similar.
->    
-
-The situation is often pci.
-
->
->> An right now you can have a guest using pci to access a mix of
->> userspace-emulated devices, userspace-emulated-but-kernel-accelerated
->> virtio devices, and real host devices.  All on one dead-end bus.  Try
->> that with vbus.
->>      
-> vbus is not interested in userspace devices.  The charter is to provide
-> facilities for utilizing the host linux kernel's IO capabilities in the
-> most efficient, yet safe, manner possible.  Those devices that fit
-> outside that charter can ride on legacy mechanisms if that suits them best.
->    
-
-vbus isn't, but I am.  I would prefer not to have to expose 
-implementation decisions (kernel vs userspace) to the guest (vbus vs pci).
-
->>> That won't cut it.  For one, creating an eventfd is only part of the
->>> equation.  I.e. you need to have originate/terminate somewhere
->>> interesting (and in-kernel, otherwise use tuntap).
->>>
->>>        
->> vbus needs the same thing so it cancels out.
->>      
-> No, it does not.  vbus just needs a relatively simple single message
-> pipe between the guest and host (think "hypercall tunnel", if you will).
->    
-
-That's ioeventfd.  So far so similar.
-
->   Per queue/device addressing is handled by the same conceptual namespace
-> as the one that would trigger eventfds in the model you mention.  And
-> that namespace is built in to the vbus stack, and objects are registered
-> automatically as they are created.
->
-> Contrast that to vhost, which requires some other kernel interface to
-> exist, and to be managed manually for each object that is created.  Your
-> libvhostconfig would need to somehow know how to perform this
-> registration operation, and there would have to be something in the
-> kernel to receive it, presumably on a per platform basis.  Solving this
-> problem generally would probably end up looking eerily like vbus,
-> because thats what vbus does.
->    
-
-vbus devices aren't magically instantiated.  Userspace needs to 
-instantiate them too.  Sure, there's less work on the host side since 
-you're using vbus instead of the native interface, but more work on the 
-guest side since you're using vbus instead of the native interface.
-
-
-
->> Well, let's see.  Can vbus today:
->>
->> - let userspace know which features are available (so it can decide if
->> live migration is possible)
->>      
-> yes, its in sysfs.
->
->    
->> - let userspace limit which features are exposed to the guest (so it can
->> make live migration possible among hosts of different capabilities)
->>      
-> yes, its in sysfs.
->    
-
-Per-device?  non-privileged-user capable?
-
->> - let userspace know which features were negotiated (so it can transfer
->> them to the other host during live migration)
->>      
-> no, but we can easily add ->save()/->restore() to the model going
-> forward, and the negotiated features are just a subcomponent if its
-> serialized stream.
->
->    
->> - let userspace tell the kernel which features were negotiated (when
->> live migration completes, to avoid requiring the guest to re-negotiate)
->>      
-> that would be the function of the ->restore() deserializer.
->
->    
->> - do all that from an unprivileged process
->>      
-> yes, in the upcoming alacrityvm v0.3 with the ioctl based control plane.
->    
-
-Ah, so you have two control planes.
-
-> Bottom line: vbus isn't done, especially w.r.t. live-migration..but that
-> is not an valid argument against the idea if you believe in
-> release-early/release-often. kvm wasn't (isn't) done either when it was
-> proposed/merged.
->
->    
-
-kvm didn't have an existing counterpart in Linux when it was 
-proposed/merged.
-
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+On Sat, Sep 26, 2009 at 07:31:56PM +0800, Wu Fengguang wrote:
+> On Sat, Sep 26, 2009 at 06:52:59PM +0800, Wu Fengguang wrote:
+> > On Sat, Sep 26, 2009 at 11:49:36AM +0800, Andi Kleen wrote:
+> > > On Sat, Sep 26, 2009 at 11:15:37AM +0800, Wu Fengguang wrote:
+> > > > The swap cache and page cache code assume that they 'own' the newly
+> > > > allocated page and therefore can disregard the locking rules. However
+> > > > now hwpoison can hit any time on any page.
+> > > > 
+> > > > So use the safer lock_page()/trylock_page(). The main intention is not
+> > > > to close such a small time window of memory corruption. But to avoid
+> > > > kernel oops that may result from such races, and also avoid raising
+> > > > false alerts in hwpoison stress tests.
+> > > > 
+> > > > This in theory will slightly increase page cache/swap cache overheads,
+> > > > however it seems to be too small to be measurable in benchmark.
+> > > 
+> > > Thanks. Can you please describe what benchmarks you used?
+> > 
+> > Good question. The test case is to copy 1GB sparse file over NFS.
+> > 
+> > I ran it 100 times (2 hours total wall time) and the overheads are ~0.008%.
+> 
+> And standard deviation is 0.04%, much larger than the difference 0.008% ..
+
+Sorry that's not correct. I improved the accounting by treating
+function0+function1 from two CPUs as an integral entity:
+
+                 total time      add_to_page_cache_lru   percent  stddev
+         before  3880166848.722  9683329.610             0.250%   0.014%
+         after   3828516894.376  9778088.870             0.256%   0.012%
+         delta                                           0.006%
+
+Thanks,
+Fengguang
+
+
+> > The average time reported by the function profiler:
+> > 
+> >                 total time      add_to_page_cache_lru   percent
+> >         before  1940083424.361  4841664.805             0.242%
+> >         after   1914258447.188  4889044.435             0.250%
+> > 
+> > The script used is:
+> > 
+> >         for i in `seq 1 100`
+> >         do      
+> >                 # copy 1GB sparse file over NFS
+> >                 echo 1 > /debug/tracing/function_profile_enabled
+> >                 cp /tmp/sparse/1G /dev/null
+> >                 echo 0 > /debug/tracing/function_profile_enabled
+> > 
+> >                 fadvise /tmp/sparse/1G 0 0 dontneed
+> >                 cat /debug/tracing/trace_stat/function0 > function0.$i
+> >                 cat /debug/tracing/trace_stat/function1 > function1.$i
+> >         done
+> > 
+> > 
+> > File function0.1 after patch:
+> > 
+> >   Function                               Hit    Time            Avg
+> >   --------                               ---    ----            ---
+> >   schedule                             32492    474358128 us     14599.22 us 
+> >   schedule_timeout                        26    99994288 us     3845934 us 
+> >   poll_schedule_timeout                    8    52914376 us     6614297 us 
+> >   sys_poll                                 6    52914373 us     8819062 us 
+> >   schedule_hrtimeout_range                 8    52914373 us     6614296 us 
+> >   do_sys_poll                              6    52914355 us     8819059 us 
+> >   sys_read                             86997    40703194 us     467.868 us  
+> >   vfs_read                             87002    40550651 us     466.088 us  
+> >   do_sync_read                         86987    40011054 us     459.965 us  
+> >   nfs_file_read                        86985    39945631 us     459.224 us  
+> >   generic_file_aio_read                86985    39785858 us     457.387 us  
+> >   page_cache_async_readahead            2886    34379069 us     11912.35 us 
+> >   ondemand_readahead                    2889    34371850 us     11897.49 us 
+> >   ra_submit                             2891    34368378 us     11888.05 us 
+> >   __do_page_cache_readahead             2891    34360744 us     11885.41 us 
+> >   nfs_readpages                         2876    33198107 us     11543.15 us 
+> >   read_cache_pages                      2876    31617284 us     10993.49 us 
+> >   __rpc_execute                        84468    25404441 us     300.758 us  
+> >   readpage_async_filler               174071    24947004 us     143.315 us  
+> >   do_softirq                           44822    24829675 us     553.961 us  
+> >   __do_softirq                         44822    24803408 us     553.375 us  
+> >   net_rx_action                        38424    24357207 us     633.906 us  
+> >   e1000_clean                          39042    24253141 us     621.206 us  
+> >   nfs_pageio_doio                      43534    22993433 us     528.171 us  
+> >   nfs_pagein_one                       43520    22939752 us     527.108 us  
+> >   nfs_read_rpcsetup                    43513    22533176 us     517.849 us  
+> >   e1000_clean_rx_irq                   39042    22047306 us     564.707 us  
+> >   rpc_run_task                         43528    22042766 us     506.404 us  
+> >   call_transmit                        45873    21842655 us     476.154 us  
+> >   nfs_pageio_add_request              174091    21583666 us     123.979 us  
+> >   rpc_execute                          43528    21254402 us     488.292 us  
+> >   cpuidle_idle_call                    18073    19445493 us     1075.941 us 
+> >   acpi_idle_enter_c1                   17999    19396945 us     1077.667 us 
+> >   e1000_receive_skb                   436279    18818686 us     43.134 us   
+> >   tcp_v4_do_rcv                       513521    18681598 us     36.379 us   
+> >   xprt_transmit                        43346    18532249 us     427.542 us  
+> >   tcp_rcv_established                 513521    18384627 us     35.801 us   
+> >   napi_gro_receive                    436279    18114586 us     41.520 us   
+> >   napi_skb_finish                     436279    17130261 us     39.264 us   
+> >   netif_receive_skb                   436279    16886046 us     38.704 us   
+> >   ip_rcv                              436279    16500338 us     37.820 us   
+> >   xs_tcp_send_request                  43346    16418581 us     378.779 us  
+> >   xs_sendpages                         43346    16367619 us     377.603 us  
+> >   xs_send_kvec                         43347    16310325 us     376.273 us  
+> >   kernel_sendmsg                       43347    16254698 us     374.990 us  
+> >   sock_sendmsg                         43347    16177184 us     373.201 us  
+> >   tcp_sendmsg                          43347    16127746 us     372.061 us  
+> >   do_IRQ                               45271    15968995 us     352.742 us  
+> >   ip_local_deliver                    436279    15816133 us     36.252 us   
+> >   irq_exit                             53709    15421475 us     287.130 us  
+> >   acpi_processor_ffh_cstate_ente       17999    15394735 us     855.310 us  
+> >   mwait_idle_with_hints                17999    15386089 us     854.830 us  
+> >   tcp_v4_rcv                          436217    15173852 us     34.785 us   
+> >   release_sock                         43364    13536313 us     312.155 us  
+> >   xs_tcp_data_ready                   512045    10092920 us     19.711 us   
+> >   _spin_unlock_bh                     518900    9851221 us     18.984 us   
+> >   local_bh_enable_ip                  511352    9403704 us     18.389 us   
+> >   tcp_read_sock                      1024090    8832051 us     8.624 us    
+> >   __tcp_ack_snd_check                 512045    6644838 us     12.977 us   
+> >   add_to_page_cache_lru               174072    6287717 us     36.121 us   
+> >   tcp_transmit_skb                    296572    5962431 us     20.104 us   
+> >   tcp_send_ack                        253210    5775135 us     22.807 us   
+> >   __kfree_skb                         802932    5216451 us     6.496 us    
+> >   add_to_page_cache_locked            174072    4716425 us     27.094 us   
+> > [...]
+> > 
+> > Detailed time before patch (100 runs * 2 CPU):
+> > 
+> > Total          add_to_page_cache_lru    percent
+> > 1927694859.404 6703561                  0.34775011030908648%
+> > 1994166534.446 7311783                  0.36665859514242066%
+> > 2132812997.930 6249683                  0.29302536162643533%
+> > 1972582396.980 7908593                  0.40092586307715006%
+> > 2415371209.622 7670327                  0.31756307144194151%
+> > 2163473353.153 7406991                  0.34236571433640306%
+> > 1833544521.635 7952113                  0.43370165851816772%
+> > 2087748556.683 7995535                  0.38297404035585819%
+> > 2185868844.795 7117368                  0.32560819085499598%
+> > 1980423680.193 6514699                  0.32895481230385598%
+> > 1958021484.352 6745228                  0.34449203207963308%
+> > 2008592063.702 7398967                  0.36836583862444905%
+> > 2448117568.931 6224454                  0.25425470079519025%
+> > 2213021186.789 6938228                  0.31351837214297412%
+> > 1828902235.789 7479842                  0.40897987074596959%
+> > 1866644864.837 7720792                  0.41361868802366963%
+> > 2054526163.572 8475856                  0.41254553727677401%
+> > 1902862587.026 8334661                  0.43800645705196778%
+> > 2148449373.925 8672498                  0.40366313050031155%
+> > 2104880443.231 7741619                  0.36779376353160392%
+> > 2270646549.540 6486688                  0.2856758134071597%
+> > 2250814274.826 7512331                  0.33376058984612328%
+> > 2214008898.106 6391259                  0.28867359139646992%
+> > 2446226035.589 7738434                  0.31634173978271579%
+> > 1920377000.358 6464992                  0.33665223020244384%
+> > 2030446733.714 6022617                  0.2966153654759367%
+> > 2157128575.464 7375670                  0.34192074055731642%
+> > 2185670134.683 7943199                  0.36342167438509865%
+> > 2224381465.969 8492920                  0.38181041021667828%
+> > 2479045291.455 8161934                  0.32923698603382928%
+> > 1971641972.432 8114434                  0.41155717485517562%
+> > 2208169216.013 8138519                  0.36856410011433138%
+> > 1971312194.985 8122576                  0.41203904793283169%
+> > 2279129743.345 7365286                  0.3231622079219687%
+> > 2360162707.877 7412468                  0.3140659741491984%
+> > 1885022652.013 8252339                  0.43778460652382062%
+> > 2065345722.062 7985361                  0.3866355600759942%
+> > 1975982196.916 7925371                  0.4010851419799969%
+> > 2169738273.075 7203856                  0.33201497569522709%
+> > 2034570957.887 7396992                  0.36356520136717829%
+> > 1789538123.758 7380292                  0.41241323121418116%
+> > 1912812047.546 8697404                  0.45469203370807615%
+> > 2221047646.893 7451321                  0.33548676951723994%
+> > 2163981380.559 7982481                  0.36887937538251664%
+> > 1969189605.396 7353112                  0.37340802428831149%
+> > 2278909389.270 7088803                  0.31106120468750831%
+> > 2104996788.904 7342692                  0.34882200479854836%
+> > 2374705789.293 7327329                  0.30855733931492624%
+> > 2137944282.456 8112283                  0.3794431438915179%
+> > 2268117031.230 6889022                  0.30373309247909852%
+> > 1899091967.945 8173918                  0.43041190937398177%
+> > 2098779842.987 7858621                  0.37443760603377763%
+> > 2124662819.215 8156209                  0.38388251190904155%
+> > 2317714239.959 7048899                  0.30413149638864423%
+> > 2218944220.453 6659501                  0.30012025262358577%
+> > 1945126557.801 7704643                  0.3960998305791596%
+> > 2092060468.851 7616315                  0.36405807161888715%
+> > 1933379809.531 7300893                  0.37762331870896354%
+> > 1903832170.769 7508856                  0.39440745435912067%
+> > 2435478683.656 6790800                  0.27882814354203433%
+> > 2126189870.763 7104836                  0.33415811530747125%
+> > 2161363441.772 7011298                  0.32439236569356278%
+> > 2064449342.765 6822211                  0.33046153561039859%
+> > 2116816508.947 8156178                  0.38530396779913867%
+> > 1982774633.856 7131335                  0.35966442571092105%
+> > 2323253766.182 7275361                  0.3131539526978242%
+> > 1905927501.820 7477458                  0.39232646534874271%
+> > 2252162684.001 8064426                  0.35807475442552977%
+> > 2027146552.281 7875866                  0.38851981328818402%
+> > 1845397260.011 7598767                  0.41176862915439172%
+> > 2177206310.501 7366288                  0.33833670077434846%
+> > 2041629016.560 6600368                  0.32328929234759562%
+> > 2189308825.112 8348863                  0.38134697600613249%
+> > 1930990433.231 7344038                  0.38032492930126544%
+> > 2102320863.469 7299411                  0.34720727586536809%
+> > 1895798071.683 8051595                  0.42470741585110772%
+> > 2019648719.623 7992832                  0.39575357448754711%
+> > 1961118039.267 7837733                  0.39965636147681766%
+> > 2142238585.905 8084509                  0.37738602288244455%
+> > 2263212432.641 7757018                  0.34274369865263332%
+> > 2200111036.549 7069702                  0.32133387281622078%
+> > 1941699880.568 7786856                  0.4010329339734075%
+> > 1939777157.562 7729686                  0.39848319534368681%
+> > 1983015138.927 8136252                  0.41029701893261827%
+> > 2040218650.019 7968023                  0.39054750332400873%
+> > 1850721920.862 7835912                  0.42339758943095634%
+> > 2167986192.252 8656589                  0.39929170356052646%
+> > 2128868496.040 8248906                  0.38747841942065214%
+> > 1984840247.084 7754853                  0.39070413910605312%
+> > 2130780080.168 7053725                  0.33103955990821227%
+> > 2062729676.752 7968701                  0.38631824081513272%
+> > 1995756518.448 7903687                  0.39602461156666058%
+> > 1921150053.008 8307746                  0.43243608103345821%
+> > 2253731991.230 8033382                  0.35644797301810893%
+> > 2143807312.838 6755593                  0.31512127790332323%
+> > 1948787937.040 7152297                  0.36701258582622248%
+> > 2276500726.783 7277806                  0.31969267193182554%
+> > 2282733838.581 6336839                  0.27759867983291148%
+> > 2003104438.909 7092547                  0.35407774363791977%
+> > 2239684291.880 6982252                  0.3117516171950766%
+> > 1801833773.742 2645976                  0.14684906224756283%
+> > 2016683111.150 2261656                  0.11214731692329717%
+> > 1962727948.601 2767184                  0.14098663046870061%
+> > 1845203884.375 2266317                  0.1228220371304734%
+> > 1516914718.568 1975612                  0.13023883121557553%
+> > 1557730294.184 2109274                  0.13540688063108641%
+> > 2171303320.533 1865384                  0.085910797554627022%
+> > 1617322895.641 2073254                  0.12819048104666192%
+> > 1867107731.934 1901409                  0.10183713384500154%
+> > 1772588329.145 2045529                  0.11539786008783279%
+> > 2030802387.562 2161163                  0.10641916777508319%
+> > 1853583237.019 1803299                  0.097287187539531861%
+> > 1453728764.040 3231016                  0.22225714176699726%
+> > 1989811798.738 2418414                  0.1215398361560542%
+> > 1956758511.567 2254818                  0.11523230826241863%
+> > 2001579398.410 1952360                  0.097540971971978793%
+> > 1636515132.388 1532408                  0.093638486419854422%
+> > 1926271619.408 1918912                  0.09961793449408439%
+> > 1642519133.238 1384193                  0.084272564744573439%
+> > 1677033195.955 1340416                  0.07992781557533149%
+> > 1693983317.244 3135804                  0.18511421972571418%
+> > 1487434932.071 2467493                  0.1658891388656871%
+> > 1720442169.343 3034092                  0.17635536108479918%
+> > 1640362983.552 1944463                  0.11853858075908964%
+> > 1821382248.526 2659828                  0.1460334864991977%
+> > 1947322513.836 3540608                  0.18181929160904178%
+> > 1673422299.278 2769832                  0.16551900863249205%
+> > 1836039325.613 2175872                  0.11850900847526999%
+> > 1582929718.539 2072026                  0.13089816785500888%
+> > 1476014468.174 1996943                  0.13529291501257767%
+> > 1847131237.607 2120975                  0.11482535495137695%
+> > 1734796451.802 1842211                  0.10619176665287874%
+> > 1804827020.363 1988047                  0.11015166426310204%
+> > 1647250758.752 2634152                  0.15991202225917941%
+> > 1506833507.228 2271966                  0.15077750720977479%
+> > 1919459367.994 1608374                  0.083793073550751385%
+> > 1913364635.281 2126200                  0.11112361756846952%
+> > 1733934046.047 2031440                  0.11715785872197679%
+> > 1762796865.803 2285487                  0.12965118354456009%
+> > 1711072016.023 2270996                  0.13272357789349024%
+> > 2082560830.257 2273483                  0.10916766353083858%
+> > 1857948273.729 1266725                  0.06817870109255604%
+> > 1738287034.188 2404600                  0.1383315846409251%
+> > 1618942973.292 2016207                  0.12453848179100423%
+> > 1820789056.854 2369799                  0.13015230902664757%
+> > 1561747605.669 2487149                  0.15925422206327566%
+> > 1884502059.843 2512148                  0.13330566485076115%
+> > 1352203145.315 2618029                  0.19361210695824271%
+> > 1911003204.592 1648292                  0.086252707271200574%
+> > 1525244016.511 2555354                  0.16753738892517536%
+> > 2190575134.148 1939935                  0.088558249829422828%
+> > 1643983673.168 1747429                  0.10629235730989092%
+> > 1781900292.843 1686195                  0.094629032094141294%
+> > 1566821289.746 2291057                  0.14622324926229507%
+> > 1777199439.264 2456866                  0.13824368530171682%
+> > 1633063412.403 1953080                  0.11959609070698031%
+> > 1913601422.874 1821650                  0.095194849785599556%
+> > 2094732749.709 2322465                  0.11087166132876074%
+> > 1951529182.943 2270128                  0.11632559839953495%
+> > 1450396654.276 2867633                  0.19771370759479912%
+> > 1643954213.946 2460211                  0.14965203891504558%
+> > 1845971802.604 2593942                  0.14051904781757141%
+> > 1671974226.831 2552423                  0.15265923116756236%
+> > 1792483105.554 1547320                  0.086322710390164162%
+> > 1774273751.516 2101959                  0.1184686973024323%
+> > 1797523443.598 1781759                  0.099122990932099045%
+> > 1877038808.523 2131598                  0.11356174365288201%
+> > 1485614991.186 1796722                  0.12094129439052281%
+> > 2008042349.453 1972441                  0.09822706182154485%
+> > 2178564679.489 1948988                  0.089462021410222761%
+> > 1462911389.586 2076158                  0.14191960051575969%
+> > 1976013519.965 2692701                  0.13626936115536772%
+> > 1473561005.083 1369873                  0.092963439944099252%
+> > 2190713955.687 2450228                  0.11184609444967988%
+> > 1648795783.114 2557892                  0.15513698095279177%
+> > 2116292380.702 1948901                  0.092090347145394241%
+> > 1704227210.803 1980402                  0.11620527987385389%
+> > 1984573918.515 2325530                  0.11718031655581404%
+> > 1856414008.018 1798348                  0.096872141248277158%
+> > 1401593348.875 2285205                  0.16304336788086488%
+> > 1832475317.969 2373585                  0.12952889333487622%
+> > 1840826298.949 2112188                  0.11474129857911804%
+> > 2014475390.352 2104652                  0.10447643143618861%
+> > 1730176303.748 1975645                  0.11418749613667999%
+> > 2016553863.650 2009045                  0.099627638825555156%
+> > 1891795883.646 2160557                  0.11420666567029553%
+> > 1881160108.475 1492908                  0.079361027978115894%
+> > 1562754135.542 1978972                  0.12663361145505117%
+> > 2061996559.038 2071212                  0.10044691834821971%
+> > 1519528906.706 2460493                  0.16192472477103448%
+> > 1796244525.568 2099254                  0.1168690548596764%
+> > 1998463642.677 1988093                  0.099481069234609226%
+> > 1872169708.204 1762657                  0.094150492462082555%
+> > 1664425938.102 1710870                  0.10279039522485223%
+> > 1791543540.761 1992110                  0.11119517637588673%
+> > 1883913354.514 1770358                  0.093972368514618113%
+> > 1813806740.237 1877185                  0.10349421238531283%
+> > 1547586337.236 2702003                  0.17459465329900728%
+> > 2020313568.921 2100334                  0.10396079263684484%
+> > 1727289498.314 2059429                  0.1192289423405978%
+> > 
+> > Detailed time after patch:
+> > 
+> > Total          add_to_page_cache_lru    percent
+> > 2151489401.227 6287717                  0.29224949918015392%
+> > 1919030541.464 6872841                  0.3581413037208262%
+> > 2277104485.950 8538296                  0.37496285535785828%
+> > 2142847301.255 7992466                  0.37298345968558083%
+> > 1909650847.324 6960671                  0.36449966808089612%
+> > 2109123648.836 6825371                  0.32361170497361974%
+> > 2128503623.032 7728883                  0.36311345286743746%
+> > 1925232499.136 7526064                  0.39091714914315673%
+> > 1935780958.829 7499162                  0.38739723964101919%
+> > 1722848267.832 7353451                  0.42681942091473007%
+> > 1855159456.452 7600681                  0.40970499724785564%
+> > 1862769335.900 8607712                  0.46209221045831578%
+> > 2272365556.764 6895008                  0.30342864419310028%
+> > 2049429274.204 7252089                  0.35385895435775488%
+> > 2001218334.232 8155639                  0.4075336938750293%
+> > 1947131845.644 7229822                  0.37130623774523025%
+> > 1982915408.746 7513518                  0.37891268416495716%
+> > 2038654062.353 7531559                  0.36943781385386831%
+> > 2134879530.359 6738727                  0.31564905205057731%
+> > 2029761134.284 7472398                  0.36814174208907074%
+> > 1956557094.935 7280443                  0.37210480690019776%
+> > 1740007857.373 6663035                  0.38293131676196024%
+> > 2054278081.418 7765213                  0.37800203732105886%
+> > 2367585922.353 7629987                  0.32226864199365651%
+> > 2023763123.141 7730698                  0.38199618876350999%
+> > 1826074987.177 7579606                  0.41507638258150648%
+> > 2077873224.783 7414675                  0.35683962387909118%
+> > 2103719398.720 7093390                  0.33718327664402131%
+> > 2164758918.301 7181094                  0.33172719323572736%
+> > 1953199921.042 7750654                  0.39681826302067191%
+> > 2179298642.359 6395109                  0.29344803303679207%
+> > 1971922836.328 7215479                  0.36591081897688477%
+> > 2225552712.785 8153246                  0.36634701812105075%
+> > 2124780733.448 7080842                  0.33325048032177529%
+> > 2139511762.563 8708060                  0.40701155059639843%
+> > 1934365642.348 6842114                  0.35371358186939283%
+> > 1950765025.910 6818753                  0.34954250816646476%
+> > 2013188877.577 6495929                  0.32266863146086228%
+> > 1921391492.273 6536576                  0.34020011154870117%
+> > 2164698840.945 6712421                  0.31008567441509277%
+> > 1992440404.239 7467130                  0.3747730664422067%
+> > 2073623249.374 7113197                  0.34303227465005426%
+> > 1938481781.041 6902169                  0.35606055561138211%
+> > 1963963682.421 7776006                  0.39593430721765843%
+> > 1807704433.895 7206899                  0.39867684477995868%
+> > 1902413226.299 7687850                  0.40411041585093088%
+> > 1718395340.661 7096452                  0.41296969516166576%
+> > 2014139552.830 7653595                  0.37999328245384933%
+> > 1976902280.499 7781174                  0.3936043818026207%
+> > 1920129734.441 6808420                  0.3545812492707483%
+> > 1786139514.638 7179970                  0.4019825966089316%
+> > 2011990483.317 6739406                  0.33496212113733792%
+> > 2186643920.919 7830962                  0.35812698743876015%
+> > 1822975832.465 8627042                  0.47323951565143058%
+> > 1872249428.425 7264440                  0.38800599373722838%
+> > 1971668701.573 6818269                  0.34581210294408871%
+> > 2054585589.388 7261214                  0.35341501651254642%
+> > 2252858576.565 7228902                  0.32087686618225808%
+> > 2196771348.820 6634658                  0.30201859668116204%
+> > 2224872312.502 6948714                  0.31231967609798522%
+> > 1924947573.139 6935037                  0.360271474235066%
+> > 2070207954.999 7564561                  0.36540102078796494%
+> > 2070702822.858 6994172                  0.33776802362912656%
+> > 2099826181.510 7199665                  0.34286957003377627%
+> > 2369037401.585 7009501                  0.29587971027009985%
+> > 2109093017.803 7056062                  0.33455432929886414%
+> > 2141046841.968 7831694                  0.36578807368835009%
+> > 2284785719.942 7358167                  0.3220506385249462%
+> > 2088247084.213 6857813                  0.32840045853982414%
+> > 1880913709.753 6697468                  0.35607523967059107%
+> > 1984586172.943 7361786                  0.37094816543455983%
+> > 2130320004.839 7840067                  0.36802297223850727%
+> > 2314059227.236 6669054                  0.28819720435443524%
+> > 1935408704.712 8309322                  0.42933164348025787%
+> > 2239440115.241 7040432                  0.31438357972087749%
+> > 2387500130.769 6555638                  0.27458168129559291%
+> > 2497500671.323 6969731                  0.27906823329532587%
+> > 2229438175.095 6759889                  0.30321042653322067%
+> > 1979317661.013 7870099                  0.39761677243723181%
+> > 2228213884.202 5883791                  0.26405862748257614%
+> > 2264526373.743 6563122                  0.28982316461838858%
+> > 2256376049.198 6670128                  0.29561242694323103%
+> > 2085817937.654 6878115                  0.32975624937505721%
+> > 2177225113.484 7421724                  0.34087995559282069%
+> > 1843473456.551 7156295                  0.38819625932607071%
+> > 2403022978.094 6958096                  0.28955594946157931%
+> > 1935191866.634 6872608                  0.35513832599730566%
+> > 1917810458.850 7816937                  0.40759695328220108%
+> > 2016838266.381 7257719                  0.35985627211562177%
+> > 1904575178.166 7484129                  0.39295529448235278%
+> > 2087232238.930 7372521                  0.35321996577532039%
+> > 1976631116.176 6438233                  0.32571747693901715%
+> > 2004191806.805 6735567                  0.33607397141980955%
+> > 2110550986.328 7174599                  0.33993961986592813%
+> > 2152621184.889 7337361                  0.34085704681840484%
+> > 2059135774.936 6363510                  0.30903790208772336%
+> > 2353978555.486 7265456                  0.30864580236160993%
+> > 1945677192.325 5927833                  0.30466682877217138%
+> > 2255676557.335 6379740                  0.28283044301074045%
+> > 2034627875.756 7319043                  0.35972391252530572%
+> > 1712556465.847 3079747                  0.17983331127577226%
+> > 1837380343.831 3111263                  0.1693314620702272%
+> > 1680363376.083 1611968                  0.095929727042585719%
+> > 1769978476.954 2017096                  0.11396161175198416%
+> > 1829700109.543 2612874                  0.14280340184559598%
+> > 1783959966.875 3184558                  0.17851062014460206%
+> > 1772032973.967 2133741                  0.12041203698502599%
+> > 1667688494.152 1985120                  0.11903422053705601%
+> > 2001252356.720 2633874                  0.13161128785961057%
+> > 2077009766.270 2858188                  0.13761071548223289%
+> > 2076612330.379 2340135                  0.11269002720276176%
+> > 1834812072.536 1713713                  0.093399919569494547%
+> > 1787949752.795 2522212                  0.14106727529994451%
+> > 1907464219.876 2476303                  0.12982172741153589%
+> > 1609254879.065 1903707                  0.11829741980375917%
+> > 2069557067.911 2484547                  0.12005211349440528%
+> > 1725151836.363 2491288                  0.1444097816486799%
+> > 2077004221.561 2508662                  0.12078271069254648%
+> > 1650748196.246 3195100                  0.19355465644403197%
+> > 1843881436.725 2731880                  0.14815920078094685%
+> > 1677080490.297 2752567                  0.16412849686853959%
+> > 2103777441.563 3252694                  0.15461207710181613%
+> > 1598451912.768 2345538                  0.1467381021139566%
+> > 1825835416.807 2381575                  0.13043755083713246%
+> > 1969692431.120 2198750                  0.11162910336969484%
+> > 1867823718.088 1813348                  0.097083465770326324%
+> > 1929972836.031 2140104                  0.11088777831718792%
+> > 1627140530.277 2519227                  0.15482541016731566%
+> > 1779407314.725 2828755                  0.15897175293095681%
+> > 1724839045.836 1937500                  0.11232932166496305%
+> > 1780135194.997 2889504                  0.16231935687361485%
+> > 1758590417.053 2193512                  0.12473126082853507%
+> > 1729351400.188 1523643                  0.088104881392778986%
+> > 1484255938.207 2153531                  0.14509162096406991%
+> > 1504352024.282 1910774                  0.12701641432044322%
+> > 1916441202.247 2423510                  0.12645887581411155%
+> > 1651813655.113 2892863                  0.1751325272705837%
+> > 1772411947.023 2693122                  0.15194673024651262%
+> > 1738795901.180 3064160                  0.17622309771495132%
+> > 1717902110.376 3266140                  0.19012375503078779%
+> > 1858583685.387 2246750                  0.12088505982619635%
+> > 1641867344.242 2901893                  0.17674345069209688%
+> > 2037933222.333 3290649                  0.16146991294606342%
+> > 1713754879.753 2136278                  0.1246548164640615%
+> > 2265307843.106 2195967                  0.096939010151886218%
+> > 2066343912.900 2117667                  0.10248376307446183%
+> > 2033259596.459 2652081                  0.13043494321230309%
+> > 2029016228.457 2447926                  0.12064595470789147%
+> > 1649943910.454 2243384                  0.13596728869302646%
+> > 2064977308.315 2517573                  0.12191770775700743%
+> > 1962826877.902 2403546                  0.12245328546596376%
+> > 1991037543.226 3214700                  0.16145853255942866%
+> > 1469646744.644 1960481                  0.133398111290676%
+> > 2195532272.023 1693642                  0.077140382839349028%
+> > 1902754342.931 2542547                  0.13362455376575119%
+> > 1922726134.774 2726990                  0.14182935108023245%
+> > 1629134454.130 2814497                  0.17276026499009955%
+> > 1442857977.322 2886065                  0.2000241912483062%
+> > 1782430811.270 2884583                  0.16183421997427802%
+> > 1574026949.337 2873023                  0.18252692568003068%
+> > 2064769936.712 2717133                  0.13159495165484839%
+> > 1621381781.294 2143854                  0.13222388611576869%
+> > 1783777994.311 2515565                  0.14102455619605617%
+> > 1561198792.593 2402227                  0.15387066729728466%
+> > 1658682002.165 2924639                  0.17632306832669586%
+> > 1675144757.604 2216513                  0.13231769910860314%
+> > 1712859849.041 2274046                  0.13276310967725691%
+> > 1448178253.374 2507727                  0.17316424923226392%
+> > 1621787692.726 2822681                  0.17404750403892047%
+> > 1924315582.555 2275728                  0.11826168330344308%
+> > 2044659318.750 2606738                  0.12749008972280165%
+> > 1559320878.499 2049522                  0.13143683434629996%
+> > 1641314354.590 2786145                  0.16975084585158451%
+> > 1769603624.855 2008994                  0.11352790940200608%
+> > 1707747444.550 2813289                  0.16473682973311757%
+> > 1366611645.499 2930513                  0.21443641356721807%
+> > 1435165128.768 3161655                  0.22029903992400404%
+> > 1440555681.860 2831258                  0.19653929630435177%
+> > 1627011278.312 1956565                  0.12025515901954331%
+> > 1668464384.654 3863649                  0.23156916237089648%
+> > 1589045506.115 2743558                  0.17265446391825656%
+> > 1766150748.153 3207045                  0.18158387687765917%
+> > 1668645748.936 2997211                  0.17961937109246526%
+> > 1808149919.182 2420007                  0.13383884678626659%
+> > 1831096162.185 2226869                  0.12161398434382248%
+> > 1473136553.216 2774496                  0.18833936296964501%
+> > 1873520917.567 2427200                  0.12955286366121929%
+> > 1971938578.205 2207736                  0.11195764535473715%
+> > 1670588149.850 2437810                  0.14592525394238479%
+> > 1912140400.200 2407058                  0.12588291109524352%
+> > 1925513187.452 2415130                  0.12542786077699639%
+> > 1658671061.956 3111210                  0.18757245311382492%
+> > 1917423750.996 2888924                  0.15066695603928745%
+> > 1553962205.772 3386946                  0.21795549386076499%
+> > 1834101490.364 2367281                  0.12907033838842713%
+> > 1626846627.678 3362957                  0.20671629044711806%
+> > 1519340210.104 2320735                  0.15274623712098975%
+> > 1725615314.262 3813557                  0.22099693764197714%
+> > 1725823077.103 3137784                  0.1818137699993643%
+> > 1633124107.941 2007344                  0.12291435722731486%
+> > 
+> > Thanks,
+> > Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
