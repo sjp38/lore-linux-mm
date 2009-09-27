@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 337F56B00B1
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:04:59 -0400 (EDT)
-Date: Sun, 27 Sep 2009 21:20:25 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8C4006B00B1
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:07:19 -0400 (EDT)
+Date: Sun, 27 Sep 2009 21:22:51 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20090927192025.GA6327@wotan.suse.de>
-References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost> <20090927104739.GA1666@localhost>
+Message-ID: <20090927192251.GB6327@wotan.suse.de>
+References: <20090926031537.GA10176@localhost> <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926190645.GB14368@wotan.suse.de> <20090926213204.GX30185@one.firstfloor.org> <Pine.LNX.4.64.0909271714370.9097@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090927104739.GA1666@localhost>
+In-Reply-To: <Pine.LNX.4.64.0909271714370.9097@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 27, 2009 at 06:47:39PM +0800, Wu Fengguang wrote:
+On Sun, Sep 27, 2009 at 05:26:25PM +0100, Hugh Dickins wrote:
+> On Sat, 26 Sep 2009, Andi Kleen wrote:
+> > > This is a bit tricky to do right now; you have a chicken and egg
+> > > problem between locking the page and pinning the inode mapping.
 > > 
-> > And standard deviation is 0.04%, much larger than the difference 0.008% ..
+> > One possibly simple solution would be to just allocate the page
+> > locked (GFP_LOCKED). When the allocator clears the flags it already
+> > modifies the state, so it could as well set the lock bit too. No
+> > atomics needed.  And then clearing it later is also atomic free.
 > 
-> Sorry that's not correct. I improved the accounting by treating
-> function0+function1 from two CPUs as an integral entity:
+> That's a good idea.
 > 
->                  total time      add_to_page_cache_lru   percent  stddev
->          before  3880166848.722  9683329.610             0.250%   0.014%
->          after   3828516894.376  9778088.870             0.256%   0.012%
->          delta                                           0.006%
+> I don't particularly like adding a GFP_LOCKED just for this, and I
+> don't particularly like having to remember to unlock the thing on the
+> various(?) error paths between getting the page and adding it to cache.
 
-I don't understand why you're doing this NFS workload to measure?
-I see significant nfs, networking protocol and device overheads in
-your profiles, also you're hitting some locks or something which
-is causing massive context switching. So I don't think this is a
-good test. But anyway as Hugh points out, you need to compare with
-a *completely* fixed kernel, which includes auditing all users of
-page flags non-atomically (slab, notably, but possibly also other
-places).
+God no, please no more crazy branches in the page allocator.
 
-One other thing to keep in mind that I will mention is that I am
-going to push in a patch to the page allocator to allow callers
-to avoid the refcounting (atomic_dec_and_test) in page lifetime,
-which is especially important for SLUB and takes more cycles off
-the page allocator...
+I'm going to resubmit my patches to allow 0-ref page allocations,
+so the pagecache will be able to work with those to do what we
+want here.
 
-I don't know exactly what you're going to do after that to get a
-stable reference to slab pages. I guess you can read the page
-flags and speculatively take some slab locks and recheck etc...
+ 
+> But it is a good idea, and if doing it that way would really close a
+> race window which checking page->mapping (or whatever) cannot (I'm
+> simply not sure about that), then it would seem the best way to go.
+
+Yep, seems reasonable: the ordering is no technical burden, and a
+simple comment pointing to hwpoison will keep it maintainable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
