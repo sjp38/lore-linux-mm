@@ -1,681 +1,430 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F32A6B0055
-	for <linux-mm@kvack.org>; Sun, 27 Sep 2009 03:45:14 -0400 (EDT)
-Date: Sun, 27 Sep 2009 09:43:03 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
-Message-ID: <20090927074302.GA3690@redhat.com>
-References: <cover.1251388414.git.mst@redhat.com> <20090827160750.GD23722@redhat.com> <20090925170158.GA16014@ovro.caltech.edu>
+	by kanga.kvack.org (Postfix) with SMTP id 3887C6B0055
+	for <linux-mm@kvack.org>; Sun, 27 Sep 2009 05:43:30 -0400 (EDT)
+Message-ID: <4ABF33B2.4000805@redhat.com>
+Date: Sun, 27 Sep 2009 11:43:14 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090925170158.GA16014@ovro.caltech.edu>
+Subject: Re: [PATCHv5 3/3] vhost_net: a kernel-level virtio server
+References: <4AAFACB5.9050808@redhat.com> <4AAFF437.7060100@gmail.com> <4AB0A070.1050400@redhat.com> <4AB0CFA5.6040104@gmail.com> <4AB0E2A2.3080409@redhat.com> <4AB0F1EF.5050102@gmail.com> <4AB10B67.2050108@redhat.com> <4AB13B09.5040308@gmail.com> <4AB151D7.10402@redhat.com> <4AB1A8FD.2010805@gmail.com> <20090921214312.GJ7182@ovro.caltech.edu> <4AB89C48.4020903@redhat.com> <4ABA3005.60905@gmail.com> <4ABA32AF.50602@redhat.com> <4ABA3A73.5090508@gmail.com> <4ABA61D1.80703@gmail.com> <4ABA78DC.7070604@redhat.com> <4ABA8FDC.5010008@gmail.com> <4ABB1D44.5000007@redhat.com> <4ABBB46D.2000102@gmail.com> <4ABC7DCE.2000404@redhat.com> <4ABD36E3.9070503@gmail.com>
+In-Reply-To: <4ABD36E3.9070503@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Ira W. Snyder" <iws@ovro.caltech.edu>
-Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com
+To: Gregory Haskins <gregory.haskins@gmail.com>
+Cc: "Ira W. Snyder" <iws@ovro.caltech.edu>, "Michael S. Tsirkin" <mst@redhat.com>, netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, Rusty Russell <rusty@rustcorp.com.au>, s.hetze@linux-ag.com, alacrityvm-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 25, 2009 at 10:01:58AM -0700, Ira W. Snyder wrote:
-> > +	case VHOST_SET_VRING_KICK:
-> > +		r = copy_from_user(&f, argp, sizeof f);
-> > +		if (r < 0)
-> > +			break;
-> > +		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-> > +		if (IS_ERR(eventfp))
-> > +			return PTR_ERR(eventfp);
-> > +		if (eventfp != vq->kick) {
-> > +			pollstop = filep = vq->kick;
-> > +			pollstart = vq->kick = eventfp;
-> > +		} else
-> > +			filep = eventfp;
-> > +		break;
-> > +	case VHOST_SET_VRING_CALL:
-> > +		r = copy_from_user(&f, argp, sizeof f);
-> > +		if (r < 0)
-> > +			break;
-> > +		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-> > +		if (IS_ERR(eventfp))
-> > +			return PTR_ERR(eventfp);
-> > +		if (eventfp != vq->call) {
-> > +			filep = vq->call;
-> > +			ctx = vq->call_ctx;
-> > +			vq->call = eventfp;
-> > +			vq->call_ctx = eventfp ?
-> > +				eventfd_ctx_fileget(eventfp) : NULL;
-> > +		} else
-> > +			filep = eventfp;
-> > +		break;
-> > +	case VHOST_SET_VRING_ERR:
-> > +		r = copy_from_user(&f, argp, sizeof f);
-> > +		if (r < 0)
-> > +			break;
-> > +		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-> > +		if (IS_ERR(eventfp))
-> > +			return PTR_ERR(eventfp);
-> > +		if (eventfp != vq->error) {
-> > +			filep = vq->error;
-> > +			vq->error = eventfp;
-> > +			ctx = vq->error_ctx;
-> > +			vq->error_ctx = eventfp ?
-> > +				eventfd_ctx_fileget(eventfp) : NULL;
-> > +		} else
-> > +			filep = eventfp;
-> > +		break;
-> 
-> I'm not sure how these eventfd's save a trip to userspace.
-> 
-> AFAICT, eventfd's cannot be used to signal another part of the kernel,
-> they can only be used to wake up userspace.
+On 09/26/2009 12:32 AM, Gregory Haskins wrote:
+>>>
+>>> I realize in retrospect that my choice of words above implies vbus _is_
+>>> complete, but this is not what I was saying.  What I was trying to
+>>> convey is that vbus is _more_ complete.  Yes, in either case some kind
+>>> of glue needs to be written.  The difference is that vbus implements
+>>> more of the glue generally, and leaves less required to be customized
+>>> for each iteration.
+>>>
+>>>        
+>>
+>> No argument there.  Since you care about non-virt scenarios and virtio
+>> doesn't, naturally vbus is a better fit for them as the code stands.
+>>      
+> Thanks for finally starting to acknowledge there's a benefit, at least.
+>    
 
-Yes, they can.  See irqfd code in virt/kvm/eventfd.c.
+I think I've mentioned vbus' finer grained layers as helpful here, 
+though I doubt the value of this.  Hypervisors are added rarely, while 
+devices and drivers are added (and modified) much more often.  I don't 
+buy the anything-to-anything promise.
 
-> In my system, when an IRQ for kick() comes in, I have an eventfd which
-> gets signalled to notify userspace. When I want to send a call(), I have
-> to use a special ioctl(), just like lguest does.
-> 
-> Doesn't this mean that for call(), vhost is just going to signal an
-> eventfd to wake up userspace, which is then going to call ioctl(), and
-> then we're back in kernelspace. Seems like a wasted userspace
-> round-trip.
-> 
-> Or am I mis-reading this code?
+> To be more precise, IMO virtio is designed to be a performance oriented
+> ring-based driver interface that supports all types of hypervisors (e.g.
+> shmem based kvm, and non-shmem based Xen).  vbus is designed to be a
+> high-performance generic shared-memory interconnect (for rings or
+> otherwise) framework for environments where linux is the underpinning
+> "host" (physical or virtual).  They are distinctly different, but
+> complementary (the former addresses the part of the front-end, and
+> latter addresses the back-end, and a different part of the front-end).
+>    
 
-Yes. Kernel can poll eventfd and deliver an interrupt directly
-without involving userspace.
+They're not truly complementary since they're incompatible.  A 2.6.27 
+guest, or Windows guest with the existing virtio drivers, won't work 
+over vbus.  Further, non-shmem virtio can't work over vbus.  Since 
+virtio is guest-oriented and host-agnostic, it can't ignore 
+non-shared-memory hosts (even though it's unlikely virtio will be 
+adopted there).
 
-> PS - you can see my current code at:
-> http://www.mmarray.org/~iws/virtio-phys/
-> 
-> Thanks,
-> Ira
-> 
-> > +	default:
-> > +		r = -ENOIOCTLCMD;
-> > +	}
-> > +
-> > +	if (pollstop && vq->handle_kick)
-> > +		vhost_poll_stop(&vq->poll);
-> > +
-> > +	if (ctx)
-> > +		eventfd_ctx_put(ctx);
-> > +	if (filep)
-> > +		fput(filep);
-> > +
-> > +	if (pollstart && vq->handle_kick)
-> > +		vhost_poll_start(&vq->poll, vq->kick);
-> > +
-> > +	mutex_unlock(&vq->mutex);
-> > +
-> > +	if (pollstop && vq->handle_kick)
-> > +		vhost_poll_flush(&vq->poll);
-> > +	return 0;
-> > +}
-> > +
-> > +long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
-> > +{
-> > +	void __user *argp = (void __user *)arg;
-> > +	long r;
-> > +
-> > +	mutex_lock(&d->mutex);
-> > +	/* If you are not the owner, you can become one */
-> > +	if (ioctl == VHOST_SET_OWNER) {
-> > +		r = vhost_dev_set_owner(d);
-> > +		goto done;
-> > +	}
-> > +
-> > +	/* You must be the owner to do anything else */
-> > +	r = vhost_dev_check_owner(d);
-> > +	if (r)
-> > +		goto done;
-> > +
-> > +	switch (ioctl) {
-> > +	case VHOST_SET_MEM_TABLE:
-> > +		r = vhost_set_memory(d, argp);
-> > +		break;
-> > +	default:
-> > +		r = vhost_set_vring(d, ioctl, argp);
-> > +		break;
-> > +	}
-> > +done:
-> > +	mutex_unlock(&d->mutex);
-> > +	return r;
-> > +}
-> > +
-> > +static const struct vhost_memory_region *find_region(struct vhost_memory *mem,
-> > +						     __u64 addr, __u32 len)
-> > +{
-> > +	struct vhost_memory_region *reg;
-> > +	int i;
-> > +	/* linear search is not brilliant, but we really have on the order of 6
-> > +	 * regions in practice */
-> > +	for (i = 0; i < mem->nregions; ++i) {
-> > +		reg = mem->regions + i;
-> > +		if (reg->guest_phys_addr <= addr &&
-> > +		    reg->guest_phys_addr + reg->memory_size - 1 >= addr)
-> > +			return reg;
-> > +	}
-> > +	return NULL;
-> > +}
-> > +
-> > +int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
-> > +		   struct iovec iov[], int iov_size)
-> > +{
-> > +	const struct vhost_memory_region *reg;
-> > +	struct vhost_memory *mem;
-> > +	struct iovec *_iov;
-> > +	u64 s = 0;
-> > +	int ret = 0;
-> > +
-> > +	rcu_read_lock();
-> > +
-> > +	mem = rcu_dereference(dev->memory);
-> > +	while ((u64)len > s) {
-> > +		u64 size;
-> > +		if (ret >= iov_size) {
-> > +			ret = -ENOBUFS;
-> > +			break;
-> > +		}
-> > +		reg = find_region(mem, addr, len);
-> > +		if (!reg) {
-> > +			ret = -EFAULT;
-> > +			break;
-> > +		}
-> > +		_iov = iov + ret;
-> > +		size = reg->memory_size - addr + reg->guest_phys_addr;
-> > +		_iov->iov_len = min((u64)len, size);
-> > +		_iov->iov_base = (void *)
-> > +			(reg->userspace_addr + addr - reg->guest_phys_addr);
-> > +		s += size;
-> > +		addr += size;
-> > +		++ret;
-> > +	}
-> > +
-> > +	rcu_read_unlock();
-> > +	return ret;
-> > +}
-> > +
-> > +/* Each buffer in the virtqueues is actually a chain of descriptors.  This
-> > + * function returns the next descriptor in the chain, or vq->vring.num if we're
-> > + * at the end. */
-> > +static unsigned next_desc(struct vhost_virtqueue *vq, struct vring_desc *desc)
-> > +{
-> > +	unsigned int next;
-> > +
-> > +	/* If this descriptor says it doesn't chain, we're done. */
-> > +	if (!(desc->flags & VRING_DESC_F_NEXT))
-> > +		return vq->num;
-> > +
-> > +	/* Check they're not leading us off end of descriptors. */
-> > +	next = desc->next;
-> > +	/* Make sure compiler knows to grab that: we don't want it changing! */
-> > +	/* We will use the result as an index in an array, so most
-> > +	 * architectures only need a compiler barrier here. */
-> > +	read_barrier_depends();
-> > +
-> > +	if (next >= vq->num) {
-> > +		vq_err(vq, "Desc next is %u > %u", next, vq->num);
-> > +		return vq->num;
-> > +	}
-> > +
-> > +	return next;
-> > +}
-> > +
-> > +/* This looks in the virtqueue and for the first available buffer, and converts
-> > + * it to an iovec for convenient access.  Since descriptors consist of some
-> > + * number of output then some number of input descriptors, it's actually two
-> > + * iovecs, but we pack them into one and note how many of each there were.
-> > + *
-> > + * This function returns the descriptor number found, or vq->num (which
-> > + * is never a valid descriptor number) if none was found. */
-> > +unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
-> > +			   struct iovec iov[],
-> > +			   unsigned int *out_num, unsigned int *in_num)
-> > +{
-> > +	struct vring_desc desc;
-> > +	unsigned int i, head;
-> > +	u16 last_avail_idx;
-> > +	int ret;
-> > +
-> > +	/* Check it isn't doing very strange things with descriptor numbers. */
-> > +	last_avail_idx = vq->last_avail_idx;
-> > +	if (get_user(vq->avail_idx, &vq->avail->idx)) {
-> > +		vq_err(vq, "Failed to access avail idx at %p\n",
-> > +		       &vq->avail->idx);
-> > +		return vq->num;
-> > +	}
-> > +
-> > +	if ((u16)(vq->avail_idx - last_avail_idx) > vq->num) {
-> > +		vq_err(vq, "Guest moved used index from %u to %u",
-> > +		       last_avail_idx, vq->avail_idx);
-> > +		return vq->num;
-> > +	}
-> > +
-> > +	/* If there's nothing new since last we looked, return invalid. */
-> > +	if (vq->avail_idx == last_avail_idx)
-> > +		return vq->num;
-> > +
-> > +	/* Grab the next descriptor number they're advertising, and increment
-> > +	 * the index we've seen. */
-> > +	if (get_user(head, &vq->avail->ring[last_avail_idx % vq->num])) {
-> > +		vq_err(vq, "Failed to read head: idx %d address %p\n",
-> > +		       last_avail_idx,
-> > +		       &vq->avail->ring[last_avail_idx % vq->num]);
-> > +		return vq->num;
-> > +	}
-> > +
-> > +	/* If their number is silly, that's an error. */
-> > +	if (head >= vq->num) {
-> > +		vq_err(vq, "Guest says index %u > %u is available",
-> > +		       head, vq->num);
-> > +		return vq->num;
-> > +	}
-> > +
-> > +	vq->last_avail_idx++;
-> > +
-> > +	/* When we start there are none of either input nor output. */
-> > +	*out_num = *in_num = 0;
-> > +
-> > +	i = head;
-> > +	do {
-> > +		unsigned iov_count = *in_num + *out_num;
-> > +		if (copy_from_user(&desc, vq->desc + i, sizeof desc)) {
-> > +			vq_err(vq, "Failed to get descriptor: idx %d addr %p\n",
-> > +			       i, vq->desc + i);
-> > +			return vq->num;
-> > +		}
-> > +		ret = translate_desc(dev, desc.addr, desc.len, iov + iov_count,
-> > +				     VHOST_NET_MAX_SG - iov_count);
-> > +		if (ret < 0) {
-> > +			vq_err(vq, "Translation failure %d descriptor idx %d\n",
-> > +			       ret, i);
-> > +			return vq->num;
-> > +		}
-> > +		/* If this is an input descriptor, increment that count. */
-> > +		if (desc.flags & VRING_DESC_F_WRITE)
-> > +			*in_num += ret;
-> > +		else {
-> > +			/* If it's an output descriptor, they're all supposed
-> > +			 * to come before any input descriptors. */
-> > +			if (*in_num) {
-> > +				vq_err(vq, "Descriptor has out after in: "
-> > +				       "idx %d\n", i);
-> > +				return vq->num;
-> > +			}
-> > +			*out_num += ret;
-> > +		}
-> > +	} while ((i = next_desc(vq, &desc)) != vq->num);
-> > +	return head;
-> > +}
-> > +
-> > +/* Reverse the effect of vhost_get_vq_desc. Useful for error handling. */
-> > +void vhost_discard_vq_desc(struct vhost_virtqueue *vq)
-> > +{
-> > +	vq->last_avail_idx--;
-> > +}
-> > +
-> > +/* After we've used one of their buffers, we tell them about it.  We'll then
-> > + * want to send them an interrupt, using vq->call. */
-> > +int vhost_add_used(struct vhost_virtqueue *vq,
-> > +			  unsigned int head, int len)
-> > +{
-> > +	struct vring_used_elem *used;
-> > +
-> > +	/* The virtqueue contains a ring of used buffers.  Get a pointer to the
-> > +	 * next entry in that used ring. */
-> > +	used = &vq->used->ring[vq->last_used_idx % vq->num];
-> > +	if (put_user(head, &used->id)) {
-> > +		vq_err(vq, "Failed to write used id");
-> > +		return -EFAULT;
-> > +	}
-> > +	if (put_user(len, &used->len)) {
-> > +		vq_err(vq, "Failed to write used len");
-> > +		return -EFAULT;
-> > +	}
-> > +	/* Make sure buffer is written before we update index. */
-> > +	wmb();
-> > +	if (put_user(vq->last_used_idx + 1, &vq->used->idx)) {
-> > +		vq_err(vq, "Failed to increment used idx");
-> > +		return -EFAULT;
-> > +	}
-> > +	vq->last_used_idx++;
-> > +	return 0;
-> > +}
-> > +
-> > +/* This actually sends the interrupt for this virtqueue */
-> > +void vhost_trigger_irq(struct vhost_dev *dev, struct vhost_virtqueue *vq)
-> > +{
-> > +	__u16 flags = 0;
-> > +	if (get_user(flags, &vq->avail->flags)) {
-> > +		vq_err(vq, "Failed to get flags");
-> > +		return;
-> > +	}
-> > +
-> > +	/* If they don't want an interrupt, don't send one, unless empty. */
-> > +	if ((flags & VRING_AVAIL_F_NO_INTERRUPT) &&
-> > +	    (!vhost_has_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY) ||
-> > +	     vq->avail_idx != vq->last_avail_idx))
-> > +		return;
-> > +
-> > +	/* Send the Guest an interrupt tell them we used something up. */
-> > +	if (vq->call_ctx)
-> > +		eventfd_signal(vq->call_ctx, 1);
-> > +}
-> > +
-> > +/* And here's the combo meal deal.  Supersize me! */
-> > +void vhost_add_used_and_trigger(struct vhost_dev *dev,
-> > +				struct vhost_virtqueue *vq,
-> > +				unsigned int head, int len)
-> > +{
-> > +	vhost_add_used(vq, head, len);
-> > +	vhost_trigger_irq(dev, vq);
-> > +}
-> > +
-> > +/* OK, now we need to know about added descriptors. */
-> > +bool vhost_notify(struct vhost_virtqueue *vq)
-> > +{
-> > +	int r;
-> > +	if (!(vq->used_flags & VRING_USED_F_NO_NOTIFY))
-> > +		return false;
-> > +	vq->used_flags &= ~VRING_USED_F_NO_NOTIFY;
-> > +	r = put_user(vq->used_flags, &vq->used->flags);
-> > +	if (r)
-> > +		vq_err(vq, "Failed to disable notification: %d\n", r);
-> > +	/* They could have slipped one in as we were doing that: make
-> > +	 * sure it's written, tell caller it needs to check again. */
-> > +	mb();
-> > +	return true;
-> > +}
-> > +
-> > +/* We don't need to be notified again. */
-> > +void vhost_no_notify(struct vhost_virtqueue *vq)
-> > +{
-> > +	int r;
-> > +	if (vq->used_flags & VRING_USED_F_NO_NOTIFY)
-> > +		return;
-> > +	vq->used_flags |= VRING_USED_F_NO_NOTIFY;
-> > +	r = put_user(vq->used_flags, &vq->used->flags);
-> > +	if (r)
-> > +		vq_err(vq, "Failed to enable notification: %d\n", r);
-> > +}
-> > +
-> > +int vhost_init(void)
-> > +{
-> > +	vhost_workqueue = create_workqueue("vhost");
-> > +	if (!vhost_workqueue)
-> > +		return -ENOMEM;
-> > +	return 0;
-> > +}
-> > +
-> > +void vhost_cleanup(void)
-> > +{
-> > +	destroy_workqueue(vhost_workqueue);
-> > +}
-> > diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> > new file mode 100644
-> > index 0000000..8e13d06
-> > --- /dev/null
-> > +++ b/drivers/vhost/vhost.h
-> > @@ -0,0 +1,122 @@
-> > +#ifndef _VHOST_H
-> > +#define _VHOST_H
-> > +
-> > +#include <linux/eventfd.h>
-> > +#include <linux/vhost.h>
-> > +#include <linux/mm.h>
-> > +#include <linux/mutex.h>
-> > +#include <linux/workqueue.h>
-> > +#include <linux/poll.h>
-> > +#include <linux/file.h>
-> > +#include <linux/skbuff.h>
-> > +#include <linux/uio.h>
-> > +#include <linux/virtio_config.h>
-> > +
-> > +struct vhost_device;
-> > +
-> > +enum {
-> > +	VHOST_NET_MAX_SG = MAX_SKB_FRAGS + 2,
-> > +};
-> > +
-> > +/* Poll a file (eventfd or socket) */
-> > +/* Note: there's nothing vhost specific about this structure. */
-> > +struct vhost_poll {
-> > +	poll_table                table;
-> > +	wait_queue_head_t        *wqh;
-> > +	wait_queue_t              wait;
-> > +	/* struct which will handle all actual work. */
-> > +	struct work_struct        work;
-> > +	unsigned long		  mask;
-> > +};
-> > +
-> > +void vhost_poll_init(struct vhost_poll *poll, work_func_t func,
-> > +		     unsigned long mask);
-> > +void vhost_poll_start(struct vhost_poll *poll, struct file *file);
-> > +void vhost_poll_stop(struct vhost_poll *poll);
-> > +void vhost_poll_flush(struct vhost_poll *poll);
-> > +
-> > +/* The virtqueue structure describes a queue attached to a device. */
-> > +struct vhost_virtqueue {
-> > +	struct vhost_dev *dev;
-> > +
-> > +	/* The actual ring of buffers. */
-> > +	struct mutex mutex;
-> > +	unsigned int num;
-> > +	struct vring_desc __user *desc;
-> > +	struct vring_avail __user *avail;
-> > +	struct vring_used __user *used;
-> > +	struct file *kick;
-> > +	struct file *call;
-> > +	struct file *error;
-> > +	struct eventfd_ctx *call_ctx;
-> > +	struct eventfd_ctx *error_ctx;
-> > +
-> > +	struct vhost_poll poll;
-> > +
-> > +	/* The routine to call when the Guest pings us, or timeout. */
-> > +	work_func_t handle_kick;
-> > +
-> > +	/* Last available index we saw. */
-> > +	u16 last_avail_idx;
-> > +
-> > +	/* Caches available index value from user. */
-> > +	u16 avail_idx;
-> > +
-> > +	/* Last index we used. */
-> > +	u16 last_used_idx;
-> > +
-> > +	/* Used flags */
-> > +	u16 used_flags;
-> > +
-> > +	struct iovec iov[VHOST_NET_MAX_SG];
-> > +	struct iovec hdr[VHOST_NET_MAX_SG];
-> > +};
-> > +
-> > +struct vhost_dev {
-> > +	/* Readers use RCU to access memory table pointer.
-> > +	 * Writers use mutex below.*/
-> > +	struct vhost_memory *memory;
-> > +	struct mm_struct *mm;
-> > +	struct vhost_virtqueue *vqs;
-> > +	int nvqs;
-> > +	struct mutex mutex;
-> > +	unsigned acked_features;
-> > +};
-> > +
-> > +long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
-> > +long vhost_dev_check_owner(struct vhost_dev *);
-> > +long vhost_dev_reset_owner(struct vhost_dev *);
-> > +void vhost_dev_cleanup(struct vhost_dev *);
-> > +long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, unsigned long arg);
-> > +
-> > +unsigned vhost_get_vq_desc(struct vhost_dev *, struct vhost_virtqueue *,
-> > +			   struct iovec iov[],
-> > +			   unsigned int *out_num, unsigned int *in_num);
-> > +void vhost_discard_vq_desc(struct vhost_virtqueue *);
-> > +
-> > +int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
-> > +void vhost_trigger_irq(struct vhost_dev *, struct vhost_virtqueue *);
-> > +void vhost_add_used_and_trigger(struct vhost_dev *, struct vhost_virtqueue *,
-> > +				unsigned int head, int len);
-> > +void vhost_no_notify(struct vhost_virtqueue *);
-> > +bool vhost_notify(struct vhost_virtqueue *);
-> > +
-> > +int vhost_init(void);
-> > +void vhost_cleanup(void);
-> > +
-> > +#define vq_err(vq, fmt, ...) do {                                  \
-> > +		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);       \
-> > +		if ((vq)->error_ctx)                               \
-> > +				eventfd_signal((vq)->error_ctx, 1);\
-> > +	} while (0)
-> > +
-> > +enum {
-> > +	VHOST_FEATURES = 1 << VIRTIO_F_NOTIFY_ON_EMPTY,
-> > +};
-> > +
-> > +static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
-> > +{
-> > +	return dev->acked_features & (1 << bit);
-> > +}
-> > +
-> > +#endif
-> > diff --git a/include/linux/Kbuild b/include/linux/Kbuild
-> > index dec2f18..975df9a 100644
-> > --- a/include/linux/Kbuild
-> > +++ b/include/linux/Kbuild
-> > @@ -360,6 +360,7 @@ unifdef-y += uio.h
-> >  unifdef-y += unistd.h
-> >  unifdef-y += usbdevice_fs.h
-> >  unifdef-y += utsname.h
-> > +unifdef-y += vhost.h
-> >  unifdef-y += videodev2.h
-> >  unifdef-y += videodev.h
-> >  unifdef-y += virtio_config.h
-> > diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
-> > index 0521177..781a8bb 100644
-> > --- a/include/linux/miscdevice.h
-> > +++ b/include/linux/miscdevice.h
-> > @@ -30,6 +30,7 @@
-> >  #define HPET_MINOR		228
-> >  #define FUSE_MINOR		229
-> >  #define KVM_MINOR		232
-> > +#define VHOST_NET_MINOR		233
-> >  #define MISC_DYNAMIC_MINOR	255
-> >  
-> >  struct device;
-> > diff --git a/include/linux/vhost.h b/include/linux/vhost.h
-> > new file mode 100644
-> > index 0000000..3f441a9
-> > --- /dev/null
-> > +++ b/include/linux/vhost.h
-> > @@ -0,0 +1,101 @@
-> > +#ifndef _LINUX_VHOST_H
-> > +#define _LINUX_VHOST_H
-> > +/* Userspace interface for in-kernel virtio accelerators. */
-> > +
-> > +/* vhost is used to reduce the number of system calls involved in virtio.
-> > + *
-> > + * Existing virtio net code is used in the guest without modification.
-> > + *
-> > + * This header includes interface used by userspace hypervisor for
-> > + * device configuration.
-> > + */
-> > +
-> > +#include <linux/types.h>
-> > +#include <linux/compiler.h>
-> > +#include <linux/ioctl.h>
-> > +#include <linux/virtio_config.h>
-> > +#include <linux/virtio_ring.h>
-> > +
-> > +struct vhost_vring_state {
-> > +	unsigned int index;
-> > +	unsigned int num;
-> > +};
-> > +
-> > +struct vhost_vring_file {
-> > +	unsigned int index;
-> > +	int fd;
-> > +};
-> > +
-> > +struct vhost_vring_addr {
-> > +	unsigned int index;
-> > +	unsigned int padding;
-> > +	__u64 user_addr;
-> > +};
-> > +
-> > +struct vhost_memory_region {
-> > +	__u64 guest_phys_addr;
-> > +	__u64 memory_size; /* bytes */
-> > +	__u64 userspace_addr;
-> > +	__u64 padding; /* read/write protection? */
-> > +};
-> > +
-> > +struct vhost_memory {
-> > +	__u32 nregions;
-> > +	__u32 padding;
-> > +	struct vhost_memory_region regions[0];
-> > +};
-> > +
-> > +/* ioctls */
-> > +
-> > +#define VHOST_VIRTIO 0xAF
-> > +
-> > +/* Features bitmask for forward compatibility.  Transport bits are used for
-> > + * vhost specific features. */
-> > +#define VHOST_GET_FEATURES	_IOR(VHOST_VIRTIO, 0x00, __u64)
-> > +#define VHOST_ACK_FEATURES	_IOW(VHOST_VIRTIO, 0x00, __u64)
-> > +
-> > +/* Set current process as the (exclusive) owner of this file descriptor.  This
-> > + * must be called before any other vhost command.  Further calls to
-> > + * VHOST_OWNER_SET fail until VHOST_OWNER_RESET is called. */
-> > +#define VHOST_SET_OWNER _IO(VHOST_VIRTIO, 0x01)
-> > +/* Give up ownership, and reset the device to default values.
-> > + * Allows subsequent call to VHOST_OWNER_SET to succeed. */
-> > +#define VHOST_RESET_OWNER _IO(VHOST_VIRTIO, 0x02)
-> > +
-> > +/* Set up/modify memory layout */
-> > +#define VHOST_SET_MEM_TABLE	_IOW(VHOST_VIRTIO, 0x03, struct vhost_memory)
-> > +
-> > +/* Ring setup. These parameters can not be modified while ring is running
-> > + * (bound to a device). */
-> > +/* Set number of descriptors in ring */
-> > +#define VHOST_SET_VRING_NUM _IOW(VHOST_VIRTIO, 0x10, struct vhost_vring_state)
-> > +/* Start of array of descriptors (virtually contiguous) */
-> > +#define VHOST_SET_VRING_DESC _IOW(VHOST_VIRTIO, 0x11, struct vhost_vring_addr)
-> > +/* Used structure address */
-> > +#define VHOST_SET_VRING_USED _IOW(VHOST_VIRTIO, 0x12, struct vhost_vring_addr)
-> > +/* Available structure address */
-> > +#define VHOST_SET_VRING_AVAIL _IOW(VHOST_VIRTIO, 0x13, struct vhost_vring_addr)
-> > +/* Base value where queue looks for available descriptors */
-> > +#define VHOST_SET_VRING_BASE _IOW(VHOST_VIRTIO, 0x14, struct vhost_vring_state)
-> > +/* Get accessor: reads index, writes value in num */
-> > +#define VHOST_GET_VRING_BASE _IOWR(VHOST_VIRTIO, 0x14, struct vhost_vring_state)
-> > +
-> > +/* The following ioctls use eventfd file descriptors to signal and poll
-> > + * for events. */
-> > +
-> > +/* Set eventfd to poll for added buffers */
-> > +#define VHOST_SET_VRING_KICK _IOW(VHOST_VIRTIO, 0x20, struct vhost_vring_file)
-> > +/* Set eventfd to signal when buffers have beed used */
-> > +#define VHOST_SET_VRING_CALL _IOW(VHOST_VIRTIO, 0x21, struct vhost_vring_file)
-> > +/* Set eventfd to signal an error */
-> > +#define VHOST_SET_VRING_ERR _IOW(VHOST_VIRTIO, 0x22, struct vhost_vring_file)
-> > +
-> > +/* VHOST_NET specific defines */
-> > +
-> > +/* Attach virtio net device to a raw socket. The socket must be already
-> > + * bound to an ethernet device, this device will be used for transmit.
-> > + * Pass -1 to unbind from the socket and the transmit device.
-> > + * This can be used to stop the device (e.g. for migration). */
-> > +#define VHOST_NET_SET_SOCKET _IOW(VHOST_VIRTIO, 0x30, int)
-> > +
-> > +#endif
-> > -- 
-> > 1.6.2.5
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe netdev" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> In addition, the kvm-connector used in AlacrityVM's design strives to
+> add value and improve performance via other mechanisms, such as dynamic
+>   allocation, interrupt coalescing (thus reducing exit-ratio, which is a
+> serious issue in KVM)
+
+Do you have measurements of inter-interrupt coalescing rates (excluding 
+intra-interrupt coalescing).
+
+> and priortizable/nestable signals.
+>    
+
+That doesn't belong in a bus.
+
+> Today there is a large performance disparity between what a KVM guest
+> sees and what a native linux application sees on that same host.  Just
+> take a look at some of my graphs between "virtio", and "native", for
+> example:
+>
+> http://developer.novell.com/wiki/images/b/b7/31-rc4_throughput.png
+>    
+
+That's a red herring.  The problem is not with virtio as an ABI, but 
+with its implementation in userspace.  vhost-net should offer equivalent 
+performance to vbus.
+
+> A dominant vbus design principle is to try to achieve the same IO
+> performance for all "linux applications" whether they be literally
+> userspace applications, or things like KVM vcpus or Ira's physical
+> boards.  It also aims to solve problems not previously expressible with
+> current technologies (even virtio), like nested real-time.
+>
+> And even though you repeatedly insist otherwise, the neat thing here is
+> that the two technologies mesh (at least under certain circumstances,
+> like when virtio is deployed on a shared-memory friendly linux backend
+> like KVM).  I hope that my stack diagram below depicts that clearly.
+>    
+
+Right, when you ignore the points where they don't fit, it's a perfect mesh.
+
+>> But that's not a strong argument for vbus; instead of adding vbus you
+>> could make virtio more friendly to non-virt
+>>      
+> Actually, it _is_ a strong argument then because adding vbus is what
+> helps makes virtio friendly to non-virt, at least for when performance
+> matters.
+>    
+
+As vhost-net shows, you can do that without vbus and without breaking 
+compatibility.
+
+
+
+>> Right.  virtio assumes that it's in a virt scenario and that the guest
+>> architecture already has enumeration and hotplug mechanisms which it
+>> would prefer to use.  That happens to be the case for kvm/x86.
+>>      
+> No, virtio doesn't assume that.  It's stack provides the "virtio-bus"
+> abstraction and what it does assume is that it will be wired up to
+> something underneath. Kvm/x86 conveniently has pci, so the virtio-pci
+> adapter was created to reuse much of that facility.  For other things
+> like lguest and s360, something new had to be created underneath to make
+> up for the lack of pci-like support.
+>    
+
+Right, I was wrong there.  But it does allow you to have a 1:1 mapping 
+between native devices and virtio devices.
+
+
+>>> So to answer your question, the difference is that the part that has to
+>>> be customized in vbus should be a fraction of what needs to be
+>>> customized with vhost because it defines more of the stack.
+>>>        
+>> But if you want to use the native mechanisms, vbus doesn't have any
+>> added value.
+>>      
+> First of all, thats incorrect.  If you want to use the "native"
+> mechanisms (via the way the vbus-connector is implemented, for instance)
+> you at least still have the benefit that the backend design is more
+> broadly re-useable in more environments (like non-virt, for instance),
+> because vbus does a proper job of defining the requisite
+> layers/abstractions compared to vhost.  So it adds value even in that
+> situation.
+>    
+
+Maybe.  If vhost-net isn't sufficient I'm sure there will be patches sent.
+
+> Second of all, with PV there is no such thing as "native".  It's
+> software so it can be whatever we want.  Sure, you could argue that the
+> guest may have built-in support for something like PCI protocol.
+> However, PCI protocol itself isn't suitable for high-performance PV out
+> of the can.  So you will therefore invariably require new software
+> layers on top anyway, even if part of the support is already included.
+>    
+
+Of course there is such a thing as native, a pci-ready guest has tons of 
+support built into it that doesn't need to be retrofitted.  Since 
+practically everyone (including Xen) does their paravirt drivers atop 
+pci, the claim that pci isn't suitable for high performance is incorrect.
+
+
+> And lastly, why would you _need_ to use the so called "native"
+> mechanism?  The short answer is, "you don't".  Any given system (guest
+> or bare-metal) already have a wide-range of buses (try running "tree
+> /sys/bus" in Linux).  More importantly, the concept of adding new buses
+> is widely supported in both the Windows and Linux driver model (and
+> probably any other guest-type that matters).  Therefore, despite claims
+> to the contrary, its not hard or even unusual to add a new bus to the mix.
+>    
+
+The short answer is "compatibility".
+
+
+> In summary, vbus is simply one more bus of many, purpose built to
+> support high-end IO in a virt-like model, giving controlled access to
+> the linux-host underneath it.  You can write a high-performance layer
+> below the OS bus-model (vbus), or above it (virtio-pci) but either way
+> you are modifying the stack to add these capabilities, so we might as
+> well try to get this right.
+>
+> With all due respect, you are making a big deal out of a minor issue.
+>    
+
+It's not minor to me.
+
+>>> And, as
+>>> eluded to in my diagram, both virtio-net and vhost (with some
+>>> modifications to fit into the vbus framework) are potentially
+>>> complementary, not competitors.
+>>>
+>>>        
+>> Only theoretically.  The existing installed base would have to be thrown
+>> away
+>>      
+> "Thrown away" is pure hyperbole.  The installed base, worse case, needs
+> to load a new driver for a missing device.
+
+Yes, we all know how fun this is.  Especially if the device changed is 
+your boot disk.  You may not care about the pain caused to users, but I 
+do, so I will continue to insist on compatibility.
+
+>> or we'd need to support both.
+>>
+>>
+>>      
+> No matter what model we talk about, there's always going to be a "both"
+> since the userspace virtio models are probably not going to go away (nor
+> should they).
+>    
+
+virtio allows you to have userspace-only, kernel-only, or 
+start-with-userspace-and-move-to-kernel-later, all transparent to the 
+guest.  In many cases we'll stick with userspace-only.
+
+>> All this is after kvm has decoded that vbus is addresses.  It can't work
+>> without someone outside vbus deciding that.
+>>      
+> How the connector message is delivered is really not relevant.  Some
+> architectures will simply deliver the message point-to-point (like the
+> original hypercall design for KVM, or something like Ira's rig), and
+> some will need additional demuxing (like pci-bridge/pio based KVM).
+> It's an implementation detail of the connector.
+>
+> However, the real point here is that something needs to establish a
+> scoped namespace mechanism, add items to that namespace, and advertise
+> the presence of the items to the guest.  vbus has this facility built in
+> to its stack.  vhost doesn't, so it must come from elsewhere.
+>    
+
+So we have: vbus needs a connector, vhost needs a connector.  vbus 
+doesn't need userspace to program the addresses (but does need userspace 
+to instantiate the devices and to program the bus address decode), vhost 
+needs userspace to instantiate the devices and program the addresses.
+
+>>> In fact, it's actually a simpler design to unify things this way because
+>>> you avoid splitting the device model up. Consider how painful the vhost
+>>> implementation would be if it didn't already have the userspace
+>>> virtio-net to fall-back on.  This is effectively what we face for new
+>>> devices going forward if that model is to persist.
+>>>
+>>>        
+>>
+>> It doesn't have just virtio-net, it has userspace-based hostplug
+>>      
+> vbus has hotplug too: mkdir and rmdir
+>    
+
+Does that work from nonprivileged processes?  Does it work on Windows?
+
+> As an added bonus, its device-model is modular.  A developer can write a
+> new device model, compile it, insmod it to the host kernel, hotplug it
+> to the running guest with mkdir/ln, and the come back out again
+> (hotunplug with rmdir, rmmod, etc).  They may do this all without taking
+> the guest down, and while eating QEMU based IO solutions for breakfast
+> performance wise.
+>
+> Afaict, qemu can't do either of those things.
+>    
+
+We've seen that herring before, and it's redder than ever.
+
+
+
+>> Refactor instead of duplicating.
+>>      
+> There is no duplicating.  vbus has no equivalent today as virtio doesn't
+> define these layers.
+>    
+
+So define them if they're missing.
+
+
+>>>
+>>>        
+>>>>    Use libraries (virtio-shmem.ko, libvhost.so).
+>>>>
+>>>>          
+>>> What do you suppose vbus is?  vbus-proxy.ko = virtio-shmem.ko, and you
+>>> dont need libvhost.so per se since you can just use standard kernel
+>>> interfaces (like configfs/sysfs).  I could create an .so going forward
+>>> for the new ioctl-based interface, I suppose.
+>>>
+>>>        
+>> Refactor instead of rewriting.
+>>      
+> There is no rewriting.  vbus has no equivalent today as virtio doesn't
+> define these layers.
+>
+> By your own admission, you said if you wanted that capability, use a
+> library.  What I think you are not understanding is vbus _is_ that
+> library.  So what is the problem, exactly?
+>    
+
+It's not compatible.  If you were truly worried about code duplication 
+in virtio, you'd refactor it to remove the duplication, without 
+affecting existing guests.
+
+>>>> For kvm/x86 pci definitely remains king.
+>>>>
+>>>>          
+>>> For full virtualization, sure.  I agree.  However, we are talking about
+>>> PV here.  For PV, PCI is not a requirement and is a technical dead-end
+>>> IMO.
+>>>
+>>> KVM seems to be the only virt solution that thinks otherwise (*), but I
+>>> believe that is primarily a condition of its maturity.  I aim to help
+>>> advance things here.
+>>>
+>>> (*) citation: xen has xenbus, lguest has lguest-bus, vmware has some
+>>> vmi-esq thing (I forget what its called) to name a few.  Love 'em or
+>>> hate 'em, most other hypervisors do something along these lines.  I'd
+>>> like to try to create one for KVM, but to unify them all (at least for
+>>> the Linux-based host designs).
+>>>
+>>>        
+>> VMware are throwing VMI away (won't be supported in their new product,
+>> and they've sent a patch to rip it off from Linux);
+>>      
+> vmware only cares about x86 iiuc, so probably not a good example.
+>    
+
+Well, you brought it up.  Between you and me, I only care about x86 too.
+
+>> Xen has to tunnel
+>> xenbus in pci for full virtualization (which is where Windows is, and
+>> where Linux will be too once people realize it's faster).  lguest is
+>> meant as an example hypervisor, not an attempt to take over the world.
+>>      
+> So pick any other hypervisor, and the situation is often similar.
+>    
+
+The situation is often pci.
+
+>
+>> An right now you can have a guest using pci to access a mix of
+>> userspace-emulated devices, userspace-emulated-but-kernel-accelerated
+>> virtio devices, and real host devices.  All on one dead-end bus.  Try
+>> that with vbus.
+>>      
+> vbus is not interested in userspace devices.  The charter is to provide
+> facilities for utilizing the host linux kernel's IO capabilities in the
+> most efficient, yet safe, manner possible.  Those devices that fit
+> outside that charter can ride on legacy mechanisms if that suits them best.
+>    
+
+vbus isn't, but I am.  I would prefer not to have to expose 
+implementation decisions (kernel vs userspace) to the guest (vbus vs pci).
+
+>>> That won't cut it.  For one, creating an eventfd is only part of the
+>>> equation.  I.e. you need to have originate/terminate somewhere
+>>> interesting (and in-kernel, otherwise use tuntap).
+>>>
+>>>        
+>> vbus needs the same thing so it cancels out.
+>>      
+> No, it does not.  vbus just needs a relatively simple single message
+> pipe between the guest and host (think "hypercall tunnel", if you will).
+>    
+
+That's ioeventfd.  So far so similar.
+
+>   Per queue/device addressing is handled by the same conceptual namespace
+> as the one that would trigger eventfds in the model you mention.  And
+> that namespace is built in to the vbus stack, and objects are registered
+> automatically as they are created.
+>
+> Contrast that to vhost, which requires some other kernel interface to
+> exist, and to be managed manually for each object that is created.  Your
+> libvhostconfig would need to somehow know how to perform this
+> registration operation, and there would have to be something in the
+> kernel to receive it, presumably on a per platform basis.  Solving this
+> problem generally would probably end up looking eerily like vbus,
+> because thats what vbus does.
+>    
+
+vbus devices aren't magically instantiated.  Userspace needs to 
+instantiate them too.  Sure, there's less work on the host side since 
+you're using vbus instead of the native interface, but more work on the 
+guest side since you're using vbus instead of the native interface.
+
+
+
+>> Well, let's see.  Can vbus today:
+>>
+>> - let userspace know which features are available (so it can decide if
+>> live migration is possible)
+>>      
+> yes, its in sysfs.
+>
+>    
+>> - let userspace limit which features are exposed to the guest (so it can
+>> make live migration possible among hosts of different capabilities)
+>>      
+> yes, its in sysfs.
+>    
+
+Per-device?  non-privileged-user capable?
+
+>> - let userspace know which features were negotiated (so it can transfer
+>> them to the other host during live migration)
+>>      
+> no, but we can easily add ->save()/->restore() to the model going
+> forward, and the negotiated features are just a subcomponent if its
+> serialized stream.
+>
+>    
+>> - let userspace tell the kernel which features were negotiated (when
+>> live migration completes, to avoid requiring the guest to re-negotiate)
+>>      
+> that would be the function of the ->restore() deserializer.
+>
+>    
+>> - do all that from an unprivileged process
+>>      
+> yes, in the upcoming alacrityvm v0.3 with the ioctl based control plane.
+>    
+
+Ah, so you have two control planes.
+
+> Bottom line: vbus isn't done, especially w.r.t. live-migration..but that
+> is not an valid argument against the idea if you believe in
+> release-early/release-often. kvm wasn't (isn't) done either when it was
+> proposed/merged.
+>
+>    
+
+kvm didn't have an existing counterpart in Linux when it was 
+proposed/merged.
+
+-- 
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
