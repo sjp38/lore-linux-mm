@@ -1,97 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B35E06B0095
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:01:17 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8S4tXn9011606
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Sep 2009 13:55:33 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22D8045DE57
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:55:33 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0401645DE55
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:55:33 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DEE731DB8038
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:55:32 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 81062E78001
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 13:55:32 +0900 (JST)
-Date: Mon, 28 Sep 2009 13:53:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: No more bits in vm_area_struct's vm_flags.
-Message-Id: <20090928135315.083aca18.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4AC03D9C.3020907@crca.org.au>
-References: <4AB9A0D6.1090004@crca.org.au>
-	<20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com>
-	<4ABC80B0.5010100@crca.org.au>
-	<20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com>
-	<4AC0234F.2080808@crca.org.au>
-	<20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090928033624.GA11191@localhost>
-	<20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<4AC03D9C.3020907@crca.org.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ABF996B0098
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:08:51 -0400 (EDT)
+Received: by ywh39 with SMTP id 39so4905147ywh.12
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2009 02:03:16 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] rmap : tidy the code
+Date: Mon, 28 Sep 2009 17:03:10 +0800
+Message-Id: <1254128590-27826-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Nigel Cunningham <ncunningham@crca.org.au>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Sep 2009 14:37:48 +1000
-Nigel Cunningham <ncunningham@crca.org.au> wrote:
+Introduce is_page_mapped_in_vma() to merge the vma_address() and
+page_check_address().
 
-> Hi.
-> 
-> KAMEZAWA Hiroyuki wrote:
-> > Then, Nigel, you have 2 choices I think.
-> > 
-> > (1) don't merge if vm_hints is set  or (2) pass vm_hints to all
-> > __merge() functions.
-> > 
-> > One of above will be accesptable for stakeholders... I personally
-> > like (1) but just trying (2) may be accepted.
-> > 
-> > What I dislike is making vm_flags to be long long ;)
-> 
-> Okay. I've gone for option 1 for now. Here's what I
-> currently have (compile testing as I write)...
-> 
-> 
-> 
-> vm_flags in struct vm_area_struct is full. Move some of the less commonly
-> used flags to a new variable so that other flags that need to be in vm_flags
-> (because, for example, they need to be in variables that are passed around)
-> can be added.
-> 
-> Signed-off-by: Nigel Cunningham <nigel@tuxonice.net>
+Make the rmap codes more simple.
 
-Seems good to me.
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ mm/rmap.c |   59 ++++++++++++++++++++++++++++-------------------------------
+ 1 files changed, 28 insertions(+), 31 deletions(-)
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-But
-> +	if (vma->vm_hints)
-> +		return 0;
->  	return 1;
-
-Maybe adding a comment (or more detailed patch description) is necessary.
-
-Regards,
--Kame
-
->  }
->  
-> -- 
-> 1.6.3.3
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 28aafe2..69e7314 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -307,6 +307,27 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+ 	return NULL;
+ }
+ 
++/*
++ * This helper function checks whether a page is mapped in a VMA.
++ * On success returns 1 with pte mapped and locked.
++ */
++static inline bool
++is_page_mapped_in_vma(struct page *page, struct vm_area_struct *vma,
++		unsigned long *addr, pte_t **ptep, spinlock_t **ptlp, int sync)
++{
++	unsigned long address;
++
++	address = vma_address(page, vma);
++	if (address == -EFAULT)
++		return 0;
++	*ptep = page_check_address(page, vma->vm_mm, address, ptlp, sync);
++	if (!(*ptep))
++		return 0;
++
++	*addr = address;
++	return 1;
++}
++
+ /**
+  * page_mapped_in_vma - check whether a page is really mapped in a VMA
+  * @page: the page to test
+@@ -322,14 +343,9 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+-	address = vma_address(page, vma);
+-	if (address == -EFAULT)		/* out of vma range */
+-		return 0;
+-	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1);
+-	if (!pte)			/* the page is not in this mm */
++	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 1))
+ 		return 0;
+ 	pte_unmap_unlock(pte, ptl);
+-
+ 	return 1;
+ }
+ 
+@@ -348,14 +364,8 @@ static int page_referenced_one(struct page *page,
+ 	spinlock_t *ptl;
+ 	int referenced = 0;
+ 
+-	address = vma_address(page, vma);
+-	if (address == -EFAULT)
+-		goto out;
+-
+-	pte = page_check_address(page, mm, address, &ptl, 0);
+-	if (!pte)
+-		goto out;
+-
++	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 0))
++		return 0;
+ 	/*
+ 	 * Don't want to elevate referenced for mlocked page that gets this far,
+ 	 * in order that it progresses to try_to_unmap and is moved to the
+@@ -388,7 +398,6 @@ static int page_referenced_one(struct page *page,
+ out_unmap:
+ 	(*mapcount)--;
+ 	pte_unmap_unlock(pte, ptl);
+-out:
+ 	if (referenced)
+ 		*vm_flags |= vma->vm_flags;
+ 	return referenced;
+@@ -543,13 +552,8 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
+ 	spinlock_t *ptl;
+ 	int ret = 0;
+ 
+-	address = vma_address(page, vma);
+-	if (address == -EFAULT)
+-		goto out;
+-
+-	pte = page_check_address(page, mm, address, &ptl, 1);
+-	if (!pte)
+-		goto out;
++	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 1))
++		return 0;
+ 
+ 	if (pte_dirty(*pte) || pte_write(*pte)) {
+ 		pte_t entry;
+@@ -563,7 +567,6 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
+ 	}
+ 
+ 	pte_unmap_unlock(pte, ptl);
+-out:
+ 	return ret;
+ }
+ 
+@@ -770,13 +773,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	spinlock_t *ptl;
+ 	int ret = SWAP_AGAIN;
+ 
+-	address = vma_address(page, vma);
+-	if (address == -EFAULT)
+-		goto out;
+-
+-	pte = page_check_address(page, mm, address, &ptl, 0);
+-	if (!pte)
+-		goto out;
++	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 0))
++		return 0;
+ 
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+@@ -855,7 +853,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
+-out:
+ 	return ret;
+ }
+ 
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
