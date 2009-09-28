@@ -1,89 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B90636B0085
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:35:46 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n8SGZ52S016011
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 10:35:05 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8SGb8NQ090938
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 10:37:15 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8SGb5Nt019609
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 10:37:05 -0600
-Date: Mon, 28 Sep 2009 11:37:04 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-Message-ID: <20090928163704.GA3327@us.ibm.com>
-References: <1253749920-18673-1-git-send-email-orenl@librato.com> <20090924154139.2a7dd5ec.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090924154139.2a7dd5ec.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A273C6B00A7
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:40:02 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8S5Z0oi003610
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 28 Sep 2009 14:35:01 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id ADD9B45DE51
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 14:35:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B15E45DE4F
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 14:35:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 44615E08006
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 14:35:00 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DA711E08010
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 14:34:59 +0900 (JST)
+Date: Mon, 28 Sep 2009 14:32:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+Message-Id: <20090928143246.ffed3413.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4AC04800.70708@crca.org.au>
+References: <4AB9A0D6.1090004@crca.org.au>
+	<20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com>
+	<4ABC80B0.5010100@crca.org.au>
+	<20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AC0234F.2080808@crca.org.au>
+	<20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090928033624.GA11191@localhost>
+	<20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AC03D9C.3020907@crca.org.au>
+	<20090928135315.083aca18.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AC04800.70708@crca.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oren Laadan <orenl@librato.com>, torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, mingo@elte.hu, xemul@openvz.org
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Andrew Morton (akpm@linux-foundation.org):
-> On Wed, 23 Sep 2009 19:50:40 -0400
-> Oren Laadan <orenl@librato.com> wrote:
-> > Q: What about namespaces ?
-> > A: Currrently, UTS and IPC namespaces are restored. They demonstrate
-> >    how namespaces are handled. More to come.
+On Mon, 28 Sep 2009 15:22:08 +1000
+Nigel Cunningham <ncunningham@crca.org.au> wrote:
+
+> Hi.
 > 
-> Will this new code muck up the kernel?
-
-Actually user namespaces are handled as well.  Pid namespaces will
-be named and recorded by kernel at checkpoint, and re-created in
-userspace using clone(CLONE_NEWPID).  This shouldn't muck up the
-kernel at all.  The handling of network and mounts namespaces is
-at this point undecided.  Well, mounts namespaces themselves are
-pretty simple, but not so much for mountpoints.  There it's mainly
-a question of how to predict what a user wants to have automatically
-recreated.  All mounts which differ between the root checkpoint task
-and its parent?  Do we do no mounts for the restarted init task at
-all, and only recreate mounts in private child namespaces (i.e. if a
-task did a unshare(CLONE_NEWNS); mount --make-private /var; 
-mount --bind /container2/var/run /var/run)?
-
-I hear a decision was made at plumber's about how to begin
-handling them, so I'll let someone (Oren? Dave?) give that info.
-
-For network namespaces i think it's clearer that a wrapper
-program should set up the network for the restarted init task,
-while the usrspace code should recreate any private network
-namespaces and veth's which were created by the application.
-But it still needs discussion.
-
-> > Q: What additional work needs to be done to it?
-> > A: Fill in the gory details following the examples so far. Current WIP
-> >    includes inet sockets, event-poll, and early work on inotify, mount
-> >    namespace and mount-points, pseudo file systems
+> KAMEZAWA Hiroyuki wrote:
+> > Seems good to me.
+> > 
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > But
+> >> +	if (vma->vm_hints)
+> >> +		return 0;
+> >>  	return 1;
+> > 
+> > Maybe adding a comment (or more detailed patch description) is necessary.
 > 
-> Will this new code muck up the kernel, or will it be clean?
+> Thinking about this some more, I think we should also be looking at whether the new hints are non zero. Perhaps I should just add the new value to the
+> function parameters and be done with it.
 > 
-> > and x86_64 support.
-> 
-> eh?  You mean the code doesn't work on x86_64 at present?
+No objections from me. plz do.
+I said option (1) just because patch size will be big to unexpected.
+Thank you for your effort.
 
-There have been patches for it, but I think the main problem is noone
-involved has hw to test.
-
-> What is the story on migration?  Moving the process(es) to a different
-> machine?
-
-Since that's basically checkpoint; recreate container on remote
-machine; restart on remote machine; that will mainly be done by
-userspace code exploiting the c/r kernel patches.
-
-The main thing we may want to add is a way to initiate pre-dump
-of large amounts of VM while the container is still running.
-I suspect Oren and Dave can say a lot more about that than I can
-right now.
-
-thanks,
--serge
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
