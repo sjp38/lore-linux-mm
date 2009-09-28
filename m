@@ -1,62 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A18EA6B005C
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:18:55 -0400 (EDT)
-Date: Mon, 28 Sep 2009 09:52:10 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20090928015210.GA8379@localhost>
-References: <20090926031537.GA10176@localhost> <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926190645.GB14368@wotan.suse.de> <20090926213204.GX30185@one.firstfloor.org> <Pine.LNX.4.64.0909271714370.9097@sister.anvils> <20090927192251.GB6327@wotan.suse.de> <Pine.LNX.4.64.0909272251180.4402@sister.anvils> <20090927230118.GH6327@wotan.suse.de> <20090928011943.GB1656@one.firstfloor.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 490476B005D
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:30:01 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 5so1400980qwc.44
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2009 04:30:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090928011943.GB1656@one.firstfloor.org>
+In-Reply-To: <Pine.LNX.4.64.0909281131460.14446@sister.anvils>
+References: <1254128590-27826-1-git-send-email-shijie8@gmail.com>
+	 <Pine.LNX.4.64.0909281131460.14446@sister.anvils>
+Date: Mon, 28 Sep 2009 15:30:21 +0400
+Message-ID: <8acda98c0909280430w2700826cu55f9629bafab066f@mail.gmail.com>
+Subject: Re: [PATCH] rmap : tidy the code
+From: Nikita Danilov <danilov@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 28, 2009 at 09:19:43AM +0800, Andi Kleen wrote:
-> > There is no real rush AFAIKS to fix this one single pagecache site
-> > while we have problems with slab allocators and all other unaudited
-> > places that nonatomically modify page flags with an elevated
-> 
-> hwpoison ignores slab pages.
-> 
-> > page reference ... just mark HWPOISON as broken for the moment, or
-> > cut it down to do something much simpler I guess?
-> 
-> Erm no. These cases are *EXTREMLY* unlikely to hit.
-> 
-> I'll look into exploiting the ordering of the mapping assignment.
+2009/9/28 Hugh Dickins <hugh.dickins@tiscali.co.uk>:
+> On Mon, 28 Sep 2009, Huang Shijie wrote:
+>
+>> Introduce is_page_mapped_in_vma() to merge the vma_address() and
+>> page_check_address().
+>>
+>> Make the rmap codes more simple.
+>
+> There is indeed a recurring pattern there; but personally, I prefer
+> that recurring pattern, to introducing another multi-argument layer.
+>
+> I think it would make more sense to do the vma_address() inside (a
+> differently named) page_check_address(); but that would still have
+> to return the address, so I'll probably prefer what we have now.
+>
+> (And that seems to have been Nikita's preference when he introduced
+> page_check_address(), to keep the vma_address() part of it separate.)
+>
 
-Andi, given that overheads of this patch is considered unacceptable,
-I think we can just ignore it.
+Indeed, I tried to minimize the number of parameters and to avoid
+making "address" an output parameter. But on the other hand, there
+were only 2 page_check_address() call-sites back then. Now there are 5
+of them, so adding a parameter is more justifiable.
 
-The proposed schemes are already tricky enough (and may not achieve
-100% correctness). We have not even considered the interaction with
-free buddy pages, unpoison, and hwpoison filtering.
+> Other opinions?
 
-It may well result in something unmanageable.
+I agree that adding EFAULT check into page_check_address() is better.
+The only call-site that does not call vma_address() before
+page_check_address() is __xip_unmap() and it explicitly BUG_ON()s on
+the same condition.
 
-On the other hand, we may just ignore the __set_page_locked race, 
+>
+> Hugh
+>
 
-- it could trigger BUG() on unlock_page(), however that's _no worse_
-  than plain kernel without hwpoison. Plain kernel will also die when
-  trying to fill data into the newly allocated pages.
-- it is _not yet_ a LRU page. So it does not hurt the general idea of
-  "hwpoison can handle LRU pages reliably".
-- in hwpoison stress testing, we can avoid such pages by checking the
-  PG_lru bit. Thus we can make the tests immune to this race.
-
-Or,
-- the page being __set_page_locked() is _not_ the fine LRU page
-- we can prevent the kernel panic in the tests
-- for a production workload, this presents merely another (rare) type
-  of kernel page we cannot rescue.
-
-Thanks,
-Fengguang
+Nikita.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
