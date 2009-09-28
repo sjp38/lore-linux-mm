@@ -1,59 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DC526B007E
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:36:21 -0400 (EDT)
-Date: Mon, 28 Sep 2009 06:29:58 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20090928042958.GJ6327@wotan.suse.de>
-References: <Pine.LNX.4.64.0909261115530.12927@sister.anvils> <20090926190645.GB14368@wotan.suse.de> <20090926213204.GX30185@one.firstfloor.org> <Pine.LNX.4.64.0909271714370.9097@sister.anvils> <20090927192251.GB6327@wotan.suse.de> <Pine.LNX.4.64.0909272251180.4402@sister.anvils> <20090927230118.GH6327@wotan.suse.de> <20090928011943.GB1656@one.firstfloor.org> <20090928025741.GI6327@wotan.suse.de> <20090928041108.GD1656@one.firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090928041108.GD1656@one.firstfloor.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E49826B0082
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:37:40 -0400 (EDT)
+Date: Mon, 28 Sep 2009 16:38:02 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+In-Reply-To: <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0909281637160.25798@sister.anvils>
+References: <4AB9A0D6.1090004@crca.org.au> <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com>
+ <4ABC80B0.5010100@crca.org.au> <20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com>
+ <4AC0234F.2080808@crca.org.au> <20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090928033624.GA11191@localhost> <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Nigel Cunningham <ncunningham@crca.org.au>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 28, 2009 at 06:11:08AM +0200, Andi Kleen wrote:
-> On Mon, Sep 28, 2009 at 04:57:41AM +0200, Nick Piggin wrote:
-> > On Mon, Sep 28, 2009 at 03:19:43AM +0200, Andi Kleen wrote:
-> > > > There is no real rush AFAIKS to fix this one single pagecache site
-> > > > while we have problems with slab allocators and all other unaudited
-> > > > places that nonatomically modify page flags with an elevated
-> > > 
-> > > hwpoison ignores slab pages.
-> > 
-> > "ignores" them *after* it has already written to page flags?
-> > By that time it's too late.
+On Mon, 28 Sep 2009, KAMEZAWA Hiroyuki wrote:
 > 
-> Yes, currently the page lock comes first. The only exception 
-> is for page count == 0 pages. I suppose we could move the slab check
-> up, but then it only helps when slab is set.
+> What I dislike is making vm_flags to be long long ;)
 
-Yes, so it misses other potential non-atomic page flags manipulations.
-
- 
-> So if you make slab use refcount == 0 pages that would help.
-
-Yes it would help here and also help with the pagecache part too,
-and most other cases I suspect. I have some patches to do this at
-home so I'll post them when I get back.
-
- 
-> > Well it's fundamentally badly buggy, rare or not. We could avoid
-> 
-> Let's put it like this -- any access to the poisoned cache lines
-> in that page will trigger a panic anyways.
-
-Well yes, although maybe people who care about this feature will
-care more about having a reliable panic than introducing a
-random data corruption. I guess the chance of an ecc failure
-combined with a chance the race window hits could be some orders
-of magnitude less likely than other sources of bugs ;) but still
-I don't like using that argument to allow known bugs -- it leads
-to interesting things if we take it to a conclusion.
+Why?
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
