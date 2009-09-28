@@ -1,170 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9EF366B009C
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:10:36 -0400 (EDT)
-Date: Mon, 28 Sep 2009 11:44:58 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] rmap : tidy the code
-In-Reply-To: <1254128590-27826-1-git-send-email-shijie8@gmail.com>
-Message-ID: <Pine.LNX.4.64.0909281131460.14446@sister.anvils>
-References: <1254128590-27826-1-git-send-email-shijie8@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DB8B96B009E
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 12:12:56 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8SGE5AX031504
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 29 Sep 2009 01:14:05 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E5AF945DE50
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 01:14:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C2C9545DE4F
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 01:14:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A8C1E1DB803F
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 01:14:04 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40C021DB8041
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 01:14:04 +0900 (JST)
+Message-ID: <a0ea21a7cfe313202e2b51510aa5435a.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0909281637160.25798@sister.anvils>
+References: <4AB9A0D6.1090004@crca.org.au>
+    <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com>
+    <4ABC80B0.5010100@crca.org.au>
+    <20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com>
+    <4AC0234F.2080808@crca.org.au>
+    <20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090928033624.GA11191@localhost>
+    <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com>
+    <Pine.LNX.4.64.0909281637160.25798@sister.anvils>
+Date: Tue, 29 Sep 2009 01:14:03 +0900 (JST)
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: Nikita Danilov <danilov@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nigel Cunningham <ncunningham@crca.org.au>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Sep 2009, Huang Shijie wrote:
+Hugh Dickins wrote:
+> On Mon, 28 Sep 2009, KAMEZAWA Hiroyuki wrote:
+>>
+>> What I dislike is making vm_flags to be long long ;)
+>
+> Why?
+I'm sorry if my "dislike" sounds too strong.
 
-> Introduce is_page_mapped_in_vma() to merge the vma_address() and
-> page_check_address().
-> 
-> Make the rmap codes more simple.
+Every time I see long long in the kernel, my concern is
+"do I need spinlock to access this for 32bit arch ? is it safe ?".
+(And it makes binary=>disassemble=>C (by eyes) a bit difficult)
+Then, I don't like long long personally.
 
-There is indeed a recurring pattern there; but personally, I prefer
-that recurring pattern, to introducing another multi-argument layer.
+Another reason is some other calls like test_bit() cannot be used against
+long long. (even if it's not used _now_)
 
-I think it would make more sense to do the vma_address() inside (a
-differently named) page_check_address(); but that would still have
-to return the address, so I'll probably prefer what we have now.
+Maybe vm->vm_flags will not require extra locks because
+it can be protected by bigger lock as mmap_sem. Then, please make it
+to be long long if its's recommended.
 
-(And that seems to have been Nikita's preference when he introduced
-page_check_address(), to keep the vma_address() part of it separate.)
+keeping vm_flags to be 32bit may makes vma_merge() ugly.
+If so, long long is  a choice.
 
-Other opinions?
+Thanks,
+-Kame
 
-Hugh
 
-> 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> ---
->  mm/rmap.c |   59 ++++++++++++++++++++++++++++-------------------------------
->  1 files changed, 28 insertions(+), 31 deletions(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 28aafe2..69e7314 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -307,6 +307,27 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
->  	return NULL;
->  }
->  
-> +/*
-> + * This helper function checks whether a page is mapped in a VMA.
-> + * On success returns 1 with pte mapped and locked.
-> + */
-> +static inline bool
-> +is_page_mapped_in_vma(struct page *page, struct vm_area_struct *vma,
-> +		unsigned long *addr, pte_t **ptep, spinlock_t **ptlp, int sync)
-> +{
-> +	unsigned long address;
-> +
-> +	address = vma_address(page, vma);
-> +	if (address == -EFAULT)
-> +		return 0;
-> +	*ptep = page_check_address(page, vma->vm_mm, address, ptlp, sync);
-> +	if (!(*ptep))
-> +		return 0;
-> +
-> +	*addr = address;
-> +	return 1;
-> +}
-> +
->  /**
->   * page_mapped_in_vma - check whether a page is really mapped in a VMA
->   * @page: the page to test
-> @@ -322,14 +343,9 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
->  	pte_t *pte;
->  	spinlock_t *ptl;
->  
-> -	address = vma_address(page, vma);
-> -	if (address == -EFAULT)		/* out of vma range */
-> -		return 0;
-> -	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1);
-> -	if (!pte)			/* the page is not in this mm */
-> +	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 1))
->  		return 0;
->  	pte_unmap_unlock(pte, ptl);
-> -
->  	return 1;
->  }
->  
-> @@ -348,14 +364,8 @@ static int page_referenced_one(struct page *page,
->  	spinlock_t *ptl;
->  	int referenced = 0;
->  
-> -	address = vma_address(page, vma);
-> -	if (address == -EFAULT)
-> -		goto out;
-> -
-> -	pte = page_check_address(page, mm, address, &ptl, 0);
-> -	if (!pte)
-> -		goto out;
-> -
-> +	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 0))
-> +		return 0;
->  	/*
->  	 * Don't want to elevate referenced for mlocked page that gets this far,
->  	 * in order that it progresses to try_to_unmap and is moved to the
-> @@ -388,7 +398,6 @@ static int page_referenced_one(struct page *page,
->  out_unmap:
->  	(*mapcount)--;
->  	pte_unmap_unlock(pte, ptl);
-> -out:
->  	if (referenced)
->  		*vm_flags |= vma->vm_flags;
->  	return referenced;
-> @@ -543,13 +552,8 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
->  	spinlock_t *ptl;
->  	int ret = 0;
->  
-> -	address = vma_address(page, vma);
-> -	if (address == -EFAULT)
-> -		goto out;
-> -
-> -	pte = page_check_address(page, mm, address, &ptl, 1);
-> -	if (!pte)
-> -		goto out;
-> +	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 1))
-> +		return 0;
->  
->  	if (pte_dirty(*pte) || pte_write(*pte)) {
->  		pte_t entry;
-> @@ -563,7 +567,6 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
->  	}
->  
->  	pte_unmap_unlock(pte, ptl);
-> -out:
->  	return ret;
->  }
->  
-> @@ -770,13 +773,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  	spinlock_t *ptl;
->  	int ret = SWAP_AGAIN;
->  
-> -	address = vma_address(page, vma);
-> -	if (address == -EFAULT)
-> -		goto out;
-> -
-> -	pte = page_check_address(page, mm, address, &ptl, 0);
-> -	if (!pte)
-> -		goto out;
-> +	if (!is_page_mapped_in_vma(page, vma, &address, &pte, &ptl, 0))
-> +		return 0;
->  
->  	/*
->  	 * If the page is mlock()d, we cannot swap it out.
-> @@ -855,7 +853,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  
->  out_unmap:
->  	pte_unmap_unlock(pte, ptl);
-> -out:
->  	return ret;
->  }
->  
-> -- 
-> 1.6.0.6
+> Hugh
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
