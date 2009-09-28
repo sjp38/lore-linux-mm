@@ -1,72 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0C9F16B008A
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:50:08 -0400 (EDT)
-Date: Mon, 28 Sep 2009 16:44:01 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 9932F6B008C
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 11:57:29 -0400 (EDT)
+Date: Mon, 28 Sep 2009 12:51:31 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
-Message-ID: <20090928084401.GA22131@localhost>
-References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost> <20090927104739.GA1666@localhost> <20090927192025.GA6327@wotan.suse.de>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+Message-ID: <20090928045131.GA15149@localhost>
+References: <4AB9A0D6.1090004@crca.org.au> <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com> <4ABC80B0.5010100@crca.org.au> <20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com> <4AC0234F.2080808@crca.org.au> <20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com> <20090928033624.GA11191@localhost> <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com> <4AC03D9C.3020907@crca.org.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090927192025.GA6327@wotan.suse.de>
+In-Reply-To: <4AC03D9C.3020907@crca.org.au>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 28, 2009 at 03:20:25AM +0800, Nick Piggin wrote:
-> On Sun, Sep 27, 2009 at 06:47:39PM +0800, Wu Fengguang wrote:
-> > > 
-> > > And standard deviation is 0.04%, much larger than the difference 0.008% ..
-> > 
-> > Sorry that's not correct. I improved the accounting by treating
-> > function0+function1 from two CPUs as an integral entity:
-> > 
-> >                  total time      add_to_page_cache_lru   percent  stddev
-> >          before  3880166848.722  9683329.610             0.250%   0.014%
-> >          after   3828516894.376  9778088.870             0.256%   0.012%
-> >          delta                                           0.006%
+On Mon, Sep 28, 2009 at 12:37:48PM +0800, Nigel Cunningham wrote:
+> Hi.
 > 
-> I don't understand why you're doing this NFS workload to measure?
+> KAMEZAWA Hiroyuki wrote:
+> > Then, Nigel, you have 2 choices I think.
+> > 
+> > (1) don't merge if vm_hints is set  or (2) pass vm_hints to all
+> > __merge() functions.
+> > 
+> > One of above will be accesptable for stakeholders... I personally
+> > like (1) but just trying (2) may be accepted.
+> > 
+> > What I dislike is making vm_flags to be long long ;)
+> 
+> Okay. I've gone for option 1 for now. Here's what I
+> currently have (compile testing as I write)...
+> 
+> 
+> 
+> vm_flags in struct vm_area_struct is full. Move some of the less commonly
+> used flags to a new variable so that other flags that need to be in vm_flags
+> (because, for example, they need to be in variables that are passed around)
+> can be added.
 
-Because it is the first convenient workload hit my mind, and avoids
-real disk IO :)
+Looks good to me with some minor suggestions.
 
-> I see significant nfs, networking protocol and device overheads in
-> your profiles, also you're hitting some locks or something which
-> is causing massive context switching. So I don't think this is a
-> good test.
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Yes there are overheads. However it is a real and common workload.
+> Signed-off-by: Nigel Cunningham <nigel@tuxonice.net>
+> ---
+>  include/linux/mm.h       |   16 ++++++++--------
+>  include/linux/mm_types.h |    1 +
+>  mm/madvise.c             |   28 ++++++++++++++++++----------
+>  mm/mmap.c                |    2 ++
+>  4 files changed, 29 insertions(+), 18 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 24c3956..040d0ce 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -85,10 +85,6 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_LOCKED	0x00002000
+>  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+>  
+> -					/* Used by sys_madvise() */
+> -#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
+> -#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
+> -
+>  #define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
+>  #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
+>  #define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
+> @@ -116,11 +112,15 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_STACK_FLAGS	(VM_GROWSDOWN | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
+>  #endif
 
-> But anyway as Hugh points out, you need to compare with a
-> *completely* fixed kernel, which includes auditing all users of page
-> flags non-atomically (slab, notably, but possibly also other
-> places).
 
-That's good point. We can do more benchmarks when more fixes are
-available. However I suspect their design goal will be "fix them
-without introducing noticeable overheads" :)
+Maybe add this comment for less confusion?
+ 
+/*
+ * vm_hints in vm_area_struct, see mm_types.h.
+ */
 
-> One other thing to keep in mind that I will mention is that I am
-> going to push in a patch to the page allocator to allow callers
-> to avoid the refcounting (atomic_dec_and_test) in page lifetime,
-> which is especially important for SLUB and takes more cycles off
-> the page allocator...
->
-> I don't know exactly what you're going to do after that to get a
-> stable reference to slab pages. I guess you can read the page
-> flags and speculatively take some slab locks and recheck etc...
+> +					/* Used by sys_madvise() */
+> +#define VM_SEQ_READ	0x00000001	/* App will access data sequentially */
+> +#define VM_RAND_READ	0x00000002	/* App will not benefit from clustered reads */
+> +
+>  #define VM_READHINTMASK			(VM_SEQ_READ | VM_RAND_READ)
+> -#define VM_ClearReadHint(v)		(v)->vm_flags &= ~VM_READHINTMASK
+> -#define VM_NormalReadHint(v)		(!((v)->vm_flags & VM_READHINTMASK))
+> -#define VM_SequentialReadHint(v)	((v)->vm_flags & VM_SEQ_READ)
+> -#define VM_RandomReadHint(v)		((v)->vm_flags & VM_RAND_READ)
+> +#define VM_ClearReadHint(v)		(v)->vm_hints &= ~VM_READHINTMASK
+> +#define VM_NormalReadHint(v)		(!((v)->vm_hints & VM_READHINTMASK))
+> +#define VM_SequentialReadHint(v)	((v)->vm_hints & VM_SEQ_READ)
+> +#define VM_RandomReadHint(v)		((v)->vm_hints & VM_RAND_READ)
+>  
+>  /*
+>   * special vmas that are non-mergable, non-mlock()able
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 84a524a..5c66e3a 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -178,6 +178,7 @@ struct vm_area_struct {
+>  					   units, *not* PAGE_CACHE_SIZE */
+>  	struct file * vm_file;		/* File we map to (can be NULL). */
+>  	void * vm_private_data;		/* was vm_pte (shared mem) */
+> +	unsigned long vm_hints;		/* Hints, see mm.h. */
+>  	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
+>  
+>  #ifndef CONFIG_MMU
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 35b1479..59a93d3 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -40,19 +40,22 @@ static long madvise_behavior(struct vm_area_struct * vma,
+>  		     unsigned long start, unsigned long end, int behavior)
+>  {
+>  	struct mm_struct * mm = vma->vm_mm;
+> -	int error = 0;
+> +	int error = 0, skip_merge = 0;
+>  	pgoff_t pgoff;
+> -	unsigned long new_flags = vma->vm_flags;
+> +	unsigned long new_flags = vma->vm_flags, new_hints = vma->vm_hints;
 
-For reliably we could skip page lock on zero refcounted pages.
-
-We may lose the PG_hwpoison bit on races with __SetPageSlub*, however
-it should be an acceptable imperfection.
+It would be nicer to add standalone lines for skip_merge and new_hints.
 
 Thanks,
 Fengguang
+
+>  
+>  	switch (behavior) {
+>  	case MADV_NORMAL:
+> -		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
+> +		new_hints = new_hints & ~VM_RAND_READ & ~VM_SEQ_READ;
+> +		skip_merge = 1;
+>  		break;
+>  	case MADV_SEQUENTIAL:
+> -		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
+> +		new_hints = (new_hints & ~VM_RAND_READ) | VM_SEQ_READ;
+> +		skip_merge = 1;
+>  		break;
+>  	case MADV_RANDOM:
+> -		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
+> +		new_hints = (new_hints & ~VM_SEQ_READ) | VM_RAND_READ;
+> +		skip_merge = 1;
+>  		break;
+>  	case MADV_DONTFORK:
+>  		new_flags |= VM_DONTCOPY;
+> @@ -78,11 +81,15 @@ static long madvise_behavior(struct vm_area_struct * vma,
+>  	}
+>  
+>  	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+> -	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
+> -				vma->vm_file, pgoff, vma_policy(vma));
+> -	if (*prev) {
+> -		vma = *prev;
+> -		goto success;
+> +
+> +	if (!skip_merge) {
+> +		*prev = vma_merge(mm, *prev, start, end, new_flags,
+> +				vma->anon_vma, vma->vm_file, pgoff,
+> +				vma_policy(vma));
+> +		if (*prev) {
+> +			vma = *prev;
+> +			goto success;
+> +		}
+>  	}
+>  
+>  	*prev = vma;
+> @@ -104,6 +111,7 @@ success:
+>  	 * vm_flags is protected by the mmap_sem held in write mode.
+>  	 */
+>  	vma->vm_flags = new_flags;
+> +	vma->vm_hints = new_hints;
+>  
+>  out:
+>  	if (error == -ENOMEM)
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 73f5e4b..fb4bf98 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -670,6 +670,8 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+>  		return 0;
+>  	if (vma->vm_ops && vma->vm_ops->close)
+>  		return 0;
+> +	if (vma->vm_hints)
+> +		return 0;
+>  	return 1;
+>  }
+>  
+> -- 
+> 1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
