@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5B6A76B005A
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 06:40:22 -0400 (EDT)
-Date: Tue, 29 Sep 2009 12:02:41 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] filemap : fix the wrong offset
-In-Reply-To: <1254215185-29841-1-git-send-email-shijie8@gmail.com>
-Message-ID: <Pine.LNX.4.64.0909291129430.19216@sister.anvils>
-References: <1254215185-29841-1-git-send-email-shijie8@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C073A6B005A
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 06:51:17 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp08.au.ibm.com (8.14.3/8.13.1) with ESMTP id n8TB6EjI019602
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 21:06:14 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8TBBimK1446042
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 21:11:44 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n8TBDvWU011827
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 21:13:57 +1000
+Date: Tue, 29 Sep 2009 16:43:55 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] memcg: some modification to softlimit under
+ hierarchical memory reclaim.
+Message-ID: <20090929111354.GC498@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090929150141.0e672290.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090929061132.GA498@balbir.in.ibm.com>
+ <20090929183321.3d4fbc1d.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090929183321.3d4fbc1d.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Sep 2009, Huang Shijie wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-09-29 18:33:21]:
 
-> The offset should be in PAGE_CACHE_SHIFT unit, not in PAGE_SHIFT unit.
+> On Tue, 29 Sep 2009 11:41:32 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> Though we do not fully implement the page cache in larger chunks,
-> but in the vma_address(), all the pages do the (PAGE_CACHE_SHIFT - PAGE_SHIFT) shift,
-> so do a reverse operation in filemap_fault() is needed.
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-09-29 15:01:41]:
+> > 
+> > > No major changes in this patch for 3 weeks.
+> > > While testing, I found a few css->refcnt bug in softlimit.(and posted patches)
+> > > But it seems no more (easy) ones.
+> > >
+> > 
+> > Kamezawa-San, this worries me, could you please confirm if you are
+> > able to see this behaviour without your patches applied as well? I am
+> > doing some more stress tests on my side.
+> >  
+> I found an easy way to reprocue. And yes, it can happen without this series.
 > 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-
-Well, I expect you're right, and I won't object to this patch,
-so long as you don't follow it up with a stream of like patches.
-
-I really think this issue is better ignored.  There was a time,
-seven years ago, when I cared about it, and made such corrections
-in mm/shmem.c.  But we're chipping away at the tip of the iceberg
-here, and it's just a waste of everybody's time for so long as
-PAGE_CACHE_SIZE == PAGE_SIZE.
-
-There have been patches experimenting with PAGE_CACHE_SIZE multiple
-of PAGE_SIZE (and probably not PAGE_SIZE multiple of PAGE_CACHE_SIZE);
-and I've come to the conclusion that the only sensible place for these
-PAGE_CACHE_SHIFT - PAGE_SHIFT patches is in a patch which really makes
-that difference.
-
-I wish PAGE_CACHE_SIZE had never been added in the first place,
-long before it was needed; but ripping it out doesn't seem quite
-the right thing to do either; and likewise I leave a smattering of
-PAGE_CACHE_SHIFT - PAGE_SHIFT lines in, just to remind us from time
-to time that there might one day be a difference.
-
-I know this is a very unsatisfying response: but you and I
-and everyone else have better things to spend our time on.
-Thinking about the difference between two things that are
-always the same is rather a waste of mental energy.
-
-Patches to make them different: that's a very different matter.
-Andrew happened not to like Christoph Lameter's patches for that;
-but certainly those patches were making a real difference, and
-deserved all their (PAGE_CACHE_SHIFT - PAGE_SHIFT)s (if they
-had any: perhaps tucked away in a conversion macro, I forget).
-
-Hugh
-
-> ---
->  mm/filemap.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+> ==
+> #!/bin/bash -x
 > 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index ef169f3..2d8385e 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1502,7 +1502,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->  	struct address_space *mapping = file->f_mapping;
->  	struct file_ra_state *ra = &file->f_ra;
->  	struct inode *inode = mapping->host;
-> -	pgoff_t offset = vmf->pgoff;
-> +	pgoff_t offset = vmf->pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->  	struct page *page;
->  	pgoff_t size;
->  	int ret = 0;
-> -- 
-> 1.6.0.6
+> mount -tcgroup none /cgroups -omemory
+> mkdir /cgroups/A
+> 
+> while true;do
+>         mkdir /cgroups/A/01
+>         echo 3M > /cgroups/A/01/memory.soft_limit_in_bytes
+>         echo $$ > /cgroups/A/01/tasks
+>         dd if=/dev/zero of=./tmpfile bs=4096 count=1024
+>         rm ./tmpfile
+>         sync
+>         sleep 1
+>         echo $$ > /cgroups/A/tasks
+>         rmdir /cgroups/A/01
+> done
+> ==
+> Run this scipt under memory pressure.
+> Then folloiwng happens. refcnt goes bad. (WARN_ON is my css_refcnt patch's one)
+>
+
+Excellent script, i was able to reproduce the problem with the WARN_ON
+patch applied. I am going to try the fix now.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
