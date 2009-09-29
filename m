@@ -1,76 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 968EE6B005D
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 09:32:25 -0400 (EDT)
-Date: Tue, 29 Sep 2009 14:58:11 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
-Message-ID: <20090929135810.GB14911@csn.ul.ie>
-References: <20090915120538.GA26806@bizet.domek.prywatny> <200909170118.53965.rjw@sisk.pl> <4AB29F4A.3030102@intel.com> <200909180027.37387.rjw@sisk.pl> <20090922233531.GA3198@bizet.domek.prywatny>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1487B6003A9
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 10:00:33 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6452A82C8EB
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 10:29:54 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id eFd7DvGpedwG for <linux-mm@kvack.org>;
+	Tue, 29 Sep 2009 10:29:54 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9E6B882C906
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 10:29:49 -0400 (EDT)
+Date: Tue, 29 Sep 2009 10:22:16 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: No more bits in vm_area_struct's vm_flags.
+In-Reply-To: <20090929105735.06eea1ee.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0909291019100.15549@gentwo.org>
+References: <4AB9A0D6.1090004@crca.org.au> <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com> <4ABC80B0.5010100@crca.org.au> <20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com> <4AC0234F.2080808@crca.org.au> <20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090928033624.GA11191@localhost> <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0909281637160.25798@sister.anvils> <a0ea21a7cfe313202e2b51510aa5435a.squirrel@webmail-b.css.fujitsu.com> <Pine.LNX.4.64.0909282134100.11529@sister.anvils>
+ <20090929105735.06eea1ee.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090922233531.GA3198@bizet.domek.prywatny>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Karol Lewandowski <karol.k.lewandowski@gmail.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, david.graham@intel.com, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, Wu Fengguang <fengguang.wu@intel.com>, Nigel Cunningham <ncunningham@crca.org.au>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 23, 2009 at 01:35:31AM +0200, Karol Lewandowski wrote:
-> On Fri, Sep 18, 2009 at 12:27:37AM +0200, Rafael J. Wysocki wrote:
-> > On Thursday 17 September 2009, Graham, David wrote:
-> > > Rafael J. Wysocki wrote:
-> > > > I guess the driver releases its DMA buffer during suspend and attempts to
-> > > > allocate it back on resume, which is not really smart (if that really is the
-> > > > case).
-> 
-> > > Yes, we free a 70KB block (0x80 by 0x230 bytes) on suspend and 
-> > > reallocate on resume, and so that's an Order 5 request. It looks 
-> > > symmetric, and hasn't changed for years. I don't think we are leaking 
-> > > memory, which points back to that the memory is too fragmented to 
-> > > satisfy the request.
-> > > 
-> > > I also concur that Rafael's commit 6905b1f1 shouldn't change the logic 
-> > > in the driver for systems with e100 (like yours Karol) that could 
-> > > already sleep, and I don't see anything else in the driver that looks to 
-> > > be relevant. I'm expecting that your test result without commit 6905b1f1 
-> > > will still show the problem.
-> > > 
-> > > So I wonder if this new issue may be triggered by some other change in 
-> > > the memory subsystem ?
-> 
-> > I think so.  There have been reports about order 2 allocations failing for
-> > 2.6.31, so it looks like newer kernels are more likely to expose such problems.
-> > 
-> > Adding linux-mm to the CC list.
-> 
-> I've hit this bug 2 times since my last email.  Is there anything I
-> could do?
-> 
-> Maybe I should revert following commits (chosen somewhat randomly)?
-> 
-> 1. 49255c619fbd482d704289b5eb2795f8e3b7ff2e
-> 
-> 2. dd5d241ea955006122d76af88af87de73fec25b4 - alters changes made by
-> commit above
-> 
-> Any ideas?
-> 
 
-Those commits should only make a difference on small-memory machines.
-The exact value of "small" varies but on 32 bit x86 without PAE, it would
-be 20MB of RAM. The fact reverting the two patches makes any difference at
-all is a surprise and likely a co-incidence.
+Another concern that has not been discussed is the increased cache
+footprint due to a slightly enlarged vm data working set (there is also a
+corresponding icache issue since additional accesses are needed).
 
-If you have a reliable reproduction case, would it be possible to bisect
-between the points
-d239171e4f6efd58d7e423853056b1b6a74f1446..b70d94ee438b3fd9c15c7691d7a932a135c18101
-to see if the problem is in there anywhere?
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Could we stick with the current size and do combinations of flags like we
+do with page flags? VM_HUGETLB cannot grow up and down f.e. and there are
+certainly lots of other impossible combinations that can be used to put
+more information into the flags.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
