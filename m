@@ -1,33 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 874F66B005A
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 21:53:50 -0400 (EDT)
-Received: by ywh39 with SMTP id 39so5663908ywh.12
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2009 19:06:13 -0700 (PDT)
-Message-ID: <4AC16B8F.1060308@gmail.com>
-Date: Tue, 29 Sep 2009 10:06:07 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 017446B005A
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2009 22:12:33 -0400 (EDT)
+Received: by ywh39 with SMTP id 39so5680712ywh.12
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2009 19:25:11 -0700 (PDT)
 From: Huang Shijie <shijie8@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] rmap : tidy the code
-References: <1254128590-27826-1-git-send-email-shijie8@gmail.com>	 <Pine.LNX.4.64.0909281131460.14446@sister.anvils> <8acda98c0909280430w2700826cu55f9629bafab066f@mail.gmail.com>
-In-Reply-To: <8acda98c0909280430w2700826cu55f9629bafab066f@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] rmap : fix the comment
+Date: Tue, 29 Sep 2009 10:25:06 +0800
+Message-Id: <1254191106-20903-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Nikita Danilov <danilov@gmail.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: hugh.dickins@tiscali.co.uk, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Nikita Danilov wrote:
-> I agree that adding EFAULT check into page_check_address() is better.
-> The only call-site that does not call vma_address() before
-> page_check_address() is __xip_unmap() and it explicitly BUG_ON()s on
-> the same condition.
->
->   
-If adding vma_address() into page_check_address() ,  it's  bad  for 
-__xip_unmap to change its code.
-__xip_unmap must fake a page to satisfy the new "page_check_address()".
+The page_address_in_vma() is not only used in unuse_vma().
+
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ mm/rmap.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 28aafe2..dd43373 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -242,8 +242,8 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+ }
+ 
+ /*
+- * At what user virtual address is page expected in vma? checking that the
+- * page matches the vma: currently only used on anon pages, by unuse_vma;
++ * At what user virtual address is page expected in vma?
++ * checking that the page matches the vma.
+  */
+ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+ {
+-- 
+1.6.0.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
