@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 20A836B005A
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 02:27:07 -0400 (EDT)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp09.au.ibm.com (8.14.3/8.13.1) with ESMTP id n8T6a26e027248
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:36:02 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8T6iccD590076
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:44:42 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8T6icFQ027964
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:44:38 +1000
-Date: Tue, 29 Sep 2009 11:41:32 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id B47666B005A
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 03:05:15 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8T7NbXK005857
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 29 Sep 2009 16:23:37 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 459F145DE4F
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:23:37 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 26EAE45DE4D
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:23:37 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 10C861DB803A
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:23:37 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C50071DB803E
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2009 16:23:33 +0900 (JST)
+Date: Tue, 29 Sep 2009 16:21:22 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 1/2] memcg: some modification to softlimit under
  hierarchical memory reclaim.
-Message-ID: <20090929061132.GA498@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-Id: <20090929162122.f79159fc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090929061132.GA498@balbir.in.ibm.com>
 References: <20090929150141.0e672290.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090929150141.0e672290.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090929061132.GA498@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-09-29 15:01:41]:
+On Tue, 29 Sep 2009 11:41:32 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> No major changes in this patch for 3 weeks.
-> While testing, I found a few css->refcnt bug in softlimit.(and posted patches)
-> But it seems no more (easy) ones.
->
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-09-29 15:01:41]:
+> 
+> > No major changes in this patch for 3 weeks.
+> > While testing, I found a few css->refcnt bug in softlimit.(and posted patches)
+> > But it seems no more (easy) ones.
+> >
+> 
+> Kamezawa-San, this worries me, could you please confirm if you are
+> able to see this behaviour without your patches applied as well?
 
-Kamezawa-San, this worries me, could you please confirm if you are
-able to see this behaviour without your patches applied as well? I am
-doing some more stress tests on my side.
- 
--- 
-	Balbir
+will try just with BUG_ON() for css->refcnt patch.
+But it happend only once even with my patch set.
+I found the potential bug by review. I checked all css_get/put/tryget
+and it's an only candidates.
+
+> I am doing some more stress tests on my side.
+>  
+"a few" includes my patch and Nishimura-san's patch for refcnt
+which fixes css->refcnt leak. Which are already in -rc.
+
+As I said (in merge plan), I have some concerns on softlimit. But it's
+not from softlimit code, but from memcg's nature and complication especially
+with hierarchy. These 2 years history shows there are tons of race condition.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
