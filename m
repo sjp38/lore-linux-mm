@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7216B004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 13:45:26 -0400 (EDT)
-Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
-	by mtagate4.uk.ibm.com (8.14.3/8.13.8) with ESMTP id n8UI1P0x026376
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 18:01:30 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8UI19CR2588794
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 19:01:15 +0100
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8UI182r030578
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 19:01:09 +0100
-Message-ID: <4AC39CE5.9080908@free.fr>
-Date: Wed, 30 Sep 2009 20:01:09 +0200
-From: Daniel Lezcano <daniel.lezcano@free.fr>
-MIME-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 124F46B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 14:11:52 -0400 (EDT)
 Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-References: <1253749920-18673-1-git-send-email-orenl@librato.com>	<20090924154139.2a7dd5ec.akpm@linux-foundation.org>	<20090928163704.GA3327@us.ibm.com> <4AC20BB8.4070509@free.fr>	<87iqf0o5sf.fsf@caffeine.danplanet.com> <4AC38477.4070007@free.fr> <87eipoo0po.fsf@caffeine.danplanet.com>
-In-Reply-To: <87eipoo0po.fsf@caffeine.danplanet.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <1253749920-18673-1-git-send-email-orenl@librato.com>
+	<20090924154139.2a7dd5ec.akpm@linux-foundation.org>
+	<20090928163704.GA3327@us.ibm.com> <4AC20BB8.4070509@free.fr>
+	<87iqf0o5sf.fsf@caffeine.danplanet.com> <4AC38477.4070007@free.fr>
+	<87eipoo0po.fsf@caffeine.danplanet.com> <4AC39CE5.9080908@free.fr>
+From: Dan Smith <danms@us.ibm.com>
+Date: Wed, 30 Sep 2009 11:28:36 -0700
+In-Reply-To: <4AC39CE5.9080908@free.fr> (Daniel Lezcano's message of "Wed\, 30 Sep 2009 20\:01\:09 +0200")
+Message-ID: <877hvgnv6z.fsf@caffeine.danplanet.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Dan Smith <danms@us.ibm.com>
+To: Daniel Lezcano <daniel.lezcano@free.fr>
 Cc: "Serge E. Hallyn" <serue@us.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, mingo@elte.hu, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Smith wrote:
-> DL> If the checkpoint is done from the kernel, why the restart
-> DL> wouldn't be in the kernel too ?
->
-> I think thus far we have taken the approach of "if it can be done
-> reasonably in userspace, then do it there" right?  
-Well I am a little lost :)
-The tty CR can be "reasonably" done in userspace I think. But it was 
-done in the kernel, no ?
+DL> Yep, I agree. But you didn't answer the question, what are the
+DL> network resources you plan to checkpoint / restart ?  eg. you let
+DL> the container to setup your network, will you restore netdev
+DL> statistics ? the mac address ? ipv4 ? ipv6 ?
 
-> Setup of the
-> network devices is easy to do in userspace, allows more flexibility
-> from a policy standpoint, and ensures that all existing security
-> checks are performed. 
-Yep, I agree. But you didn't answer the question, what are the network 
-resources you plan to checkpoint / restart ?
-eg. you let the container to setup your network, will you restore netdev 
-statistics ? the mac address ? ipv4 ? ipv6 ?
+Yes, Yes, Yes, and Yes.  I'm making the assumption that the common
+case will be with a veth device in the container and that all of the
+aforementioned attributes should be copied over.  In the future case
+where we could potentially have a real device in the container, it
+probably doesn't make sense to copy the mac address.
 
-Is it possible to do a detailed list of network resources you plan to CR 
-with the different items you will address from userspace and kernel space ?
+DL> Is it possible to do a detailed list of network resources you plan
+DL> to CR with the different items you will address from userspace and
+DL> kernel space ?
 
-> Also, migration may be easier if the userspace
-> bits can call custom hooks allowing for routing changes and other
-> infrastructure-specific operations.
->   
-You may have some problems with the connected sockets you will restore 
-in this case.
+I'm sure it's possible, but no, I haven't planned out everything for
+the next year.  If you have strong feelings about what should be done
+in user and kernel space, feel free to share :)
 
-> DL> Is there any documentation about the statefile format I can use if
-> DL> I want to implement myself an userspace CR solution based on this
-> DL> kernel patchset ?
->
-> See linux-cr/include/linux/checkpoint_hdr.h and user-cr/restart.c.
->   
-Argh ! I was hoping there was something else than the source code :)
+DL> Argh ! I was hoping there was something else than the source code
 
-Thanks
-  -- Daniel
+The header file makes it pretty clear what is going on, but maybe the
+Documentation/checkpoint/readme.txt will help.  Putting all the
+details in such a documentation file would be rather silly at the
+moment, given that new things are being added at a rapid rate and it
+would duplicate the only description that matters, which is the
+header file.
+
+-- 
+Dan Smith
+IBM Linux Technology Center
+email: danms@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
