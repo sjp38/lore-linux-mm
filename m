@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 129336B004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 17:48:15 -0400 (EDT)
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate6.uk.ibm.com (8.14.3/8.13.8) with ESMTP id n8UM8egd792328
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 22:08:45 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n8UM8UQo1654984
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 23:08:30 +0100
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n8UM8TRC014208
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 23:08:30 +0100
-Message-ID: <4AC3D6DC.9010500@free.fr>
-Date: Thu, 01 Oct 2009 00:08:28 +0200
-From: Daniel Lezcano <daniel.lezcano@free.fr>
-MIME-Version: 1.0
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-References: <1253749920-18673-1-git-send-email-orenl@librato.com>	<20090924154139.2a7dd5ec.akpm@linux-foundation.org>	<20090928163704.GA3327@us.ibm.com> <4AC20BB8.4070509@free.fr>	<87iqf0o5sf.fsf@caffeine.danplanet.com> <4AC38477.4070007@free.fr>	<87eipoo0po.fsf@caffeine.danplanet.com> <4AC39CE5.9080908@free.fr> <877hvgnv6z.fsf@caffeine.danplanet.com>
-In-Reply-To: <877hvgnv6z.fsf@caffeine.danplanet.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 82CB56B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 19:12:06 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n8UNYe1H011115
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 1 Oct 2009 08:34:40 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55B4145DE4D
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 08:34:40 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DF2945DE4F
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 08:34:40 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1587C1DB803F
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 08:34:40 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BDB9E1DB8038
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 08:34:36 +0900 (JST)
+Date: Thu, 1 Oct 2009 08:31:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/2] percpu array counter like vmstat
+Message-Id: <20091001083133.429f373b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090930190943.8f19c48b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090930190417.8823fa44.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090930190943.8f19c48b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Smith <danms@us.ibm.com>
-Cc: "Serge E. Hallyn" <serue@us.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, mingo@elte.hu, xemul@openvz.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Dan Smith wrote:
-> DL> Yep, I agree. But you didn't answer the question, what are the
-> DL> network resources you plan to checkpoint / restart ?  eg. you let
-> DL> the container to setup your network, will you restore netdev
-> DL> statistics ? the mac address ? ipv4 ? ipv6 ?
->
-> Yes, Yes, Yes, and Yes.  I'm making the assumption that the common
-> case will be with a veth device in the container and that all of the
-> aforementioned attributes should be copied over.  In the future case
-> where we could potentially have a real device in the container, it
-> probably doesn't make sense to copy the mac address.
->   
+On Wed, 30 Sep 2009 19:09:43 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Be careful with the assumptions ;)
-> DL> Is it possible to do a detailed list of network resources you plan
-> DL> to CR with the different items you will address from userspace and
-> DL> kernel space ?
->
-> I'm sure it's possible, but no, I haven't planned out everything for
-> the next year.  If you have strong feelings about what should be done
-> in user and kernel space, feel free to share :)
->   
+> +int array_counter_init(struct array_counter *ac, int size)
+> +{
+> +	ac->v.elements = size;
+> +	ac->v.counters = alloc_percpu(s8);
+This is a bug, of course...
+should be
+ac->v.counters = __alloc_percpu(size, __alignof__(char));
 
-Dan,
-
-I just want to understand what is your plan. If you say "yes I will 
-checkpoint / restart" ipv4, ipv6, netdev statistics, etc ...  you should 
-be able to give at least a small list of network resources you will 
-checkpoint and how you will restart them, no ?
-
-> DL> Argh ! I was hoping there was something else than the source code
->
-> The header file makes it pretty clear what is going on, 
-Certainly for you.
-We are a little far away of the sys_checkpoint / sys_restart simple 
-syscalls we talked about at the cr-minisummit in 2008.
-
-Regards,
-     -- Daniel
-
-
+Regads,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
