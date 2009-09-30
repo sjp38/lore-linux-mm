@@ -1,146 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9748A6B005D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 16:50:48 -0400 (EDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [rfc patch 3/3] mm: munlock COW pages on truncation unmap
-Date: Wed, 30 Sep 2009 23:09:24 +0200
-Message-Id: <1254344964-8124-3-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org>
-References: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 673726B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 17:44:46 -0400 (EDT)
+Date: Wed, 30 Sep 2009 23:05:42 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/4] slqb: Record what node is local to a kmem_cache_cpu
+Message-ID: <20090930220541.GA31530@csn.ul.ie>
+References: <1253624054-10882-1-git-send-email-mel@csn.ul.ie> <1253624054-10882-3-git-send-email-mel@csn.ul.ie> <84144f020909220638l79329905sf9a35286130e88d0@mail.gmail.com> <20090922135453.GF25965@csn.ul.ie> <84144f020909221154x820b287r2996480225692fad@mail.gmail.com> <20090922185608.GH25965@csn.ul.ie> <20090930144117.GA17906@csn.ul.ie> <alpine.DEB.1.10.0909301053550.9450@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0909301053550.9450@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-When truncating, VMAs are not explicitely munlocked before unmap.  The
-truncation code munlocks page cache pages only and we can end up
-freeing mlocked private COW pages.
+On Wed, Sep 30, 2009 at 11:06:04AM -0400, Christoph Lameter wrote:
+> On Wed, 30 Sep 2009, Mel Gorman wrote:
+> 
+> > Ok, so I spent today looking at this again. The problem is not with faulty
+> > drain logic as such. As frees always place an object on a remote list
+> > and the allocation side is often (but not always) allocating a new page,
+> > a significant number of objects in the free list are the only object
+> > in a page. SLQB drains based on the number of objects on the free list,
+> > not the number of pages. With many of the pages having only one object,
+> > the freelists are pinning a lot more memory than expected.  For example,
+> > a watermark to drain of 512 could be pinning 2MB of pages.
+> 
+> No good. So we are allocating new pages from somewhere allocating a
+> single object and putting them on the freelist where we do not find them
+> again.
 
-This patch makes sure we munlock and move them from the unevictable
-list before dropping the page table reference.  We know they are going
-away with the last reference, so simply clearing the mlock (and
-accounting for it) is okay.
+Yes
 
-We can not grab the page lock from the unmapping context, so this
-tries to move the page to the evictable list optimistically and makes
-sure a racing reclaimer moves the page instead if we fail.
+> This is bad caching behavior as well.
+> 
 
-Rare case: the anon_vma is unlocked when encountering private pages
-because the first one in the VMA was faulted in only after we tried
-locking the anon_vma.  But we can handle it: on the second unmapping
-iteration, page cache will be truncated and vma->anon_vma will be
-stable, so just skip the page on non-present anon_vma.
+Yes, I suppose it would be as it's not using the hottest object. The
+fact it OOM storms is a bit more important than poor caching behaviour
+but hey :/
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/memory.c |   47 +++++++++++++++++++++++++++++++++++++++++------
- mm/vmscan.c |    7 +++++++
- 2 files changed, 48 insertions(+), 6 deletions(-)
+> > The drain logic could be extended to track not only the number of objects on
+> > the free list but also the number of pages but I really don't think that is
+> > desirable behaviour. I'm somewhat running out of sensible ideas for dealing
+> > with this but here is another go anyway that might be more palatable than
+> > tracking what a "local" node is within the slab.
+> 
+> SLUB avoids that issue by having a "current" page for a processor. It
+> allocates from the current page until its exhausted. It can use fast path
+> logic both for allocations and frees regardless of the pages origin. The
+> node fallback is handled by the page allocator and that one is only
+> involved when a new slab page is needed.
+> 
 
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -819,13 +819,13 @@ static unsigned long zap_pte_range(struc
- 
- 			page = vm_normal_page(vma, addr, ptent);
- 			if (unlikely(details) && page) {
-+				int private = details->mapping != page->mapping;
- 				/*
- 				 * unmap_shared_mapping_pages() wants to
- 				 * invalidate cache without truncating:
- 				 * unmap shared but keep private pages.
- 				 */
--				if (details->keep_private &&
--				    details->mapping != page->mapping)
-+				if (details->keep_private && private)
- 					continue;
- 				/*
- 				 * Each page->index must be checked when
-@@ -835,6 +835,43 @@ static unsigned long zap_pte_range(struc
- 				    (page->index < details->first_index ||
- 				     page->index > details->last_index))
- 					continue;
-+				/*
-+				 * When truncating, private COW pages may be
-+				 * mlocked in VM_LOCKED VMAs, so they need
-+				 * munlocking here before getting freed.
-+				 *
-+				 * Skip them completely if we don't have the
-+				 * anon_vma locked.  We will get it the second
-+				 * time.  When page cache is truncated, no more
-+				 * private pages can show up against this VMA
-+				 * and the anon_vma is either present or will
-+				 * never be.
-+				 *
-+				 * Otherwise, we still have to synchronize
-+				 * against concurrent reclaimers.  We can not
-+				 * grab the page lock, but with correct
-+				 * ordering of page flag accesses we can get
-+				 * away without it.
-+				 *
-+				 * A concurrent isolator may add the page to
-+				 * the unevictable list, set PG_lru and then
-+				 * recheck PG_mlocked to verify it chose the
-+				 * right list and conditionally move it again.
-+				 *
-+				 * TestClearPageMlocked() provides one half of
-+				 * the barrier: when we do not see the page on
-+				 * the LRU and fail isolation, the isolator
-+				 * must see PG_mlocked cleared and move the
-+				 * page on its own back to the evictable list.
-+				 */
-+				if (private && !details->anon_vma)
-+					continue;
-+				if (private && TestClearPageMlocked(page)) {
-+					dec_zone_page_state(page, NR_MLOCK);
-+					count_vm_event(UNEVICTABLE_PGCLEARED);
-+					if (!isolate_lru_page(page))
-+						putback_lru_page(page);
-+				}
- 			}
- 			ptent = ptep_get_and_clear_full(mm, addr, pte,
- 							tlb->fullmm);
-@@ -866,7 +903,8 @@ static unsigned long zap_pte_range(struc
- 		 * If details->keep_private, we leave swap entries;
- 		 * if details->nonlinear_vma, we leave file entries.
- 		 */
--		if (unlikely(details))
-+		if (unlikely(details && (details->keep_private ||
-+					 details->nonlinear_vma)))
- 			continue;
- 		if (pte_file(ptent)) {
- 			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
-@@ -936,9 +974,6 @@ static unsigned long unmap_page_range(st
- 	pgd_t *pgd;
- 	unsigned long next;
- 
--	if (details && !details->keep_private && !details->nonlinear_vma)
--		details = NULL;
--
- 	BUG_ON(addr >= end);
- 	tlb_start_vma(tlb, vma);
- 	pgd = pgd_offset(vma->vm_mm, addr);
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -544,6 +544,13 @@ redo:
- 		 */
- 		lru = LRU_UNEVICTABLE;
- 		add_page_to_unevictable_list(page);
-+		/*
-+		 * See the TestClearPageMlocked() in zap_pte_range():
-+		 * if a racing unmapper did not see the above setting
-+		 * of PG_lru, we must see its clearing of PG_locked
-+		 * and move the page back to the evictable list.
-+		 */
-+		smp_mb();
- 	}
- 
- 	/*
+This is essentially the "unqueued" nature of SLUB. It's objective "I have this
+page here which I'm going to use until I can't use it no more and will depend
+on the page allocator to sort my stuff out". I have to read up on SLUB up
+more to see if it's compatible with SLQB or not though. In particular, how
+does SLUB deal with frees from pages that are not the "current" page? SLQB
+does not care what page the object belongs to as long as it's node-local
+as the object is just shoved onto a LIFO for maximum hotness.
+
+> SLAB deals with it in fallback_alloc(). It scans the nodes in zonelist
+> order for free objects of the kmem_cache and then picks up from the
+> nearest node. Ugly but it works. SLQB would have to do something similar
+> since it also has the per node object bins that SLAB has.
+> 
+
+In a real sense, this is what the patch ends up doing. When it fails to
+get something locally but sees that the local node is memoryless, it
+will check the remote node lists in zonelist order. I think that's
+reasonable behaviour but I'm biased because I just want the damn machine
+to boot again. What do you think? Pekka, Nick?
+
+> The local node for a memoryless node may not exist at all since there may
+> be multiple nodes at the same distance to the memoryless node. So at
+> mininum you would have to manage a set of local nodes. If you have the set
+> then you also would need to consider memory policies. During bootup you
+> would have to simulate the interleave mode in effect. After bootup you
+> would have to use the tasks policy.
+> 
+
+I think SLQBs treatment of memory policies needs to be handled as a separate
+problem. It's less than perfect at the moment, more of that below.
+
+> This all points to major NUMA issues in SLQB. This is not arch specific.
+> SLQB cannot handle memoryless nodes at this point.
+> 
+> > This patch alters the allocation path. If the allocation from local
+> > lists fails and the local node is memoryless, an attempt will be made to
+> > allocate from the remote lists before going to the page allocator.
+> 
+> Are the allocation attempts from the remote lists governed by memory
+> policies?
+
+It does to some extent. When selecting a node zonelist, it takes the
+current memory policy into account but at a glance, it does not appear
+to obey a policy that restricts the available nodes.
+
+> Otherwise you may create imbalances on neighboring nodes.
+> 
+
+I haven't thought about this aspect of things a whole lot to be honest.
+It's not the problem at hand.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
