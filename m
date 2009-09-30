@@ -1,25 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2019B6B004F
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9748A6B005D
 	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 16:50:48 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [rfc patch 1/3] mm: always pass mapping in zap_details
-Date: Wed, 30 Sep 2009 23:09:22 +0200
-Message-Id: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org>
+Subject: [rfc patch 3/3] mm: munlock COW pages on truncation unmap
+Date: Wed, 30 Sep 2009 23:09:24 +0200
+Message-Id: <1254344964-8124-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org>
+References: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Currently, unmap_mapping_range() only fills in the address space
-information in zap details when it wants to filter private COW pages
-and the zapping loops need to compare page->mapping against it.
+When truncating, VMAs are not explicitely munlocked before unmap.  The
+truncation code munlocks page cache pages only and we can end up
+freeing mlocked private COW pages.
 
-For unmapping private COW pages on truncation, we will need this
-information also in the opposite case to filter shared pages.
+This patch makes sure we munlock and move them from the unevictable
+list before dropping the page table reference.  We know they are going
+away with the last reference, so simply clearing the mlock (and
+accounting for it) is okay.
 
-Demux this one check_mapping member by adding an explicit mode flag
-and always pass along the address space.
+We can not grab the page lock from the unmapping context, so this
+tries to move the page to the evictable list optimistically and makes
+sure a racing reclaimer moves the page instead if we fail.
+
+Rare case: the anon_vma is unlocked when encountering private pages
+because the first one in the VMA was faulted in only after we tried
+locking the anon_vma.  But we can handle it: on the second unmapping
+iteration, page cache will be truncated and vma->anon_vma will be
+stable, so just skip the page on non-present anon_vma.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
@@ -28,63 +39,108 @@ Cc: Mel Gorman <mel@csn.ul.ie>
 Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mm.h |    3 ++-
- mm/memory.c        |   11 ++++++-----
- 2 files changed, 8 insertions(+), 6 deletions(-)
+ mm/memory.c |   47 +++++++++++++++++++++++++++++++++++++++++------
+ mm/vmscan.c |    7 +++++++
+ 2 files changed, 48 insertions(+), 6 deletions(-)
 
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -732,7 +732,8 @@ extern void user_shm_unlock(size_t, stru
-  */
- struct zap_details {
- 	struct vm_area_struct *nonlinear_vma;	/* Check page->index if set */
--	struct address_space *check_mapping;	/* Check page->mapping if set */
-+	struct address_space *mapping;		/* Backing address space */
-+	bool keep_private;			/* Do not touch private pages */
- 	pgoff_t	first_index;			/* Lowest page->index to unmap */
- 	pgoff_t last_index;			/* Highest page->index to unmap */
- 	spinlock_t *i_mmap_lock;		/* For unmap_mapping_range: */
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -824,8 +824,8 @@ static unsigned long zap_pte_range(struc
+@@ -819,13 +819,13 @@ static unsigned long zap_pte_range(struc
+ 
+ 			page = vm_normal_page(vma, addr, ptent);
+ 			if (unlikely(details) && page) {
++				int private = details->mapping != page->mapping;
+ 				/*
+ 				 * unmap_shared_mapping_pages() wants to
  				 * invalidate cache without truncating:
  				 * unmap shared but keep private pages.
  				 */
--				if (details->check_mapping &&
--				    details->check_mapping != page->mapping)
-+				if (details->keep_private &&
-+				    details->mapping != page->mapping)
+-				if (details->keep_private &&
+-				    details->mapping != page->mapping)
++				if (details->keep_private && private)
  					continue;
  				/*
  				 * Each page->index must be checked when
-@@ -863,7 +863,7 @@ static unsigned long zap_pte_range(struc
- 			continue;
- 		}
- 		/*
--		 * If details->check_mapping, we leave swap entries;
-+		 * If details->keep_private, we leave swap entries;
+@@ -835,6 +835,43 @@ static unsigned long zap_pte_range(struc
+ 				    (page->index < details->first_index ||
+ 				     page->index > details->last_index))
+ 					continue;
++				/*
++				 * When truncating, private COW pages may be
++				 * mlocked in VM_LOCKED VMAs, so they need
++				 * munlocking here before getting freed.
++				 *
++				 * Skip them completely if we don't have the
++				 * anon_vma locked.  We will get it the second
++				 * time.  When page cache is truncated, no more
++				 * private pages can show up against this VMA
++				 * and the anon_vma is either present or will
++				 * never be.
++				 *
++				 * Otherwise, we still have to synchronize
++				 * against concurrent reclaimers.  We can not
++				 * grab the page lock, but with correct
++				 * ordering of page flag accesses we can get
++				 * away without it.
++				 *
++				 * A concurrent isolator may add the page to
++				 * the unevictable list, set PG_lru and then
++				 * recheck PG_mlocked to verify it chose the
++				 * right list and conditionally move it again.
++				 *
++				 * TestClearPageMlocked() provides one half of
++				 * the barrier: when we do not see the page on
++				 * the LRU and fail isolation, the isolator
++				 * must see PG_mlocked cleared and move the
++				 * page on its own back to the evictable list.
++				 */
++				if (private && !details->anon_vma)
++					continue;
++				if (private && TestClearPageMlocked(page)) {
++					dec_zone_page_state(page, NR_MLOCK);
++					count_vm_event(UNEVICTABLE_PGCLEARED);
++					if (!isolate_lru_page(page))
++						putback_lru_page(page);
++				}
+ 			}
+ 			ptent = ptep_get_and_clear_full(mm, addr, pte,
+ 							tlb->fullmm);
+@@ -866,7 +903,8 @@ static unsigned long zap_pte_range(struc
+ 		 * If details->keep_private, we leave swap entries;
  		 * if details->nonlinear_vma, we leave file entries.
  		 */
- 		if (unlikely(details))
-@@ -936,7 +936,7 @@ static unsigned long unmap_page_range(st
+-		if (unlikely(details))
++		if (unlikely(details && (details->keep_private ||
++					 details->nonlinear_vma)))
+ 			continue;
+ 		if (pte_file(ptent)) {
+ 			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
+@@ -936,9 +974,6 @@ static unsigned long unmap_page_range(st
  	pgd_t *pgd;
  	unsigned long next;
  
--	if (details && !details->check_mapping && !details->nonlinear_vma)
-+	if (details && !details->keep_private && !details->nonlinear_vma)
- 		details = NULL;
- 
+-	if (details && !details->keep_private && !details->nonlinear_vma)
+-		details = NULL;
+-
  	BUG_ON(addr >= end);
-@@ -2433,7 +2433,8 @@ void unmap_mapping_range(struct address_
- 			hlen = ULONG_MAX - hba + 1;
+ 	tlb_start_vma(tlb, vma);
+ 	pgd = pgd_offset(vma->vm_mm, addr);
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -544,6 +544,13 @@ redo:
+ 		 */
+ 		lru = LRU_UNEVICTABLE;
+ 		add_page_to_unevictable_list(page);
++		/*
++		 * See the TestClearPageMlocked() in zap_pte_range():
++		 * if a racing unmapper did not see the above setting
++		 * of PG_lru, we must see its clearing of PG_locked
++		 * and move the page back to the evictable list.
++		 */
++		smp_mb();
  	}
  
--	details.check_mapping = even_cows? NULL: mapping;
-+	details.mapping = mapping;
-+	details.keep_private = !even_cows;
- 	details.nonlinear_vma = NULL;
- 	details.first_index = hba;
- 	details.last_index = hba + hlen - 1;
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
