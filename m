@@ -1,56 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 124F46B004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 14:11:52 -0400 (EDT)
-Subject: Re: [PATCH 00/80] Kernel based checkpoint/restart [v18]
-References: <1253749920-18673-1-git-send-email-orenl@librato.com>
-	<20090924154139.2a7dd5ec.akpm@linux-foundation.org>
-	<20090928163704.GA3327@us.ibm.com> <4AC20BB8.4070509@free.fr>
-	<87iqf0o5sf.fsf@caffeine.danplanet.com> <4AC38477.4070007@free.fr>
-	<87eipoo0po.fsf@caffeine.danplanet.com> <4AC39CE5.9080908@free.fr>
-From: Dan Smith <danms@us.ibm.com>
-Date: Wed, 30 Sep 2009 11:28:36 -0700
-In-Reply-To: <4AC39CE5.9080908@free.fr> (Daniel Lezcano's message of "Wed\, 30 Sep 2009 20\:01\:09 +0200")
-Message-ID: <877hvgnv6z.fsf@caffeine.danplanet.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id ED12B6B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 14:31:08 -0400 (EDT)
+Received: by fxm2 with SMTP id 2so5313603fxm.4
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2009 11:48:17 -0700 (PDT)
+Date: Wed, 30 Sep 2009 20:48:12 +0200
+From: Karol Lewandowski <karol.k.lewandowski@gmail.com>
+Subject: Re: [BUG 2.6.30+] e100 sometimes causes oops during resume
+Message-ID: <20090930184812.GA2484@bizet.domek.prywatny>
+References: <20090915120538.GA26806@bizet.domek.prywatny> <200909170118.53965.rjw@sisk.pl> <4AB29F4A.3030102@intel.com> <200909180027.37387.rjw@sisk.pl> <20090922233531.GA3198@bizet.domek.prywatny> <20090929135810.GB14911@csn.ul.ie> <20090930153730.GA2120@bizet.domek.prywatny> <20090930155543.GC17906@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090930155543.GC17906@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Lezcano <daniel.lezcano@free.fr>
-Cc: "Serge E. Hallyn" <serue@us.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, mingo@elte.hu, xemul@openvz.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, david.graham@intel.com, "e1000-devel@lists.sourceforge.net" <e1000-devel@lists.sourceforge.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-DL> Yep, I agree. But you didn't answer the question, what are the
-DL> network resources you plan to checkpoint / restart ?  eg. you let
-DL> the container to setup your network, will you restore netdev
-DL> statistics ? the mac address ? ipv4 ? ipv6 ?
+On Wed, Sep 30, 2009 at 04:55:43PM +0100, Mel Gorman wrote:
+> On Wed, Sep 30, 2009 at 05:37:30PM +0200, Karol Lewandowski wrote:
+> > I've started with bc75d33f0 (one commit before d239171e4 in Linus'
+> > tree) but then my system fails to resume.
+> > 
+> 
+> Does the bug require a suspend/resume or would something like
+> 
+> rmmod e100
+> updatedb
+> modprobe e100
+> 
+> reproduce the problem?
 
-Yes, Yes, Yes, and Yes.  I'm making the assumption that the common
-case will be with a veth device in the container and that all of the
-aforementioned attributes should be copied over.  In the future case
-where we could potentially have a real device in the container, it
-probably doesn't make sense to copy the mac address.
+Yes, it does reproduce the problem.  Thanks a lot for that.
 
-DL> Is it possible to do a detailed list of network resources you plan
-DL> to CR with the different items you will address from userspace and
-DL> kernel space ?
+I'll try to bisect it as my free time permits (which may take a while,
+unfortunately).
 
-I'm sure it's possible, but no, I haven't planned out everything for
-the next year.  If you have strong feelings about what should be done
-in user and kernel space, feel free to share :)
-
-DL> Argh ! I was hoping there was something else than the source code
-
-The header file makes it pretty clear what is going on, but maybe the
-Documentation/checkpoint/readme.txt will help.  Putting all the
-details in such a documentation file would be rather silly at the
-moment, given that new things are being added at a rapid rate and it
-would duplicate the only description that matters, which is the
-header file.
-
--- 
-Dan Smith
-IBM Linux Technology Center
-email: danms@us.ibm.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
