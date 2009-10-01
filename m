@@ -1,167 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6B0B46B004D
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:02:15 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7904D6B004D
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 20:34:04 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D821D82C770
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:06:49 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8712382C706
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 20:37:52 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.174.253])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id QX-ctF09P2HR for <linux-mm@kvack.org>;
-	Thu,  1 Oct 2009 18:06:49 -0400 (EDT)
+	with ESMTP id bZ1UwV+5j-u1 for <linux-mm@kvack.org>;
+	Thu,  1 Oct 2009 20:37:52 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2A7F082C7D4
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:06:27 -0400 (EDT)
-Message-Id: <20091001174120.883128108@gentwo.org>
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2268A82C7E6
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 20:36:31 -0400 (EDT)
+Message-Id: <20091001174122.980545333@gentwo.org>
 References: <20091001174033.576397715@gentwo.org>
-Date: Thu, 01 Oct 2009 13:40:40 -0400
+Date: Thu, 01 Oct 2009 13:40:51 -0400
 From: cl@linux-foundation.org
-Subject: [this_cpu_xx V3 07/19] this_cpu_ptr: Eliminate get/put_cpu
-Content-Disposition: inline; filename=this_cpu_ptr_eliminate_get_put_cpu
+Subject: [this_cpu_xx V3 18/19] Make slub statistics use this_cpu_inc
+Content-Disposition: inline; filename=this_cpu_slub_cleanup_stat
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Maciej Sosnowski <maciej.sosnowski@intel.com>, Dan Williams <dan.j.williams@intel.com>, Tejun Heo <tj@kernel.org>, Eric Biederman <ebiederm@aristanetworks.com>, Stephen Hemminger <shemminger@vyatta.com>, David L Stevens <dlstevens@us.ibm.com>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-There are cases where we can use this_cpu_ptr and as the result
-of using this_cpu_ptr() we no longer need to determine the
-currently executing cpu.
+this_cpu_inc() translates into a single instruction on x86 and does not
+need any register. So use it in stat(). We also want to avoid the
+calculation of the per cpu kmem_cache_cpu structure pointer. So pass
+a kmem_cache pointer instead of a kmem_cache_cpu pointer.
 
-In those places no get/put_cpu combination is needed anymore.
-The local cpu variable can be eliminated.
-
-Preemption still needs to be disabled and enabled since the
-modifications of the per cpu variables is not atomic. There may
-be multiple per cpu variables modified and those must all
-be from the same processor.
-
-Acked-by: Maciej Sosnowski <maciej.sosnowski@intel.com>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
-Acked-by: Tejun Heo <tj@kernel.org>
-cc: Eric Biederman <ebiederm@aristanetworks.com>
-cc: Stephen Hemminger <shemminger@vyatta.com>
-cc: David L Stevens <dlstevens@us.ibm.com>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org?
 
 ---
- drivers/dma/dmaengine.c |   36 +++++++++++++-----------------------
- drivers/net/veth.c      |    7 +++----
- 2 files changed, 16 insertions(+), 27 deletions(-)
+ mm/slub.c |   43 ++++++++++++++++++++-----------------------
+ 1 file changed, 20 insertions(+), 23 deletions(-)
 
-Index: linux-2.6/drivers/dma/dmaengine.c
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/drivers/dma/dmaengine.c	2009-09-28 10:08:09.000000000 -0500
-+++ linux-2.6/drivers/dma/dmaengine.c	2009-09-29 09:01:54.000000000 -0500
-@@ -326,14 +326,7 @@ arch_initcall(dma_channel_table_init);
-  */
- struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
+--- linux-2.6.orig/mm/slub.c	2009-09-29 11:44:35.000000000 -0500
++++ linux-2.6/mm/slub.c	2009-09-29 11:44:49.000000000 -0500
+@@ -217,10 +217,10 @@ static inline void sysfs_slab_remove(str
+ 
+ #endif
+ 
+-static inline void stat(struct kmem_cache_cpu *c, enum stat_item si)
++static inline void stat(struct kmem_cache *s, enum stat_item si)
  {
--	struct dma_chan *chan;
--	int cpu;
--
--	cpu = get_cpu();
--	chan = per_cpu_ptr(channel_table[tx_type], cpu)->chan;
--	put_cpu();
--
--	return chan;
-+	return this_cpu_read(channel_table[tx_type]->chan);
+ #ifdef CONFIG_SLUB_STATS
+-	c->stat[si]++;
++	__this_cpu_inc(s->cpu_slab->stat[si]);
+ #endif
  }
- EXPORT_SYMBOL(dma_find_channel);
  
-@@ -847,7 +840,6 @@ dma_async_memcpy_buf_to_buf(struct dma_c
- 	struct dma_async_tx_descriptor *tx;
- 	dma_addr_t dma_dest, dma_src;
- 	dma_cookie_t cookie;
--	int cpu;
- 	unsigned long flags;
+@@ -1108,7 +1108,7 @@ static struct page *allocate_slab(struct
+ 		if (!page)
+ 			return NULL;
  
- 	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
-@@ -866,10 +858,10 @@ dma_async_memcpy_buf_to_buf(struct dma_c
- 	tx->callback = NULL;
- 	cookie = tx->tx_submit(tx);
+-		stat(this_cpu_ptr(s->cpu_slab), ORDER_FALLBACK);
++		stat(s, ORDER_FALLBACK);
+ 	}
  
--	cpu = get_cpu();
--	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
--	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
--	put_cpu();
-+	preempt_disable();
-+	__this_cpu_add(chan->local->bytes_transferred, len);
-+	__this_cpu_inc(chan->local->memcpy_count);
-+	preempt_enable();
+ 	if (kmemcheck_enabled
+@@ -1406,23 +1406,22 @@ static struct page *get_partial(struct k
+ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
+ {
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+-	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
  
- 	return cookie;
+ 	__ClearPageSlubFrozen(page);
+ 	if (page->inuse) {
+ 
+ 		if (page->freelist) {
+ 			add_partial(n, page, tail);
+-			stat(c, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
++			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
+ 		} else {
+-			stat(c, DEACTIVATE_FULL);
++			stat(s, DEACTIVATE_FULL);
+ 			if (SLABDEBUG && PageSlubDebug(page) &&
+ 						(s->flags & SLAB_STORE_USER))
+ 				add_full(n, page);
+ 		}
+ 		slab_unlock(page);
+ 	} else {
+-		stat(c, DEACTIVATE_EMPTY);
++		stat(s, DEACTIVATE_EMPTY);
+ 		if (n->nr_partial < s->min_partial) {
+ 			/*
+ 			 * Adding an empty slab to the partial slabs in order
+@@ -1438,7 +1437,7 @@ static void unfreeze_slab(struct kmem_ca
+ 			slab_unlock(page);
+ 		} else {
+ 			slab_unlock(page);
+-			stat(__this_cpu_ptr(s->cpu_slab), FREE_SLAB);
++			stat(s, FREE_SLAB);
+ 			discard_slab(s, page);
+ 		}
+ 	}
+@@ -1453,7 +1452,7 @@ static void deactivate_slab(struct kmem_
+ 	int tail = 1;
+ 
+ 	if (page->freelist)
+-		stat(c, DEACTIVATE_REMOTE_FREES);
++		stat(s, DEACTIVATE_REMOTE_FREES);
+ 	/*
+ 	 * Merge cpu freelist into slab freelist. Typically we get here
+ 	 * because both freelists are empty. So this is unlikely
+@@ -1479,7 +1478,7 @@ static void deactivate_slab(struct kmem_
+ 
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+ {
+-	stat(c, CPUSLAB_FLUSH);
++	stat(s, CPUSLAB_FLUSH);
+ 	slab_lock(c->page);
+ 	deactivate_slab(s, c);
  }
-@@ -896,7 +888,6 @@ dma_async_memcpy_buf_to_pg(struct dma_ch
- 	struct dma_async_tx_descriptor *tx;
- 	dma_addr_t dma_dest, dma_src;
- 	dma_cookie_t cookie;
--	int cpu;
- 	unsigned long flags;
+@@ -1619,7 +1618,7 @@ static void *__slab_alloc(struct kmem_ca
+ 	if (unlikely(!node_match(c, node)))
+ 		goto another_slab;
  
- 	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
-@@ -913,10 +904,10 @@ dma_async_memcpy_buf_to_pg(struct dma_ch
- 	tx->callback = NULL;
- 	cookie = tx->tx_submit(tx);
+-	stat(c, ALLOC_REFILL);
++	stat(s, ALLOC_REFILL);
  
--	cpu = get_cpu();
--	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
--	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
--	put_cpu();
-+	preempt_disable();
-+	__this_cpu_add(chan->local->bytes_transferred, len);
-+	__this_cpu_inc(chan->local->memcpy_count);
-+	preempt_enable();
+ load_freelist:
+ 	object = c->page->freelist;
+@@ -1634,7 +1633,7 @@ load_freelist:
+ 	c->node = page_to_nid(c->page);
+ unlock_out:
+ 	slab_unlock(c->page);
+-	stat(c, ALLOC_SLOWPATH);
++	stat(s, ALLOC_SLOWPATH);
+ 	return object;
  
- 	return cookie;
- }
-@@ -945,7 +936,6 @@ dma_async_memcpy_pg_to_pg(struct dma_cha
- 	struct dma_async_tx_descriptor *tx;
- 	dma_addr_t dma_dest, dma_src;
- 	dma_cookie_t cookie;
--	int cpu;
- 	unsigned long flags;
+ another_slab:
+@@ -1644,7 +1643,7 @@ new_slab:
+ 	new = get_partial(s, gfpflags, node);
+ 	if (new) {
+ 		c->page = new;
+-		stat(c, ALLOC_FROM_PARTIAL);
++		stat(s, ALLOC_FROM_PARTIAL);
+ 		goto load_freelist;
+ 	}
  
- 	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
-@@ -963,10 +953,10 @@ dma_async_memcpy_pg_to_pg(struct dma_cha
- 	tx->callback = NULL;
- 	cookie = tx->tx_submit(tx);
+@@ -1658,7 +1657,7 @@ new_slab:
  
--	cpu = get_cpu();
--	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
--	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
--	put_cpu();
-+	preempt_disable();
-+	__this_cpu_add(chan->local->bytes_transferred, len);
-+	__this_cpu_inc(chan->local->memcpy_count);
-+	preempt_enable();
+ 	if (new) {
+ 		c = __this_cpu_ptr(s->cpu_slab);
+-		stat(c, ALLOC_SLAB);
++		stat(s, ALLOC_SLAB);
+ 		if (c->page)
+ 			flush_slab(s, c);
+ 		slab_lock(new);
+@@ -1713,7 +1712,7 @@ static __always_inline void *slab_alloc(
  
- 	return cookie;
- }
-Index: linux-2.6/drivers/net/veth.c
-===================================================================
---- linux-2.6.orig/drivers/net/veth.c	2009-09-17 17:54:16.000000000 -0500
-+++ linux-2.6/drivers/net/veth.c	2009-09-29 09:01:54.000000000 -0500
-@@ -153,7 +153,7 @@ static netdev_tx_t veth_xmit(struct sk_b
- 	struct net_device *rcv = NULL;
- 	struct veth_priv *priv, *rcv_priv;
- 	struct veth_net_stats *stats, *rcv_stats;
--	int length, cpu;
-+	int length;
+ 	else {
+ 		c->freelist = get_freepointer(s, object);
+-		stat(c, ALLOC_FASTPATH);
++		stat(s, ALLOC_FASTPATH);
+ 	}
+ 	local_irq_restore(flags);
  
- 	skb_orphan(skb);
+@@ -1780,10 +1779,8 @@ static void __slab_free(struct kmem_cach
+ {
+ 	void *prior;
+ 	void **object = (void *)x;
+-	struct kmem_cache_cpu *c;
  
-@@ -161,9 +161,8 @@ static netdev_tx_t veth_xmit(struct sk_b
- 	rcv = priv->peer;
- 	rcv_priv = netdev_priv(rcv);
+-	c = __this_cpu_ptr(s->cpu_slab);
+-	stat(c, FREE_SLOWPATH);
++	stat(s, FREE_SLOWPATH);
+ 	slab_lock(page);
  
--	cpu = smp_processor_id();
--	stats = per_cpu_ptr(priv->stats, cpu);
--	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
-+	stats = this_cpu_ptr(priv->stats);
-+	rcv_stats = this_cpu_ptr(rcv_priv->stats);
+ 	if (unlikely(SLABDEBUG && PageSlubDebug(page)))
+@@ -1796,7 +1793,7 @@ checks_ok:
+ 	page->inuse--;
  
- 	if (!(rcv->flags & IFF_UP))
- 		goto tx_drop;
+ 	if (unlikely(PageSlubFrozen(page))) {
+-		stat(c, FREE_FROZEN);
++		stat(s, FREE_FROZEN);
+ 		goto out_unlock;
+ 	}
+ 
+@@ -1809,7 +1806,7 @@ checks_ok:
+ 	 */
+ 	if (unlikely(!prior)) {
+ 		add_partial(get_node(s, page_to_nid(page)), page, 1);
+-		stat(c, FREE_ADD_PARTIAL);
++		stat(s, FREE_ADD_PARTIAL);
+ 	}
+ 
+ out_unlock:
+@@ -1822,10 +1819,10 @@ slab_empty:
+ 		 * Slab still on the partial list.
+ 		 */
+ 		remove_partial(s, page);
+-		stat(c, FREE_REMOVE_PARTIAL);
++		stat(s, FREE_REMOVE_PARTIAL);
+ 	}
+ 	slab_unlock(page);
+-	stat(c, FREE_SLAB);
++	stat(s, FREE_SLAB);
+ 	discard_slab(s, page);
+ 	return;
+ 
+@@ -1863,7 +1860,7 @@ static __always_inline void slab_free(st
+ 	if (likely(page == c->page && c->node >= 0)) {
+ 		set_freepointer(s, object, c->freelist);
+ 		c->freelist = object;
+-		stat(c, FREE_FASTPATH);
++		stat(s, FREE_FASTPATH);
+ 	} else
+ 		__slab_free(s, page, x, addr);
+ 
 
 -- 
 
