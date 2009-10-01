@@ -1,131 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 00ED06B0089
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 15:02:50 -0400 (EDT)
-Date: Thu, 1 Oct 2009 12:47:42 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
-Subject: Re: [PATCH 7/10] hugetlb:  update hugetlb documentation for NUMA
- controls.
-Message-Id: <20091001124742.cb6ca371.randy.dunlap@oracle.com>
-In-Reply-To: <20091001165851.32248.12538.sendpatchset@localhost.localdomain>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-	<20091001165851.32248.12538.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 514DA6B0099
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 15:07:40 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n91JgqJX000305
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 13:42:52 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n91JrD52184560
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 13:53:13 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n91JrCBb008177
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 13:53:13 -0600
+Date: Thu, 1 Oct 2009 14:53:11 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] mm: add notifier in pageblock isolation for balloon
+	drivers
+Message-ID: <20091001195311.GA16667@austin.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 01 Oct 2009 12:58:51 -0400 Lee Schermerhorn wrote:
+Memory balloon drivers can allocate a large amount of memory which
+is not movable but could be freed to accommodate memory hotplug remove.
 
-> [PATCH 7/10] hugetlb:  update hugetlb documentation for NUMA controls
-> 
-> Against:  2.6.31-mmotm-090925-1435
-> 
-> 
-> This patch updates the kernel huge tlb documentation to describe the
-> numa memory policy based huge page management.  Additionaly, the patch
-> includes a fair amount of rework to improve consistency, eliminate
-> duplication and set the context for documenting the memory policy
-> interaction.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
->  Documentation/vm/hugetlbpage.txt |  267 ++++++++++++++++++++++++++-------------
->  1 file changed, 179 insertions(+), 88 deletions(-)
-> 
-> Index: linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt
-> ===================================================================
-> --- linux-2.6.31-mmotm-090925-1435.orig/Documentation/vm/hugetlbpage.txt	2009-09-30 15:04:40.000000000 -0400
-> +++ linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:22.000000000 -0400
-> @@ -159,6 +163,101 @@ Inside each of these directories, the sa
->  
->  which function as described above for the default huge page-sized case.
->  
-> +
-> +Interaction of Task Memory Policy with Huge Page Allocation/Freeing:
+Prior to calling the memory hotplug notifier chain the memory in the
+pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
+isolation will not proceed, causing the memory removal for that page
+range to fail.
 
-Preferable not to end section "title" with a colon.
+Rather than immediately failing pageblock isolation if the the
+migrateteype is not MIGRATE_MOVABLE, this patch checks if all of the
+pages in the pageblock are owned by a registered balloon driver using a
+notifier chain.  If all of the non-movable pages are owned by a balloon,
+they can be freed later through the memory notifier chain and the range
+can still be isolated in set_migratetype_isolate().
 
-> +
-> +Whether huge pages are allocated and freed via the /proc interface or
-> +the /sysfs interface using the nr_hugepages_mempolicy attribute, the NUMA
-> +nodes from which huge pages are allocated or freed are controlled by the
-> +NUMA memory policy of the task that modifies the nr_hugepages_mempolicy
-> +sysctl or attribute.  When the nr_hugepages attribute is used, mempolicy
-> +is ignored
-
-      ignored.
-
-> +
-> +The recommended method to allocate or free huge pages to/from the kernel
-> +huge page pool, using the nr_hugepages example above, is:
-> +
-> +    numactl --interleave <node-list> echo 20 \
-> +				>/proc/sys/vm/nr_hugepages_mempolicy
-> +
-> +or, more succinctly:
-> +
-> +    numactl -m <node-list> echo 20 >/proc/sys/vm/nr_hugepages_mempolicy
-> +
-> +This will allocate or free abs(20 - nr_hugepages) to or from the nodes
-> +specified in <node-list>, depending on whether number of persistent huge pages
-> +is initially less than or greater than 20, respectively.  No huge pages will be
-> +allocated nor freed on any node not included in the specified <node-list>.
-> +
-> +When adjusting the persistent hugepage count via nr_hugepages_mempolicy, any
-> +memory policy mode--bind, preferred, local or interleave--may be used.  The
-> +resulting effect on persistent huge page allocation is as follows:
-> +
-...
-> +
-> +Per Node Hugepages Attributes
-> +
-> +A subset of the contents of the root huge page control directory in sysfs,
-> +described above, has been replicated under each "node" system device in:
-> +
-> +	/sys/devices/system/node/node[0-9]*/hugepages/
-> +
-> +Under this directory, the subdirectory for each supported huge page size
-> +contains the following attribute files:
-> +
-> +	nr_hugepages
-> +	free_hugepages
-> +	surplus_hugepages
-> +
-> +The free_' and surplus_' attribute files are read-only.  They return the number
-> +of free and surplus [overcommitted] huge pages, respectively, on the parent
-> +node.
-> +
-> +The nr_hugepages attribute will return the total number of huge pages on the
-
-s/will return/returns/  [just a preference]
-
-> +specified node.  When this attribute is written, the number of persistent huge
-> +pages on the parent node will be adjusted to the specified value, if sufficient
-> +resources exist, regardless of the task's mempolicy or cpuset constraints.
-> +
-> +Note that the number of overcommit and reserve pages remain global quantities,
-> +as we don't know until fault time, when the faulting task's mempolicy is
-> +applied, from which node the huge page allocation will be attempted.
-> +
-> +
-> +Using Huge Pages:
-
-Drop ':'.
-
-> +
->  If the user applications are going to request huge pages using mmap system
->  call, then it is required that system administrator mount a file system of
->  type hugetlbfs:
-
+Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
 
 ---
-~Randy
+ drivers/base/memory.c  |   19 +++++++++++++++++++
+ include/linux/memory.h |   22 ++++++++++++++++++++++
+ mm/page_alloc.c        |   49 +++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 82 insertions(+), 8 deletions(-)
+
+Index: b/drivers/base/memory.c
+===================================================================
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
+ }
+ EXPORT_SYMBOL(unregister_memory_notifier);
+ 
++static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
++
++int register_memory_isolate_notifier(struct notifier_block *nb)
++{
++	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
++}
++EXPORT_SYMBOL(register_memory_isolate_notifier);
++
++void unregister_memory_isolate_notifier(struct notifier_block *nb)
++{
++	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
++}
++EXPORT_SYMBOL(unregister_memory_isolate_notifier);
++
+ /*
+  * register_memory - Setup a sysfs device for a memory block
+  */
+@@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
+ 	return blocking_notifier_call_chain(&memory_chain, val, v);
+ }
+ 
++int memory_isolate_notify(unsigned long val, void *v)
++{
++	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
++}
++
+ /*
+  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
+  * OK to have direct references to sparsemem variables in here.
+Index: b/include/linux/memory.h
+===================================================================
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -50,6 +50,14 @@ struct memory_notify {
+ 	int status_change_nid;
+ };
+ 
++#define MEM_ISOLATE_COUNT	(1<<0)
++
++struct memory_isolate_notify {
++	unsigned long start_addr;
++	unsigned int nr_pages;
++	unsigned int pages_found;
++};
++
+ struct notifier_block;
+ struct mem_section;
+ 
+@@ -76,14 +84,28 @@ static inline int memory_notify(unsigned
+ {
+ 	return 0;
+ }
++static inline int register_memory_isolate_notifier(struct notifier_block *nb)
++{
++	return 0;
++}
++static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
++{
++}
++static inline int memory_isolate_notify(unsigned long val, void *v)
++{
++	return 0;
++}
+ #else
+ extern int register_memory_notifier(struct notifier_block *nb);
+ extern void unregister_memory_notifier(struct notifier_block *nb);
++extern int register_memory_isolate_notifier(struct notifier_block *nb);
++extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+ extern int register_new_memory(int, struct mem_section *);
+ extern int unregister_memory_section(struct mem_section *);
+ extern int memory_dev_init(void);
+ extern int remove_memory_block(unsigned long, struct mem_section *, int);
+ extern int memory_notify(unsigned long val, void *v);
++extern int memory_isolate_notify(unsigned long val, void *v);
+ extern struct memory_block *find_memory_block(struct mem_section *);
+ #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
+ enum mem_add_context { BOOT, HOTPLUG };
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -48,6 +48,7 @@
+ #include <linux/page_cgroup.h>
+ #include <linux/debugobjects.h>
+ #include <linux/kmemleak.h>
++#include <linux/memory.h>
+ #include <trace/events/kmem.h>
+ 
+ #include <asm/tlbflush.h>
+@@ -4985,23 +4986,55 @@ void set_pageblock_flags_group(struct pa
+ int set_migratetype_isolate(struct page *page)
+ {
+ 	struct zone *zone;
+-	unsigned long flags;
++	unsigned long flags, pfn, iter;
++	long immobile = 0;
++	struct memory_isolate_notify arg;
++	int notifier_ret;
+ 	int ret = -EBUSY;
+ 	int zone_idx;
+ 
+ 	zone = page_zone(page);
+ 	zone_idx = zone_idx(zone);
++
++	pfn = page_to_pfn(page);
++	arg.start_addr = (unsigned long)page_address(page);
++	arg.nr_pages = pageblock_nr_pages;
++	arg.pages_found = 0;
++
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	/*
+ 	 * In future, more migrate types will be able to be isolation target.
+ 	 */
+-	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
+-	    zone_idx != ZONE_MOVABLE)
+-		goto out;
+-	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+-	move_freepages_block(zone, page, MIGRATE_ISOLATE);
+-	ret = 0;
+-out:
++	do {
++		if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE &&
++		    zone_idx == ZONE_MOVABLE) {
++			ret = 0;
++			break;
++		}
++
++		/*
++		 * If all of the pages in a zone are used by a balloon,
++		 * the range can be still be isolated.  The balloon will
++		 * free these pages from the memory notifier chain.
++		 */
++		notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
++		notifier_ret = notifier_to_errno(ret);
++		if (notifier_ret || !arg.pages_found)
++			break;
++
++		for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
++			if (page_count(pfn_to_page(iter)))
++				immobile++;
++
++		if (arg.pages_found == immobile)
++			ret = 0;
++	} while (0);
++
++	if (!ret) {
++		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
++		move_freepages_block(zone, page, MIGRATE_ISOLATE);
++	}
++
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 	if (!ret)
+ 		drain_all_pages();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
