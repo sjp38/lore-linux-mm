@@ -1,60 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D0F1A6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:44:21 -0400 (EDT)
-From: Neil Brown <neilb@suse.de>
-Date: Fri, 2 Oct 2009 15:52:16 +1000
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <19141.38160.888705.175222@notabene.brown>
-Subject: Re: [PATCH 00/31] Swap over NFS -v20
-In-Reply-To: message from Christoph Hellwig on Thursday October 1
-References: <1254405858-15651-1-git-send-email-sjayaraman@suse.de>
-	<20091001174201.GA30068@infradead.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 12EA96B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:56:18 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 49D4282C693
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:32 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 5bHn7pXU7g4T for <linux-mm@kvack.org>;
+	Fri,  2 Oct 2009 02:06:32 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 1BC7882C6A8
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:23 -0400 (EDT)
+Message-Id: <20091001174120.691867518@gentwo.org>
+References: <20091001174033.576397715@gentwo.org>
+Date: Thu, 01 Oct 2009 13:40:39 -0400
+From: cl@linux-foundation.org
+Subject: [this_cpu_xx V3 06/19] this_cpu_ptr: Straight transformations
+Content-Disposition: inline; filename=this_cpu_ptr_straight_transforms
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Suresh Jayaraman <sjayaraman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Rusty Russell <rusty@rustcorp.com.au>, Eric Dumazet <dada1@cosmosbay.com>, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday October 1, hch@infradead.org wrote:
-> 
-> The other really big one is adding a proper method for safe, page-backed
-> kernelspace I/O on files.  That is not something like the grotty
-> swap-tied address_space operations in this patch, but more something in
-> the direction of the kernel direct I/O patches from Jenx Axboe he did
-> for using in the loop driver.  But even those aren't complete as they
-> don't touch the locking issue yet.
+Use this_cpu_ptr and __this_cpu_ptr in locations where straight
+transformations are possible because per_cpu_ptr is used with
+either smp_processor_id() or raw_smp_processor_id().
 
-Do you have a problem with the proposed address_space operations apart
-from their names including the word "swap"?  Would something like:
-  direct_on, direct_off, direct_read, direct_write
-be better.
-Semantics being that the read and write:
-  - bypass the page cache (invalidation is up to caller)
-  - must not make a blocking non-emergency memory allocation
-direct_on does any pre-allocation and pre-reading to ensure those
-semantics and be provided.
+cc: David Howells <dhowells@redhat.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+cc: Ingo Molnar <mingo@elte.hu>
+cc: Rusty Russell <rusty@rustcorp.com.au>
+cc: Eric Dumazet <dada1@cosmosbay.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-I have wondered if an extra flag along the lines of "I don't care
-about this data after a crash" would be useful.
-It would be set for swap, but not set for other users.  Thus
-e.g. RAID1 could easily avoid resyncing an area that was used only for
-swap.
+---
+ drivers/infiniband/hw/ehca/ehca_irq.c |    3 +--
+ drivers/net/chelsio/sge.c             |    5 ++---
+ drivers/net/loopback.c                |    2 +-
+ fs/ext4/mballoc.c                     |    2 +-
+ 4 files changed, 5 insertions(+), 7 deletions(-)
 
-The only thing of Jens' that I could find used bmap - is there
-something more recent I should look for?
+Index: linux-2.6/drivers/net/chelsio/sge.c
+===================================================================
+--- linux-2.6.orig/drivers/net/chelsio/sge.c	2009-09-29 09:31:40.000000000 -0500
++++ linux-2.6/drivers/net/chelsio/sge.c	2009-09-29 11:39:20.000000000 -0500
+@@ -1378,7 +1378,7 @@ static void sge_rx(struct sge *sge, stru
+ 	}
+ 	__skb_pull(skb, sizeof(*p));
+ 
+-	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
++	st = this_cpu_ptr(sge->port_stats[p->iff]);
+ 
+ 	skb->protocol = eth_type_trans(skb, adapter->port[p->iff].dev);
+ 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
+@@ -1780,8 +1780,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff
+ {
+ 	struct adapter *adapter = dev->ml_priv;
+ 	struct sge *sge = adapter->sge;
+-	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port],
+-						smp_processor_id());
++	struct sge_port_stats *st = this_cpu_ptr(sge->port_stats[dev->if_port]);
+ 	struct cpl_tx_pkt *cpl;
+ 	struct sk_buff *orig_skb = skb;
+ 	int ret;
+Index: linux-2.6/drivers/net/loopback.c
+===================================================================
+--- linux-2.6.orig/drivers/net/loopback.c	2009-09-29 09:31:40.000000000 -0500
++++ linux-2.6/drivers/net/loopback.c	2009-09-29 11:39:20.000000000 -0500
+@@ -81,7 +81,7 @@ static netdev_tx_t loopback_xmit(struct 
+ 
+ 	/* it's OK to use per_cpu_ptr() because BHs are off */
+ 	pcpu_lstats = dev->ml_priv;
+-	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
++	lb_stats = this_cpu_ptr(pcpu_lstats);
+ 
+ 	len = skb->len;
+ 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
+Index: linux-2.6/fs/ext4/mballoc.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/mballoc.c	2009-09-29 09:31:40.000000000 -0500
++++ linux-2.6/fs/ext4/mballoc.c	2009-09-29 11:39:20.000000000 -0500
+@@ -4210,7 +4210,7 @@ static void ext4_mb_group_or_file(struct
+ 	 * per cpu locality group is to reduce the contention between block
+ 	 * request from multiple CPUs.
+ 	 */
+-	ac->ac_lg = per_cpu_ptr(sbi->s_locality_groups, raw_smp_processor_id());
++	ac->ac_lg = __this_cpu_ptr(sbi->s_locality_groups);
+ 
+ 	/* we're going to use group allocation */
+ 	ac->ac_flags |= EXT4_MB_HINT_GROUP_ALLOC;
+Index: linux-2.6/drivers/infiniband/hw/ehca/ehca_irq.c
+===================================================================
+--- linux-2.6.orig/drivers/infiniband/hw/ehca/ehca_irq.c	2009-09-29 09:31:40.000000000 -0500
++++ linux-2.6/drivers/infiniband/hw/ehca/ehca_irq.c	2009-09-29 11:39:20.000000000 -0500
+@@ -826,8 +826,7 @@ static void __cpuinit take_over_work(str
+ 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
+ 
+ 		list_del(&cq->entry);
+-		__queue_comp_task(cq, per_cpu_ptr(pool->cpu_comp_tasks,
+-						  smp_processor_id()));
++		__queue_comp_task(cq, this_cpu_ptr(pool->cpu_comp_tasks));
+ 	}
+ 
+ 	spin_unlock_irqrestore(&cct->task_lock, flags_cct);
 
-> 
-> Especially the latter is an absolutely essential step to make any
-> progress here, and an excellent patch series of it's own as there are
-> multiple users for this, like making swap safe on btrfs files, making
-> the MD bitmap code actually safe or improving the loop driver.
-
-100% agree.
-
-Thanks,
-NeilBrown
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
