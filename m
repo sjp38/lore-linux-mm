@@ -1,117 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 94E456B004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 21:06:39 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n911VQEv029223
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 1 Oct 2009 10:31:26 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0680945DE53
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 10:31:26 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2C5845DE51
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 10:31:25 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AC93F1DB8040
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 10:31:25 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 53374E18009
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 10:31:25 +0900 (JST)
-Date: Thu, 1 Oct 2009 10:29:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/2] memcg: replace memcg's per cpu status counter
- with array counter like vmstat
-Message-Id: <20091001102912.7276a8b3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091001094514.c9d2b3d9.nishimura@mxp.nes.nec.co.jp>
-References: <20090930190417.8823fa44.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091001094514.c9d2b3d9.nishimura@mxp.nes.nec.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D57566B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 21:36:47 -0400 (EDT)
+Date: Thu, 1 Oct 2009 04:02:07 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
+Message-ID: <20091001020207.GL6327@wotan.suse.de>
+References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost> <20090927104739.GA1666@localhost> <20090927192025.GA6327@wotan.suse.de> <20090928084401.GA22131@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090928084401.GA22131@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Oct 2009 09:45:14 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Wed, 30 Sep 2009 19:04:17 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > Hi,
+On Mon, Sep 28, 2009 at 04:44:01PM +0800, Wu Fengguang wrote:
+> On Mon, Sep 28, 2009 at 03:20:25AM +0800, Nick Piggin wrote:
+> > On Sun, Sep 27, 2009 at 06:47:39PM +0800, Wu Fengguang wrote:
+> > > > 
+> > > > And standard deviation is 0.04%, much larger than the difference 0.008% ..
+> > > 
+> > > Sorry that's not correct. I improved the accounting by treating
+> > > function0+function1 from two CPUs as an integral entity:
+> > > 
+> > >                  total time      add_to_page_cache_lru   percent  stddev
+> > >          before  3880166848.722  9683329.610             0.250%   0.014%
+> > >          after   3828516894.376  9778088.870             0.256%   0.012%
+> > >          delta                                           0.006%
 > > 
-> > In current implementation, memcg uses its own percpu counters for counting
-> > evetns and # of RSS, CACHES. Now, counter is maintainer per cpu without
-> > any synchronization as vm_stat[] or percpu_counter. So, this is
-> >  update-is-fast-but-read-is-slow conter.
-> > 
-> > Because "read" for these counter was only done by memory.stat file, I thought
-> > read-side-slowness was acceptable. Amount of memory usage, which affects
-> > memory limit check, can be read by memory.usage_in_bytes. It's maintained
-> > by res_counter.
-> > 
-> > But in current -rc, root memcg's memory usage is calcualted by this per cpu
-> > counter and read side slowness may be trouble if it's frequently read.
-> > 
-> > And, in recent discusstion, I wonder we should maintain NR_DIRTY etc...
-> > in memcg. So, slow-read-counter will not match our requirements, I guess.
-> > I want some counter like vm_stat[] in memcg.
-> > 
-> I see your concern.
+> > I don't understand why you're doing this NFS workload to measure?
 > 
-> But IMHO, it would be better to explain why we need a new percpu array counter
-> instead of using array of percpu_counter(size or consolidation of related counters ?),
-> IOW, what the benefit of percpu array counter is.
+> Because it is the first convenient workload hit my mind, and avoids
+> real disk IO :)
+
+Using tmpfs or sparse files is probably a lot easier.
+
+ 
+> > I see significant nfs, networking protocol and device overheads in
+> > your profiles, also you're hitting some locks or something which
+> > is causing massive context switching. So I don't think this is a
+> > good test.
 > 
-Ok.
-  array of 4 percpu counter means a struct like following.
+> Yes there are overheads. However it is a real and common workload.
 
-     lock                4bytes (int)
-     count               8bytes
-     list_head           16bytes
-     pointer to percpu   8bytes
-     lock                ,,,
-     count
-     list_head
-     pointer to percpu
-     lock
-     count
-     list_head
-     pointer to percpu
-     lock
-     count
-     list_head
-     pointer to percpu
+Right, but so are lots of other workloads that don't hit
+add_to_page_cache heavily :)
+ 
 
-    36x4= 144 bytes and this has 4 spinlocks.2 cache lines.
-    4 spinlock means if one of "batch" expires in a cpu, all cache above will
-    be invalidated. Most of read-only data will lost.
+> > But anyway as Hugh points out, you need to compare with a
+> > *completely* fixed kernel, which includes auditing all users of page
+> > flags non-atomically (slab, notably, but possibly also other
+> > places).
+> 
+> That's good point. We can do more benchmarks when more fixes are
+> available. However I suspect their design goal will be "fix them
+> without introducing noticeable overheads" :)
 
-    Making alignments of each percpu counter to cacheline for avoiding
-    false sharing means this will use 4 cachelines + percpu area.
-    That's bad.
+s/noticeable//
 
-  array counter of 4 entry is:
-     s8 batch            4bytes (will be aligned)
-     pointer to percpu   8bytes
-     elements            4bytes.
-     list head           16bytes
-     ==== cacheline aligned here== 128bytes.
-     atomic_long_t       4x8==32bytes
-     ==== should be aligned to cache ? maybe yes===
+The problem with all the non-noticeable overheads that we're
+continually adding to the kernel is that we're adding them to
+the kernel. Non-noticeable part only makes it worse because
+you can't bisect them :)
+ 
 
-  Then, this will occupy 2 cachelines + percpu area.
-  No false sharing in read-only area.
-  All writes are done in one (locked) access.
+> > One other thing to keep in mind that I will mention is that I am
+> > going to push in a patch to the page allocator to allow callers
+> > to avoid the refcounting (atomic_dec_and_test) in page lifetime,
+> > which is especially important for SLUB and takes more cycles off
+> > the page allocator...
+> >
+> > I don't know exactly what you're going to do after that to get a
+> > stable reference to slab pages. I guess you can read the page
+> > flags and speculatively take some slab locks and recheck etc...
+> 
+> For reliably we could skip page lock on zero refcounted pages.
+> 
+> We may lose the PG_hwpoison bit on races with __SetPageSlub*, however
+> it should be an acceptable imperfection.
 
-Hmm..I may have to consider more about archs which has not atomic_xxx ops.
-
-Considerng sets of counters can be updated at once, array of percpu counter
-is not good choice. I think.
-
-Thanks,
--Kame
-
+I think if you're wiling to accept these problems, then it is
+completely reasonable to also accept similar races with kernel
+fastpaths to avoid extra overheads there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
