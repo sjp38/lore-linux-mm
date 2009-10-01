@@ -1,168 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F211600034
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 12:12:58 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC63600034
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 12:13:02 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 01 Oct 2009 12:59:09 -0400
-Message-Id: <20091001165909.32248.63490.sendpatchset@localhost.localdomain>
+Date: Thu, 01 Oct 2009 12:58:57 -0400
+Message-Id: <20091001165857.32248.26057.sendpatchset@localhost.localdomain>
 In-Reply-To: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
 References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-Subject: [PATCH 10/10] hugetlb:  offload per node attribute registrations
+Subject: [PATCH 8/10] hugetlb:  use only nodes with memory for huge pages
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 10/10] hugetlb:  offload [un]registration of sysfs attr to worker thread
+[PATCH 8/10] hugetlb:  use only nodes with memory
 
 Against:  2.6.31-mmotm-090925-1435
 
-New in V6
+Register per node hstate sysfs attributes only for nodes with
+memory.  Suggested by David Rientjes.
 
-V7:  + remove redundant check for memory{ful|less} node from 
-       node_hugetlb_work().  Rely on [added] return from
-       hugetlb_register_node() to differentiate between transitions
-       to/from memoryless state.
+A subsequent patch will handle adding/removing of per node hstate
+sysfs attributes when nodes transition to/from memoryless state
+via memory hotplug.
 
-This patch offloads the registration and unregistration of per node
-hstate sysfs attributes to a worker thread rather than attempt the
-allocation/attachment or detachment/freeing of the attributes in 
-the context of the memory hotplug handler.
-
-N.B.,  Only tested build, boot, libhugetlbfs regression.
-       i.e., no memory hotplug testing.
+NOTE:  this patch has not been tested with memoryless nodes.
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- drivers/base/node.c  |   51 ++++++++++++++++++++++++++++++++++++++++++---------
- include/linux/node.h |    5 +++++
- 2 files changed, 47 insertions(+), 9 deletions(-)
+ Documentation/vm/hugetlbpage.txt |   12 ++++++------
+ mm/hugetlb.c                     |   33 +++++++++++++++++----------------
+ 2 files changed, 23 insertions(+), 22 deletions(-)
 
-Index: linux-2.6.31-mmotm-090925-1435/include/linux/node.h
+Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
 ===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/include/linux/node.h	2009-09-30 15:05:20.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/include/linux/node.h	2009-09-30 15:05:58.000000000 -0400
-@@ -21,9 +21,14 @@
+--- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-30 15:05:20.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-09-30 15:05:31.000000000 -0400
+@@ -942,14 +942,14 @@ static void return_unused_surplus_pages(
  
- #include <linux/sysdev.h>
- #include <linux/cpumask.h>
-+#include <linux/workqueue.h>
- 
- struct node {
- 	struct sys_device	sysdev;
-+
-+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
-+	struct work_struct	node_work;
-+#endif
- };
- 
- struct memory_block;
-Index: linux-2.6.31-mmotm-090925-1435/drivers/base/node.c
-===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/drivers/base/node.c	2009-09-30 15:05:57.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/drivers/base/node.c	2009-09-30 15:05:58.000000000 -0400
-@@ -186,11 +186,14 @@ static SYSDEV_ATTR(distance, S_IRUGO, no
- static node_registration_func_t __hugetlb_register_node;
- static node_registration_func_t __hugetlb_unregister_node;
- 
--static inline void hugetlb_register_node(struct node *node)
-+static inline bool hugetlb_register_node(struct node *node)
- {
- 	if (__hugetlb_register_node &&
--			node_state(node->sysdev.id, N_HIGH_MEMORY))
-+			node_state(node->sysdev.id, N_HIGH_MEMORY)) {
- 		__hugetlb_register_node(node);
-+		return true;
-+	}
-+	return false;
- }
- 
- static inline void hugetlb_unregister_node(struct node *node)
-@@ -387,10 +390,31 @@ static int link_mem_sections(int nid)
- 	return err;
- }
- 
-+#ifdef CONFIG_HUGETLBFS
- /*
-  * Handle per node hstate attribute [un]registration on transistions
-  * to/from memoryless state.
-  */
-+static void node_hugetlb_work(struct work_struct *work)
-+{
-+	struct node *node = container_of(work, struct node, node_work);
-+
-+	/*
-+	 * We only get here when a node transitions to/from memoryless state.
-+	 * We can detect which transition occurred by examining whether the
-+	 * node has memory now.  hugetlb_register_node() already check this
-+	 * so we try to register the attributes.  If that fails, then the
-+	 * node has transitioned to memoryless, try to unregister the
-+	 * attributes.
-+	 */
-+	if (!hugetlb_register_node(node))
-+		hugetlb_unregister_node(node);
-+}
-+
-+static void init_node_hugetlb_work(int nid)
-+{
-+	INIT_WORK(&node_devices[nid].node_work, node_hugetlb_work);
-+}
- 
- static int node_memory_callback(struct notifier_block *self,
- 				unsigned long action, void *arg)
-@@ -399,14 +423,16 @@ static int node_memory_callback(struct n
- 	int nid = mnb->status_change_nid;
- 
- 	switch (action) {
--	case MEM_ONLINE:    /* memory successfully brought online */
-+	case MEM_ONLINE:
-+	case MEM_OFFLINE:
-+		/*
-+		 * offload per node hstate [un]registration to a work thread
-+		 * when transitioning to/from memoryless state.
-+		 */
- 		if (nid != NUMA_NO_NODE)
--			hugetlb_register_node(&node_devices[nid]);
--		break;
--	case MEM_OFFLINE:   /* or offline */
--		if (nid != NUMA_NO_NODE)
--			hugetlb_unregister_node(&node_devices[nid]);
-+			schedule_work(&node_devices[nid].node_work);
- 		break;
-+
- 	case MEM_GOING_ONLINE:
- 	case MEM_GOING_OFFLINE:
- 	case MEM_CANCEL_ONLINE:
-@@ -417,7 +443,8 @@ static int node_memory_callback(struct n
- 
- 	return NOTIFY_OK;
- }
--#else
-+#endif	/* CONFIG_HUGETLBFS */
-+#else	/* !CONFIG_MEMORY_HOTPLUG_SPARSE */
- static int link_mem_sections(int nid) { return 0; }
- 
- static inline int node_memory_callback(struct notifier_block *self,
-@@ -425,6 +452,9 @@ static inline int node_memory_callback(s
- {
- 	return NOTIFY_OK;
- }
-+
-+static void init_node_hugetlb_work(int nid) { }
-+
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
- 
- int register_one_node(int nid)
-@@ -449,6 +479,9 @@ int register_one_node(int nid)
- 
- 		/* link memory sections under this node */
- 		error = link_mem_sections(nid);
-+
-+		/* initialize work queue for memory hot plug */
-+		init_node_hugetlb_work(nid);
+ 	/*
+ 	 * We want to release as many surplus pages as possible, spread
+-	 * evenly across all nodes. Iterate across all nodes until we
+-	 * can no longer free unreserved surplus pages. This occurs when
+-	 * the nodes with surplus pages have no free pages.
+-	 * free_pool_huge_page() will balance the the frees across the
+-	 * on-line nodes for us and will handle the hstate accounting.
++	 * evenly across all nodes with memory. Iterate across these nodes
++	 * until we can no longer free unreserved surplus pages. This occurs
++	 * when the nodes with surplus pages have no free pages.
++	 * free_pool_huge_page() will balance the the freed pages across the
++	 * on-line nodes with memory and will handle the hstate accounting.
+ 	 */
+ 	while (nr_pages--) {
+-		if (!free_pool_huge_page(h, &node_online_map, 1))
++		if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
+ 			break;
  	}
+ }
+@@ -1053,7 +1053,7 @@ static struct page *alloc_huge_page(stru
+ int __weak alloc_bootmem_huge_page(struct hstate *h)
+ {
+ 	struct huge_bootmem_page *m;
+-	int nr_nodes = nodes_weight(node_online_map);
++	int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
  
- 	return error;
+ 	while (nr_nodes) {
+ 		void *addr;
+@@ -1114,7 +1114,8 @@ static void __init hugetlb_hstate_alloc_
+ 		if (h->order >= MAX_ORDER) {
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+-		} else if (!alloc_fresh_huge_page(h, &node_online_map))
++		} else if (!alloc_fresh_huge_page(h,
++					 &node_states[N_HIGH_MEMORY]))
+ 			break;
+ 	}
+ 	h->max_huge_pages = i;
+@@ -1165,7 +1166,7 @@ static void try_to_free_low(struct hstat
+ 		return;
+ 
+ 	if (!nodes_allowed)
+-		nodes_allowed = &node_online_map;
++		nodes_allowed = &node_states[N_HIGH_MEMORY];
+ 
+ 	for (i = 0; i < MAX_NUMNODES; ++i) {
+ 		struct page *page, *next;
+@@ -1612,7 +1613,7 @@ void hugetlb_unregister_node(struct node
+ 	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
+ 
+ 	if (!nhs->hugepages_kobj)
+-		return;
++		return;		/* no hstate attributes */
+ 
+ 	for_each_hstate(h)
+ 		if (nhs->hstate_kobjs[h - hstates]) {
+@@ -1677,15 +1678,15 @@ void hugetlb_register_node(struct node *
+ }
+ 
+ /*
+- * hugetlb init time:  register hstate attributes for all registered
+- * node sysdevs.  All on-line nodes should have registered their
+- * associated sysdev by the time the hugetlb module initializes.
++ * hugetlb init time:  register hstate attributes for all registered node
++ * sysdevs of nodes that have memory.  All on-line nodes should have
++ * registered their associated sysdev by this time.
+  */
+ static void hugetlb_register_all_nodes(void)
+ {
+ 	int nid;
+ 
+-	for (nid = 0; nid < nr_node_ids; nid++) {
++	for_each_node_state(nid, N_HIGH_MEMORY) {
+ 		struct node *node = &node_devices[nid];
+ 		if (node->sysdev.id == nid)
+ 			hugetlb_register_node(node);
+@@ -1779,8 +1780,8 @@ void __init hugetlb_add_hstate(unsigned
+ 	h->free_huge_pages = 0;
+ 	for (i = 0; i < MAX_NUMNODES; ++i)
+ 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+-	h->next_nid_to_alloc = first_node(node_online_map);
+-	h->next_nid_to_free = first_node(node_online_map);
++	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
++	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
+ 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+ 					huge_page_size(h)/1024);
+ 
+Index: linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt
+===================================================================
+--- linux-2.6.31-mmotm-090925-1435.orig/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:22.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:31.000000000 -0400
+@@ -90,11 +90,11 @@ huge page pool to 20, allocating or free
+ On a NUMA platform, the kernel will attempt to distribute the huge page pool
+ over all the set of allowed nodes specified by the NUMA memory policy of the
+ task that modifies nr_hugepages.  The default for the allowed nodes--when the
+-task has default memory policy--is all on-line nodes.  Allowed nodes with
+-insufficient available, contiguous memory for a huge page will be silently
+-skipped when allocating persistent huge pages.  See the discussion below of
+-the interaction of task memory policy, cpusets and per node attributes with
+-the allocation and freeing of persistent huge pages.
++task has default memory policy--is all on-line nodes with memory.  Allowed
++nodes with insufficient available, contiguous memory for a huge page will be
++silently skipped when allocating persistent huge pages.  See the discussion
++below of the interaction of task memory policy, cpusets and per node attributes
++with the allocation and freeing of persistent huge pages.
+ 
+ The success or failure of huge page allocation depends on the amount of
+ physically contiguous memory that is present in system at the time of the
+@@ -226,7 +226,7 @@ resulting effect on persistent huge page
+    without first moving to a cpuset that contains all of the desired nodes.
+ 
+ 5) Boot-time huge page allocation attempts to distribute the requested number
+-   of huge pages over all on-lines nodes.
++   of huge pages over all on-lines nodes with memory.
+ 
+ Per Node Hugepages Attributes
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
