@@ -1,59 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 435CA6B004D
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:13:47 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id BB87282C4C8
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:55:45 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id jLYBIuO70Vlj for <linux-mm@kvack.org>;
-	Thu,  1 Oct 2009 09:55:45 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C1FA582C4E2
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:55:40 -0400 (EDT)
-Date: Thu, 1 Oct 2009 09:47:35 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: No more bits in vm_area_struct's vm_flags.
-In-Reply-To: <Pine.LNX.4.64.0910011134240.10818@sister.anvils>
-Message-ID: <alpine.DEB.1.10.0910010944480.26219@gentwo.org>
-References: <4AB9A0D6.1090004@crca.org.au> <20090924100518.78df6b93.kamezawa.hiroyu@jp.fujitsu.com> <4ABC80B0.5010100@crca.org.au> <20090925174009.79778649.kamezawa.hiroyu@jp.fujitsu.com> <4AC0234F.2080808@crca.org.au> <20090928120450.c2d8a4e2.kamezawa.hiroyu@jp.fujitsu.com>
- <20090928033624.GA11191@localhost> <20090928125705.6656e8c5.kamezawa.hiroyu@jp.fujitsu.com> <Pine.LNX.4.64.0909281637160.25798@sister.anvils> <a0ea21a7cfe313202e2b51510aa5435a.squirrel@webmail-b.css.fujitsu.com> <Pine.LNX.4.64.0909282134100.11529@sister.anvils>
- <20090929105735.06eea1ee.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.1.10.0909291019100.15549@gentwo.org> <Pine.LNX.4.64.0910011134240.10818@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 675B9600034
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:24:09 -0400 (EDT)
+From: Suresh Jayaraman <sjayaraman@suse.de>
+Subject: [PATCH 00/31] Swap over NFS -v20
+Date: Thu,  1 Oct 2009 19:34:18 +0530
+Message-Id: <1254405858-15651-1-git-send-email-sjayaraman@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Nigel Cunningham <ncunningham@crca.org.au>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Oct 2009, Hugh Dickins wrote:
+Hi,
 
-> Are we doing that?  If you have some example like, when PG_slab is set
-> then PG_owner_priv_1 means such-and-such, but if not not: okay, I'm
-> fine with that.
+Here's the latest version of swap over NFS series since -v19 last October by
+Peter Zijlstra. Peter does not have time to pursue this further (though he has
+not lost interest) and that led me to take over this patchset and try merging
+upstream.
 
-Look at how compound pages are handled in include/linux/page-flags.h
+The patches are against the current mmotm. It does not support SLQB, yet.
+These patches can also be found online here:
+	http://www.suse.de/~sjayaraman/patches/swap-over-nfs/
 
-> But if you're saying something like, if PG_reclaim is set at the same
-> time as PG_buddy, then they mean the page is not a buddy or under
-> reclaim, but brokenbacked: then I'm a bit (or even 32 bits) worried.
+The swap over NFS patches are being shipped with openSUSE 11.1 and SLE 11 (with
+CONFIG_NFS_SWAP enabled by default) for several months now. There have been
+no bugs reported so far due to these patches and it has been found stable.
 
-Of course you need to be careful not to use two bits that can be used
-indepedently.
+Changes since -v19:
+ - rebased patches against current -mm
+ - adapted changes pertaining to using zone->watermarks array
+ - dropped cleanup patches/fixes that have already made to upstream
+ - dropped the patch that remove nfs mempools
+ - fixed racy nature of sync_page in swap_sync_page (NeilBrown)
+ - fixed use of uninitialized variable in cache_grow() (Miklos Szeredi)
+ - fixed a bug in bnx2 driver (Jiri Bohac)
+ - fixed null-pointer dereferences in swapfile code path when s_bdev is NULL
 
-> > VM_HUGETLB cannot grow up and down f.e. and there are
-> > certainly lots of other impossible combinations that can be used to put
-> > more information into the flags.
->
-> Where it makes sense, where it's understandable, okay: there may be a
-> few which could naturally use combinations.  But in general, no, I
-> think we'd be asking for endless maintenance trouble if we change the
-> meaning of some flags according to other flags.
+Thanks,
+Suresh Jayaraman
 
-We made the page flags stuff configurable. On 64 bit we use more flags, on
-32 bit we compress the page flags a bit. Maybe do the same for vm_flags?
+--
 
+Peter Zijlstra (26)
+ mm: serialize access to min_free_kbytes
+ mm: expose gfp_to_alloc_flags()
+ mm: tag reseve pages
+ mm: sl[au]b: add knowledge of reserve pages
+ mm: kmem_alloc_estimate()
+ mm: allow PF_MEMALLOC from softirq context
+ mm: emergency pool
+ mm: system wide ALLOC_NO_WATERMARK
+ mm: __GFP_MEMALLOC
+ mm: memory reserve management
+ mm: add support for non block device backed swap files
+ mm: methods for teaching filesystems about PG_swapcache pages
+ net: packet split receive api
+ net: sk_allocation() - concentrate socket related allocations
+ selinux: tag avc cache alloc as non-critical
+ netvm: network reserve infrastructure
+ netvm: INET reserves
+ netvm: hook skb allocation to reserves
+ netvm: filter emergency skbs
+ netvm: prevent a stream specific deadlock
+ netvm: skb processing
+ netfilter: NF_QUEUE vs emergency skbs
+ nfs: teach the NFS client how to treat PG_swapcache pages
+ nfs: disable data cache revalidation for swapfiles
+ nfs: enable swap on NFS
+ nfs: fix various memory recursions possible with swap over NFS
+
+Jeff Mahoney (1)
+ Fix initialization of ipv4_route_lock
+
+Neil Brown (2)
+ swap over network documentation
+ Cope with racy nature of sync_page in swap_sync_page
+
+Miklos Szeredi (1)
+ Fix use of uninitialized variable in cache_grow()
+
+Suresh Jayaraman (1)
+ swapfile: avoid NULL pointer dereference in swapon when s_bdev is NULL
+
+
+ fs/nfs/file.c                           |   18 
+ fs/nfs/pagelist.c                       |    2 
+ fs/nfs/write.c                          |   99 ++++
+ include/linux/mm_types.h                |    1 
+ include/linux/skbuff.h                  |   28 +
+ include/linux/slab.h                    |   19 
+ include/net/sock.h                      |   55 ++
+ mm/page_alloc.c                         |  120 ++++--
+ mm/page_io.c                            |    2 
+ mm/slab.c                               |   80 +++-
+ mm/slob.c                               |   67 +++
+ mm/slub.c                               |   89 ++++
+ mm/swapfile.c                           |   53 ++
+ Documentation/filesystems/Locking	 |   22 +
+ Documentation/filesystems/vfs.txt	 |   18 
+ Documentation/network-swap.txt		 |  270 +++++++++++++
+ drivers/net/bnx2.c               	 |    9 
+ drivers/net/e1000e/netdev.c      	 |    7 
+ drivers/net/igb/igb_main.c        	 |    9 
+ drivers/net/ixgbe/ixgbe_main.c    	 |   14 
+ drivers/net/sky2.c                	 |   16 
+ fs/nfs/Kconfig                    	 |   10 
+ fs/nfs/file.c                     	 |    6 
+ fs/nfs/inode.c                    	 |    6 
+ fs/nfs/internal.h                  	 |    7 
+ fs/nfs/pagelist.c                 	 |    6 
+ fs/nfs/read.c                     	 |    6 
+ fs/nfs/write.c                    	 |   53 +-
+ include/linux/buffer_head.h       	 |    1 
+ include/linux/fs.h                	 |    9 
+ include/linux/gfp.h               	 |    3 
+ include/linux/mm.h                	 |   25 +
+ include/linux/mm_types.h          	 |    1 
+ include/linux/mmzone.h            	 |    3 
+ include/linux/nfs_fs.h            	 |    2 
+ include/linux/pagemap.h           	 |    5 
+ include/linux/reserve.h           	 |  198 +++++++++
+ include/linux/sched.h             	 |    7 
+ include/linux/skbuff.h            	 |    3 
+ include/linux/slab.h              	 |    4 
+ include/linux/slub_def.h          	 |    1 
+ include/linux/sunrpc/xprt.h       	 |    5 
+ include/linux/swap.h              	 |    4 
+ include/net/inet_frag.h           	 |    7 
+ include/net/netns/ipv6.h          	 |    4 
+ include/net/sock.h                	 |    5 
+ kernel/softirq.c                  	 |    3 
+ mm/Makefile                       	 |    2 
+ mm/internal.h                     	 |   15 
+ mm/page_alloc.c                   	 |   16 
+ mm/page_io.c                      	 |   51 ++
+ mm/reserve.c                      	 |  637 ++++++++++++++++++++++++++++++++
+ mm/slab.c                         	 |   61 ++-
+ mm/slob.c                         	 |   16 
+ mm/slub.c                          	 |   43 +-
+ mm/swap_state.c                   	 |    4 
+ mm/swapfile.c                     	 |   30 +
+ mm/vmstat.c                       	 |    6 
+ net/Kconfig                       	 |    3 
+ net/core/dev.c                    	 |   57 ++
+ net/core/filter.c                 	 |    3 
+ net/core/skbuff.c                 	 |  137 +++++-
+ net/core/sock.c                   	 |  107 +++++
+ net/ipv4/inet_fragment.c          	 |    3 
+ net/ipv4/ip_fragment.c            	 |   86 ++++
+ net/ipv4/route.c                  	 |   70 +++
+ net/ipv4/tcp.c                    	 |    3 
+ net/ipv4/tcp_input.c              	 |   12 
+ net/ipv4/tcp_output.c             	 |   12 
+ net/ipv6/reassembly.c             	 |   85 ++++
+ net/ipv6/route.c                  	 |   77 +++
+ net/ipv6/tcp_ipv6.c               	 |   15 
+ net/netfilter/core.c              	 |    3 
+ net/sctp/ulpevent.c               	 |    2 
+ net/sunrpc/Kconfig                	 |    5 
+ net/sunrpc/sched.c                	 |    9 
+ net/sunrpc/xprtsock.c             	 |   68 +++
+ security/selinux/avc.c            	 |    2 
+ net/core/sock.c                         |   18 
+ net/ipv4/route.c                        |    2 
+
+ 80 files changed, 2797 insertions(+), 245 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
