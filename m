@@ -1,226 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AAC96B0083
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 17:35:06 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e39.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n91LUJar013261
-	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 15:30:19 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n91LZtbJ251004
-	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 15:35:55 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n91LZtoQ025166
-	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 15:35:55 -0600
-Message-ID: <4AC520B5.9080600@austin.ibm.com>
-Date: Thu, 01 Oct 2009 16:35:49 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: add notifier in pageblock isolation for balloon
- drivers
-References: <20091001195311.GA16667@austin.ibm.com>
-In-Reply-To: <20091001195311.GA16667@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6B0B46B004D
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:02:15 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D821D82C770
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:06:49 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id QX-ctF09P2HR for <linux-mm@kvack.org>;
+	Thu,  1 Oct 2009 18:06:49 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2A7F082C7D4
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 18:06:27 -0400 (EDT)
+Message-Id: <20091001174120.883128108@gentwo.org>
+References: <20091001174033.576397715@gentwo.org>
+Date: Thu, 01 Oct 2009 13:40:40 -0400
+From: cl@linux-foundation.org
+Subject: [this_cpu_xx V3 07/19] this_cpu_ptr: Eliminate get/put_cpu
+Content-Disposition: inline; filename=this_cpu_ptr_eliminate_get_put_cpu
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Maciej Sosnowski <maciej.sosnowski@intel.com>, Dan Williams <dan.j.williams@intel.com>, Tejun Heo <tj@kernel.org>, Eric Biederman <ebiederm@aristanetworks.com>, Stephen Hemminger <shemminger@vyatta.com>, David L Stevens <dlstevens@us.ibm.com>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Robert Jennings wrote:
-> Memory balloon drivers can allocate a large amount of memory which
-> is not movable but could be freed to accommodate memory hotplug remove.
-> 
-> Prior to calling the memory hotplug notifier chain the memory in the
-> pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
-> isolation will not proceed, causing the memory removal for that page
-> range to fail.
-> 
-> Rather than immediately failing pageblock isolation if the the
-> migrateteype is not MIGRATE_MOVABLE, this patch checks if all of the
-> pages in the pageblock are owned by a registered balloon driver using a
-> notifier chain.  If all of the non-movable pages are owned by a balloon,
-> they can be freed later through the memory notifier chain and the range
-> can still be isolated in set_migratetype_isolate().
-> 
-> Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
-> 
-> ---
->  drivers/base/memory.c  |   19 +++++++++++++++++++
->  include/linux/memory.h |   22 ++++++++++++++++++++++
->  mm/page_alloc.c        |   49 +++++++++++++++++++++++++++++++++++++++++--------
->  3 files changed, 82 insertions(+), 8 deletions(-)
-> 
-> Index: b/drivers/base/memory.c
-> ===================================================================
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
->  }
->  EXPORT_SYMBOL(unregister_memory_notifier);
->  
-> +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
-> +
-> +int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(register_memory_isolate_notifier);
-> +
-> +void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> +
->  /*
->   * register_memory - Setup a sysfs device for a memory block
->   */
-> @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
->  	return blocking_notifier_call_chain(&memory_chain, val, v);
->  }
->  
-> +int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
-> +}
-> +
->  /*
->   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
->   * OK to have direct references to sparsemem variables in here.
-> Index: b/include/linux/memory.h
-> ===================================================================
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -50,6 +50,14 @@ struct memory_notify {
->  	int status_change_nid;
->  };
->  
-> +#define MEM_ISOLATE_COUNT	(1<<0)
-> +
-> +struct memory_isolate_notify {
-> +	unsigned long start_addr;
-> +	unsigned int nr_pages;
-> +	unsigned int pages_found;
-> +};
-> +
->  struct notifier_block;
->  struct mem_section;
->  
-> @@ -76,14 +84,28 @@ static inline int memory_notify(unsigned
->  {
->  	return 0;
->  }
-> +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return 0;
-> +}
-> +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +}
-> +static inline int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return 0;
-> +}
->  #else
->  extern int register_memory_notifier(struct notifier_block *nb);
->  extern void unregister_memory_notifier(struct notifier_block *nb);
-> +extern int register_memory_isolate_notifier(struct notifier_block *nb);
-> +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
->  extern int register_new_memory(int, struct mem_section *);
->  extern int unregister_memory_section(struct mem_section *);
->  extern int memory_dev_init(void);
->  extern int remove_memory_block(unsigned long, struct mem_section *, int);
->  extern int memory_notify(unsigned long val, void *v);
-> +extern int memory_isolate_notify(unsigned long val, void *v);
->  extern struct memory_block *find_memory_block(struct mem_section *);
->  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->  enum mem_add_context { BOOT, HOTPLUG };
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -48,6 +48,7 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/debugobjects.h>
->  #include <linux/kmemleak.h>
-> +#include <linux/memory.h>
->  #include <trace/events/kmem.h>
->  
->  #include <asm/tlbflush.h>
-> @@ -4985,23 +4986,55 @@ void set_pageblock_flags_group(struct pa
->  int set_migratetype_isolate(struct page *page)
->  {
->  	struct zone *zone;
-> -	unsigned long flags;
-> +	unsigned long flags, pfn, iter;
-> +	long immobile = 0;
-> +	struct memory_isolate_notify arg;
-> +	int notifier_ret;
->  	int ret = -EBUSY;
->  	int zone_idx;
->  
->  	zone = page_zone(page);
->  	zone_idx = zone_idx(zone);
-> +
-> +	pfn = page_to_pfn(page);
-> +	arg.start_addr = (unsigned long)page_address(page);
-> +	arg.nr_pages = pageblock_nr_pages;
-> +	arg.pages_found = 0;
-> +
->  	spin_lock_irqsave(&zone->lock, flags);
->  	/*
->  	 * In future, more migrate types will be able to be isolation target.
->  	 */
-> -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
-> -	    zone_idx != ZONE_MOVABLE)
-> -		goto out;
-> -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> -	ret = 0;
-> -out:
-> +	do {
-> +		if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE &&
-> +		    zone_idx == ZONE_MOVABLE) {
-> +			ret = 0;
-> +			break;
-> +		}
-> +
-> +		/*
-> +		 * If all of the pages in a zone are used by a balloon,
-> +		 * the range can be still be isolated.  The balloon will
-> +		 * free these pages from the memory notifier chain.
-> +		 */
-> +		notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
-> +		notifier_ret = notifier_to_errno(ret);
+There are cases where we can use this_cpu_ptr and as the result
+of using this_cpu_ptr() we no longer need to determine the
+currently executing cpu.
 
-Should this be
+In those places no get/put_cpu combination is needed anymore.
+The local cpu variable can be eliminated.
 
-		notifier_ret = notifier_to_errno(notifier_ret);
+Preemption still needs to be disabled and enabled since the
+modifications of the per cpu variables is not atomic. There may
+be multiple per cpu variables modified and those must all
+be from the same processor.
 
--Nathan
+Acked-by: Maciej Sosnowski <maciej.sosnowski@intel.com>
+Acked-by: Dan Williams <dan.j.williams@intel.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+cc: Eric Biederman <ebiederm@aristanetworks.com>
+cc: Stephen Hemminger <shemminger@vyatta.com>
+cc: David L Stevens <dlstevens@us.ibm.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-> +		if (notifier_ret || !arg.pages_found)
-> +			break;
-> +
-> +		for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
-> +			if (page_count(pfn_to_page(iter)))
-> +				immobile++;
-> +
-> +		if (arg.pages_found == immobile)
-> +			ret = 0;
-> +	} while (0);
-> +
-> +	if (!ret) {
-> +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> +	}
-> +
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  	if (!ret)
->  		drain_all_pages();
-> _______________________________________________
-> Linuxppc-dev mailing list
-> Linuxppc-dev@lists.ozlabs.org
-> https://lists.ozlabs.org/listinfo/linuxppc-dev
+---
+ drivers/dma/dmaengine.c |   36 +++++++++++++-----------------------
+ drivers/net/veth.c      |    7 +++----
+ 2 files changed, 16 insertions(+), 27 deletions(-)
+
+Index: linux-2.6/drivers/dma/dmaengine.c
+===================================================================
+--- linux-2.6.orig/drivers/dma/dmaengine.c	2009-09-28 10:08:09.000000000 -0500
++++ linux-2.6/drivers/dma/dmaengine.c	2009-09-29 09:01:54.000000000 -0500
+@@ -326,14 +326,7 @@ arch_initcall(dma_channel_table_init);
+  */
+ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
+ {
+-	struct dma_chan *chan;
+-	int cpu;
+-
+-	cpu = get_cpu();
+-	chan = per_cpu_ptr(channel_table[tx_type], cpu)->chan;
+-	put_cpu();
+-
+-	return chan;
++	return this_cpu_read(channel_table[tx_type]->chan);
+ }
+ EXPORT_SYMBOL(dma_find_channel);
+ 
+@@ -847,7 +840,6 @@ dma_async_memcpy_buf_to_buf(struct dma_c
+ 	struct dma_async_tx_descriptor *tx;
+ 	dma_addr_t dma_dest, dma_src;
+ 	dma_cookie_t cookie;
+-	int cpu;
+ 	unsigned long flags;
+ 
+ 	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
+@@ -866,10 +858,10 @@ dma_async_memcpy_buf_to_buf(struct dma_c
+ 	tx->callback = NULL;
+ 	cookie = tx->tx_submit(tx);
+ 
+-	cpu = get_cpu();
+-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+-	put_cpu();
++	preempt_disable();
++	__this_cpu_add(chan->local->bytes_transferred, len);
++	__this_cpu_inc(chan->local->memcpy_count);
++	preempt_enable();
+ 
+ 	return cookie;
+ }
+@@ -896,7 +888,6 @@ dma_async_memcpy_buf_to_pg(struct dma_ch
+ 	struct dma_async_tx_descriptor *tx;
+ 	dma_addr_t dma_dest, dma_src;
+ 	dma_cookie_t cookie;
+-	int cpu;
+ 	unsigned long flags;
+ 
+ 	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
+@@ -913,10 +904,10 @@ dma_async_memcpy_buf_to_pg(struct dma_ch
+ 	tx->callback = NULL;
+ 	cookie = tx->tx_submit(tx);
+ 
+-	cpu = get_cpu();
+-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+-	put_cpu();
++	preempt_disable();
++	__this_cpu_add(chan->local->bytes_transferred, len);
++	__this_cpu_inc(chan->local->memcpy_count);
++	preempt_enable();
+ 
+ 	return cookie;
+ }
+@@ -945,7 +936,6 @@ dma_async_memcpy_pg_to_pg(struct dma_cha
+ 	struct dma_async_tx_descriptor *tx;
+ 	dma_addr_t dma_dest, dma_src;
+ 	dma_cookie_t cookie;
+-	int cpu;
+ 	unsigned long flags;
+ 
+ 	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
+@@ -963,10 +953,10 @@ dma_async_memcpy_pg_to_pg(struct dma_cha
+ 	tx->callback = NULL;
+ 	cookie = tx->tx_submit(tx);
+ 
+-	cpu = get_cpu();
+-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
+-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
+-	put_cpu();
++	preempt_disable();
++	__this_cpu_add(chan->local->bytes_transferred, len);
++	__this_cpu_inc(chan->local->memcpy_count);
++	preempt_enable();
+ 
+ 	return cookie;
+ }
+Index: linux-2.6/drivers/net/veth.c
+===================================================================
+--- linux-2.6.orig/drivers/net/veth.c	2009-09-17 17:54:16.000000000 -0500
++++ linux-2.6/drivers/net/veth.c	2009-09-29 09:01:54.000000000 -0500
+@@ -153,7 +153,7 @@ static netdev_tx_t veth_xmit(struct sk_b
+ 	struct net_device *rcv = NULL;
+ 	struct veth_priv *priv, *rcv_priv;
+ 	struct veth_net_stats *stats, *rcv_stats;
+-	int length, cpu;
++	int length;
+ 
+ 	skb_orphan(skb);
+ 
+@@ -161,9 +161,8 @@ static netdev_tx_t veth_xmit(struct sk_b
+ 	rcv = priv->peer;
+ 	rcv_priv = netdev_priv(rcv);
+ 
+-	cpu = smp_processor_id();
+-	stats = per_cpu_ptr(priv->stats, cpu);
+-	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
++	stats = this_cpu_ptr(priv->stats);
++	rcv_stats = this_cpu_ptr(rcv_priv->stats);
+ 
+ 	if (!(rcv->flags & IFF_UP))
+ 		goto tx_drop;
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
