@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 898AF600034
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 10:36:33 -0400 (EDT)
-Date: Thu, 1 Oct 2009 16:16:57 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/4] slqb: Record what node is local to a kmem_cache_cpu
-Message-ID: <20091001151657.GH21906@csn.ul.ie>
-References: <84144f020909221154x820b287r2996480225692fad@mail.gmail.com> <20090922185608.GH25965@csn.ul.ie> <20090930144117.GA17906@csn.ul.ie> <alpine.DEB.1.10.0909301053550.9450@gentwo.org> <20090930220541.GA31530@csn.ul.ie> <alpine.DEB.1.10.0909301941570.11850@gentwo.org> <20091001104046.GA21906@csn.ul.ie> <alpine.DEB.1.10.0910011028380.3911@gentwo.org> <20091001150346.GD21906@csn.ul.ie> <alpine.DEB.1.10.0910011101390.3911@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0910011101390.3911@gentwo.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3950F6B0055
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 12:11:15 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Thu, 01 Oct 2009 12:57:21 -0400
+Message-Id: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/10] hugetlb: V8 numa control of persistent huge pages alloc/free
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 01, 2009 at 11:03:16AM -0400, Christoph Lameter wrote:
-> On Thu, 1 Oct 2009, Mel Gorman wrote:
-> 
-> > True, it might have been improved more if SLUB knew what local hugepage it
-> > resided within as the kernel portion of the address space is backed by huge
-> > TLB entries. Note that SLQB could have an advantage here early in boot as
-> > the page allocator will tend to give it back pages within a single huge TLB
-> > entry. It loses the advantage when the system has been running for a very long
-> > time but it might be enough to skew benchmark results on cold-booted systems.
-> 
-> The page allocator serves pages aligned to huge page boundaries as far as
-> I can remember.
+PATCH 0/10 hugetlb: numa control of persistent huge pages alloc/free
 
-You're right, it does, particularly early in boot. It loses the advantage
-when the system has been running a long time and memory is mostly full but
-the same will apply to SLQB.
+Against:  2.6.31-mmotm-090925-1435
 
-> You can actually use huge pages in slub if you set the max
-> order to 9. So a page obtained from the page allocator is always aligned
-> properly.
-> 
+This is V8 of a series of patches to provide control over the location
+of the allocation and freeing of persistent huge pages on a NUMA
+platform.   Please consider for merging into mmotm.
 
-Fair point.
+This series uses two mechanisms to constrain the nodes from which
+persistent huge pages are allocated:  1) the task NUMA mempolicy of
+the task modifying  a new sysctl "nr_hugepages_mempolicy", based on
+a suggestion by Mel Gorman; and 2) a subset of the hugepages hstate
+sysfs attributes have been added [in V4] to each node system device
+under:
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	/sys/devices/node/node[0-9]*/hugepages.
+
+The per node attibutes allow direct assignment of a huge page
+count on a specific node, regardless of the task's mempolicy or
+cpuset constraints.
+
+V5 addressed review comments -- changes described in patch descriptions.
+
+V6 addressed more review comments, described in the patches.
+
+V6 also included a 3 patch series that implements an enhancement suggested
+by David Rientjes:   the default huge page nodes allowed mask will be the
+nodes with memory rather than all on-line nodes and we will allocate per
+node hstate attributes only for nodes with memory.  This requires that we
+register a memory on/off-line notifier and [un]register the attributes on
+transitions to/from memoryless state.
+
+V7 addressed review comments, described in the patches, and included a
+new patch, originally from Mel Gorman, to define a new vm sysctl and
+sysfs global hugepages attribute "nr_hugepages_mempolicy" rather than
+apply mempolicy contraints to pool adujstments via the pre-existing
+"nr_hugepages".  The 3 patches to restrict hugetlb to visiting only
+nodes with memory and to add/remove per node hstate attributes on
+memory hotplug completed V7.
+
+V8 reorganizes the sysctl and sysfs attribute handlers to default
+the nodes to default or define the nodes_allowed mask up in the
+handlers and pass nodes_allowed [pointer] to set_max_huge_pages().
+This cleanup was suggested by David Rientjes.  V8 also merges Mel
+Gorman's "nr_hugepages_mempolicy" back into the patch to compute
+nodes_allowed from mempolicy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
