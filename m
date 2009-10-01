@@ -1,160 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC63600034
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 12:13:02 -0400 (EDT)
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 01 Oct 2009 12:58:57 -0400
-Message-Id: <20091001165857.32248.26057.sendpatchset@localhost.localdomain>
-In-Reply-To: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-Subject: [PATCH 8/10] hugetlb:  use only nodes with memory for huge pages
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A6CF6600034
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 12:58:58 -0400 (EDT)
+Date: Thu, 1 Oct 2009 13:42:01 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 00/31] Swap over NFS -v20
+Message-ID: <20091001174201.GA30068@infradead.org>
+References: <1254405858-15651-1-git-send-email-sjayaraman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1254405858-15651-1-git-send-email-sjayaraman@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-numa@vger.kernel.org
-Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, clameter@sgi.com, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Suresh Jayaraman <sjayaraman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 8/10] hugetlb:  use only nodes with memory
+On Thu, Oct 01, 2009 at 07:34:18PM +0530, Suresh Jayaraman wrote:
+> Hi,
+> 
+> Here's the latest version of swap over NFS series since -v19 last October by
+> Peter Zijlstra. Peter does not have time to pursue this further (though he has
+> not lost interest) and that led me to take over this patchset and try merging
+> upstream.
+> 
+> The patches are against the current mmotm. It does not support SLQB, yet.
+> These patches can also be found online here:
+> 	http://www.suse.de/~sjayaraman/patches/swap-over-nfs/
 
-Against:  2.6.31-mmotm-090925-1435
+My advise again that I already gave to Peter long ago.  It's almost
+impossible to get a patchset that large and touching many subsystems in.
 
-Register per node hstate sysfs attributes only for nodes with
-memory.  Suggested by David Rientjes.
+Split it into smaller series that make sense of their own.  One of them
+would be the whole VM/net work to just make swap over nbd/iscsi safe.
 
-A subsequent patch will handle adding/removing of per node hstate
-sysfs attributes when nodes transition to/from memoryless state
-via memory hotplug.
+The other really big one is adding a proper method for safe, page-backed
+kernelspace I/O on files.  That is not something like the grotty
+swap-tied address_space operations in this patch, but more something in
+the direction of the kernel direct I/O patches from Jenx Axboe he did
+for using in the loop driver.  But even those aren't complete as they
+don't touch the locking issue yet.
 
-NOTE:  this patch has not been tested with memoryless nodes.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- Documentation/vm/hugetlbpage.txt |   12 ++++++------
- mm/hugetlb.c                     |   33 +++++++++++++++++----------------
- 2 files changed, 23 insertions(+), 22 deletions(-)
-
-Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
-===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-30 15:05:20.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-09-30 15:05:31.000000000 -0400
-@@ -942,14 +942,14 @@ static void return_unused_surplus_pages(
- 
- 	/*
- 	 * We want to release as many surplus pages as possible, spread
--	 * evenly across all nodes. Iterate across all nodes until we
--	 * can no longer free unreserved surplus pages. This occurs when
--	 * the nodes with surplus pages have no free pages.
--	 * free_pool_huge_page() will balance the the frees across the
--	 * on-line nodes for us and will handle the hstate accounting.
-+	 * evenly across all nodes with memory. Iterate across these nodes
-+	 * until we can no longer free unreserved surplus pages. This occurs
-+	 * when the nodes with surplus pages have no free pages.
-+	 * free_pool_huge_page() will balance the the freed pages across the
-+	 * on-line nodes with memory and will handle the hstate accounting.
- 	 */
- 	while (nr_pages--) {
--		if (!free_pool_huge_page(h, &node_online_map, 1))
-+		if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
- 			break;
- 	}
- }
-@@ -1053,7 +1053,7 @@ static struct page *alloc_huge_page(stru
- int __weak alloc_bootmem_huge_page(struct hstate *h)
- {
- 	struct huge_bootmem_page *m;
--	int nr_nodes = nodes_weight(node_online_map);
-+	int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
- 
- 	while (nr_nodes) {
- 		void *addr;
-@@ -1114,7 +1114,8 @@ static void __init hugetlb_hstate_alloc_
- 		if (h->order >= MAX_ORDER) {
- 			if (!alloc_bootmem_huge_page(h))
- 				break;
--		} else if (!alloc_fresh_huge_page(h, &node_online_map))
-+		} else if (!alloc_fresh_huge_page(h,
-+					 &node_states[N_HIGH_MEMORY]))
- 			break;
- 	}
- 	h->max_huge_pages = i;
-@@ -1165,7 +1166,7 @@ static void try_to_free_low(struct hstat
- 		return;
- 
- 	if (!nodes_allowed)
--		nodes_allowed = &node_online_map;
-+		nodes_allowed = &node_states[N_HIGH_MEMORY];
- 
- 	for (i = 0; i < MAX_NUMNODES; ++i) {
- 		struct page *page, *next;
-@@ -1612,7 +1613,7 @@ void hugetlb_unregister_node(struct node
- 	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
- 
- 	if (!nhs->hugepages_kobj)
--		return;
-+		return;		/* no hstate attributes */
- 
- 	for_each_hstate(h)
- 		if (nhs->hstate_kobjs[h - hstates]) {
-@@ -1677,15 +1678,15 @@ void hugetlb_register_node(struct node *
- }
- 
- /*
-- * hugetlb init time:  register hstate attributes for all registered
-- * node sysdevs.  All on-line nodes should have registered their
-- * associated sysdev by the time the hugetlb module initializes.
-+ * hugetlb init time:  register hstate attributes for all registered node
-+ * sysdevs of nodes that have memory.  All on-line nodes should have
-+ * registered their associated sysdev by this time.
-  */
- static void hugetlb_register_all_nodes(void)
- {
- 	int nid;
- 
--	for (nid = 0; nid < nr_node_ids; nid++) {
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
- 		struct node *node = &node_devices[nid];
- 		if (node->sysdev.id == nid)
- 			hugetlb_register_node(node);
-@@ -1779,8 +1780,8 @@ void __init hugetlb_add_hstate(unsigned
- 	h->free_huge_pages = 0;
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
--	h->next_nid_to_alloc = first_node(node_online_map);
--	h->next_nid_to_free = first_node(node_online_map);
-+	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
-+	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
- 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
- 					huge_page_size(h)/1024);
- 
-Index: linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt
-===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:22.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:31.000000000 -0400
-@@ -90,11 +90,11 @@ huge page pool to 20, allocating or free
- On a NUMA platform, the kernel will attempt to distribute the huge page pool
- over all the set of allowed nodes specified by the NUMA memory policy of the
- task that modifies nr_hugepages.  The default for the allowed nodes--when the
--task has default memory policy--is all on-line nodes.  Allowed nodes with
--insufficient available, contiguous memory for a huge page will be silently
--skipped when allocating persistent huge pages.  See the discussion below of
--the interaction of task memory policy, cpusets and per node attributes with
--the allocation and freeing of persistent huge pages.
-+task has default memory policy--is all on-line nodes with memory.  Allowed
-+nodes with insufficient available, contiguous memory for a huge page will be
-+silently skipped when allocating persistent huge pages.  See the discussion
-+below of the interaction of task memory policy, cpusets and per node attributes
-+with the allocation and freeing of persistent huge pages.
- 
- The success or failure of huge page allocation depends on the amount of
- physically contiguous memory that is present in system at the time of the
-@@ -226,7 +226,7 @@ resulting effect on persistent huge page
-    without first moving to a cpuset that contains all of the desired nodes.
- 
- 5) Boot-time huge page allocation attempts to distribute the requested number
--   of huge pages over all on-lines nodes.
-+   of huge pages over all on-lines nodes with memory.
- 
- Per Node Hugepages Attributes
- 
+Especially the latter is an absolutely essential step to make any
+progress here, and an excellent patch series of it's own as there are
+multiple users for this, like making swap safe on btrfs files, making
+the MD bitmap code actually safe or improving the loop driver.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
