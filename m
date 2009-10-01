@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F734600034
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:27:21 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DD9D5600034
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:27:30 -0400 (EDT)
 From: Suresh Jayaraman <sjayaraman@suse.de>
-Subject: [PATCH 08/31] mm: emergency pool
-Date: Thu,  1 Oct 2009 19:36:08 +0530
-Message-Id: <1254405968-15940-1-git-send-email-sjayaraman@suse.de>
+Subject: [PATCH 16/31] netvm: INET reserves.
+Date: Thu,  1 Oct 2009 19:37:46 +0530
+Message-Id: <1254406066-16228-1-git-send-email-sjayaraman@suse.de>
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no, Suresh Jayaraman <sjayaraman@suse.de>
@@ -13,226 +13,609 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl> 
 
-Provide means to reserve a specific amount of pages.
+Add reserves for INET.
 
-The emergency pool is separated from the min watermark because ALLOC_HARDER
-and ALLOC_HIGH modify the watermark in a relative way and thus do not ensure
-a strict minimum.
+The two big users seem to be the route cache and ip-fragment cache.
+
+Reserve the route cache under generic RX reserve, its usage is bounded by
+the high reclaim watermark, and thus does not need further accounting.
+
+Reserve the ip-fragement caches under SKB data reserve, these add to the
+SKB RX limit. By ensuring we can at least receive as much data as fits in
+the reassmbly line we avoid fragment attack deadlocks.
+
+Adds to the reserve tree:
+
+  total network reserve
+    network TX reserve
+      protocol TX pages
+    network RX reserve
++     IPv6 route cache
++     IPv4 route cache
+      SKB data reserve
++       IPv6 fragment cache
++       IPv4 fragment cache
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Suresh Jayaraman <sjayaraman@suse.de>
 ---
- include/linux/mmzone.h |    3 +
- mm/page_alloc.c        |   84 +++++++++++++++++++++++++++++++++++++++++++------
- mm/vmstat.c            |    6 +--
- 3 files changed, 80 insertions(+), 13 deletions(-)
+ include/net/inet_frag.h  |    7 +++
+ include/net/netns/ipv6.h |    4 ++
+ net/ipv4/inet_fragment.c |    3 +
+ net/ipv4/ip_fragment.c   |   86 +++++++++++++++++++++++++++++++++++++++++++++--
+ net/ipv4/route.c         |   70 +++++++++++++++++++++++++++++++++++++-
+ net/ipv6/reassembly.c    |   85 +++++++++++++++++++++++++++++++++++++++++++++-
+ net/ipv6/route.c         |   77 ++++++++++++++++++++++++++++++++++++++++--
+ 7 files changed, 325 insertions(+), 7 deletions(-)
 
-Index: mmotm/include/linux/mmzone.h
+Index: mmotm/net/ipv4/ip_fragment.c
 ===================================================================
---- mmotm.orig/include/linux/mmzone.h
-+++ mmotm/include/linux/mmzone.h
-@@ -273,6 +273,7 @@ struct zone_reclaim_stat {
+--- mmotm.orig/net/ipv4/ip_fragment.c
++++ mmotm/net/ipv4/ip_fragment.c
+@@ -42,6 +42,8 @@
+ #include <linux/udp.h>
+ #include <linux/inet.h>
+ #include <linux/netfilter_ipv4.h>
++#include <linux/reserve.h>
++#include <linux/nsproxy.h>
  
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
-+	unsigned long           pages_emerg;    /* emergency pool */
- 
- 	/* zone watermarks, access with *_wmark_pages(zone) macros */
- 	unsigned long watermark[NR_WMARK];
-@@ -757,6 +758,8 @@ int sysctl_min_unmapped_ratio_sysctl_han
- int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
- 			struct file *, void __user *, size_t *, loff_t *);
- 
-+int adjust_memalloc_reserve(int pages);
-+
- extern int numa_zonelist_order_handler(struct ctl_table *, int,
- 			struct file *, void __user *, size_t *, loff_t *);
- extern char numa_zonelist_order[];
-Index: mmotm/mm/page_alloc.c
-===================================================================
---- mmotm.orig/mm/page_alloc.c
-+++ mmotm/mm/page_alloc.c
-@@ -123,6 +123,8 @@ static char * const zone_names[MAX_NR_ZO
- 
- static DEFINE_SPINLOCK(min_free_lock);
- int min_free_kbytes = 1024;
-+static DEFINE_MUTEX(var_free_mutex);
-+int var_free_kbytes;
- 
- unsigned long __meminitdata nr_kernel_pages;
- unsigned long __meminitdata nr_all_pages;
-@@ -1302,7 +1304,7 @@ int zone_watermark_ok(struct zone *z, in
- 	if (alloc_flags & ALLOC_HARDER)
- 		min -= min / 4;
- 
--	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min+z->lowmem_reserve[classzone_idx]+z->pages_emerg)
- 		return 0;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
-@@ -1726,7 +1728,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
- {
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
- 	struct page *page = NULL;
--	int alloc_flags;
-+	int alloc_flags = 0;
- 	unsigned long pages_reclaimed = 0;
- 	unsigned long did_some_progress;
- 	struct task_struct *p = current;
-@@ -1841,8 +1843,8 @@ rebalance:
- nopage:
- 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
- 		printk(KERN_WARNING "%s: page allocation failure."
--			" order:%d, mode:0x%x\n",
--			p->comm, order, gfp_mask);
-+			" order:%d, mode:0x%x, alloc_flags:0x%x, pflags:0x%x\n",
-+			p->comm, order, gfp_mask, alloc_flags, p->flags);
- 		dump_stack();
- 		show_mem();
- 	}
-@@ -2158,9 +2160,9 @@ void show_free_areas(void)
- 			"\n",
- 			zone->name,
- 			K(zone_page_state(zone, NR_FREE_PAGES)),
--			K(min_wmark_pages(zone)),
--			K(low_wmark_pages(zone)),
--			K(high_wmark_pages(zone)),
-+			K(zone->pages_emerg + min_wmark_pages(zone)),
-+			K(zone->pages_emerg + low_wmark_pages(zone)),
-+			K(zone->pages_emerg + high_wmark_pages(zone)),
- 			K(zone_page_state(zone, NR_ACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
-@@ -4388,7 +4390,7 @@ static void calculate_totalreserve_pages
- 			}
- 
- 			/* we treat the high watermark as reserved pages. */
--			max += high_wmark_pages(zone);
-+			max += high_wmark_pages(zone) + zone->pages_emerg;
- 
- 			if (max > zone->present_pages)
- 				max = zone->present_pages;
-@@ -4446,7 +4448,8 @@ static void setup_per_zone_lowmem_reserv
-  */
- static void __setup_per_zone_wmarks(void)
- {
--	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned pages_emerg = var_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -4458,11 +4461,13 @@ static void __setup_per_zone_wmarks(void
- 	}
- 
- 	for_each_zone(zone) {
--		u64 tmp;
-+		u64 tmp, tmp_emerg;
- 
- 		spin_lock_irqsave(&zone->lock, flags);
- 		tmp = (u64)pages_min * zone->present_pages;
- 		do_div(tmp, lowmem_pages);
-+		tmp_emerg = (u64)pages_emerg * zone->present_pages;
-+		do_div(tmp_emerg, lowmem_pages);
- 		if (is_highmem(zone)) {
- 			/*
- 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-@@ -4481,12 +4486,14 @@ static void __setup_per_zone_wmarks(void
- 			if (min_pages > 128)
- 				min_pages = 128;
- 			zone->watermark[WMARK_MIN] = min_pages;
-+			zone->pages_emerg = 0;
- 		} else {
- 			/*
- 			 * If it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
- 			zone->watermark[WMARK_MIN] = tmp;
-+			zone->pages_emerg = tmp_emerg;
- 		}
- 
- 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
-@@ -4551,6 +4558,63 @@ void setup_per_zone_wmarks(void)
- 	spin_unlock_irqrestore(&min_free_lock, flags);
+ /* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
+  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
+@@ -599,6 +601,63 @@ int ip_defrag(struct sk_buff *skb, u32 u
  }
  
-+static void __adjust_memalloc_reserve(int pages)
+ #ifdef CONFIG_SYSCTL
++static int
++proc_dointvec_fragment(struct ctl_table *table, int write, struct file *filp,
++		void __user *buffer, size_t *lenp, loff_t *ppos)
 +{
-+	var_free_kbytes += pages << (PAGE_SHIFT - 10);
-+	BUG_ON(var_free_kbytes < 0);
-+	setup_per_zone_wmarks();
++	struct net *net = container_of(table->data, struct net,
++				       ipv4.frags.high_thresh);
++	ctl_table tmp = *table;
++	int new_bytes, ret;
++
++	mutex_lock(&net->ipv4.frags.lock);
++	if (write) {
++		tmp.data = &new_bytes;
++		table = &tmp;
++	}
++
++	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmalloc_set(&net->ipv4.frags.reserve,
++				new_bytes);
++		if (!ret)
++			net->ipv4.frags.high_thresh = new_bytes;
++	}
++	mutex_unlock(&net->ipv4.frags.lock);
++
++	return ret;
 +}
 +
-+static int test_reserve_limits(void)
++static int sysctl_intvec_fragment(struct ctl_table *table,
++		void __user *oldval, size_t __user *oldlenp,
++		void __user *newval, size_t newlen)
 +{
-+	struct zone *zone;
-+	int node;
++	struct net *net = container_of(table->data, struct net,
++				       ipv4.frags.high_thresh);
++	int write = (newval && newlen);
++	ctl_table tmp = *table;
++	int new_bytes, ret;
 +
-+	for_each_zone(zone)
-+		wakeup_kswapd(zone, 0);
-+
-+	for_each_online_node(node) {
-+		struct page *page = alloc_pages_node(node, GFP_KERNEL, 0);
-+		if (!page)
-+			return -ENOMEM;
-+
-+		__free_page(page);
++	mutex_lock(&net->ipv4.frags.lock);
++	if (write) {
++		tmp.data = &new_bytes;
++		table = &tmp;
 +	}
++
++	ret = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmalloc_set(&net->ipv4.frags.reserve,
++				new_bytes);
++		if (!ret)
++			net->ipv4.frags.high_thresh = new_bytes;
++	}
++	mutex_unlock(&net->ipv4.frags.lock);
++
++	return ret;
++}
++
+ static int zero;
+ 
+ static struct ctl_table ip4_frags_ns_ctl_table[] = {
+@@ -608,7 +667,8 @@ static struct ctl_table ip4_frags_ns_ctl
+ 		.data		= &init_net.ipv4.frags.high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment,
++		.strategy	= &sysctl_intvec_fragment,
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
+@@ -711,6 +771,8 @@ static inline void ip4_frags_ctl_registe
+ 
+ static int ipv4_frags_init_net(struct net *net)
+ {
++	int ret;
++
+ 	/*
+ 	 * Fragment cache limits. We will commit 256K at one time. Should we
+ 	 * cross that limit we will prune down to 192K. This should cope with
+@@ -728,11 +790,31 @@ static int ipv4_frags_init_net(struct ne
+ 
+ 	inet_frags_init_net(&net->ipv4.frags);
+ 
+-	return ip4_frags_ns_ctl_register(net);
++	ret = ip4_frags_ns_ctl_register(net);
++	if (ret)
++		goto out_reg;
++
++	mem_reserve_init(&net->ipv4.frags.reserve, "IPv4 fragment cache",
++			&net_skb_reserve);
++	ret = mem_reserve_kmalloc_set(&net->ipv4.frags.reserve,
++			net->ipv4.frags.high_thresh);
++	if (ret)
++		goto out_reserve;
 +
 +	return 0;
-+}
 +
-+/**
-+ *	adjust_memalloc_reserve - adjust the memalloc reserve
-+ *	@pages: number of pages to add
-+ *
-+ *	It adds a number of pages to the memalloc reserve; if
-+ *	the number was positive it kicks reclaim into action to
-+ *	satisfy the higher watermarks.
-+ *
-+ *	returns -ENOMEM when it failed to satisfy the watermarks.
-+ */
-+int adjust_memalloc_reserve(int pages)
-+{
-+	int err = 0;
++out_reserve:
++	mem_reserve_disconnect(&net->ipv4.frags.reserve);
++	ip4_frags_ns_ctl_unregister(net);
++out_reg:
++	inet_frags_exit_net(&net->ipv4.frags, &ip4_frags);
 +
-+	mutex_lock(&var_free_mutex);
-+	__adjust_memalloc_reserve(pages);
-+	if (pages > 0) {
-+		err = test_reserve_limits();
-+		if (err) {
-+			__adjust_memalloc_reserve(-pages);
-+			goto unlock;
-+		}
-+	}
-+	printk(KERN_DEBUG "Emergency reserve: %d\n", var_free_kbytes);
-+
-+unlock:
-+	mutex_unlock(&var_free_mutex);
-+	return err;
-+}
-+EXPORT_SYMBOL_GPL(adjust_memalloc_reserve);
-+
- /*
-  * Initialise min_free_kbytes.
-  *
-Index: mmotm/mm/vmstat.c
++	return ret;
+ }
+ 
+ static void ipv4_frags_exit_net(struct net *net)
+ {
++	mem_reserve_disconnect(&net->ipv4.frags.reserve);
+ 	ip4_frags_ns_ctl_unregister(net);
+ 	inet_frags_exit_net(&net->ipv4.frags, &ip4_frags);
+ }
+Index: mmotm/net/ipv6/reassembly.c
 ===================================================================
---- mmotm.orig/mm/vmstat.c
-+++ mmotm/mm/vmstat.c
-@@ -713,9 +713,9 @@ static void zoneinfo_show_print(struct s
- 		   "\n        spanned  %lu"
- 		   "\n        present  %lu",
- 		   zone_page_state(zone, NR_FREE_PAGES),
--		   min_wmark_pages(zone),
--		   low_wmark_pages(zone),
--		   high_wmark_pages(zone),
-+		   zone->pages_emerg + min_wmark_pages(zone),
-+		   zone->pages_emerg + min_wmark_pages(zone),
-+		   zone->pages_emerg + high_wmark_pages(zone),
- 		   zone->pages_scanned,
- 		   zone->spanned_pages,
- 		   zone->present_pages);
+--- mmotm.orig/net/ipv6/reassembly.c
++++ mmotm/net/ipv6/reassembly.c
+@@ -41,6 +41,7 @@
+ #include <linux/random.h>
+ #include <linux/jhash.h>
+ #include <linux/skbuff.h>
++#include <linux/reserve.h>
+ 
+ #include <net/sock.h>
+ #include <net/snmp.h>
+@@ -634,6 +635,63 @@ static struct inet6_protocol frag_protoc
+ };
+ 
+ #ifdef CONFIG_SYSCTL
++static int
++proc_dointvec_fragment(struct ctl_table *table, int write, struct file *filp,
++		void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	struct net *net = container_of(table->data, struct net,
++				       ipv6.frags.high_thresh);
++	ctl_table tmp = *table;
++	int new_bytes, ret;
++
++	mutex_lock(&net->ipv6.frags.lock);
++	if (write) {
++		tmp.data = &new_bytes;
++		table = &tmp;
++	}
++
++	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmalloc_set(&net->ipv6.frags.reserve,
++					      new_bytes);
++		if (!ret)
++			net->ipv6.frags.high_thresh = new_bytes;
++	}
++	mutex_unlock(&net->ipv6.frags.lock);
++
++	return ret;
++}
++
++static int sysctl_intvec_fragment(struct ctl_table *table,
++		void __user *oldval, size_t __user *oldlenp,
++		void __user *newval, size_t newlen)
++{
++	struct net *net = container_of(table->data, struct net,
++				       ipv6.frags.high_thresh);
++	int write = (newval && newlen);
++	ctl_table tmp = *table;
++	int new_bytes, ret;
++
++	mutex_lock(&net->ipv6.frags.lock);
++	if (write) {
++		tmp.data = &new_bytes;
++		table = &tmp;
++	}
++
++	ret = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmalloc_set(&net->ipv6.frags.reserve,
++					      new_bytes);
++		if (!ret)
++			net->ipv6.frags.high_thresh = new_bytes;
++	}
++	mutex_unlock(&net->ipv6.frags.lock);
++
++	return ret;
++}
++
+ static struct ctl_table ip6_frags_ns_ctl_table[] = {
+ 	{
+ 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
+@@ -641,7 +699,8 @@ static struct ctl_table ip6_frags_ns_ctl
+ 		.data		= &init_net.ipv6.frags.high_thresh,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= proc_dointvec
++		.proc_handler	= &proc_dointvec_fragment,
++		.strategy	= &sysctl_intvec_fragment,
+ 	},
+ 	{
+ 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
+@@ -750,17 +809,39 @@ static inline void ip6_frags_sysctl_unre
+ 
+ static int ipv6_frags_init_net(struct net *net)
+ {
++	int ret;
++
+ 	net->ipv6.frags.high_thresh = 256 * 1024;
+ 	net->ipv6.frags.low_thresh = 192 * 1024;
+ 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
+ 
+ 	inet_frags_init_net(&net->ipv6.frags);
+ 
+-	return ip6_frags_ns_sysctl_register(net);
++	ret = ip6_frags_ns_sysctl_register(net);
++	if (ret)
++		goto out_reg;
++
++	mem_reserve_init(&net->ipv6.frags.reserve, "IPv6 fragment cache",
++			 &net_skb_reserve);
++	ret = mem_reserve_kmalloc_set(&net->ipv6.frags.reserve,
++				      net->ipv6.frags.high_thresh);
++	if (ret)
++		goto out_reserve;
++
++	return 0;
++
++out_reserve:
++	mem_reserve_disconnect(&net->ipv6.frags.reserve);
++	ip6_frags_ns_sysctl_unregister(net);
++out_reg:
++	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
++
++	return ret;
+ }
+ 
+ static void ipv6_frags_exit_net(struct net *net)
+ {
++	mem_reserve_disconnect(&net->ipv6.frags.reserve);
+ 	ip6_frags_ns_sysctl_unregister(net);
+ 	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
+ }
+Index: mmotm/net/ipv4/route.c
+===================================================================
+--- mmotm.orig/net/ipv4/route.c
++++ mmotm/net/ipv4/route.c
+@@ -107,6 +107,7 @@
+ #ifdef CONFIG_SYSCTL
+ #include <linux/sysctl.h>
+ #endif
++#include <linux/reserve.h>
+ 
+ #define RT_FL_TOS(oldflp) \
+     ((u32)(oldflp->fl4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
+@@ -271,6 +272,8 @@ static inline int rt_genid(struct net *n
+ 	return atomic_read(&net->ipv4.rt_genid);
+ }
+ 
++static struct mem_reserve ipv4_route_reserve;
++
+ #ifdef CONFIG_PROC_FS
+ struct rt_cache_iter_state {
+ 	struct seq_net_private p;
+@@ -400,6 +403,61 @@ static int rt_cache_seq_show(struct seq_
+ 	return 0;
+ }
+ 
++static struct mutex ipv4_route_lock;
++
++static int
++proc_dointvec_route(struct ctl_table *table, int write, struct file *filp,
++		void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	ctl_table tmp = *table;
++	int new_size, ret;
++
++	mutex_lock(&ipv4_route_lock);
++	if (write) {
++		tmp.data = &new_size;
++		table = &tmp;
++	}
++
++	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmem_cache_set(&ipv4_route_reserve,
++				ipv4_dst_ops.kmem_cachep, new_size);
++		if (!ret)
++			ip_rt_max_size = new_size;
++	}
++	mutex_unlock(&ipv4_route_lock);
++
++	return ret;
++}
++
++static int sysctl_intvec_route(struct ctl_table *table,
++		void __user *oldval, size_t __user *oldlenp,
++		void __user *newval, size_t newlen)
++{
++	int write = (newval && newlen);
++	ctl_table tmp = *table;
++	int new_size, ret;
++
++	mutex_lock(&ipv4_route_lock);
++	if (write) {
++		tmp.data = &new_size;
++		table = &tmp;
++	}
++
++	ret = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmem_cache_set(&ipv4_route_reserve,
++				ipv4_dst_ops.kmem_cachep, new_size);
++		if (!ret)
++			ip_rt_max_size = new_size;
++	}
++	mutex_unlock(&ipv4_route_lock);
++
++	return ret;
++}
++
+ static const struct seq_operations rt_cache_seq_ops = {
+ 	.start  = rt_cache_seq_start,
+ 	.next   = rt_cache_seq_next,
+@@ -3145,7 +3203,8 @@ static ctl_table ipv4_route_table[] = {
+ 		.data		= &ip_rt_max_size,
+ 		.maxlen		= sizeof(int),
+ 		.mode		= 0644,
+-		.proc_handler	= proc_dointvec,
++		.proc_handler	= &proc_dointvec_route,
++		.strategy	= &sysctl_intvec_route,
+ 	},
+ 	{
+ 		/*  Deprecated. Use gc_min_interval_ms */
+@@ -3424,6 +3483,15 @@ int __init ip_rt_init(void)
+ 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
+ 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
+ 
++#ifdef CONFIG_PROCFS
++	mutex_init(&ipv4_route_lock);
++#endif
++
++	mem_reserve_init(&ipv4_route_reserve, "IPv4 route cache",
++			&net_rx_reserve);
++	mem_reserve_kmem_cache_set(&ipv4_route_reserve,
++			ipv4_dst_ops.kmem_cachep, ip_rt_max_size);
++
+ 	devinet_init();
+ 	ip_fib_init();
+ 
+Index: mmotm/net/ipv6/route.c
+===================================================================
+--- mmotm.orig/net/ipv6/route.c
++++ mmotm/net/ipv6/route.c
+@@ -37,6 +37,7 @@
+ #include <linux/mroute6.h>
+ #include <linux/init.h>
+ #include <linux/if_arp.h>
++#include <linux/reserve.h>
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/nsproxy.h>
+@@ -2537,6 +2538,63 @@ int ipv6_sysctl_rtcache_flush(ctl_table
+ 		return -EINVAL;
+ }
+ 
++static int
++proc_dointvec_route(struct ctl_table *table, int write, struct file *filp,
++		void __user *buffer, size_t *lenp, loff_t *ppos)
++{
++	struct net *net = container_of(table->data, struct net,
++				       ipv6.sysctl.ip6_rt_max_size);
++	ctl_table tmp = *table;
++	int new_size, ret;
++
++	mutex_lock(&net->ipv6.sysctl.ip6_rt_lock);
++	if (write) {
++		tmp.data = &new_size;
++		table = &tmp;
++	}
++
++	ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmem_cache_set(&net->ipv6.ip6_rt_reserve,
++				net->ipv6.ip6_dst_ops->kmem_cachep, new_size);
++		if (!ret)
++			net->ipv6.sysctl.ip6_rt_max_size = new_size;
++	}
++	mutex_unlock(&net->ipv6.sysctl.ip6_rt_lock);
++
++	return ret;
++}
++
++static int sysctl_intvec_route(struct ctl_table *table,
++		void __user *oldval, size_t __user *oldlenp,
++		void __user *newval, size_t newlen)
++{
++	struct net *net = container_of(table->data, struct net,
++				       ipv6.sysctl.ip6_rt_max_size);
++	int write = (newval && newlen);
++	ctl_table tmp = *table;
++	int new_size, ret;
++
++	mutex_lock(&net->ipv6.sysctl.ip6_rt_lock);
++	if (write) {
++		tmp.data = &new_size;
++		table = &tmp;
++	}
++
++	ret = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
++
++	if (!ret && write) {
++		ret = mem_reserve_kmem_cache_set(&net->ipv6.ip6_rt_reserve,
++				net->ipv6.ip6_dst_ops->kmem_cachep, new_size);
++		if (!ret)
++			net->ipv6.sysctl.ip6_rt_max_size = new_size;
++	}
++	mutex_unlock(&net->ipv6.sysctl.ip6_rt_lock);
++
++	return ret;
++}
++
+ ctl_table ipv6_route_table_template[] = {
+ 	{
+ 		.procname	=	"flush",
+@@ -2559,7 +2617,8 @@ ctl_table ipv6_route_table_template[] =
+ 		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
+ 		.maxlen		=	sizeof(int),
+ 		.mode		=	0644,
+-		.proc_handler	=	proc_dointvec,
++		.proc_handler	=	&proc_dointvec_route,
++		.strategy	= 	&sysctl_intvec_route,
+ 	},
+ 	{
+ 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
+@@ -2647,6 +2706,8 @@ struct ctl_table *ipv6_route_sysctl_init
+ 		table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
+ 	}
+ 
++	mutex_init(&net->ipv6.sysctl.ip6_rt_lock);
++
+ 	return table;
+ }
+ #endif
+@@ -2700,6 +2761,14 @@ static int ip6_route_net_init(struct net
+ 	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
+ 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
+ 
++	mem_reserve_init(&net->ipv6.ip6_rt_reserve, "IPv6 route cache",
++			 &net_rx_reserve);
++	ret = mem_reserve_kmem_cache_set(&net->ipv6.ip6_rt_reserve,
++			net->ipv6.ip6_dst_ops->kmem_cachep,
++			net->ipv6.sysctl.ip6_rt_max_size);
++	if (ret)
++		goto out_reserve_fail;
++
+ #ifdef CONFIG_PROC_FS
+ 	proc_net_fops_create(net, "ipv6_route", 0, &ipv6_route_proc_fops);
+ 	proc_net_fops_create(net, "rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
+@@ -2710,12 +2779,15 @@ static int ip6_route_net_init(struct net
+ out:
+ 	return ret;
+ 
++out_reserve_fail:
++	mem_reserve_disconnect(&net->ipv6.ip6_rt_reserve);
+ #ifdef CONFIG_IPV6_MULTIPLE_TABLES
++	kfree(net->ipv6.ip6_blk_hole_entry);
+ out_ip6_prohibit_entry:
+ 	kfree(net->ipv6.ip6_prohibit_entry);
+ out_ip6_null_entry:
+-	kfree(net->ipv6.ip6_null_entry);
+ #endif
++	kfree(net->ipv6.ip6_null_entry);
+ out_ip6_dst_ops:
+ 	release_net(net->ipv6.ip6_dst_ops->dst_net);
+ 	kfree(net->ipv6.ip6_dst_ops);
+@@ -2728,6 +2800,7 @@ static void ip6_route_net_exit(struct ne
+ 	proc_net_remove(net, "ipv6_route");
+ 	proc_net_remove(net, "rt6_stats");
+ #endif
++	mem_reserve_disconnect(&net->ipv6.ip6_rt_reserve);
+ 	kfree(net->ipv6.ip6_null_entry);
+ #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+ 	kfree(net->ipv6.ip6_prohibit_entry);
+Index: mmotm/include/net/inet_frag.h
+===================================================================
+--- mmotm.orig/include/net/inet_frag.h
++++ mmotm/include/net/inet_frag.h
+@@ -1,6 +1,9 @@
+ #ifndef __NET_FRAG_H__
+ #define __NET_FRAG_H__
+ 
++#include <linux/reserve.h>
++#include <linux/mutex.h>
++
+ struct netns_frags {
+ 	int			nqueues;
+ 	atomic_t		mem;
+@@ -10,6 +13,10 @@ struct netns_frags {
+ 	int			timeout;
+ 	int			high_thresh;
+ 	int			low_thresh;
++
++	/* reserves */
++	struct mutex		lock;
++	struct mem_reserve	reserve;
+ };
+ 
+ struct inet_frag_queue {
+Index: mmotm/net/ipv4/inet_fragment.c
+===================================================================
+--- mmotm.orig/net/ipv4/inet_fragment.c
++++ mmotm/net/ipv4/inet_fragment.c
+@@ -19,6 +19,7 @@
+ #include <linux/random.h>
+ #include <linux/skbuff.h>
+ #include <linux/rtnetlink.h>
++#include <linux/reserve.h>
+ 
+ #include <net/inet_frag.h>
+ 
+@@ -74,6 +75,8 @@ void inet_frags_init_net(struct netns_fr
+ 	nf->nqueues = 0;
+ 	atomic_set(&nf->mem, 0);
+ 	INIT_LIST_HEAD(&nf->lru_list);
++	mutex_init(&nf->lock);
++	mem_reserve_init(&nf->reserve, "IP fragement cache", NULL);
+ }
+ EXPORT_SYMBOL(inet_frags_init_net);
+ 
+Index: mmotm/include/net/netns/ipv6.h
+===================================================================
+--- mmotm.orig/include/net/netns/ipv6.h
++++ mmotm/include/net/netns/ipv6.h
+@@ -24,6 +24,8 @@ struct netns_sysctl_ipv6 {
+ 	int ip6_rt_mtu_expires;
+ 	int ip6_rt_min_advmss;
+ 	int icmpv6_time;
++
++	struct mutex ip6_rt_lock;
+ };
+ 
+ struct netns_ipv6 {
+@@ -55,6 +57,8 @@ struct netns_ipv6 {
+ 	struct sock             *ndisc_sk;
+ 	struct sock             *tcp_sk;
+ 	struct sock             *igmp_sk;
++
++	struct mem_reserve	ip6_rt_reserve;
+ #ifdef CONFIG_IPV6_MROUTE
+ 	struct sock		*mroute6_sk;
+ 	struct mfc6_cache	**mfc6_cache_array;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
