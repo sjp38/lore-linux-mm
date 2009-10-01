@@ -1,90 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C300C6B009E
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 15:17:41 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 3B11682C2D8
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 16:06:43 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id AtUHKCklbgQp for <linux-mm@kvack.org>;
-	Thu,  1 Oct 2009 16:06:38 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 155C982C770
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 16:06:31 -0400 (EDT)
-Message-Id: <20091001174120.350865990@gentwo.org>
-References: <20091001174033.576397715@gentwo.org>
-Date: Thu, 01 Oct 2009 13:40:37 -0400
-From: cl@linux-foundation.org
-Subject: [this_cpu_xx V3 04/19] Use this_cpu operations for NFS statistics
-Content-Disposition: inline; filename=this_cpu_nfs
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B7D06B00A1
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 15:49:28 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id n91KZqv1019474
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 13:35:52 -0700
+Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
+	by wpaz13.hot.corp.google.com with ESMTP id n91KZ5QP014904
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2009 13:35:50 -0700
+Received: by pzk37 with SMTP id 37so557577pzk.10
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2009 13:35:49 -0700 (PDT)
+Date: Thu, 1 Oct 2009 13:35:44 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 01/31] mm: serialize access to min_free_kbytes
+In-Reply-To: <1254405871-15687-1-git-send-email-sjayaraman@suse.de>
+Message-ID: <alpine.DEB.1.00.0910011330430.27559@chino.kir.corp.google.com>
+References: <1254405871-15687-1-git-send-email-sjayaraman@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Suresh Jayaraman <sjayaraman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-Simplify NFS statistics and allow the use of optimized
-arch instructions.
+On Thu, 1 Oct 2009, Suresh Jayaraman wrote:
 
-Acked-by: Tejun Heo <tj@kernel.org>
-CC: Trond Myklebust <trond.myklebust@fys.uio.no>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> From: Peter Zijlstra <a.p.zijlstra@chello.nl> 
+> 
+> There is a small race between the procfs caller and the memory hotplug caller
+> of setup_per_zone_wmarks(). Not a big deal, but the next patch will add yet
+> another caller. Time to close the gap.
+> 
 
----
- fs/nfs/iostat.h |   24 +++---------------------
- 1 file changed, 3 insertions(+), 21 deletions(-)
+By "next patch," you mean "mm: emegency pool" (patch 08/31)?
 
-Index: linux-2.6/fs/nfs/iostat.h
-===================================================================
---- linux-2.6.orig/fs/nfs/iostat.h	2009-09-29 11:57:01.000000000 -0500
-+++ linux-2.6/fs/nfs/iostat.h	2009-09-29 12:26:42.000000000 -0500
-@@ -25,13 +25,7 @@ struct nfs_iostats {
- static inline void nfs_inc_server_stats(const struct nfs_server *server,
- 					enum nfs_stat_eventcounters stat)
- {
--	struct nfs_iostats *iostats;
--	int cpu;
--
--	cpu = get_cpu();
--	iostats = per_cpu_ptr(server->io_stats, cpu);
--	iostats->events[stat]++;
--	put_cpu();
-+	this_cpu_inc(server->io_stats->events[stat]);
- }
- 
- static inline void nfs_inc_stats(const struct inode *inode,
-@@ -44,13 +38,7 @@ static inline void nfs_add_server_stats(
- 					enum nfs_stat_bytecounters stat,
- 					unsigned long addend)
- {
--	struct nfs_iostats *iostats;
--	int cpu;
--
--	cpu = get_cpu();
--	iostats = per_cpu_ptr(server->io_stats, cpu);
--	iostats->bytes[stat] += addend;
--	put_cpu();
-+	this_cpu_add(server->io_stats->bytes[stat], addend);
- }
- 
- static inline void nfs_add_stats(const struct inode *inode,
-@@ -65,13 +53,7 @@ static inline void nfs_add_fscache_stats
- 					 enum nfs_stat_fscachecounters stat,
- 					 unsigned long addend)
- {
--	struct nfs_iostats *iostats;
--	int cpu;
--
--	cpu = get_cpu();
--	iostats = per_cpu_ptr(NFS_SERVER(inode)->io_stats, cpu);
--	iostats->fscache[stat] += addend;
--	put_cpu();
-+	this_cpu_add(NFS_SERVER(inode)->io_stats->fscache[stat], addend);
- }
- #endif
- 
+If so, can't you eliminate var_free_mutex entirely from that patch and 
+take min_free_lock in adjust_memalloc_reserve() instead?
 
--- 
+ [ __adjust_memalloc_reserve() would call __setup_per_zone_wmarks()
+   under lock instead, now. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
