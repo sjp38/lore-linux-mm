@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AF8F96B005A
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 19:39:50 -0400 (EDT)
-Message-id: <isapiwc.34aac0fd.3bb4.4ac3f042.11536.9@mail.jp.nec.com>
-In-Reply-To: <20091001083133.429f373b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BC156B004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2009 20:32:27 -0400 (EDT)
+Date: Thu, 1 Oct 2009 09:45:14 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 0/2] memcg: replace memcg's per cpu status counter
+ with array counter like vmstat
+Message-Id: <20091001094514.c9d2b3d9.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090930190417.8823fa44.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090930190417.8823fa44.kamezawa.hiroyu@jp.fujitsu.com>
- <20090930190943.8f19c48b.kamezawa.hiroyu@jp.fujitsu.com>
- <20091001083133.429f373b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 1 Oct 2009 08:56:50 +0900
-From: nishimura@mxp.nes.nec.co.jp
-Subject: Re: [RFC][PATCH 1/2] percpu array counter like vmstat
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 30 Sep 2009 19:09:43 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Wed, 30 Sep 2009 19:04:17 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Hi,
 > 
->> +int array_counter_init(struct array_counter *ac, int size)
->> +{
->> +	ac->v.elements = size;
->> +	ac->v.counters = alloc_percpu(s8);
-> This is a bug, of course...
-Yes, I was confused at that point and about to pointing it out :)
+> In current implementation, memcg uses its own percpu counters for counting
+> evetns and # of RSS, CACHES. Now, counter is maintainer per cpu without
+> any synchronization as vm_stat[] or percpu_counter. So, this is
+>  update-is-fast-but-read-is-slow conter.
+> 
+> Because "read" for these counter was only done by memory.stat file, I thought
+> read-side-slowness was acceptable. Amount of memory usage, which affects
+> memory limit check, can be read by memory.usage_in_bytes. It's maintained
+> by res_counter.
+> 
+> But in current -rc, root memcg's memory usage is calcualted by this per cpu
+> counter and read side slowness may be trouble if it's frequently read.
+> 
+> And, in recent discusstion, I wonder we should maintain NR_DIRTY etc...
+> in memcg. So, slow-read-counter will not match our requirements, I guess.
+> I want some counter like vm_stat[] in memcg.
+> 
+I see your concern.
 
-> should be
-> ac->v.counters = __alloc_percpu(size, __alignof__(char));
-> 
-__alloc_pecpu(size * sizeof(s8), __alignof__(s8)) would be better ?
-There is no actual difference, though.
+But IMHO, it would be better to explain why we need a new percpu array counter
+instead of using array of percpu_counter(size or consolidation of related counters ?),
+IOW, what the benefit of percpu array counter is.
 
 
 Thanks,
 Daisuke Nishimura.
+
+> This 2 patches are for using counter like vm_stat[] in memcg.
+> Just an idea level implementaion but I think this is not so bad.
+> 
+> I confirmed this patch works well. I'm now thinking how to test performance...
+> 
+> Any comments are welcome. 
+> This patch is onto mmotm + some myown patches...so...this is just an RFC.
+> 
+> Regards,
+> -Kame
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
