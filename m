@@ -1,111 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 12EA96B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:56:18 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 32BD46B0055
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:56:34 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 49D4282C693
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:32 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id C2B5182C2A8
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:47 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.174.253])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 5bHn7pXU7g4T for <linux-mm@kvack.org>;
-	Fri,  2 Oct 2009 02:06:32 -0400 (EDT)
+	with ESMTP id VtsAwrDg2H96 for <linux-mm@kvack.org>;
+	Fri,  2 Oct 2009 02:06:43 -0400 (EDT)
 Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 1BC7882C6A8
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:23 -0400 (EDT)
-Message-Id: <20091001174120.691867518@gentwo.org>
-References: <20091001174033.576397715@gentwo.org>
-Date: Thu, 01 Oct 2009 13:40:39 -0400
+	by smtp.ultrahosting.com (Postfix) with ESMTP id A3B9E82C804
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:06:34 -0400 (EDT)
+Message-Id: <20091001174033.576397715@gentwo.org>
+Date: Thu, 01 Oct 2009 13:40:33 -0400
 From: cl@linux-foundation.org
-Subject: [this_cpu_xx V3 06/19] this_cpu_ptr: Straight transformations
-Content-Disposition: inline; filename=this_cpu_ptr_straight_transforms
+Subject: [this_cpu_xx V3 00/19] Introduce per cpu atomic operations and avoid per cpu address arithmetic
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@elte.hu>, Rusty Russell <rusty@rustcorp.com.au>, Eric Dumazet <dada1@cosmosbay.com>, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Use this_cpu_ptr and __this_cpu_ptr in locations where straight
-transformations are possible because per_cpu_ptr is used with
-either smp_processor_id() or raw_smp_processor_id().
+V2->V3:
+- Available via git tree against latest upstream from
+	 git://git.kernel.org/pub/scm/linux/kernel/git/christoph/percpu.git linus
+- Rework SLUB per cpu operations. Get rid of dynamic DMA slab creation
+  for CONFIG_ZONE_DMA
+- Create fallback framework so that 64 bit ops on 32 bit platforms
+  can fallback to the use of preempt or interrupt disable. 64 bit
+  platforms can use 64 bit atomic per cpu ops.
 
-cc: David Howells <dhowells@redhat.com>
-Acked-by: Tejun Heo <tj@kernel.org>
-cc: Ingo Molnar <mingo@elte.hu>
-cc: Rusty Russell <rusty@rustcorp.com.au>
-cc: Eric Dumazet <dada1@cosmosbay.com>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+V1->V2:
+- Various minor fixes
+- Add SLUB conversion
+- Add Page allocator conversion
+- Patch against the git tree of today
 
----
- drivers/infiniband/hw/ehca/ehca_irq.c |    3 +--
- drivers/net/chelsio/sge.c             |    5 ++---
- drivers/net/loopback.c                |    2 +-
- fs/ext4/mballoc.c                     |    2 +-
- 4 files changed, 5 insertions(+), 7 deletions(-)
+The patchset introduces various operations to allow efficient access
+to per cpu variables for the current processor. Currently there is
+no way in the core to calculate the address of the instance
+of a per cpu variable without a table lookup. So we see a lot of
 
-Index: linux-2.6/drivers/net/chelsio/sge.c
-===================================================================
---- linux-2.6.orig/drivers/net/chelsio/sge.c	2009-09-29 09:31:40.000000000 -0500
-+++ linux-2.6/drivers/net/chelsio/sge.c	2009-09-29 11:39:20.000000000 -0500
-@@ -1378,7 +1378,7 @@ static void sge_rx(struct sge *sge, stru
- 	}
- 	__skb_pull(skb, sizeof(*p));
- 
--	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
-+	st = this_cpu_ptr(sge->port_stats[p->iff]);
- 
- 	skb->protocol = eth_type_trans(skb, adapter->port[p->iff].dev);
- 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
-@@ -1780,8 +1780,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff
- {
- 	struct adapter *adapter = dev->ml_priv;
- 	struct sge *sge = adapter->sge;
--	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port],
--						smp_processor_id());
-+	struct sge_port_stats *st = this_cpu_ptr(sge->port_stats[dev->if_port]);
- 	struct cpl_tx_pkt *cpl;
- 	struct sk_buff *orig_skb = skb;
- 	int ret;
-Index: linux-2.6/drivers/net/loopback.c
-===================================================================
---- linux-2.6.orig/drivers/net/loopback.c	2009-09-29 09:31:40.000000000 -0500
-+++ linux-2.6/drivers/net/loopback.c	2009-09-29 11:39:20.000000000 -0500
-@@ -81,7 +81,7 @@ static netdev_tx_t loopback_xmit(struct 
- 
- 	/* it's OK to use per_cpu_ptr() because BHs are off */
- 	pcpu_lstats = dev->ml_priv;
--	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
-+	lb_stats = this_cpu_ptr(pcpu_lstats);
- 
- 	len = skb->len;
- 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
-Index: linux-2.6/fs/ext4/mballoc.c
-===================================================================
---- linux-2.6.orig/fs/ext4/mballoc.c	2009-09-29 09:31:40.000000000 -0500
-+++ linux-2.6/fs/ext4/mballoc.c	2009-09-29 11:39:20.000000000 -0500
-@@ -4210,7 +4210,7 @@ static void ext4_mb_group_or_file(struct
- 	 * per cpu locality group is to reduce the contention between block
- 	 * request from multiple CPUs.
- 	 */
--	ac->ac_lg = per_cpu_ptr(sbi->s_locality_groups, raw_smp_processor_id());
-+	ac->ac_lg = __this_cpu_ptr(sbi->s_locality_groups);
- 
- 	/* we're going to use group allocation */
- 	ac->ac_flags |= EXT4_MB_HINT_GROUP_ALLOC;
-Index: linux-2.6/drivers/infiniband/hw/ehca/ehca_irq.c
-===================================================================
---- linux-2.6.orig/drivers/infiniband/hw/ehca/ehca_irq.c	2009-09-29 09:31:40.000000000 -0500
-+++ linux-2.6/drivers/infiniband/hw/ehca/ehca_irq.c	2009-09-29 11:39:20.000000000 -0500
-@@ -826,8 +826,7 @@ static void __cpuinit take_over_work(str
- 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
- 
- 		list_del(&cq->entry);
--		__queue_comp_task(cq, per_cpu_ptr(pool->cpu_comp_tasks,
--						  smp_processor_id()));
-+		__queue_comp_task(cq, this_cpu_ptr(pool->cpu_comp_tasks));
- 	}
- 
- 	spin_unlock_irqrestore(&cct->task_lock, flags_cct);
+	per_cpu_ptr(x, smp_processor_id())
 
--- 
+The patchset introduces a way to calculate the address using the offset
+that is available in arch specific ways (register or special memory
+locations) using
+
+	this_cpu_ptr(x)
+
+In addition macros are provided that can operate on per cpu
+variables in a per cpu atomic way. With that scalars in structures
+allocated with the new percpu allocator can be modified without disabling
+preempt or interrupts. This works by generating a single instruction that
+does both the relocation of the address to the proper percpu area and
+the RMW action.
+
+F.e.
+
+	this_cpu_add(x->var, 20)
+
+can be used to generate an instruction that uses a segment register for the
+relocation of the per cpu address into the per cpu area of the current processor
+and then increments the variable by 20. The instruction cannot be interrupted
+and therefore the modification is atomic vs the cpu (it either happens or not).
+Rescheduling or interrupt can only happen before or after the instruction.
+
+Per cpu atomicness does not provide protection from concurrent modifications from
+other processors. In general per cpu data is modified only from the processor
+that the per cpu area is associated with. So per cpu atomicness provides a fast
+and effective means of dealing with concurrency. It may allow development of
+better fastpaths for allocators and other important subsystems.
+
+The per cpu atomic RMW operations can be used to avoid having to dimension pointer
+arrays in the allocators (patches for page allocator and slub are provided) and
+avoid pointer lookups in the hot paths of the allocators thereby decreasing
+latency of critical OS paths. The macros could be used to revise the critical
+paths in the allocators to no longer need to disable interrupts (not included).
+
+Per cpu atomic RMW operations are useful to decrease the overhead of counter
+maintenance in the kernel. A this_cpu_inc() f.e. can generate a single
+instruction that has no needs for registers on x86. preempt on / off can
+be avoided in many places.
+
+Patchset will reduce the code size and increase speed of operations for
+dynamically allocated per cpu based statistics. A set of patches modifies
+the fastpaths of the SLUB allocator reducing code size and cache footprint
+through the per cpu atomic operations.
+
+This patch depends on all arches supporting the new per cpu allocator.
+IA64 still uses the old percpu allocator. Tejon has patches to fixup IA64
+and it was approved by Tony Luck but the IA64 patches have not been merged yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
