@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D4D600034
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:25:22 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3C38C600034
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2009 09:25:39 -0400 (EDT)
 From: Suresh Jayaraman <sjayaraman@suse.de>
-Subject: [PATCH 05/31] mm: sl[au]b: add knowledge of reserve pages
-Date: Thu,  1 Oct 2009 19:35:31 +0530
-Message-Id: <1254405931-15832-1-git-send-email-sjayaraman@suse.de>
+Subject: [PATCH 06/31] mm: kmem_alloc_estimate()
+Date: Thu,  1 Oct 2009 19:35:44 +0530
+Message-Id: <1254405944-15868-1-git-send-email-sjayaraman@suse.de>
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no, Suresh Jayaraman <sjayaraman@suse.de>
@@ -13,429 +13,313 @@ List-ID: <linux-mm.kvack.org>
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl> 
 
-Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
-contexts that are entitled to it. This is done to ensure reserve pages don't
-leak out and get consumed.
+Provide a method to get the upper bound on the pages needed to allocate
+a given number of objects from a given kmem_cache.
 
-The basic pattern used for all # allocators is the following, for each active
-slab page we store if it came from an emergency allocation. When we find it
-did, make sure the current allocation context would have been able to allocate
-page from the emergency reserves as well. In that case allow the allocation. If
-not, force a new slab allocation. When that works the memory pressure has
-lifted enough to allow this context to get an object, otherwise fail the
-allocation.
+This lays the foundation for a generic reserve framework as presented in
+a later patch in this series. This framework needs to convert object demand
+(kmalloc() bytes, kmem_cache_alloc() objects) to pages.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Suresh Jayaraman <sjayaraman@suse.de>
 ---
- include/linux/slub_def.h |    1 
- mm/slab.c                |   61 ++++++++++++++++++++++++++++++++++++++++-------
- mm/slob.c                |   16 +++++++++++-
- mm/slub.c                |   43 +++++++++++++++++++++++++++------
- 4 files changed, 104 insertions(+), 17 deletions(-)
+ include/linux/slab.h |    4 ++
+ mm/slab.c            |   75 +++++++++++++++++++++++++++++++++++++++++++
+ mm/slob.c            |   67 +++++++++++++++++++++++++++++++++++++++
+ mm/slub.c            |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 233 insertions(+)
 
-Index: mmotm/mm/slub.c
+Index: mmotm/include/linux/slab.h
 ===================================================================
---- mmotm.orig/mm/slub.c
-+++ mmotm/mm/slub.c
-@@ -28,6 +28,8 @@
- #include <linux/memory.h>
- #include <linux/math64.h>
- #include <linux/fault-inject.h>
-+#include "internal.h"
-+
+--- mmotm.orig/include/linux/slab.h
++++ mmotm/include/linux/slab.h
+@@ -102,6 +102,8 @@ void kmem_cache_free(struct kmem_cache *
+ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
++			gfp_t flags, int objects);
  
  /*
-  * Lock order:
-@@ -1142,7 +1144,8 @@ static void setup_object(struct kmem_cac
- 		s->ctor(object);
- }
+  * Please use this macro to create slab caches. Simply specify the
+@@ -138,6 +140,8 @@ void * __must_check krealloc(const void
+ void kfree(const void *);
+ void kzfree(const void *);
+ size_t ksize(const void *);
++unsigned kmalloc_estimate_objs(size_t, gfp_t, int);
++unsigned kmalloc_estimate_bytes(gfp_t, size_t);
  
--static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-+static
-+struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node, int *reserve)
- {
- 	struct page *page;
- 	void *start;
-@@ -1156,6 +1159,8 @@ static struct page *new_slab(struct kmem
- 	if (!page)
- 		goto out;
- 
-+	*reserve = page->reserve;
-+
- 	inc_slabs_node(s, page_to_nid(page), page->objects);
- 	page->slab = s;
- 	page->flags |= 1 << PG_slab;
-@@ -1602,10 +1607,20 @@ static void *__slab_alloc(struct kmem_ca
- {
- 	void **object;
- 	struct page *new;
-+	int reserve;
- 
- 	/* We handle __GFP_ZERO in the caller */
- 	gfpflags &= ~__GFP_ZERO;
- 
-+	if (unlikely(c->reserve)) {
-+		/*
-+		 * If the current slab is a reserve slab and the current
-+		 * allocation context does not allow access to the reserves we
-+		 * must force an allocation to test the current levels.
-+		 */
-+		if (!(gfp_to_alloc_flags(gfpflags) & ALLOC_NO_WATERMARKS))
-+			goto grow_slab;
-+	}
- 	if (!c->page)
- 		goto new_slab;
- 
-@@ -1619,8 +1634,8 @@ load_freelist:
- 	object = c->page->freelist;
- 	if (unlikely(!object))
- 		goto another_slab;
--	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
--		goto debug;
-+	if (unlikely(PageSlubDebug(c->page) || c->reserve))
-+		goto slow_path;
- 
- 	c->freelist = object[c->offset];
- 	c->page->inuse = c->page->objects;
-@@ -1642,16 +1657,18 @@ new_slab:
- 		goto load_freelist;
- 	}
- 
-+grow_slab:
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_enable();
- 
--	new = new_slab(s, gfpflags, node);
-+	new = new_slab(s, gfpflags, node, &reserve);
- 
- 	if (gfpflags & __GFP_WAIT)
- 		local_irq_disable();
- 
- 	if (new) {
- 		c = get_cpu_slab(s, smp_processor_id());
-+		c->reserve = reserve;
- 		stat(c, ALLOC_SLAB);
- 		if (c->page)
- 			flush_slab(s, c);
-@@ -1663,10 +1680,21 @@ new_slab:
- 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
- 		slab_out_of_memory(s, gfpflags, node);
- 	return NULL;
--debug:
--	if (!alloc_debug_processing(s, c->page, object, addr))
-+
-+slow_path:
-+	if (PageSlubDebug(c->page) &&
-+			!alloc_debug_processing(s, c->page, object, addr))
- 		goto another_slab;
- 
-+	/*
-+	 * Avoid the slub fast path in slab_alloc() by not setting
-+	 * c->freelist and the fast path in slab_free() by making
-+	 * node_match() fail by setting c->node to -1.
-+	 *
-+	 * We use this for for debug and reserve checks which need
-+	 * to be done for each allocation.
-+	 */
-+
- 	c->page->inuse++;
- 	c->page->freelist = object[c->offset];
- 	c->node = -1;
-@@ -2213,10 +2241,11 @@ static void early_kmem_cache_node_alloc(
- 	struct page *page;
- 	struct kmem_cache_node *n;
- 	unsigned long flags;
-+	int reserve;
- 
- 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
- 
--	page = new_slab(kmalloc_caches, gfpflags, node);
-+	page = new_slab(kmalloc_caches, gfpflags, node, &reserve);
- 
- 	BUG_ON(!page);
- 	if (page_to_nid(page) != node) {
-Index: mmotm/include/linux/slub_def.h
-===================================================================
---- mmotm.orig/include/linux/slub_def.h
-+++ mmotm/include/linux/slub_def.h
-@@ -40,6 +40,7 @@ struct kmem_cache_cpu {
- 	int node;		/* The node of the page (or -1 for debug) */
- 	unsigned int offset;	/* Freepointer offset (in word units) */
- 	unsigned int objsize;	/* Size of an object (from kmem_cache) */
-+	int reserve;		/* Did the current page come from the reserve */
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
- #endif
+ /*
+  * Allocator specific definitions. These are mainly used to establish optimized
 Index: mmotm/mm/slab.c
 ===================================================================
 --- mmotm.orig/mm/slab.c
 +++ mmotm/mm/slab.c
-@@ -120,6 +120,8 @@
- #include	<asm/tlbflush.h>
- #include	<asm/page.h>
+@@ -3829,6 +3829,81 @@ const char *kmem_cache_name(struct kmem_
+ EXPORT_SYMBOL_GPL(kmem_cache_name);
  
-+#include 	"internal.h"
-+
  /*
-  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
-  *		  0 for faster, smaller code (especially in the critical paths).
-@@ -268,7 +270,8 @@ struct array_cache {
- 	unsigned int avail;
- 	unsigned int limit;
- 	unsigned int batchcount;
--	unsigned int touched;
-+	unsigned int touched:1,
-+		     reserve:1;
- 	spinlock_t lock;
- 	void *entry[];	/*
- 			 * Must have this definition in here for the proper
-@@ -692,6 +695,27 @@ static inline struct array_cache *cpu_ca
- 	return cachep->array[smp_processor_id()];
- }
- 
-+/*
-+ * If the last page came from the reserves, and the current allocation context
-+ * does not have access to them, force an allocation to test the watermarks.
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @objects objects from @cachep.
 + */
-+static inline int slab_force_alloc(struct kmem_cache *cachep, gfp_t flags)
++unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
++		gfp_t flags, int objects)
 +{
-+	if (unlikely(cpu_cache_get(cachep)->reserve) &&
-+			!(gfp_to_alloc_flags(flags) & ALLOC_NO_WATERMARKS))
-+		return 1;
++	/*
++	 * (1) memory for objects,
++	 */
++	unsigned nr_slabs = DIV_ROUND_UP(objects, cachep->num);
++	unsigned nr_pages = nr_slabs << cachep->gfporder;
 +
-+	return 0;
++	/*
++	 * (2) memory for each per-cpu queue (nr_cpu_ids),
++	 * (3) memory for each per-node alien queues (nr_cpu_ids), and
++	 * (4) some amount of memory for the slab management structures
++	 *
++	 * XXX: truely account these
++	 */
++	nr_pages += 1 + ilog2(nr_pages);
++
++	return nr_pages;
 +}
 +
-+static inline void slab_set_reserve(struct kmem_cache *cachep, int reserve)
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @count objects of @size bytes from kmalloc given @flags.
++ */
++unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
 +{
-+	struct array_cache *ac = cpu_cache_get(cachep);
++	struct kmem_cache *s = kmem_find_general_cachep(size, flags);
++	if (!s)
++		return 0;
 +
-+	if (unlikely(ac->reserve != reserve))
-+		ac->reserve = reserve;
++	return kmem_alloc_estimate(s, flags, count);
 +}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
 +
- static inline struct kmem_cache *__find_general_cachep(size_t size,
- 							gfp_t gfpflags)
- {
-@@ -898,6 +922,7 @@ static struct array_cache *alloc_arrayca
- 		nc->limit = entries;
- 		nc->batchcount = batchcount;
- 		nc->touched = 0;
-+		nc->reserve = 0;
- 		spin_lock_init(&nc->lock);
- 	}
- 	return nc;
-@@ -1595,7 +1620,8 @@ __initcall(cpucache_init);
-  * did not request dmaable memory, we might get it, but that
-  * would be relatively rare and ignorable.
++/*
++ * Calculate the upper bound of pages requires to sequentially allocate @bytes
++ * from kmalloc in an unspecified number of allocations of nonuniform size.
++ */
++unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
++{
++	unsigned long pages;
++	struct cache_sizes *csizep = malloc_sizes;
++
++	/*
++	 * multiply by two, in order to account the worst case slack space
++	 * due to the power-of-two allocation sizes.
++	 */
++	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
++
++	/*
++	 * add the kmem_cache overhead of each possible kmalloc cache
++	 */
++	for (csizep = malloc_sizes; csizep->cs_cachep; csizep++) {
++		struct kmem_cache *s;
++
++#ifdef CONFIG_ZONE_DMA
++		if (unlikely(flags & __GFP_DMA))
++			s = csizep->cs_dmacachep;
++		else
++#endif
++			s = csizep->cs_cachep;
++
++		if (s)
++			pages += kmem_alloc_estimate(s, flags, 0);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
++
++/*
+  * This initializes kmem_list3 or resizes various caches for all nodes.
   */
--static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
-+static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-+		int *reserve)
- {
- 	struct page *page;
- 	int nr_pages;
-@@ -1617,6 +1643,7 @@ static void *kmem_getpages(struct kmem_c
- 	if (!page)
- 		return NULL;
- 
-+	*reserve = page->reserve;
- 	nr_pages = (1 << cachep->gfporder);
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		add_zone_page_state(page_zone(page),
-@@ -2049,6 +2076,7 @@ static int __init_refok setup_cpu_cache(
- 	cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
- 	cpu_cache_get(cachep)->batchcount = 1;
- 	cpu_cache_get(cachep)->touched = 0;
-+	cpu_cache_get(cachep)->reserve = 0;
- 	cachep->batchcount = 1;
- 	cachep->limit = BOOT_CPUCACHE_ENTRIES;
- 	return 0;
-@@ -2732,6 +2760,7 @@ static int cache_grow(struct kmem_cache
- 	size_t offset;
- 	gfp_t local_flags;
- 	struct kmem_list3 *l3;
-+	int reserve;
- 
- 	/*
- 	 * Be lazy and only check for valid flags here,  keeping it out of the
-@@ -2770,7 +2799,7 @@ static int cache_grow(struct kmem_cache
- 	 * 'nodeid'.
- 	 */
- 	if (!objp)
--		objp = kmem_getpages(cachep, local_flags, nodeid);
-+		objp = kmem_getpages(cachep, local_flags, nodeid, &reserve);
- 	if (!objp)
- 		goto failed;
- 
-@@ -2787,6 +2816,7 @@ static int cache_grow(struct kmem_cache
- 	if (local_flags & __GFP_WAIT)
- 		local_irq_disable();
- 	check_irq_off();
-+	slab_set_reserve(cachep, reserve);
- 	spin_lock(&l3->list_lock);
- 
- 	/* Make slab active. */
-@@ -2921,7 +2951,8 @@ bad:
- #define check_slabp(x,y) do { } while(0)
- #endif
- 
--static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
-+static void *cache_alloc_refill(struct kmem_cache *cachep,
-+		gfp_t flags, int must_refill)
- {
- 	int batchcount;
- 	struct kmem_list3 *l3;
-@@ -2931,6 +2962,8 @@ static void *cache_alloc_refill(struct k
- retry:
- 	check_irq_off();
- 	node = numa_node_id();
-+	if (unlikely(must_refill))
-+		goto force_grow;
- 	ac = cpu_cache_get(cachep);
- 	batchcount = ac->batchcount;
- 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
-@@ -2998,11 +3031,14 @@ alloc_done:
- 
- 	if (unlikely(!ac->avail)) {
- 		int x;
-+force_grow:
- 		x = cache_grow(cachep, flags | GFP_THISNODE, node, NULL);
- 
- 		/* cache_grow can reenable interrupts, then ac could change. */
- 		ac = cpu_cache_get(cachep);
--		if (!x && ac->avail == 0)	/* no objects in sight? abort */
-+
-+		/* no objects in sight? abort */
-+		if (!x && (ac->avail == 0 || must_refill))
- 			return NULL;
- 
- 		if (!ac->avail)		/* objects refilled by interrupt? */
-@@ -3092,17 +3128,18 @@ static inline void *____cache_alloc(stru
- {
- 	void *objp;
- 	struct array_cache *ac;
-+	int must_refill = slab_force_alloc(cachep, flags);
- 
- 	check_irq_off();
- 
- 	ac = cpu_cache_get(cachep);
--	if (likely(ac->avail)) {
-+	if (likely(ac->avail && !must_refill)) {
- 		STATS_INC_ALLOCHIT(cachep);
- 		ac->touched = 1;
- 		objp = ac->entry[--ac->avail];
- 	} else {
- 		STATS_INC_ALLOCMISS(cachep);
--		objp = cache_alloc_refill(cachep, flags);
-+		objp = cache_alloc_refill(cachep, flags, must_refill);
- 	}
- 	/*
- 	 * To avoid a false negative, if an object that is in one of the
-@@ -3152,7 +3189,7 @@ static void *fallback_alloc(struct kmem_
- 	struct zone *zone;
- 	enum zone_type high_zoneidx = gfp_zone(flags);
- 	void *obj = NULL;
--	int nid;
-+	int nid, reserve;
- 
- 	if (flags & __GFP_THISNODE)
- 		return NULL;
-@@ -3188,10 +3225,12 @@ retry:
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_enable();
- 		kmem_flagcheck(cache, flags);
--		obj = kmem_getpages(cache, local_flags, numa_node_id());
-+		obj = kmem_getpages(cache, local_flags, numa_node_id(),
-+				    &reserve);
- 		if (local_flags & __GFP_WAIT)
- 			local_irq_disable();
- 		if (obj) {
-+			slab_set_reserve(cache, reserve);
- 			/*
- 			 * Insert into the appropriate per node queues
- 			 */
-@@ -3230,6 +3269,9 @@ static void *____cache_alloc_node(struct
- 	l3 = cachep->nodelists[nodeid];
- 	BUG_ON(!l3);
- 
-+	if (unlikely(slab_force_alloc(cachep, flags)))
-+		goto force_grow;
-+
- retry:
- 	check_irq_off();
- 	spin_lock(&l3->list_lock);
-@@ -3267,6 +3309,7 @@ retry:
- 
- must_grow:
- 	spin_unlock(&l3->list_lock);
-+force_grow:
- 	x = cache_grow(cachep, flags | GFP_THISNODE, nodeid, NULL);
- 	if (x)
- 		goto retry;
+ static int alloc_kmemlist(struct kmem_cache *cachep, gfp_t gfp)
 Index: mmotm/mm/slob.c
 ===================================================================
 --- mmotm.orig/mm/slob.c
 +++ mmotm/mm/slob.c
-@@ -69,6 +69,7 @@
- #include <linux/kmemtrace.h>
- #include <linux/kmemleak.h>
- #include <asm/atomic.h>
-+#include "internal.h"
- 
- /*
-  * slob_block has a field 'units', which indicates size of block if +ve,
-@@ -191,6 +192,11 @@ struct slob_rcu {
- static DEFINE_SPINLOCK(slob_lock);
- 
- /*
-+ * tracks the reserve state for the allocator.
-+ */
-+static int slob_reserve;
-+
-+/*
-  * Encode the given size and next info into a free slob block s.
-  */
- static void set_slob(slob_t *s, slobidx_t size, slob_t *next)
-@@ -240,7 +246,7 @@ static int slob_last(slob_t *s)
- 
- static void *slob_new_pages(gfp_t gfp, int order, int node)
- {
--	void *page;
-+	struct page *page;
- 
- #ifdef CONFIG_NUMA
- 	if (node != -1)
-@@ -252,6 +258,8 @@ static void *slob_new_pages(gfp_t gfp, i
- 	if (!page)
- 		return NULL;
- 
-+	slob_reserve = page->reserve;
-+
- 	return page_address(page);
+@@ -702,6 +702,73 @@ int slab_is_available(void)
+ 	return slob_ready;
  }
  
-@@ -324,6 +332,11 @@ static void *slob_alloc(size_t size, gfp
- 	slob_t *b = NULL;
- 	unsigned long flags;
- 
-+	if (unlikely(slob_reserve)) {
-+		if (!(gfp_to_alloc_flags(gfp) & ALLOC_NO_WATERMARKS))
-+			goto grow;
++static __slob_estimate(unsigned size, unsigned align, unsigned objects)
++{
++	unsigned nr_pages;
++
++	size = SLOB_UNIT * SLOB_UNITS(size + align - 1);
++
++	if (size <= PAGE_SIZE) {
++		nr_pages = DIV_ROUND_UP(objects, PAGE_SIZE / size);
++	} else {
++		nr_pages = objects << get_order(size);
 +	}
 +
- 	if (size < SLOB_BREAK1)
- 		slob_list = &free_slob_small;
- 	else if (size < SLOB_BREAK2)
-@@ -362,6 +375,7 @@ static void *slob_alloc(size_t size, gfp
- 	}
- 	spin_unlock_irqrestore(&slob_lock, flags);
++	return nr_pages;
++}
++
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @objects objects from @cachep.
++ */
++unsigned kmem_alloc_estimate(struct kmem_cache *c, gfp_t flags, int objects)
++{
++	unsigned size = c->size;
++
++	if (c->flags & SLAB_DESTROY_BY_RCU)
++		size += sizeof(struct slob_rcu);
++
++	return __slob_estimate(size, c->align, objects);
++}
++
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @count objects of @size bytes from kmalloc given @flags.
++ */
++unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
++{
++	unsigned align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++
++	return __slob_estimate(size, align, count);
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
++
++/*
++ * Calculate the upper bound of pages requires to sequentially allocate @bytes
++ * from kmalloc in an unspecified number of allocations of nonuniform size.
++ */
++unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
++{
++	unsigned long pages;
++
++	/*
++	 * Multiply by two, in order to account the worst case slack space
++	 * due to the power-of-two allocation sizes.
++	 *
++	 * While not true for slob, it cannot do worse than that for sequential
++	 * allocations.
++	 */
++	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
++
++	/*
++	 * Our power of two series starts at PAGE_SIZE, so add one page.
++	 */
++	pages++;
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
++
+ void __init kmem_cache_init(void)
+ {
+ 	slob_ready = 1;
+Index: mmotm/mm/slub.c
+===================================================================
+--- mmotm.orig/mm/slub.c
++++ mmotm/mm/slub.c
+@@ -2547,6 +2547,42 @@ const char *kmem_cache_name(struct kmem_
+ }
+ EXPORT_SYMBOL(kmem_cache_name);
  
-+grow:
- 	/* Not enough space: must allocate a new page */
- 	if (!b) {
- 		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, node);
++/*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @objects objects from @cachep.
++ *
++ * We should use s->min_objects because those are the least efficient.
++ */
++unsigned kmem_alloc_estimate(struct kmem_cache *s, gfp_t flags, int objects)
++{
++	unsigned long pages;
++	struct kmem_cache_order_objects x;
++
++	if (WARN_ON(!s) || WARN_ON(!oo_objects(s->min)))
++		return 0;
++
++	x = s->min;
++	pages = DIV_ROUND_UP(objects, oo_objects(x)) << oo_order(x);
++
++	/*
++	 * Account the possible additional overhead if the slab holds more that
++	 * one object. Use s->max_objects because that's the worst case.
++	 */
++	x = s->oo;
++	if (oo_objects(x) > 1) {
++		/*
++		 * Account the possible additional overhead if per cpu slabs
++		 * are currently empty and have to be allocated. This is very
++		 * unlikely but a possible scenario immediately after
++		 * kmem_cache_shrink.
++		 */
++		pages += num_possible_cpus() << oo_order(x);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmem_alloc_estimate);
++
+ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ 							const char *text)
+ {
+@@ -2965,6 +3001,57 @@ void kfree(const void *x)
+ EXPORT_SYMBOL(kfree);
+ 
+ /*
++ * Calculate the upper bound of pages required to sequentially allocate
++ * @count objects of @size bytes from kmalloc given @flags.
++ */
++unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
++{
++	struct kmem_cache *s = get_slab(size, flags);
++	if (!s)
++		return 0;
++
++	return kmem_alloc_estimate(s, flags, count);
++
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
++
++/*
++ * Calculate the upper bound of pages requires to sequentially allocate @bytes
++ * from kmalloc in an unspecified number of allocations of nonuniform size.
++ */
++unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
++{
++	int i;
++	unsigned long pages;
++
++	/*
++	 * multiply by two, in order to account the worst case slack space
++	 * due to the power-of-two allocation sizes.
++	 */
++	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
++
++	/*
++	 * add the kmem_cache overhead of each possible kmalloc cache
++	 */
++	for (i = 1; i < PAGE_SHIFT; i++) {
++		struct kmem_cache *s;
++
++#ifdef CONFIG_ZONE_DMA
++		if (unlikely(flags & SLUB_DMA))
++			s = dma_kmalloc_cache(i, flags);
++		else
++#endif
++			s = &kmalloc_caches[i];
++
++		if (s)
++			pages += kmem_alloc_estimate(s, flags, 0);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
++
++/*
+  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
+  * the remaining slabs by the number of items in use. The slabs with the
+  * most items in use come first. New allocations will then fill those up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
