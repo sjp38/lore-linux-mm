@@ -1,99 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D57F96B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 07:25:09 -0400 (EDT)
-Subject: Re: [PATCH 3/10] hugetlb:  factor init_nodemask_of_node
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DC3606B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 07:30:32 -0400 (EDT)
+Subject: Re: [PATCH 7/10] hugetlb:  update hugetlb documentation for NUMA
+ controls.
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20091002094817.GL21906@csn.ul.ie>
+In-Reply-To: <20091001124742.cb6ca371.randy.dunlap@oracle.com>
 References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-	 <20091001165825.32248.75849.sendpatchset@localhost.localdomain>
-	 <20091002094817.GL21906@csn.ul.ie>
+	 <20091001165851.32248.12538.sendpatchset@localhost.localdomain>
+	 <20091001124742.cb6ca371.randy.dunlap@oracle.com>
 Content-Type: text/plain
-Date: Fri, 02 Oct 2009 07:38:30 -0400
-Message-Id: <1254483510.7951.24.camel@useless.americas.hpqcorp.net>
+Date: Fri, 02 Oct 2009 07:43:57 -0400
+Message-Id: <1254483837.7951.30.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Randy Dunlap <randy.dunlap@oracle.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-10-02 at 10:48 +0100, Mel Gorman wrote:
-> On Thu, Oct 01, 2009 at 12:58:25PM -0400, Lee Schermerhorn wrote:
-> > [PATCH 3/10] - hugetlb:  factor init_nodemask_of_node()
+On Thu, 2009-10-01 at 12:47 -0700, Randy Dunlap wrote:
+> On Thu, 01 Oct 2009 12:58:51 -0400 Lee Schermerhorn wrote:
+> 
+> > [PATCH 7/10] hugetlb:  update hugetlb documentation for NUMA controls
 > > 
 > > Against:  2.6.31-mmotm-090925-1435
 > > 
-> > New in V5 of series
 > > 
-> > V6: + rename 'init_nodemask_of_nodes()' to 'init_nodemask_of_node()'
-> >     + redefine init_nodemask_of_node() as static inline fcn
-> >     + move this patch back 1 in series
-> > 
-> > V8: + factor 'init_nodemask_of_node()' from nodemask_of_node()
-> >     + drop alloc_nodemask_of_node() -- not used any more
-> > 
-> > Factor init_nodemask_of_node() out of the nodemask_of_node()
-> > macro.
-> > 
-> > This will be used to populate the huge pages "nodes_allowed"
-> > nodemask for a single node when basing nodes_allowed on a
-> > preferred/local mempolicy or when a persistent huge page
-> > pool page count is modified via a per node sysfs attribute.
+> > This patch updates the kernel huge tlb documentation to describe the
+> > numa memory policy based huge page management.  Additionaly, the patch
+> > includes a fair amount of rework to improve consistency, eliminate
+> > duplication and set the context for documenting the memory policy
+> > interaction.
 > > 
 > > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
-> Very minor comment but otherwise
-> 
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
+> > Acked-by: David Rientjes <rientjes@google.com>
+> > Acked-by: Mel Gorman <mel@csn.ul.ie>
 > > 
-> >  include/linux/nodemask.h |    9 +++++++--
-> >  1 file changed, 7 insertions(+), 2 deletions(-)
+> >  Documentation/vm/hugetlbpage.txt |  267 ++++++++++++++++++++++++++-------------
+> >  1 file changed, 179 insertions(+), 88 deletions(-)
 > > 
-> > Index: linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h
+> > Index: linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt
 > > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/include/linux/nodemask.h	2009-09-30 11:19:52.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h	2009-09-30 11:22:01.000000000 -0400
-> > @@ -245,14 +245,19 @@ static inline int __next_node(int n, con
-> >  	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
-> >  }
+> > --- linux-2.6.31-mmotm-090925-1435.orig/Documentation/vm/hugetlbpage.txt	2009-09-30 15:04:40.000000000 -0400
+> > +++ linux-2.6.31-mmotm-090925-1435/Documentation/vm/hugetlbpage.txt	2009-09-30 15:05:22.000000000 -0400
+> > @@ -159,6 +163,101 @@ Inside each of these directories, the sa
 > >  
-> > +static inline void init_nodemask_of_node(nodemask_t *mask, int node)
-> > +{
-> > +	nodes_clear(*(mask));
+> >  which function as described above for the default huge page-sized case.
+> >  
+> > +
+> > +Interaction of Task Memory Policy with Huge Page Allocation/Freeing:
 > 
-> () around mask there is unnecessary, you're not in a macro.
-> 
-> > +	node_set((node), *(mask));
-> > +}
-> 
-> Same for mask and node here. Not world ending by any measure.
+> Preferable not to end section "title" with a colon.
 
-Sorry.  Incomplete transformation from macro to function :(
 
-I'll send out incremental fixes to this and the other botched merge that
-you pointed out in patch 4/10.  Or I can send out replacement patches.
+Thanks for the quick review, Randy.  I'll fix these in an incremental or
+respun patch.
 
-Andrew:  what's your preference?
 
-Lee 
+Lee
 > 
 > > +
-> >  #define nodemask_of_node(node)						\
-> >  ({									\
-> >  	typeof(_unused_nodemask_arg_) m;				\
-> >  	if (sizeof(m) == sizeof(unsigned long)) {			\
-> >  		m.bits[0] = 1UL<<(node);				\
-> >  	} else {							\
-> > -		nodes_clear(m);						\
-> > -		node_set((node), m);					\
-> > +		init_nodemask_of_node(&m, (node));			\
-> >  	}								\
-> >  	m;								\
-> >  })
-> > 
+> > +Whether huge pages are allocated and freed via the /proc interface or
+> > +the /sysfs interface using the nr_hugepages_mempolicy attribute, the NUMA
+> > +nodes from which huge pages are allocated or freed are controlled by the
+> > +NUMA memory policy of the task that modifies the nr_hugepages_mempolicy
+> > +sysctl or attribute.  When the nr_hugepages attribute is used, mempolicy
+> > +is ignored
 > 
+>       ignored.
+> 
+> > +
+> > +The recommended method to allocate or free huge pages to/from the kernel
+> > +huge page pool, using the nr_hugepages example above, is:
+> > +
+> > +    numactl --interleave <node-list> echo 20 \
+> > +				>/proc/sys/vm/nr_hugepages_mempolicy
+> > +
+> > +or, more succinctly:
+> > +
+> > +    numactl -m <node-list> echo 20 >/proc/sys/vm/nr_hugepages_mempolicy
+> > +
+> > +This will allocate or free abs(20 - nr_hugepages) to or from the nodes
+> > +specified in <node-list>, depending on whether number of persistent huge pages
+> > +is initially less than or greater than 20, respectively.  No huge pages will be
+> > +allocated nor freed on any node not included in the specified <node-list>.
+> > +
+> > +When adjusting the persistent hugepage count via nr_hugepages_mempolicy, any
+> > +memory policy mode--bind, preferred, local or interleave--may be used.  The
+> > +resulting effect on persistent huge page allocation is as follows:
+> > +
+> ...
+> > +
+> > +Per Node Hugepages Attributes
+> > +
+> > +A subset of the contents of the root huge page control directory in sysfs,
+> > +described above, has been replicated under each "node" system device in:
+> > +
+> > +	/sys/devices/system/node/node[0-9]*/hugepages/
+> > +
+> > +Under this directory, the subdirectory for each supported huge page size
+> > +contains the following attribute files:
+> > +
+> > +	nr_hugepages
+> > +	free_hugepages
+> > +	surplus_hugepages
+> > +
+> > +The free_' and surplus_' attribute files are read-only.  They return the number
+> > +of free and surplus [overcommitted] huge pages, respectively, on the parent
+> > +node.
+> > +
+> > +The nr_hugepages attribute will return the total number of huge pages on the
+> 
+> s/will return/returns/  [just a preference]
+> 
+> > +specified node.  When this attribute is written, the number of persistent huge
+> > +pages on the parent node will be adjusted to the specified value, if sufficient
+> > +resources exist, regardless of the task's mempolicy or cpuset constraints.
+> > +
+> > +Note that the number of overcommit and reserve pages remain global quantities,
+> > +as we don't know until fault time, when the faulting task's mempolicy is
+> > +applied, from which node the huge page allocation will be attempted.
+> > +
+> > +
+> > +Using Huge Pages:
+> 
+> Drop ':'.
+> 
+> > +
+> >  If the user applications are going to request huge pages using mmap system
+> >  call, then it is required that system administrator mount a file system of
+> >  type hugetlbfs:
+> 
+> 
+> ---
+> ~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
