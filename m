@@ -1,254 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED5D6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 06:32:02 -0400 (EDT)
-Date: Fri, 2 Oct 2009 11:44:25 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] mm: add notifier in pageblock isolation for
-	balloon drivers
-Message-ID: <20091002104425.GN21906@csn.ul.ie>
-References: <20091001195311.GA16667@austin.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2DADC6B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 06:42:41 -0400 (EDT)
+Date: Fri, 2 Oct 2009 18:54:59 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RFC][PATCH] HWPOISON: remove the unsafe __set_page_locked()
+Message-ID: <20091002105459.GA14526@localhost>
+References: <20090926031537.GA10176@localhost> <20090926034936.GK30185@one.firstfloor.org> <20090926105259.GA5496@localhost> <20090926113156.GA12240@localhost> <20090927104739.GA1666@localhost> <20090927192025.GA6327@wotan.suse.de> <20090928084401.GA22131@localhost> <20091001020207.GL6327@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091001195311.GA16667@austin.ibm.com>
+In-Reply-To: <20091001020207.GL6327@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 01, 2009 at 02:53:11PM -0500, Robert Jennings wrote:
-> Memory balloon drivers can allocate a large amount of memory which
-> is not movable but could be freed to accommodate memory hotplug remove.
+On Thu, Oct 01, 2009 at 10:02:07AM +0800, Nick Piggin wrote:
+> On Mon, Sep 28, 2009 at 04:44:01PM +0800, Wu Fengguang wrote:
+> > On Mon, Sep 28, 2009 at 03:20:25AM +0800, Nick Piggin wrote:
+> > > On Sun, Sep 27, 2009 at 06:47:39PM +0800, Wu Fengguang wrote:
+> > > > > 
+> > > > > And standard deviation is 0.04%, much larger than the difference 0.008% ..
+> > > > 
+> > > > Sorry that's not correct. I improved the accounting by treating
+> > > > function0+function1 from two CPUs as an integral entity:
+> > > > 
+> > > >                  total time      add_to_page_cache_lru   percent  stddev
+> > > >          before  3880166848.722  9683329.610             0.250%   0.014%
+> > > >          after   3828516894.376  9778088.870             0.256%   0.012%
+> > > >          delta                                           0.006%
+> > > 
+> > > I don't understand why you're doing this NFS workload to measure?
+> > 
+> > Because it is the first convenient workload hit my mind, and avoids
+> > real disk IO :)
 > 
-> Prior to calling the memory hotplug notifier chain the memory in the
-> pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
-> isolation will not proceed, causing the memory removal for that page
-> range to fail.
+> Using tmpfs or sparse files is probably a lot easier.
+
+Good ideas. In fact I tried them in the very beginning.
+The ratios are roughly at the same level (which is somehow unexpected):
+
+        total time      add_to_page_cache_lru   percent  stddev
+tmpfs   1579056274.576  2615476.234             0.1656354036338758%
+sparse  1074931917.425  3001273                 0.27920586888791538%
+
+Workload is to copy 1G /dev/zero to /dev/shm/, or 1G sparse file
+(ext2) to /dev/null.
+
+ echo 1 > /debug/tracing/function_profile_enabled
+ cp /dev/zero /dev/shm/
+ echo 0 > /debug/tracing/function_profile_enabled
+
+ dd if=/dev/zero of=/mnt/test bs=1k count=1 seek=1048575
+ echo 1 > /debug/tracing/function_profile_enabled
+ cp /mnt/test/sparse /dev/null
+ echo 0 > /debug/tracing/function_profile_enabled
+
+> > > I see significant nfs, networking protocol and device overheads in
+> > > your profiles, also you're hitting some locks or something which
+> > > is causing massive context switching. So I don't think this is a
+> > > good test.
+> > 
+> > Yes there are overheads. However it is a real and common workload.
 > 
-> Rather than immediately failing pageblock isolation if the the
-> migrateteype is not MIGRATE_MOVABLE, this patch checks if all of the
-> pages in the pageblock are owned by a registered balloon driver using a
-> notifier chain.  If all of the non-movable pages are owned by a balloon,
-> they can be freed later through the memory notifier chain and the range
-> can still be isolated in set_migratetype_isolate().
+> Right, but so are lots of other workloads that don't hit
+> add_to_page_cache heavily :)
+>  
 > 
-> Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
+> > > But anyway as Hugh points out, you need to compare with a
+> > > *completely* fixed kernel, which includes auditing all users of page
+> > > flags non-atomically (slab, notably, but possibly also other
+> > > places).
+> > 
+> > That's good point. We can do more benchmarks when more fixes are
+> > available. However I suspect their design goal will be "fix them
+> > without introducing noticeable overheads" :)
 > 
-> ---
->  drivers/base/memory.c  |   19 +++++++++++++++++++
->  include/linux/memory.h |   22 ++++++++++++++++++++++
->  mm/page_alloc.c        |   49 +++++++++++++++++++++++++++++++++++++++++--------
->  3 files changed, 82 insertions(+), 8 deletions(-)
+> s/noticeable//
 > 
-> Index: b/drivers/base/memory.c
-> ===================================================================
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
->  }
->  EXPORT_SYMBOL(unregister_memory_notifier);
->  
-> +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
-> +
-> +int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(register_memory_isolate_notifier);
-> +
-> +void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> +
->  /*
->   * register_memory - Setup a sysfs device for a memory block
->   */
-> @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
->  	return blocking_notifier_call_chain(&memory_chain, val, v);
->  }
->  
-> +int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
-> +}
-> +
->  /*
->   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
->   * OK to have direct references to sparsemem variables in here.
-> Index: b/include/linux/memory.h
-> ===================================================================
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -50,6 +50,14 @@ struct memory_notify {
->  	int status_change_nid;
->  };
->  
-> +#define MEM_ISOLATE_COUNT	(1<<0)
-> +
+> The problem with all the non-noticeable overheads that we're
+> continually adding to the kernel is that we're adding them to
+> the kernel. Non-noticeable part only makes it worse because
+> you can't bisect them :)
 
-This needs a comment explaining that that this is an action to count the
-number of pages within a range that have been isolated within a range of
-pages and not a default value for "nr_pages" in the next structure.
+Yes it makes sense.
 
-> +struct memory_isolate_notify {
-> +	unsigned long start_addr;
-> +	unsigned int nr_pages;
-> +	unsigned int pages_found;
-> +};
-
-Is there any particular reason you used virtual address of the mapped
-page instead of PFN? I am guessing at this point that the balloon driver
-is based on addresses but the code that populates the structure more
-commonly deals with PFNs. Outside of debugging code, page_address is
-rarely used in mm/page_alloc.c .
-
-It's picky but it feels more natural to me to have the structure have
-start_pfn and nr_pages or start_addr and end_addr but not a mix of both.
-
-> +
->  struct notifier_block;
->  struct mem_section;
->  
-> @@ -76,14 +84,28 @@ static inline int memory_notify(unsigned
->  {
->  	return 0;
->  }
-> +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return 0;
-> +}
-> +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +}
-> +static inline int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return 0;
-> +}
->  #else
->  extern int register_memory_notifier(struct notifier_block *nb);
->  extern void unregister_memory_notifier(struct notifier_block *nb);
-> +extern int register_memory_isolate_notifier(struct notifier_block *nb);
-> +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
->  extern int register_new_memory(int, struct mem_section *);
->  extern int unregister_memory_section(struct mem_section *);
->  extern int memory_dev_init(void);
->  extern int remove_memory_block(unsigned long, struct mem_section *, int);
->  extern int memory_notify(unsigned long val, void *v);
-> +extern int memory_isolate_notify(unsigned long val, void *v);
->  extern struct memory_block *find_memory_block(struct mem_section *);
->  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->  enum mem_add_context { BOOT, HOTPLUG };
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -48,6 +48,7 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/debugobjects.h>
->  #include <linux/kmemleak.h>
-> +#include <linux/memory.h>
->  #include <trace/events/kmem.h>
->  
->  #include <asm/tlbflush.h>
-> @@ -4985,23 +4986,55 @@ void set_pageblock_flags_group(struct pa
->  int set_migratetype_isolate(struct page *page)
->  {
->  	struct zone *zone;
-> -	unsigned long flags;
-> +	unsigned long flags, pfn, iter;
-> +	long immobile = 0;
-
-So, the count in the structure is unsigned long, but long here. Why the
-difference in types?
-
-> +	struct memory_isolate_notify arg;
-> +	int notifier_ret;
->  	int ret = -EBUSY;
->  	int zone_idx;
->  
->  	zone = page_zone(page);
->  	zone_idx = zone_idx(zone);
-> +
-> +	pfn = page_to_pfn(page);
-> +	arg.start_addr = (unsigned long)page_address(page);
-> +	arg.nr_pages = pageblock_nr_pages;
-> +	arg.pages_found = 0;
-> +
->  	spin_lock_irqsave(&zone->lock, flags);
->  	/*
->  	 * In future, more migrate types will be able to be isolation target.
->  	 */
-> -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
-> -	    zone_idx != ZONE_MOVABLE)
-> -		goto out;
-> -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> -	ret = 0;
-> -out:
-> +	do {
-> +		if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE &&
-> +		    zone_idx == ZONE_MOVABLE) {
-
-So, this condition requires the zone be MOVABLE and the migrate type
-be movable. That prevents MIGRATE_RESERVE regions in ZONE_MOVABLE being
-off-lined even though they can likely be off-lined. It also prevents
-MIGRATE_MOVABLE sections in other zones being off-lined.
-
-Did you mean || here instead of && ?
-
-Might want to expand the comment explaining this condition instead of
-leaving it in the old location which is confusing.
-
-> +			ret = 0;
-> +			break;
-> +		}
-
-Why do you wrap all this in a do {} while(0)  instead of preserving the
-out: label and using goto?
-
-> +
-> +		/*
-> +		 * If all of the pages in a zone are used by a balloon,
-> +		 * the range can be still be isolated.  The balloon will
-> +		 * free these pages from the memory notifier chain.
-> +		 */
-> +		notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
-> +		notifier_ret = notifier_to_errno(ret);
-> +		if (notifier_ret || !arg.pages_found)
-> +			break;
-> +
-> +		for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
-> +			if (page_count(pfn_to_page(iter)))
-> +				immobile++;
-> +
-> +		if (arg.pages_found == immobile)
-
-and here you compare a signed with an unsigned type. Probably harmless
-but why do it?
-
-> +			ret = 0;
-> +	} while (0);
-> +
-
-So the out label would go here and you'd get rid of the do {} while(0)
-loop.
-
-> +	if (!ret) {
-> +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> +	}
-> +
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  	if (!ret)
->  		drain_all_pages();
+> > > One other thing to keep in mind that I will mention is that I am
+> > > going to push in a patch to the page allocator to allow callers
+> > > to avoid the refcounting (atomic_dec_and_test) in page lifetime,
+> > > which is especially important for SLUB and takes more cycles off
+> > > the page allocator...
+> > >
+> > > I don't know exactly what you're going to do after that to get a
+> > > stable reference to slab pages. I guess you can read the page
+> > > flags and speculatively take some slab locks and recheck etc...
+> > 
+> > For reliably we could skip page lock on zero refcounted pages.
+> > 
+> > We may lose the PG_hwpoison bit on races with __SetPageSlub*, however
+> > it should be an acceptable imperfection.
 > 
+> I think if you're wiling to accept these problems, then it is
+> completely reasonable to also accept similar races with kernel
+> fastpaths to avoid extra overheads there.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Yes I do. Even better, for this perticular race, we managed to avoid
+it completely without introducing overheads in fast path :)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
