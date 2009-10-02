@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1236B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 05:36:58 -0400 (EDT)
-Date: Fri, 2 Oct 2009 10:48:17 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/10] hugetlb:  factor init_nodemask_of_node
-Message-ID: <20091002094817.GL21906@csn.ul.ie>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain> <20091001165825.32248.75849.sendpatchset@localhost.localdomain>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 57AD06B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 05:39:27 -0400 (EDT)
+Received: from spaceape12.eur.corp.google.com (spaceape12.eur.corp.google.com [172.28.16.146])
+	by smtp-out.google.com with ESMTP id n929ojE9031754
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 10:50:45 +0100
+Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
+	by spaceape12.eur.corp.google.com with ESMTP id n929oOuD007292
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 02:50:43 -0700
+Received: by pzk12 with SMTP id 12so1039665pzk.13
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2009 02:50:42 -0700 (PDT)
+Date: Fri, 2 Oct 2009 02:50:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04/31] mm: tag reseve pages
+In-Reply-To: <19141.34038.274185.392663@notabene.brown>
+Message-ID: <alpine.DEB.1.00.0910020243190.22702@chino.kir.corp.google.com>
+References: <1254405917-15796-1-git-send-email-sjayaraman@suse.de> <alpine.DEB.1.00.0910011407390.32006@chino.kir.corp.google.com> <19141.34038.274185.392663@notabene.brown>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20091001165825.32248.75849.sendpatchset@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, clameter@sgi.com, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Neil Brown <neilb@suse.de>
+Cc: Suresh Jayaraman <sjayaraman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 01, 2009 at 12:58:25PM -0400, Lee Schermerhorn wrote:
-> [PATCH 3/10] - hugetlb:  factor init_nodemask_of_node()
-> 
-> Against:  2.6.31-mmotm-090925-1435
-> 
-> New in V5 of series
-> 
-> V6: + rename 'init_nodemask_of_nodes()' to 'init_nodemask_of_node()'
->     + redefine init_nodemask_of_node() as static inline fcn
->     + move this patch back 1 in series
-> 
-> V8: + factor 'init_nodemask_of_node()' from nodemask_of_node()
->     + drop alloc_nodemask_of_node() -- not used any more
-> 
-> Factor init_nodemask_of_node() out of the nodemask_of_node()
-> macro.
-> 
-> This will be used to populate the huge pages "nodes_allowed"
-> nodemask for a single node when basing nodes_allowed on a
-> preferred/local mempolicy or when a persistent huge page
-> pool page count is modified via a per node sysfs attribute.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+On Fri, 2 Oct 2009, Neil Brown wrote:
 
-Very minor comment but otherwise
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
+> Normally if zones are above their watermarks, page->reserve will not
+> be set.
+> This is because __alloc_page_nodemask (which seems to be the main
+> non-inline entrypoint) first calls get_page_from_freelist with
+> alloc_flags set to ALLOC_WMARK_LOW|ALLOC_CPUSET.
+> Only if this fails does __alloc_page_nodemask call
+> __alloc_pages_slowpath which potentially sets ALLOC_NO_WATERMARKS in
+> alloc_flags.
 > 
->  include/linux/nodemask.h |    9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
+> So page->reserved being set actually tells us:
+>   PF_MEMALLOC or GFP_MEMALLOC were used, and
+>   a WMARK_LOW allocation attempt failed very recently
 > 
-> Index: linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h
-> ===================================================================
-> --- linux-2.6.31-mmotm-090925-1435.orig/include/linux/nodemask.h	2009-09-30 11:19:52.000000000 -0400
-> +++ linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h	2009-09-30 11:22:01.000000000 -0400
-> @@ -245,14 +245,19 @@ static inline int __next_node(int n, con
->  	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
->  }
->  
-> +static inline void init_nodemask_of_node(nodemask_t *mask, int node)
-> +{
-> +	nodes_clear(*(mask));
-
-() around mask there is unnecessary, you're not in a macro.
-
-> +	node_set((node), *(mask));
-> +}
-
-Same for mask and node here. Not world ending by any measure.
-
-> +
->  #define nodemask_of_node(node)						\
->  ({									\
->  	typeof(_unused_nodemask_arg_) m;				\
->  	if (sizeof(m) == sizeof(unsigned long)) {			\
->  		m.bits[0] = 1UL<<(node);				\
->  	} else {							\
-> -		nodes_clear(m);						\
-> -		node_set((node), m);					\
-> +		init_nodemask_of_node(&m, (node));			\
->  	}								\
->  	m;								\
->  })
+> which is close enough to "the emergency reserves were used" I think.
 > 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+There're a couple cornercases for GFP_ATOMIC, though:
+
+ - it isn't restricted by cpuset, so ALLOC_CPUSET will never get set for 
+   the slowpath allocs and may very well allow the allocation to succeed 
+   in zones far above their min watermark.
+
+ - it allows for allocating beyond the min watermark in allowed zones
+   simply by setting ALLOC_HARDER; these types of "reserve" allocations
+   wouldn't be marked as page->reserve with your patches if
+   ALLOC_NO_WATERMARKS wasn't set because of the allocation context.
+
+The second one is debatable whether it fits your definition of reserve or 
+not, but there's an inconsistency if it doesn't because the allocation may 
+succeed in "no watermark" context (for example, in hard irq context) even 
+though that privilege wasn't necessary to successfully allocate: perhaps 
+it only needed ALLOC_HARDER.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
