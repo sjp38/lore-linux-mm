@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 57AD06B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 05:39:27 -0400 (EDT)
-Received: from spaceape12.eur.corp.google.com (spaceape12.eur.corp.google.com [172.28.16.146])
-	by smtp-out.google.com with ESMTP id n929ojE9031754
-	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 10:50:45 +0100
-Received: from pzk12 (pzk12.prod.google.com [10.243.19.140])
-	by spaceape12.eur.corp.google.com with ESMTP id n929oOuD007292
-	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 02:50:43 -0700
-Received: by pzk12 with SMTP id 12so1039665pzk.13
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2009 02:50:42 -0700 (PDT)
-Date: Fri, 2 Oct 2009 02:50:39 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 573C86B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 05:53:41 -0400 (EDT)
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id n92A5Cgc001024
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 11:05:13 +0100
+Received: from pzk31 (pzk31.prod.google.com [10.243.19.159])
+	by zps38.corp.google.com with ESMTP id n92A5Ac8022799
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 03:05:10 -0700
+Received: by pzk31 with SMTP id 31so1033476pzk.26
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2009 03:05:10 -0700 (PDT)
+Date: Fri, 2 Oct 2009 03:05:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 04/31] mm: tag reseve pages
-In-Reply-To: <19141.34038.274185.392663@notabene.brown>
-Message-ID: <alpine.DEB.1.00.0910020243190.22702@chino.kir.corp.google.com>
-References: <1254405917-15796-1-git-send-email-sjayaraman@suse.de> <alpine.DEB.1.00.0910011407390.32006@chino.kir.corp.google.com> <19141.34038.274185.392663@notabene.brown>
+Subject: Re: [PATCH 30/31] Fix use of uninitialized variable in
+ cache_grow()
+In-Reply-To: <19141.34685.863491.329836@notabene.brown>
+Message-ID: <alpine.DEB.1.00.0910020258190.25369@chino.kir.corp.google.com>
+References: <1254406257-16735-1-git-send-email-sjayaraman@suse.de> <alpine.DEB.1.00.0910011341280.27559@chino.kir.corp.google.com> <19141.34685.863491.329836@notabene.brown>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,38 +26,49 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 2 Oct 2009, Neil Brown wrote:
 
-> Normally if zones are above their watermarks, page->reserve will not
-> be set.
-> This is because __alloc_page_nodemask (which seems to be the main
-> non-inline entrypoint) first calls get_page_from_freelist with
-> alloc_flags set to ALLOC_WMARK_LOW|ALLOC_CPUSET.
-> Only if this fails does __alloc_page_nodemask call
-> __alloc_pages_slowpath which potentially sets ALLOC_NO_WATERMARKS in
-> alloc_flags.
+> > > Index: mmotm/mm/slab.c
+> > > ===================================================================
+> > > --- mmotm.orig/mm/slab.c
+> > > +++ mmotm/mm/slab.c
+> > > @@ -2760,7 +2760,7 @@ static int cache_grow(struct kmem_cache
+> > >  	size_t offset;
+> > >  	gfp_t local_flags;
+> > >  	struct kmem_list3 *l3;
+> > > -	int reserve;
+> > > +	int reserve = -1;
+> > >  
+> > >  	/*
+> > >  	 * Be lazy and only check for valid flags here,  keeping it out of the
+> > > @@ -2816,7 +2816,8 @@ static int cache_grow(struct kmem_cache
+> > >  	if (local_flags & __GFP_WAIT)
+> > >  		local_irq_disable();
+> > >  	check_irq_off();
+> > > -	slab_set_reserve(cachep, reserve);
+> > > +	if (reserve != -1)
+> > > +		slab_set_reserve(cachep, reserve);
+> > >  	spin_lock(&l3->list_lock);
+> > >  
+> > >  	/* Make slab active. */
+> > 
+> > Given the patch description, shouldn't this be a test for objp != NULL 
+> > instead, then?
 > 
-> So page->reserved being set actually tells us:
->   PF_MEMALLOC or GFP_MEMALLOC were used, and
->   a WMARK_LOW allocation attempt failed very recently
+> In between those to patch hunks, cache_grow contains the code:
+> 	if (!objp)
+> 		objp = kmem_getpages(cachep, local_flags, nodeid, &reserve);
+> 	if (!objp)
+> 		goto failed;
 > 
-> which is close enough to "the emergency reserves were used" I think.
+> We can no longer test if objp was NULL on entry to the function.
+> We could take a copy of objp on entry to the function, and test it
+> here.  But initialising 'reserve' to an invalid value is easier.
 > 
 
-There're a couple cornercases for GFP_ATOMIC, though:
+Seems like you could do all this in kmem_getpages(), then, by calling 
+slab_set_reserve(cachep, page->reserve) before returning the new page?
 
- - it isn't restricted by cpuset, so ALLOC_CPUSET will never get set for 
-   the slowpath allocs and may very well allow the allocation to succeed 
-   in zones far above their min watermark.
-
- - it allows for allocating beyond the min watermark in allowed zones
-   simply by setting ALLOC_HARDER; these types of "reserve" allocations
-   wouldn't be marked as page->reserve with your patches if
-   ALLOC_NO_WATERMARKS wasn't set because of the allocation context.
-
-The second one is debatable whether it fits your definition of reserve or 
-not, but there's an inconsistency if it doesn't because the allocation may 
-succeed in "no watermark" context (for example, in hard irq context) even 
-though that privilege wasn't necessary to successfully allocate: perhaps 
-it only needed ALLOC_HARDER.
+ [ I'd also drop the branch in slab_set_reserve(), it's faster to just 
+   assign it unconditionally. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
