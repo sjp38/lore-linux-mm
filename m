@@ -1,103 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CCCD60021D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 18:01:53 -0400 (EDT)
-Received: from spaceape9.eur.corp.google.com (spaceape9.eur.corp.google.com [172.28.16.143])
-	by smtp-out.google.com with ESMTP id n92M1prm004599
-	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 23:01:51 +0100
-Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
-	by spaceape9.eur.corp.google.com with ESMTP id n92M1SGr023880
-	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 15:01:49 -0700
-Received: by pzk9 with SMTP id 9so1341544pzk.16
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2009 15:01:48 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F330860021D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 18:16:03 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id n92MGEJY017618
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 23:16:14 +0100
+Received: from pxi37 (pxi37.prod.google.com [10.243.27.37])
+	by wpaz33.hot.corp.google.com with ESMTP id n92MG2b0025486
+	for <linux-mm@kvack.org>; Fri, 2 Oct 2009 15:16:11 -0700
+Received: by pxi37 with SMTP id 37so1470691pxi.15
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2009 15:16:11 -0700 (PDT)
+Date: Fri, 2 Oct 2009 15:16:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] nodemask: make NODEMASK_ALLOC more general
+In-Reply-To: <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.1.00.0910021511030.18180@chino.kir.corp.google.com>
+References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain> <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20091002173955.5F72.A69D9226@jp.fujitsu.com>
-References: <20091002173635.5F6C.A69D9226@jp.fujitsu.com>
-	 <20091002173955.5F72.A69D9226@jp.fujitsu.com>
-Date: Fri, 2 Oct 2009 15:01:48 -0700
-Message-ID: <6599ad830910021501s66cfc108r9a109b84b0f658a4@mail.gmail.com>
-Subject: Re: [PATCH 3/3] cgroup: fix strstrip() abuse
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 2, 2009 at 1:41 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> cgroup_write_X64() and cgroup_write_string() ignore the return
-> value of strstrip().
-> it makes small inconsistent behavior.
->
-> example:
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D
-> =A0# cd /mnt/cgroup/hoge
-> =A0# cat memory.swappiness
-> =A060
-> =A0# echo "59 " > memory.swappiness
-> =A0# cat memory.swappiness
-> =A059
-> =A0# echo " 58" > memory.swappiness
-> =A0bash: echo: write error: Invalid argument
->
->
-> This patch fixes it.
->
-> Cc: Li Zefan <lizf@cn.fujitsu.com>
-> Cc: Paul Menage <menage@google.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+NODEMASK_ALLOC(x, m) assumes x is a type of struct, which is unnecessary.
+It's perfectly reasonable to use this macro to allocate a nodemask_t,
+which is anonymous, either dynamically or on the stack depending on
+NODES_SHIFT.
 
-Acked-by: Paul Menage <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/nodemask.h |   15 ++++++++-------
+ 1 files changed, 8 insertions(+), 7 deletions(-)
 
-Thanks - although I think I'd s/abuse/misuse/ in the description.
-
-> ---
-> =A0kernel/cgroup.c | =A0 =A08 +++-----
-> =A01 file changed, 3 insertions(+), 5 deletions(-)
->
-> Index: b/kernel/cgroup.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -1710,14 +1710,13 @@ static ssize_t cgroup_write_X64(struct c
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EFAULT;
->
-> =A0 =A0 =A0 =A0buffer[nbytes] =3D 0; =A0 =A0 /* nul-terminate */
-> - =A0 =A0 =A0 strstrip(buffer);
-> =A0 =A0 =A0 =A0if (cft->write_u64) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 u64 val =3D simple_strtoull(buffer, &end, 0=
-);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 u64 val =3D simple_strtoull(strstrip(buffer=
-), &end, 0);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (*end)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EINVAL;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0retval =3D cft->write_u64(cgrp, cft, val);
-> =A0 =A0 =A0 =A0} else {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 s64 val =3D simple_strtoll(buffer, &end, 0)=
-;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 s64 val =3D simple_strtoll(strstrip(buffer)=
-, &end, 0);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (*end)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -EINVAL;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0retval =3D cft->write_s64(cgrp, cft, val);
-> @@ -1753,8 +1752,7 @@ static ssize_t cgroup_write_string(struc
-> =A0 =A0 =A0 =A0}
->
-> =A0 =A0 =A0 =A0buffer[nbytes] =3D 0; =A0 =A0 /* nul-terminate */
-> - =A0 =A0 =A0 strstrip(buffer);
-> - =A0 =A0 =A0 retval =3D cft->write_string(cgrp, cft, buffer);
-> + =A0 =A0 =A0 retval =3D cft->write_string(cgrp, cft, strstrip(buffer));
-> =A0 =A0 =A0 =A0if (!retval)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0retval =3D nbytes;
-> =A0out:
->
->
->
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -486,14 +486,14 @@ static inline int num_node_state(enum node_states state)
+ 
+ /*
+  * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
++ * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name 'm'.
+  */
+-
+ #if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
+-#define NODEMASK_ALLOC(x, m) struct x *m = kmalloc(sizeof(*m), GFP_KERNEL)
+-#define NODEMASK_FREE(m) kfree(m)
++#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
++#define NODEMASK_FREE(m)		kfree(m)
+ #else
+-#define NODEMASK_ALLOC(x, m) struct x _m, *m = &_m
+-#define NODEMASK_FREE(m)
++#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
++#define NODEMASK_FREE(m)		do {} while (0)
+ #endif
+ 
+ /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
+@@ -502,8 +502,9 @@ struct nodemask_scratch {
+ 	nodemask_t	mask2;
+ };
+ 
+-#define NODEMASK_SCRATCH(x) NODEMASK_ALLOC(nodemask_scratch, x)
+-#define NODEMASK_SCRATCH_FREE(x)  NODEMASK_FREE(x)
++#define NODEMASK_SCRATCH(x)	\
++		NODEMASK_ALLOC(struct nodemask_scratch, x)
++#define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
+ 
+ 
+ #endif /* __LINUX_NODEMASK_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
