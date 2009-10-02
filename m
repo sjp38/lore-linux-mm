@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B51076B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:58:47 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9276xfm000732
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 2 Oct 2009 16:07:00 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB99145DE6E
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:06:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB57145DE4D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:06:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9090E1DB8037
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:06:59 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26B291DB8040
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:06:56 +0900 (JST)
-Date: Fri, 2 Oct 2009 16:04:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] memcg: coalescing uncharge at unmap and truncation
-Message-Id: <20091002160437.4871306f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4AC5A35F.3040308@ct.jp.nec.com>
-References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091002140126.61d15e5e.kamezawa.hiroyu@jp.fujitsu.com>
-	<4AC5A1FA.1080208@ct.jp.nec.com>
-	<4AC5A35F.3040308@ct.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BF69D6B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 03:56:44 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n92865Rx025264
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 2 Oct 2009 17:06:05 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F2DD845DE51
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 17:06:04 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D845745DE4E
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 17:06:04 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BC3C71DB803E
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 17:06:04 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 75C541DB8037
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 17:06:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] congestion_wait() don't use WRITE
+Message-Id: <20091002170343.5F67.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri,  2 Oct 2009 17:06:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hiroshi Shimamoto <h-shimamoto@ct.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nis@tyo205.gate.nec.co.jp>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Jens Axboe <jens.axboe@oracle.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 02 Oct 2009 15:53:19 +0900
-Hiroshi Shimamoto <h-shimamoto@ct.jp.nec.com> wrote:
 
-> Hiroshi Shimamoto wrote:
-> > KAMEZAWA Hiroyuki wrote:
+commit 8aa7e847d (Fix congestion_wait() sync/async vs read/write confusion)
+replace WRITE with BLK_RW_ASYNC.
+Unfortunately, concurrent mm development made the unchanged place
+accidentally.
 
-> >> +static inline void mem_cgroup_uncharge_batch_start(void)
-> >> +{
-> >> +}
-> >> +
-> >> +static inline void mem_cgroup_uncharge_batch_start(void)
-> > 
-> > mem_cgroup_uncharge_batch_end?
-> 
-> s/_batch// too?
-> 
-thank you. fixed.
+This patch fixes it too.
 
--Kame
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4a7b0d5..e4a915b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1088,7 +1088,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
+ 	int lumpy_reclaim = 0;
+ 
+ 	while (unlikely(too_many_isolated(zone, file, sc))) {
+-		congestion_wait(WRITE, HZ/10);
++		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/* We are about to die and free our memory. Return now. */
+ 		if (fatal_signal_pending(current))
+-- 
+1.6.0.GIT
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
