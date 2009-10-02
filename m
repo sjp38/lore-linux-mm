@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B10986B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:13:15 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D0F1A6B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 01:44:21 -0400 (EDT)
 From: Neil Brown <neilb@suse.de>
-Date: Fri, 2 Oct 2009 15:20:34 +1000
-Message-ID: <19141.36258.926599.862333@notabene.brown>
+Date: Fri, 2 Oct 2009 15:52:16 +1000
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 01/31] mm: serialize access to min_free_kbytes
-In-Reply-To: message from David Rientjes on Thursday October 1
-References: <1254405871-15687-1-git-send-email-sjayaraman@suse.de>
-	<alpine.DEB.1.00.0910011330430.27559@chino.kir.corp.google.com>
+Message-ID: <19141.38160.888705.175222@notabene.brown>
+Subject: Re: [PATCH 00/31] Swap over NFS -v20
+In-Reply-To: message from Christoph Hellwig on Thursday October 1
+References: <1254405858-15651-1-git-send-email-sjayaraman@suse.de>
+	<20091001174201.GA30068@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
+To: Christoph Hellwig <hch@infradead.org>
 Cc: Suresh Jayaraman <sjayaraman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, Peter Zijlstra <a.p.zijlstra@chello.nl>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Thursday October 1, rientjes@google.com wrote:
-> On Thu, 1 Oct 2009, Suresh Jayaraman wrote:
+On Thursday October 1, hch@infradead.org wrote:
 > 
-> > From: Peter Zijlstra <a.p.zijlstra@chello.nl> 
-> > 
-> > There is a small race between the procfs caller and the memory hotplug caller
-> > of setup_per_zone_wmarks(). Not a big deal, but the next patch will add yet
-> > another caller. Time to close the gap.
-> > 
+> The other really big one is adding a proper method for safe, page-backed
+> kernelspace I/O on files.  That is not something like the grotty
+> swap-tied address_space operations in this patch, but more something in
+> the direction of the kernel direct I/O patches from Jenx Axboe he did
+> for using in the loop driver.  But even those aren't complete as they
+> don't touch the locking issue yet.
+
+Do you have a problem with the proposed address_space operations apart
+from their names including the word "swap"?  Would something like:
+  direct_on, direct_off, direct_read, direct_write
+be better.
+Semantics being that the read and write:
+  - bypass the page cache (invalidation is up to caller)
+  - must not make a blocking non-emergency memory allocation
+direct_on does any pre-allocation and pre-reading to ensure those
+semantics and be provided.
+
+I have wondered if an extra flag along the lines of "I don't care
+about this data after a crash" would be useful.
+It would be set for swap, but not set for other users.  Thus
+e.g. RAID1 could easily avoid resyncing an area that was used only for
+swap.
+
+The only thing of Jens' that I could find used bmap - is there
+something more recent I should look for?
+
 > 
-> By "next patch," you mean "mm: emegency pool" (patch 08/31)?
+> Especially the latter is an absolutely essential step to make any
+> progress here, and an excellent patch series of it's own as there are
+> multiple users for this, like making swap safe on btrfs files, making
+> the MD bitmap code actually safe or improving the loop driver.
 
-:-)  It is always safer to say "a subsequent patch", isn't it....
-
-> 
-> If so, can't you eliminate var_free_mutex entirely from that patch and 
-> take min_free_lock in adjust_memalloc_reserve() instead?
-
-adjust_memalloc_reserve does a test alloc/free cycle under a lock.
-That cannot be done under a spin-lock, it must be a mutex.
-So I don't think you can eliminate var_free_mutex.
+100% agree.
 
 Thanks,
 NeilBrown
-
-> 
->  [ __adjust_memalloc_reserve() would call __setup_per_zone_wmarks()
->    under lock instead, now. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
