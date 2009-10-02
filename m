@@ -1,459 +1,349 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7722F6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:55:21 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0DC3182C7EA
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 03:06:42 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id ew7FCxgDglWC for <linux-mm@kvack.org>;
-	Fri,  2 Oct 2009 03:06:36 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0E5B182C7DA
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 03:06:36 -0400 (EDT)
-Message-Id: <20091001174122.413629421@gentwo.org>
-References: <20091001174033.576397715@gentwo.org>
-Date: Thu, 01 Oct 2009 13:40:48 -0400
-From: cl@linux-foundation.org
-Subject: [this_cpu_xx V3 15/19] Use this_cpu operations in slub
-Content-Disposition: inline; filename=this_cpu_slub_conversion
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id ACD356B004D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 02:56:28 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9274b6D020874
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 2 Oct 2009 16:04:37 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A89D45DE51
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:04:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 285D745DE4F
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:04:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1427C1DB803C
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:04:37 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B3BC0E18010
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 16:04:36 +0900 (JST)
+Date: Fri, 2 Oct 2009 16:02:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/2] memcg: coalescing uncharge at unmap and truncation
+ (fixed coimpile bug)
+Message-Id: <20091002160213.32ae2bb5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4AC5A1FA.1080208@ct.jp.nec.com>
+References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091002140126.61d15e5e.kamezawa.hiroyu@jp.fujitsu.com>
+	<4AC5A1FA.1080208@ct.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, Tejun Heo <tj@kernel.org>, mingo@elte.hu, rusty@rustcorp.com.au, davem@davemloft.net
+To: Hiroshi Shimamoto <h-shimamoto@ct.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nis@tyo205.gate.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Using per cpu allocations removes the needs for the per cpu arrays in the
-kmem_cache struct. These could get quite big if we have to support systems
-with thousands of cpus. The use of this_cpu_xx operations results in:
+On Fri, 02 Oct 2009 15:47:22 +0900
+Hiroshi Shimamoto <h-shimamoto@ct.jp.nec.com> wrote:
+> >  extern void mem_cgroup_uncharge_page(struct page *page);
+> >  extern void mem_cgroup_uncharge_cache_page(struct page *page);
+> >  extern int mem_cgroup_shmem_charge_fallback(struct page *page,
+> > @@ -151,6 +156,14 @@ static inline void mem_cgroup_cancel_cha
+> >  {
+> >  }
+> >  
+> > +static inline void mem_cgroup_uncharge_batch_start(void)
+> > +{
+> > +}
+> > +
+> > +static inline void mem_cgroup_uncharge_batch_start(void)
+> 
+> mem_cgroup_uncharge_batch_end?
+> 
+yes, of course...lack of !CONFIC_MEM_CGROUP test after updating...
+thank you!
+==
+In massive parallel enviroment, res_counter can be a performance bottleneck.
+One strong techinque to reduce lock contention is reducing calls by
+coalescing some amount of calls into one.
 
-1. The size of kmem_cache for SMP configuration shrinks since we will only
-   need 1 pointer instead of NR_CPUS. The same pointer can be used by all
-   processors. Reduces cache footprint of the allocator.
+Considering charge/uncharge chatacteristic,
+	- charge is done one by one via demand-paging.
+	- uncharge is done by
+		- in chunk at munmap, truncate, exit, execve...
+		- one by one via vmscan/paging.
 
-2. We can dynamically size kmem_cache according to the actual nodes in the
-   system meaning less memory overhead for configurations that may potentially
-   support up to 1k NUMA nodes / 4k cpus.
+It seems we have a chance in uncharge at unmap/truncation.
 
-3. We can remove the diddle widdle with allocating and releasing of
-   kmem_cache_cpu structures when bringing up and shutting down cpus. The cpu
-   alloc logic will do it all for us. Removes some portions of the cpu hotplug
-   functionality.
+This patch is a for coalescing uncharge. For avoiding scattering memcg's
+structure to functions under /mm, this patch adds memcg batch uncharge
+information to the task. 
 
-4. Fastpath performance increases since per cpu pointer lookups and
-   address calculations are avoided.
+The degree of coalescing depends on callers
+  - at invalidate/trucate... pagevec size
+  - at unmap ....ZAP_BLOCK_SIZE
+(memory itself will be freed in this degree.)
+Then, we'll not coalescing too much.
 
-V2->V3:
-- Leave Linus' code ornament alone.
+Changelog(now):
+ - fixed !CONFIG_MEM_CGROUP case. 
 
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+Changelog(old):
+ - unified patch for callers
+ - added commetns.
+ - make ->do_batch as bool.
+ - removed css_get() at el. We don't need it.
 
+
+
+Changelog(now):
+ - rebased onto the latest mmotm + softlimit fix patches.
+
+Changelog(old):
+ - unified patch for callers
+ - added commetns.
+ - make ->do_batch as bool.
+ - removed css_get() at el. We don't need it.
+
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/slub_def.h |    6 -
- mm/slub.c                |  207 ++++++++++-------------------------------------
- 2 files changed, 49 insertions(+), 164 deletions(-)
+ include/linux/memcontrol.h |   13 ++++++
+ include/linux/sched.h      |    7 +++
+ mm/memcontrol.c            |   91 ++++++++++++++++++++++++++++++++++++++++++---
+ mm/memory.c                |    2 
+ mm/truncate.c              |    6 ++
+ 5 files changed, 113 insertions(+), 6 deletions(-)
 
-Index: linux-2.6/include/linux/slub_def.h
+Index: mmotm-2.6.31-Sep28/include/linux/memcontrol.h
 ===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2009-09-17 17:51:51.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2009-09-29 09:02:05.000000000 -0500
-@@ -69,6 +69,7 @@ struct kmem_cache_order_objects {
-  * Slab cache management.
-  */
- struct kmem_cache {
-+	struct kmem_cache_cpu *cpu_slab;
- 	/* Used for retriving partial slabs etc */
- 	unsigned long flags;
- 	int size;		/* The size of an object including meta data */
-@@ -104,11 +105,6 @@ struct kmem_cache {
- 	int remote_node_defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
- #endif
--#ifdef CONFIG_SMP
--	struct kmem_cache_cpu *cpu_slab[NR_CPUS];
--#else
--	struct kmem_cache_cpu cpu_slab;
--#endif
+--- mmotm-2.6.31-Sep28.orig/include/linux/memcontrol.h
++++ mmotm-2.6.31-Sep28/include/linux/memcontrol.h
+@@ -54,6 +54,11 @@ extern void mem_cgroup_rotate_lru_list(s
+ extern void mem_cgroup_del_lru(struct page *page);
+ extern void mem_cgroup_move_lists(struct page *page,
+ 				  enum lru_list from, enum lru_list to);
++
++/* For coalescing uncharge for reducing memcg' overhead*/
++extern void mem_cgroup_uncharge_start(void);
++extern void mem_cgroup_uncharge_end(void);
++
+ extern void mem_cgroup_uncharge_page(struct page *page);
+ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+ extern int mem_cgroup_shmem_charge_fallback(struct page *page,
+@@ -151,6 +156,14 @@ static inline void mem_cgroup_cancel_cha
+ {
+ }
+ 
++static inline void mem_cgroup_uncharge_start(void)
++{
++}
++
++static inline void mem_cgroup_uncharge_end(void)
++{
++}
++
+ static inline void mem_cgroup_uncharge_page(struct page *page)
+ {
+ }
+Index: mmotm-2.6.31-Sep28/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.31-Sep28.orig/mm/memcontrol.c
++++ mmotm-2.6.31-Sep28/mm/memcontrol.c
+@@ -1826,6 +1826,49 @@ void mem_cgroup_cancel_charge_swapin(str
+ 	css_put(&mem->css);
+ }
+ 
++static void
++__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
++{
++	struct memcg_batch_info *batch = NULL;
++	bool uncharge_memsw = true;
++	/* If swapout, usage of swap doesn't decrease */
++	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
++		uncharge_memsw = false;
++	/*
++	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
++	 * In those cases, all pages freed continously can be expected to be in
++	 * the same cgroup and we have chance to coalesce uncharges.
++	 * And, we do uncharge one by one if this is killed by OOM.
++	 */
++	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
++		goto direct_uncharge;
++
++	batch = &current->memcg_batch;
++	/*
++	 * In usual, we do css_get() when we remember memcg pointer.
++	 * But in this case, we keep res->usage until end of a series of
++	 * uncharges. Then, it's ok to ignore memcg's refcnt.
++	 */
++	if (!batch->memcg)
++		batch->memcg = mem;
++	/*
++	 * In typical case, batch->memcg == mem. This means we can
++	 * merge a series of uncharges to an uncharge of res_counter.
++	 * If not, we uncharge res_counter ony by one.
++	 */
++	if (batch->memcg != mem)
++		goto direct_uncharge;
++	/* remember freed charge and uncharge it later */
++	batch->pages += PAGE_SIZE;
++	if (uncharge_memsw)
++		batch->memsw += PAGE_SIZE;
++	return;
++direct_uncharge:
++	res_counter_uncharge(&mem->res, PAGE_SIZE);
++	if (uncharge_memsw)
++		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++	return;
++}
+ 
+ /*
+  * uncharge if !page_mapped(page)
+@@ -1874,12 +1917,8 @@ __mem_cgroup_uncharge_common(struct page
+ 		break;
+ 	}
+ 
+-	if (!mem_cgroup_is_root(mem)) {
+-		res_counter_uncharge(&mem->res, PAGE_SIZE);
+-		if (do_swap_account &&
+-				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+-	}
++	if (!mem_cgroup_is_root(mem))
++		__do_uncharge(mem, ctype);
+ 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+ 		mem_cgroup_swap_statistics(mem, true);
+ 	mem_cgroup_charge_statistics(mem, pc, false);
+@@ -1925,6 +1964,46 @@ void mem_cgroup_uncharge_cache_page(stru
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+ }
+ 
++/*
++ * batch_start/batch_end is called in unmap_page_range/invlidate/trucate.
++ * In that cases, pages are freed continuously and we can expect pages
++ * are in the same memcg. All these calls itself limits the number of
++ * pages freed at once, then uncharge_start/end() is called properly.
++ */
++
++void mem_cgroup_uncharge_start(void)
++{
++	if (!current->memcg_batch.do_batch) {
++		current->memcg_batch.memcg = NULL;
++		current->memcg_batch.pages = 0;
++		current->memcg_batch.memsw = 0;
++	}
++	current->memcg_batch.do_batch++;
++}
++
++void mem_cgroup_uncharge_end(void)
++{
++	struct mem_cgroup *mem;
++
++	if (!current->memcg_batch.do_batch)
++		return;
++
++	current->memcg_batch.do_batch--;
++	if (current->memcg_batch.do_batch) /* Nested ? */
++		return;
++
++	mem = current->memcg_batch.memcg;
++	if (!mem)
++		return;
++	/* This "mem" is valid bacause we hide charges behind us. */
++	if (current->memcg_batch.pages)
++		res_counter_uncharge(&mem->res, current->memcg_batch.pages);
++	if (current->memcg_batch.memsw)
++		res_counter_uncharge(&mem->memsw, current->memcg_batch.memsw);
++	/* Not necessary. but forget this pointer */
++	current->memcg_batch.memcg = NULL;
++}
++
+ #ifdef CONFIG_SWAP
+ /*
+  * called after __delete_from_swap_cache() and drop "page" account.
+Index: mmotm-2.6.31-Sep28/include/linux/sched.h
+===================================================================
+--- mmotm-2.6.31-Sep28.orig/include/linux/sched.h
++++ mmotm-2.6.31-Sep28/include/linux/sched.h
+@@ -1549,6 +1549,13 @@ struct task_struct {
+ 	unsigned long trace_recursion;
+ #endif /* CONFIG_TRACING */
+ 	unsigned long stack_start;
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR /* memcg uses this to do batch job */
++	struct memcg_batch_info {
++		int do_batch;
++		struct mem_cgroup *memcg;
++		long pages, memsw;
++	} memcg_batch;
++#endif
  };
  
- /*
-Index: linux-2.6/mm/slub.c
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+Index: mmotm-2.6.31-Sep28/mm/memory.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2009-09-28 10:08:10.000000000 -0500
-+++ linux-2.6/mm/slub.c	2009-09-29 09:02:05.000000000 -0500
-@@ -242,15 +242,6 @@ static inline struct kmem_cache_node *ge
- #endif
+--- mmotm-2.6.31-Sep28.orig/mm/memory.c
++++ mmotm-2.6.31-Sep28/mm/memory.c
+@@ -940,6 +940,7 @@ static unsigned long unmap_page_range(st
+ 		details = NULL;
+ 
+ 	BUG_ON(addr >= end);
++	mem_cgroup_uncharge_start();
+ 	tlb_start_vma(tlb, vma);
+ 	pgd = pgd_offset(vma->vm_mm, addr);
+ 	do {
+@@ -952,6 +953,7 @@ static unsigned long unmap_page_range(st
+ 						zap_work, details);
+ 	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
+ 	tlb_end_vma(tlb, vma);
++	mem_cgroup_uncharge_end();
+ 
+ 	return addr;
  }
- 
--static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
--{
--#ifdef CONFIG_SMP
--	return s->cpu_slab[cpu];
--#else
--	return &s->cpu_slab;
--#endif
--}
--
- /* Verify that a pointer has an address that is valid within a slab page */
- static inline int check_valid_pointer(struct kmem_cache *s,
- 				struct page *page, const void *object)
-@@ -1124,7 +1115,7 @@ static struct page *allocate_slab(struct
- 		if (!page)
- 			return NULL;
- 
--		stat(get_cpu_slab(s, raw_smp_processor_id()), ORDER_FALLBACK);
-+		stat(this_cpu_ptr(s->cpu_slab), ORDER_FALLBACK);
- 	}
- 
- 	if (kmemcheck_enabled
-@@ -1422,7 +1413,7 @@ static struct page *get_partial(struct k
- static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
- {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
--	struct kmem_cache_cpu *c = get_cpu_slab(s, smp_processor_id());
-+	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
- 
- 	__ClearPageSlubFrozen(page);
- 	if (page->inuse) {
-@@ -1454,7 +1445,7 @@ static void unfreeze_slab(struct kmem_ca
- 			slab_unlock(page);
- 		} else {
- 			slab_unlock(page);
--			stat(get_cpu_slab(s, raw_smp_processor_id()), FREE_SLAB);
-+			stat(__this_cpu_ptr(s->cpu_slab), FREE_SLAB);
- 			discard_slab(s, page);
+Index: mmotm-2.6.31-Sep28/mm/truncate.c
+===================================================================
+--- mmotm-2.6.31-Sep28.orig/mm/truncate.c
++++ mmotm-2.6.31-Sep28/mm/truncate.c
+@@ -272,6 +272,7 @@ void truncate_inode_pages_range(struct a
+ 			pagevec_release(&pvec);
+ 			break;
  		}
- 	}
-@@ -1507,7 +1498,7 @@ static inline void flush_slab(struct kme
-  */
- static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
- {
--	struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-+	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
++		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
  
- 	if (likely(c && c->page))
- 		flush_slab(s, c);
-@@ -1673,7 +1661,7 @@ new_slab:
- 		local_irq_disable();
- 
- 	if (new) {
--		c = get_cpu_slab(s, smp_processor_id());
-+		c = __this_cpu_ptr(s->cpu_slab);
- 		stat(c, ALLOC_SLAB);
- 		if (c->page)
- 			flush_slab(s, c);
-@@ -1711,7 +1699,6 @@ static __always_inline void *slab_alloc(
- 	void **object;
- 	struct kmem_cache_cpu *c;
- 	unsigned long flags;
--	unsigned int objsize;
- 
- 	gfpflags &= gfp_allowed_mask;
- 
-@@ -1722,24 +1709,23 @@ static __always_inline void *slab_alloc(
- 		return NULL;
- 
- 	local_irq_save(flags);
--	c = get_cpu_slab(s, smp_processor_id());
--	objsize = c->objsize;
--	if (unlikely(!c->freelist || !node_match(c, node)))
-+	c = __this_cpu_ptr(s->cpu_slab);
-+	object = c->freelist;
-+	if (unlikely(!object || !node_match(c, node)))
- 
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
- 	else {
--		object = c->freelist;
- 		c->freelist = object[c->offset];
- 		stat(c, ALLOC_FASTPATH);
- 	}
- 	local_irq_restore(flags);
- 
- 	if (unlikely((gfpflags & __GFP_ZERO) && object))
--		memset(object, 0, objsize);
-+		memset(object, 0, s->objsize);
- 
- 	kmemcheck_slab_alloc(s, gfpflags, object, c->objsize);
--	kmemleak_alloc_recursive(object, objsize, 1, s->flags, gfpflags);
-+	kmemleak_alloc_recursive(object, c->objsize, 1, s->flags, gfpflags);
- 
- 	return object;
- }
-@@ -1800,7 +1786,7 @@ static void __slab_free(struct kmem_cach
- 	void **object = (void *)x;
- 	struct kmem_cache_cpu *c;
- 
--	c = get_cpu_slab(s, raw_smp_processor_id());
-+	c = __this_cpu_ptr(s->cpu_slab);
- 	stat(c, FREE_SLOWPATH);
- 	slab_lock(page);
- 
-@@ -1872,7 +1858,7 @@ static __always_inline void slab_free(st
- 
- 	kmemleak_free_recursive(x, s->flags);
- 	local_irq_save(flags);
--	c = get_cpu_slab(s, smp_processor_id());
-+	c = __this_cpu_ptr(s->cpu_slab);
- 	kmemcheck_slab_free(s, object, c->objsize);
- 	debug_check_no_locks_freed(object, c->objsize);
- 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
-@@ -2095,130 +2081,28 @@ init_kmem_cache_node(struct kmem_cache_n
- #endif
- }
- 
--#ifdef CONFIG_SMP
--/*
-- * Per cpu array for per cpu structures.
-- *
-- * The per cpu array places all kmem_cache_cpu structures from one processor
-- * close together meaning that it becomes possible that multiple per cpu
-- * structures are contained in one cacheline. This may be particularly
-- * beneficial for the kmalloc caches.
-- *
-- * A desktop system typically has around 60-80 slabs. With 100 here we are
-- * likely able to get per cpu structures for all caches from the array defined
-- * here. We must be able to cover all kmalloc caches during bootstrap.
-- *
-- * If the per cpu array is exhausted then fall back to kmalloc
-- * of individual cachelines. No sharing is possible then.
-- */
--#define NR_KMEM_CACHE_CPU 100
--
--static DEFINE_PER_CPU(struct kmem_cache_cpu [NR_KMEM_CACHE_CPU],
--		      kmem_cache_cpu);
--
--static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
--static DECLARE_BITMAP(kmem_cach_cpu_free_init_once, CONFIG_NR_CPUS);
--
--static struct kmem_cache_cpu *alloc_kmem_cache_cpu(struct kmem_cache *s,
--							int cpu, gfp_t flags)
--{
--	struct kmem_cache_cpu *c = per_cpu(kmem_cache_cpu_free, cpu);
--
--	if (c)
--		per_cpu(kmem_cache_cpu_free, cpu) =
--				(void *)c->freelist;
--	else {
--		/* Table overflow: So allocate ourselves */
--		c = kmalloc_node(
--			ALIGN(sizeof(struct kmem_cache_cpu), cache_line_size()),
--			flags, cpu_to_node(cpu));
--		if (!c)
--			return NULL;
--	}
--
--	init_kmem_cache_cpu(s, c);
--	return c;
--}
--
--static void free_kmem_cache_cpu(struct kmem_cache_cpu *c, int cpu)
--{
--	if (c < per_cpu(kmem_cache_cpu, cpu) ||
--			c >= per_cpu(kmem_cache_cpu, cpu) + NR_KMEM_CACHE_CPU) {
--		kfree(c);
--		return;
--	}
--	c->freelist = (void *)per_cpu(kmem_cache_cpu_free, cpu);
--	per_cpu(kmem_cache_cpu_free, cpu) = c;
--}
--
--static void free_kmem_cache_cpus(struct kmem_cache *s)
--{
--	int cpu;
-+static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[SLUB_PAGE_SHIFT]);
- 
--	for_each_online_cpu(cpu) {
--		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
--		if (c) {
--			s->cpu_slab[cpu] = NULL;
--			free_kmem_cache_cpu(c, cpu);
--		}
--	}
--}
--
--static int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
--{
--	int cpu;
--
--	for_each_online_cpu(cpu) {
--		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
--		if (c)
--			continue;
--
--		c = alloc_kmem_cache_cpu(s, cpu, flags);
--		if (!c) {
--			free_kmem_cache_cpus(s);
--			return 0;
--		}
--		s->cpu_slab[cpu] = c;
--	}
--	return 1;
--}
--
--/*
-- * Initialize the per cpu array.
-- */
--static void init_alloc_cpu_cpu(int cpu)
--{
--	int i;
--
--	if (cpumask_test_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once)))
--		return;
--
--	for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
--		free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i], cpu);
--
--	cpumask_set_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once));
--}
--
--static void __init init_alloc_cpu(void)
-+static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
- {
- 	int cpu;
- 
--	for_each_online_cpu(cpu)
--		init_alloc_cpu_cpu(cpu);
--  }
-+	if (s < kmalloc_caches + SLUB_PAGE_SHIFT && s >= kmalloc_caches)
-+		/*
-+		 * Boot time creation of the kmalloc array. Use static per cpu data
-+		 * since the per cpu allocator is not available yet.
-+		 */
-+		s->cpu_slab = per_cpu_var(kmalloc_percpu) + (s - kmalloc_caches);
-+	else
-+		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
- 
--#else
--static inline void free_kmem_cache_cpus(struct kmem_cache *s) {}
--static inline void init_alloc_cpu(void) {}
-+	if (!s->cpu_slab)
-+		return 0;
- 
--static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
--{
--	init_kmem_cache_cpu(s, &s->cpu_slab);
-+	for_each_possible_cpu(cpu)
-+		init_kmem_cache_cpu(s, per_cpu_ptr(s->cpu_slab, cpu));
- 	return 1;
- }
--#endif
- 
- #ifdef CONFIG_NUMA
- /*
-@@ -2609,9 +2493,8 @@ static inline int kmem_cache_close(struc
- 	int node;
- 
- 	flush_all(s);
--
-+	free_percpu(s->cpu_slab);
- 	/* Attempt to free all objects */
--	free_kmem_cache_cpus(s);
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
-@@ -2760,7 +2643,19 @@ static noinline struct kmem_cache *dma_k
- 	realsize = kmalloc_caches[index].objsize;
- 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
- 			 (unsigned int)realsize);
--	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
-+
-+	if (flags & __GFP_WAIT)
-+		s = kmalloc(kmem_size, flags & ~SLUB_DMA);
-+	else {
-+		int i;
-+
-+		s = NULL;
-+		for (i = 0; i < SLUB_PAGE_SHIFT; i++)
-+			if (kmalloc_caches[i].size) {
-+				s = kmalloc_caches + i;
-+				break;
-+			}
-+	}
- 
- 	/*
- 	 * Must defer sysfs creation to a workqueue because we don't know
-@@ -3176,8 +3071,6 @@ void __init kmem_cache_init(void)
- 	int i;
- 	int caches = 0;
- 
--	init_alloc_cpu();
--
- #ifdef CONFIG_NUMA
- 	/*
- 	 * Must first have the slab cache available for the allocations of the
-@@ -3261,8 +3154,10 @@ void __init kmem_cache_init(void)
- 
- #ifdef CONFIG_SMP
- 	register_cpu_notifier(&slab_notifier);
--	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
--				nr_cpu_ids * sizeof(struct kmem_cache_cpu *);
-+#endif
-+#ifdef CONFIG_NUMA
-+	kmem_size = offsetof(struct kmem_cache, node) +
-+				nr_node_ids * sizeof(struct kmem_cache_node *);
- #else
- 	kmem_size = sizeof(struct kmem_cache);
- #endif
-@@ -3365,7 +3260,7 @@ struct kmem_cache *kmem_cache_create(con
- 		 * per cpu structures
- 		 */
- 		for_each_online_cpu(cpu)
--			get_cpu_slab(s, cpu)->objsize = s->objsize;
-+			per_cpu_ptr(s->cpu_slab, cpu)->objsize = s->objsize;
- 
- 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
- 		up_write(&slub_lock);
-@@ -3422,11 +3317,9 @@ static int __cpuinit slab_cpuup_callback
- 	switch (action) {
- 	case CPU_UP_PREPARE:
- 	case CPU_UP_PREPARE_FROZEN:
--		init_alloc_cpu_cpu(cpu);
- 		down_read(&slub_lock);
- 		list_for_each_entry(s, &slab_caches, list)
--			s->cpu_slab[cpu] = alloc_kmem_cache_cpu(s, cpu,
--							GFP_KERNEL);
-+			init_kmem_cache_cpu(s, per_cpu_ptr(s->cpu_slab, cpu));
- 		up_read(&slub_lock);
- 		break;
- 
-@@ -3436,13 +3329,9 @@ static int __cpuinit slab_cpuup_callback
- 	case CPU_DEAD_FROZEN:
- 		down_read(&slub_lock);
- 		list_for_each_entry(s, &slab_caches, list) {
--			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
- 			local_irq_save(flags);
- 			__flush_cpu_slab(s, cpu);
- 			local_irq_restore(flags);
--			free_kmem_cache_cpu(c, cpu);
--			s->cpu_slab[cpu] = NULL;
+@@ -286,6 +287,7 @@ void truncate_inode_pages_range(struct a
+ 			unlock_page(page);
  		}
- 		up_read(&slub_lock);
- 		break;
-@@ -3928,7 +3817,7 @@ static ssize_t show_slab_objects(struct 
- 		int cpu;
- 
- 		for_each_possible_cpu(cpu) {
--			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-+			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 
- 			if (!c || c->node < 0)
- 				continue;
-@@ -4353,7 +4242,7 @@ static int show_stat(struct kmem_cache *
- 		return -ENOMEM;
- 
- 	for_each_online_cpu(cpu) {
--		unsigned x = get_cpu_slab(s, cpu)->stat[si];
-+		unsigned x = per_cpu_ptr(s->cpu_slab, cpu)->stat[si];
- 
- 		data[cpu] = x;
- 		sum += x;
-
--- 
+ 		pagevec_release(&pvec);
++		mem_cgroup_uncharge_end();
+ 	}
+ }
+ EXPORT_SYMBOL(truncate_inode_pages_range);
+@@ -327,6 +329,7 @@ unsigned long invalidate_mapping_pages(s
+ 	pagevec_init(&pvec, 0);
+ 	while (next <= end &&
+ 			pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
++		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 			pgoff_t index;
+@@ -354,6 +357,7 @@ unsigned long invalidate_mapping_pages(s
+ 				break;
+ 		}
+ 		pagevec_release(&pvec);
++		mem_cgroup_uncharge_end();
+ 		cond_resched();
+ 	}
+ 	return ret;
+@@ -428,6 +432,7 @@ int invalidate_inode_pages2_range(struct
+ 	while (next <= end && !wrapped &&
+ 		pagevec_lookup(&pvec, mapping, next,
+ 			min(end - next, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
++		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 			pgoff_t page_index;
+@@ -477,6 +482,7 @@ int invalidate_inode_pages2_range(struct
+ 			unlock_page(page);
+ 		}
+ 		pagevec_release(&pvec);
++		mem_cgroup_uncharge_end();
+ 		cond_resched();
+ 	}
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
