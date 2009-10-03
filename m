@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EDB686B009C
-	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 13:26:02 -0400 (EDT)
-Date: Sat, 3 Oct 2009 10:25:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/10] hugetlb:  factor init_nodemask_of_node
-Message-Id: <20091003102554.8813e5a6.akpm@linux-foundation.org>
-In-Reply-To: <1254483510.7951.24.camel@useless.americas.hpqcorp.net>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-	<20091001165825.32248.75849.sendpatchset@localhost.localdomain>
-	<20091002094817.GL21906@csn.ul.ie>
-	<1254483510.7951.24.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 078756B009D
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 15:15:13 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id n93JFSmh015488
+	for <linux-mm@kvack.org>; Sat, 3 Oct 2009 12:15:28 -0700
+Received: from pxi9 (pxi9.prod.google.com [10.243.27.9])
+	by wpaz37.hot.corp.google.com with ESMTP id n93JFDgc000689
+	for <linux-mm@kvack.org>; Sat, 3 Oct 2009 12:15:26 -0700
+Received: by pxi9 with SMTP id 9so1987235pxi.4
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2009 12:15:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <2f11576a0910030505w5a1289ebu78cdc3587caddc82@mail.gmail.com>
+References: <20091002173635.5F6C.A69D9226@jp.fujitsu.com>
+	 <20091002173955.5F72.A69D9226@jp.fujitsu.com>
+	 <6599ad830910021501s66cfc108r9a109b84b0f658a4@mail.gmail.com>
+	 <2f11576a0910030505w5a1289ebu78cdc3587caddc82@mail.gmail.com>
+Date: Sat, 3 Oct 2009 12:15:25 -0700
+Message-ID: <6599ad830910031215o293687ceyd8177cb1c34a41b@mail.gmail.com>
+Subject: Re: [PATCH 3/3] cgroup: fix strstrip() abuse
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 02 Oct 2009 07:38:30 -0400 Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Sat, Oct 3, 2009 at 5:05 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> Thanks - although I think I'd s/abuse/misuse/ in the description.
+>
+> I don't know what's different between them. My dictionary is slightly quiet ;)
+> Is this X-rated word? if so, I'll resend it soon.
 
-> > > +}
-> > 
-> > Same for mask and node here. Not world ending by any measure.
-> 
-> Sorry.  Incomplete transformation from macro to function :(
-> 
-> I'll send out incremental fixes to this and the other botched merge that
-> you pointed out in patch 4/10.  Or I can send out replacement patches.
-> 
-> Andrew:  what's your preference?
+Certainly not X-rated :-)
 
-I'm easy.  Little fixes would be preferable after the patches have been
-merged, so people can see what was changed.  At this stage a full
-resend would be OK by my too.
+Generally "abuse" carries a connotation of intent (or perhaps
+deliberate hackiness) whereas "misuse" simply indicates that the
+previous code was wrong.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
