@@ -1,155 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D193160021D
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 19:39:18 -0400 (EDT)
-Date: Sat, 3 Oct 2009 01:38:37 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 3/3] mm: munlock COW pages on truncation unmap
-Message-ID: <20091002233837.GA3638@cmpxchg.org>
-References: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org> <1254344964-8124-3-git-send-email-hannes@cmpxchg.org> <20091002100838.5F5A.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091002100838.5F5A.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D704A60021D
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2009 20:58:58 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n930xUBk023568
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 3 Oct 2009 09:59:30 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A27A45DE70
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 09:59:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F151845DE6E
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 09:59:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DCC791DB8041
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 09:59:29 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8691C1DB803A
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 09:59:29 +0900 (JST)
+Message-ID: <e515e3c588c8f44626fa7f87d680fae5.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <alpine.DEB.1.00.0910021511030.18180@chino.kir.corp.google.com>
+References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
+    <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
+    <alpine.DEB.1.00.0910021511030.18180@chino.kir.corp.google.com>
+Date: Sat, 3 Oct 2009 09:59:28 +0900 (JST)
+Subject: Re: [patch] nodemask: make NODEMASK_ALLOC more general
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello KOSAKI-san,
+David Rientjes wrote:
+> NODEMASK_ALLOC(x, m) assumes x is a type of struct, which is unnecessary.
+> It's perfectly reasonable to use this macro to allocate a nodemask_t,
+> which is anonymous, either dynamically or on the stack depending on
+> NODES_SHIFT.
+>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+Seems reasonable (my macro was not good)
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, Oct 02, 2009 at 11:40:34AM +0900, KOSAKI Motohiro wrote:
-> > @@ -835,6 +835,43 @@ static unsigned long zap_pte_range(struc
-> >  				    (page->index < details->first_index ||
-> >  				     page->index > details->last_index))
-> >  					continue;
-> > +				/*
-> > +				 * When truncating, private COW pages may be
-> > +				 * mlocked in VM_LOCKED VMAs, so they need
-> > +				 * munlocking here before getting freed.
-> > +				 *
-> > +				 * Skip them completely if we don't have the
-> > +				 * anon_vma locked.  We will get it the second
-> > +				 * time.  When page cache is truncated, no more
-> > +				 * private pages can show up against this VMA
-> > +				 * and the anon_vma is either present or will
-> > +				 * never be.
-> > +				 *
-> > +				 * Otherwise, we still have to synchronize
-> > +				 * against concurrent reclaimers.  We can not
-> > +				 * grab the page lock, but with correct
-> > +				 * ordering of page flag accesses we can get
-> > +				 * away without it.
-> > +				 *
-> > +				 * A concurrent isolator may add the page to
-> > +				 * the unevictable list, set PG_lru and then
-> > +				 * recheck PG_mlocked to verify it chose the
-> > +				 * right list and conditionally move it again.
-> > +				 *
-> > +				 * TestClearPageMlocked() provides one half of
-> > +				 * the barrier: when we do not see the page on
-> > +				 * the LRU and fail isolation, the isolator
-> > +				 * must see PG_mlocked cleared and move the
-> > +				 * page on its own back to the evictable list.
-> > +				 */
-> > +				if (private && !details->anon_vma)
-> > +					continue;
-> > +				if (private && TestClearPageMlocked(page)) {
-> > +					dec_zone_page_state(page, NR_MLOCK);
-> > +					count_vm_event(UNEVICTABLE_PGCLEARED);
-> > +					if (!isolate_lru_page(page))
-> > +						putback_lru_page(page);
-> > +				}
-> >  			}
-> >  			ptent = ptep_get_and_clear_full(mm, addr, pte,
-> >  							tlb->fullmm);
-> 
-> Umm..
-> I haven't understand this.
-> 
-> (1) unmap_mapping_range() is called twice.
-> 
-> 	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> 	truncate_inode_pages(mapping, new);
-> 	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> 
-> (2) PG_mlock is turned on from mlock() and vmscan.
-> (3) vmscan grab anon_vma, but mlock don't grab anon_vma.
+BTW...CPUMASK_ALLOC gone away ?
+by  #ifdef CONFIG_CPUMASK_OFFSTACK
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=4b805b17382c11a8b1c9bb8053ce9d1dcde0701a
 
-You are right, I was so focused on the LRU side that I missed an
-obvious window here: an _explicit_ mlock can still happen between the
-PG_mlocked clearing section and releasing the page.
-
-If we race with it, the put_page() in __mlock_vma_pages_range() might
-free the freshly mlocked page.
-
-> (4) after truncate_inode_pages(), we don't need to think vs-COW, because
->     find_get_page() never success. but first unmap_mapping_range()
->     have vs-COW racing.
-
-Yes, we can race with COW breaking, but I can not see a problem there.
-It clears the old page's mlock, but also with an atomic
-TestClearPageMlocked().  And the new page is mapped and mlocked under
-pte lock and only if we didn't clear the pte in the meantime.
-
-> So, Is anon_vma grabbing really sufficient?
-
-No, the explicit mlocking race exists, I think.
-
-> Or, you intent to the following?
-> 
-> 	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 0);
-> 	truncate_inode_pages(mapping, new);
-> 	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-
-As mentioned above, I don't see how it would make a difference.
-
-> > @@ -544,6 +544,13 @@ redo:
-> >  		 */
-> >  		lru = LRU_UNEVICTABLE;
-> >  		add_page_to_unevictable_list(page);
-> > +		/*
-> > +		 * See the TestClearPageMlocked() in zap_pte_range():
-> > +		 * if a racing unmapper did not see the above setting
-> > +		 * of PG_lru, we must see its clearing of PG_locked
-> > +		 * and move the page back to the evictable list.
-> > +		 */
-> > +		smp_mb();
-> >  	}
-> 
-> add_page_to_unevictable() have a spin lock. Why do we need additionl
-> explicit memory barrier?
-
-It sets PG_lru under spinlock and tests PG_mlocked after the unlock.
-The following sections from memory-barriers.txt made me nervous:
-
- (5) LOCK operations.
-
-     This acts as a one-way permeable barrier.  It guarantees that all memory
-     operations after the LOCK operation will appear to happen after the LOCK
-     operation with respect to the other components of the system.
-
- (6) UNLOCK operations.
-
-     This also acts as a one-way permeable barrier.  It guarantees that all
-     memory operations before the UNLOCK operation will appear to happen before
-     the UNLOCK operation with respect to the other components of the system.
-
-     Memory operations that occur after an UNLOCK operation may appear to
-     happen before it completes.
-
-So the only garuantee this gives us is that both PG_lru setting and
-PG_mlocked testing happen after LOCK and PG_lru setting finishes
-before UNLOCK, no?  I wanted to make sure this does not happen:
-
-	LOCK, test PG_mlocked, set PG_lru, UNLOCK
-
-I don't know whether there is a data dependency between those two
-operations.  They go to the same word, but I could also imagine
-setting one bit is independent of reading another one.  Humm.  Help.
+Hm, comment should be updated, at least.
 
 Thanks,
-	Hannes
+-Kame
+
+> ---
+>  include/linux/nodemask.h |   15 ++++++++-------
+>  1 files changed, 8 insertions(+), 7 deletions(-)
+>
+> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+> --- a/include/linux/nodemask.h
+> +++ b/include/linux/nodemask.h
+> @@ -486,14 +486,14 @@ static inline int num_node_state(enum node_states
+> state)
+>
+>  /*
+>   * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
+> + * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name
+> 'm'.
+>   */
+> -
+>  #if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
+> -#define NODEMASK_ALLOC(x, m) struct x *m = kmalloc(sizeof(*m),
+> GFP_KERNEL)
+> -#define NODEMASK_FREE(m) kfree(m)
+> +#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
+> +#define NODEMASK_FREE(m)		kfree(m)
+>  #else
+> -#define NODEMASK_ALLOC(x, m) struct x _m, *m = &_m
+> -#define NODEMASK_FREE(m)
+> +#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
+> +#define NODEMASK_FREE(m)		do {} while (0)
+>  #endif
+>
+>  /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
+> @@ -502,8 +502,9 @@ struct nodemask_scratch {
+>  	nodemask_t	mask2;
+>  };
+>
+> -#define NODEMASK_SCRATCH(x) NODEMASK_ALLOC(nodemask_scratch, x)
+> -#define NODEMASK_SCRATCH_FREE(x)  NODEMASK_FREE(x)
+> +#define NODEMASK_SCRATCH(x)	\
+> +		NODEMASK_ALLOC(struct nodemask_scratch, x)
+> +#define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
+>
+>
+>  #endif /* __LINUX_NODEMASK_H */
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
