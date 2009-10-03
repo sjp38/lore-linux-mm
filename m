@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E5266B0095
-	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 07:33:16 -0400 (EDT)
-Subject: Re: [patch] procfs: provide stack information for threads
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <m263axq8ie.fsf@whitebox.home>
-References: <1238511505.364.61.camel@matrix>
-	 <20090401193135.GA12316@elte.hu> <1244146873.20012.6.camel@wall-e>
-	 <m2eipl7axx.fsf@igel.home> <m2ws3djwrr.fsf@igel.home>
-	 <m263axq8ie.fsf@whitebox.home>
-Content-Type: text/plain
-Date: Sat, 03 Oct 2009 13:33:31 +0200
-Message-Id: <1254569611.18659.4.camel@wall-e>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 890616B0098
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2009 08:05:38 -0400 (EDT)
+Received: by iwn34 with SMTP id 34so983470iwn.12
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2009 05:05:44 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <6599ad830910021501s66cfc108r9a109b84b0f658a4@mail.gmail.com>
+References: <20091002173635.5F6C.A69D9226@jp.fujitsu.com>
+	 <20091002173955.5F72.A69D9226@jp.fujitsu.com>
+	 <6599ad830910021501s66cfc108r9a109b84b0f658a4@mail.gmail.com>
+Date: Sat, 3 Oct 2009 21:05:44 +0900
+Message-ID: <2f11576a0910030505w5a1289ebu78cdc3587caddc82@mail.gmail.com>
+Subject: Re: [PATCH 3/3] cgroup: fix strstrip() abuse
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andreas Schwab <schwab@linux-m68k.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Paul Menage <menage@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Sorry, i missed this. Good job ;-)
+>> cgroup_write_X64() and cgroup_write_string() ignore the return
+>> value of strstrip().
+>> it makes small inconsistent behavior.
+>>
+>> example:
+>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D
+>> =A0# cd /mnt/cgroup/hoge
+>> =A0# cat memory.swappiness
+>> =A060
+>> =A0# echo "59 " > memory.swappiness
+>> =A0# cat memory.swappiness
+>> =A059
+>> =A0# echo " 58" > memory.swappiness
+>> =A0bash: echo: write error: Invalid argument
+>>
+>>
+>> This patch fixes it.
+>>
+>> Cc: Li Zefan <lizf@cn.fujitsu.com>
+>> Cc: Paul Menage <menage@google.com>
+>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+> Acked-by: Paul Menage <menage@google.com>
+>
+> Thanks - although I think I'd s/abuse/misuse/ in the description.
 
-Am Samstag, den 03.10.2009, 08:47 +0200 schrieb Andreas Schwab: 
-> Here's the patch again properly signed.
-> 
-> Andreas.
-> 
-> >From 9da252fd7d9a5cf84a477a35a6b52f927c85b280 Mon Sep 17 00:00:00 2001
-> From: Andreas Schwab <schwab@linux-m68k.org>
-> Date: Sat, 3 Oct 2009 08:19:43 +0200
-> Subject: [PATCH] compat_do_execve: set current->stack_start as in do_execve
-> 
-> Signed-off-by: Andreas Schwab <schwab@linux-m68k.org>
-> ---
->  fs/compat.c |    2 ++
->  1 files changed, 2 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/compat.c b/fs/compat.c
-> index d576b55..6c19040 100644
-> --- a/fs/compat.c
-> +++ b/fs/compat.c
-> @@ -1532,6 +1532,8 @@ int compat_do_execve(char * filename,
->  	if (retval < 0)
->  		goto out;
->  
-> +	current->stack_start = current->mm->start_stack;
-> +
->  	/* execve succeeded */
->  	current->fs->in_exec = 0;
->  	current->in_execve = 0;
-> -- 
-> 1.6.4.4
-> 
-> 
+I don't know what's different between them. My dictionary is slightly quiet=
+ ;)
+Is this X-rated word? if so, I'll resend it soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
