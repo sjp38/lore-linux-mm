@@ -1,170 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF836B004D
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 15:32:07 -0400 (EDT)
-Date: Mon, 5 Oct 2009 21:32:00 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch 3/3] mm: munlock COW pages on truncation unmap
-Message-ID: <20091005193200.GA13040@cmpxchg.org>
-References: <1254344964-8124-1-git-send-email-hannes@cmpxchg.org> <1254344964-8124-3-git-send-email-hannes@cmpxchg.org> <20091002100838.5F5A.A69D9226@jp.fujitsu.com> <20091002233837.GA3638@cmpxchg.org> <2f11576a0910030656l73c9811w18e0f224fb3d98af@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2f11576a0910030656l73c9811w18e0f224fb3d98af@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C8CAA6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 16:58:26 -0400 (EDT)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id n95KwNDi018155
+	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 13:58:23 -0700
+Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
+	by spaceape14.eur.corp.google.com with ESMTP id n95KwDIF016114
+	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 13:58:20 -0700
+Received: by pzk38 with SMTP id 38so3443636pzk.9
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2009 13:58:19 -0700 (PDT)
+Date: Mon, 5 Oct 2009 13:58:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from task
+ mempolicy
+In-Reply-To: <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
+References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain> <20091001165832.32248.32725.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
+ <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
 
-On Sat, Oct 03, 2009 at 10:56:55PM +0900, KOSAKI Motohiro wrote:
-> >> Umm..
-> >> I haven't understand this.
-> >>
-> >> (1) unmap_mapping_range() is called twice.
-> >>
-> >>       unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> >>       truncate_inode_pages(mapping, new);
-> >>       unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-> >>
-> >> (2) PG_mlock is turned on from mlock() and vmscan.
-> >> (3) vmscan grab anon_vma, but mlock don't grab anon_vma.
-> >
-> > You are right, I was so focused on the LRU side that I missed an
-> > obvious window here: an _explicit_ mlock can still happen between the
-> > PG_mlocked clearing section and releasing the page.
-
-Okay, so what are the opinions on this?  Would you consider my patches
-to fix the most likely issues?  Dropping them in favor of looking for
-a complete fix?  Revert the warning on freeing PG_mlocked pages?
-
-> >> > @@ -544,6 +544,13 @@ redo:
-> >> >              */
-> >> >             lru = LRU_UNEVICTABLE;
-> >> >             add_page_to_unevictable_list(page);
-> >> > +           /*
-> >> > +            * See the TestClearPageMlocked() in zap_pte_range():
-> >> > +            * if a racing unmapper did not see the above setting
-> >> > +            * of PG_lru, we must see its clearing of PG_locked
-> >> > +            * and move the page back to the evictable list.
-> >> > +            */
-> >> > +           smp_mb();
-> >> >     }
-> >>
-> >> add_page_to_unevictable() have a spin lock. Why do we need additionl
-> >> explicit memory barrier?
-> >
-> > It sets PG_lru under spinlock and tests PG_mlocked after the unlock.
-> > The following sections from memory-barriers.txt made me nervous:
-> >
-> >  (5) LOCK operations.
-> >
-> >     This acts as a one-way permeable barrier.  It guarantees that all memory
-> >     operations after the LOCK operation will appear to happen after the LOCK
-> >     operation with respect to the other components of the system.
-> >
-> >  (6) UNLOCK operations.
-> >
-> >     This also acts as a one-way permeable barrier.  It guarantees that all
-> >     memory operations before the UNLOCK operation will appear to happen before
-> >     the UNLOCK operation with respect to the other components of the system.
-> >
-> >     Memory operations that occur after an UNLOCK operation may appear to
-> >     happen before it completes.
-> >
-> > So the only garuantee this gives us is that both PG_lru setting and
-> > PG_mlocked testing happen after LOCK and PG_lru setting finishes
-> > before UNLOCK, no?  I wanted to make sure this does not happen:
-> >
-> >        LOCK, test PG_mlocked, set PG_lru, UNLOCK
-> >
-> > I don't know whether there is a data dependency between those two
-> > operations.  They go to the same word, but I could also imagine
-> > setting one bit is independent of reading another one.  Humm.  Help.
+> > mm/hugetlb.c: In function 'nr_hugepages_store_common':
+> > mm/hugetlb.c:1368: error: storage size of '_m' isn't known
+> > mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> > mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
+> > mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
+> > mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> > mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
+> > mm/hugetlb.c:1368: warning: unused variable '_m'
+> > mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
+> > mm/hugetlb.c:1862: error: storage size of '_m' isn't known
+> > mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> > mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
+> > mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> > mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
+> > mm/hugetlb.c:1862: warning: unused variable '_m'
 > 
-> Ahh, Yes! you are right.
-> We really need this barrier.
 > 
-> However, I think this issue doesn't depend on zap_pte_range patch.
-> Other TestClearPageMlocked(page) caller have the same problem, because
-> putback_lru_page() doesn't have any exclusion, right?
+> ??? This is after your rework of NODEMASK_ALLOC has been applied?  I
+> don't see this when I build the mmotm that the patch is based on.  
+> 
 
-You are right, it's an issue on its own.  Please find a stand-alone
-patch below.
+This was mmotm-09251435 plus this entire patchset.
 
-Thanks,
+You may want to check your toolchain if you don't see these errors, this 
+particular patch adds NODEMASK_ALLOC(nodemask, nodes_allowed) which would 
+expand out to allocating a "struct nodemask" either dynamically or on the 
+stack and such an object doesn't exist in the kernel.
 
-	Hannes
+> Ah, but your patch didn't exist back then :).
+> 
+> I guess I'll tack this onto the end of V9 with a note that it depends on
+> your patch.  Altho' for bisection builds, I might want to break it into
+> separate patches that apply to the mempolicy and per node attributes
+> patches, respectively.
+> 
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: mm: order evictable rescue in LRU putback
-
-Isolators putting a page back to the LRU do not hold the page lock,
-and if the page is mlocked, another thread might munlock it
-concurrently.
-
-Expecting this, the putback code re-checks the evictability of a page
-when it just moved it to the unevictable list in order to correct its
-decision.
-
-The problem, however, is that ordering is not garuanteed between
-setting PG_lru when moving the page to the list and checking
-PG_mlocked afterwards:
-
-	#0 putback			#1 munlock
-
-	spin_lock()
-					if (TestClearPageMlocked())
-					  if (PageLRU())
-					    move to evictable list
-	SetPageLRU()
-	spin_unlock()
-	if (!PageMlocked())
-	  move to evictable list
-
-The PageMlocked() reading may get reordered before SetPageLRU() in #0,
-resulting in #0 not moving the still mlocked page, and in #1 failing
-to isolate and move the page as well.  The evictable page is now
-stranded on the unevictable list.
-
-TestClearPageMlocked() in #1 already provides full memory barrier
-semantics.
-
-This patch adds an explicit full barrier to force ordering between
-SetPageLRU() and PageMlocked() in #0 so that either one of the
-competitors rescues the page.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- mm/vmscan.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
-
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -544,6 +544,16 @@ redo:
- 		 */
- 		lru = LRU_UNEVICTABLE;
- 		add_page_to_unevictable_list(page);
-+		/*
-+		 * When racing with an mlock clearing (page is
-+		 * unlocked), make sure that if the other thread does
-+		 * not observe our setting of PG_lru and fails
-+		 * isolation, we see PG_mlocked cleared below and move
-+		 * the page back to the evictable list.
-+		 *
-+		 * The other side is TestClearPageMlocked().
-+		 */
-+		smp_mb();
- 	}
- 
- 	/*
+Feel free to just fold it into patch 4 so the series builds incrementally.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
