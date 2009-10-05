@@ -1,113 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 314016B0088
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 06:37:42 -0400 (EDT)
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by e28smtp07.in.ibm.com (8.14.3/8.13.1) with ESMTP id n95AbZsS002402
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 16:07:35 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n95AbY4a2584778
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 16:07:34 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id n95AbYkx029739
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 21:37:34 +1100
-Date: Mon, 5 Oct 2009 16:07:33 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/2] memcg: improving scalability by reducing lock
- contention at charge/uncharge
-Message-ID: <20091005103733.GC3036@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7D86B0089
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 07:15:31 -0400 (EDT)
+Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from
+ task mempolicy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
+References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
+	 <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Mon, 05 Oct 2009 07:15:26 -0400
+Message-Id: <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-10-02 13:55:31]:
+On Fri, 2009-10-02 at 15:16 -0700, David Rientjes wrote:
+> On Thu, 1 Oct 2009, Lee Schermerhorn wrote:
+> 
+> > Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
+> > ===================================================================
+> > --- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-30 12:48:45.000000000 -0400
+> > +++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-10-01 12:13:25.000000000 -0400
+> > @@ -1334,29 +1334,71 @@ static struct hstate *kobj_to_hstate(str
+> >  	return NULL;
+> >  }
+> >  
+> > -static ssize_t nr_hugepages_show(struct kobject *kobj,
+> > +static ssize_t nr_hugepages_show_common(struct kobject *kobj,
+> >  					struct kobj_attribute *attr, char *buf)
+> >  {
+> >  	struct hstate *h = kobj_to_hstate(kobj);
+> >  	return sprintf(buf, "%lu\n", h->nr_huge_pages);
+> >  }
+> > -static ssize_t nr_hugepages_store(struct kobject *kobj,
+> > -		struct kobj_attribute *attr, const char *buf, size_t count)
+> > +static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+> > +			struct kobject *kobj, struct kobj_attribute *attr,
+> > +			const char *buf, size_t len)
+> >  {
+> >  	int err;
+> > -	unsigned long input;
+> > +	unsigned long count;
+> >  	struct hstate *h = kobj_to_hstate(kobj);
+> > +	NODEMASK_ALLOC(nodemask, nodes_allowed);
+> >  
+> 
+>  [ FYI: I'm not sure clameter@sgi.com still works, you may want to try
+>    cl@linux-foundation.org. ]
+> 
+> 
+> mm/hugetlb.c: In function 'nr_hugepages_store_common':
+> mm/hugetlb.c:1368: error: storage size of '_m' isn't known
+> mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
+> mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
+> mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
+> mm/hugetlb.c:1368: warning: unused variable '_m'
+> mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
+> mm/hugetlb.c:1862: error: storage size of '_m' isn't known
+> mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
+> mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
+> mm/hugetlb.c:1862: warning: unused variable '_m'
 
-> Hi,
-> 
-> This patch is against mmotm + softlimit fix patches.
-> (which are now in -rc git tree.)
-> 
-> In the latest -rc series, the kernel avoids accessing res_counter when
-> cgroup is root cgroup. This helps scalabilty when memcg is not used.
-> 
-> It's necessary to improve scalabilty even when memcg is used. This patch
-> is for that. Previous Balbir's work shows that the biggest obstacles for
-> better scalabilty is memcg's res_counter. Then, there are 2 ways.
-> 
-> (1) make counter scale well.
-> (2) avoid accessing core counter as much as possible.
-> 
-> My first direction was (1). But no, there is no counter which is free
-> from false sharing when it needs system-wide fine grain synchronization.
-> And res_counter has several functionality...this makes (1) difficult.
-> spin_lock (in slow path) around counter means tons of invalidation will
-> happen even when we just access counter without modification.
-> 
-> This patch series is for (2). This implements charge/uncharge in bached manner.
-> This coalesces access to res_counter at charge/uncharge using nature of
-> access locality.
-> 
-> Tested for a month. And I got good reorts from Balbir and Nishimura, thanks.
-> One concern is that this adds some members to the bottom of task_struct.
-> Better idea is welcome.
-> 
-> Following is test result of continuous page-fault on my 8cpu box(x86-64).
-> 
-> A loop like this runs on all cpus in parallel for 60secs. 
-> ==
->         while (1) {
->                 x = mmap(NULL, MEGA, PROT_READ|PROT_WRITE,
->                         MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-> 
->                 for (off = 0; off < MEGA; off += PAGE_SIZE)
->                         x[off]=0;
->                 munmap(x, MEGA);
->         }
-> ==
-> please see # of page faults. I think this is good improvement.
-> 
-> 
-> [Before]
->  Performance counter stats for './runpause.sh' (5 runs):
-> 
->   474539.756944  task-clock-msecs         #      7.890 CPUs    ( +-   0.015% )
->           10284  context-switches         #      0.000 M/sec   ( +-   0.156% )
->              12  CPU-migrations           #      0.000 M/sec   ( +-   0.000% )
->        18425800  page-faults              #      0.039 M/sec   ( +-   0.107% )
->   1486296285360  cycles                   #   3132.080 M/sec   ( +-   0.029% )
->    380334406216  instructions             #      0.256 IPC     ( +-   0.058% )
->      3274206662  cache-references         #      6.900 M/sec   ( +-   0.453% )
->      1272947699  cache-misses             #      2.682 M/sec   ( +-   0.118% )
-> 
->    60.147907341  seconds time elapsed   ( +-   0.010% )
-> 
-> [After]
->  Performance counter stats for './runpause.sh' (5 runs):
-> 
->   474658.997489  task-clock-msecs         #      7.891 CPUs    ( +-   0.006% )
->           10250  context-switches         #      0.000 M/sec   ( +-   0.020% )
->              11  CPU-migrations           #      0.000 M/sec   ( +-   0.000% )
->        33177858  page-faults              #      0.070 M/sec   ( +-   0.152% )
->   1485264748476  cycles                   #   3129.120 M/sec   ( +-   0.021% )
->    409847004519  instructions             #      0.276 IPC     ( +-   0.123% )
->      3237478723  cache-references         #      6.821 M/sec   ( +-   0.574% )
->      1182572827  cache-misses             #      2.491 M/sec   ( +-   0.179% )
-> 
->    60.151786309  seconds time elapsed   ( +-   0.014% )
->
 
-I agree, I liked the previous patchset, let me re-review this one!
-Definitely a good candidate to -mm. 
+??? This is after your rework of NODEMASK_ALLOC has been applied?  I
+don't see this when I build the mmotm that the patch is based on.  
 
--- 
-	Balbir
+> 
+> This can be fixed after my "nodemask: make NODEMASK_ALLOC more general" 
+> patch is merged and the following is applied as I suggested in 
+> http://marc.info/?l=linux-mm&m=125270872312494:
+
+Ah, but your patch didn't exist back then :).
+
+I guess I'll tack this onto the end of V9 with a note that it depends on
+your patch.  Altho' for bisection builds, I might want to break it into
+separate patches that apply to the mempolicy and per node attributes
+patches, respectively.
+
+Thanks,
+Lee
+
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/hugetlb.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1365,7 +1365,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+>  	int nid;
+>  	unsigned long count;
+>  	struct hstate *h;
+> -	NODEMASK_ALLOC(nodemask, nodes_allowed);
+> +	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+>  
+>  	err = strict_strtoul(buf, 10, &count);
+>  	if (err)
+> @@ -1859,7 +1859,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+>  	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+>  
+>  	if (write) {
+> -		NODEMASK_ALLOC(nodemask, nodes_allowed);
+> +		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+>  		if (!(obey_mempolicy &&
+>  			       init_nodemask_of_mempolicy(nodes_allowed))) {
+>  			NODEMASK_FREE(nodes_allowed);
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-numa" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
