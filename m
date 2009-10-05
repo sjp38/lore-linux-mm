@@ -1,69 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CAA6B004D
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 16:58:26 -0400 (EDT)
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id n95KwNDi018155
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 13:58:23 -0700
-Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
-	by spaceape14.eur.corp.google.com with ESMTP id n95KwDIF016114
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 13:58:20 -0700
-Received: by pzk38 with SMTP id 38so3443636pzk.9
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2009 13:58:19 -0700 (PDT)
-Date: Mon, 5 Oct 2009 13:58:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from task
- mempolicy
-In-Reply-To: <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
-Message-ID: <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain> <20091001165832.32248.32725.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
- <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D505B6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 17:34:29 -0400 (EDT)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Mon, 5 Oct 2009 23:34:16 +0200
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910050851.02056.elendil@planet.nl> <20091005085739.GB5452@csn.ul.ie>
+In-Reply-To: <20091005085739.GB5452@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200910052334.23833.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
+On Monday 05 October 2009, Mel Gorman wrote:
+> On Mon, Oct 05, 2009 at 08:50:58AM +0200, Frans Pop wrote:
+> > On Monday 05 October 2009, Frans Pop wrote:
+> > > I'll dig into this a bit more as it looks like this should be
+> > > reproducible, probably even without the kernel build. Next step is
+> > > to see how .30 behaves in the same situation.
+> >
+> > This looks conclusive. I tested .30 and .32-rc3 from clean reboots and
+> > only starting gitk. I only started music playing in the background
+> > (amarok) from an NFS share to ensure network activity.
+> >
+> > With .32-rc3 I got 4 SKB allocation errors while starting the *second*
+> > gitk instance. And the system was completely frozen with music stopped
+> > until gitk finished loading.
+> >
+> > With .30 I was able to start *three* gitk's (which meant 2 of them got
+> > (partially) swapped out) without any allocation errors. And with the
+> > system remaining relatively responsive. There was a short break in the
+> > music while I started the 2nd instance, but it just continued playing
+> > afterwards. There was also some mild latency in the mouse cursor, but
+> > nothing like the full desktop freeze I get with .32-rc3.
+> >
+> > One thing I should mention: my swap is an LVM volume that's in a VG
+> > that's on a LUKS encrypted partition.
+> >
+> > Does this give you enough info to go on, or should I try a bisection?
+>
+> I'll be trying to reproduce it, but it's unlikely I'll manage to
+> reproduce it reliably as there may be a specific combination of hardware
+> necessary as well. What I'm going to try is writing a module that
+> allocates order-5 every second GFP_ATOMIC and see can I reproduce using
+> scenarios similar to yours but it'll take some time with no guarantee of
+> success. If you could bisect it, it would be fantastic.
 
-> > mm/hugetlb.c: In function 'nr_hugepages_store_common':
-> > mm/hugetlb.c:1368: error: storage size of '_m' isn't known
-> > mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> > mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
-> > mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
-> > mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> > mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
-> > mm/hugetlb.c:1368: warning: unused variable '_m'
-> > mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
-> > mm/hugetlb.c:1862: error: storage size of '_m' isn't known
-> > mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> > mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
-> > mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> > mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
-> > mm/hugetlb.c:1862: warning: unused variable '_m'
-> 
-> 
-> ??? This is after your rework of NODEMASK_ALLOC has been applied?  I
-> don't see this when I build the mmotm that the patch is based on.  
-> 
+And the winner is:
+2ff05b2b4eac2e63d345fc731ea151a060247f53 is first bad commit
+commit 2ff05b2b4eac2e63d345fc731ea151a060247f53
+Author: David Rientjes <rientjes@google.com>
+Date:   Tue Jun 16 15:32:56 2009 -0700
 
-This was mmotm-09251435 plus this entire patchset.
+    oom: move oom_adj value from task_struct to mm_struct
 
-You may want to check your toolchain if you don't see these errors, this 
-particular patch adds NODEMASK_ALLOC(nodemask, nodes_allowed) which would 
-expand out to allocating a "struct nodemask" either dynamically or on the 
-stack and such an object doesn't exist in the kernel.
+I'm confident that the bisection is good. The test case was very reliable 
+while zooming in on the merge from akpm.
 
-> Ah, but your patch didn't exist back then :).
-> 
-> I guess I'll tack this onto the end of V9 with a note that it depends on
-> your patch.  Altho' for bisection builds, I might want to break it into
-> separate patches that apply to the mempolicy and per node attributes
-> patches, respectively.
-> 
-
-Feel free to just fold it into patch 4 so the series builds incrementally.
+Cheers,
+FJP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
