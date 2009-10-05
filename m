@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EA3386B0082
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 04:57:39 -0400 (EDT)
-Date: Mon, 5 Oct 2009 09:57:39 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id CE0D46B0083
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 05:49:03 -0400 (EDT)
+Date: Mon, 5 Oct 2009 10:49:04 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-Message-ID: <20091005085739.GB5452@csn.ul.ie>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910021111.55749.elendil@planet.nl> <200910050714.01908.elendil@planet.nl> <200910050851.02056.elendil@planet.nl>
+Subject: Re: [PATCH 2/4] slqb: Record what node is local to a kmem_cache_cpu
+Message-ID: <20091005094904.GC12681@csn.ul.ie>
+References: <1253624054-10882-3-git-send-email-mel@csn.ul.ie> <84144f020909220638l79329905sf9a35286130e88d0@mail.gmail.com> <20090922135453.GF25965@csn.ul.ie> <84144f020909221154x820b287r2996480225692fad@mail.gmail.com> <20090922185608.GH25965@csn.ul.ie> <20090930144117.GA17906@csn.ul.ie> <alpine.DEB.1.10.0909301053550.9450@gentwo.org> <20090930220541.GA31530@csn.ul.ie> <alpine.DEB.1.10.0909301941570.11850@gentwo.org> <84144f020910040506l24a74660s508c828123c554cc@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <200910050851.02056.elendil@planet.nl>
+In-Reply-To: <84144f020910040506l24a74660s508c828123c554cc@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, heiko.carstens@de.ibm.com, sachinp@in.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 05, 2009 at 08:50:58AM +0200, Frans Pop wrote:
-> On Monday 05 October 2009, Frans Pop wrote:
-> > I'll dig into this a bit more as it looks like this should be
-> > reproducible, probably even without the kernel build. Next step is to
-> > see how .30 behaves in the same situation.
+On Sun, Oct 04, 2009 at 03:06:45PM +0300, Pekka Enberg wrote:
+> On Thu, Oct 1, 2009 at 2:45 AM, Christoph Lameter
+> <cl@linux-foundation.org> wrote:
+> >> This is essentially the "unqueued" nature of SLUB. It's objective "I have this
+> >> page here which I'm going to use until I can't use it no more and will depend
+> >> on the page allocator to sort my stuff out". I have to read up on SLUB up
+> >> more to see if it's compatible with SLQB or not though. In particular, how
+> >> does SLUB deal with frees from pages that are not the "current" page? SLQB
+> >> does not care what page the object belongs to as long as it's node-local
+> >> as the object is just shoved onto a LIFO for maximum hotness.
+> >
+> > Frees are done directly to the target slab page if they are not to the
+> > current active slab page. No centralized locks. Concurrent frees from
+> > processors on the same node to multiple other nodes (or different pages
+> > on the same node) can occur.
+> >
+> >> > SLAB deals with it in fallback_alloc(). It scans the nodes in zonelist
+> >> > order for free objects of the kmem_cache and then picks up from the
+> >> > nearest node. Ugly but it works. SLQB would have to do something similar
+> >> > since it also has the per node object bins that SLAB has.
+> >> >
+> >>
+> >> In a real sense, this is what the patch ends up doing. When it fails to
+> >> get something locally but sees that the local node is memoryless, it
+> >> will check the remote node lists in zonelist order. I think that's
+> >> reasonable behaviour but I'm biased because I just want the damn machine
+> >> to boot again. What do you think? Pekka, Nick?
+> >
+> > Look at fallback_alloc() in slab. You can likely copy much of it. It
+> > considers memory policies and cpuset constraints.
 > 
-> This looks conclusive. I tested .30 and .32-rc3 from clean reboots and
-> only starting gitk. I only started music playing in the background
-> (amarok) from an NFS share to ensure network activity.
+> Sorry for the delay. I went ahead and merged Mel's patch to make
+> things boot on PPC. Fallback policy needs a bit more work as Christoph
+> says but I'd really love to have Nick's input on this.
 > 
-> With .32-rc3 I got 4 SKB allocation errors while starting the *second* gitk
-> instance. And the system was completely frozen with music stopped until gitk
-> finished loading.
-> 
-> With .30 I was able to start *three* gitk's (which meant 2 of them got
-> (partially) swapped out) without any allocation errors. And with the system
-> remaining relatively responsive. There was a short break in the music while
-> I started the 2nd instance, but it just continued playing afterwards. There
-> was also some mild latency in the mouse cursor, but nothing like the full
-> desktop freeze I get with .32-rc3.
-> 
-> With .30 I looked at /proc/buddyinfo while the 3rd gitk was being started,
-> and that looked fairly healthy all the time:
-> Node 0, zone      DMA      5      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32    579     67     25      8      5      1      1      0      1      1      0
-> Node 0, zone      DMA      5      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32    276     54     13     15      8     10      3      1      1      1      0
-> Node 0, zone      DMA      4      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32    119     45     24     18     12      4      5      2      1      1      0
-> Node 0, zone      DMA      4      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32    527     13      9      5      5      3      2      1      1      1      0
-> Node 0, zone      DMA      5      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32   1375     24      7      7      8      5      1      1      0      1      0
-> Node 0, zone      DMA      5      9     22     20     21     11      0      0      0      0      1
-> Node 0, zone    DMA32    329     21      3      3     17      8      5      1      0      1      0
-> 
-> With .32 it was obviously impossible to get that info due to the total
-> freeze of the desktop. Not sure if the scheduler changes in .32 contribute
-> to this. Guess I could find out by doing the same test with .31.
-> 
-> One thing I should mention: my swap is an LVM volume that's in a VG that's
-> on a LUKS encrypted partition.
-> 
-> Does this give you enough info to go on, or should I try a bisection?
+> Mel, do you have a Kconfig patch laying around somewhere to enable
+> SLQB on PPC and S390?
 > 
 
-I'll be trying to reproduce it, but it's unlikely I'll manage to
-reproduce it reliably as there may be a specific combination of hardware
-necessary as well. What I'm going to try is writing a module that
-allocates order-5 every second GFP_ATOMIC and see can I reproduce using
-scenarios similar to yours but it'll take some time with no guarantee of
-success. If you could bisect it, it would be fantastic.
-
-Thanks
+It's patch 4 of this series.
 
 -- 
 Mel Gorman
