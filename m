@@ -1,125 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7D86B0089
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 07:15:31 -0400 (EDT)
-Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from
- task mempolicy
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-	 <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Mon, 05 Oct 2009 07:15:26 -0400
-Message-Id: <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+	by kanga.kvack.org (Postfix) with ESMTP id 3664D6B005A
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 08:16:36 -0400 (EDT)
+Message-Id: <4AC9E38E0200007800017F57@vpn.id2.novell.com>
+Date: Mon, 05 Oct 2009 11:16:14 +0100
+From: "Jan Beulich" <JBeulich@novell.com>
+Subject: [PATCH] adjust gfp mask passed on nested vmalloc() invocation
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-10-02 at 15:16 -0700, David Rientjes wrote:
-> On Thu, 1 Oct 2009, Lee Schermerhorn wrote:
-> 
-> > Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
-> > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-30 12:48:45.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-10-01 12:13:25.000000000 -0400
-> > @@ -1334,29 +1334,71 @@ static struct hstate *kobj_to_hstate(str
-> >  	return NULL;
-> >  }
-> >  
-> > -static ssize_t nr_hugepages_show(struct kobject *kobj,
-> > +static ssize_t nr_hugepages_show_common(struct kobject *kobj,
-> >  					struct kobj_attribute *attr, char *buf)
-> >  {
-> >  	struct hstate *h = kobj_to_hstate(kobj);
-> >  	return sprintf(buf, "%lu\n", h->nr_huge_pages);
-> >  }
-> > -static ssize_t nr_hugepages_store(struct kobject *kobj,
-> > -		struct kobj_attribute *attr, const char *buf, size_t count)
-> > +static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
-> > +			struct kobject *kobj, struct kobj_attribute *attr,
-> > +			const char *buf, size_t len)
-> >  {
-> >  	int err;
-> > -	unsigned long input;
-> > +	unsigned long count;
-> >  	struct hstate *h = kobj_to_hstate(kobj);
-> > +	NODEMASK_ALLOC(nodemask, nodes_allowed);
-> >  
-> 
->  [ FYI: I'm not sure clameter@sgi.com still works, you may want to try
->    cl@linux-foundation.org. ]
-> 
-> 
-> mm/hugetlb.c: In function 'nr_hugepages_store_common':
-> mm/hugetlb.c:1368: error: storage size of '_m' isn't known
-> mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
-> mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
-> mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
-> mm/hugetlb.c:1368: warning: unused variable '_m'
-> mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
-> mm/hugetlb.c:1862: error: storage size of '_m' isn't known
-> mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
-> mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
-> mm/hugetlb.c:1862: warning: unused variable '_m'
+- fix a latent bug resulting from blindly or-ing in __GFP_ZERO, since
+  the combination of this and __GFP_HIGHMEM (possibly passed into the
+  function) is forbidden in interrupt context
+- avoid wasting more precious resources (DMA or DMA32 pools), when
+  being called through vmalloc_32{,_user}()
+- explicitly allow using high memory here even if the outer allocation
+  request doesn't allow it, unless is collides with __GFP_ZERO
+
+Signed-off-by: Jan Beulich <jbeulich@novell.com>
+
+---
+ mm/vmalloc.c |   12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+--- linux-2.6.32-rc3/mm/vmalloc.c	2009-10-05 11:59:56.000000000 =
++0200
++++ 2.6.32-rc3-vmalloc-nested-gfp/mm/vmalloc.c	2009-10-05 08:40:36.0000000=
+00 +0200
+@@ -1410,6 +1410,7 @@ static void *__vmalloc_area_node(struct=20
+ {
+ 	struct page **pages;
+ 	unsigned int nr_pages, array_size, i;
++	gfp_t nested_gfp =3D (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+=20
+ 	nr_pages =3D (area->size - PAGE_SIZE) >> PAGE_SHIFT;
+ 	array_size =3D (nr_pages * sizeof(struct page *));
+@@ -1417,13 +1418,16 @@ static void *__vmalloc_area_node(struct=20
+ 	area->nr_pages =3D nr_pages;
+ 	/* Please note that the recursion is strictly bounded. */
+ 	if (array_size > PAGE_SIZE) {
+-		pages =3D __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,=
+
++#ifdef CONFIG_HIGHMEM
++		/* See the comment in prep_zero_page(). */
++		if (!in_interrupt())
++			nested_gfp |=3D __GFP_HIGHMEM;
++#endif
++		pages =3D __vmalloc_node(array_size, nested_gfp,
+ 				PAGE_KERNEL, node, caller);
+ 		area->flags |=3D VM_VPAGES;
+ 	} else {
+-		pages =3D kmalloc_node(array_size,
+-				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,=
+
+-				node);
++		pages =3D kmalloc_node(array_size, nested_gfp, node);
+ 	}
+ 	area->pages =3D pages;
+ 	area->caller =3D caller;
 
 
-??? This is after your rework of NODEMASK_ALLOC has been applied?  I
-don't see this when I build the mmotm that the patch is based on.  
-
-> 
-> This can be fixed after my "nodemask: make NODEMASK_ALLOC more general" 
-> patch is merged and the following is applied as I suggested in 
-> http://marc.info/?l=linux-mm&m=125270872312494:
-
-Ah, but your patch didn't exist back then :).
-
-I guess I'll tack this onto the end of V9 with a note that it depends on
-your patch.  Altho' for bisection builds, I might want to break it into
-separate patches that apply to the mempolicy and per node attributes
-patches, respectively.
-
-Thanks,
-Lee
-
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/hugetlb.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1365,7 +1365,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
->  	int nid;
->  	unsigned long count;
->  	struct hstate *h;
-> -	NODEMASK_ALLOC(nodemask, nodes_allowed);
-> +	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
->  
->  	err = strict_strtoul(buf, 10, &count);
->  	if (err)
-> @@ -1859,7 +1859,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->  	proc_doulongvec_minmax(table, write, buffer, length, ppos);
->  
->  	if (write) {
-> -		NODEMASK_ALLOC(nodemask, nodes_allowed);
-> +		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
->  		if (!(obey_mempolicy &&
->  			       init_nodemask_of_mempolicy(nodes_allowed))) {
->  			NODEMASK_FREE(nodes_allowed);
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-numa" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
