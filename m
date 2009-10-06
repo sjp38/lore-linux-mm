@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 40CB46B004D
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 22:54:09 -0400 (EDT)
-Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from
- task mempolicy
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
-	 <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
-	 <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
-	 <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Mon, 05 Oct 2009 22:54:01 -0400
-Message-Id: <1254797641.21534.72.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2882A6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 23:13:39 -0400 (EDT)
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Date: Mon, 05 Oct 2009 23:17:39 -0400
+Message-Id: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/11] hugetlb: V9 numa control of persistent huge pages alloc/free
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
+To: linux-mm@kvack.org, linux-numa@vger.kernel.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-10-05 at 13:58 -0700, David Rientjes wrote:
-> On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
-> 
-> > > mm/hugetlb.c: In function 'nr_hugepages_store_common':
-> > > mm/hugetlb.c:1368: error: storage size of '_m' isn't known
-> > > mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> > > mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
-> > > mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
-> > > mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> > > mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
-> > > mm/hugetlb.c:1368: warning: unused variable '_m'
-> > > mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
-> > > mm/hugetlb.c:1862: error: storage size of '_m' isn't known
-> > > mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
-> > > mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
-> > > mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
-> > > mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
-> > > mm/hugetlb.c:1862: warning: unused variable '_m'
-> > 
-> > 
-> > ??? This is after your rework of NODEMASK_ALLOC has been applied?  I
-> > don't see this when I build the mmotm that the patch is based on.  
-> > 
-> 
-> This was mmotm-09251435 plus this entire patchset.
-> 
-> You may want to check your toolchain if you don't see these errors, 
+PATCH 0/11 hugetlb: numa control of persistent huge pages alloc/free
 
+Against:  2.6.31-mmotm-090925-1435 plus David Rientjes'
+"nodemask: make NODEMASK_ALLOC more general" patch applied
 
-Hmmm, I'm using :
+This is V9 of a series of patches to provide control over the location
+of the allocation and freeing of persistent huge pages on a NUMA
+platform.   Please consider for merging into mmotm.
 
-	gcc (SUSE Linux) 4.3.2 [gcc-4_3-branch revision 141291]
+This series uses two mechanisms to constrain the nodes from which
+persistent huge pages are allocated:  1) the task NUMA mempolicy of
+the task modifying  a new sysctl "nr_hugepages_mempolicy", based on
+a suggestion by Mel Gorman; and 2) a subset of the hugepages hstate
+sysfs attributes have been added [in V4] to each node system device
+under:
 
-> this 
-> particular patch adds NODEMASK_ALLOC(nodemask, nodes_allowed) which would 
-> expand out to allocating a "struct nodemask" either dynamically or on the 
-> stack and such an object doesn't exist in the kernel.
+	/sys/devices/node/node[0-9]*/hugepages.
 
-and in include/linux/nodemask.h, I see:
+The per node attibutes allow direct assignment of a huge page
+count on a specific node, regardless of the task's mempolicy or
+cpuset constraints.
 
-	typedef struct nodemask { DECLARE_BITMAP(bits, MAX_NUMNODES); } nodemask_t;
+V5 addressed review comments -- changes described in patch descriptions.
 
-Don't know why you're seeing that error this series on mmotm-090925...
+V6 addressed more review comments, described in the patches.
 
-> > I guess I'll tack this onto the end of V9 with a note that it depends on
-> > your patch.  Altho' for bisection builds, I might want to break it into
-> > separate patches that apply to the mempolicy and per node attributes
-> > patches, respectively.
-> > 
-> 
-> Feel free to just fold it into patch 4 so the series builds incrementally.
+V6 also included a 3 patch series that implements an enhancement suggested
+by David Rientjes:   the default huge page nodes allowed mask will be the
+nodes with memory rather than all on-line nodes and we will allocate per
+node hstate attributes only for nodes with memory.  This requires that we
+register a memory on/off-line notifier and [un]register the attributes on
+transitions to/from memoryless state.
 
-In V9, I have it as a separate patch, primarily to maintain attribution
-for now.  I had originally thought that it would be easy to include this
-patch or not, depending on whether your NODEMASK_ALLOC generalization
-patch was already merged.  But, this fix causes a messy patch rejection
-in the per node attributes patch, so having separate really doesn't help
-that.  V9 depends on your patch now.
+V7 addressed review comments, described in the patches, and included a
+new patch, originally from Mel Gorman, to define a new vm sysctl and
+sysfs global hugepages attribute "nr_hugepages_mempolicy" rather than
+apply mempolicy contraints to pool adujstments via the pre-existing
+"nr_hugepages".  The 3 patches to restrict hugetlb to visiting only
+nodes with memory and to add/remove per node hstate attributes on
+memory hotplug completed V7.
 
-Lee
+V8 reorganized the sysctl and sysfs attribute handlers to default
+the nodes to default or define the nodes_allowed mask up in the
+handlers and pass nodes_allowed [pointer] to set_max_huge_pages().
+This cleanup was suggested by David Rientjes.  V8 also merged Mel
+Gorman's "nr_hugepages_mempolicy" back into the patch to compute
+nodes_allowed from mempolicy.
+
+V8 turned out to be too large a reorg to pull off without botching
+something.  V9 fixes these.  In the meantime, David Rientjes has
+posted a patch to generalize NODEMASK_ALLOC.  This causes a build error
+in my series.  David provided a patch to fix the build failure.  I
+have included David's fixup as patch NN.  This causes V9 to depend
+on David's patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
