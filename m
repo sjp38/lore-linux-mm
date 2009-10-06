@@ -1,85 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8D5B96B0055
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 22:41:29 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n962fQfm011078
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 6 Oct 2009 11:41:27 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B514345DE5C
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 11:41:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BE8645DE5A
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 11:41:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F2321DB8037
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 11:41:26 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 214B01DB8041
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 11:41:26 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/2] mlock use lru_add_drain_all_async()
-In-Reply-To: <20091006112803.5FA5.A69D9226@jp.fujitsu.com>
-References: <20091006112803.5FA5.A69D9226@jp.fujitsu.com>
-Message-Id: <20091006114052.5FAA.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by kanga.kvack.org (Postfix) with ESMTP id 40CB46B004D
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 22:54:09 -0400 (EDT)
+Subject: Re: [PATCH 4/10] hugetlb:  derive huge pages nodes allowed from
+ task mempolicy
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
+References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain>
+	 <20091001165832.32248.32725.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0910021513090.18180@chino.kir.corp.google.com>
+	 <1254741326.4389.16.camel@useless.americas.hpqcorp.net>
+	 <alpine.DEB.1.00.0910051354380.10476@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Mon, 05 Oct 2009 22:54:01 -0400
+Message-Id: <1254797641.21534.72.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Tue,  6 Oct 2009 11:41:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-
-Recently, Peter Zijlstra reported RT-task can lead to prevent mlock
-very long time.
-
-  Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
-  cpu0 does mlock()->lru_add_drain_all(), which does
-  schedule_on_each_cpu(), which then waits for all cpus to complete the
-  work. Except that cpu1, which is busy with the RT task, will never run
-  keventd until the RT load goes away.
-
-  This is not so much an actual deadlock as a serious starvation case.
-
-Actually, mlock() doesn't need to wait to finish lru_add_drain_all().
-Thus, this patch replace it with lru_add_drain_all_async().
-
-Cc: Oleg Nesterov <onestero@redhat.com>
-Reported-by: Peter Zijlstra <a.p.zijlstra@chello.nl> 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/mlock.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 22041aa..46a016f 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -458,7 +458,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	if (!can_do_mlock())
- 		return -EPERM;
- 
--	lru_add_drain_all();	/* flush pagevec */
-+	lru_add_drain_all_async();	/* flush pagevec */
- 
- 	down_write(&current->mm->mmap_sem);
- 	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
-@@ -526,7 +526,7 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	if (!can_do_mlock())
- 		goto out;
- 
--	lru_add_drain_all();	/* flush pagevec */
-+	lru_add_drain_all_async();	/* flush pagevec */
- 
- 	down_write(&current->mm->mmap_sem);
- 
--- 
-1.6.2.5
+On Mon, 2009-10-05 at 13:58 -0700, David Rientjes wrote:
+> On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
+> 
+> > > mm/hugetlb.c: In function 'nr_hugepages_store_common':
+> > > mm/hugetlb.c:1368: error: storage size of '_m' isn't known
+> > > mm/hugetlb.c:1380: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> > > mm/hugetlb.c:1382: warning: assignment from incompatible pointer type
+> > > mm/hugetlb.c:1390: warning: passing argument 1 of 'init_nodemask_of_node' from incompatible pointer type
+> > > mm/hugetlb.c:1392: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> > > mm/hugetlb.c:1394: warning: comparison of distinct pointer types lacks a cast
+> > > mm/hugetlb.c:1368: warning: unused variable '_m'
+> > > mm/hugetlb.c: In function 'hugetlb_sysctl_handler_common':
+> > > mm/hugetlb.c:1862: error: storage size of '_m' isn't known
+> > > mm/hugetlb.c:1864: warning: passing argument 1 of 'init_nodemask_of_mempolicy' from incompatible pointer type
+> > > mm/hugetlb.c:1866: warning: assignment from incompatible pointer type
+> > > mm/hugetlb.c:1868: warning: passing argument 3 of 'set_max_huge_pages' from incompatible pointer type
+> > > mm/hugetlb.c:1870: warning: comparison of distinct pointer types lacks a cast
+> > > mm/hugetlb.c:1862: warning: unused variable '_m'
+> > 
+> > 
+> > ??? This is after your rework of NODEMASK_ALLOC has been applied?  I
+> > don't see this when I build the mmotm that the patch is based on.  
+> > 
+> 
+> This was mmotm-09251435 plus this entire patchset.
+> 
+> You may want to check your toolchain if you don't see these errors, 
 
 
+Hmmm, I'm using :
+
+	gcc (SUSE Linux) 4.3.2 [gcc-4_3-branch revision 141291]
+
+> this 
+> particular patch adds NODEMASK_ALLOC(nodemask, nodes_allowed) which would 
+> expand out to allocating a "struct nodemask" either dynamically or on the 
+> stack and such an object doesn't exist in the kernel.
+
+and in include/linux/nodemask.h, I see:
+
+	typedef struct nodemask { DECLARE_BITMAP(bits, MAX_NUMNODES); } nodemask_t;
+
+Don't know why you're seeing that error this series on mmotm-090925...
+
+> > I guess I'll tack this onto the end of V9 with a note that it depends on
+> > your patch.  Altho' for bisection builds, I might want to break it into
+> > separate patches that apply to the mempolicy and per node attributes
+> > patches, respectively.
+> > 
+> 
+> Feel free to just fold it into patch 4 so the series builds incrementally.
+
+In V9, I have it as a separate patch, primarily to maintain attribution
+for now.  I had originally thought that it would be easy to include this
+patch or not, depending on whether your NODEMASK_ALLOC generalization
+patch was already merged.  But, this fix causes a messy patch rejection
+in the per node attributes patch, so having separate really doesn't help
+that.  V9 depends on your patch now.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
