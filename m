@@ -1,133 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 73EE26B004D
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 13:03:32 -0400 (EDT)
-Date: Tue, 6 Oct 2009 19:02:18 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v2][RFC] add MAP_UNLOCKED mmap flag
-Message-ID: <20091006170218.GM9832@redhat.com>
-MIME-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DC9E26B004F
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 13:33:43 -0400 (EDT)
+Received: from toip4.srvr.bell.ca ([209.226.175.87])
+          by tomts20-srv.bellnexxia.net
+          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
+          id <20091006173342.MCDX6916.tomts20-srv.bellnexxia.net@toip4.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Tue, 6 Oct 2009 13:33:42 -0400
+Date: Tue, 6 Oct 2009 13:33:40 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Subject: Re: [patch 4/4] vunmap: Fix racy use of rcu_head
+Message-ID: <20091006173340.GA25502@Krystal>
+References: <20091006143727.868480435@polymtl.ca> <20091006144043.378971387@polymtl.ca> <alpine.DEB.1.10.0910061241250.18309@gentwo.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0910061241250.18309@gentwo.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: nickpiggin@yahoo.com.au, akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If application does mlockall(MCL_FUTURE) it is no longer possible to
-mmap file bigger than main memory or allocate big area of anonymous
-memory. Sometimes it is desirable to lock everything related to program
-execution into memory, but still be able to mmap big file or allocate
-huge amount of memory and allow OS to swap them on demand. MAP_UNLOCKED
-allows to do that.
+* Christoph Lameter (cl@linux-foundation.org) wrote:
+> On Tue, 6 Oct 2009, Mathieu Desnoyers wrote:
+> 
+> > Simplest fix: directly kfree the data structure rather than doing it lazily.
+> 
+> The delay is necessary as far as I can tell for performance reasons. But
+> Nick was the last one fiddling around with the subsystem as far as I
+> remember. CCing him. May be he has a minute to think about a fix that
+> preserved performance.
+> 
 
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
+Thanks,
 
-v1->v2
- - adding new flag to all archs
- - fixing typo
+More info on the problem:
 
-diff --git a/arch/alpha/include/asm/mman.h b/arch/alpha/include/asm/mman.h
-index 99c56d4..cfc51ac 100644
---- a/arch/alpha/include/asm/mman.h
-+++ b/arch/alpha/include/asm/mman.h
-@@ -30,6 +30,7 @@
- #define MAP_NONBLOCK	0x40000		/* do not block on IO */
- #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x200000	/* force page unlocking */
- 
- #define MS_ASYNC	1		/* sync memory asynchronously */
- #define MS_SYNC		2		/* synchronous memory sync */
-diff --git a/arch/mips/include/asm/mman.h b/arch/mips/include/asm/mman.h
-index a2250f3..c161e27 100644
---- a/arch/mips/include/asm/mman.h
-+++ b/arch/mips/include/asm/mman.h
-@@ -48,6 +48,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- /*
-  * Flags for msync
-diff --git a/arch/parisc/include/asm/mman.h b/arch/parisc/include/asm/mman.h
-index 9749c8a..4e8b9bf 100644
---- a/arch/parisc/include/asm/mman.h
-+++ b/arch/parisc/include/asm/mman.h
-@@ -24,6 +24,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- #define MS_SYNC		1		/* synchronous memory sync */
- #define MS_ASYNC	2		/* sync memory asynchronously */
-diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
-index d4a7f64..7d33f01 100644
---- a/arch/powerpc/include/asm/mman.h
-+++ b/arch/powerpc/include/asm/mman.h
-@@ -27,6 +27,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000		/* force page unlocking */
- 
- #ifdef __KERNEL__
- #ifdef CONFIG_PPC64
-diff --git a/arch/sparc/include/asm/mman.h b/arch/sparc/include/asm/mman.h
-index c3029ad..f80d203 100644
---- a/arch/sparc/include/asm/mman.h
-+++ b/arch/sparc/include/asm/mman.h
-@@ -22,6 +22,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000		/* force page unlocking */
- 
- #ifdef __KERNEL__
- #ifndef __ASSEMBLY__
-diff --git a/arch/xtensa/include/asm/mman.h b/arch/xtensa/include/asm/mman.h
-index fca4db4..c62bcd8 100644
---- a/arch/xtensa/include/asm/mman.h
-+++ b/arch/xtensa/include/asm/mman.h
-@@ -55,6 +55,7 @@
- #define MAP_NONBLOCK	0x20000		/* do not block on IO */
- #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x100000	/* force page unlocking */
- 
- /*
-  * Flags for msync
-diff --git a/include/asm-generic/mman.h b/include/asm-generic/mman.h
-index 32c8bd6..59e0f29 100644
---- a/include/asm-generic/mman.h
-+++ b/include/asm-generic/mman.h
-@@ -12,6 +12,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_UNLOCKED	0x80000         /* force page unlocking */
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 73f5e4b..7c2abdb 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -985,6 +985,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		if (!can_do_mlock())
- 			return -EPERM;
- 
-+        if (flags & MAP_UNLOKED)
-+                vm_flags &= ~VM_LOCKED;
-+
- 	/* mlock MCL_FUTURE? */
- 	if (vm_flags & VM_LOCKED) {
- 		unsigned long locked, lock_limit;
---
-			Gleb.
+I added a check in alloc_vmap_area() at:
+
+        va = kmalloc_node(sizeof(struct vmap_area),
+                        gfp_mask & GFP_RECLAIM_MASK, node);
+        WARN_ON(va->rcu_head.debug == LIST_POISON1);
+
+(memory allocation debugging is off in my config)
+
+I used this along with my new call rcu debug patch to check if memory is
+reallocated before the callback (doing kfree) is executed. It triggers
+this:
+
+WARNING: at mm/vmalloc.c:343 alloc_vmap_area+0x305/0x340()
+Hardware name: X7DAL
+Modules linked in: loop ltt_statedump ltt_userspace_event ipc_tr]
+Pid: 5584, comm: ltt-disarmall Not tainted 2.6.30.9-trace #41
+Call Trace:
+ [<ffffffff802b8665>] ? alloc_vmap_area+0x305/0x340
+ [<ffffffff802b8665>] ? alloc_vmap_area+0x305/0x340
+ [<ffffffff8023cf29>] ? warn_slowpath_common+0x79/0xd0
+ [<ffffffff802b8665>] ? alloc_vmap_area+0x305/0x340
+ [<ffffffff80237670>] ? default_wake_function+0x0/0x10
+ [<ffffffff802b8769>] ? __get_vm_area_node+0xc9/0x1d0
+ [<ffffffff805ae965>] ? sys_getsockopt+0x85/0x160
+ [<ffffffff8040f160>] ? ltt_vtrace+0x0/0x8d0
+ [<ffffffff802b88dd>] ? get_vm_area_caller+0x2d/0x40
+ [<ffffffff8068bc3e>] ? arch_imv_update+0x10e/0x2f0
+ [<ffffffff802b93aa>] ? vmap+0x4a/0x80
+ [<ffffffff8068bc3e>] ? arch_imv_update+0x10e/0x2f0
+ [<ffffffff80283e6d>] ? get_tracepoint+0x25d/0x290
+ [<ffffffff80280b93>] ? imv_update_range+0x53/0xa0
+ [<ffffffff80284821>] ? tracepoint_update_probes+0x21/0x30
+ [<ffffffff802848b3>] ? tracepoint_probe_update_all+0x83/0x100
+ [<ffffffff80282ac1>] ? marker_update_probes+0x21/0x40
+ [<ffffffff8040f160>] ? ltt_vtrace+0x0/0x8d0
+ [<ffffffff80282d5d>] ? marker_probe_unregister+0xad/0x130
+ [<ffffffff8040b9dc>] ? ltt_marker_disconnect+0xdc/0x120
+ [<ffffffff804121d2>] ? marker_enable_write+0x112/0x120
+ [<ffffffff80688dd0>] ? _spin_unlock+0x10/0x30
+ [<ffffffff802e6b36>] ? mnt_drop_write+0x76/0x180
+ [<ffffffff802d96dd>] ? do_filp_open+0x2cd/0xa00
+ [<ffffffff804377c1>] ? tty_write+0x221/0x270
+ [<ffffffff802cc6cb>] ? vfs_write+0xcb/0x170
+ [<ffffffff802cc914>] ? sys_write+0x64/0x130
+ [<ffffffff8020beab>] ? system_call_fastpath+0x16/0x1b
+---[ end trace 7ef506680d7a9e26 ]---
+
+Could it be that:
+
+static void __free_vmap_area(struct vmap_area *va)
+{
+        BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+        rb_erase(&va->rb_node, &vmap_area_root);
+        RB_CLEAR_NODE(&va->rb_node);
+        list_del_rcu(&va->list);
+
+        call_rcu(&va->rcu_head, rcu_free_va);
+}
+
+(especially clearing from the rb tree and va list)
+allows reallocation of the node by kmalloc_node before its reclamation
+(only done later by rcu_free_va) ?
+
+Mathieu
+
+-- 
+Mathieu Desnoyers
+OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
