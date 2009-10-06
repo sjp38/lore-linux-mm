@@ -1,65 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A496B004D
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 23:46:23 -0400 (EDT)
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id n963kInj027388
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 20:46:19 -0700
-Received: from pzk14 (pzk14.prod.google.com [10.243.19.142])
-	by spaceape11.eur.corp.google.com with ESMTP id n963kFfZ023207
-	for <linux-mm@kvack.org>; Mon, 5 Oct 2009 20:46:16 -0700
-Received: by pzk14 with SMTP id 14so2515282pzk.23
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2009 20:46:14 -0700 (PDT)
-Date: Mon, 5 Oct 2009 20:46:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] nodemask: make NODEMASK_ALLOC more general
-In-Reply-To: <alpine.DEB.1.10.0910021839470.11884@gentwo.org>
-Message-ID: <alpine.DEB.1.00.0910052036380.17606@chino.kir.corp.google.com>
-References: <20091001165721.32248.14861.sendpatchset@localhost.localdomain> <20091001165832.32248.32725.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0910021511030.18180@chino.kir.corp.google.com> <alpine.DEB.1.10.0910021839470.11884@gentwo.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A3D296B004D
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 03:44:43 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n967ifdF025808
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 6 Oct 2009 16:44:41 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C84D745DE4F
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 16:44:40 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AD44845DE4E
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 16:44:40 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 93E871DB8038
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 16:44:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3DB531DB8047
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 16:44:37 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [rfc patch 3/3] mm: munlock COW pages on truncation unmap
+In-Reply-To: <20091005193200.GA13040@cmpxchg.org>
+References: <2f11576a0910030656l73c9811w18e0f224fb3d98af@mail.gmail.com> <20091005193200.GA13040@cmpxchg.org>
+Message-Id: <20091006163748.1263.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  6 Oct 2009 16:44:36 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Lee Schermerhorn <lee.schermerhorn@hp.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Oct 2009, Christoph Lameter wrote:
-
-> > NODEMASK_ALLOC(x, m) assumes x is a type of struct, which is unnecessary.
-> > It's perfectly reasonable to use this macro to allocate a nodemask_t,
-> > which is anonymous, either dynamically or on the stack depending on
-> > NODES_SHIFT.
+> Hi,
 > 
-> There is currently only one user of NODEMASK_ALLOC which is
-> NODEMASK_SCRATCH.
+> On Sat, Oct 03, 2009 at 10:56:55PM +0900, KOSAKI Motohiro wrote:
+> > >> Umm..
+> > >> I haven't understand this.
+> > >>
+> > >> (1) unmap_mapping_range() is called twice.
+> > >>
+> > >>       unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
+> > >>       truncate_inode_pages(mapping, new);
+> > >>       unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
+> > >>
+> > >> (2) PG_mlock is turned on from mlock() and vmscan.
+> > >> (3) vmscan grab anon_vma, but mlock don't grab anon_vma.
+> > >
+> > > You are right, I was so focused on the LRU side that I missed an
+> > > obvious window here: an _explicit_ mlock can still happen between the
+> > > PG_mlocked clearing section and releasing the page.
 > 
+> Okay, so what are the opinions on this?  Would you consider my patches
+> to fix the most likely issues?  Dropping them in favor of looking for
+> a complete fix?  Revert the warning on freeing PG_mlocked pages?
 
-That changes with Lee's patchset for mempolicy hugepage allocations and 
-freeing, he'll be using it in generic hugetlb code.
+Honestly, I don't have any good idea. but luckly, we have enough time.
+the false-positve warning is not so big problem. then, I prefer looking for
+complete solusion.
 
-> Can we generalize the functionality here? The macro is basically choosing
-> between a slab allocation or a stack allocation depending on the
-> configured system size.
-> 
-> NUMA_COND__ALLOC(<type>, <min numa nodes for not using stack>,
-> <variablename>)
-> 
-> or so?
-> 
-
-I assume we could, although it would be slightly messy because we'd be 
-coding a stack allocation in a macro when comparing the passed value 
-against CONFIG_NODES_SHIFT.
-
-> Its likely that one way want to allocate other structures on the stack
-> that may get too big if large systems need to be supported.
-> 
-
-I don't think we currently have any examples of that other than 
-nodemask_t.  We allocate arrays of length MAX_NUMNODES quite often for 
-things like node_to_cpumask_map, struct bootnode, etc, but no longer on 
-the stack even in NUMA emulation.  I'd be interested to see any 
-non-nodemask use cases.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
