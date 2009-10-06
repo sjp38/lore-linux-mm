@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 132146B0055
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:28:55 -0400 (EDT)
-Subject: Re: [PATCH 11/11] hugetlb:  offload per node attribute
- registrations
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20091006160139.GT1656@one.firstfloor.org>
-References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
-	 <20091006031924.22576.35018.sendpatchset@localhost.localdomain>
-	 <20091006160139.GT1656@one.firstfloor.org>
-Content-Type: text/plain
-Date: Tue, 06 Oct 2009 12:28:49 -0400
-Message-Id: <1254846529.13943.69.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id F0ED86B004D
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:33:32 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 889B682C3AD
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:37:11 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 48WWk-LKcBCK for <linux-mm@kvack.org>;
+	Tue,  6 Oct 2009 12:37:11 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 42EB182C280
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:36:57 -0400 (EDT)
+Date: Tue, 6 Oct 2009 12:27:27 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mlock use lru_add_drain_all_async()
+In-Reply-To: <20091006114052.5FAA.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0910061226300.18309@gentwo.org>
+References: <20091006112803.5FA5.A69D9226@jp.fujitsu.com> <20091006114052.5FAA.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Oleg Nesterov <oleg@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-10-06 at 18:01 +0200, Andi Kleen wrote:
-> On Mon, Oct 05, 2009 at 11:19:24PM -0400, Lee Schermerhorn wrote:
-> > [PATCH 11/11] hugetlb:  offload [un]registration of sysfs attr to worker thread
-> > 
-> > Against:  2.6.31-mmotm-090925-1435
-> > 
-> > New in V6
-> > 
-> > V7:  + remove redundant check for memory{ful|less} node from 
-> >        node_hugetlb_work().  Rely on [added] return from
-> >        hugetlb_register_node() to differentiate between transitions
-> >        to/from memoryless state.
-> > 
-> > This patch offloads the registration and unregistration of per node
-> > hstate sysfs attributes to a worker thread rather than attempt the
-> > allocation/attachment or detachment/freeing of the attributes in 
-> > the context of the memory hotplug handler.
-> 
-> Why this change? The hotplug handler should be allowed to sleep, shouldn't it?
+On Tue, 6 Oct 2009, KOSAKI Motohiro wrote:
 
-Andy:  perhaps it can.  I'm not familiar with hotplug, so I followed a
-pattern found elsewhere.  I created a separate patch in case someone
-familiar with this area says I don't need it.
+>   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
+>   cpu0 does mlock()->lru_add_drain_all(), which does
+>   schedule_on_each_cpu(), which then waits for all cpus to complete the
+>   work. Except that cpu1, which is busy with the RT task, will never run
+>   keventd until the RT load goes away.
+>
+>   This is not so much an actual deadlock as a serious starvation case.
+>
+> Actually, mlock() doesn't need to wait to finish lru_add_drain_all().
+> Thus, this patch replace it with lru_add_drain_all_async().
 
-
-> 
-> > N.B.,  Only tested build, boot, libhugetlbfs regression.
-> >        i.e., no memory hotplug testing.
-> 
-> Yes, you have to because I know for a fact it's broken (outside your code) :)
-
-We need to be able to remove all memory from a node without that node
-disappearing [as I think it does on x86_64] to even exercise this code.
-I think some ia64 platforms can do that, perhaps others.
-
-Lee
+Ok so this will queue up lots of events for the cpu doing a RT task. If
+the RT task is continuous then they will be queued there forever?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
