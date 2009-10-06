@@ -1,34 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD9F6B005A
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:02:22 -0400 (EDT)
-Date: Tue, 6 Oct 2009 18:02:16 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/11] hugetlb: V9 numa control of persistent huge pages alloc/free
-Message-ID: <20091006160216.GU1656@one.firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 132146B0055
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 12:28:55 -0400 (EDT)
+Subject: Re: [PATCH 11/11] hugetlb:  offload per node attribute
+ registrations
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20091006160139.GT1656@one.firstfloor.org>
 References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
+	 <20091006031924.22576.35018.sendpatchset@localhost.localdomain>
+	 <20091006160139.GT1656@one.firstfloor.org>
+Content-Type: text/plain
+Date: Tue, 06 Oct 2009 12:28:49 -0400
+Message-Id: <1254846529.13943.69.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 05, 2009 at 11:17:39PM -0400, Lee Schermerhorn wrote:
-> PATCH 0/11 hugetlb: numa control of persistent huge pages alloc/free
+On Tue, 2009-10-06 at 18:01 +0200, Andi Kleen wrote:
+> On Mon, Oct 05, 2009 at 11:19:24PM -0400, Lee Schermerhorn wrote:
+> > [PATCH 11/11] hugetlb:  offload [un]registration of sysfs attr to worker thread
+> > 
+> > Against:  2.6.31-mmotm-090925-1435
+> > 
+> > New in V6
+> > 
+> > V7:  + remove redundant check for memory{ful|less} node from 
+> >        node_hugetlb_work().  Rely on [added] return from
+> >        hugetlb_register_node() to differentiate between transitions
+> >        to/from memoryless state.
+> > 
+> > This patch offloads the registration and unregistration of per node
+> > hstate sysfs attributes to a worker thread rather than attempt the
+> > allocation/attachment or detachment/freeing of the attributes in 
+> > the context of the memory hotplug handler.
 > 
-> Against:  2.6.31-mmotm-090925-1435 plus David Rientjes'
-> "nodemask: make NODEMASK_ALLOC more general" patch applied
+> Why this change? The hotplug handler should be allowed to sleep, shouldn't it?
+
+Andy:  perhaps it can.  I'm not familiar with hotplug, so I followed a
+pattern found elsewhere.  I created a separate patch in case someone
+familiar with this area says I don't need it.
+
+
 > 
-> This is V9 of a series of patches to provide control over the location
-> of the allocation and freeing of persistent huge pages on a NUMA
-> platform.   Please consider for merging into mmotm.
+> > N.B.,  Only tested build, boot, libhugetlbfs regression.
+> >        i.e., no memory hotplug testing.
+> 
+> Yes, you have to because I know for a fact it's broken (outside your code) :)
 
-FWIW I reviewed the series briefly and it seems good to me.
+We need to be able to remove all memory from a node without that node
+disappearing [as I think it does on x86_64] to even exercise this code.
+I think some ia64 platforms can do that, perhaps others.
 
--Andi
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
