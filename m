@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8186B0062
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 23:14:08 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8E16B006A
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2009 23:14:15 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Mon, 05 Oct 2009 23:18:08 -0400
-Message-Id: <20091006031808.22576.91721.sendpatchset@localhost.localdomain>
+Date: Mon, 05 Oct 2009 23:18:15 -0400
+Message-Id: <20091006031815.22576.16375.sendpatchset@localhost.localdomain>
 In-Reply-To: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
 References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
-Subject: [PATCH 5/11] hugetlb:  accomodate reworked NODEMASK_ALLOC
+Subject: [PATCH 6/11] hugetlb:  add generic definition of NUMA_NO_NODE
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 5/11] hugetlb:  accomodate reworked NODEMASK_ALLOC
-From:	David Rientjes <rientjes@google.com>
+[PATCH 6/11] - hugetlb:  promote NUMA_NO_NODE to generic constant
 
 Against:  2.6.31-mmotm-090925-1435
 
-Depends on:  David Rientjes' "nodemask: make NODEMASK_ALLOC more general"
-patch.
+New in V7 of series
 
-Fix hugetlb usage of NODEMASK_ALLOC after aforementioned patch is merged.
+Move definition of NUMA_NO_NODE from ia64 and x86_64 arch specific
+headers to generic header 'linux/numa.h' for use in generic code.
+NUMA_NO_NODE replaces bare '-1' where it's used in this series to
+indicate "no node id specified".  Ultimately, it can be used
+to replace the -1 elsewhere where it is used similarly.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
- mm/hugetlb.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/ia64/include/asm/numa.h    |    2 --
+ arch/x86/include/asm/topology.h |    5 ++---
+ include/linux/numa.h            |    2 ++
+ 3 files changed, 4 insertions(+), 5 deletions(-)
 
-Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
+Index: linux-2.6.31-mmotm-090925-1435/arch/ia64/include/asm/numa.h
 ===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-10-05 10:45:12.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-10-05 10:49:42.000000000 -0400
-@@ -1347,7 +1347,7 @@ static ssize_t nr_hugepages_store_common
- 	int err;
- 	unsigned long count;
- 	struct hstate *h = kobj_to_hstate(kobj);
--	NODEMASK_ALLOC(nodemask, nodes_allowed);
-+	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+--- linux-2.6.31-mmotm-090925-1435.orig/arch/ia64/include/asm/numa.h	2009-09-30 15:04:40.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/arch/ia64/include/asm/numa.h	2009-09-30 15:05:19.000000000 -0400
+@@ -22,8 +22,6 @@
  
- 	err = strict_strtoul(buf, 10, &count);
- 	if (err)
-@@ -1638,7 +1638,7 @@ static int hugetlb_sysctl_handler_common
- 	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+ #include <asm/mmzone.h>
  
- 	if (write) {
--		NODEMASK_ALLOC(nodemask, nodes_allowed);
-+		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
- 		if (!(obey_mempolicy &&
- 			       init_nodemask_of_mempolicy(nodes_allowed))) {
- 			NODEMASK_FREE(nodes_allowed);
+-#define NUMA_NO_NODE	-1
+-
+ extern u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
+ extern cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
+ extern pg_data_t *pgdat_list[MAX_NUMNODES];
+Index: linux-2.6.31-mmotm-090925-1435/arch/x86/include/asm/topology.h
+===================================================================
+--- linux-2.6.31-mmotm-090925-1435.orig/arch/x86/include/asm/topology.h	2009-09-30 15:04:40.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/arch/x86/include/asm/topology.h	2009-09-30 15:05:19.000000000 -0400
+@@ -35,11 +35,10 @@
+ # endif
+ #endif
+ 
+-/* Node not present */
+-#define NUMA_NO_NODE	(-1)
+-
+ #ifdef CONFIG_NUMA
+ #include <linux/cpumask.h>
++#include <linux/numa.h>
++
+ #include <asm/mpspec.h>
+ 
+ #ifdef CONFIG_X86_32
+Index: linux-2.6.31-mmotm-090925-1435/include/linux/numa.h
+===================================================================
+--- linux-2.6.31-mmotm-090925-1435.orig/include/linux/numa.h	2009-09-30 15:04:40.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/include/linux/numa.h	2009-09-30 15:05:19.000000000 -0400
+@@ -10,4 +10,6 @@
+ 
+ #define MAX_NUMNODES    (1 << NODES_SHIFT)
+ 
++#define	NUMA_NO_NODE	(-1)
++
+ #endif /* _LINUX_NUMA_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
