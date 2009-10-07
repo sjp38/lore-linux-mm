@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 501786B006A
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 00:12:12 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id n974C7M2003487
-	for <linux-mm@kvack.org>; Tue, 6 Oct 2009 21:12:08 -0700
-Received: from pzk11 (pzk11.prod.google.com [10.243.19.139])
-	by wpaz13.hot.corp.google.com with ESMTP id n974BLOj021972
-	for <linux-mm@kvack.org>; Tue, 6 Oct 2009 21:12:05 -0700
-Received: by pzk11 with SMTP id 11so2929950pzk.14
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2009 21:12:05 -0700 (PDT)
-Date: Tue, 6 Oct 2009 21:12:02 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 10/11] hugetlb:  handle memory hot-plug events
-In-Reply-To: <20091006031838.22576.61261.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.1.00.0910062111490.3099@chino.kir.corp.google.com>
-References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain> <20091006031838.22576.61261.sendpatchset@localhost.localdomain>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 999446B004F
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 02:14:06 -0400 (EDT)
+Received: by pxi2 with SMTP id 2so765202pxi.11
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2009 23:14:05 -0700 (PDT)
+Date: Wed, 7 Oct 2009 14:12:23 +0800
+From: Zhenwen Xu <helight.xu@gmail.com>
+Subject: [PATCH] fix two warnings on mm/percpu.c
+Message-ID: <20091007061223.GA17794@helight>
+Reply-To: Zhenwen Xu <helight.xu@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
+fix those two warnings:
 
-> [PATCH 10/11] hugetlb:  per node attributes -- handle memory hot plug
-> 
-> Against:  2.6.31-mmotm-090925-1435
-> 
-> Register per node hstate attributes only for nodes with memory.
-> 
-> With Memory Hotplug, memory can be added to a memoryless node and
-> a node with memory can become memoryless.  Therefore, add a memory
-> on/off-line notifier callback to [un]register a node's attributes
-> on transition to/from memoryless state.
-> 
-> N.B.,  Only tested build, boot, libhugetlbfs regression.
->        i.e., no memory hotplug testing.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+mm/percpu.c: In function a??pcpu_embed_first_chunka??:
+mm/percpu.c:1873: warning: comparison of distinct pointer types lacks a cast
+mm/percpu.c:1879: warning: format a??%lxa?? expects type a??long unsigned inta??, but
+argument 2 has type a??size_t
 
-Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Zhenwen Xu <helight.xu@gmail.com>
+---
+ mm/percpu.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 4a048ab..fc0fc6a 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1817,7 +1817,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
+ 	void *base = (void *)ULONG_MAX;
+ 	void **areas = NULL;
+ 	struct pcpu_alloc_info *ai;
+-	size_t size_sum, areas_size, max_distance;
++	size_t size_sum, areas_size;
++	unsigned long max_distance;
+ 	int group, i, rc;
+ 
+ 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, atom_size,
+-- 
+1.6.3.3
+
+-- 
+--------------------------------
+http://zhwen.org - Open and Free
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
