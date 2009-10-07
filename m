@@ -1,42 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 973386B004F
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 14:59:58 -0400 (EDT)
-Date: Wed, 7 Oct 2009 20:59:52 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH][RFC] add MAP_UNLOCKED mmap flag
-Message-ID: <20091007185952.GC19692@redhat.com>
-References: <20091006190938.126F.A69D9226@jp.fujitsu.com>
- <20091006102136.GH9832@redhat.com>
- <20091006192454.1272.A69D9226@jp.fujitsu.com>
- <20091006103300.GI9832@redhat.com>
- <2f11576a0910060510y401c1d5ax6f17135478d22899@mail.gmail.com>
- <20091006121603.GK9832@redhat.com>
- <20091007185054.GB66690@dspnet.fr.eu.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 97F3A6B004F
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 15:33:11 -0400 (EDT)
+Message-ID: <4ACCECD4.1050509@redhat.com>
+Date: Wed, 07 Oct 2009 15:32:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091007185054.GB66690@dspnet.fr.eu.org>
+Subject: Re: [patch] mm: order evictable rescue in LRU putback
+References: <1254940610-27324-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1254940610-27324-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Olivier Galibert <galibert@pobox.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 07, 2009 at 08:50:54PM +0200, Olivier Galibert wrote:
-> On Tue, Oct 06, 2009 at 02:16:03PM +0200, Gleb Natapov wrote:
-> > I did. It allows me to achieve something I can't now. Steps you provide
-> > just don't fit my needs. I need all memory areas (current and feature) to be
-> > locked except one. Very big one. You propose to lock memory at some
-> > arbitrary point and from that point on all newly mapped memory areas will
-> > be unlocked. Don't you see it is different?
+Johannes Weiner wrote:
+
+> This patch adds an explicit full barrier to force ordering between
+> SetPageLRU() and PageMlocked() so that either one of the competitors
+> rescues the page.
 > 
-> What about mlockall(MCL_CURRENT); mmap(...); mlockall(MCL_FUTURE);?
-> Or toggle MCL_FUTURE if a mlockall call can stop it?
-> 
-This may work. And MCL_FUTURE can be toggled, but this is not thread
-safe.
- 
---
-			Gleb.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
