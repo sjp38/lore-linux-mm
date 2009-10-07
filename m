@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E55426B004F
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 09:55:54 -0400 (EDT)
-Date: Wed, 7 Oct 2009 14:55:40 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] adjust gfp mask passed on nested vmalloc() invocation
- (v2)
-In-Reply-To: <4ACCA98202000078000187DF@vpn.id2.novell.com>
-Message-ID: <Pine.LNX.4.64.0910071451090.4695@sister.anvils>
-References: <4ACCA98202000078000187DF@vpn.id2.novell.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BB0BC6B005A
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 10:13:33 -0400 (EDT)
+Subject: Re: [PATCH 2/11] hugetlb:  add nodemask arg to huge page alloc,
+ free and surplus adjust fcns
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0910062018070.3099@chino.kir.corp.google.com>
+References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
+	 <20091006031751.22576.23355.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0910062018070.3099@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Wed, 07 Oct 2009 10:13:22 -0400
+Message-Id: <1254924802.4483.70.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jan Beulich <JBeulich@novell.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Oct 2009, Jan Beulich wrote:
-
-> - avoid wasting more precious resources (DMA or DMA32 pools), when
->   being called through vmalloc_32{,_user}()
-> - explicitly allow using high memory here even if the outer allocation
->   request doesn't allow it, unless is collides with __GFP_ZERO
-                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                            that's no longer an issue in the patch
+On Tue, 2009-10-06 at 20:26 -0700, David Rientjes wrote:
+> On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
 > 
-> Signed-off-by: Jan Beulich <jbeulich@novell.com>
-> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> > Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
+> > ===================================================================
+> > --- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-28 10:12:20.000000000 -0400
+> > +++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-09-30 11:41:36.000000000 -0400
 
-The patch looks good to me now, much nicer, thanks:
-Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> >  #ifdef CONFIG_HIGHMEM
+> > -static void try_to_free_low(struct hstate *h, unsigned long count)
+> > +static void try_to_free_low(struct hstate *h, unsigned long count,
+> > +						nodemask_t *nodes_allowed)
+> >  {
+> >  	int i;
+> >  
+> >  	if (h->order >= MAX_ORDER)
+> >  		return;
+> >  
+> > +	if (!nodes_allowed)
+> > +		nodes_allowed = &node_online_map;
+> > +
+> >  	for (i = 0; i < MAX_NUMNODES; ++i) {
+> >  		struct page *page, *next;
+> >  		struct list_head *freel = &h->hugepage_freelists[i];
+> > +		if (!node_isset(i, *nodes_allowed))
+> > +			continue;
+> >  		list_for_each_entry_safe(page, next, freel, lru) {
+> >  			if (count >= h->nr_huge_pages)
+> >  				return;
+> 
+> Simply converting the iteration to use
+> for_each_node_mask(i, *nodes_allowed) would be cleaner.
 
-> 
-> ---
->  mm/vmalloc.c |    7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
-> 
-> --- linux-2.6.32-rc3/mm/vmalloc.c	2009-10-05 11:59:56.000000000 +0200
-> +++ 2.6.32-rc3-vmalloc-nested-gfp/mm/vmalloc.c	2009-10-07 14:39:38.000000000 +0200
-> @@ -1410,6 +1410,7 @@ static void *__vmalloc_area_node(struct 
->  {
->  	struct page **pages;
->  	unsigned int nr_pages, array_size, i;
-> +	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
->  
->  	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
->  	array_size = (nr_pages * sizeof(struct page *));
-> @@ -1417,13 +1418,11 @@ static void *__vmalloc_area_node(struct 
->  	area->nr_pages = nr_pages;
->  	/* Please note that the recursion is strictly bounded. */
->  	if (array_size > PAGE_SIZE) {
-> -		pages = __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,
-> +		pages = __vmalloc_node(array_size, nested_gfp | __GFP_HIGHMEM,
->  				PAGE_KERNEL, node, caller);
->  		area->flags |= VM_VPAGES;
->  	} else {
-> -		pages = kmalloc_node(array_size,
-> -				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,
-> -				node);
-> +		pages = kmalloc_node(array_size, nested_gfp, node);
->  	}
->  	area->pages = pages;
->  	area->caller = caller;
+OK.  That's equivalent.  Anyway, MAX_NUMNODES should probably have been
+'numa_node_ids" or such.  And, now, nodes_allowed can't [shouldn't!] be
+NULL here, as we default way up in the sysctl/sysfs handlers.  I'll fix
+this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
