@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B66186B004F
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 23:37:42 -0400 (EDT)
-Received: by iwn34 with SMTP id 34so2495575iwn.12
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2009 20:37:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id AB0FE6B005A
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2009 23:48:32 -0400 (EDT)
+Received: by iwn34 with SMTP id 34so2498856iwn.12
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2009 20:48:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.10.0910061226300.18309@gentwo.org>
+In-Reply-To: <604427e00910061559v34590d49x4cdd01b16df6fb1e@mail.gmail.com>
 References: <20091006112803.5FA5.A69D9226@jp.fujitsu.com>
 	 <20091006114052.5FAA.A69D9226@jp.fujitsu.com>
-	 <alpine.DEB.1.10.0910061226300.18309@gentwo.org>
-Date: Wed, 7 Oct 2009 12:37:41 +0900
-Message-ID: <2f11576a0910062037r785da04bg5723a1779f40d45c@mail.gmail.com>
+	 <604427e00910061559v34590d49x4cdd01b16df6fb1e@mail.gmail.com>
+Date: Wed, 7 Oct 2009 12:48:31 +0900
+Message-ID: <2f11576a0910062048j1967de28ve33a134df6d4ab9c@mail.gmail.com>
 Subject: Re: [PATCH 2/2] mlock use lru_add_drain_all_async()
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Oleg Nesterov <oleg@redhat.com>
+To: Ying Han <yinghan@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Oleg Nesterov <oleg@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-2009/10/7 Christoph Lameter <cl@linux-foundation.org>:
-> On Tue, 6 Oct 2009, KOSAKI Motohiro wrote:
->
->> =A0 Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1)=
-,
->> =A0 cpu0 does mlock()->lru_add_drain_all(), which does
->> =A0 schedule_on_each_cpu(), which then waits for all cpus to complete th=
-e
->> =A0 work. Except that cpu1, which is busy with the RT task, will never r=
-un
->> =A0 keventd until the RT load goes away.
->>
->> =A0 This is not so much an actual deadlock as a serious starvation case.
->>
->> Actually, mlock() doesn't need to wait to finish lru_add_drain_all().
->> Thus, this patch replace it with lru_add_drain_all_async().
->
-> Ok so this will queue up lots of events for the cpu doing a RT task. If
-> the RT task is continuous then they will be queued there forever?
+Hi
 
-Yes. this patch solved very specific issue only.
-In original bug-report case, the system has two cpuset and the RT task
-own one cpuset as monopoly. Thus, your worried thing doesn't occur.
+> Hello=A0KOSAKI-san,
+>
+> Few questions on the lru_add_drain_all_async(). If i understand
+> correctly, the reason that we have lru_add_drain_all() in the mlock()
+> call is to isolate mlocked pages into the separate LRU in case they
+> are sitting in pagevec.
+>
+> And I also understand the RT use cases you put in the patch
+> description, now my questions is that do we have race after applying
+> the patch? For example that if the RT task not giving up the cpu by
+> the time mlock returns, you have pages left in the pagevec which not
+> being drained back to the lru list. Do we have problem with that?
 
-Perhaps, we need complete solution. but I don't think this patch have
-bad side effect. then, I hope to push it into mainline.
+This patch don't introduce new race. current code has following race.
+
+1. call mlock
+2. lru_add_drain_all()
+3. another cpu grab the page into its pagevec
+4. actual PG_mlocked processing
+
+I'd like to explain why this code works. linux has VM_LOCKED in vma
+and PG_mlocked in page.  if we failed to turn on PG_mlocked, we can
+recover it at vmscan phase by VM_LOCKED.
+
+Then, this patch effect are
+  - increase race possibility a bit
+  - decrease RT-task problem risk
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
