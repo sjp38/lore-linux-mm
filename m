@@ -1,66 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4446B0055
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 10:26:51 -0400 (EDT)
-Message-Id: <4ACCC149020000780001882E@vpn.id2.novell.com>
-Date: Wed, 07 Oct 2009 15:26:49 +0100
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: [PATCH] adjust gfp mask passed on nested vmalloc() invocation
-	 (v3)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5F19F6B005D
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 10:32:29 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6FFC082C268
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 10:36:14 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id lyv3G0MX3l5G for <linux-mm@kvack.org>;
+	Wed,  7 Oct 2009 10:36:09 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 1500482C483
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 10:35:05 -0400 (EDT)
+Date: Wed, 7 Oct 2009 10:25:13 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch] mm: clear node in N_HIGH_MEMORY and stop kswapd when
+ all memory is offlined
+In-Reply-To: <alpine.DEB.1.00.0910070043140.16136@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.1.10.0910071024390.5671@gentwo.org>
+References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain> <20091006031924.22576.35018.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0910070043140.16136@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-- avoid wasting more precious resources (DMA or DMA32 pools), when
-  being called through vmalloc_32{,_user}()
-- explicitly allow using high memory here even if the outer allocation
-  request doesn't allow it
+On Wed, 7 Oct 2009, David Rientjes wrote:
 
-Signed-off-by: Jan Beulich <jbeulich@novell.com>
-Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> The following should fix it.  Christoph?
 
----
- mm/vmalloc.c |    7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
-
---- linux-2.6.32-rc3/mm/vmalloc.c	2009-10-05 11:59:56.000000000 =
-+0200
-+++ 2.6.32-rc3-vmalloc-nested-gfp/mm/vmalloc.c	2009-10-07 14:39:38.0000000=
-00 +0200
-@@ -1410,6 +1410,7 @@ static void *__vmalloc_area_node(struct=20
- {
- 	struct page **pages;
- 	unsigned int nr_pages, array_size, i;
-+	gfp_t nested_gfp =3D (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-=20
- 	nr_pages =3D (area->size - PAGE_SIZE) >> PAGE_SHIFT;
- 	array_size =3D (nr_pages * sizeof(struct page *));
-@@ -1417,13 +1418,11 @@ static void *__vmalloc_area_node(struct=20
- 	area->nr_pages =3D nr_pages;
- 	/* Please note that the recursion is strictly bounded. */
- 	if (array_size > PAGE_SIZE) {
--		pages =3D __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,=
-
-+		pages =3D __vmalloc_node(array_size, nested_gfp | =
-__GFP_HIGHMEM,
- 				PAGE_KERNEL, node, caller);
- 		area->flags |=3D VM_VPAGES;
- 	} else {
--		pages =3D kmalloc_node(array_size,
--				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,=
-
--				node);
-+		pages =3D kmalloc_node(array_size, nested_gfp, node);
- 	}
- 	area->pages =3D pages;
- 	area->caller =3D caller;
-
-
+As far as I can see it looks good. Someone verify the kswapd details
+please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
