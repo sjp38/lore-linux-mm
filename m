@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D05C76B004F
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 08:45:24 -0400 (EDT)
-Message-Id: <4ACCA98202000078000187DF@vpn.id2.novell.com>
-Date: Wed, 07 Oct 2009 13:45:22 +0100
-From: "Jan Beulich" <JBeulich@novell.com>
-Subject: [PATCH] adjust gfp mask passed on nested vmalloc() invocation
-	 (v2)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E55426B004F
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 09:55:54 -0400 (EDT)
+Date: Wed, 7 Oct 2009 14:55:40 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH] adjust gfp mask passed on nested vmalloc() invocation
+ (v2)
+In-Reply-To: <4ACCA98202000078000187DF@vpn.id2.novell.com>
+Message-ID: <Pine.LNX.4.64.0910071451090.4695@sister.anvils>
+References: <4ACCA98202000078000187DF@vpn.id2.novell.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, linux-kernel@vger.kernel.org
+To: Jan Beulich <JBeulich@novell.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-- avoid wasting more precious resources (DMA or DMA32 pools), when
-  being called through vmalloc_32{,_user}()
-- explicitly allow using high memory here even if the outer allocation
-  request doesn't allow it, unless is collides with __GFP_ZERO
+On Wed, 7 Oct 2009, Jan Beulich wrote:
 
-Signed-off-by: Jan Beulich <jbeulich@novell.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+> - avoid wasting more precious resources (DMA or DMA32 pools), when
+>   being called through vmalloc_32{,_user}()
+> - explicitly allow using high memory here even if the outer allocation
+>   request doesn't allow it, unless is collides with __GFP_ZERO
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            that's no longer an issue in the patch
+> 
+> Signed-off-by: Jan Beulich <jbeulich@novell.com>
+> Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
----
- mm/vmalloc.c |    7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+The patch looks good to me now, much nicer, thanks:
+Acked-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
---- linux-2.6.32-rc3/mm/vmalloc.c	2009-10-05 11:59:56.000000000 =
-+0200
-+++ 2.6.32-rc3-vmalloc-nested-gfp/mm/vmalloc.c	2009-10-07 14:39:38.0000000=
-00 +0200
-@@ -1410,6 +1410,7 @@ static void *__vmalloc_area_node(struct=20
- {
- 	struct page **pages;
- 	unsigned int nr_pages, array_size, i;
-+	gfp_t nested_gfp =3D (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-=20
- 	nr_pages =3D (area->size - PAGE_SIZE) >> PAGE_SHIFT;
- 	array_size =3D (nr_pages * sizeof(struct page *));
-@@ -1417,13 +1418,11 @@ static void *__vmalloc_area_node(struct=20
- 	area->nr_pages =3D nr_pages;
- 	/* Please note that the recursion is strictly bounded. */
- 	if (array_size > PAGE_SIZE) {
--		pages =3D __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,=
-
-+		pages =3D __vmalloc_node(array_size, nested_gfp | =
-__GFP_HIGHMEM,
- 				PAGE_KERNEL, node, caller);
- 		area->flags |=3D VM_VPAGES;
- 	} else {
--		pages =3D kmalloc_node(array_size,
--				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,=
-
--				node);
-+		pages =3D kmalloc_node(array_size, nested_gfp, node);
- 	}
- 	area->pages =3D pages;
- 	area->caller =3D caller;
-
-
+> 
+> ---
+>  mm/vmalloc.c |    7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> --- linux-2.6.32-rc3/mm/vmalloc.c	2009-10-05 11:59:56.000000000 +0200
+> +++ 2.6.32-rc3-vmalloc-nested-gfp/mm/vmalloc.c	2009-10-07 14:39:38.000000000 +0200
+> @@ -1410,6 +1410,7 @@ static void *__vmalloc_area_node(struct 
+>  {
+>  	struct page **pages;
+>  	unsigned int nr_pages, array_size, i;
+> +	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+>  
+>  	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
+>  	array_size = (nr_pages * sizeof(struct page *));
+> @@ -1417,13 +1418,11 @@ static void *__vmalloc_area_node(struct 
+>  	area->nr_pages = nr_pages;
+>  	/* Please note that the recursion is strictly bounded. */
+>  	if (array_size > PAGE_SIZE) {
+> -		pages = __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,
+> +		pages = __vmalloc_node(array_size, nested_gfp | __GFP_HIGHMEM,
+>  				PAGE_KERNEL, node, caller);
+>  		area->flags |= VM_VPAGES;
+>  	} else {
+> -		pages = kmalloc_node(array_size,
+> -				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,
+> -				node);
+> +		pages = kmalloc_node(array_size, nested_gfp, node);
+>  	}
+>  	area->pages = pages;
+>  	area->caller = caller;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
