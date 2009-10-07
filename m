@@ -1,181 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B88196B004F
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 12:31:04 -0400 (EDT)
-Subject: Re: [PATCH 4/11] hugetlb:  derive huge pages nodes allowed from
- task mempolicy
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 933FE6B005A
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2009 12:48:13 -0400 (EDT)
+Subject: Re: [patch] mm: clear node in N_HIGH_MEMORY and stop kswapd when
+ all memory is offlined
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0910062002440.3099@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.0910070043140.16136@chino.kir.corp.google.com>
 References: <20091006031739.22576.5248.sendpatchset@localhost.localdomain>
-	 <20091006031802.22576.46384.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0910062002440.3099@chino.kir.corp.google.com>
+	 <20091006031924.22576.35018.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0910070043140.16136@chino.kir.corp.google.com>
 Content-Type: text/plain
-Date: Wed, 07 Oct 2009 12:30:58 -0400
-Message-Id: <1254933058.4483.223.camel@useless.americas.hpqcorp.net>
+Date: Wed, 07 Oct 2009 12:48:07 -0400
+Message-Id: <1254934087.4483.227.camel@useless.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, Christoph Lameter <cl@linux-foundation.org>, eric.whitney@hp.com, Yasunori Goto <y-goto@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-10-06 at 20:26 -0700, David Rientjes wrote:
+On Wed, 2009-10-07 at 01:24 -0700, David Rientjes wrote:
 > On Mon, 5 Oct 2009, Lee Schermerhorn wrote:
 > 
-> > Index: linux-2.6.31-mmotm-090925-1435/mm/mempolicy.c
-> > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/mm/mempolicy.c	2009-09-30 12:48:45.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/mm/mempolicy.c	2009-09-30 12:48:46.000000000 -0400
-> > @@ -1564,6 +1564,53 @@ struct zonelist *huge_zonelist(struct vm
-> >  	}
-> >  	return zl;
-> >  }
-> > +
-> > +/*
-> > + * init_nodemask_of_mempolicy
-> > + *
-> > + * If the current task's mempolicy is "default" [NULL], return 'false'
-> > + * to indicate * default policy.  Otherwise, extract the policy nodemask
-> > + * for 'bind' * or 'interleave' policy into the argument nodemask, or
-> > + * initialize the argument nodemask to contain the single node for
-> > + * 'preferred' or * 'local' policy and return 'true' to indicate presence
-> > + * of non-default mempolicy.
-> > + *
-> 
-> Looks like some mangling of the comment, there's spurious '*' throughout.
-
-Fixed.  
-
-<snip>
-> > Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
-> > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-09-30 12:48:45.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-10-02 21:22:04.000000000 -0400
-> > @@ -1334,29 +1334,71 @@ static struct hstate *kobj_to_hstate(str
-> >  	return NULL;
-> >  }
-> >  
-> > -static ssize_t nr_hugepages_show(struct kobject *kobj,
-> > +static ssize_t nr_hugepages_show_common(struct kobject *kobj,
-> >  					struct kobj_attribute *attr, char *buf)
-> >  {
-> >  	struct hstate *h = kobj_to_hstate(kobj);
-> >  	return sprintf(buf, "%lu\n", h->nr_huge_pages);
-> >  }
-> > -static ssize_t nr_hugepages_store(struct kobject *kobj,
-> > -		struct kobj_attribute *attr, const char *buf, size_t count)
-> > +static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
-> > +			struct kobject *kobj, struct kobj_attribute *attr,
-> > +			const char *buf, size_t len)
-> >  {
-> >  	int err;
-> > -	unsigned long input;
-> > +	unsigned long count;
-> >  	struct hstate *h = kobj_to_hstate(kobj);
-> > +	NODEMASK_ALLOC(nodemask, nodes_allowed);
-> >  
-> 
-> In the two places you do NODEMASK_ALLOC(), here and 
-> hugetlb_sysctl_handler(), you'll need to check that nodes_allowed is 
-> non-NULL since it's possible that kmalloc() will return NULL for 
-> CONFIG_NODES_SHIFT > 8.
-> 
-> In such a case, it's probably sufficient to simply set nodes_allowed to 
-> node_states[N_HIGH_MEMORY] so that we can still free hugepages when we're 
-> oom, a common memory freeing tactic.
-> 
-> You could do that by simply returning false from 
-> init_nodemask_of_mempolicy() if !nodes_allowed since NODEMASK_FREE() can 
-> take a NULL pointer, but it may be easier to factor that logic into your 
-> conditional below:
-> 
-> > -	err = strict_strtoul(buf, 10, &input);
-> > +	err = strict_strtoul(buf, 10, &count);
-> >  	if (err)
-> >  		return 0;
-> >  
-> > -	h->max_huge_pages = set_max_huge_pages(h, input, &node_online_map);
-> > +	if (!(obey_mempolicy && init_nodemask_of_mempolicy(nodes_allowed))) {
-> > +		NODEMASK_FREE(nodes_allowed);
-> > +		nodes_allowed = &node_online_map;
-> > +	}
-> > +	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
-> >
-> 
-> You can get away with just testing !nodes_allowed here since the stack 
-> allocation variation of NODEMASK_ALLOC() is such that nodes_allowed will 
-> always be an initialized pointer pointing to _nodes_allowed so you won't 
-> have an uninitialized warning.
-> 
-> Once that's done, you can get rid of the check for a NULL nodes_allowed in 
-> try_to_free_low() from patch 2 since it will always be valid in 
-> set_max_huge_pages().
-
-
-OK.  already removed the NULL check from try_to_free_low().  And I made
-the change to init_nodemask_of_mempolicy to return false on NULL mask.
-
-I'm not completely happy with dropping back to default behavior
-[node_online_map here, replaced with node_states[N_HIGH_MEMORY] in
-subsequent patch] on failure to allocate nodes_allowed.  We only do the
-NODEMASK_ALLOC when we've come in from either nr_hugepages_mempolicy or
-a per node attribute [subsequent patch], so I'm not sure that ignoring
-the mempolicy, if any, or the specified node id, is a good thing here.
-Not silently, at least.  I haven't addressed this, yet.  We can submit
-an incremental patch.  Thoughts?
-
-Note that these chunks will get reworked in the subsequent patch that
-adds the per node attributes.  I'll need to handle this there, as well.
-
-> 
-> > -	return count;
-> > +	if (nodes_allowed != &node_online_map)
-> > +		NODEMASK_FREE(nodes_allowed);
-> > +
-> > +	return len;
-> > +}
-> > +
-<snip>
-> > Index: linux-2.6.31-mmotm-090925-1435/kernel/sysctl.c
-> > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/kernel/sysctl.c	2009-09-30 12:48:45.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/kernel/sysctl.c	2009-09-30 12:48:46.000000000 -0400
-> > @@ -1164,7 +1164,7 @@ static struct ctl_table vm_table[] = {
-> >  		.extra2		= &one_hundred,
-> >  	},
-> >  #ifdef CONFIG_HUGETLB_PAGE
-> > -	 {
-> > +	{
-> >  		.procname	= "nr_hugepages",
-> >  		.data		= NULL,
-> >  		.maxlen		= sizeof(unsigned long),
-> > @@ -1172,7 +1172,19 @@ static struct ctl_table vm_table[] = {
-> >  		.proc_handler	= &hugetlb_sysctl_handler,
-> >  		.extra1		= (void *)&hugetlb_zero,
-> >  		.extra2		= (void *)&hugetlb_infinity,
-> > -	 },
-> > +	},
-> > +#ifdef CONFIG_NUMA
-> > +	{
-> > +	       .ctl_name       = CTL_UNNUMBERED,
-> > +	       .procname       = "nr_hugepages_mempolicy",
-> > +	       .data           = NULL,
-> > +	       .maxlen         = sizeof(unsigned long),
-> > +	       .mode           = 0644,
-> > +	       .proc_handler   = &hugetlb_mempolicy_sysctl_handler,
-> > +	       .extra1	 = (void *)&hugetlb_zero,
-> > +	       .extra2	 = (void *)&hugetlb_infinity,
-> > +	},
-> > +#endif
-> >  	 {
-> >  		.ctl_name	= VM_HUGETLB_GROUP,
-> >  		.procname	= "hugetlb_shm_group",
+> > [PATCH 11/11] hugetlb:  offload [un]registration of sysfs attr to worker thread
+> > 
+> > Against:  2.6.31-mmotm-090925-1435
+> > 
+> > New in V6
+> > 
+> > V7:  + remove redundant check for memory{ful|less} node from 
+> >        node_hugetlb_work().  Rely on [added] return from
+> >        hugetlb_register_node() to differentiate between transitions
+> >        to/from memoryless state.
 > > 
 > 
-> There's some whitespace damage in the nr_hugepages_mempolicy hunk, it 
-> needs tabs instead of spaces for alignment.
+> That doesn't work because the memory hotplug code doesn't clear the 
+> N_HIGH_MEMORY bit for status_change_nid on MEM_OFFLINE, so 
+> hugetlb_register_node() will always return true under such conditions.
+> 
+> The following should fix it.  Christoph?
+> 
+> 
 
-Fixed.
+Almost missed this one because of the subject.  
+
+What shall we do with this for the huge pages controls series?  
+
+Options:
+
+1) leave series as is, and note that it depends on this patch?
+
+2) Include this patch [or the subset that clears the N_HIGH_MEMORY node
+state--maybe leave the kswapd handling separate?] in the series?
+
+
+Lee
+
+> 
+> mm: clear node in N_HIGH_MEMORY and stop kswapd when all memory is offlined
+> 
+> When memory is hot-removed, its node must be cleared in N_HIGH_MEMORY if
+> there are no present pages left.
+> 
+> In such a situation, kswapd must also be stopped since it has nothing
+> left to do.
+> 
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Yasunori Goto <y-goto@jp.fujitsu.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  include/linux/swap.h |    1 +
+>  mm/memory_hotplug.c  |    4 ++++
+>  mm/vmscan.c          |   28 ++++++++++++++++++++++------
+>  3 files changed, 27 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -273,6 +273,7 @@ extern int scan_unevictable_register_node(struct node *node);
+>  extern void scan_unevictable_unregister_node(struct node *node);
+>  
+>  extern int kswapd_run(int nid);
+> +extern void kswapd_stop(int nid);
+>  
+>  #ifdef CONFIG_MMU
+>  /* linux/mm/shmem.c */
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -838,6 +838,10 @@ repeat:
+>  
+>  	setup_per_zone_wmarks();
+>  	calculate_zone_inactive_ratio(zone);
+> +	if (!node_present_pages(node)) {
+> +		node_clear_state(node, N_HIGH_MEMORY);
+> +		kswapd_stop(node);
+> +	}
+>  
+>  	vm_total_pages = nr_free_pagecache_pages();
+>  	writeback_set_ratelimit();
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2163,6 +2163,7 @@ static int kswapd(void *p)
+>  	order = 0;
+>  	for ( ; ; ) {
+>  		unsigned long new_order;
+> +		int ret;
+>  
+>  		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+>  		new_order = pgdat->kswapd_max_order;
+> @@ -2174,19 +2175,23 @@ static int kswapd(void *p)
+>  			 */
+>  			order = new_order;
+>  		} else {
+> -			if (!freezing(current))
+> +			if (!freezing(current) && !kthread_should_stop())
+>  				schedule();
+>  
+>  			order = pgdat->kswapd_max_order;
+>  		}
+>  		finish_wait(&pgdat->kswapd_wait, &wait);
+>  
+> -		if (!try_to_freeze()) {
+> -			/* We can speed up thawing tasks if we don't call
+> -			 * balance_pgdat after returning from the refrigerator
+> -			 */
+> +		ret = try_to_freeze();
+> +		if (kthread_should_stop())
+> +			break;
+> +
+> +		/*
+> +		 * We can speed up thawing tasks if we don't call balance_pgdat
+> +		 * after returning from the refrigerator
+> +		 */
+> +		if (!ret)
+>  			balance_pgdat(pgdat, order);
+> -		}
+>  	}
+>  	return 0;
+>  }
+> @@ -2441,6 +2446,17 @@ int kswapd_run(int nid)
+>  	return ret;
+>  }
+>  
+> +/*
+> + * Called by memory hotplug when all memory in a node is offlined.
+> + */
+> +void kswapd_stop(int nid)
+> +{
+> +	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
+> +
+> +	if (kswapd)
+> +		kthread_stop(kswapd);
+> +}
+> +
+>  static int __init kswapd_init(void)
+>  {
+>  	int nid;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
