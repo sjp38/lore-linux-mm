@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B70B66B004F
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 07:04:08 -0400 (EDT)
-Date: Thu, 8 Oct 2009 13:03:24 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2][RFC] add MAP_UNLOCKED mmap flag
-Message-ID: <20091008110324.GA31065@cmpxchg.org>
-References: <20091006170218.GM9832@redhat.com> <20091006183436.GA23110@cmpxchg.org> <20091006185344.GA19692@redhat.com> <20091008093752.GA30858@cmpxchg.org> <20091008094055.GE16702@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091008094055.GE16702@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 300C06B004F
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 08:12:37 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate3.de.ibm.com (8.13.1/8.13.1) with ESMTP id n98CCYj8010217
+	for <linux-mm@kvack.org>; Thu, 8 Oct 2009 12:12:34 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n98CCRur3100886
+	for <linux-mm@kvack.org>; Thu, 8 Oct 2009 14:12:33 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n98CCQtT016360
+	for <linux-mm@kvack.org>; Thu, 8 Oct 2009 14:12:27 +0200
+Message-ID: <4ACDD71D.30809@linux.vnet.ibm.com>
+Date: Thu, 08 Oct 2009 14:12:13 +0200
+From: Gerald Schaefer <geralds@linux.vnet.ibm.com>
+Reply-To: gerald.schaefer@de.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2][v2] powerpc: Make the CMM memory hotplug aware
+References: <20091002184458.GC4908@austin.ibm.com> <20091002185248.GD4908@austin.ibm.com>
+In-Reply-To: <20091002185248.GD4908@austin.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Robert Jennings <rcj@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 08, 2009 at 11:40:55AM +0200, Gleb Natapov wrote:
-> On Thu, Oct 08, 2009 at 11:37:52AM +0200, Johannes Weiner wrote:
-> > On Tue, Oct 06, 2009 at 08:53:44PM +0200, Gleb Natapov wrote:
-> > > On Tue, Oct 06, 2009 at 08:34:36PM +0200, Johannes Weiner wrote:
-> > > > On Tue, Oct 06, 2009 at 07:02:18PM +0200, Gleb Natapov wrote:
-> > > > > diff --git a/include/asm-generic/mman.h b/include/asm-generic/mman.h
-> > > > > index 32c8bd6..59e0f29 100644
-> > > > > --- a/include/asm-generic/mman.h
-> > > > > +++ b/include/asm-generic/mman.h
-> > > > > @@ -12,6 +12,7 @@
-> > > > >  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-> > > > >  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-> > > > >  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-> > > > > +#define MAP_UNLOCKED	0x80000         /* force page unlocking */
-> > > > >  
-> > > > >  #define MCL_CURRENT	1		/* lock all current mappings */
-> > > > >  #define MCL_FUTURE	2		/* lock all future mappings */
-> > > > > diff --git a/mm/mmap.c b/mm/mmap.c
-> > > > > index 73f5e4b..7c2abdb 100644
-> > > > > --- a/mm/mmap.c
-> > > > > +++ b/mm/mmap.c
-> > > > > @@ -985,6 +985,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
-> > > > >  		if (!can_do_mlock())
-> > > > >  			return -EPERM;
-> > > > >  
-> > > > > +        if (flags & MAP_UNLOKED)
-> > > > > +                vm_flags &= ~VM_LOCKED;
-> > > 
-> > > > Should we do something special about (MAP_UNLOCKED | MAP_LOCKED)?
-> > >
-> > > It is simpler to just ignore it. What do you think?
-> > 
-> > I think we should filter it out.  It's unlocking even when MAP_LOCKED
-> > is set and doing mlock-specific checks also no mlock will happen.
->
-> What do you mean by "filter it out"? Return error.
+Hi,
 
-Yes, sorry for being vague.  I mean returning -EINVAL for both flags
-being set.
+I am currently working on the s390 port for the cmm + hotplug
+patch, and I'm a little confused about the memory allocation
+policy, see below. Is it correct that the balloon cannot grow
+into ZONE_MOVABLE, while the pages for the balloon page list
+can?
 
-	Hannes
+Robert Jennings wrote:
+> @@ -110,6 +125,9 @@ static long cmm_alloc_pages(long nr)
+>  	cmm_dbg("Begin request for %ld pages\n", nr);
+> 
+>  	while (nr) {
+> +		if (atomic_read(&hotplug_active))
+> +			break;
+> +
+>  		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
+>  				       __GFP_NORETRY | __GFP_NOMEMALLOC);
+>  		if (!addr)
+> @@ -119,8 +137,10 @@ static long cmm_alloc_pages(long nr)
+>  		if (!pa || pa->index >= CMM_NR_PAGES) {
+>  			/* Need a new page for the page list. */
+>  			spin_unlock(&cmm_lock);
+> -			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
+> -								       __GFP_NORETRY | __GFP_NOMEMALLOC);
+> +			npa = (struct cmm_page_array *)__get_free_page(
+> +					GFP_NOIO | __GFP_NOWARN |
+> +					__GFP_NORETRY | __GFP_NOMEMALLOC |
+> +					__GFP_MOVABLE);
+>  			if (!npa) {
+>  				pr_info("%s: Can not allocate new page list\n", __func__);
+>  				free_page(addr);
+
+Why is the __GFP_MOVABLE added here, for the page list alloc, and not
+above for the balloon page alloc?
+
+--
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
