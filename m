@@ -1,45 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D8DE96B004D
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 16:20:40 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id n98KKdBF012603
-	for <linux-mm@kvack.org>; Thu, 8 Oct 2009 13:20:39 -0700
-Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
-	by wpaz13.hot.corp.google.com with ESMTP id n98KKapE013649
-	for <linux-mm@kvack.org>; Thu, 8 Oct 2009 13:20:36 -0700
-Received: by pzk33 with SMTP id 33so3453441pzk.2
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2009 13:20:35 -0700 (PDT)
-Date: Thu, 8 Oct 2009 13:20:34 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/12] hugetlb:  factor init_nodemask_of_node
-In-Reply-To: <20091008162521.23192.32391.sendpatchset@localhost.localdomain>
-Message-ID: <alpine.DEB.1.00.0910081320210.6998@chino.kir.corp.google.com>
-References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain> <20091008162521.23192.32391.sendpatchset@localhost.localdomain>
+	by kanga.kvack.org (Postfix) with SMTP id 2B0516B004D
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 16:22:58 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2694082C4F9
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 16:26:50 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.253])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id LLqiz768hUM3 for <linux-mm@kvack.org>;
+	Thu,  8 Oct 2009 16:26:44 -0400 (EDT)
+Received: from gentwo.org (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 11CC082C2EC
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 16:26:44 -0400 (EDT)
+Date: Thu, 8 Oct 2009 16:16:23 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 6/12] hugetlb:  add generic definition of NUMA_NO_NODE
+In-Reply-To: <20091008162533.23192.71981.sendpatchset@localhost.localdomain>
+Message-ID: <alpine.DEB.1.10.0910081616040.8030@gentwo.org>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain> <20091008162533.23192.71981.sendpatchset@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Oct 2009, Lee Schermerhorn wrote:
 
-> [PATCH 4/12] hugetlb:  factor init_nodemask_of_node()
-> 
-> Factor init_nodemask_of_node() out of the nodemask_of_node()
-> macro.
-> 
-> This will be used to populate the huge pages "nodes_allowed"
-> nodemask for a single node when basing nodes_allowed on a
-> preferred/local mempolicy or when a persistent huge page
-> pool page count is modified via a per node sysfs attribute.
-> 
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Andi Kleen <andi@firstfloor.org>
+Would it not be good to convert all the uses of -1 to NUMA_NO_NODE as
+well?
 
-Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
