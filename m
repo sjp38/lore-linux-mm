@@ -1,28 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 574716B006A
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 12:21:30 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F9B6B0082
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 12:21:36 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 08 Oct 2009 12:25:33 -0400
-Message-Id: <20091008162533.23192.71981.sendpatchset@localhost.localdomain>
+Date: Thu, 08 Oct 2009 12:25:39 -0400
+Message-Id: <20091008162539.23192.3642.sendpatchset@localhost.localdomain>
 In-Reply-To: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
 References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
-Subject: [PATCH 6/12] hugetlb:  add generic definition of NUMA_NO_NODE
+Subject: [PATCH 7/12] hugetlb:  add per node hstate attributes
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH 6/12] - hugetlb:  promote NUMA_NO_NODE to generic constant
+[PATCH 7/12] hugetlb:  register per node hugepages attributes
 
-Move definition of NUMA_NO_NODE from ia64 and x86_64 arch specific
-headers to generic header 'linux/numa.h' for use in generic code.
-NUMA_NO_NODE replaces bare '-1' where it's used in this series to
-indicate "no node id specified".  Ultimately, it can be used
-to replace the -1 elsewhere where it is used similarly.
+This patch adds the per huge page size control/query attributes
+to the per node sysdevs:
+
+/sys/devices/system/node/node<ID>/hugepages/hugepages-<size>/
+	nr_hugepages       - r/w
+	free_huge_pages    - r/o
+	surplus_huge_pages - r/o
+
+The patch attempts to re-use/share as much of the existing
+global hstate attribute initialization and handling, and the
+"nodes_allowed" constraint processing as possible.
+Calling set_max_huge_pages() with no node indicates a change to
+global hstate parameters.  In this case, any non-default task
+mempolicy will be used to generate the nodes_allowed mask.  A
+valid node id indicates an update to that node's hstate
+parameters, and the count argument specifies the target count
+for the specified node.  From this info, we compute the target
+global count for the hstate and construct a nodes_allowed node
+mask contain only the specified node.
+
+Setting the node specific nr_hugepages via the per node attribute
+effectively ignores any task mempolicy or cpuset constraints.
+
+With this patch:
+
+(me):ls /sys/devices/system/node/node0/hugepages/hugepages-2048kB
+./  ../  free_hugepages  nr_hugepages  surplus_hugepages
+
+Starting from:
+Node 0 HugePages_Total:     0
+Node 0 HugePages_Free:      0
+Node 0 HugePages_Surp:      0
+Node 1 HugePages_Total:     0
+Node 1 HugePages_Free:      0
+Node 1 HugePages_Surp:      0
+Node 2 HugePages_Total:     0
+Node 2 HugePages_Free:      0
+Node 2 HugePages_Surp:      0
+Node 3 HugePages_Total:     0
+Node 3 HugePages_Free:      0
+Node 3 HugePages_Surp:      0
+vm.nr_hugepages = 0
+
+Allocate 16 persistent huge pages on node 2:
+(me):echo 16 >/sys/devices/system/node/node2/hugepages/hugepages-2048kB/nr_hugepages
+
+[Note that this is equivalent to:
+	numactl -m 2 hugeadmin --pool-pages-min 2M:+16
+]
+
+Yields:
+Node 0 HugePages_Total:     0
+Node 0 HugePages_Free:      0
+Node 0 HugePages_Surp:      0
+Node 1 HugePages_Total:     0
+Node 1 HugePages_Free:      0
+Node 1 HugePages_Surp:      0
+Node 2 HugePages_Total:    16
+Node 2 HugePages_Free:     16
+Node 2 HugePages_Surp:      0
+Node 3 HugePages_Total:     0
+Node 3 HugePages_Free:      0
+Node 3 HugePages_Surp:      0
+vm.nr_hugepages = 16
+
+Global controls work as expected--reduce pool to 8 persistent huge pages:
+(me):echo 8 >/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+
+Node 0 HugePages_Total:     0
+Node 0 HugePages_Free:      0
+Node 0 HugePages_Surp:      0
+Node 1 HugePages_Total:     0
+Node 1 HugePages_Free:      0
+Node 1 HugePages_Surp:      0
+Node 2 HugePages_Total:     8
+Node 2 HugePages_Free:      8
+Node 2 HugePages_Surp:      0
+Node 3 HugePages_Total:     0
+Node 3 HugePages_Free:      0
+Node 3 HugePages_Surp:      0
 
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Acked-by: David Rientjes <rientjes@google.com>
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: Andi Kleen <andi@firstfloor.org>
 
@@ -30,64 +104,545 @@ Reviewed-by: Andi Kleen <andi@firstfloor.org>
 
 Against:  2.6.31-mmotm-090925-1435
 
-New in V7 of series
+V2:  remove dependency on kobject private bitfield.  Search
+     global hstates then all per node hstates for kobject
+     match in attribute show/store functions.
 
-V10  + move include of numa.h outside of #ifdef CONFIG_NUMA in
-       x86 topology.h header to preserve visibility of NUMA_NO_NODE.
-	[suggested by David Rientjes]
+V3:  rebase atop the mempolicy-based hugepage alloc/free;
+     use custom "nodes_allowed" to restrict alloc/free to
+     a specific node via per node attributes.  Per node
+     attribute overrides mempolicy.  I.e., mempolicy only
+     applies to global attributes.
 
- arch/ia64/include/asm/numa.h    |    2 --
- arch/x86/include/asm/topology.h |    9 +++++++--
- include/linux/numa.h            |    2 ++
- 3 files changed, 9 insertions(+), 4 deletions(-)
+V5:  Fix issues raised by Mel Gorman:
+     + add !NUMA versions of hugetlb_[un]register_node()
+     + rename 'hi' to 'i' in kobj_to_node_hstate()
+     + rename (count, input) to (len, count) in nr_hugepages_store()
+     + moved per node hugepages_kobj and hstate_kobjs[] from the
+       struct node [sysdev] to hugetlb.c private arrays.
+     + changed registration mechanism so that hugetlbfs [a module]
+       register its attributes registration callbacks with the node
+       driver, eliminating the dependency between the node driver
+       and hugetlbfs.  From it's init func, hugetlbfs will register
+       all on-line nodes' hugepage sysfs attributes along with
+       hugetlbfs' attributes register/unregister functions.  The
+       node driver will use these functions to [un]register nodes
+       with hugetlbfs on node hot-plug.
+     + replaced hugetlb.c private "nodes_allowed_from_node()" with
+       [new] generic "alloc_nodemask_of_node()".
 
-Index: linux-2.6.31-mmotm-090925-1435/arch/ia64/include/asm/numa.h
+V5a: + fix !NUMA register_hugetlbfs_with_node():  don't use
+       keyword 'do' as parameter name!
+
+V6:  + Use NUMA_NO_NODE for unspecified node id throughout hugetlb.c
+       to indicate that we didn't get there via a per node attribute.
+       Drop redundant "NO_NODEID_SPECIFIED" definition.
+     + handle movement of defaulting of nodes_allowed up to
+       set_max_huge_pages()
+
+V7:  + add ifdefs + stubs to eliminate unneeded hugetlb registration
+       functions when HUGETLBFS not configured.
+     + add some comments to per node hstate registration code in
+       hugetlb.c
+
+V8:  + folded in subsequent patch to reorganize sysctl and sysfs
+       attribute handlers to pass nodes_allowed mask t0
+       set_max_huge_pages()
+
+V9:  + fix rejects caused by new patch 5/11 -- NODEMASK_ALLOC() rework.
+
+V10: + handle NODEMASK_ALLOC kmalloc failure in '_store_common'
+
+ drivers/base/node.c  |   39 +++++++
+ include/linux/node.h |   11 ++
+ mm/hugetlb.c         |  274 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 298 insertions(+), 26 deletions(-)
+
+Index: linux-2.6.31-mmotm-090925-1435/drivers/base/node.c
 ===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/arch/ia64/include/asm/numa.h	2009-10-07 12:31:51.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/arch/ia64/include/asm/numa.h	2009-10-07 12:32:00.000000000 -0400
-@@ -22,8 +22,6 @@
+--- linux-2.6.31-mmotm-090925-1435.orig/drivers/base/node.c	2009-10-07 12:31:51.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/drivers/base/node.c	2009-10-07 12:32:01.000000000 -0400
+@@ -173,6 +173,43 @@ static ssize_t node_read_distance(struct
+ }
+ static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
  
- #include <asm/mmzone.h>
++#ifdef CONFIG_HUGETLBFS
++/*
++ * hugetlbfs per node attributes registration interface:
++ * When/if hugetlb[fs] subsystem initializes [sometime after this module],
++ * it will register its per node attributes for all nodes online at that
++ * time.  It will also call register_hugetlbfs_with_node(), below, to
++ * register its attribute registration functions with this node driver.
++ * Once these hooks have been initialized, the node driver will call into
++ * the hugetlb module to [un]register attributes for hot-plugged nodes.
++ */
++static node_registration_func_t __hugetlb_register_node;
++static node_registration_func_t __hugetlb_unregister_node;
++
++static inline void hugetlb_register_node(struct node *node)
++{
++	if (__hugetlb_register_node)
++		__hugetlb_register_node(node);
++}
++
++static inline void hugetlb_unregister_node(struct node *node)
++{
++	if (__hugetlb_unregister_node)
++		__hugetlb_unregister_node(node);
++}
++
++void register_hugetlbfs_with_node(node_registration_func_t doregister,
++				  node_registration_func_t unregister)
++{
++	__hugetlb_register_node   = doregister;
++	__hugetlb_unregister_node = unregister;
++}
++#else
++static inline void hugetlb_register_node(struct node *node) {}
++
++static inline void hugetlb_unregister_node(struct node *node) {}
++#endif
++
  
--#define NUMA_NO_NODE	-1
--
- extern u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
- extern cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
- extern pg_data_t *pgdat_list[MAX_NUMNODES];
-Index: linux-2.6.31-mmotm-090925-1435/arch/x86/include/asm/topology.h
+ /*
+  * register_node - Setup a sysfs device for a node.
+@@ -196,6 +233,7 @@ int register_node(struct node *node, int
+ 		sysdev_create_file(&node->sysdev, &attr_distance);
+ 
+ 		scan_unevictable_register_node(node);
++		hugetlb_register_node(node);
+ 	}
+ 	return error;
+ }
+@@ -216,6 +254,7 @@ void unregister_node(struct node *node)
+ 	sysdev_remove_file(&node->sysdev, &attr_distance);
+ 
+ 	scan_unevictable_unregister_node(node);
++	hugetlb_unregister_node(node);
+ 
+ 	sysdev_unregister(&node->sysdev);
+ }
+Index: linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c
 ===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/arch/x86/include/asm/topology.h	2009-10-07 12:31:51.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/arch/x86/include/asm/topology.h	2009-10-07 12:32:00.000000000 -0400
-@@ -35,11 +35,16 @@
- # endif
+--- linux-2.6.31-mmotm-090925-1435.orig/mm/hugetlb.c	2009-10-07 12:31:59.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/mm/hugetlb.c	2009-10-07 12:32:01.000000000 -0400
+@@ -24,6 +24,7 @@
+ #include <asm/io.h>
+ 
+ #include <linux/hugetlb.h>
++#include <linux/node.h>
+ #include "internal.h"
+ 
+ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+@@ -1320,39 +1321,71 @@ out:
+ static struct kobject *hugepages_kobj;
+ static struct kobject *hstate_kobjs[HUGE_MAX_HSTATE];
+ 
+-static struct hstate *kobj_to_hstate(struct kobject *kobj)
++static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp);
++
++static struct hstate *kobj_to_hstate(struct kobject *kobj, int *nidp)
+ {
+ 	int i;
++
+ 	for (i = 0; i < HUGE_MAX_HSTATE; i++)
+-		if (hstate_kobjs[i] == kobj)
++		if (hstate_kobjs[i] == kobj) {
++			if (nidp)
++				*nidp = NUMA_NO_NODE;
+ 			return &hstates[i];
+-	BUG();
+-	return NULL;
++		}
++
++	return kobj_to_node_hstate(kobj, nidp);
+ }
+ 
+ static ssize_t nr_hugepages_show_common(struct kobject *kobj,
+ 					struct kobj_attribute *attr, char *buf)
+ {
+-	struct hstate *h = kobj_to_hstate(kobj);
+-	return sprintf(buf, "%lu\n", h->nr_huge_pages);
++	struct hstate *h;
++	unsigned long nr_huge_pages;
++	int nid;
++
++	h = kobj_to_hstate(kobj, &nid);
++	if (nid == NUMA_NO_NODE)
++		nr_huge_pages = h->nr_huge_pages;
++	else
++		nr_huge_pages = h->nr_huge_pages_node[nid];
++
++	return sprintf(buf, "%lu\n", nr_huge_pages);
+ }
+ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 			struct kobject *kobj, struct kobj_attribute *attr,
+ 			const char *buf, size_t len)
+ {
+ 	int err;
++	int nid;
+ 	unsigned long count;
+-	struct hstate *h = kobj_to_hstate(kobj);
++	struct hstate *h;
+ 	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+ 
+ 	err = strict_strtoul(buf, 10, &count);
+ 	if (err)
+ 		return 0;
+ 
+-	if (!(obey_mempolicy && init_nodemask_of_mempolicy(nodes_allowed))) {
+-		NODEMASK_FREE(nodes_allowed);
+-		nodes_allowed = &node_online_map;
+-	}
++	h = kobj_to_hstate(kobj, &nid);
++	if (nid == NUMA_NO_NODE) {
++		/*
++		 * global hstate attribute
++		 */
++		if (!(obey_mempolicy &&
++				init_nodemask_of_mempolicy(nodes_allowed))) {
++			NODEMASK_FREE(nodes_allowed);
++			nodes_allowed = &node_states[N_HIGH_MEMORY];
++		}
++	} else if (nodes_allowed) {
++		/*
++		 * per node hstate attribute: adjust count to global,
++		 * but restrict alloc/free to the specified node.
++		 */
++		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
++		init_nodemask_of_node(nodes_allowed, nid);
++	} else
++		nodes_allowed = &node_states[N_HIGH_MEMORY];
++
+ 	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
+ 
+ 	if (nodes_allowed != &node_online_map)
+@@ -1398,7 +1431,7 @@ HSTATE_ATTR(nr_hugepages_mempolicy);
+ static ssize_t nr_overcommit_hugepages_show(struct kobject *kobj,
+ 					struct kobj_attribute *attr, char *buf)
+ {
+-	struct hstate *h = kobj_to_hstate(kobj);
++	struct hstate *h = kobj_to_hstate(kobj, NULL);
+ 	return sprintf(buf, "%lu\n", h->nr_overcommit_huge_pages);
+ }
+ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+@@ -1406,7 +1439,7 @@ static ssize_t nr_overcommit_hugepages_s
+ {
+ 	int err;
+ 	unsigned long input;
+-	struct hstate *h = kobj_to_hstate(kobj);
++	struct hstate *h = kobj_to_hstate(kobj, NULL);
+ 
+ 	err = strict_strtoul(buf, 10, &input);
+ 	if (err)
+@@ -1423,15 +1456,24 @@ HSTATE_ATTR(nr_overcommit_hugepages);
+ static ssize_t free_hugepages_show(struct kobject *kobj,
+ 					struct kobj_attribute *attr, char *buf)
+ {
+-	struct hstate *h = kobj_to_hstate(kobj);
+-	return sprintf(buf, "%lu\n", h->free_huge_pages);
++	struct hstate *h;
++	unsigned long free_huge_pages;
++	int nid;
++
++	h = kobj_to_hstate(kobj, &nid);
++	if (nid == NUMA_NO_NODE)
++		free_huge_pages = h->free_huge_pages;
++	else
++		free_huge_pages = h->free_huge_pages_node[nid];
++
++	return sprintf(buf, "%lu\n", free_huge_pages);
+ }
+ HSTATE_ATTR_RO(free_hugepages);
+ 
+ static ssize_t resv_hugepages_show(struct kobject *kobj,
+ 					struct kobj_attribute *attr, char *buf)
+ {
+-	struct hstate *h = kobj_to_hstate(kobj);
++	struct hstate *h = kobj_to_hstate(kobj, NULL);
+ 	return sprintf(buf, "%lu\n", h->resv_huge_pages);
+ }
+ HSTATE_ATTR_RO(resv_hugepages);
+@@ -1439,8 +1481,17 @@ HSTATE_ATTR_RO(resv_hugepages);
+ static ssize_t surplus_hugepages_show(struct kobject *kobj,
+ 					struct kobj_attribute *attr, char *buf)
+ {
+-	struct hstate *h = kobj_to_hstate(kobj);
+-	return sprintf(buf, "%lu\n", h->surplus_huge_pages);
++	struct hstate *h;
++	unsigned long surplus_huge_pages;
++	int nid;
++
++	h = kobj_to_hstate(kobj, &nid);
++	if (nid == NUMA_NO_NODE)
++		surplus_huge_pages = h->surplus_huge_pages;
++	else
++		surplus_huge_pages = h->surplus_huge_pages_node[nid];
++
++	return sprintf(buf, "%lu\n", surplus_huge_pages);
+ }
+ HSTATE_ATTR_RO(surplus_hugepages);
+ 
+@@ -1460,19 +1511,21 @@ static struct attribute_group hstate_att
+ 	.attrs = hstate_attrs,
+ };
+ 
+-static int __init hugetlb_sysfs_add_hstate(struct hstate *h)
++static int __init hugetlb_sysfs_add_hstate(struct hstate *h,
++				struct kobject *parent,
++				struct kobject **hstate_kobjs,
++				struct attribute_group *hstate_attr_group)
+ {
+ 	int retval;
++	int hi = h - hstates;
+ 
+-	hstate_kobjs[h - hstates] = kobject_create_and_add(h->name,
+-							hugepages_kobj);
+-	if (!hstate_kobjs[h - hstates])
++	hstate_kobjs[hi] = kobject_create_and_add(h->name, parent);
++	if (!hstate_kobjs[hi])
+ 		return -ENOMEM;
+ 
+-	retval = sysfs_create_group(hstate_kobjs[h - hstates],
+-							&hstate_attr_group);
++	retval = sysfs_create_group(hstate_kobjs[hi], hstate_attr_group);
+ 	if (retval)
+-		kobject_put(hstate_kobjs[h - hstates]);
++		kobject_put(hstate_kobjs[hi]);
+ 
+ 	return retval;
+ }
+@@ -1487,17 +1540,184 @@ static void __init hugetlb_sysfs_init(vo
+ 		return;
+ 
+ 	for_each_hstate(h) {
+-		err = hugetlb_sysfs_add_hstate(h);
++		err = hugetlb_sysfs_add_hstate(h, hugepages_kobj,
++					 hstate_kobjs, &hstate_attr_group);
+ 		if (err)
+ 			printk(KERN_ERR "Hugetlb: Unable to add hstate %s",
+ 								h->name);
+ 	}
+ }
+ 
++#ifdef CONFIG_NUMA
++
++/*
++ * node_hstate/s - associate per node hstate attributes, via their kobjects,
++ * with node sysdevs in node_devices[] using a parallel array.  The array
++ * index of a node sysdev or _hstate == node id.
++ * This is here to avoid any static dependency of the node sysdev driver, in
++ * the base kernel, on the hugetlb module.
++ */
++struct node_hstate {
++	struct kobject		*hugepages_kobj;
++	struct kobject		*hstate_kobjs[HUGE_MAX_HSTATE];
++};
++struct node_hstate node_hstates[MAX_NUMNODES];
++
++/*
++ * A subset of global hstate attributes for node sysdevs
++ */
++static struct attribute *per_node_hstate_attrs[] = {
++	&nr_hugepages_attr.attr,
++	&free_hugepages_attr.attr,
++	&surplus_hugepages_attr.attr,
++	NULL,
++};
++
++static struct attribute_group per_node_hstate_attr_group = {
++	.attrs = per_node_hstate_attrs,
++};
++
++/*
++ * kobj_to_node_hstate - lookup global hstate for node sysdev hstate attr kobj.
++ * Returns node id via non-NULL nidp.
++ */
++static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
++{
++	int nid;
++
++	for (nid = 0; nid < nr_node_ids; nid++) {
++		struct node_hstate *nhs = &node_hstates[nid];
++		int i;
++		for (i = 0; i < HUGE_MAX_HSTATE; i++)
++			if (nhs->hstate_kobjs[i] == kobj) {
++				if (nidp)
++					*nidp = nid;
++				return &hstates[i];
++			}
++	}
++
++	BUG();
++	return NULL;
++}
++
++/*
++ * Unregister hstate attributes from a single node sysdev.
++ * No-op if no hstate attributes attached.
++ */
++void hugetlb_unregister_node(struct node *node)
++{
++	struct hstate *h;
++	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
++
++	if (!nhs->hugepages_kobj)
++		return;
++
++	for_each_hstate(h)
++		if (nhs->hstate_kobjs[h - hstates]) {
++			kobject_put(nhs->hstate_kobjs[h - hstates]);
++			nhs->hstate_kobjs[h - hstates] = NULL;
++		}
++
++	kobject_put(nhs->hugepages_kobj);
++	nhs->hugepages_kobj = NULL;
++}
++
++/*
++ * hugetlb module exit:  unregister hstate attributes from node sysdevs
++ * that have them.
++ */
++static void hugetlb_unregister_all_nodes(void)
++{
++	int nid;
++
++	/*
++	 * disable node sysdev registrations.
++	 */
++	register_hugetlbfs_with_node(NULL, NULL);
++
++	/*
++	 * remove hstate attributes from any nodes that have them.
++	 */
++	for (nid = 0; nid < nr_node_ids; nid++)
++		hugetlb_unregister_node(&node_devices[nid]);
++}
++
++/*
++ * Register hstate attributes for a single node sysdev.
++ * No-op if attributes already registered.
++ */
++void hugetlb_register_node(struct node *node)
++{
++	struct hstate *h;
++	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
++	int err;
++
++	if (nhs->hugepages_kobj)
++		return;		/* already allocated */
++
++	nhs->hugepages_kobj = kobject_create_and_add("hugepages",
++							&node->sysdev.kobj);
++	if (!nhs->hugepages_kobj)
++		return;
++
++	for_each_hstate(h) {
++		err = hugetlb_sysfs_add_hstate(h, nhs->hugepages_kobj,
++						nhs->hstate_kobjs,
++						&per_node_hstate_attr_group);
++		if (err) {
++			printk(KERN_ERR "Hugetlb: Unable to add hstate %s"
++					" for node %d\n",
++						h->name, node->sysdev.id);
++			hugetlb_unregister_node(node);
++			break;
++		}
++	}
++}
++
++/*
++ * hugetlb init time:  register hstate attributes for all registered
++ * node sysdevs.  All on-line nodes should have registered their
++ * associated sysdev by the time the hugetlb module initializes.
++ */
++static void hugetlb_register_all_nodes(void)
++{
++	int nid;
++
++	for (nid = 0; nid < nr_node_ids; nid++) {
++		struct node *node = &node_devices[nid];
++		if (node->sysdev.id == nid)
++			hugetlb_register_node(node);
++	}
++
++	/*
++	 * Let the node sysdev driver know we're here so it can
++	 * [un]register hstate attributes on node hotplug.
++	 */
++	register_hugetlbfs_with_node(hugetlb_register_node,
++				     hugetlb_unregister_node);
++}
++#else	/* !CONFIG_NUMA */
++
++static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
++{
++	BUG();
++	if (nidp)
++		*nidp = -1;
++	return NULL;
++}
++
++static void hugetlb_unregister_all_nodes(void) { }
++
++static void hugetlb_register_all_nodes(void) { }
++
++#endif
++
+ static void __exit hugetlb_exit(void)
+ {
+ 	struct hstate *h;
+ 
++	hugetlb_unregister_all_nodes();
++
+ 	for_each_hstate(h) {
+ 		kobject_put(hstate_kobjs[h - hstates]);
+ 	}
+@@ -1532,6 +1752,8 @@ static int __init hugetlb_init(void)
+ 
+ 	hugetlb_sysfs_init();
+ 
++	hugetlb_register_all_nodes();
++
+ 	return 0;
+ }
+ module_init(hugetlb_init);
+Index: linux-2.6.31-mmotm-090925-1435/include/linux/node.h
+===================================================================
+--- linux-2.6.31-mmotm-090925-1435.orig/include/linux/node.h	2009-10-07 12:31:51.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/include/linux/node.h	2009-10-07 12:32:01.000000000 -0400
+@@ -28,6 +28,7 @@ struct node {
+ 
+ struct memory_block;
+ extern struct node node_devices[];
++typedef  void (*node_registration_func_t)(struct node *);
+ 
+ extern int register_node(struct node *, int, struct node *);
+ extern void unregister_node(struct node *node);
+@@ -39,6 +40,11 @@ extern int unregister_cpu_under_node(uns
+ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+ 						int nid);
+ extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk);
++
++#ifdef CONFIG_HUGETLBFS
++extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
++					 node_registration_func_t unregister);
++#endif
+ #else
+ static inline int register_one_node(int nid)
+ {
+@@ -65,6 +71,11 @@ static inline int unregister_mem_sect_un
+ {
+ 	return 0;
+ }
++
++static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
++						node_registration_func_t unreg)
++{
++}
  #endif
  
--/* Node not present */
--#define NUMA_NO_NODE	(-1)
-+/*
-+ * to preserve the visibility of NUMA_NO_NODE definition,
-+ * moved to there from here.  May be used independent of
-+ * CONFIG_NUMA.
-+ */
-+#include <linux/numa.h>
- 
- #ifdef CONFIG_NUMA
- #include <linux/cpumask.h>
-+
- #include <asm/mpspec.h>
- 
- #ifdef CONFIG_X86_32
-Index: linux-2.6.31-mmotm-090925-1435/include/linux/numa.h
-===================================================================
---- linux-2.6.31-mmotm-090925-1435.orig/include/linux/numa.h	2009-10-07 12:31:51.000000000 -0400
-+++ linux-2.6.31-mmotm-090925-1435/include/linux/numa.h	2009-10-07 12:32:00.000000000 -0400
-@@ -10,4 +10,6 @@
- 
- #define MAX_NUMNODES    (1 << NODES_SHIFT)
- 
-+#define	NUMA_NO_NODE	(-1)
-+
- #endif /* _LINUX_NUMA_H */
+ #define to_node(sys_device) container_of(sys_device, struct node, sysdev)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
