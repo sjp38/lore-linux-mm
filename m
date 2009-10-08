@@ -1,76 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF596B004D
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 12:20:51 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C04C26B0055
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 12:20:59 -0400 (EDT)
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Thu, 08 Oct 2009 12:24:54 -0400
-Message-Id: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
-Subject: [PATCH 0/12] hugetlb: V10 numa control of persistent huge pages alloc/free
+Date: Thu, 08 Oct 2009 12:25:01 -0400
+Message-Id: <20091008162501.23192.66287.sendpatchset@localhost.localdomain>
+In-Reply-To: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
+Subject: [PATCH 1/12] nodemask:  make NODEMASK_ALLOC more general
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-numa@vger.kernel.org
 Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, andi@firstfloor.org, David Rientjes <rientjes@google.com>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-PATCH 0/12 hugetlb: numa control of persistent huge pages alloc/free
+From: David Rientjes <rientjes@google.com>
+
+[PATCH 1/12] nodemask:  make NODEMASK_ALLOC more general
+
+NODEMASK_ALLOC(x, m) assumes x is a type of struct, which is unnecessary.
+It's perfectly reasonable to use this macro to allocate a nodemask_t,
+which is anonymous, either dynamically or on the stack depending on
+NODES_SHIFT.
+
+---
 
 Against:  2.6.31-mmotm-090925-1435
 
-This is V10 of a series of patches to provide control over the location
-of the allocation and freeing of persistent huge pages on a NUMA
-platform.   Please consider for merging into mmotm.
+New in V10
 
-This series uses two mechanisms to constrain the nodes from which
-persistent huge pages are allocated:  1) the task NUMA mempolicy of
-the task modifying  a new sysctl "nr_hugepages_mempolicy", based on
-a suggestion by Mel Gorman; and 2) a subset of the hugepages hstate
-sysfs attributes have been added [in V4] to each node system device
-under:
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 
-	/sys/devices/node/node[0-9]*/hugepages.
+ include/linux/nodemask.h |   15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
-The per node attibutes allow direct assignment of a huge page
-count on a specific node, regardless of the task's mempolicy or
-cpuset constraints.
-
-V5 addressed review comments -- changes described in patch descriptions.
-
-V6 addressed more review comments, described in the patches.
-
-V6 also included a 3 patch series that implements an enhancement suggested
-by David Rientjes:   the default huge page nodes allowed mask will be the
-nodes with memory rather than all on-line nodes and we will allocate per
-node hstate attributes only for nodes with memory.  This requires that we
-register a memory on/off-line notifier and [un]register the attributes on
-transitions to/from memoryless state.
-
-V7 addressed review comments, described in the patches, and included a
-new patch, originally from Mel Gorman, to define a new vm sysctl and
-sysfs global hugepages attribute "nr_hugepages_mempolicy" rather than
-apply mempolicy contraints to pool adujstments via the pre-existing
-"nr_hugepages".  The 3 patches to restrict hugetlb to visiting only
-nodes with memory and to add/remove per node hstate attributes on
-memory hotplug completed V7.
-
-V8 reorganized the sysctl and sysfs attribute handlers to default
-the nodes to default or define the nodes_allowed mask up in the
-handlers and pass nodes_allowed [pointer] to set_max_huge_pages().
-This cleanup was suggested by David Rientjes.  V8 also merged Mel
-Gorman's "nr_hugepages_mempolicy" back into the patch to compute
-nodes_allowed from mempolicy.
-
-V8 turned out to be too large a reorg to pull off without botching
-something.  V9 attempted to fix these.  In the meantime, David Rientjes
-had posted a patch to generalize NODEMASK_ALLOC.  This cause a build
-error in the series.  David provided a patch to fix the build failure.
-David's fixup patch was included in V9.  This caused V9 to depend
-on David's patch.
-
-V10 addresses more review comments and folds the patch to accomodate
-David R's rework of NODEMASK_ALLOC into the preceeding patch so that
-the patch will build cleanly.  David's "make NODEMASK_ALLOC more general"
-patch has been added to this series, along with another patch from
-David to fix a problem with memory hotplug that this series depends
-on.
+Index: linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h
+===================================================================
+--- linux-2.6.31-mmotm-090925-1435.orig/include/linux/nodemask.h	2009-10-07 12:31:51.000000000 -0400
++++ linux-2.6.31-mmotm-090925-1435/include/linux/nodemask.h	2009-10-07 12:31:53.000000000 -0400
+@@ -481,14 +481,14 @@ static inline int num_node_state(enum no
+ 
+ /*
+  * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
++ * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name 'm'.
+  */
+-
+ #if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
+-#define NODEMASK_ALLOC(x, m) struct x *m = kmalloc(sizeof(*m), GFP_KERNEL)
+-#define NODEMASK_FREE(m) kfree(m)
++#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
++#define NODEMASK_FREE(m)		kfree(m)
+ #else
+-#define NODEMASK_ALLOC(x, m) struct x _m, *m = &_m
+-#define NODEMASK_FREE(m)
++#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
++#define NODEMASK_FREE(m)		do {} while (0)
+ #endif
+ 
+ /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
+@@ -497,8 +497,9 @@ struct nodemask_scratch {
+ 	nodemask_t	mask2;
+ };
+ 
+-#define NODEMASK_SCRATCH(x) NODEMASK_ALLOC(nodemask_scratch, x)
+-#define NODEMASK_SCRATCH_FREE(x)  NODEMASK_FREE(x)
++#define NODEMASK_SCRATCH(x)	\
++		NODEMASK_ALLOC(struct nodemask_scratch, x)
++#define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
+ 
+ 
+ #endif /* __LINUX_NODEMASK_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
