@@ -1,67 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 051136B004F
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:58:47 -0400 (EDT)
-Date: Fri, 9 Oct 2009 21:58:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: make VM_MAX_READAHEAD configurable
-Message-ID: <20091009135831.GA15425@localhost>
-References: <1255087175-21200-1-git-send-email-ehrhardt@linux.vnet.ibm.com> <1255090830.8802.60.camel@laptop> <20091009122952.GI9228@kernel.dk> <20091009154950.43f01784@mschwide.boeblingen.de.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C45F56B004D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:33:14 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n99ESXe7027804
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:28:33 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n99EX7si222608
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:33:07 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n99EX23R002005
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:33:07 -0600
+Date: Fri, 9 Oct 2009 09:33:01 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
+	balloon drivers
+Message-ID: <20091009143301.GA11543@austin.ibm.com>
+References: <20091002184458.GC4908@austin.ibm.com> <20091009094740.fe84e46a.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091009154950.43f01784@mschwide.boeblingen.de.ibm.com>
+In-Reply-To: <20091009094740.fe84e46a.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 09, 2009 at 09:49:50PM +0800, Martin Schwidefsky wrote:
-> On Fri, 9 Oct 2009 14:29:52 +0200
-> Jens Axboe <jens.axboe@oracle.com> wrote:
+* KAMEZAWA Hiroyuki (kamezawa.hiroyu@jp.fujitsu.com) wrote:
+> On Fri, 2 Oct 2009 13:44:58 -0500
+> Robert Jennings <rcj@linux.vnet.ibm.com> wrote:
 > 
-> > On Fri, Oct 09 2009, Peter Zijlstra wrote:
-> > > On Fri, 2009-10-09 at 13:19 +0200, Ehrhardt Christian wrote:
-> > > > From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-> > > > 
-> > > > On one hand the define VM_MAX_READAHEAD in include/linux/mm.h is just a default
-> > > > and can be configured per block device queue.
-> > > > On the other hand a lot of admins do not use it, therefore it is reasonable to
-> > > > set a wise default.
-> > > > 
-> > > > This path allows to configure the value via Kconfig mechanisms and therefore
-> > > > allow the assignment of different defaults dependent on other Kconfig symbols.
-> > > > 
-> > > > Using this, the patch increases the default max readahead for s390 improving
-> > > > sequential throughput in a lot of scenarios with almost no drawbacks (only
-> > > > theoretical workloads with a lot concurrent sequential read patterns on a very
-> > > > low memory system suffer due to page cache trashing as expected).
-> > > 
-> > > Why can't this be solved in userspace?
-> > > 
-> > > Also, can't we simply raise this number if appropriate? Wu did some
-> > > read-ahead trashing detection bits a long while back which should scale
-> > > the read-ahead window back when we're low on memory, not sure that ever
-> > > made it in, but that sounds like a better option than having different
-> > > magic numbers for each platform.
+> > Memory balloon drivers can allocate a large amount of memory which
+> > is not movable but could be freed to accomodate memory hotplug remove.
 > > 
-> > Agree, making this a config option (and even defaulting to a different
-> > number because of an arch setting) is crazy.
+> > Prior to calling the memory hotplug notifier chain the memory in the
+> > pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
+> > isolation will not proceed, causing the memory removal for that page
+> > range to fail.
+> > 
+> > Rather than failing pageblock isolation if the the migrateteype is not
+> > MIGRATE_MOVABLE, this patch checks if all of the pages in the pageblock
+> > are owned by a registered balloon driver (or other entity) using a
+> > notifier chain.  If all of the non-movable pages are owned by a balloon,
+> > they can be freed later through the memory notifier chain and the range
+> > can still be isolated in set_migratetype_isolate().
+> > 
+> > Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
+> > 
+> > ---
+> >  drivers/base/memory.c  |   19 +++++++++++++++++++
+> >  include/linux/memory.h |   26 ++++++++++++++++++++++++++
+> >  mm/page_alloc.c        |   45 ++++++++++++++++++++++++++++++++++++++-------
+> >  3 files changed, 83 insertions(+), 7 deletions(-)
+> > 
+> > Index: b/drivers/base/memory.c
+> > ===================================================================
+> > --- a/drivers/base/memory.c
+> > +++ b/drivers/base/memory.c
+> > @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
+> >  }
+> >  EXPORT_SYMBOL(unregister_memory_notifier);
+> >  
+> > +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
+> > +
 > 
-> The patch from Christian fixes a performance regression in the latest
-> distributions for s390. So we would opt for a larger value, 512KB seems
-> to be a good one. I have no idea what that will do to the embedded
-> space which is why Christian choose to make it configurable. Clearly
-> the better solution would be some sort of system control that can be
-> modified at runtime. 
+> IIUC, this notifier is called under zone->lock.
+> please ATOMIC_NOTIFIER_HEAD().
 
-So how about doing two patches together?
+I will correct this.
 
-- lift default readahead size to around 512KB
-- add some readahead logic to better support the thrashing case
+> > +int register_memory_isolate_notifier(struct notifier_block *nb)
+> > +{
+> > +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
+> > +}
+> > +EXPORT_SYMBOL(register_memory_isolate_notifier);
+> > +
+> > +void unregister_memory_isolate_notifier(struct notifier_block *nb)
+> > +{
+> > +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
+> > +}
+> > +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+> > +
+> >  /*
+> >   * register_memory - Setup a sysfs device for a memory block
+> >   */
+> > @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
+> >  	return blocking_notifier_call_chain(&memory_chain, val, v);
+> >  }
+> >  
+> > +int memory_isolate_notify(unsigned long val, void *v)
+> > +{
+> > +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
+> > +}
+> > +
+> >  /*
+> >   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
+> >   * OK to have direct references to sparsemem variables in here.
+> > Index: b/include/linux/memory.h
+> > ===================================================================
+> > --- a/include/linux/memory.h
+> > +++ b/include/linux/memory.h
+> > @@ -50,6 +50,18 @@ struct memory_notify {
+> >  	int status_change_nid;
+> >  };
+> >  
+> > +/*
+> > + * During pageblock isolation, count the number of pages in the
+> > + * range [start_pfn, start_pfn + nr_pages)
+> > + */
+> > +#define MEM_ISOLATE_COUNT	(1<<0)
+> > +
+> > +struct memory_isolate_notify {
+> > +	unsigned long start_pfn;
+> > +	unsigned int nr_pages;
+> > +	unsigned int pages_found;
+> > +};
+> 
+> Could you add commentary for each field ?
 
-Thanks,
-Fengguang
+This will be documented in the next version of the patch.
+
+> > +
+> >  struct notifier_block;
+> >  struct mem_section;
+> >  
+> > @@ -76,14 +88,28 @@ static inline int memory_notify(unsigned
+> >  {
+> >  	return 0;
+> >  }
+> > +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
+> > +{
+> > +	return 0;
+> > +}
+> > +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
+> > +{
+> > +}
+> > +static inline int memory_isolate_notify(unsigned long val, void *v)
+> > +{
+> > +	return 0;
+> > +}
+> >  #else
+> >  extern int register_memory_notifier(struct notifier_block *nb);
+> >  extern void unregister_memory_notifier(struct notifier_block *nb);
+> > +extern int register_memory_isolate_notifier(struct notifier_block *nb);
+> > +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+> >  extern int register_new_memory(int, struct mem_section *);
+> >  extern int unregister_memory_section(struct mem_section *);
+> >  extern int memory_dev_init(void);
+> >  extern int remove_memory_block(unsigned long, struct mem_section *, int);
+> >  extern int memory_notify(unsigned long val, void *v);
+> > +extern int memory_isolate_notify(unsigned long val, void *v);
+> >  extern struct memory_block *find_memory_block(struct mem_section *);
+> >  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
+> >  enum mem_add_context { BOOT, HOTPLUG };
+> > Index: b/mm/page_alloc.c
+> > ===================================================================
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -48,6 +48,7 @@
+> >  #include <linux/page_cgroup.h>
+> >  #include <linux/debugobjects.h>
+> >  #include <linux/kmemleak.h>
+> > +#include <linux/memory.h>
+> >  #include <trace/events/kmem.h>
+> >  
+> >  #include <asm/tlbflush.h>
+> > @@ -4985,23 +4986,53 @@ void set_pageblock_flags_group(struct pa
+> >  int set_migratetype_isolate(struct page *page)
+> >  {
+> >  	struct zone *zone;
+> > -	unsigned long flags;
+> > +	unsigned long flags, pfn, iter;
+> > +	unsigned long immobile = 0;
+> > +	struct memory_isolate_notify arg;
+> > +	int notifier_ret;
+> >  	int ret = -EBUSY;
+> >  	int zone_idx;
+> >  
+> >  	zone = page_zone(page);
+> >  	zone_idx = zone_idx(zone);
+> > +
+> >  	spin_lock_irqsave(&zone->lock, flags);
+> > +	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
+> > +	    zone_idx == ZONE_MOVABLE) {
+> > +		ret = 0;
+> > +		goto out;
+> > +	}
+> > +
+> > +	pfn = page_to_pfn(page);
+> > +	arg.start_pfn = pfn;
+> > +	arg.nr_pages = pageblock_nr_pages;
+> > +	arg.pages_found = 0;
+> > +
+> >  	/*
+> > -	 * In future, more migrate types will be able to be isolation target.
+> > +	 * The pageblock can be isolated even if the migrate type is
+> > +	 * not *_MOVABLE.  The memory isolation notifier chain counts
+> > +	 * the number of pages in this pageblock that can be freed later
+> > +	 * through the memory notifier chain.  If all of the pages are
+> > +	 * accounted for, isolation can continue.
+> >  	 */
+> 
+> Could add explanation like this ?
+> ==
+>   Later, for example, when memory hotplug notifier runs, these pages reported as
+>   "can be isoalted" should be isolated(freed) by callbacks.
+> ==
+
+I'll change this comment.  You and Mel both gave me good direction here.
+
+> > -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
+> > -	    zone_idx != ZONE_MOVABLE)
+> > +	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
+> > +	notifier_ret = notifier_to_errno(notifier_ret);
+> > +       	if (notifier_ret || !arg.pages_found)
+> >  		goto out;
+> > -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> > -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> > -	ret = 0;
+> > +
+> > +	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
+> > +		if (page_count(pfn_to_page(iter)))
+> > +			immobile++;
+> > +
+> > +	if (arg.pages_found == immobile)
+> > +		ret = 0;
+> > +
+> 
+> I can't understand this part. Does this mean all pages under this pageblock
+> are used by balloon driver ?
+> IOW, memory is hotpluggable only when all pages under this pageblock is used
+> by balloon ?
+> 
+> 
+> Hmm. Can't we do this kind of check..?
+> ==
+>      for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
+> 	page = pfn_to_page(iter);
+> 	if (!page_count(page) || PageLRU(page)) // This page is movable.
+> 		continue;
+> 	immobile++
+>      }
+> ==
+> Then, if a page is luckyly on LRU, we have more chances.
+> (This check can fail if a page is on percpu pagevec etc...)
+> 
+> Thanks,
+> -Kame
+
+I like this change, it will be in my next patch after I finish testing.
+Thank you for your review.
+
+> >  out:
+> > +	if (!ret) {
+> > +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> > +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> > +	}
+> > +
+> >  	spin_unlock_irqrestore(&zone->lock, flags);
+> >  	if (!ret)
+> >  		drain_all_pages();
+> > 
+> > --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
