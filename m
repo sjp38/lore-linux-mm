@@ -1,127 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 929E86B004D
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 11:13:08 -0400 (EDT)
-Subject: Re: [PATCH 7/12] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com>
-References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
-	 <20091008162539.23192.3642.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Fri, 09 Oct 2009 09:49:58 -0400
-Message-Id: <1255096198.14370.65.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EA056B004D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 16:23:12 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n99KS2AM004332
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 16:28:02 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n99KN5Cd219876
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 16:23:05 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n99KJe1P013729
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 16:19:41 -0400
+Date: Fri, 9 Oct 2009 15:23:04 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
+	balloon drivers
+Message-ID: <20091009202304.GB19114@austin.ibm.com>
+References: <20091002184458.GC4908@austin.ibm.com> <20091008163449.00dce972.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091008163449.00dce972.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Gerald Schaefer <geralds@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-10-08 at 13:42 -0700, David Rientjes wrote:
-> On Thu, 8 Oct 2009, Lee Schermerhorn wrote:
+* Andrew Morton (akpm@linux-foundation.org) wrote:
+> On Fri, 2 Oct 2009 13:44:58 -0500
+> Robert Jennings <rcj@linux.vnet.ibm.com> wrote:
 > 
-<snip>
-> > +static struct attribute_group per_node_hstate_attr_group = {
-> > +	.attrs = per_node_hstate_attrs,
-> > +};
-> > +
-> > +/*
-> > + * kobj_to_node_hstate - lookup global hstate for node sysdev hstate attr kobj.
-> > + * Returns node id via non-NULL nidp.
-> > + */
-> > +static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
-> > +{
-> > +	int nid;
-> > +
-> > +	for (nid = 0; nid < nr_node_ids; nid++) {
+> > Memory balloon drivers can allocate a large amount of memory which
+> > is not movable but could be freed to accomodate memory hotplug remove.
+> > 
+> > Prior to calling the memory hotplug notifier chain the memory in the
+> > pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
+> > isolation will not proceed, causing the memory removal for that page
+> > range to fail.
+> > 
+> > Rather than failing pageblock isolation if the the migrateteype is not
+> > MIGRATE_MOVABLE, this patch checks if all of the pages in the pageblock
+> > are owned by a registered balloon driver (or other entity) using a
+> > notifier chain.  If all of the non-movable pages are owned by a balloon,
+> > they can be freed later through the memory notifier chain and the range
+> > can still be isolated in set_migratetype_isolate().
 > 
-> I previously asked if this should use for_each_node_mask() instead?
+> The patch looks sane enough to me.
+> 
+> I expect that if the powerpc and s390 guys want to work on CMM over the
+> next couple of months, they'd like this patch merged into 2.6.32.  It's
+> a bit larger and more involved than one would like, but I guess we can
+> do that if suitable people (Mel?  Kamezawa?) have had a close look and
+> are OK with it.
+>
+> What do people think?
 
-sorry, missed this comment [and one at end] in my prev response.  Too
-much multi-tasking.
-
-This also could interate over a node mask for consistency, I think.
-Again, current version works because we're looking for node sysdev based
-on a per node attribute kobj.  We only add the attributes to nodes with
-memory.  So, we're potentially visiting a few more nodes than necessary
-on some platforms.  Shouldn't be a performance issue.  
+I'd love to get it in 2.6.32 if that's possible.  I have gone over the 
+comments from Mel and Kamezawa I produced a new patchset.  I just
+finished testing it (and I also tested with
+CONFIG_MEMORY_HOTPLUG_SPARSE=n) and it will be posted shortly.
 
 > 
-> > +		struct node_hstate *nhs = &node_hstates[nid];
-> > +		int i;
-> > +		for (i = 0; i < HUGE_MAX_HSTATE; i++)
-> > +			if (nhs->hstate_kobjs[i] == kobj) {
-> > +				if (nidp)
-> > +					*nidp = nid;
-> > +				return &hstates[i];
-> > +			}
-> > +	}
-> > +
-> > +	BUG();
-> > +	return NULL;
-> > +}
-> > +
-<snip>
-> > +
-> > +/*
-> > + * hugetlb init time:  register hstate attributes for all registered
-> > + * node sysdevs.  All on-line nodes should have registered their
-> > + * associated sysdev by the time the hugetlb module initializes.
-> > + */
-> > +static void hugetlb_register_all_nodes(void)
-> > +{
-> > +	int nid;
-> > +
-> > +	for (nid = 0; nid < nr_node_ids; nid++) {
-> > +		struct node *node = &node_devices[nid];
-> > +		if (node->sysdev.id == nid)
-> > +			hugetlb_register_node(node);
-> > +	}
-> 
-> This looks like another use of for_each_node_mask over N_HIGH_MEMORY.  I 
-> previously asked if the check for node->sysdev.id == nid is still 
-> necessary at this point?
+> Has it been carefully compile- and run-time tested with
+> CONFIG_MEMORY_HOTPLUG_SPARSE=n?
 
-already answered this.
-> 
-> > +
-> > +	/*
-> > +	 * Let the node sysdev driver know we're here so it can
-> > +	 * [un]register hstate attributes on node hotplug.
-> > +	 */
-> > +	register_hugetlbfs_with_node(hugetlb_register_node,
-> > +				     hugetlb_unregister_node);
-> > +}
-> > +#else	/* !CONFIG_NUMA */
+Yes, I have compiled the kernel CONFIG_MEMORY_HOTPLUG_SPARSE=n and made
+sure that we didn't have any problems.
 
-
-> > Index: linux-2.6.31-mmotm-090925-1435/include/linux/node.h
-> > ===================================================================
-> > --- linux-2.6.31-mmotm-090925-1435.orig/include/linux/node.h	2009-10-07 12:31:51.000000000 -0400
-> > +++ linux-2.6.31-mmotm-090925-1435/include/linux/node.h	2009-10-07 12:32:01.000000000 -0400
-> > @@ -28,6 +28,7 @@ struct node {
-> >  
-> >  struct memory_block;
-> >  extern struct node node_devices[];
-> > +typedef  void (*node_registration_func_t)(struct node *);
-> >  
-> >  extern int register_node(struct node *, int, struct node *);
-> >  extern void unregister_node(struct node *node);
-> 
-> I previously suggested against the typedef unless this functionality (node 
-> hotplug notifiers) becomes more generic outside of the hugetlb use case.
-
-I'd like to keep it.  I've read the CodingStyle and I know it argues
-against typedefs, but the strongest prohibition is against [pointers to]
-structs whose members could be reasonable accessed.  I don't think I
-violate that.  And, this does allow the registration function
-definitions that take the func pointer as an argument to show up in
-cscope.  I find that useful.  Wish they all did [func defs with func
-args show up in cscope, that is].  But, if you and others feel strongly
-about this, I suppose we can rip it out.
-
-
+--Robert Jennings
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
