@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 37A776B004D
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 00:20:18 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n994KFVk020028
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 35BD36B004D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 00:28:19 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n994SG1O023343
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 9 Oct 2009 13:20:15 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DFBC45DE51
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:20:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 413B045DE4E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:20:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 16B531DB803B
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:20:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 904DD1DB803F
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:20:11 +0900 (JST)
-Date: Fri, 9 Oct 2009 13:17:51 +0900
+	Fri, 9 Oct 2009 13:28:16 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 595D145DE79
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:28:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F32545DE4D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:28:16 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A9BD1DB8042
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:28:16 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8E751DB803F
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 13:28:15 +0900 (JST)
+Date: Fri, 9 Oct 2009 13:25:54 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] memcg: coalescing uncharge at unmap and truncation
-Message-Id: <20091009131751.03eea135.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091009040142.GN6818@balbir.in.ibm.com>
+Subject: Re: [PATCH 2/2] memcg: coalescing charges per cpu
+Message-Id: <20091009132554.944e3755.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091009041535.GO6818@balbir.in.ibm.com>
 References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091002140126.61d15e5e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091009040142.GN6818@balbir.in.ibm.com>
+	<20091002140343.ae63e932.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091009041535.GO6818@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,337 +34,287 @@ To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Oct 2009 09:31:42 +0530
+On Fri, 9 Oct 2009 09:45:36 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-10-02 14:01:26]:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-10-02 14:03:43]:
 > 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > In massive parallel enviroment, res_counter can be a performance bottleneck.
-> > One strong techinque to reduce lock contention is reducing calls by
-> > coalescing some amount of calls into one.
+> > This is a patch for coalescing access to res_counter at charging by
+> > percpu caching. At charge, memcg charges 64pages and remember it in
+> > percpu cache. Because it's cache, drain/flush is done if necessary.
 > > 
-> > Considering charge/uncharge chatacteristic,
-> > 	- charge is done one by one via demand-paging.
-> > 	- uncharge is done by
-> > 		- in chunk at munmap, truncate, exit, execve...
-> > 		- one by one via vmscan/paging.
+> > This version uses public percpu area.
+> >  2 benefits of using public percpu area.
+> >  1. Sum of stocked charge in the system is limited to # of cpus
+> >     not to the number of memcg. This shows better synchonization.
+> >  2. drain code for flush/cpuhotplug is very easy (and quick)
 > > 
-> > It seems we have a chance in uncharge at unmap/truncation.
-> 
-> A chance to improve scalability?
-
-yes.
-
-
-> > 
-> > This patch is a for coalescing uncharge. For avoiding scattering memcg's
-> > structure to functions under /mm, this patch adds memcg batch uncharge
-> > information to the task. 
+> > The most important point of this patch is that we never touch res_counter
+> > in fast path. The res_counter is system-wide shared counter which is modified
+> > very frequently. We shouldn't touch it as far as we can for avoiding
+> > false sharing.
 > >
-> 
-> Is there a reason for associating batch with the task rather than
-> per-cpu or per-memcg? per-memcg,
-
-Per-cpu is bad because we can't be robust against task migration.
-(I mean per-cpu cannot be clean/simple as this patch.)
-
-Per-memcg doesn't work well. If we desgin per-memcg, we'll use a some logic
-like percpu counter. batch-legnth of it cannot be enough big.
-And we need fine grain synchronization more than this patch.
- 
-
-> I suspect would add some locking
-> overhead, per-cpu would require synchronization across cpu's while
-> uncharging, is that where per-task helps? 
-
-Yes, it's one of reason for this design.
-
-> I suspect per-mm, per-signal will have the issues above.
-Per-mm, per-signal can't be help. mulit-thread can do file truncations (and unmap)
-in parallel.
-
-The biggest reason for per-task is that I'd like to change this behavior by
-calling _context_. Per-task batch means that we can make use of caller's context.
-When uncharge is called by try_to_unmap(), __remove_mapping() in vmscan.c,
-we do direct uncharge, for example.
-
-
->  
-> > The degree of coalescing depends on callers
-> >   - at invalidate/trucate... pagevec size
-> >   - at unmap ....ZAP_BLOCK_SIZE
-> > (memory itself will be freed in this degree.)
-> > Then, we'll not coalescing too much.
-> > 
-> > Changelog(now):
-> >  - rebased onto the latest mmotm + softlimit fix patches.
-> > 
-> > Changelog(old):
-> >  - unified patch for callers
-> >  - added commetns.
-> >  - make ->do_batch as bool.
-> >  - removed css_get() at el. We don't need it.
-> > 
+> > Changelog (new):
+> >   - rabased onto the latest mmotm
+> > Changelog (old):
+> >   - moved charge size check before __GFP_WAIT check for avoiding unnecesary
+> >   - added asynchronous flush routine.
+> >   - fixed bugs pointed out by Nishimura-san.
 > > 
 > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > ---
-> >  include/linux/memcontrol.h |   13 ++++++
-> >  include/linux/sched.h      |    7 +++
-> >  mm/memcontrol.c            |   91 ++++++++++++++++++++++++++++++++++++++++++---
-> >  mm/memory.c                |    2 
-> >  mm/truncate.c              |    6 ++
-> >  5 files changed, 113 insertions(+), 6 deletions(-)
+> >  mm/memcontrol.c |  126 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
+> >  1 file changed, 120 insertions(+), 6 deletions(-)
 > > 
-> > Index: mmotm-2.6.31-Sep28/include/linux/memcontrol.h
-> > ===================================================================
-> > --- mmotm-2.6.31-Sep28.orig/include/linux/memcontrol.h
-> > +++ mmotm-2.6.31-Sep28/include/linux/memcontrol.h
-> > @@ -54,6 +54,11 @@ extern void mem_cgroup_rotate_lru_list(s
-> >  extern void mem_cgroup_del_lru(struct page *page);
-> >  extern void mem_cgroup_move_lists(struct page *page,
-> >  				  enum lru_list from, enum lru_list to);
-> > +
-> > +/* For coalescing uncharge for reducing memcg' overhead*/
-> > +extern void mem_cgroup_uncharge_start(void);
-> > +extern void mem_cgroup_uncharge_end(void);
-> > +
-> >  extern void mem_cgroup_uncharge_page(struct page *page);
-> >  extern void mem_cgroup_uncharge_cache_page(struct page *page);
-> >  extern int mem_cgroup_shmem_charge_fallback(struct page *page,
-> > @@ -151,6 +156,14 @@ static inline void mem_cgroup_cancel_cha
-> >  {
-> >  }
-> > 
-> > +static inline void mem_cgroup_uncharge_batch_start(void)
-> > +{
-> > +}
-> > +
-> > +static inline void mem_cgroup_uncharge_batch_start(void)
-> > +{
-> > +}
-> > +
-> >  static inline void mem_cgroup_uncharge_page(struct page *page)
-> >  {
-> >  }
 > > Index: mmotm-2.6.31-Sep28/mm/memcontrol.c
 > > ===================================================================
 > > --- mmotm-2.6.31-Sep28.orig/mm/memcontrol.c
 > > +++ mmotm-2.6.31-Sep28/mm/memcontrol.c
-> > @@ -1826,6 +1826,49 @@ void mem_cgroup_cancel_charge_swapin(str
-> >  	css_put(&mem->css);
+> > @@ -38,6 +38,7 @@
+> >  #include <linux/vmalloc.h>
+> >  #include <linux/mm_inline.h>
+> >  #include <linux/page_cgroup.h>
+> > +#include <linux/cpu.h>
+> >  #include "internal.h"
+> > 
+> >  #include <asm/uaccess.h>
+> > @@ -275,6 +276,7 @@ enum charge_type {
+> >  static void mem_cgroup_get(struct mem_cgroup *mem);
+> >  static void mem_cgroup_put(struct mem_cgroup *mem);
+> >  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+> > +static void drain_all_stock_async(void);
+> > 
+> >  static struct mem_cgroup_per_zone *
+> >  mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+> > @@ -1137,6 +1139,8 @@ static int mem_cgroup_hierarchical_recla
+> >  		victim = mem_cgroup_select_victim(root_mem);
+> >  		if (victim == root_mem) {
+> >  			loop++;
+> > +			if (loop >= 1)
+> > +				drain_all_stock_async();
+> >  			if (loop >= 2) {
+> >  				/*
+> >  				 * If we have not been able to reclaim
+> > @@ -1258,6 +1262,103 @@ done:
+> >  	unlock_page_cgroup(pc);
 > >  }
 > > 
-> > +static void
-> > +__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
-> > +{
-> > +	struct memcg_batch_info *batch = NULL;
-> > +	bool uncharge_memsw = true;
-> > +	/* If swapout, usage of swap doesn't decrease */
-> > +	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-> > +		uncharge_memsw = false;
-> > +	/*
-> > +	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
-> > +	 * In those cases, all pages freed continously can be expected to be in
-> > +	 * the same cgroup and we have chance to coalesce uncharges.
-> > +	 * And, we do uncharge one by one if this is killed by OOM.
-> > +	 */
-> > +	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
-> > +		goto direct_uncharge;
+> > +/* size of first charge trial. "32" comes from vmscan.c's magic value */
+> > +#define CHARGE_SIZE	(32 * PAGE_SIZE)
 > 
-> Should we also not uncharge the current batch when the task is dying?
->
-TIF_MEMDIE means OOM happens. I take "reduce usage as fast as possible"
-scheme here.
+> Should this then be SWAP_CLUSTER_MAX instead of 32?
+> 
+I'm not sure what number is the best here. So, just borrow a number from vmscan.
+(maybe not very bad number.) 
+I'd like to keep this as it is for a while but write why I selected this more.
+as..
+==
+SWAP_CLUSTER_MAX(32) is the number of pages reclaimed by vmscan.c in a turn.
+So, we borrow that number here. Considering scalability, this should 
+be proportional to the number of cpus. But it's a TO-DO now.
+==
+Maybe we cannot update this until we get 32 or 64+cpus machine...
+
+
+> > +struct memcg_stock_pcp {
+> > +	struct mem_cgroup *cached;
+> > +	int charge;
+> > +	struct work_struct work;
+> > +};
+> > +static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+> > +static DEFINE_MUTEX(memcg_drain_mutex);
+> > +
+> > +static bool consume_stock(struct mem_cgroup *mem)
+> > +{
+> > +	struct memcg_stock_pcp *stock;
+> > +	bool ret = true;
+> > +
+> > +	stock = &get_cpu_var(memcg_stock);
+> > +	if (mem == stock->cached && stock->charge)
+> > +		stock->charge -= PAGE_SIZE;
+> > +	else
+> > +		ret = false;
+> > +	put_cpu_var(memcg_stock);
+> > +	return ret;
+> > +}
+> 
+> 
+> Shouldn't consume stock and routines below check for memcg_is_root()?
+> 
+This is never called if memcg_is_root(). It's checked by caller.
+
 
 > > +
-> > +	batch = &current->memcg_batch;
-> > +	/*
-> > +	 * In usual, we do css_get() when we remember memcg pointer.
-> > +	 * But in this case, we keep res->usage until end of a series of
-> > +	 * uncharges. Then, it's ok to ignore memcg's refcnt.
-> > +	 */
-> > +	if (!batch->memcg)
-> > +		batch->memcg = mem;
-> > +	/*
-> > +	 * In typical case, batch->memcg == mem. This means we can
-> > +	 * merge a series of uncharges to an uncharge of res_counter.
-> > +	 * If not, we uncharge res_counter ony by one.
-> > +	 */
-> > +	if (batch->memcg != mem)
-> > +		goto direct_uncharge;
-> > +	/* remember freed charge and uncharge it later */
-> > +	batch->pages += PAGE_SIZE;
-> > +	if (uncharge_memsw)
-> > +		batch->memsw += PAGE_SIZE;
-> > +	return;
-> > +direct_uncharge:
-> > +	res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > +	if (uncharge_memsw)
-> > +		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +	return;
-> > +}
-> > 
-> >  /*
-> >   * uncharge if !page_mapped(page)
-> > @@ -1874,12 +1917,8 @@ __mem_cgroup_uncharge_common(struct page
-> >  		break;
-> >  	}
-> > 
-> > -	if (!mem_cgroup_is_root(mem)) {
-> > -		res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > -		if (do_swap_account &&
-> > -				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
-> > -			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > -	}
-> > +	if (!mem_cgroup_is_root(mem))
-> > +		__do_uncharge(mem, ctype);
-> >  	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-> >  		mem_cgroup_swap_statistics(mem, true);
-> >  	mem_cgroup_charge_statistics(mem, pc, false);
-> > @@ -1925,6 +1964,46 @@ void mem_cgroup_uncharge_cache_page(stru
-> >  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
-> >  }
-> > 
-> > +/*
-> > + * batch_start/batch_end is called in unmap_page_range/invlidate/trucate.
-> > + * In that cases, pages are freed continuously and we can expect pages
-> > + * are in the same memcg. All these calls itself limits the number of
-> > + * pages freed at once, then uncharge_start/end() is called properly.
-> > + */
-> > +
-> > +void mem_cgroup_uncharge_start(void)
+> > +static void drain_stock(struct memcg_stock_pcp *stock)
 > > +{
-> > +	if (!current->memcg_batch.do_batch) {
-> > +		current->memcg_batch.memcg = NULL;
-> > +		current->memcg_batch.pages = 0;
-> > +		current->memcg_batch.memsw = 0;
+> > +	struct mem_cgroup *old = stock->cached;
+> > +
+> > +	if (stock->charge) {
+> > +		res_counter_uncharge(&old->res, stock->charge);
+> > +		if (do_swap_account)
+> > +			res_counter_uncharge(&old->memsw, stock->charge);
 > > +	}
-> > +	current->memcg_batch.do_batch++;
+> > +	stock->cached = NULL;
+> > +	stock->charge = 0;
 > > +}
 > > +
-> > +void mem_cgroup_uncharge_end(void)
+> > +static void drain_local_stock(struct work_struct *dummy)
 > > +{
-> > +	struct mem_cgroup *mem;
-> > +
-> > +	if (!current->memcg_batch.do_batch)
-> > +		return;
-> > +
-> > +	current->memcg_batch.do_batch--;
-> > +	if (current->memcg_batch.do_batch) /* Nested ? */
-> > +		return;
-> > +
-> > +	mem = current->memcg_batch.memcg;
-> > +	if (!mem)
-> > +		return;
-> > +	/* This "mem" is valid bacause we hide charges behind us. */
-> > +	if (current->memcg_batch.pages)
-> > +		res_counter_uncharge(&mem->res, current->memcg_batch.pages);
-> > +	if (current->memcg_batch.memsw)
-> > +		res_counter_uncharge(&mem->memsw, current->memcg_batch.memsw);
-> > +	/* Not necessary. but forget this pointer */
-> > +	current->memcg_batch.memcg = NULL;
+> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
+> > +	drain_stock(stock);
+> > +	put_cpu_var(memcg_stock);
 > > +}
 > > +
-> >  #ifdef CONFIG_SWAP
-> >  /*
-> >   * called after __delete_from_swap_cache() and drop "page" account.
-> > Index: mmotm-2.6.31-Sep28/include/linux/sched.h
-> > ===================================================================
-> > --- mmotm-2.6.31-Sep28.orig/include/linux/sched.h
-> > +++ mmotm-2.6.31-Sep28/include/linux/sched.h
-> > @@ -1549,6 +1549,13 @@ struct task_struct {
-> >  	unsigned long trace_recursion;
-> >  #endif /* CONFIG_TRACING */
-> >  	unsigned long stack_start;
-> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR /* memcg uses this to do batch job */
-> > +	struct memcg_batch_info {
-> > +		int do_batch;
-> > +		struct mem_cgroup *memcg;
-> > +		long pages, memsw;
-> > +	} memcg_batch;
-> > +#endif
-> >  };
-> > 
-> >  /* Future-safe accessor for struct task_struct's cpus_allowed. */
-> > Index: mmotm-2.6.31-Sep28/mm/memory.c
-> > ===================================================================
-> > --- mmotm-2.6.31-Sep28.orig/mm/memory.c
-> > +++ mmotm-2.6.31-Sep28/mm/memory.c
-> > @@ -940,6 +940,7 @@ static unsigned long unmap_page_range(st
-> >  		details = NULL;
-> > 
-> >  	BUG_ON(addr >= end);
-> > +	mem_cgroup_uncharge_start();
-> >  	tlb_start_vma(tlb, vma);
-> >  	pgd = pgd_offset(vma->vm_mm, addr);
-> >  	do {
-> > @@ -952,6 +953,7 @@ static unsigned long unmap_page_range(st
-> >  						zap_work, details);
-> >  	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
-> >  	tlb_end_vma(tlb, vma);
-> > +	mem_cgroup_uncharge_end();
-> > 
-> >  	return addr;
-> >  }
-> > Index: mmotm-2.6.31-Sep28/mm/truncate.c
-> > ===================================================================
-> > --- mmotm-2.6.31-Sep28.orig/mm/truncate.c
-> > +++ mmotm-2.6.31-Sep28/mm/truncate.c
-> > @@ -272,6 +272,7 @@ void truncate_inode_pages_range(struct a
-> >  			pagevec_release(&pvec);
-> >  			break;
-> >  		}
-> > +		mem_cgroup_uncharge_start();
-> >  		for (i = 0; i < pagevec_count(&pvec); i++) {
-> >  			struct page *page = pvec.pages[i];
-> > 
-> > @@ -286,6 +287,7 @@ void truncate_inode_pages_range(struct a
-> >  			unlock_page(page);
-> >  		}
-> >  		pagevec_release(&pvec);
-> > +		mem_cgroup_uncharge_end();
-> >  	}
-> >  }
-> >  EXPORT_SYMBOL(truncate_inode_pages_range);
-> > @@ -327,6 +329,7 @@ unsigned long invalidate_mapping_pages(s
-> >  	pagevec_init(&pvec, 0);
-> >  	while (next <= end &&
-> >  			pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-> > +		mem_cgroup_uncharge_start();
-> >  		for (i = 0; i < pagevec_count(&pvec); i++) {
-> >  			struct page *page = pvec.pages[i];
-> >  			pgoff_t index;
-> > @@ -354,6 +357,7 @@ unsigned long invalidate_mapping_pages(s
-> >  				break;
-> >  		}
-> >  		pagevec_release(&pvec);
-> > +		mem_cgroup_uncharge_end();
-> >  		cond_resched();
-> >  	}
-> >  	return ret;
-> > @@ -428,6 +432,7 @@ int invalidate_inode_pages2_range(struct
-> >  	while (next <= end && !wrapped &&
-> >  		pagevec_lookup(&pvec, mapping, next,
-> >  			min(end - next, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-> > +		mem_cgroup_uncharge_start();
-> >  		for (i = 0; i < pagevec_count(&pvec); i++) {
-> >  			struct page *page = pvec.pages[i];
-> >  			pgoff_t page_index;
-> > @@ -477,6 +482,7 @@ int invalidate_inode_pages2_range(struct
-> >  			unlock_page(page);
-> >  		}
-> >  		pagevec_release(&pvec);
-> > +		mem_cgroup_uncharge_end();
-> >  		cond_resched();
-> >  	}
-> >  	return ret;
-> >
+> > +static void refill_stock(struct mem_cgroup *mem, int val)
+> > +{
+> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
+> > +
+> > +	if (stock->cached != mem) {
+> > +		drain_stock(stock);
+> > +		stock->cached = mem;
+> > +	}
 > 
-> The patch overall looks good, just some questions about it. 
+> More comments here would help
 > 
+Ah, yes. I'll add.
 
-Thanks,
+
+> > +	stock->charge += val;
+> > +	put_cpu_var(memcg_stock);
+> > +}
+> > +
+> > +static void drain_all_stock_async(void)
+> > +{
+> > +	int cpu;
+> > +	/* Contention means someone tries to flush. */
+> > +	if (!mutex_trylock(&memcg_drain_mutex))
+> > +		return;
+> > +	for_each_online_cpu(cpu) {
+> > +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> > +		if (work_pending(&stock->work))
+> > +			continue;
+> > +		INIT_WORK(&stock->work, drain_local_stock);
+> > +		schedule_work_on(cpu, &stock->work);
+> > +	}
+> > +	mutex_unlock(&memcg_drain_mutex);
+> > +	/* We don't wait for flush_work */
+> > +}
+> > +
+> > +static void drain_all_stock_sync(void)
+> > +{
+> > +	/* called when force_empty is called */
+> > +	mutex_lock(&memcg_drain_mutex);
+> > +	schedule_on_each_cpu(drain_local_stock);
+> > +	mutex_unlock(&memcg_drain_mutex);
+> > +}
+> > +
+> > +static int __cpuinit memcg_stock_cpu_callback(struct notifier_block *nb,
+> > +					unsigned long action,
+> > +					void *hcpu)
+> > +{
+> > +#ifdef CONFIG_HOTPLUG_CPU
+> > +	int cpu = (unsigned long)hcpu;
+> > +	struct memcg_stock_pcp *stock;
+> > +
+> > +	if (action != CPU_DEAD)
+> > +		return NOTIFY_OK;
+> > +	stock = &per_cpu(memcg_stock, cpu);
+> > +	drain_stock(stock);
+> > +#endif
+> > +	return NOTIFY_OK;
+> > +}
+> > +
+> >  /*
+> >   * Unlike exported interface, "oom" parameter is added. if oom==true,
+> >   * oom-killer can be invoked.
+> > @@ -1269,6 +1370,7 @@ static int __mem_cgroup_try_charge(struc
+> >  	struct mem_cgroup *mem, *mem_over_limit;
+> >  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> >  	struct res_counter *fail_res;
+> > +	int csize = CHARGE_SIZE;
+> > 
+> >  	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
+> >  		/* Don't account this! */
+> > @@ -1293,23 +1395,25 @@ static int __mem_cgroup_try_charge(struc
+> >  		return 0;
+> > 
+> >  	VM_BUG_ON(css_is_removed(&mem->css));
+> > +	if (mem_cgroup_is_root(mem))
+> > +		goto done;
+> > 
+> >  	while (1) {
+> >  		int ret = 0;
+> >  		unsigned long flags = 0;
+> > 
+> > -		if (mem_cgroup_is_root(mem))
+> > -			goto done;
+> > -		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
+> > +		if (consume_stock(mem))
+> > +			goto charged;
+> > +
+> > +		ret = res_counter_charge(&mem->res, csize, &fail_res);
+> >  		if (likely(!ret)) {
+> >  			if (!do_swap_account)
+> >  				break;
+> > -			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
+> > -							&fail_res);
+> > +			ret = res_counter_charge(&mem->memsw, csize, &fail_res);
+> >  			if (likely(!ret))
+> >  				break;
+> >  			/* mem+swap counter fails */
+> > -			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > +			res_counter_uncharge(&mem->res, csize);
+> >  			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+> >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+> >  									memsw);
+> > @@ -1318,6 +1422,11 @@ static int __mem_cgroup_try_charge(struc
+> >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
+> >  									res);
+> > 
+> > +		/* reduce request size and retry */
+> > +		if (csize > PAGE_SIZE) {
+> > +			csize = PAGE_SIZE;
+> > +			continue;
+> > +		}
+> >  		if (!(gfp_mask & __GFP_WAIT))
+> >  			goto nomem;
+> > 
+> > @@ -1347,6 +1456,9 @@ static int __mem_cgroup_try_charge(struc
+> >  			goto nomem;
+> >  		}
+> >  	}
+> > +	if (csize > PAGE_SIZE)
+> > +		refill_stock(mem, csize - PAGE_SIZE);
+> > +charged:
+> >  	/*
+> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> >  	 * if they exceeds softlimit.
+> > @@ -2463,6 +2575,7 @@ move_account:
+> >  			goto out;
+> >  		/* This is for making all *used* pages to be on LRU. */
+> >  		lru_add_drain_all();
+> > +		drain_all_stock_sync();
+> >  		ret = 0;
+> >  		for_each_node_state(node, N_HIGH_MEMORY) {
+> >  			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
+> > @@ -3181,6 +3294,7 @@ mem_cgroup_create(struct cgroup_subsys *
+> >  		root_mem_cgroup = mem;
+> >  		if (mem_cgroup_soft_limit_tree_init())
+> >  			goto free_out;
+> > +		hotcpu_notifier(memcg_stock_cpu_callback, 0);
+> > 
+> >  	} else {
+> >  		parent = mem_cgroup_from_cont(cont->parent);
+> > 
+> 
+> I tested earlier versions of the patchset and they worked absolutely
+> fine for me!
+> 
+Thanks! I'll update commentary.
+
+Regards,
 -Kame
 
 --
