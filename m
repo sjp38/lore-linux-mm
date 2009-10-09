@@ -1,273 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id ACDB96B004D
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 20:50:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n990o7vb013558
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6D52A6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 21:03:52 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9913o27019529
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 9 Oct 2009 09:50:07 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0CE845DE54
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 88E6845DE51
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 60AD31DB8045
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBEE31DB8041
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:05 +0900 (JST)
-Date: Fri, 9 Oct 2009 09:47:40 +0900
+	Fri, 9 Oct 2009 10:03:50 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BFF4745DE4E
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A2E8945DE4C
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DF511DB803E
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 399811DB8037
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
+Date: Fri, 9 Oct 2009 10:01:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
- balloon drivers
-Message-Id: <20091009094740.fe84e46a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091002184458.GC4908@austin.ibm.com>
-References: <20091002184458.GC4908@austin.ibm.com>
+Subject: Re: [patch] mm: add gfp flags for NODEMASK_ALLOC slab allocations
+Message-Id: <20091009100123.a18f2a15.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.1.00.0910081422100.676@chino.kir.corp.google.com>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
+	<20091008162527.23192.68825.sendpatchset@localhost.localdomain>
+	<alpine.DEB.1.00.0910081422100.676@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Robert Jennings <rcj@linux.vnet.ibm.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Oct 2009 13:44:58 -0500
-Robert Jennings <rcj@linux.vnet.ibm.com> wrote:
+On Thu, 8 Oct 2009 14:22:21 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> Memory balloon drivers can allocate a large amount of memory which
-> is not movable but could be freed to accomodate memory hotplug remove.
+> Objects passed to NODEMASK_ALLOC() are relatively small in size and are
+> backed by slab caches that are not of large order, traditionally never
+> greater than PAGE_ALLOC_COSTLY_ORDER.
 > 
-> Prior to calling the memory hotplug notifier chain the memory in the
-> pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
-> isolation will not proceed, causing the memory removal for that page
-> range to fail.
+> Thus, using GFP_KERNEL for these allocations on large machines when
+> CONFIG_NODES_SHIFT > 8 will cause the page allocator to loop endlessly in
+> the allocation attempt, each time invoking both direct reclaim or the oom
+> killer.
 > 
-> Rather than failing pageblock isolation if the the migrateteype is not
-> MIGRATE_MOVABLE, this patch checks if all of the pages in the pageblock
-> are owned by a registered balloon driver (or other entity) using a
-> notifier chain.  If all of the non-movable pages are owned by a balloon,
-> they can be freed later through the memory notifier chain and the range
-> can still be isolated in set_migratetype_isolate().
+> This is of particular interest when using NODEMASK_ALLOC() from a
+> mempolicy context (either directly in mm/mempolicy.c or the mempolicy
+> constrained hugetlb allocations) since the oom killer always kills
+> current when allocations are constrained by mempolicies.  So for all
+> present use cases in the kernel, current would end up being oom killed
+> when direct reclaim fails.  That would allow the NODEMASK_ALLOC() to
+> succeed but current would have sacrificed itself upon returning.
 > 
-> Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
+> This patch adds gfp flags to NODEMASK_ALLOC() to pass to kmalloc() on
+> CONFIG_NODES_SHIFT > 8; this parameter is a nop on other configurations.
+> All current use cases either directly from hugetlb code or indirectly via
+> NODEMASK_SCRATCH() union __GFP_NORETRY to avoid direct reclaim and the
+> oom killer when the slab allocator needs to allocate additional pages.
 > 
+> The side-effect of this change is that all current use cases of either
+> NODEMASK_ALLOC() or NODEMASK_SCRATCH() need appropriate -ENOMEM handling
+> when the allocation fails (never for CONFIG_NODES_SHIFT <= 8).  All
+> current use cases were audited and do have appropriate error handling at
+> this time.
+> 
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 > ---
->  drivers/base/memory.c  |   19 +++++++++++++++++++
->  include/linux/memory.h |   26 ++++++++++++++++++++++++++
->  mm/page_alloc.c        |   45 ++++++++++++++++++++++++++++++++++++++-------
->  3 files changed, 83 insertions(+), 7 deletions(-)
+>  Andrew, this was written on mmotm-09251435 plus Lee's entire patchset.
 > 
-> Index: b/drivers/base/memory.c
-> ===================================================================
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
->  }
->  EXPORT_SYMBOL(unregister_memory_notifier);
+>  include/linux/nodemask.h |   21 ++++++++++++---------
+>  mm/hugetlb.c             |    5 +++--
+>  2 files changed, 15 insertions(+), 11 deletions(-)
+> 
+> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+> --- a/include/linux/nodemask.h
+> +++ b/include/linux/nodemask.h
+> @@ -485,15 +485,17 @@ static inline int num_node_state(enum node_states state)
+>  #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
 >  
-> +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
-> +
-
-IIUC, this notifier is called under zone->lock.
-please ATOMIC_NOTIFIER_HEAD().
-
-
-
-
-> +int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(register_memory_isolate_notifier);
-> +
-> +void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
-> +}
-> +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> +
 >  /*
->   * register_memory - Setup a sysfs device for a memory block
+> - * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
+> - * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name 'm'.
+> + * For nodemask scrach area.
+> + * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
+> + * name.
 >   */
-> @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
->  	return blocking_notifier_call_chain(&memory_chain, val, v);
->  }
+> -#if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
+> -#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
+> -#define NODEMASK_FREE(m)		kfree(m)
+> +#if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
+> +#define NODEMASK_ALLOC(type, name, gfp_flags)	\
+> +			type *name = kmalloc(sizeof(*name), gfp_flags)
+> +#define NODEMASK_FREE(m)			kfree(m)
+>  #else
+> -#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
+> -#define NODEMASK_FREE(m)		do {} while (0)
+> +#define NODEMASK_ALLOC(type, name, gfp_flags)	type _name, *name = &_name
+> +#define NODEMASK_FREE(m)			do {} while (0)
+>  #endif
 >  
-> +int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
-> +}
-> +
->  /*
->   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
->   * OK to have direct references to sparsemem variables in here.
-> Index: b/include/linux/memory.h
-> ===================================================================
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -50,6 +50,18 @@ struct memory_notify {
->  	int status_change_nid;
+>  /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
+> @@ -502,8 +504,9 @@ struct nodemask_scratch {
+>  	nodemask_t	mask2;
 >  };
 >  
-> +/*
-> + * During pageblock isolation, count the number of pages in the
-> + * range [start_pfn, start_pfn + nr_pages)
-> + */
-> +#define MEM_ISOLATE_COUNT	(1<<0)
-> +
-> +struct memory_isolate_notify {
-> +	unsigned long start_pfn;
-> +	unsigned int nr_pages;
-> +	unsigned int pages_found;
-> +};
-
-Could you add commentary for each field ?
-
-> +
->  struct notifier_block;
->  struct mem_section;
+> -#define NODEMASK_SCRATCH(x)	\
+> -		NODEMASK_ALLOC(struct nodemask_scratch, x)
+> +#define NODEMASK_SCRATCH(x)						\
+> +			NODEMASK_ALLOC(struct nodemask_scratch, x,	\
+> +					GFP_KERNEL | __GFP_NORETRY)
+>  #define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
 >  
-> @@ -76,14 +88,28 @@ static inline int memory_notify(unsigned
->  {
->  	return 0;
->  }
-> +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +	return 0;
-> +}
-> +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> +{
-> +}
-> +static inline int memory_isolate_notify(unsigned long val, void *v)
-> +{
-> +	return 0;
-> +}
->  #else
->  extern int register_memory_notifier(struct notifier_block *nb);
->  extern void unregister_memory_notifier(struct notifier_block *nb);
-> +extern int register_memory_isolate_notifier(struct notifier_block *nb);
-> +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
->  extern int register_new_memory(int, struct mem_section *);
->  extern int unregister_memory_section(struct mem_section *);
->  extern int memory_dev_init(void);
->  extern int remove_memory_block(unsigned long, struct mem_section *, int);
->  extern int memory_notify(unsigned long val, void *v);
-> +extern int memory_isolate_notify(unsigned long val, void *v);
->  extern struct memory_block *find_memory_block(struct mem_section *);
->  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
->  enum mem_add_context { BOOT, HOTPLUG };
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -48,6 +48,7 @@
->  #include <linux/page_cgroup.h>
->  #include <linux/debugobjects.h>
->  #include <linux/kmemleak.h>
-> +#include <linux/memory.h>
->  #include <trace/events/kmem.h>
 >  
->  #include <asm/tlbflush.h>
-> @@ -4985,23 +4986,53 @@ void set_pageblock_flags_group(struct pa
->  int set_migratetype_isolate(struct page *page)
->  {
->  	struct zone *zone;
-> -	unsigned long flags;
-> +	unsigned long flags, pfn, iter;
-> +	unsigned long immobile = 0;
-> +	struct memory_isolate_notify arg;
-> +	int notifier_ret;
->  	int ret = -EBUSY;
->  	int zone_idx;
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1361,7 +1361,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+>  	int nid;
+>  	unsigned long count;
+>  	struct hstate *h;
+> -	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+> +	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
 >  
->  	zone = page_zone(page);
->  	zone_idx = zone_idx(zone);
-> +
->  	spin_lock_irqsave(&zone->lock, flags);
-> +	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
-> +	    zone_idx == ZONE_MOVABLE) {
-> +		ret = 0;
-> +		goto out;
-> +	}
-> +
-> +	pfn = page_to_pfn(page);
-> +	arg.start_pfn = pfn;
-> +	arg.nr_pages = pageblock_nr_pages;
-> +	arg.pages_found = 0;
-> +
->  	/*
-> -	 * In future, more migrate types will be able to be isolation target.
-> +	 * The pageblock can be isolated even if the migrate type is
-> +	 * not *_MOVABLE.  The memory isolation notifier chain counts
-> +	 * the number of pages in this pageblock that can be freed later
-> +	 * through the memory notifier chain.  If all of the pages are
-> +	 * accounted for, isolation can continue.
->  	 */
-
-Could add explanation like this ?
-==
-  Later, for example, when memory hotplug notifier runs, these pages reported as
-  "can be isoalted" should be isolated(freed) by callbacks.
-==
-
-
-
-> -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
-> -	    zone_idx != ZONE_MOVABLE)
-> +	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
-> +	notifier_ret = notifier_to_errno(notifier_ret);
-> +       	if (notifier_ret || !arg.pages_found)
->  		goto out;
-> -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> -	ret = 0;
-> +
-> +	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
-> +		if (page_count(pfn_to_page(iter)))
-> +			immobile++;
-> +
-> +	if (arg.pages_found == immobile)
-> +		ret = 0;
-> +
-
-I can't understand this part. Does this mean all pages under this pageblock
-are used by balloon driver ?
-IOW, memory is hotpluggable only when all pages under this pageblock is used
-by balloon ?
-
-
-Hmm. Can't we do this kind of check..?
-==
-     for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
-	page = pfn_to_page(iter);
-	if (!page_count(page) || PageLRU(page)) // This page is movable.
-		continue;
-	immobile++
-     }
-==
-Then, if a page is luckyly on LRU, we have more chances.
-(This check can fail if a page is on percpu pagevec etc...)
-
-Thanks,
--Kame
-
->  out:
-> +	if (!ret) {
-> +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> +	}
-> +
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  	if (!ret)
->  		drain_all_pages();
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>  	err = strict_strtoul(buf, 10, &count);
+>  	if (err)
+> @@ -1857,7 +1857,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+>  	proc_doulongvec_minmax(table, write, buffer, length, ppos);
+>  
+>  	if (write) {
+> -		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+> +		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
+> +						GFP_KERNEL | __GFP_NORETRY);
+>  		if (!(obey_mempolicy &&
+>  			       init_nodemask_of_mempolicy(nodes_allowed))) {
+>  			NODEMASK_FREE(nodes_allowed);
 > 
 
 --
