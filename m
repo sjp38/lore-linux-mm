@@ -1,286 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2108D6B004D
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 19:57:02 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n98NuxMK015826
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ACDB96B004D
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 20:50:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n990o7vb013558
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 9 Oct 2009 08:57:00 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BD49B45DE6F
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 08:56:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DD7845DE6E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 08:56:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E6461DB803A
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 08:56:59 +0900 (JST)
+	Fri, 9 Oct 2009 09:50:07 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0CE845DE54
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 88E6845DE51
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 60AD31DB8045
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:06 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 13EB81DB803E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 08:56:56 +0900 (JST)
-Date: Fri, 9 Oct 2009 08:54:35 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EBEE31DB8041
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:50:05 +0900 (JST)
+Date: Fri, 9 Oct 2009 09:47:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg: coalescing charges per cpu
-Message-Id: <20091009085435.889c9a26.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091008152620.e81d6209.akpm@linux-foundation.org>
-References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091002140343.ae63e932.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091008152620.e81d6209.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
+ balloon drivers
+Message-Id: <20091009094740.fe84e46a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20091002184458.GC4908@austin.ibm.com>
+References: <20091002184458.GC4908@austin.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Robert Jennings <rcj@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Oct 2009 15:26:20 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Fri, 2 Oct 2009 13:44:58 -0500
+Robert Jennings <rcj@linux.vnet.ibm.com> wrote:
 
-> On Fri, 2 Oct 2009 14:03:43 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Memory balloon drivers can allocate a large amount of memory which
+> is not movable but could be freed to accomodate memory hotplug remove.
 > 
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > This is a patch for coalescing access to res_counter at charging by
-> > percpu caching. At charge, memcg charges 64pages and remember it in
-> > percpu cache. Because it's cache, drain/flush is done if necessary.
-> > 
-> > This version uses public percpu area.
-> >  2 benefits of using public percpu area.
-> >  1. Sum of stocked charge in the system is limited to # of cpus
-> >     not to the number of memcg. This shows better synchonization.
-> >  2. drain code for flush/cpuhotplug is very easy (and quick)
-> > 
-> > The most important point of this patch is that we never touch res_counter
-> > in fast path. The res_counter is system-wide shared counter which is modified
-> > very frequently. We shouldn't touch it as far as we can for avoiding
-> > false sharing.
-> > 
-> > ...
-> > 
-> > +/* size of first charge trial. "32" comes from vmscan.c's magic value */
-> > +#define CHARGE_SIZE	(32 * PAGE_SIZE)
-> > +struct memcg_stock_pcp {
-> > +	struct mem_cgroup *cached;
-> > +	int charge;
-> > +	struct work_struct work;
-> > +};
-> > +static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
-> > +static DEFINE_MUTEX(memcg_drain_mutex);
-> > +
-> > +static bool consume_stock(struct mem_cgroup *mem)
-> > +{
-> > +	struct memcg_stock_pcp *stock;
-> > +	bool ret = true;
-> > +
-> > +	stock = &get_cpu_var(memcg_stock);
-> > +	if (mem == stock->cached && stock->charge)
-> > +		stock->charge -= PAGE_SIZE;
-> > +	else
-> > +		ret = false;
-> > +	put_cpu_var(memcg_stock);
-> > +	return ret;
-> > +}
+> Prior to calling the memory hotplug notifier chain the memory in the
+> pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
+> isolation will not proceed, causing the memory removal for that page
+> range to fail.
 > 
-> It's unobvious what the return value from this function means.  A nice
-> comment would help.
+> Rather than failing pageblock isolation if the the migrateteype is not
+> MIGRATE_MOVABLE, this patch checks if all of the pages in the pageblock
+> are owned by a registered balloon driver (or other entity) using a
+> notifier chain.  If all of the non-movable pages are owned by a balloon,
+> they can be freed later through the memory notifier chain and the range
+> can still be isolated in set_migratetype_isolate().
+> 
+> Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
+> 
+> ---
+>  drivers/base/memory.c  |   19 +++++++++++++++++++
+>  include/linux/memory.h |   26 ++++++++++++++++++++++++++
+>  mm/page_alloc.c        |   45 ++++++++++++++++++++++++++++++++++++++-------
+>  3 files changed, 83 insertions(+), 7 deletions(-)
+> 
+> Index: b/drivers/base/memory.c
+> ===================================================================
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
+>  }
+>  EXPORT_SYMBOL(unregister_memory_notifier);
+>  
+> +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
+> +
 
-will do.
-
-> 
-> > +static void drain_stock(struct memcg_stock_pcp *stock)
-> > +{
-> > +	struct mem_cgroup *old = stock->cached;
-> > +
-> > +	if (stock->charge) {
-> > +		res_counter_uncharge(&old->res, stock->charge);
-> > +		if (do_swap_account)
-> > +			res_counter_uncharge(&old->memsw, stock->charge);
-> > +	}
-> > +	stock->cached = NULL;
-> > +	stock->charge = 0;
-> > +}
-> > +
-> > +static void drain_local_stock(struct work_struct *dummy)
-> > +{
-> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
-> > +	drain_stock(stock);
-> > +	put_cpu_var(memcg_stock);
-> > +}
-> 
-> drain_local_stock() is only ever run by a thread which is pinned to a
-> particular CPU, so we can use plain old __get_cpu_var() here and remove
-> the put_cpu_var(), methinks.  If this is done, a comment shuold be
-> added explaining why we can use that optimisation.
-> 
-
-Ok. I'll try and test that.
+IIUC, this notifier is called under zone->lock.
+please ATOMIC_NOTIFIER_HEAD().
 
 
-> > +static void refill_stock(struct mem_cgroup *mem, int val)
-> > +{
-> > +	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
-> > +
-> > +	if (stock->cached != mem) {
-> > +		drain_stock(stock);
-> > +		stock->cached = mem;
-> > +	}
-> > +	stock->charge += val;
-> > +	put_cpu_var(memcg_stock);
-> > +}
-> > +
-> > +static void drain_all_stock_async(void)
-> > +{
-> > +	int cpu;
-> > +	/* Contention means someone tries to flush. */
-> > +	if (!mutex_trylock(&memcg_drain_mutex))
-> > +		return;
-> 
-> Any time I see a trylock I ask "hm, what happens when it fails - what
-> are the consequences and how to we later rerun the aborted operation".
-> 
-I'll add more comments.
 
-> That's unobvious here and merits a comment.
-> 
-> > +	for_each_online_cpu(cpu) {
-> 
-> Did we need get_online_cpus() here?
-> 
 
-Ahhhh, yes. It's necessary.
+> +int register_memory_isolate_notifier(struct notifier_block *nb)
+> +{
+> +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
+> +}
+> +EXPORT_SYMBOL(register_memory_isolate_notifier);
+> +
+> +void unregister_memory_isolate_notifier(struct notifier_block *nb)
+> +{
+> +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
+> +}
+> +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+> +
+>  /*
+>   * register_memory - Setup a sysfs device for a memory block
+>   */
+> @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
+>  	return blocking_notifier_call_chain(&memory_chain, val, v);
+>  }
+>  
+> +int memory_isolate_notify(unsigned long val, void *v)
+> +{
+> +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
+> +}
+> +
+>  /*
+>   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
+>   * OK to have direct references to sparsemem variables in here.
+> Index: b/include/linux/memory.h
+> ===================================================================
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -50,6 +50,18 @@ struct memory_notify {
+>  	int status_change_nid;
+>  };
+>  
+> +/*
+> + * During pageblock isolation, count the number of pages in the
+> + * range [start_pfn, start_pfn + nr_pages)
+> + */
+> +#define MEM_ISOLATE_COUNT	(1<<0)
+> +
+> +struct memory_isolate_notify {
+> +	unsigned long start_pfn;
+> +	unsigned int nr_pages;
+> +	unsigned int pages_found;
+> +};
 
-> > +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> > +		if (work_pending(&stock->work))
-> > +			continue;
-> > +		INIT_WORK(&stock->work, drain_local_stock);
-> > +		schedule_work_on(cpu, &stock->work);
-> > +	}
-> > +	mutex_unlock(&memcg_drain_mutex);
-> > +	/* We don't wait for flush_work */
-> > +}
-> > +
-> > +static void drain_all_stock_sync(void)
-> > +{
-> > +	/* called when force_empty is called */
-> > +	mutex_lock(&memcg_drain_mutex);
-> > +	schedule_on_each_cpu(drain_local_stock);
-> > +	mutex_unlock(&memcg_drain_mutex);
-> > +}
-> 
-> In fact it would be nice were each of these functions to have a brief
-> note describing their role.
-> 
-Okay. I'll add.
+Could you add commentary for each field ?
 
-> > +static int __cpuinit memcg_stock_cpu_callback(struct notifier_block *nb,
-> > +					unsigned long action,
-> > +					void *hcpu)
-> > +{
-> > +#ifdef CONFIG_HOTPLUG_CPU
-> > +	int cpu = (unsigned long)hcpu;
-> > +	struct memcg_stock_pcp *stock;
-> > +
-> > +	if (action != CPU_DEAD)
-> > +		return NOTIFY_OK;
-> > +	stock = &per_cpu(memcg_stock, cpu);
-> > +	drain_stock(stock);
-> > +#endif
-> > +	return NOTIFY_OK;
-> > +}
-> 
-> Is the ifdef needed?  Using hotcpu_notifier() should cause this entire
-> function to disappear from vmlinux when CONFIG_HOTPLUG_CPU=n.
-> 
-Ah, I didn't notice that. I'll try.
+> +
+>  struct notifier_block;
+>  struct mem_section;
+>  
+> @@ -76,14 +88,28 @@ static inline int memory_notify(unsigned
+>  {
+>  	return 0;
+>  }
+> +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
+> +{
+> +	return 0;
+> +}
+> +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
+> +{
+> +}
+> +static inline int memory_isolate_notify(unsigned long val, void *v)
+> +{
+> +	return 0;
+> +}
+>  #else
+>  extern int register_memory_notifier(struct notifier_block *nb);
+>  extern void unregister_memory_notifier(struct notifier_block *nb);
+> +extern int register_memory_isolate_notifier(struct notifier_block *nb);
+> +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+>  extern int register_new_memory(int, struct mem_section *);
+>  extern int unregister_memory_section(struct mem_section *);
+>  extern int memory_dev_init(void);
+>  extern int remove_memory_block(unsigned long, struct mem_section *, int);
+>  extern int memory_notify(unsigned long val, void *v);
+> +extern int memory_isolate_notify(unsigned long val, void *v);
+>  extern struct memory_block *find_memory_block(struct mem_section *);
+>  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
+>  enum mem_add_context { BOOT, HOTPLUG };
+> Index: b/mm/page_alloc.c
+> ===================================================================
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -48,6 +48,7 @@
+>  #include <linux/page_cgroup.h>
+>  #include <linux/debugobjects.h>
+>  #include <linux/kmemleak.h>
+> +#include <linux/memory.h>
+>  #include <trace/events/kmem.h>
+>  
+>  #include <asm/tlbflush.h>
+> @@ -4985,23 +4986,53 @@ void set_pageblock_flags_group(struct pa
+>  int set_migratetype_isolate(struct page *page)
+>  {
+>  	struct zone *zone;
+> -	unsigned long flags;
+> +	unsigned long flags, pfn, iter;
+> +	unsigned long immobile = 0;
+> +	struct memory_isolate_notify arg;
+> +	int notifier_ret;
+>  	int ret = -EBUSY;
+>  	int zone_idx;
+>  
+>  	zone = page_zone(page);
+>  	zone_idx = zone_idx(zone);
+> +
+>  	spin_lock_irqsave(&zone->lock, flags);
+> +	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
+> +	    zone_idx == ZONE_MOVABLE) {
+> +		ret = 0;
+> +		goto out;
+> +	}
+> +
+> +	pfn = page_to_pfn(page);
+> +	arg.start_pfn = pfn;
+> +	arg.nr_pages = pageblock_nr_pages;
+> +	arg.pages_found = 0;
+> +
+>  	/*
+> -	 * In future, more migrate types will be able to be isolation target.
+> +	 * The pageblock can be isolated even if the migrate type is
+> +	 * not *_MOVABLE.  The memory isolation notifier chain counts
+> +	 * the number of pages in this pageblock that can be freed later
+> +	 * through the memory notifier chain.  If all of the pages are
+> +	 * accounted for, isolation can continue.
+>  	 */
 
-Thank you.
+Could add explanation like this ?
+==
+  Later, for example, when memory hotplug notifier runs, these pages reported as
+  "can be isoalted" should be isolated(freed) by callbacks.
+==
 
-Regards,
+
+
+> -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
+> -	    zone_idx != ZONE_MOVABLE)
+> +	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
+> +	notifier_ret = notifier_to_errno(notifier_ret);
+> +       	if (notifier_ret || !arg.pages_found)
+>  		goto out;
+> -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> -	ret = 0;
+> +
+> +	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
+> +		if (page_count(pfn_to_page(iter)))
+> +			immobile++;
+> +
+> +	if (arg.pages_found == immobile)
+> +		ret = 0;
+> +
+
+I can't understand this part. Does this mean all pages under this pageblock
+are used by balloon driver ?
+IOW, memory is hotpluggable only when all pages under this pageblock is used
+by balloon ?
+
+
+Hmm. Can't we do this kind of check..?
+==
+     for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
+	page = pfn_to_page(iter);
+	if (!page_count(page) || PageLRU(page)) // This page is movable.
+		continue;
+	immobile++
+     }
+==
+Then, if a page is luckyly on LRU, we have more chances.
+(This check can fail if a page is on percpu pagevec etc...)
+
+Thanks,
 -Kame
 
-> >  /*
-> >   * Unlike exported interface, "oom" parameter is added. if oom==true,
-> >   * oom-killer can be invoked.
-> > @@ -1269,6 +1370,7 @@ static int __mem_cgroup_try_charge(struc
-> >  	struct mem_cgroup *mem, *mem_over_limit;
-> >  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> >  	struct res_counter *fail_res;
-> > +	int csize = CHARGE_SIZE;
-> >  
-> >  	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
-> >  		/* Don't account this! */
-> > @@ -1293,23 +1395,25 @@ static int __mem_cgroup_try_charge(struc
-> >  		return 0;
-> >  
-> >  	VM_BUG_ON(css_is_removed(&mem->css));
-> > +	if (mem_cgroup_is_root(mem))
-> > +		goto done;
-> >  
-> >  	while (1) {
-> >  		int ret = 0;
-> >  		unsigned long flags = 0;
-> >  
-> > -		if (mem_cgroup_is_root(mem))
-> > -			goto done;
-> > -		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res);
-> > +		if (consume_stock(mem))
-> > +			goto charged;
-> > +
-> > +		ret = res_counter_charge(&mem->res, csize, &fail_res);
-> >  		if (likely(!ret)) {
-> >  			if (!do_swap_account)
-> >  				break;
-> > -			ret = res_counter_charge(&mem->memsw, PAGE_SIZE,
-> > -							&fail_res);
-> > +			ret = res_counter_charge(&mem->memsw, csize, &fail_res);
-> >  			if (likely(!ret))
-> >  				break;
-> >  			/* mem+swap counter fails */
-> > -			res_counter_uncharge(&mem->res, PAGE_SIZE);
-> > +			res_counter_uncharge(&mem->res, csize);
-> >  			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-> >  									memsw);
-> > @@ -1318,6 +1422,11 @@ static int __mem_cgroup_try_charge(struc
-> >  			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-> >  									res);
-> >  
-> > +		/* reduce request size and retry */
-> > +		if (csize > PAGE_SIZE) {
-> > +			csize = PAGE_SIZE;
-> > +			continue;
-> > +		}
-> >  		if (!(gfp_mask & __GFP_WAIT))
-> >  			goto nomem;
-> >  
-> > @@ -1347,6 +1456,9 @@ static int __mem_cgroup_try_charge(struc
-> >  			goto nomem;
-> >  		}
-> >  	}
-> > +	if (csize > PAGE_SIZE)
-> > +		refill_stock(mem, csize - PAGE_SIZE);
-> > +charged:
-> >  	/*
-> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-> >  	 * if they exceeds softlimit.
-> > @@ -2463,6 +2575,7 @@ move_account:
-> >  			goto out;
-> >  		/* This is for making all *used* pages to be on LRU. */
-> >  		lru_add_drain_all();
-> > +		drain_all_stock_sync();
-> >  		ret = 0;
-> >  		for_each_node_state(node, N_HIGH_MEMORY) {
-> >  			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
-> > @@ -3181,6 +3294,7 @@ mem_cgroup_create(struct cgroup_subsys *
-> >  		root_mem_cgroup = mem;
-> >  		if (mem_cgroup_soft_limit_tree_init())
-> >  			goto free_out;
-> > +		hotcpu_notifier(memcg_stock_cpu_callback, 0);
-> >  
-> >  	} else {
-> >  		parent = mem_cgroup_from_cont(cont->parent);
+>  out:
+> +	if (!ret) {
+> +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> +	}
+> +
+>  	spin_unlock_irqrestore(&zone->lock, flags);
+>  	if (!ret)
+>  		drain_all_pages();
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
