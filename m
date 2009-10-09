@@ -1,46 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B03556B004D
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:55:23 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 1202A82C373
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:59:20 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.253])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id fjTD6tACY+ez for <linux-mm@kvack.org>;
-	Fri,  9 Oct 2009 09:59:20 -0400 (EDT)
-Received: from gentwo.org (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 825A982C64F
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:58:54 -0400 (EDT)
-Date: Fri, 9 Oct 2009 09:48:38 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/3] Fix memory leak of never putback pages in mbind()
-In-Reply-To: <20091009174505.12B3.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.0910090946220.26484@gentwo.org>
-References: <20091009100527.1284.A69D9226@jp.fujitsu.com> <20091009100708.1287.A69D9226@jp.fujitsu.com> <20091009174505.12B3.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 051136B004F
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 09:58:47 -0400 (EDT)
+Date: Fri, 9 Oct 2009 21:58:31 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm: make VM_MAX_READAHEAD configurable
+Message-ID: <20091009135831.GA15425@localhost>
+References: <1255087175-21200-1-git-send-email-ehrhardt@linux.vnet.ibm.com> <1255090830.8802.60.camel@laptop> <20091009122952.GI9228@kernel.dk> <20091009154950.43f01784@mschwide.boeblingen.de.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091009154950.43f01784@mschwide.boeblingen.de.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Oct 2009, KOSAKI Motohiro wrote:
+On Fri, Oct 09, 2009 at 09:49:50PM +0800, Martin Schwidefsky wrote:
+> On Fri, 9 Oct 2009 14:29:52 +0200
+> Jens Axboe <jens.axboe@oracle.com> wrote:
+> 
+> > On Fri, Oct 09 2009, Peter Zijlstra wrote:
+> > > On Fri, 2009-10-09 at 13:19 +0200, Ehrhardt Christian wrote:
+> > > > From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+> > > > 
+> > > > On one hand the define VM_MAX_READAHEAD in include/linux/mm.h is just a default
+> > > > and can be configured per block device queue.
+> > > > On the other hand a lot of admins do not use it, therefore it is reasonable to
+> > > > set a wise default.
+> > > > 
+> > > > This path allows to configure the value via Kconfig mechanisms and therefore
+> > > > allow the assignment of different defaults dependent on other Kconfig symbols.
+> > > > 
+> > > > Using this, the patch increases the default max readahead for s390 improving
+> > > > sequential throughput in a lot of scenarios with almost no drawbacks (only
+> > > > theoretical workloads with a lot concurrent sequential read patterns on a very
+> > > > low memory system suffer due to page cache trashing as expected).
+> > > 
+> > > Why can't this be solved in userspace?
+> > > 
+> > > Also, can't we simply raise this number if appropriate? Wu did some
+> > > read-ahead trashing detection bits a long while back which should scale
+> > > the read-ahead window back when we're low on memory, not sure that ever
+> > > made it in, but that sounds like a better option than having different
+> > > magic numbers for each platform.
+> > 
+> > Agree, making this a config option (and even defaulting to a different
+> > number because of an arch setting) is crazy.
+> 
+> The patch from Christian fixes a performance regression in the latest
+> distributions for s390. So we would opt for a larger value, 512KB seems
+> to be a good one. I have no idea what that will do to the embedded
+> space which is why Christian choose to make it configurable. Clearly
+> the better solution would be some sort of system control that can be
+> modified at runtime. 
 
-> Oops, I forgot to remove unnecessary brace.
-> updated patch is here.
+So how about doing two patches together?
 
-Thats a style issue. There are other weird things in do_mbind as well
-like starting a new block in the middle of another.
+- lift default readahead size to around 512KB
+- add some readahead logic to better support the thrashing case
 
-Having
-
-}
-{
-
-in a program is a bit confusing. So could you do a cleanup patch for
-mpol_bind? Preferably it should make it easy to read to and bring some
-order to the confusing error handling.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
