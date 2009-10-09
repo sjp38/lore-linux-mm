@@ -1,146 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6D52A6B004D
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 21:03:52 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9913o27019529
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 9 Oct 2009 10:03:50 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BFF4745DE4E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A2E8945DE4C
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DF511DB803E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 399811DB8037
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:03:49 +0900 (JST)
-Date: Fri, 9 Oct 2009 10:01:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm: add gfp flags for NODEMASK_ALLOC slab allocations
-Message-Id: <20091009100123.a18f2a15.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.1.00.0910081422100.676@chino.kir.corp.google.com>
-References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
-	<20091008162527.23192.68825.sendpatchset@localhost.localdomain>
-	<alpine.DEB.1.00.0910081422100.676@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 55F1D6B005A
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2009 21:07:04 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n991713k011897
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 9 Oct 2009 10:07:02 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5EAC845DE55
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:07:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A78B45DE57
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:07:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C8EBC1DF8001
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:07:00 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 64ECB1DB803C
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:07:00 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/3] mm: move inc_zone_page_state(NR_ISOLATED) to just isolated place
+Message-Id: <20091009100527.1284.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri,  9 Oct 2009 10:06:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Oct 2009 14:22:21 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+This patch series is trivial cleanup and fix of page migration.
 
-> Objects passed to NODEMASK_ALLOC() are relatively small in size and are
-> backed by slab caches that are not of large order, traditionally never
-> greater than PAGE_ALLOC_COSTLY_ORDER.
-> 
-> Thus, using GFP_KERNEL for these allocations on large machines when
-> CONFIG_NODES_SHIFT > 8 will cause the page allocator to loop endlessly in
-> the allocation attempt, each time invoking both direct reclaim or the oom
-> killer.
-> 
-> This is of particular interest when using NODEMASK_ALLOC() from a
-> mempolicy context (either directly in mm/mempolicy.c or the mempolicy
-> constrained hugetlb allocations) since the oom killer always kills
-> current when allocations are constrained by mempolicies.  So for all
-> present use cases in the kernel, current would end up being oom killed
-> when direct reclaim fails.  That would allow the NODEMASK_ALLOC() to
-> succeed but current would have sacrificed itself upon returning.
-> 
-> This patch adds gfp flags to NODEMASK_ALLOC() to pass to kmalloc() on
-> CONFIG_NODES_SHIFT > 8; this parameter is a nop on other configurations.
-> All current use cases either directly from hugetlb code or indirectly via
-> NODEMASK_SCRATCH() union __GFP_NORETRY to avoid direct reclaim and the
-> oom killer when the slab allocator needs to allocate additional pages.
-> 
-> The side-effect of this change is that all current use cases of either
-> NODEMASK_ALLOC() or NODEMASK_SCRATCH() need appropriate -ENOMEM handling
-> when the allocation fails (never for CONFIG_NODES_SHIFT <= 8).  All
-> current use cases were audited and do have appropriate error handling at
-> this time.
-> 
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+==========================================================
 
-> ---
->  Andrew, this was written on mmotm-09251435 plus Lee's entire patchset.
-> 
->  include/linux/nodemask.h |   21 ++++++++++++---------
->  mm/hugetlb.c             |    5 +++--
->  2 files changed, 15 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-> --- a/include/linux/nodemask.h
-> +++ b/include/linux/nodemask.h
-> @@ -485,15 +485,17 @@ static inline int num_node_state(enum node_states state)
->  #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
->  
->  /*
-> - * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
-> - * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name 'm'.
-> + * For nodemask scrach area.
-> + * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
-> + * name.
->   */
-> -#if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
-> -#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
-> -#define NODEMASK_FREE(m)		kfree(m)
-> +#if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
-> +#define NODEMASK_ALLOC(type, name, gfp_flags)	\
-> +			type *name = kmalloc(sizeof(*name), gfp_flags)
-> +#define NODEMASK_FREE(m)			kfree(m)
->  #else
-> -#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
-> -#define NODEMASK_FREE(m)		do {} while (0)
-> +#define NODEMASK_ALLOC(type, name, gfp_flags)	type _name, *name = &_name
-> +#define NODEMASK_FREE(m)			do {} while (0)
->  #endif
->  
->  /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
-> @@ -502,8 +504,9 @@ struct nodemask_scratch {
->  	nodemask_t	mask2;
->  };
->  
-> -#define NODEMASK_SCRATCH(x)	\
-> -		NODEMASK_ALLOC(struct nodemask_scratch, x)
-> +#define NODEMASK_SCRATCH(x)						\
-> +			NODEMASK_ALLOC(struct nodemask_scratch, x,	\
-> +					GFP_KERNEL | __GFP_NORETRY)
->  #define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
->  
->  
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1361,7 +1361,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
->  	int nid;
->  	unsigned long count;
->  	struct hstate *h;
-> -	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
-> +	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
->  
->  	err = strict_strtoul(buf, 10, &count);
->  	if (err)
-> @@ -1857,7 +1857,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->  	proc_doulongvec_minmax(table, write, buffer, length, ppos);
->  
->  	if (write) {
-> -		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
-> +		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
-> +						GFP_KERNEL | __GFP_NORETRY);
->  		if (!(obey_mempolicy &&
->  			       init_nodemask_of_mempolicy(nodes_allowed))) {
->  			NODEMASK_FREE(nodes_allowed);
-> 
+Christoph pointed out inc_zone_page_state(NR_ISOLATED) should be placed
+in right after isolate_page().
+
+This patch does it.
+
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/memory_hotplug.c |    4 ++++
+ mm/mempolicy.c      |    3 +++
+ mm/migrate.c        |   12 ++++--------
+ 3 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 821dee5..653bf1e 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -26,6 +26,7 @@
+ #include <linux/migrate.h>
+ #include <linux/page-isolation.h>
+ #include <linux/pfn.h>
++#include <linux/mm_inline.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -663,6 +664,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 		if (!ret) { /* Success */
+ 			list_add_tail(&page->lru, &source);
+ 			move_pages--;
++			inc_zone_page_state(page, NR_ISOLATED_ANON +
++					    page_is_file_cache(page));
++
+ 		} else {
+ 			/* Becasue we don't have big zone->lock. we should
+ 			   check this again here. */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 7dd9d9f..473f888 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -89,6 +89,7 @@
+ #include <linux/security.h>
+ #include <linux/syscalls.h>
+ #include <linux/ctype.h>
++#include <linux/mm_inline.h>
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -809,6 +810,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
+ 		if (!isolate_lru_page(page)) {
+ 			list_add_tail(&page->lru, pagelist);
++			inc_zone_page_state(page, NR_ISOLATED_ANON +
++					    page_is_file_cache(page));
+ 		}
+ 	}
+ }
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 1a4bf48..0f66803 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -746,13 +746,6 @@ int migrate_pages(struct list_head *from,
+ 	struct page *page2;
+ 	int swapwrite = current->flags & PF_SWAPWRITE;
+ 	int rc;
+-	unsigned long flags;
+-
+-	local_irq_save(flags);
+-	list_for_each_entry(page, from, lru)
+-		__inc_zone_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
+-	local_irq_restore(flags);
+ 
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+@@ -878,8 +871,11 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 			goto put_and_set;
+ 
+ 		err = isolate_lru_page(page);
+-		if (!err)
++		if (!err) {
+ 			list_add_tail(&page->lru, &pagelist);
++			inc_zone_page_state(page, NR_ISOLATED_ANON +
++					    page_is_file_cache(page));
++		}
+ put_and_set:
+ 		/*
+ 		 * Either remove the duplicate refcount from
+-- 
+1.6.0.GIT
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
