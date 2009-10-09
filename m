@@ -1,283 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1506B004D
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 10:43:27 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n99EatMG024697
-	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:36:55 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n99EhKpL198242
-	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:43:20 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n99EhHWx013790
-	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 08:43:19 -0600
-Date: Fri, 9 Oct 2009 09:43:16 -0500
-From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
-	balloon drivers
-Message-ID: <20091009144316.GB11543@austin.ibm.com>
-References: <20091002184458.GC4908@austin.ibm.com> <20091009112136.GB24845@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20091009112136.GB24845@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 929E86B004D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 11:13:08 -0400 (EDT)
+Subject: Re: [PATCH 7/12] hugetlb:  add per node hstate attributes
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
+	 <20091008162539.23192.3642.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com>
+Content-Type: text/plain
+Date: Fri, 09 Oct 2009 09:49:58 -0400
+Message-Id: <1255096198.14370.65.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-* Mel Gorman (mel@csn.ul.ie) wrote:
-> On Fri, Oct 02, 2009 at 01:44:58PM -0500, Robert Jennings wrote:
-> > Memory balloon drivers can allocate a large amount of memory which
-> > is not movable but could be freed to accomodate memory hotplug remove.
-> > 
-> > Prior to calling the memory hotplug notifier chain the memory in the
-> > pageblock is isolated.  If the migrate type is not MIGRATE_MOVABLE the
-> > isolation will not proceed, causing the memory removal for that page
-> > range to fail.
-> > 
-> > Rather than failing pageblock isolation if the the migrateteype is not
+On Thu, 2009-10-08 at 13:42 -0700, David Rientjes wrote:
+> On Thu, 8 Oct 2009, Lee Schermerhorn wrote:
 > 
-> s/the the migrateteype/the migratetype/
-> 
-> > MIGRATE_MOVABLE, this patch checks if all of the pages in the pageblock
-> > are owned by a registered balloon driver (or other entity) using a
-> > notifier chain.  If all of the non-movable pages are owned by a balloon,
-> > they can be freed later through the memory notifier chain and the range
-> > can still be isolated in set_migratetype_isolate().
-> > 
-> > Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
-> > 
-> > ---
-> >  drivers/base/memory.c  |   19 +++++++++++++++++++
-> >  include/linux/memory.h |   26 ++++++++++++++++++++++++++
-> >  mm/page_alloc.c        |   45 ++++++++++++++++++++++++++++++++++++++-------
-> >  3 files changed, 83 insertions(+), 7 deletions(-)
-> > 
-> > Index: b/drivers/base/memory.c
-> > ===================================================================
-> > --- a/drivers/base/memory.c
-> > +++ b/drivers/base/memory.c
-> > @@ -63,6 +63,20 @@ void unregister_memory_notifier(struct n
-> >  }
-> >  EXPORT_SYMBOL(unregister_memory_notifier);
-> >  
-> > +static BLOCKING_NOTIFIER_HEAD(memory_isolate_chain);
-> > +
-> > +int register_memory_isolate_notifier(struct notifier_block *nb)
-> > +{
-> > +	return blocking_notifier_chain_register(&memory_isolate_chain, nb);
-> > +}
-> > +EXPORT_SYMBOL(register_memory_isolate_notifier);
-> > +
-> > +void unregister_memory_isolate_notifier(struct notifier_block *nb)
-> > +{
-> > +	blocking_notifier_chain_unregister(&memory_isolate_chain, nb);
-> > +}
-> > +EXPORT_SYMBOL(unregister_memory_isolate_notifier);
-> > +
-> >  /*
-> >   * register_memory - Setup a sysfs device for a memory block
-> >   */
-> > @@ -157,6 +171,11 @@ int memory_notify(unsigned long val, voi
-> >  	return blocking_notifier_call_chain(&memory_chain, val, v);
-> >  }
-> >  
-> > +int memory_isolate_notify(unsigned long val, void *v)
-> > +{
-> > +	return blocking_notifier_call_chain(&memory_isolate_chain, val, v);
-> > +}
-> > +
-> >  /*
-> >   * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
-> >   * OK to have direct references to sparsemem variables in here.
-> > Index: b/include/linux/memory.h
-> > ===================================================================
-> > --- a/include/linux/memory.h
-> > +++ b/include/linux/memory.h
-> > @@ -50,6 +50,18 @@ struct memory_notify {
-> >  	int status_change_nid;
-> >  };
-> >  
-> > +/*
-> > + * During pageblock isolation, count the number of pages in the
-> > + * range [start_pfn, start_pfn + nr_pages)
-> > + */
-> > 
-> 
-> The comment could have been slightly better. The count of pages in the
-> range is nr_pages - memory_holes but what you're counting is the number
-> of pages owned by the balloon driver in the notification chain.
-
-Right, it is misleading.  I'll fix this.
-
-> > +#define MEM_ISOLATE_COUNT	(1<<0)
-> > +
-> > +struct memory_isolate_notify {
-> > +	unsigned long start_pfn;
-> > +	unsigned int nr_pages;
-> > +	unsigned int pages_found;
+<snip>
+> > +static struct attribute_group per_node_hstate_attr_group = {
+> > +	.attrs = per_node_hstate_attrs,
 > > +};
 > > +
-> >  struct notifier_block;
-> >  struct mem_section;
-> >  
-> > @@ -76,14 +88,28 @@ static inline int memory_notify(unsigned
-> >  {
-> >  	return 0;
-> >  }
-> > +static inline int register_memory_isolate_notifier(struct notifier_block *nb)
+> > +/*
+> > + * kobj_to_node_hstate - lookup global hstate for node sysdev hstate attr kobj.
+> > + * Returns node id via non-NULL nidp.
+> > + */
+> > +static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
 > > +{
-> > +	return 0;
+> > +	int nid;
+> > +
+> > +	for (nid = 0; nid < nr_node_ids; nid++) {
+> 
+> I previously asked if this should use for_each_node_mask() instead?
+
+sorry, missed this comment [and one at end] in my prev response.  Too
+much multi-tasking.
+
+This also could interate over a node mask for consistency, I think.
+Again, current version works because we're looking for node sysdev based
+on a per node attribute kobj.  We only add the attributes to nodes with
+memory.  So, we're potentially visiting a few more nodes than necessary
+on some platforms.  Shouldn't be a performance issue.  
+
+> 
+> > +		struct node_hstate *nhs = &node_hstates[nid];
+> > +		int i;
+> > +		for (i = 0; i < HUGE_MAX_HSTATE; i++)
+> > +			if (nhs->hstate_kobjs[i] == kobj) {
+> > +				if (nidp)
+> > +					*nidp = nid;
+> > +				return &hstates[i];
+> > +			}
+> > +	}
+> > +
+> > +	BUG();
+> > +	return NULL;
 > > +}
-> > +static inline void unregister_memory_isolate_notifier(struct notifier_block *nb)
+> > +
+<snip>
+> > +
+> > +/*
+> > + * hugetlb init time:  register hstate attributes for all registered
+> > + * node sysdevs.  All on-line nodes should have registered their
+> > + * associated sysdev by the time the hugetlb module initializes.
+> > + */
+> > +static void hugetlb_register_all_nodes(void)
 > > +{
+> > +	int nid;
+> > +
+> > +	for (nid = 0; nid < nr_node_ids; nid++) {
+> > +		struct node *node = &node_devices[nid];
+> > +		if (node->sysdev.id == nid)
+> > +			hugetlb_register_node(node);
+> > +	}
+> 
+> This looks like another use of for_each_node_mask over N_HIGH_MEMORY.  I 
+> previously asked if the check for node->sysdev.id == nid is still 
+> necessary at this point?
+
+already answered this.
+> 
+> > +
+> > +	/*
+> > +	 * Let the node sysdev driver know we're here so it can
+> > +	 * [un]register hstate attributes on node hotplug.
+> > +	 */
+> > +	register_hugetlbfs_with_node(hugetlb_register_node,
+> > +				     hugetlb_unregister_node);
 > > +}
-> > +static inline int memory_isolate_notify(unsigned long val, void *v)
-> > +{
-> > +	return 0;
-> > +}
-> >  #else
-> >  extern int register_memory_notifier(struct notifier_block *nb);
-> >  extern void unregister_memory_notifier(struct notifier_block *nb);
-> > +extern int register_memory_isolate_notifier(struct notifier_block *nb);
-> > +extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
-> >  extern int register_new_memory(int, struct mem_section *);
-> >  extern int unregister_memory_section(struct mem_section *);
-> >  extern int memory_dev_init(void);
-> >  extern int remove_memory_block(unsigned long, struct mem_section *, int);
-> >  extern int memory_notify(unsigned long val, void *v);
-> > +extern int memory_isolate_notify(unsigned long val, void *v);
-> >  extern struct memory_block *find_memory_block(struct mem_section *);
-> >  #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
-> >  enum mem_add_context { BOOT, HOTPLUG };
-> > Index: b/mm/page_alloc.c
+> > +#else	/* !CONFIG_NUMA */
+
+
+> > Index: linux-2.6.31-mmotm-090925-1435/include/linux/node.h
 > > ===================================================================
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -48,6 +48,7 @@
-> >  #include <linux/page_cgroup.h>
-> >  #include <linux/debugobjects.h>
-> >  #include <linux/kmemleak.h>
-> > +#include <linux/memory.h>
-> >  #include <trace/events/kmem.h>
+> > --- linux-2.6.31-mmotm-090925-1435.orig/include/linux/node.h	2009-10-07 12:31:51.000000000 -0400
+> > +++ linux-2.6.31-mmotm-090925-1435/include/linux/node.h	2009-10-07 12:32:01.000000000 -0400
+> > @@ -28,6 +28,7 @@ struct node {
 > >  
-> >  #include <asm/tlbflush.h>
-> > @@ -4985,23 +4986,53 @@ void set_pageblock_flags_group(struct pa
-> >  int set_migratetype_isolate(struct page *page)
-> >  {
-> >  	struct zone *zone;
-> > -	unsigned long flags;
-> > +	unsigned long flags, pfn, iter;
-> > +	unsigned long immobile = 0;
-> > +	struct memory_isolate_notify arg;
-> > +	int notifier_ret;
-> >  	int ret = -EBUSY;
-> >  	int zone_idx;
+> >  struct memory_block;
+> >  extern struct node node_devices[];
+> > +typedef  void (*node_registration_func_t)(struct node *);
 > >  
-> >  	zone = page_zone(page);
-> >  	zone_idx = zone_idx(zone);
-> > +
-> >  	spin_lock_irqsave(&zone->lock, flags);
-> > +	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
-> > +	    zone_idx == ZONE_MOVABLE) {
-> > +		ret = 0;
-> > +		goto out;
-> > +	}
-> > +
-> > +	pfn = page_to_pfn(page);
-> > +	arg.start_pfn = pfn;
-> > +	arg.nr_pages = pageblock_nr_pages;
-> > +	arg.pages_found = 0;
-> > +
-> >  	/*
-> > -	 * In future, more migrate types will be able to be isolation target.
-> > +	 * The pageblock can be isolated even if the migrate type is
-> > +	 * not *_MOVABLE.  The memory isolation notifier chain counts
-> > +	 * the number of pages in this pageblock that can be freed later
-> > +	 * through the memory notifier chain.  If all of the pages are
-> > +	 * accounted for, isolation can continue.
+> >  extern int register_node(struct node *, int, struct node *);
+> >  extern void unregister_node(struct node *node);
 > 
-> This comment could have been clearer as well
-> 
-> * It may be possible to isolate a pageblock even if the migratetype is
-> * not MIGRATE_MOVABLE. The memory isolation notifier chain is used by
-> * balloon drivers to return the number of pages in a range that are held
-> * by the balloon driver to shrink memory. If all the pages are accounted
-> * for by balloons or are free, isolation can continue
+> I previously suggested against the typedef unless this functionality (node 
+> hotplug notifiers) becomes more generic outside of the hugetlb use case.
 
- * It may be possible to isolate a pageblock even if the migratetype is
- * not MIGRATE_MOVABLE. The memory isolation notifier chain is used by
- * balloon drivers to return the number of pages in a range that are held
- * by the balloon driver to shrink memory. If all the pages are accounted
- * for by balloons, are free, or on the LRU, isolation can continue.
- * Later, for example, when memory hotplug notifier runs, these pages
- * reported as "can be isolated" should be isolated(freed) by the balloon
- * driver through the memory notifier chain.
+I'd like to keep it.  I've read the CodingStyle and I know it argues
+against typedefs, but the strongest prohibition is against [pointers to]
+structs whose members could be reasonable accessed.  I don't think I
+violate that.  And, this does allow the registration function
+definitions that take the func pointer as an argument to show up in
+cscope.  I find that useful.  Wish they all did [func defs with func
+args show up in cscope, that is].  But, if you and others feel strongly
+about this, I suppose we can rip it out.
 
-> >  	 */
-> > -	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
-> > -	    zone_idx != ZONE_MOVABLE)
-> > +	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
-> > +	notifier_ret = notifier_to_errno(notifier_ret);
-> > +       	if (notifier_ret || !arg.pages_found)
-> >  		goto out;
-> > -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> > -	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> > -	ret = 0;
-> > +
-> > +	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++)
-> > +		if (page_count(pfn_to_page(iter)))
-> > +			immobile++;
-> > +
-> 
-> This part here is not safe when CONFIG_HOLES_IN_ZONE is set. You need to
-> make it something like
-> 
-> for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
-> 	if (!pfn_valid_within(pfn))
-> 		continue;
-> 
-> 	if (page_count(pfn_to_page(iter)))
-> 		immobile++;
-> }
-> 
-> You shouldn't need to run pfn_valid() as you're always starting from a valid
-> page and never going outside MAX_ORDER_NR_PAGES in this iterator.
-> 
 
-I will make this change.
-
-> > +	if (arg.pages_found == immobile)
-> > +		ret = 0;
-> > +
-> 
-> Ok, so if all pages in a range that are in use match the count returned
-> by the balloon, then it's ok to isolate.
-
-Correct. 
-
-> >  out:
-> > +	if (!ret) {
-> > +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> > +		move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> > +	}
-> > +
-> >  	spin_unlock_irqrestore(&zone->lock, flags);
-> >  	if (!ret)
-> >  		drain_all_pages();
-> > 
-> 
-> The patch looks more or less sane. It would be nice to have a follow-on patch
-> that clarified some details but it's not necessary. The pfn_valid_within()
-> should be done as a follow-on patch. I haven't actually tested this but
-> otherwise it looks ok. Once the pfn_valid_within() is sorted out, it has
-> my Ack.
-
-I'll be sending out a new revision of this patch rather than a
-follow-on due to other changes (change from BLOCKING_NOTIFIER_HEAD to
-ATOMIC_NOTIFIER_HEAD) and I will include changes discussed here.  Thank
-you for the review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
