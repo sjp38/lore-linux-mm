@@ -1,211 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 35FF16B005D
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 05:28:36 -0400 (EDT)
-Date: Fri, 9 Oct 2009 10:28:18 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH] munmap() don't check sysctl_max_mapcount
-In-Reply-To: <20091002180533.5F77.A69D9226@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0910091007010.17240@sister.anvils>
-References: <20091002180533.5F77.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 81E226B004D
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2009 07:19:41 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.13.1/8.13.1) with ESMTP id n99BJbOr019226
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 11:19:37 GMT
+Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n99BJZIw3424334
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 13:19:37 +0200
+Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n99BJZBL009805
+	for <linux-mm@kvack.org>; Fri, 9 Oct 2009 13:19:35 +0200
+From: Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>
+Subject: [PATCH] mm: make VM_MAX_READAHEAD configurable
+Date: Fri,  9 Oct 2009 13:19:35 +0200
+Message-Id: <1255087175-21200-1-git-send-email-ehrhardt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Oct 2009, KOSAKI Motohiro wrote:
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
-> Hi everyone,
-> 
-> Is this good idea?
+On one hand the define VM_MAX_READAHEAD in include/linux/mm.h is just a default
+and can be configured per block device queue.
+On the other hand a lot of admins do not use it, therefore it is reasonable to
+set a wise default.
 
-Sorry, I overlooked this earlier.
+This path allows to configure the value via Kconfig mechanisms and therefore
+allow the assignment of different defaults dependent on other Kconfig symbols.
 
-Correct me if I'm wrong, but from the look of your patch,
-I believe anyone could increase their mapcount arbitrarily far beyond
-sysctl_max_map_count, just by taking little bites out of a large mmap.
+Using this, the patch increases the default max readahead for s390 improving
+sequential throughput in a lot of scenarios with almost no drawbacks (only
+theoretical workloads with a lot concurrent sequential read patterns on a very
+low memory system suffer due to page cache trashing as expected).
 
-In which case there's not much point in having sysctl_max_map_count
-at all.  Perhaps there isn't much point to it anyway, and the answer
-is just to raise it to where it catches runaways but interferes with
-nobody else?
+Signed-off-by: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+---
 
-If you change your patch so that do_munmap() cannot increase the final
-number vmas beyond sysctl_max_map_count, that would seem reasonable.
-But would that satisfy your testcase?  And does the testcase really
-matter in practice?  It doesn't seem to have upset anyone before.
+[diffstat]
+ include/linux/mm.h |    2 +-
+ mm/Kconfig         |   19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
 
-Hugh
-
-> 
-> 
-> ====================================================================
-> From 0b9de3b65158847d376e2786840f932361d00e08 Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Fri, 18 Sep 2009 13:22:06 +0900
-> Subject: [PATCH] munmap() don't check sysctl_max_mapcount
-> 
-> On ia64, the following test program exit abnormally, because
-> glibc thread library called abort().
-> 
->  ========================================================
->  (gdb) bt
->  #0  0xa000000000010620 in __kernel_syscall_via_break ()
->  #1  0x20000000003208e0 in raise () from /lib/libc.so.6.1
->  #2  0x2000000000324090 in abort () from /lib/libc.so.6.1
->  #3  0x200000000027c3e0 in __deallocate_stack () from /lib/libpthread.so.0
->  #4  0x200000000027f7c0 in start_thread () from /lib/libpthread.so.0
->  #5  0x200000000047ef60 in __clone2 () from /lib/libc.so.6.1
->  ========================================================
-> 
-> The fact is, glibc call munmap() when thread exitng time for freeing stack, and
-> it assume munlock() never fail. However, munmap() often make vma splitting
-> and it with many mapcount make -ENOMEM.
-> 
-> Oh well, stack unfreeing is not reasonable option. Also munlock() via free()
-> shouldn't failed.
-> 
-> Thus, munmap() shoudn't check max-mapcount. This patch does it.
-> 
->  test_max_mapcount.c
->  ==================================================================
->   #include<stdio.h>
->   #include<stdlib.h>
->   #include<string.h>
->   #include<pthread.h>
->   #include<errno.h>
->   #include<unistd.h>
->  
->   #define THREAD_NUM 30000
->   #define MAL_SIZE (100*1024)
->  
->  void *wait_thread(void *args)
->  {
->  	void *addr;
->  
->  	addr = malloc(MAL_SIZE);
->  	if(addr)
->  		memset(addr, 1, MAL_SIZE);
->  	sleep(1);
->  
->  	return NULL;
->  }
->  
->  void *wait_thread2(void *args)
->  {
->  	sleep(60);
->  
->  	return NULL;
->  }
->  
->  int main(int argc, char *argv[])
->  {
->  	int i;
->  	pthread_t thread[THREAD_NUM], th;
->  	int ret, count = 0;
->  	pthread_attr_t attr;
->  
->  	ret = pthread_attr_init(&attr);
->  	if(ret) {
->  		perror("pthread_attr_init");
->  	}
->  
->  	ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
->  	if(ret) {
->  		perror("pthread_attr_setdetachstate");
->  	}
->  
->  	for (i = 0; i < THREAD_NUM; i++) {
->  		ret = pthread_create(&th, &attr, wait_thread, NULL);
->  		if(ret) {
->  			fprintf(stderr, "[%d] ", count);
->  			perror("pthread_create");
->  		} else {
->  			printf("[%d] create OK.\n", count);
->  		}
->  		count++;
->  
->  		ret = pthread_create(&thread[i], &attr, wait_thread2, NULL);
->  		if(ret) {
->  			fprintf(stderr, "[%d] ", count);
->  			perror("pthread_create");
->  		} else {
->  			printf("[%d] create OK.\n", count);
->  		}
->  		count++;
->  	}
->  
->  	sleep(3600);
->  	return 0;
->  }
->  ==================================================================
-> 
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/mmap.c |   18 ++++++++++++------
->  1 file changed, 12 insertions(+), 6 deletions(-)
-> 
-> Index: b/mm/mmap.c
-> ===================================================================
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1832,7 +1832,7 @@ detach_vmas_to_be_unmapped(struct mm_str
->   * Split a vma into two pieces at address 'addr', a new vma is allocated
->   * either for the first part or the tail.
->   */
-> -int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
-> +static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
->  	      unsigned long addr, int new_below)
->  {
->  	struct mempolicy *pol;
-> @@ -1842,9 +1842,6 @@ int split_vma(struct mm_struct * mm, str
->  					~(huge_page_mask(hstate_vma(vma)))))
->  		return -EINVAL;
->  
-> -	if (mm->map_count >= sysctl_max_map_count)
-> -		return -ENOMEM;
-> -
->  	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
->  	if (!new)
->  		return -ENOMEM;
-> @@ -1884,6 +1881,15 @@ int split_vma(struct mm_struct * mm, str
->  	return 0;
->  }
->  
-> +int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
-> +	      unsigned long addr, int new_below)
-> +{
-> +	if (mm->map_count >= sysctl_max_map_count)
-> +		return -ENOMEM;
-> +
-> +	return __split_vma(mm, vma, addr, new_below);
-> +}
-> +
->  /* Munmap is split into 2 main parts -- this part which finds
->   * what needs doing, and the areas themselves, which do the
->   * work.  This now handles partial unmappings.
-> @@ -1919,7 +1925,7 @@ int do_munmap(struct mm_struct *mm, unsi
->  	 * places tmp vma above, and higher split_vma places tmp vma below.
->  	 */
->  	if (start > vma->vm_start) {
-> -		int error = split_vma(mm, vma, start, 0);
-> +		int error = __split_vma(mm, vma, start, 0);
->  		if (error)
->  			return error;
->  		prev = vma;
-> @@ -1928,7 +1934,7 @@ int do_munmap(struct mm_struct *mm, unsi
->  	/* Does it split the last one? */
->  	last = find_vma(mm, end);
->  	if (last && end > last->vm_start) {
-> -		int error = split_vma(mm, last, end, 1);
-> +		int error = __split_vma(mm, last, end, 1);
->  		if (error)
->  			return error;
->  	}
+[diff]
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -1169,7 +1169,7 @@ int write_one_page(struct page *page, in
+ void task_dirty_inc(struct task_struct *tsk);
+ 
+ /* readahead.c */
+-#define VM_MAX_READAHEAD	128	/* kbytes */
++#define VM_MAX_READAHEAD	CONFIG_VM_MAX_READAHEAD	/* kbytes */
+ #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
+ 
+ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+Index: linux-2.6/mm/Kconfig
+===================================================================
+--- linux-2.6.orig/mm/Kconfig
++++ linux-2.6/mm/Kconfig
+@@ -288,3 +288,22 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
+ 
+ 	  See Documentation/nommu-mmap.txt for more information.
++
++config VM_MAX_READAHEAD
++	int "Default max vm readahead size (16-4096 kbytes)"
++	default "512" if S390
++	default "128"
++	range 16 4096
++	help
++	  This entry specifies the default max size used to read ahead
++	  sequential access patterns in kilobytes.
++
++	  The value can be configured per device queue in /dev, this setting
++	  just defines the default.
++
++	  The default is 128 which it used to be for years and should suit all
++	  kind of linux targets.
++
++	  Smaller values might be useful for very memory constrained systems
++	  like some embedded systems to avoid page cache trashing, while larger
++	  values can be beneficial to server installations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
