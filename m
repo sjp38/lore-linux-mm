@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5246B004D
-	for <linux-mm@kvack.org>; Sat, 10 Oct 2009 06:53:37 -0400 (EDT)
-Date: Sat, 10 Oct 2009 12:53:33 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [PATCH] mm: make VM_MAX_READAHEAD configurable
-Message-ID: <20091010105333.GR9228@kernel.dk>
-References: <1255087175-21200-1-git-send-email-ehrhardt@linux.vnet.ibm.com> <1255090830.8802.60.camel@laptop> <20091009122952.GI9228@kernel.dk> <20091009143124.1241a6bc.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DA7C56B004D
+	for <linux-mm@kvack.org>; Sat, 10 Oct 2009 08:06:45 -0400 (EDT)
+Date: Sat, 10 Oct 2009 14:06:14 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 00/31] Swap over NFS -v20
+Message-ID: <20091010120614.GC1811@ucw.cz>
+References: <1254405858-15651-1-git-send-email-sjayaraman@suse.de> <20091001174201.GA30068@infradead.org> <1254692482.21044.15.camel@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20091009143124.1241a6bc.akpm@linux-foundation.org>
+In-Reply-To: <1254692482.21044.15.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ehrhardt Christian <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Hellwig <hch@infradead.org>, Suresh Jayaraman <sjayaraman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, Neil Brown <neilb@suse.de>, Miklos Szeredi <mszeredi@suse.cz>, Wouter Verhelst <w@uter.be>, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 09 2009, Andrew Morton wrote:
-> On Fri, 9 Oct 2009 14:29:52 +0200
-> Jens Axboe <jens.axboe@oracle.com> wrote:
+Hi!
+
+> > One of them
+> > would be the whole VM/net work to just make swap over nbd/iscsi safe.
 > 
-> > On Fri, Oct 09 2009, Peter Zijlstra wrote:
-> > > On Fri, 2009-10-09 at 13:19 +0200, Ehrhardt Christian wrote:
-> > > > From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-> > > > 
-> > > > On one hand the define VM_MAX_READAHEAD in include/linux/mm.h is just a default
-> > > > and can be configured per block device queue.
-> > > > On the other hand a lot of admins do not use it, therefore it is reasonable to
-> > > > set a wise default.
-> > > > 
-> > > > This path allows to configure the value via Kconfig mechanisms and therefore
-> > > > allow the assignment of different defaults dependent on other Kconfig symbols.
-> > > > 
-> > > > Using this, the patch increases the default max readahead for s390 improving
-> > > > sequential throughput in a lot of scenarios with almost no drawbacks (only
-> > > > theoretical workloads with a lot concurrent sequential read patterns on a very
-> > > > low memory system suffer due to page cache trashing as expected).
-> > > 
-> > > Why can't this be solved in userspace?
-> > > 
-> > > Also, can't we simply raise this number if appropriate? Wu did some
-> > > read-ahead trashing detection bits a long while back which should scale
-> > > the read-ahead window back when we're low on memory, not sure that ever
-> > > made it in, but that sounds like a better option than having different
-> > > magic numbers for each platform.
-> > 
-> > Agree, making this a config option (and even defaulting to a different
-> > number because of an arch setting) is crazy.
+> Getting those two 'fixed' is going to be tons of interesting work
+> because they involve interaction with userspace daemons.
 > 
-> Given the (increasing) level of disparity between different kinds of
-> storage devices, having _any_ default is crazy.
+> NBD has fairly simple userspace, but iSCSI has a rather large userspace
+> footprint and a rather complicated user/kernel interaction which will be
+> mighty interesting to get allocation safe.
+> 
+> Ideally the swap-over-$foo bits have no userspace component.
+> 
+> That said, Wouter is the NBD userspace maintainer and has expressed
+> interest into looking at making that work, but its sure going to be
+> non-trivial, esp. since exposing PF_MEMALLOC to userspace is a, not over
+> my dead-bodym like thing.
 
-You have to start somewhere :-). 0 is a default, too.
-
-> Would be better to make some sort of vaguely informed guess at
-> runtime, based upon the characteristics of the device.
-
-I'm pretty sure the readahead logic already does respond to eg memory
-pressure, not sure if it attempts to do anything based on how quickly
-the device is doing IO. Wu?
+Well, as long as nbd-server is on separate machine (with real swap),
+safe swapping over network should be ok, without PF_MEMALLOC for
+userspace or similar nightmares, right?
+								Pavel  
 
 -- 
-Jens Axboe
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
