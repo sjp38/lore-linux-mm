@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 979AF6B004D
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:49 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9CJKtwN006285
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:20:55 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9CJNlLx225806
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:47 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9CJNjx7027482
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:46 -0400
-Date: Mon, 12 Oct 2009 14:23:45 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B0D896B004D
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:49:17 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e36.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9CJlAnD023101
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 13:47:10 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9CJn98k052446
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 13:49:10 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9CJn8aI022486
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 13:49:09 -0600
+Date: Mon, 12 Oct 2009 14:49:07 -0500
 From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2][v3] powerpc: Make the CMM memory hotplug aware
-Message-ID: <20091012192344.GA30941@austin.ibm.com>
+Subject: [PATCH 2/2][v4] powerpc: Make the CMM memory hotplug aware
+Message-ID: <20091012194907.GC30941@austin.ibm.com>
 References: <20091009203803.GC19114@austin.ibm.com> <20091009204126.GD19114@austin.ibm.com> <1255324007.2192.106.camel@pasglop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -25,175 +25,350 @@ To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Gerald Schaefer <geralds@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* Benjamin Herrenschmidt (benh@kernel.crashing.org) wrote:
-> On Fri, 2009-10-09 at 15:41 -0500, Robert Jennings wrote:
-> > The Collaborative Memory Manager (CMM) module allocates individual pages
-> > over time that are not migratable.  On a long running system this can
-> > severely impact the ability to find enough pages to support a hotplug
-> > memory remove operation.
-> > 
-> > This patch adds a memory isolation notifier and a memory hotplug notifier.
-> > The memory isolation notifier will return the number of pages found
-> > in the range specified.  This is used to determine if all of the used
-> > pages in a pageblock are owned by the balloon (or other entities in
-> > the notifier chain).  The hotplug notifier will free pages in the range
-> > which is to be removed.  The priority of this hotplug notifier is low
-> > so that it will be called near last, this helps avoids removing loaned
-> > pages in operations that fail due to other handlers.
-> > 
-> > CMM activity will be halted when hotplug remove operations are active
-> > and resume activity after a delay period to allow the hypervisor time
-> > to adjust.
-> > 
-> > Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
-> 
-> Do you need me to merge that via the powerpc tree after the relevant
-> generic parts go in ? This is 2.6.33 material ?
+The Collaborative Memory Manager (CMM) module allocates individual pages
+over time that are not migratable.  On a long running system this can
+severely impact the ability to find enough pages to support a hotplug
+memory remove operation.
 
-I didn't know how this part works honestly, this is the first time I've
-pushed patches with dependencies like this.  Andrew Morton had pulled
-an earlier version of this and the mm hotplug related changes for 2.6.32.
+This patch adds a memory isolation notifier and a memory hotplug notifier.
+The memory isolation notifier will return the number of pages found
+in the range specified.  This is used to determine if all of the used
+pages in a pageblock are owned by the balloon (or other entities in
+the notifier chain).  The hotplug notifier will free pages in the range
+which is to be removed.  The priority of this hotplug notifier is low
+so that it will be called near last, this helps avoids removing loaned
+pages in operations that fail due to other handlers.
 
-> > +module_param_named(hotplug_delay, hotplug_delay, uint, S_IRUGO | S_IWUSR);
-> > +MODULE_PARM_DESC(delay, "Delay (in seconds) after memory hotplug remove "
-> > +		 "before activity resumes. "
-> > +		 "[Default=" __stringify(CMM_HOTPLUG_DELAY) "]");
-> 
-> What is the above ? That sounds scary :-)
+CMM activity will be halted when hotplug remove operations are active
+and resume activity after a delay period to allow the hypervisor time
+to adjust.
 
-I'm changing this to read "Delay (in seconds) after memory hotplug
-remove before loaning resumes." in order to clear this us.  This is a
-period where loaning from the balloon is paused after the hotplug
-completes.  This gives the userspace tools time to mark the sections
-as isolated and unusable with the hypervisor and the hypervisor to take
-this into account regarding the loaning levels it requests of the OS.
+Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
 
-> >  module_param_named(oom_kb, oom_kb, uint, S_IRUGO | S_IWUSR);
-> >  MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
-> >  		 "[Default=" __stringify(CMM_OOM_KB) "]");
-> > @@ -88,6 +101,8 @@ struct cmm_page_array {
-> >  static unsigned long loaned_pages;
-> >  static unsigned long loaned_pages_target;
-> >  static unsigned long oom_freed_pages;
-> > +static atomic_t hotplug_active = ATOMIC_INIT(0);
-> > +static atomic_t hotplug_occurred = ATOMIC_INIT(0);
-> 
-> That sounds like a hand made lock with atomics... rarely a good idea,
-> tends to miss appropriate barriers etc...
-> 
+---
 
-I have changes this so that we have a mutex held during the memory
-hotplug remove.  The hotplug_occurred flag is now and integer protected
-by the mutex; it is used to provide the delay after the hotplug remove
-completes.
+Changes since v3:
+ * Changed from atomic to mutex for hotplug state tracking.
+ * Clarified documentation for the new module parameter description.
 
-> >  static struct cmm_page_array *cmm_page_list;
-> >  static DEFINE_SPINLOCK(cmm_lock);
-> > @@ -110,6 +125,9 @@ static long cmm_alloc_pages(long nr)
-> >  	cmm_dbg("Begin request for %ld pages\n", nr);
-> >  
-> >  	while (nr) {
-> > +		if (atomic_read(&hotplug_active))
-> > +			break;
-> > +
-> 
-> Ok so I'm not familiar with that whole memory hotplug stuff, so the code
-> might be right, but wouldn't the above be racy anyways in case hotplug
-> just becomes active after this statement ?
-> 
-> Shouldn't you use a mutex_trylock instead ? That has clearer semantics
-> and will provide the appropriate memory barriers.
+Changes since v2:
+ * None, resent with parent patch to keep them together.
+ 
+ arch/powerpc/platforms/pseries/cmm.c |  221 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 215 insertions(+), 6 deletions(-)
 
-I have changed this to use a mutex in the same location.  This allows
-the allocation of pages to terminate early during a hotplug remove
-operation.
-
-If hotplug becomes active after this check in cmm_alloc_pages() one page
-will be allocated to the balloon, but this page will not belong to the
-memory range going offline because the pageblock will have already been
-isolated.  After allocating the page we might need to wait on the lock to
-add the page to the list if hotplug is removing pages from the balloon.
-After one page is added, cmm_alloc_pages() will exit early when it checks
-to see if hotplug is active or if it has occurred.
-
-I wanted to keep the section locked by cmm_lock small, so that we can
-safely respond to the hotplug notifier as quickly as possible while
-minimizing memory pressure.
-
-There are no checks in cmm_free_pages() to have it abort early during
-hotplug memory remove with the rationale that it's good for hotplug
-to allow the balloon to shrink even if it means holding the cmm_lock a
-bit longer.
-
-> >  		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
-> >  				       __GFP_NORETRY | __GFP_NOMEMALLOC);
-> >  		if (!addr)
-> > @@ -119,8 +137,10 @@ static long cmm_alloc_pages(long nr)
-> >  		if (!pa || pa->index >= CMM_NR_PAGES) {
-> >  			/* Need a new page for the page list. */
-> >  			spin_unlock(&cmm_lock);
-> > -			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
-> > -								       __GFP_NORETRY | __GFP_NOMEMALLOC);
-> > +			npa = (struct cmm_page_array *)__get_free_page(
-> > +					GFP_NOIO | __GFP_NOWARN |
-> > +					__GFP_NORETRY | __GFP_NOMEMALLOC |
-> > +					__GFP_MOVABLE);
-> >  			if (!npa) {
-> >  				pr_info("%s: Can not allocate new page list\n", __func__);
-> >  				free_page(addr);
-> > @@ -273,9 +293,23 @@ static int cmm_thread(void *dummy)
-> >  	while (1) {
-> >  		timeleft = msleep_interruptible(delay * 1000);
-> > 
-> > -		if (kthread_should_stop() || timeleft) {
-> > -			loaned_pages_target = loaned_pages;
-> > +		if (kthread_should_stop() || timeleft)
-> >  			break;
-> > +
-> > +		if (atomic_read(&hotplug_active)) {
-> > +			cmm_dbg("Hotplug operation in progress, activity "
-> > +					"suspended\n");
-> > +			continue;
-> > +		}
-> > +
-> > +		if (atomic_dec_if_positive(&hotplug_occurred) >= 0) {
-> > +			cmm_dbg("Hotplug operation has occurred, loaning "
-> > +					"activity suspended for %d seconds.\n",
-> > +					hotplug_delay);
-> > +			timeleft = msleep_interruptible(hotplug_delay * 1000);
-> > +			if (kthread_should_stop() || timeleft)
-> > +				break;
-> > +			continue;
-> >  		}
-> 
-> I have less problems with hotplug_occured but if you use a
-> mutex_trylock, overall, you can turn the above into a normal int instead
-> of an atomic.
-
-Changed to a mutex to indicate that a hotplug operation is active and an
-int protected by the mutex to indicate that a hotplug operation has
-occurred.
-
->  ../..
-> 
-> > +static int cmm_memory_cb(struct notifier_block *self,
-> > +			unsigned long action, void *arg)
-> > +{
-> > +	int ret = 0;
-> > +
-> > +	switch (action) {
-> > +	case MEM_GOING_OFFLINE:
-> > +		atomic_set(&hotplug_active, 1);
-> 
-> So that would become a mutex_lock(). Added advantage is that
-> it would wait for a current CMM operation to complete.
-
-I've added the mutex but the scope will not prevent hotplug from
-starting before the current CMM operation has completed.  This allows us
-to abort the allocation.  The important globals for managing the list of
-pages are still covered by the cmm_lock spinlock.
-
-I've tested the patch and I'll send it out shortly.
+Index: b/arch/powerpc/platforms/pseries/cmm.c
+===================================================================
+--- a/arch/powerpc/platforms/pseries/cmm.c
++++ b/arch/powerpc/platforms/pseries/cmm.c
+@@ -38,19 +38,28 @@
+ #include <asm/mmu.h>
+ #include <asm/pgalloc.h>
+ #include <asm/uaccess.h>
++#include <linux/memory.h>
+ 
+ #include "plpar_wrappers.h"
+ 
+ #define CMM_DRIVER_VERSION	"1.0.0"
+ #define CMM_DEFAULT_DELAY	1
++#define CMM_HOTPLUG_DELAY	5
+ #define CMM_DEBUG			0
+ #define CMM_DISABLE		0
+ #define CMM_OOM_KB		1024
+ #define CMM_MIN_MEM_MB		256
+ #define KB2PAGES(_p)		((_p)>>(PAGE_SHIFT-10))
+ #define PAGES2KB(_p)		((_p)<<(PAGE_SHIFT-10))
++/*
++ * The priority level tries to ensure that this notifier is called as
++ * late as possible to reduce thrashing in the shared memory pool.
++ */
++#define CMM_MEM_HOTPLUG_PRI	1
++#define CMM_MEM_ISOLATE_PRI	15
+ 
+ static unsigned int delay = CMM_DEFAULT_DELAY;
++static unsigned int hotplug_delay = CMM_HOTPLUG_DELAY;
+ static unsigned int oom_kb = CMM_OOM_KB;
+ static unsigned int cmm_debug = CMM_DEBUG;
+ static unsigned int cmm_disabled = CMM_DISABLE;
+@@ -65,6 +74,10 @@ MODULE_VERSION(CMM_DRIVER_VERSION);
+ module_param_named(delay, delay, uint, S_IRUGO | S_IWUSR);
+ MODULE_PARM_DESC(delay, "Delay (in seconds) between polls to query hypervisor paging requests. "
+ 		 "[Default=" __stringify(CMM_DEFAULT_DELAY) "]");
++module_param_named(hotplug_delay, hotplug_delay, uint, S_IRUGO | S_IWUSR);
++MODULE_PARM_DESC(delay, "Delay (in seconds) after memory hotplug remove "
++		 "before loaning resumes. "
++		 "[Default=" __stringify(CMM_HOTPLUG_DELAY) "]");
+ module_param_named(oom_kb, oom_kb, uint, S_IRUGO | S_IWUSR);
+ MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
+ 		 "[Default=" __stringify(CMM_OOM_KB) "]");
+@@ -92,6 +105,9 @@ static unsigned long oom_freed_pages;
+ static struct cmm_page_array *cmm_page_list;
+ static DEFINE_SPINLOCK(cmm_lock);
+ 
++static DEFINE_MUTEX(hotplug_mutex);
++static int hotplug_occurred; /* protected by the hotplug mutex */
++
+ static struct task_struct *cmm_thread_ptr;
+ 
+ /**
+@@ -110,6 +126,17 @@ static long cmm_alloc_pages(long nr)
+ 	cmm_dbg("Begin request for %ld pages\n", nr);
+ 
+ 	while (nr) {
++		/* Exit if a hotplug operation is in progress or occurred */
++		if (mutex_trylock(&hotplug_mutex)) {
++			if (hotplug_occurred) {
++				mutex_unlock(&hotplug_mutex);
++				break;
++			}
++			mutex_unlock(&hotplug_mutex);
++		} else {
++			break;
++		}
++
+ 		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
+ 				       __GFP_NORETRY | __GFP_NOMEMALLOC);
+ 		if (!addr)
+@@ -119,8 +146,10 @@ static long cmm_alloc_pages(long nr)
+ 		if (!pa || pa->index >= CMM_NR_PAGES) {
+ 			/* Need a new page for the page list. */
+ 			spin_unlock(&cmm_lock);
+-			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
+-								       __GFP_NORETRY | __GFP_NOMEMALLOC);
++			npa = (struct cmm_page_array *)__get_free_page(
++					GFP_NOIO | __GFP_NOWARN |
++					__GFP_NORETRY | __GFP_NOMEMALLOC |
++					__GFP_MOVABLE);
+ 			if (!npa) {
+ 				pr_info("%s: Can not allocate new page list\n", __func__);
+ 				free_page(addr);
+@@ -273,9 +302,28 @@ static int cmm_thread(void *dummy)
+ 	while (1) {
+ 		timeleft = msleep_interruptible(delay * 1000);
+ 
+-		if (kthread_should_stop() || timeleft) {
+-			loaned_pages_target = loaned_pages;
++		if (kthread_should_stop() || timeleft)
+ 			break;
++
++		if (mutex_trylock(&hotplug_mutex)) {
++			if (hotplug_occurred) {
++				hotplug_occurred = 0;
++				mutex_unlock(&hotplug_mutex);
++				cmm_dbg("Hotplug operation has occurred, "
++						"loaning activity suspended "
++						"for %d seconds.\n",
++						hotplug_delay);
++				timeleft = msleep_interruptible(hotplug_delay *
++						1000);
++				if (kthread_should_stop() || timeleft)
++					break;
++				continue;
++			}
++			mutex_unlock(&hotplug_mutex);
++		} else {
++			cmm_dbg("Hotplug operation in progress, activity "
++					"suspended\n");
++			continue;
+ 		}
+ 
+ 		cmm_get_mpp();
+@@ -405,6 +453,159 @@ static struct notifier_block cmm_reboot_
+ };
+ 
+ /**
++ * cmm_count_pages - Count the number of pages loaned in a particular range.
++ *
++ * @arg: memory_isolate_notify structure with address range and count
++ *
++ * Return value:
++ *      0 on success
++ **/
++static unsigned long cmm_count_pages(void *arg)
++{
++	struct memory_isolate_notify *marg = arg;
++	struct cmm_page_array *pa;
++	unsigned long start = (unsigned long)pfn_to_kaddr(marg->start_pfn);
++	unsigned long end = start + (marg->nr_pages << PAGE_SHIFT);
++	unsigned long idx;
++
++	spin_lock(&cmm_lock);
++	pa = cmm_page_list;
++	while (pa) {
++		for (idx = 0; idx < pa->index; idx++)
++			if (pa->page[idx] >= start && pa->page[idx] < end)
++				marg->pages_found++;
++		pa = pa->next;
++	}
++	spin_unlock(&cmm_lock);
++	return 0;
++}
++
++/**
++ * cmm_memory_isolate_cb - Handle memory isolation notifier calls
++ * @self:	notifier block struct
++ * @action:	action to take
++ * @arg:	struct memory_isolate_notify data for handler
++ *
++ * Return value:
++ *	NOTIFY_OK or notifier error based on subfunction return value
++ **/
++static int cmm_memory_isolate_cb(struct notifier_block *self,
++				 unsigned long action, void *arg)
++{
++	int ret = 0;
++
++	if (action == MEM_ISOLATE_COUNT)
++		ret = cmm_count_pages(arg);
++
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
++
++	return ret;
++}
++
++static struct notifier_block cmm_mem_isolate_nb = {
++	.notifier_call = cmm_memory_isolate_cb,
++	.priority = CMM_MEM_ISOLATE_PRI
++};
++
++/**
++ * cmm_mem_going_offline - Unloan pages where memory is to be removed
++ * @arg: memory_notify structure with page range to be offlined
++ *
++ * Return value:
++ *	0 on success
++ **/
++static int cmm_mem_going_offline(void *arg)
++{
++	struct memory_notify *marg = arg;
++	unsigned long start_page = (unsigned long)pfn_to_kaddr(marg->start_pfn);
++	unsigned long end_page = start_page + (marg->nr_pages << PAGE_SHIFT);
++	struct cmm_page_array *pa_curr, *pa_last;
++	unsigned long idx;
++	unsigned long freed = 0;
++
++	cmm_dbg("Memory going offline, searching 0x%lx (%ld pages).\n",
++			start_page, marg->nr_pages);
++	spin_lock(&cmm_lock);
++
++	pa_last = pa_curr = cmm_page_list;
++	while (pa_curr) {
++		for (idx = (pa_curr->index - 1); (idx + 1) > 0; idx--) {
++			if ((pa_curr->page[idx] < start_page) ||
++			    (pa_curr->page[idx] >= end_page))
++				continue;
++
++			plpar_page_set_active(__pa(pa_curr->page[idx]));
++			free_page(pa_curr->page[idx]);
++			freed++;
++			loaned_pages--;
++			totalram_pages++;
++			pa_curr->page[idx] = pa_last->page[--pa_last->index];
++			if (pa_last->index == 0) {
++				if (pa_curr == pa_last)
++					pa_curr = pa_last->next;
++				pa_last = pa_last->next;
++				free_page((unsigned long)cmm_page_list);
++				cmm_page_list = pa_last;
++				continue;
++			}
++		}
++		pa_curr = pa_curr->next;
++	}
++	spin_unlock(&cmm_lock);
++	cmm_dbg("Released %ld pages in the search range.\n", freed);
++
++	return 0;
++}
++
++/**
++ * cmm_memory_cb - Handle memory hotplug notifier calls
++ * @self:	notifier block struct
++ * @action:	action to take
++ * @arg:	struct memory_notify data for handler
++ *
++ * Return value:
++ *	NOTIFY_OK or notifier error based on subfunction return value
++ *
++ **/
++static int cmm_memory_cb(struct notifier_block *self,
++			unsigned long action, void *arg)
++{
++	int ret = 0;
++
++	switch (action) {
++	case MEM_GOING_OFFLINE:
++		mutex_lock(&hotplug_mutex);
++		hotplug_occurred = 1;
++		ret = cmm_mem_going_offline(arg);
++		break;
++	case MEM_OFFLINE:
++	case MEM_CANCEL_OFFLINE:
++		mutex_unlock(&hotplug_mutex);
++		cmm_dbg("Memory offline operation complete.\n");
++		break;
++	case MEM_GOING_ONLINE:
++	case MEM_ONLINE:
++	case MEM_CANCEL_ONLINE:
++		break;
++	}
++
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
++
++	return ret;
++}
++
++static struct notifier_block cmm_mem_nb = {
++	.notifier_call = cmm_memory_cb,
++	.priority = CMM_MEM_HOTPLUG_PRI
++};
++
++/**
+  * cmm_init - Module initialization
+  *
+  * Return value:
+@@ -426,18 +627,24 @@ static int cmm_init(void)
+ 	if ((rc = cmm_sysfs_register(&cmm_sysdev)))
+ 		goto out_reboot_notifier;
+ 
++	if (register_memory_notifier(&cmm_mem_nb) ||
++	    register_memory_isolate_notifier(&cmm_mem_isolate_nb))
++		goto out_unregister_notifier;
++
+ 	if (cmm_disabled)
+ 		return rc;
+ 
+ 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
+ 	if (IS_ERR(cmm_thread_ptr)) {
+ 		rc = PTR_ERR(cmm_thread_ptr);
+-		goto out_unregister_sysfs;
++		goto out_unregister_notifier;
+ 	}
+ 
+ 	return rc;
+ 
+-out_unregister_sysfs:
++out_unregister_notifier:
++	unregister_memory_notifier(&cmm_mem_nb);
++	unregister_memory_isolate_notifier(&cmm_mem_isolate_nb);
+ 	cmm_unregister_sysfs(&cmm_sysdev);
+ out_reboot_notifier:
+ 	unregister_reboot_notifier(&cmm_reboot_nb);
+@@ -458,6 +665,8 @@ static void cmm_exit(void)
+ 		kthread_stop(cmm_thread_ptr);
+ 	unregister_oom_notifier(&cmm_oom_nb);
+ 	unregister_reboot_notifier(&cmm_reboot_nb);
++	unregister_memory_notifier(&cmm_mem_nb);
++	unregister_memory_isolate_notifier(&cmm_mem_isolate_nb);
+ 	cmm_free_pages(loaned_pages);
+ 	cmm_unregister_sysfs(&cmm_sysdev);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
