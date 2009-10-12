@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A65286B005D
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 17:18:09 -0400 (EDT)
-Subject: Re: oomkiller over-ambitious after "vmscan: make mapped executable
- pages the first class citizen" (bisected)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <200910122244.19666.borntraeger@de.ibm.com>
-References: <200910122244.19666.borntraeger@de.ibm.com>
-Content-Type: text/plain
-Date: Mon, 12 Oct 2009 23:17:45 +0200
-Message-Id: <1255382265.8967.620.camel@laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B54186B006A
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 19:58:28 -0400 (EDT)
+Date: Mon, 12 Oct 2009 16:57:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish
+ lru_add_drain_all()
+Message-Id: <20091012165747.97f5bd87.akpm@linux-foundation.org>
+In-Reply-To: <20091009111709.1291.A69D9226@jp.fujitsu.com>
+References: <20091009111709.1291.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-10-12 at 22:44 +0200, Christian Borntraeger wrote:
-> In fact, applying this patch makes the problem go away:
+On Fri,  9 Oct 2009 11:21:55 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> --- linux-2.6.orig/mm/vmscan.c
-> +++ linux-2.6/mm/vmscan.c
-> @@ -1345,22 +1345,8 @@ static void shrink_active_list(unsigned 
->  
->                 /* page_referenced clears PageReferenced */
->                 if (page_mapping_inuse(page) &&
-> -                   page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
-> +                   page_referenced(page, 0, sc->mem_cgroup, &vm_flags))
->                         nr_rotated++;
-> -                       /*
-> -                        * Identify referenced, file-backed active pages and
-> -                        * give them one more trip around the active list. So
-> -                        * that executable code get better chances to stay in
-> -                        * memory under moderate memory pressure.  Anon pages
-> -                        * are not likely to be evicted by use-once streaming
-> -                        * IO, plus JVM can create lots of anon VM_EXEC pages,
-> -                        * so we ignore them here.
-> -                        */
-> -                       if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
-> -                               list_add(&page->lru, &l_active);
-> -                               continue;
-> -                       }
-> -               }
->  
->                 ClearPageActive(page);  /* we are de-activating */
->                 list_add(&page->lru, &l_inactive);
-
-> the interesting part is, that s390x in the default configuration has no no-
-> execute feature, resulting in the following map 
-> c0000000-1c04cd000 rwxs 00000000 00:04 18517        /dev/zero (deleted)
-> As you can see, this area looks file mapped (/dev/zero) and executable. On the 
-> other hand, the !PageAnon clause should cover this case. I am lost.
+> Recently, Mike Galbraith reported mlock() makes hang-up very long time in
+> his system. Peter Zijlstra explainted the reason.
 > 
-> Does anybody on the CC (taken from the original patch) has an idea what the 
-> problem is and how to fix this properly?
+>   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
+>   cpu0 does mlock()->lru_add_drain_all(), which does
+>   schedule_on_each_cpu(), which then waits for all cpus to complete the
+>   work. Except that cpu1, which is busy with the RT task, will never run
+>   keventd until the RT load goes away.
+> 
+>   This is not so much an actual deadlock as a serious starvation case.
+> 
+> His system has two partions using cpusets and RT-task partion cpu doesn't
+> have any PCP cache. thus, this result was pretty unexpected.
+> 
+> The fact is, mlock() doesn't need to wait to finish lru_add_drain_all().
+> if mlock() can't turn on PG_mlock, vmscan turn it on later.
+> 
+> Thus, this patch replace it with lru_add_drain_all_async().
 
-One thing that sprung out to me is that s390 has the young bit in the
-storage key and not in the page-tables.
+So why don't we just remove the lru_add_drain_all() call from sys_mlock()?
 
-Hence it has a NOP ptep_clear_flush_young(), which makes
-page_referenced_one() very unlikely to set vm_flags. This would make the
-above condition even harder to trigger though, so I'm not sure what good
-this observation is.
+How did you work out why the lru_add_drain_all() is present in
+sys_mlock() anyway?  Neither the code nor the original changelog tell
+us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
 
+There are many callers of lru_add_drain_all() all over the place.  Each
+of those is vulnerable to the same starvation issue, is it not?
 
+If so, it would be better to just fix up lru_add_drain_all().  Afaict
+all of its functions can be performed in hard IRQ context, so we can
+use smp_call_function()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
