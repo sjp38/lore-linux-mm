@@ -1,122 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E1B36B004D
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 14:43:44 -0400 (EDT)
-Date: Mon, 12 Oct 2009 19:43:44 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-Message-ID: <20091012184344.GG8200@csn.ul.ie>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910120110.28061.elendil@planet.nl> <20091012134328.GB8200@csn.ul.ie> <200910121932.14607.elendil@planet.nl>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 979AF6B004D
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:49 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9CJKtwN006285
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:20:55 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9CJNlLx225806
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:47 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9CJNjx7027482
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 15:23:46 -0400
+Date: Mon, 12 Oct 2009 14:23:45 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2][v3] powerpc: Make the CMM memory hotplug aware
+Message-ID: <20091012192344.GA30941@austin.ibm.com>
+References: <20091009203803.GC19114@austin.ibm.com> <20091009204126.GD19114@austin.ibm.com> <1255324007.2192.106.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200910121932.14607.elendil@planet.nl>
+In-Reply-To: <1255324007.2192.106.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Gerald Schaefer <geralds@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 12, 2009 at 07:32:11PM +0200, Frans Pop wrote:
-> On Monday 12 October 2009, Mel Gorman wrote:
-> > Maybe. Your commit id's are different to what I see. Maybe it's because
-> > your tree has been shuffled around a bit
+* Benjamin Herrenschmidt (benh@kernel.crashing.org) wrote:
+> On Fri, 2009-10-09 at 15:41 -0500, Robert Jennings wrote:
+> > The Collaborative Memory Manager (CMM) module allocates individual pages
+> > over time that are not migratable.  On a long running system this can
+> > severely impact the ability to find enough pages to support a hotplug
+> > memory remove operation.
+> > 
+> > This patch adds a memory isolation notifier and a memory hotplug notifier.
+> > The memory isolation notifier will return the number of pages found
+> > in the range specified.  This is used to determine if all of the used
+> > pages in a pageblock are owned by the balloon (or other entities in
+> > the notifier chain).  The hotplug notifier will free pages in the range
+> > which is to be removed.  The priority of this hotplug notifier is low
+> > so that it will be called near last, this helps avoids removing loaned
+> > pages in operations that fail due to other handlers.
+> > 
+> > CMM activity will be halted when hotplug remove operations are active
+> > and resume activity after a delay period to allow the hypervisor time
+> > to adjust.
+> > 
+> > Signed-off-by: Robert Jennings <rcj@linux.vnet.ibm.com>
 > 
-> No, the commit IDs should be identical. My tree is just plain mainline.
-> 
-> Just to make sure... You did remove the "g" from the IDs, right?
-> So v2.6.30-rc6-1103-gb1bc81a becomes 'b1bc81a' and if you do
-> 'git describe b1bc81a' you really should end up with the same IDs I have.
-> 
+> Do you need me to merge that via the powerpc tree after the relevant
+> generic parts go in ? This is 2.6.33 material ?
 
-Bah, that's what I was doing all right. No excuse, that was just plain
-stupid of me.
+I didn't know how this part works honestly, this is the first time I've
+pushed patches with dependencies like this.  Andrew Morton had pulled
+an earlier version of this and the mm hotplug related changes for 2.6.32.
 
-> > but after some digging around in this general area, I saw this patch
-> >
-> > 4752c93c30 iwlcore: Allow skb allocation from tasklet
+> > +module_param_named(hotplug_delay, hotplug_delay, uint, S_IRUGO | S_IWUSR);
+> > +MODULE_PARM_DESC(delay, "Delay (in seconds) after memory hotplug remove "
+> > +		 "before activity resumes. "
+> > +		 "[Default=" __stringify(CMM_HOTPLUG_DELAY) "]");
 > 
-> That is v2.6.30-rc6-773-g4752c93, which is part of the first wireless
-> merge I tested and where I saw no issues. But see below.
-> 
+> What is the above ? That sounds scary :-)
 
-While there were no issues at that point, I think it might have been the
-beginning of a few patches that made things progressively worse. It is
-possible there is more than one patch causing trouble here and bisecting
-each of them is unlikely to be an option. More on this later though.
+I'm changing this to read "Delay (in seconds) after memory hotplug
+remove before loaning resumes." in order to clear this us.  This is a
+period where loaning from the balloon is paused after the hotplug
+completes.  This gives the userspace tools time to mark the sections
+as isolated and unusable with the hypervisor and the hypervisor to take
+this into account regarding the loaning levels it requests of the OS.
 
-> > This patch increases the number of GFP_ATOMIC allocations that can occur
-> > by allocating GFP_ATOMIC in some cases and GFP_KERNEL in others.
-> > Previously, only GFP_KERNEL was used and I didn't realise this
-> > allocation method was so recent. Problems of this sort have cropped up
-> > before and while there are later changes that suppress some of these
-> > warnings, I believe this is a strong candidate for where the allocation
-> > failures started appearing.
-> >
-> > > v2.6.30-rc6-1032-g7ba10a8       mac80211: fix transposed min/max CW values
-> > >     1.13    -
-> > >     This is a bugfix for aa837ee1d from an earlier merge! Could this maybe
+> >  module_param_named(oom_kb, oom_kb, uint, S_IRUGO | S_IWUSR);
+> >  MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
+> >  		 "[Default=" __stringify(CMM_OOM_KB) "]");
+> > @@ -88,6 +101,8 @@ struct cmm_page_array {
+> >  static unsigned long loaned_pages;
+> >  static unsigned long loaned_pages_target;
+> >  static unsigned long oom_freed_pages;
+> > +static atomic_t hotplug_active = ATOMIC_INIT(0);
+> > +static atomic_t hotplug_occurred = ATOMIC_INIT(0);
 > 
-> There's a typo here. That ID should be: aa837e1d.
-> 
-> > >     influence the test results in between? There are various SKB related
-> > >     changes there, for example: dfbf97f3..e5b9215e.
-> > > v2.6.30-rc6-1037-g2c5b9e5	wireless: libertas: fix unaligned accesses
-> > > 	1.12    +-
-> > > v2.6.30-rc6-1044-g729e9c7	cfg80211: fix for duplicate userspace replies
-> > >     1.10    +- 
-> > > v2.6.30-rc6-1075-gc587de0	iwlwifi: unify station management
-> > >     1.9     ++-|+-
-> > > v2.6.30-rc6-1076-gd14d444	iwl3945: port allow skb allocation in tasklet
-> > >     I thought this was a prime candidate, but as you can see 
-> > >     several commits before failed too. Still worth looking at I think!
-> >
-> > Your commit IDs are different to what I see but it's the commit merge at
-> > b1bc81a0ef86b86fa410dd303d84c8c7bd09a64d. I agree that the last commit
-> > (d14d44407b9f06e3cf967fcef28ccb780caf0583) could make the problem worse
-> > because it expands the use of GFP_ATOMIC for another driver.
-> 
-> No, that was a mistake of mine. d14d444 is in a driver I don't even compile.
-> The one you identified (which is the same change for iwlagn) is much more
-> interesting.
+> That sounds like a hand made lock with atomics... rarely a good idea,
+> tends to miss appropriate barriers etc...
 > 
 
-I had forgotten what model your card was and assumed it must have been based
-on this driver for the problem to get worse for you that point.
+I have changes this so that we have a mutex held during the memory
+hotplug remove.  The hotplug_occurred flag is now and integer protected
+by the mutex; it is used to provide the delay after the hotplug remove
+completes.
 
-> I really do think that v2.6.30-rc6-1032-g7ba10a8 could play a role here.
-> That's a fix for v2.6.30-rc1-1131-gaa837e1. So that bug was introduced
-> _before_ the merge 82d0481 and may thus well explain both the latencies I
-> saw _and_ why that merge tested without problems. And that would also go a
-> long way to explain my test results.
-
-Very good point.
-
-> So I'm going to retest 82d0481 with 7ba10a8 cherry-picked on top.
+> >  static struct cmm_page_array *cmm_page_list;
+> >  static DEFINE_SPINLOCK(cmm_lock);
+> > @@ -110,6 +125,9 @@ static long cmm_alloc_pages(long nr)
+> >  	cmm_dbg("Begin request for %ld pages\n", nr);
+> >  
+> >  	while (nr) {
+> > +		if (atomic_read(&hotplug_active))
+> > +			break;
+> > +
 > 
-
-Great.
-
-> > > BISECTION of akpm (mm) MERGE
-> > > ----------------------------
-> [...]
-> > While I didn't spot anything too out of the ordinary here, they did
-> > occur shortly after a number of other page allocator related patches. 
-> > One small thing I noticed there is that kswapd is getting woken up less
-> > now than it did previously. Generally, I wouldn't have expected it to
-> > make a difference but it's possible that kswapd is not being woken up to
-> > reclaim at a higher order than it was previously. I have a patch for
-> > this below. It'd be nice if you could apply it and see do fewer
-> > allocation failures occur on current mainline.
+> Ok so I'm not familiar with that whole memory hotplug stuff, so the code
+> might be right, but wouldn't the above be racy anyways in case hotplug
+> just becomes active after this statement ?
 > 
-> I'll give that patch a try and report back.
+> Shouldn't you use a mutex_trylock instead ? That has clearer semantics
+> and will provide the appropriate memory barriers.
+
+I have changed this to use a mutex in the same location.  This allows
+the allocation of pages to terminate early during a hotplug remove
+operation.
+
+If hotplug becomes active after this check in cmm_alloc_pages() one page
+will be allocated to the balloon, but this page will not belong to the
+memory range going offline because the pageblock will have already been
+isolated.  After allocating the page we might need to wait on the lock to
+add the page to the list if hotplug is removing pages from the balloon.
+After one page is added, cmm_alloc_pages() will exit early when it checks
+to see if hotplug is active or if it has occurred.
+
+I wanted to keep the section locked by cmm_lock small, so that we can
+safely respond to the hotplug notifier as quickly as possible while
+minimizing memory pressure.
+
+There are no checks in cmm_free_pages() to have it abort early during
+hotplug memory remove with the rationale that it's good for hotplug
+to allow the balloon to shrink even if it means holding the cmm_lock a
+bit longer.
+
+> >  		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
+> >  				       __GFP_NORETRY | __GFP_NOMEMALLOC);
+> >  		if (!addr)
+> > @@ -119,8 +137,10 @@ static long cmm_alloc_pages(long nr)
+> >  		if (!pa || pa->index >= CMM_NR_PAGES) {
+> >  			/* Need a new page for the page list. */
+> >  			spin_unlock(&cmm_lock);
+> > -			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
+> > -								       __GFP_NORETRY | __GFP_NOMEMALLOC);
+> > +			npa = (struct cmm_page_array *)__get_free_page(
+> > +					GFP_NOIO | __GFP_NOWARN |
+> > +					__GFP_NORETRY | __GFP_NOMEMALLOC |
+> > +					__GFP_MOVABLE);
+> >  			if (!npa) {
+> >  				pr_info("%s: Can not allocate new page list\n", __func__);
+> >  				free_page(addr);
+> > @@ -273,9 +293,23 @@ static int cmm_thread(void *dummy)
+> >  	while (1) {
+> >  		timeleft = msleep_interruptible(delay * 1000);
+> > 
+> > -		if (kthread_should_stop() || timeleft) {
+> > -			loaned_pages_target = loaned_pages;
+> > +		if (kthread_should_stop() || timeleft)
+> >  			break;
+> > +
+> > +		if (atomic_read(&hotplug_active)) {
+> > +			cmm_dbg("Hotplug operation in progress, activity "
+> > +					"suspended\n");
+> > +			continue;
+> > +		}
+> > +
+> > +		if (atomic_dec_if_positive(&hotplug_occurred) >= 0) {
+> > +			cmm_dbg("Hotplug operation has occurred, loaning "
+> > +					"activity suspended for %d seconds.\n",
+> > +					hotplug_delay);
+> > +			timeleft = msleep_interruptible(hotplug_delay * 1000);
+> > +			if (kthread_should_stop() || timeleft)
+> > +				break;
+> > +			continue;
+> >  		}
 > 
+> I have less problems with hotplug_occured but if you use a
+> mutex_trylock, overall, you can turn the above into a normal int instead
+> of an atomic.
 
-Thanks a lot.
+Changed to a mutex to indicate that a hotplug operation is active and an
+int protected by the mutex to indicate that a hotplug operation has
+occurred.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+>  ../..
+> 
+> > +static int cmm_memory_cb(struct notifier_block *self,
+> > +			unsigned long action, void *arg)
+> > +{
+> > +	int ret = 0;
+> > +
+> > +	switch (action) {
+> > +	case MEM_GOING_OFFLINE:
+> > +		atomic_set(&hotplug_active, 1);
+> 
+> So that would become a mutex_lock(). Added advantage is that
+> it would wait for a current CMM operation to complete.
+
+I've added the mutex but the scope will not prevent hotplug from
+starting before the current CMM operation has completed.  This allows us
+to abort the allocation.  The important globals for managing the list of
+pages are still covered by the cmm_lock spinlock.
+
+I've tested the patch and I'll send it out shortly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
