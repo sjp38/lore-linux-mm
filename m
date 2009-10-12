@@ -1,104 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF61F6B004F
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 11:41:10 -0400 (EDT)
-Subject: Re: [PATCH 7/12] hugetlb:  add per node hstate attributes
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <alpine.DEB.1.00.0910091511100.12760@chino.kir.corp.google.com>
-References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain>
-	 <20091008162539.23192.3642.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com>
-	 <1255096198.14370.65.camel@useless.americas.hpqcorp.net>
-	 <alpine.DEB.1.00.0910091511100.12760@chino.kir.corp.google.com>
-Content-Type: text/plain
-Date: Mon, 12 Oct 2009 11:41:04 -0400
-Message-Id: <1255362064.4344.105.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4B2C86B004D
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 13:32:17 -0400 (EDT)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Mon, 12 Oct 2009 19:32:11 +0200
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910120110.28061.elendil@planet.nl> <20091012134328.GB8200@csn.ul.ie>
+In-Reply-To: <20091012134328.GB8200@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200910121932.14607.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-10-09 at 15:18 -0700, David Rientjes wrote:
-> On Fri, 9 Oct 2009, Lee Schermerhorn wrote:
-> 
-> > > > +/*
-> > > > + * kobj_to_node_hstate - lookup global hstate for node sysdev hstate attr kobj.
-> > > > + * Returns node id via non-NULL nidp.
-> > > > + */
-> > > > +static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
-> > > > +{
-> > > > +	int nid;
-> > > > +
-> > > > +	for (nid = 0; nid < nr_node_ids; nid++) {
-> > > 
-> > > I previously asked if this should use for_each_node_mask() instead?
-> > 
-> > sorry, missed this comment [and one at end] in my prev response.  Too
-> > much multi-tasking.
-> > 
-> > This also could interate over a node mask for consistency, I think.
-> > Again, current version works because we're looking for node sysdev based
-> > on a per node attribute kobj.  We only add the attributes to nodes with
-> > memory.  So, we're potentially visiting a few more nodes than necessary
-> > on some platforms.  Shouldn't be a performance issue.  
-> > 
-> 
-> Hmm, does this really work for memory hot-remove?  If all memory is 
-> removed from a nid, does node_hstates[nid]->hstate_objs[] get updated 
-> appropriately?  I assume we'd never pass that particular kobj to 
-> kobj_to_node_hstate() anymore, but I'm wondering if the pointer would 
-> remain in the hstate_kobjs[] table.
+On Monday 12 October 2009, Mel Gorman wrote:
+> Maybe. Your commit id's are different to what I see. Maybe it's because
+> your tree has been shuffled around a bit
 
-Patch 11 is intended to address this.  The hotplug notifier, added by
-that patch, will call hugetlb_unregister_node() in the event all memory
-is removed from a node.  hugetlb_unregister_node() NULLs out the per
-node hstate_kobjs[] after freeing them.  This patch [7/12] handles node
-hot-plug--as opposed to memory hot-plug that transitions the node
-to/from the memoryless state.
+No, the commit IDs should be identical. My tree is just plain mainline.
 
-> 
-> > > > Index: linux-2.6.31-mmotm-090925-1435/include/linux/node.h
-> > > > ===================================================================
-> > > > --- linux-2.6.31-mmotm-090925-1435.orig/include/linux/node.h	2009-10-07 12:31:51.000000000 -0400
-> > > > +++ linux-2.6.31-mmotm-090925-1435/include/linux/node.h	2009-10-07 12:32:01.000000000 -0400
-> > > > @@ -28,6 +28,7 @@ struct node {
-> > > >  
-> > > >  struct memory_block;
-> > > >  extern struct node node_devices[];
-> > > > +typedef  void (*node_registration_func_t)(struct node *);
-> > > >  
-> > > >  extern int register_node(struct node *, int, struct node *);
-> > > >  extern void unregister_node(struct node *node);
-> > > 
-> > > I previously suggested against the typedef unless this functionality (node 
-> > > hotplug notifiers) becomes more generic outside of the hugetlb use case.
-> > 
-> > I'd like to keep it.  I've read the CodingStyle and I know it argues
-> > against typedefs, but the strongest prohibition is against [pointers to]
-> > structs whose members could be reasonable accessed.  I don't think I
-> > violate that.  And, this does allow the registration function
-> > definitions that take the func pointer as an argument to show up in
-> > cscope.  I find that useful.  Wish they all did [func defs with func
-> > args show up in cscope, that is].  But, if you and others feel strongly
-> > about this, I suppose we can rip it out.
-> > 
-> 
-> Ok, I agree that it would be convenient if this could evolve into a 
-> generic node hotplug notifier taht can be used all over the kernel.  I 
-> don't see any reason why that can't happen based on the work you've done 
-> in this particular patch, so I have no strong objection to it (although 
-> maybe it would be better named `node_notifier_func_t' since it unregisters 
-> nodes too?).
+Just to make sure... You did remove the "g" from the IDs, right?
+So v2.6.30-rc6-1103-gb1bc81a becomes 'b1bc81a' and if you do
+'git describe b1bc81a' you really should end up with the same IDs I have.
 
-OK.  The node driver is notifying the hugetlb module of an event that
-requires hstate attributes to be [un]registered via these functions.
-So, either name works for me.
+> but after some digging around in this general area, I saw this patch
+>
+> 4752c93c30 iwlcore: Allow skb allocation from tasklet
 
+That is v2.6.30-rc6-773-g4752c93, which is part of the first wireless
+merge I tested and where I saw no issues. But see below.
 
+> This patch increases the number of GFP_ATOMIC allocations that can occur
+> by allocating GFP_ATOMIC in some cases and GFP_KERNEL in others.
+> Previously, only GFP_KERNEL was used and I didn't realise this
+> allocation method was so recent. Problems of this sort have cropped up
+> before and while there are later changes that suppress some of these
+> warnings, I believe this is a strong candidate for where the allocation
+> failures started appearing.
+>
+> > v2.6.30-rc6-1032-g7ba10a8       mac80211: fix transposed min/max CW values
+> >     1.13    -
+> >     This is a bugfix for aa837ee1d from an earlier merge! Could this maybe
 
+There's a typo here. That ID should be: aa837e1d.
 
+> >     influence the test results in between? There are various SKB related
+> >     changes there, for example: dfbf97f3..e5b9215e.
+> > v2.6.30-rc6-1037-g2c5b9e5	wireless: libertas: fix unaligned accesses
+> > 	1.12    +-
+> > v2.6.30-rc6-1044-g729e9c7	cfg80211: fix for duplicate userspace replies
+> >     1.10    +- 
+> > v2.6.30-rc6-1075-gc587de0	iwlwifi: unify station management
+> >     1.9     ++-|+-
+> > v2.6.30-rc6-1076-gd14d444	iwl3945: port allow skb allocation in tasklet
+> >     I thought this was a prime candidate, but as you can see 
+> >     several commits before failed too. Still worth looking at I think!
+>
+> Your commit IDs are different to what I see but it's the commit merge at
+> b1bc81a0ef86b86fa410dd303d84c8c7bd09a64d. I agree that the last commit
+> (d14d44407b9f06e3cf967fcef28ccb780caf0583) could make the problem worse
+> because it expands the use of GFP_ATOMIC for another driver.
+
+No, that was a mistake of mine. d14d444 is in a driver I don't even compile.
+The one you identified (which is the same change for iwlagn) is much more
+interesting.
+
+I really do think that v2.6.30-rc6-1032-g7ba10a8 could play a role here.
+That's a fix for v2.6.30-rc1-1131-gaa837e1. So that bug was introduced
+_before_ the merge 82d0481 and may thus well explain both the latencies I
+saw _and_ why that merge tested without problems. And that would also go a
+long way to explain my test results.
+So I'm going to retest 82d0481 with 7ba10a8 cherry-picked on top.
+
+> > BISECTION of akpm (mm) MERGE
+> > ----------------------------
+[...]
+> While I didn't spot anything too out of the ordinary here, they did
+> occur shortly after a number of other page allocator related patches. 
+> One small thing I noticed there is that kswapd is getting woken up less
+> now than it did previously. Generally, I wouldn't have expected it to
+> make a difference but it's possible that kswapd is not being woken up to
+> reclaim at a higher order than it was previously. I have a patch for
+> this below. It'd be nice if you could apply it and see do fewer
+> allocation failures occur on current mainline.
+
+I'll give that patch a try and report back.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
