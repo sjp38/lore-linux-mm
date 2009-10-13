@@ -1,108 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CBF786B0092
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 21:51:51 -0400 (EDT)
-Date: Mon, 12 Oct 2009 18:51:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish
- lru_add_drain_all()
-Message-Id: <20091012185139.75c13648.akpm@linux-foundation.org>
-In-Reply-To: <20091013090347.C752.A69D9226@jp.fujitsu.com>
-References: <20091009111709.1291.A69D9226@jp.fujitsu.com>
-	<20091012165747.97f5bd87.akpm@linux-foundation.org>
-	<20091013090347.C752.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CF1F66B0095
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 22:10:02 -0400 (EDT)
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id n9D29tj3030879
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 03:09:56 +0100
+Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
+	by spaceape14.eur.corp.google.com with ESMTP id n9D29qk4018326
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 19:09:53 -0700
+Received: by pzk38 with SMTP id 38so9503360pzk.9
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2009 19:09:52 -0700 (PDT)
+Date: Mon, 12 Oct 2009 19:09:50 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 7/12] hugetlb:  add per node hstate attributes
+In-Reply-To: <1255362064.4344.105.camel@useless.americas.hpqcorp.net>
+Message-ID: <alpine.DEB.1.00.0910121906590.26949@chino.kir.corp.google.com>
+References: <20091008162454.23192.91832.sendpatchset@localhost.localdomain> <20091008162539.23192.3642.sendpatchset@localhost.localdomain> <alpine.DEB.1.00.0910081339391.4765@chino.kir.corp.google.com> <1255096198.14370.65.camel@useless.americas.hpqcorp.net>
+ <alpine.DEB.1.00.0910091511100.12760@chino.kir.corp.google.com> <1255362064.4344.105.camel@useless.americas.hpqcorp.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, linux-numa@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Randy Dunlap <randy.dunlap@oracle.com>, Nishanth Aravamudan <nacc@us.ibm.com>, Andi Kleen <andi@firstfloor.org>, Adam Litke <agl@us.ibm.com>, Andy Whitcroft <apw@canonical.com>, eric.whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Oct 2009 10:17:48 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, 12 Oct 2009, Lee Schermerhorn wrote:
 
-> Hi
+> > Hmm, does this really work for memory hot-remove?  If all memory is 
+> > removed from a nid, does node_hstates[nid]->hstate_objs[] get updated 
+> > appropriately?  I assume we'd never pass that particular kobj to 
+> > kobj_to_node_hstate() anymore, but I'm wondering if the pointer would 
+> > remain in the hstate_kobjs[] table.
 > 
-> > On Fri,  9 Oct 2009 11:21:55 +0900 (JST)
-> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > 
-> > > Recently, Mike Galbraith reported mlock() makes hang-up very long time in
-> > > his system. Peter Zijlstra explainted the reason.
-> > > 
-> > >   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
-> > >   cpu0 does mlock()->lru_add_drain_all(), which does
-> > >   schedule_on_each_cpu(), which then waits for all cpus to complete the
-> > >   work. Except that cpu1, which is busy with the RT task, will never run
-> > >   keventd until the RT load goes away.
-> > > 
-> > >   This is not so much an actual deadlock as a serious starvation case.
-> > > 
-> > > His system has two partions using cpusets and RT-task partion cpu doesn't
-> > > have any PCP cache. thus, this result was pretty unexpected.
-> > > 
-> > > The fact is, mlock() doesn't need to wait to finish lru_add_drain_all().
-> > > if mlock() can't turn on PG_mlock, vmscan turn it on later.
-> > > 
-> > > Thus, this patch replace it with lru_add_drain_all_async().
-> > 
-> > So why don't we just remove the lru_add_drain_all() call from sys_mlock()?
+> Patch 11 is intended to address this.  The hotplug notifier, added by
+> that patch, will call hugetlb_unregister_node() in the event all memory
+> is removed from a node.  hugetlb_unregister_node() NULLs out the per
+> node hstate_kobjs[] after freeing them.  This patch [7/12] handles node
+> hot-plug--as opposed to memory hot-plug that transitions the node
+> to/from the memoryless state.
 > 
-> There are small reason. the administrators and the testers (include me)
-> look at Mlock field in /proc/meminfo.
-> They natually expect Mlock field match with actual number of mlocked pages
-> if the system don't have any stress. Otherwise, we can't make mlock test case ;)
-> 
-> 
-> > How did you work out why the lru_add_drain_all() is present in
-> > sys_mlock() anyway?  Neither the code nor the original changelog tell
-> > us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
-> 
-> [Umm, My dictionaly don't tell me the meaning of "thwap".  An meaning of
-> an imitative word strongly depend on culture. Thus, I probably
-> misunderstand this paragraph.]
 
-"slap"?
+Ahh, I see it done in hugetlb_register_node(), thanks.
 
-> I've understand the existing reason by looooooong time review.
-> 
-> 
-> > There are many callers of lru_add_drain_all() all over the place.  Each
-> > of those is vulnerable to the same starvation issue, is it not?
-> 
-> There are.
-> 
-> > If so, it would be better to just fix up lru_add_drain_all().  Afaict
-> > all of its functions can be performed in hard IRQ context, so we can
-> > use smp_call_function()?
-> 
-> There is a option. but it have one downside, it require lru_add_pvecs
-> related function call irq_disable().
-
-I don't know what this means.  ____pagevec_lru_add() (for example) can
-be trivially changed from spin_lock_irq() to spin_lock_irqsave().
-
-In other cases we can perhaps split an existing
-
-foo()
-{
-	spin_lock_irq(zone->lock);
-}
-
-into
-
-__foo()
-{
-	spin_lock(zone->lock);
-}
-
-foo()
-{
-	local_irq_disable()
-	__foo();
-}
-
-then call the new __foo().
-	
+There's probably not much of a need to unregister the attributes if all 
+memory is removed, anyway, subsequent allocation attempts on its node 
+should simply fail.  It looks like your patches address node hotplug well, 
+thanks for the clarification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
