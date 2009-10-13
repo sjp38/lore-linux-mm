@@ -1,127 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E62806B00BB
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 04:08:12 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D88A1i027690
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 13 Oct 2009 17:08:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E17BD45DE57
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 17:08:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B7A4B45DE51
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 17:08:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DDADE78004
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 17:08:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 38CED1DB8038
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 17:08:09 +0900 (JST)
-Date: Tue, 13 Oct 2009 17:05:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] memcg: coalescing charge by percpu (Oct/9)
-Message-Id: <20091013170545.3af1cf7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20091013165719.c5781bfa.nishimura@mxp.nes.nec.co.jp>
-References: <20091009165826.59c6f6e3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091009170105.170e025f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20091009165002.629a91d2.akpm@linux-foundation.org>
-	<72e9a96ea399491948f396dab01b4c77.squirrel@webmail-b.css.fujitsu.com>
-	<20091013165719.c5781bfa.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 721226B00C0
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 07:34:19 -0400 (EDT)
+Date: Tue, 13 Oct 2009 12:33:58 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH][BUGFIX] vmscan: limit VM_EXEC protection to file pages
+In-Reply-To: <20091013080054.GA20395@localhost>
+Message-ID: <Pine.LNX.4.64.0910131221220.25854@sister.anvils>
+References: <200910122244.19666.borntraeger@de.ibm.com> <20091013022650.GB7345@localhost>
+ <4AD3E6C4.805@redhat.com> <20091013080054.GA20395@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, h-shimamoto@ct.jp.nec.com, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Oct 2009 16:57:19 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Tue, 13 Oct 2009, Wu Fengguang wrote:
 
-> On Sun, 11 Oct 2009 11:37:35 +0900 (JST), "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > Andrew Morton wrote:
-> > > On Fri, 9 Oct 2009 17:01:05 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > >
-> > >> +static void drain_all_stock_async(void)
-> > >> +{
-> > >> +	int cpu;
-> > >> +	/* This function is for scheduling "drain" in asynchronous way.
-> > >> +	 * The result of "drain" is not directly handled by callers. Then,
-> > >> +	 * if someone is calling drain, we don't have to call drain more.
-> > >> +	 * Anyway, work_pending() will catch if there is a race. We just do
-> > >> +	 * loose check here.
-> > >> +	 */
-> > >> +	if (atomic_read(&memcg_drain_count))
-> > >> +		return;
-> > >> +	/* Notify other cpus that system-wide "drain" is running */
-> > >> +	atomic_inc(&memcg_drain_count);
-> Shouldn't we use atomic_inc_not_zero() ?
-> (Do you mean this problem by "is not very good" below ?)
+> It is possible to have !Anon but SwapBacked pages, and some apps could
+> create huge number of such pages with MAP_SHARED|MAP_ANONYMOUS. These
+> pages go into the ANON lru list, and hence shall not be protected: we
+> only care mapped executable files. Failing to do so may trigger OOM.
 > 
-As comment says, "we just do loose check". There is no terrible race except
-for wasting cpu time.
+> Tested-by: Christian Borntraeger <borntraeger@de.ibm.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-I'm now thinking about following.
+I'm not going to stand against this patch.  But I would like to point
+out that it will "penalize" (well, no longer favour) executables being
+run from a tmpfs.  Probably not a big deal.
 
-==
-for_each_online_cpu(cpu) {
-	struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-	if (work_pending(&stock->work))
-		continue;
-+       atomic_inc(&memcg_drain_count);
-	INIT_WORK(&stock->work, drain_local_stock);
-	schedule_work_on(cpu, &stock->work);
-}
-==
-Or using cpumask to avoid scheduleing twice.
+And I want to put on record that (like Andrea) I really loathe this
+(vm_flags & VM_EXEC) test: it's a heuristic unlike any other in page
+reclaim, and one that is open to any application writer to take unfair
+advantage of.
 
-atomic_dec will be added to worker routine, after drain.
+I know that it's there to make some things work better, and that it
+has been successful (though now inevitably it's found to require a
+tweak - how long until its next tweak?).  But I do hope that one
+day you will come up with something much more satisfactory here.
 
-I'm now prepareing slides for JLS (ah, yes, deadline has gone.), so plz give me time..
-If you want to review it, plz let me know.
+Hugh
 
-Thanks,
--Kame
-
-
+> ---
+>  mm/vmscan.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> Thanks,
-> Daisuke Nishimura.
-> 
-> > >> +	get_online_cpus();
-> > >> +	for_each_online_cpu(cpu) {
-> > >> +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-> > >> +		if (work_pending(&stock->work))
-> > >> +			continue;
-> > >> +		INIT_WORK(&stock->work, drain_local_stock);
-> > >> +		schedule_work_on(cpu, &stock->work);
-> > >> +	}
-> > >> + 	put_online_cpus();
-> > >> +	atomic_dec(&memcg_drain_count);
-> > >> +	/* We don't wait for flush_work */
-> > >> +}
-> > >
-> > > It's unusual to run INIT_WORK() each time we use a work_struct.
-> > > Usually we will run INIT_WORK a single time, then just repeatedly use
-> > > that structure.  Because after the work has completed, it is still in a
-> > > ready-to-use state.
-> > >
-> > > Running INIT_WORK() repeatedly against the same work_struct adds a risk
-> > > that we'll scribble on an in-use work_struct, which would make a big
-> > > mess.
-> > >
-> > Ah, ok. I'll prepare a fix. (And I think atomic_dec/inc placement is not
-> > very good....I'll do total review, again.)
-> > 
-> > Thank you for review.
-> > 
-> > Regards,
-> > -Kame
-> > 
-> > 
-> 
+> --- linux.orig/mm/vmscan.c	2009-10-13 09:49:05.000000000 +0800
+> +++ linux/mm/vmscan.c	2009-10-13 09:49:37.000000000 +0800
+> @@ -1356,7 +1356,7 @@ static void shrink_active_list(unsigned 
+>  			 * IO, plus JVM can create lots of anon VM_EXEC pages,
+>  			 * so we ignore them here.
+>  			 */
+> -			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+> +			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
+>  				list_add(&page->lru, &l_active);
+>  				continue;
+>  			}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
