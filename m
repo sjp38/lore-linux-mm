@@ -1,63 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 721226B00C0
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 07:34:19 -0400 (EDT)
-Date: Tue, 13 Oct 2009 12:33:58 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH][BUGFIX] vmscan: limit VM_EXEC protection to file pages
-In-Reply-To: <20091013080054.GA20395@localhost>
-Message-ID: <Pine.LNX.4.64.0910131221220.25854@sister.anvils>
-References: <200910122244.19666.borntraeger@de.ibm.com> <20091013022650.GB7345@localhost>
- <4AD3E6C4.805@redhat.com> <20091013080054.GA20395@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 44C7E6B00C2
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:49:15 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id n9DFlgYv023030
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:47:42 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9DFn1fD227206
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:49:01 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9DFmiYY024441
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:49:00 -0400
+Date: Tue, 13 Oct 2009 10:48:41 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2][v2] mm: add notifier in pageblock isolation for
+	balloon drivers
+Message-ID: <20091013154841.GB18305@austin.ibm.com>
+References: <20091002184458.GC4908@austin.ibm.com> <20091008163449.00dce972.akpm@linux-foundation.org> <20091009202304.GB19114@austin.ibm.com> <20091009204326.GH24845@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20091009204326.GH24845@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Gerald Schaefer <geralds@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Oct 2009, Wu Fengguang wrote:
+On Fri, Oct 09, 2009 at 21:43:26 +0100, Mal Gorman wrote:
+> As you have tested this recently, would you be willing to post the
+> results? While it's not a requirement of the patch, it would be nice to have
+> an idea of how the effectiveness of memory hot-remove is improved when used
+> with the powerpc balloon. This might convince others developers for balloons
+> to register with the notifier.
 
-> It is possible to have !Anon but SwapBacked pages, and some apps could
-> create huge number of such pages with MAP_SHARED|MAP_ANONYMOUS. These
-> pages go into the ANON lru list, and hence shall not be protected: we
-> only care mapped executable files. Failing to do so may trigger OOM.
-> 
-> Tested-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+I did ten test runs without my patches and ten test runs with my patches
+on a 2.6.32-rc3 kernel.
 
-I'm not going to stand against this patch.  But I would like to point
-out that it will "penalize" (well, no longer favour) executables being
-run from a tmpfs.  Probably not a big deal.
+Without the patch:
+6 out of 10 memory-remove operations without the patch removed 1 LMB
+(64Mb), the rest of the memory-remove attempts failed to remove any LMBs.
 
-And I want to put on record that (like Andrea) I really loathe this
-(vm_flags & VM_EXEC) test: it's a heuristic unlike any other in page
-reclaim, and one that is open to any application writer to take unfair
-advantage of.
+With the patch:
+All of the memory-remove operations removed some LMBs.  The average
+removed was just over 11 LMBs (704Mb) per attempt.
 
-I know that it's there to make some things work better, and that it
-has been successful (though now inevitably it's found to require a
-tweak - how long until its next tweak?).  But I do hope that one
-day you will come up with something much more satisfactory here.
+Linux was given 2Gb of memory.  During the test runs the average memory in
+use was 140Mb, not including cache and buffers, and the average amount
+consumed by the balloon was 1217Mb.  The system was idle while the
+memory remove operation was performed.  After each attempt the system
+was rebooted and allowed ~10 minutes to settle after boot.
 
-Hugh
+With a 2Gb configuration on POWER the LMB size is 64Mb.  The drmgr command
+(part of powerpc-utils) was used to remove memory by LBM, just as an
+end-user would.  Below is a list of the runs and the number of LMBs
+removed.
 
-> ---
->  mm/vmscan.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- linux.orig/mm/vmscan.c	2009-10-13 09:49:05.000000000 +0800
-> +++ linux/mm/vmscan.c	2009-10-13 09:49:37.000000000 +0800
-> @@ -1356,7 +1356,7 @@ static void shrink_active_list(unsigned 
->  			 * IO, plus JVM can create lots of anon VM_EXEC pages,
->  			 * so we ignore them here.
->  			 */
-> -			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
-> +			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
->  				list_add(&page->lru, &l_active);
->  				continue;
->  			}
+Stock kernel (v2.6.32-rc3)
+--------------------------
+LMBs	Used kb	Loaned kb
+removed
+0	135232	1257280
+0	151168	1231744
+1	152128	1234176
+1	150976	1239232
+1	151808	1232064
+0	136064	1249152
+0	137088	1246976
+1	135296	1289984
+1	136384	1263104
+1	152960	1243904
+=======================
+0.60	143910	1248762 Average
+0.49	  7929	  16960 StdDev
+
+Patched kernel
+--------------------------
+LMBs	Used kb	Loaned kb
+removed
+12	134336	1294336
+10	152192	1250432
+ 9	152832	1235520
+15	153152	1237952
+12	152320	1232704
+13	135360	1252224
+11	154176	1237056
+10	153920	1243264
+10	150720	1236416
+13	151040	1230848
+=======================
+11.50	149005  1245075 Average
+ 1.75	  7158	  17738 StdDev
+
+
+Regards,
+Robert Jennings
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
