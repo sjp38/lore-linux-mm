@@ -1,72 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD4C6B00B6
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 01:50:49 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate7.de.ibm.com (8.13.1/8.13.1) with ESMTP id n9D5odhs005739
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 05:50:39 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9D5oc2E3485728
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 07:50:39 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9D5ob84001461
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 07:50:38 +0200
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: Re: oomkiller over-ambitious after "vmscan: make mapped executable pages the first class citizen" (bisected)
-Date: Tue, 13 Oct 2009 07:50:36 +0200
-References: <200910122244.19666.borntraeger@de.ibm.com> <20091013022650.GB7345@localhost>
-In-Reply-To: <20091013022650.GB7345@localhost>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B0C296B00B8
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 03:58:59 -0400 (EDT)
+Date: Tue, 13 Oct 2009 16:57:19 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/2] memcg: coalescing charge by percpu (Oct/9)
+Message-Id: <20091013165719.c5781bfa.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <72e9a96ea399491948f396dab01b4c77.squirrel@webmail-b.css.fujitsu.com>
+References: <20091009165826.59c6f6e3.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091009170105.170e025f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20091009165002.629a91d2.akpm@linux-foundation.org>
+	<72e9a96ea399491948f396dab01b4c77.squirrel@webmail-b.css.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <200910130750.36392.borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Elladan <elladan@eskimo.com>, Nick Piggin <npiggin@suse.de>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, h-shimamoto@ct.jp.nec.com, linux-kernel@vger.kernel.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Am Dienstag 13 Oktober 2009 04:26:50 schrieb Wu Fengguang:
-[...]
+On Sun, 11 Oct 2009 11:37:35 +0900 (JST), "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Andrew Morton wrote:
+> > On Fri, 9 Oct 2009 17:01:05 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >
+> >> +static void drain_all_stock_async(void)
+> >> +{
+> >> +	int cpu;
+> >> +	/* This function is for scheduling "drain" in asynchronous way.
+> >> +	 * The result of "drain" is not directly handled by callers. Then,
+> >> +	 * if someone is calling drain, we don't have to call drain more.
+> >> +	 * Anyway, work_pending() will catch if there is a race. We just do
+> >> +	 * loose check here.
+> >> +	 */
+> >> +	if (atomic_read(&memcg_drain_count))
+> >> +		return;
+> >> +	/* Notify other cpus that system-wide "drain" is running */
+> >> +	atomic_inc(&memcg_drain_count);
+Shouldn't we use atomic_inc_not_zero() ?
+(Do you mean this problem by "is not very good" below ?)
 
-> Can you try this patch? Thanks!
 
-Yes, this patch solves the problem. In fact, my test case was a reduced version
-of KVM on s390 and it helps there as well.
+Thanks,
+Daisuke Nishimura.
 
-Since the problem also affects 2.6.31 I added stable.
-
-I agree with Rik, that this patch should go to Linus quickly, what is the best 
-way? Andrew?
-
-> ---
-> vmscan: limit VM_EXEC protection to file pages
+> >> +	get_online_cpus();
+> >> +	for_each_online_cpu(cpu) {
+> >> +		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+> >> +		if (work_pending(&stock->work))
+> >> +			continue;
+> >> +		INIT_WORK(&stock->work, drain_local_stock);
+> >> +		schedule_work_on(cpu, &stock->work);
+> >> +	}
+> >> + 	put_online_cpus();
+> >> +	atomic_dec(&memcg_drain_count);
+> >> +	/* We don't wait for flush_work */
+> >> +}
+> >
+> > It's unusual to run INIT_WORK() each time we use a work_struct.
+> > Usually we will run INIT_WORK a single time, then just repeatedly use
+> > that structure.  Because after the work has completed, it is still in a
+> > ready-to-use state.
+> >
+> > Running INIT_WORK() repeatedly against the same work_struct adds a risk
+> > that we'll scribble on an in-use work_struct, which would make a big
+> > mess.
+> >
+> Ah, ok. I'll prepare a fix. (And I think atomic_dec/inc placement is not
+> very good....I'll do total review, again.)
 > 
-> It is possible to have !Anon but SwapBacked pages, and some apps could
-> create huge number of such pages with MAP_SHARED|MAP_ANONYMOUS. These
-> pages go into the ANON lru list, and hence shall not be protected: we
-> only care mapped executable files. Failing to do so may trigger OOM.
+> Thank you for review.
 > 
-> Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-
-Tested-by: Christian Borntraeger <borntraeger@de.ibm.com>
-
-> ---
->  mm/vmscan.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> Regards,
+> -Kame
 > 
-> --- linux.orig/mm/vmscan.c	2009-10-13 09:49:05.000000000 +0800
-> +++ linux/mm/vmscan.c	2009-10-13 09:49:37.000000000 +0800
-> @@ -1356,7 +1356,7 @@ static void shrink_active_list(unsigned
->  			 * IO, plus JVM can create lots of anon VM_EXEC pages,
->  			 * so we ignore them here.
->  			 */
-> -			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
-> +			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
->  				list_add(&page->lru, &l_active);
->  				continue;
->  			}
 > 
 
 --
