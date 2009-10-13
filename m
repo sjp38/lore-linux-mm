@@ -1,174 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B440E6B009C
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 22:50:16 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id A232C6B009D
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 23:18:23 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D2oDlx030037
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D3IL9h009158
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 13 Oct 2009 11:50:14 +0900
+	Tue, 13 Oct 2009 12:18:21 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52E9745DE5A
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:50:13 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C78945DE50
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 12:18:21 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 09A5245DE51
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:50:11 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EC0345DE4E
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 12:18:21 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D2C9B1DB8041
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:50:10 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C6801DB8043
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 12:18:21 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 73C5F1DB8046
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 11:50:09 +0900 (JST)
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 143371DB803C
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 12:18:18 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] munmap() don't check sysctl_max_mapcount
-In-Reply-To: <Pine.LNX.4.64.0910121512070.2943@sister.anvils>
-References: <20091012184654.E4D0.A69D9226@jp.fujitsu.com> <Pine.LNX.4.64.0910121512070.2943@sister.anvils>
-Message-Id: <20091013102137.C755.A69D9226@jp.fujitsu.com>
+Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish lru_add_drain_all()
+In-Reply-To: <20091012185139.75c13648.akpm@linux-foundation.org>
+References: <20091013090347.C752.A69D9226@jp.fujitsu.com> <20091012185139.75c13648.akpm@linux-foundation.org>
+Message-Id: <20091013110409.C758.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 13 Oct 2009 11:50:08 +0900 (JST)
+Date: Tue, 13 Oct 2009 12:18:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-> > > If you change your patch so that do_munmap() cannot increase the final
-> > > number vmas beyond sysctl_max_map_count, that would seem reasonable.
-> > > But would that satisfy your testcase?  And does the testcase really
-> > > matter in practice?  It doesn't seem to have upset anyone before.
+> On Tue, 13 Oct 2009 10:17:48 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+> > Hi
 > > 
-> > Very thank you for payed attention to my patch. Yes, this is real issue.
-> > my customer suffer from it.
-> 
-> That's a good reason for a fix; though nothing you say explains why
-> they're operating right at the sysctl_max_map_count limit (which is
-> likely to give them further surprises), and cannot raise that limit.
-
-Probably, my last mail was not clear a bit. I talked about two thing
-at the same time. sorry for ambiguous message.
-
- (1) custmer faced bug
- (2) my future view
-
-In point (1), the limit itself is not problem at all. the customer
-can change it. but nobody accept resource deallocation makes SIGABORT
-internally. I think both kernel and glibc have fault.
-
-removing sysctl_max_map_count is only my future view.
-
-
-> > May I explain why you haven't seen this issue? this issue is architecture
-> > independent problem. however register stack architecture (e.g. ia64, sparc)
-> > dramatically increase the possibility of the heppen this issue.
-> 
-> Thanks for going to all this trouble; but I never doubted it could
-> happen, nor that some would be more likely to suffer than others.
-> 
-> > And, I doubt I haven't catch your mention. May I ask some question?
-> > Honestly I don't think max_map_count is important knob. it is strange
-> > mutant of limit of virtual address space in the process.
-> > At very long time ago (probably the stone age), linux doesn't have
-> > vma rb_tree handling, then many vma directly cause find_vma slow down.
-> > However current linux have good scalability. it can handle many vma issue.
-> 
-> I think there are probably several different reasons for the limit,
-> some perhaps buried in prehistory, yes, and others forgotten.
-> 
-> One reason is well-known to your colleague, KAMEZAWA-san:
-> the ELF core dump format only supports a ushort number of sections.
-
-Ah! yes.
-I had forgot it. thanks pointing this.
-
-Yes, I agree we can't remove max_mapcount yet.
-
-Side node: My co-worker working on implement enhanced ELF header to gdb,
-it's derived from solaris. I expect we can remove the above ushort limitation
-in this year.
-
-> One reason will be to limit the amount of kernel memory which can
-> be pinned by a user program - why limit their ability to to lock down
-> user pages, if we let them run wild with kernel data structures?
-> The more important on 32-bit machines with more than 1GB of memory, as
-> the lowmem restriction comes to bite.  But I probably should not have
-> mentioned that, I fear you'll now go on a hunt for other places where
-> we impose no such limit, and embarrass me greatly with the result ;)
-
-hmhm, 32bit, I see.
-
-Side note: 64K max_mapcount restrict number of thread to 32K. there seems
-too small in modern 64bit. after solving ELF ushort issue, the default value
-on 64bit might be considerable. I think.
-
-
-> And one reason will be the long vma->vm_next searches: less of an
-> issue nowadays, yes, and preemptible if you have CONFIG_PREEMPT=y;
-> but still might be something of a problem.
-> 
-> > So, Why do you think max_mapcount sould be strictly keeped?
-> 
-> I don't believe it's the most serious limit we have, and I'm no
-> expert on its origins; but I do believe that if we profess to have
-> some limit, then we have to enforce it.  If we're going to allow
-> anybody to get around the limit, better just throw the limit away.
-
-OK, I agree.
-
-> > Honestly, I doubt nobody suffer from removing sysctl_max_mapcount.
-> 
-> I expect Kame to disagree with you on that.
-
-I have to say your expection is bingo! ;)
-
-
-> > And yes, stack unmapping have exceptional charactatics. the guard zone
-> > gurantee it never raise map_count. 
-> > So, I think the attached patch (0001-Don-t...) is the same as you talked about, right?
-> 
-> Yes, I've not tested but that looks right to me (I did have to think a
-> bit to realize that the case where the munmap spans more than one vma
-> is fine with the check you've added).  In the version below I've just
-> changed your code comment.
-
-Thank you! 
-
-
-> > I can accept it. I haven't test it on ia64. however, at least it works
-> > well on x86.
+> > > On Fri,  9 Oct 2009 11:21:55 +0900 (JST)
+> > > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > 
+> > > > Recently, Mike Galbraith reported mlock() makes hang-up very long time in
+> > > > his system. Peter Zijlstra explainted the reason.
+> > > > 
+> > > >   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
+> > > >   cpu0 does mlock()->lru_add_drain_all(), which does
+> > > >   schedule_on_each_cpu(), which then waits for all cpus to complete the
+> > > >   work. Except that cpu1, which is busy with the RT task, will never run
+> > > >   keventd until the RT load goes away.
+> > > > 
+> > > >   This is not so much an actual deadlock as a serious starvation case.
+> > > > 
+> > > > His system has two partions using cpusets and RT-task partion cpu doesn't
+> > > > have any PCP cache. thus, this result was pretty unexpected.
+> > > > 
+> > > > The fact is, mlock() doesn't need to wait to finish lru_add_drain_all().
+> > > > if mlock() can't turn on PG_mlock, vmscan turn it on later.
+> > > > 
+> > > > Thus, this patch replace it with lru_add_drain_all_async().
+> > > 
+> > > So why don't we just remove the lru_add_drain_all() call from sys_mlock()?
 > > 
-> > BUT, I still think kernel souldn't refuse any resource deallocation.
-> > otherwise, people discourage proper resource deallocation and encourage
-> > brutal intentional memory leak programming style. What do you think?
+> > There are small reason. the administrators and the testers (include me)
+> > look at Mlock field in /proc/meminfo.
+> > They natually expect Mlock field match with actual number of mlocked pages
+> > if the system don't have any stress. Otherwise, we can't make mlock test case ;)
+> > 
+> > 
+> > > How did you work out why the lru_add_drain_all() is present in
+> > > sys_mlock() anyway?  Neither the code nor the original changelog tell
+> > > us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
+> > 
+> > [Umm, My dictionaly don't tell me the meaning of "thwap".  An meaning of
+> > an imitative word strongly depend on culture. Thus, I probably
+> > misunderstand this paragraph.]
 > 
-> I think you're a little too trusting.  It's common enough that in order
-> to free one resource, we need just a little of another resource; and
-> it is frustrating when that other resource is tightly limited.  But if
-> somebody owes you 10000 yen, and asks to borrow just another 1000 yen
-> to make some arrangement to pay you back, then the next day asks to
-> borrow just another 1000 yen to enhance that arrangement, then....
+> "slap"?
 > 
-> That's what I'm asking to guard against here.   But if you're so
-> strongly against having that limit, please just get your customers
-> to raise it to INT_MAX: that should be enough to keep away from
-> its practical limitations, shouldn't it?
+> > I've understand the existing reason by looooooong time review.
+> > 
+> > 
+> > > There are many callers of lru_add_drain_all() all over the place.  Each
+> > > of those is vulnerable to the same starvation issue, is it not?
+> > 
+> > There are.
+> > 
+> > > If so, it would be better to just fix up lru_add_drain_all().  Afaict
+> > > all of its functions can be performed in hard IRQ context, so we can
+> > > use smp_call_function()?
+> > 
+> > There is a option. but it have one downside, it require lru_add_pvecs
+> > related function call irq_disable().
+> 
+> I don't know what this means.  ____pagevec_lru_add() (for example) can
+> be trivially changed from spin_lock_irq() to spin_lock_irqsave().
+> 
+> In other cases we can perhaps split an existing
+> 
+> foo()
+> {
+> 	spin_lock_irq(zone->lock);
+> }
+> 
+> into
+> 
+> __foo()
+> {
+> 	spin_lock(zone->lock);
+> }
+> 
+> foo()
+> {
+> 	local_irq_disable()
+> 	__foo();
+> }
+> 
+> then call the new __foo().
 
-The customer don't need to remove this limit. That's merely my personal
-opinion.
-Currently, various library and application don't check munmap() return value.  
-I have pessimistic expection to change them. In practice, we have two way to
-get rid of suffer of munlock return value.
-  (1) removing the possibility of error return (i.g. remove sysctl_max_mapcount)
-  (2) limitation bump up until usual application never touch its limit.
+The problem is in __lru_cache_add().
 
-I thought we can (1). but I've changed my opinion by this mail. probably
-(2) is better. but it is long term issue. we can't do it until solving ELF
-issue....
+============================================================
+void __lru_cache_add(struct page *page, enum lru_list lru)
+{
+        struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
 
-Thanks again. you clarified various viewpoint.
+        page_cache_get(page);
+        if (!pagevec_add(pvec, page))
+                ____pagevec_lru_add(pvec, lru);
+        put_cpu_var(lru_add_pvecs);
+}
+============================================================
 
+current typical scenario is
+1. preempt disable
+2. assign lru_add_pvec
+3. page_cache_get()
+4. pvec->pages[pvec->nr++] = page;
+5. preempt enable
 
+but the preempt disabling assume drain_cpu_pagevecs() run on process context.
+we need to convert it with irq_disabling.
+
+I don't know this how much serious. I haven't mesure it. Yes, I can.
+I will report this result as another mail.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
