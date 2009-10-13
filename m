@@ -1,149 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 300546B0085
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 20:56:08 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D0u5Ja010178
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 13 Oct 2009 09:56:05 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1469845DE62
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:56:05 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E399C45DE57
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:56:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C67F31DB803A
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:56:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AD781DB8042
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:56:04 +0900 (JST)
-Date: Tue, 13 Oct 2009 09:53:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] munmap() don't check sysctl_max_mapcount
-Message-Id: <20091013095342.197c767b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0910121512070.2943@sister.anvils>
-References: <20091002180533.5F77.A69D9226@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910091007010.17240@sister.anvils>
-	<20091012184654.E4D0.A69D9226@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910121512070.2943@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5C2156B0088
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 21:21:12 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D1HnY9022579
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 13 Oct 2009 10:17:50 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBEA245DE4D
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 10:17:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9082345DE4F
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 10:17:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 78B361DB8042
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 10:17:49 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 324641DB803E
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 10:17:49 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish lru_add_drain_all()
+In-Reply-To: <20091012165747.97f5bd87.akpm@linux-foundation.org>
+References: <20091009111709.1291.A69D9226@jp.fujitsu.com> <20091012165747.97f5bd87.akpm@linux-foundation.org>
+Message-Id: <20091013090347.C752.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Oct 2009 10:17:48 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Oct 2009 16:04:08 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+Hi
 
-> On Mon, 12 Oct 2009, KOSAKI Motohiro wrote:
-> > And, I doubt I haven't catch your mention. May I ask some question?
-> > Honestly I don't think max_map_count is important knob. it is strange
-> > mutant of limit of virtual address space in the process.
-> > At very long time ago (probably the stone age), linux doesn't have
-> > vma rb_tree handling, then many vma directly cause find_vma slow down.
-> > However current linux have good scalability. it can handle many vma issue.
+> On Fri,  9 Oct 2009 11:21:55 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> I think there are probably several different reasons for the limit,
-> some perhaps buried in prehistory, yes, and others forgotten.
-> 
-> One reason is well-known to your colleague, KAMEZAWA-san:
-> the ELF core dump format only supports a ushort number of sections.
-> 
-yes.
-
-> One reason will be to limit the amount of kernel memory which can
-> be pinned by a user program - why limit their ability to to lock down
-> user pages, if we let them run wild with kernel data structures?
-> The more important on 32-bit machines with more than 1GB of memory, as
-> the lowmem restriction comes to bite.  But I probably should not have
-> mentioned that, I fear you'll now go on a hunt for other places where
-> we impose no such limit, and embarrass me greatly with the result ;)
-> 
-> And one reason will be the long vma->vm_next searches: less of an
-> issue nowadays, yes, and preemptible if you have CONFIG_PREEMPT=y;
-> but still might be something of a problem.
-> 
-> > So, Why do you think max_mapcount sould be strictly keeped?
-> 
-> I don't believe it's the most serious limit we have, and I'm no
-> expert on its origins; but I do believe that if we profess to have
-> some limit, then we have to enforce it.  If we're going to allow
-> anybody to get around the limit, better just throw the limit away.
-> 
+> > Recently, Mike Galbraith reported mlock() makes hang-up very long time in
+> > his system. Peter Zijlstra explainted the reason.
 > > 
-> > Honestly, I doubt nobody suffer from removing sysctl_max_mapcount.
-> 
-> I expect Kame to disagree with you on that.
-> 
+> >   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
+> >   cpu0 does mlock()->lru_add_drain_all(), which does
+> >   schedule_on_each_cpu(), which then waits for all cpus to complete the
+> >   work. Except that cpu1, which is busy with the RT task, will never run
+> >   keventd until the RT load goes away.
 > > 
-> > And yes, stack unmapping have exceptional charactatics. the guard zone
-> > gurantee it never raise map_count. 
-> > So, I think the attached patch (0001-Don-t...) is the same as you talked about, right?
-> 
-> Yes, I've not tested but that looks right to me (I did have to think a
-> bit to realize that the case where the munmap spans more than one vma
-> is fine with the check you've added).  In the version below I've just
-> changed your code comment.
-> 
-> > I can accept it. I haven't test it on ia64. however, at least it works
-> > well on x86.
+> >   This is not so much an actual deadlock as a serious starvation case.
 > > 
-> > BUT, I still think kernel souldn't refuse any resource deallocation.
-> > otherwise, people discourage proper resource deallocation and encourage
-> > brutal intentional memory leak programming style. What do you think?
+> > His system has two partions using cpusets and RT-task partion cpu doesn't
+> > have any PCP cache. thus, this result was pretty unexpected.
+> > 
+> > The fact is, mlock() doesn't need to wait to finish lru_add_drain_all().
+> > if mlock() can't turn on PG_mlock, vmscan turn it on later.
+> > 
+> > Thus, this patch replace it with lru_add_drain_all_async().
 > 
-> I think you're a little too trusting.  It's common enough that in order
-> to free one resource, we need just a little of another resource; and
-> it is frustrating when that other resource is tightly limited.  But if
-> somebody owes you 10000 yen, and asks to borrow just another 1000 yen
-> to make some arrangement to pay you back, then the next day asks to
-> borrow just another 1000 yen to enhance that arrangement, then....
-> 
-> That's what I'm asking to guard against here.   But if you're so
-> strongly against having that limit, please just get your customers
-> to raise it to INT_MAX: that should be enough to keep away from
-> its practical limitations, shouldn't it?
-> 
-> 
-I discussed with Kosaki. Ah, hmm, reporing our status.
+> So why don't we just remove the lru_add_drain_all() call from sys_mlock()?
 
- - Even if we think the program which exceeds max_map_count and go abort()
-   as buggy program, we don't think abort() (in library) is very good.
-   So, we want to avoid this. 
-
- - We hear one of our collegue (debugger team) is now preparing ELF-extention
-   patches for kernel and gdb. We hear solaris has ELF-extention for handling more
-   than 65535 program headers and recent AMD64 ABI draft includes it.
-   We now think this extention should go first. We discuss him with our schedule.
-
- - Considering "too much consume memory" attack, we need some limits.
-   Then, we wonder adding
-          - system-wide max_map_count (enough large)
-          or
-          - determine per process max_map_count based on host's memory size.
-
-   BTW, looking sysctl, there is threads-max.
-
-       [kamezawa@bluextal ~]$ cat /proc/sys/kernel/threads-max
-       409600
-
-   This number is system-wide and automatically determined at boot.
-   But, in fact, there is max_map_count and per process threads-max is determined
-   by it. We think this not very neat.
-   
- We'll consider more. Probably, we'll start from ELF extention.
+There are small reason. the administrators and the testers (include me)
+look at Mlock field in /proc/meminfo.
+They natually expect Mlock field match with actual number of mlocked pages
+if the system don't have any stress. Otherwise, we can't make mlock test case ;)
 
 
-Thanks,
--Kame
+> How did you work out why the lru_add_drain_all() is present in
+> sys_mlock() anyway?  Neither the code nor the original changelog tell
+> us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
+
+[Umm, My dictionaly don't tell me the meaning of "thwap".  An meaning of
+an imitative word strongly depend on culture. Thus, I probably
+misunderstand this paragraph.]
+
+I've understand the existing reason by looooooong time review.
 
 
-   
+> There are many callers of lru_add_drain_all() all over the place.  Each
+> of those is vulnerable to the same starvation issue, is it not?
 
+There are.
 
+> If so, it would be better to just fix up lru_add_drain_all().  Afaict
+> all of its functions can be performed in hard IRQ context, so we can
+> use smp_call_function()?
+
+There is a option. but it have one downside, it require lru_add_pvecs
+related function call irq_disable().
+
+__lru_cache_add() is often called from page fault path. then we need
+performance mesurement.
 
 
 
