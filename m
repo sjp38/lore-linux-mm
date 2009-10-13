@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B54186B006A
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 19:58:28 -0400 (EDT)
-Date: Mon, 12 Oct 2009 16:57:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish
- lru_add_drain_all()
-Message-Id: <20091012165747.97f5bd87.akpm@linux-foundation.org>
-In-Reply-To: <20091009111709.1291.A69D9226@jp.fujitsu.com>
-References: <20091009111709.1291.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 35AD36B0082
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2009 20:31:51 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9D0VmA7002646
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 13 Oct 2009 09:31:48 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CDC445DE61
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:31:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E50745DE55
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:31:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8031C1DB8040
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:31:44 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F8CE1DB8038
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 09:31:44 +0900 (JST)
+Date: Tue, 13 Oct 2009 09:29:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/2] memcg: improving scalability by reducing lock
+ contention at charge/uncharge
+Message-Id: <20091013092920.7d509ffa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <604427e00910111134o6f22f0ddg2b87124dd334ec02@mail.gmail.com>
+References: <20091002135531.3b5abf5c.kamezawa.hiroyu@jp.fujitsu.com>
+	<604427e00910091737s52e11ce9p256c95d533dc2837@mail.gmail.com>
+	<f82dee90d0ab51d5bd33a6c01a9feb17.squirrel@webmail-b.css.fujitsu.com>
+	<604427e00910111134o6f22f0ddg2b87124dd334ec02@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Ying Han <yinghan@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  9 Oct 2009 11:21:55 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Sun, 11 Oct 2009 11:34:39 -0700
+Ying Han <yinghan@google.com> wrote:
 
-> Recently, Mike Galbraith reported mlock() makes hang-up very long time in
-> his system. Peter Zijlstra explainted the reason.
-> 
->   Suppose you have 2 cpus, cpu1 is busy doing a SCHED_FIFO-99 while(1),
->   cpu0 does mlock()->lru_add_drain_all(), which does
->   schedule_on_each_cpu(), which then waits for all cpus to complete the
->   work. Except that cpu1, which is busy with the RT task, will never run
->   keventd until the RT load goes away.
-> 
->   This is not so much an actual deadlock as a serious starvation case.
-> 
-> His system has two partions using cpusets and RT-task partion cpu doesn't
-> have any PCP cache. thus, this result was pretty unexpected.
-> 
-> The fact is, mlock() doesn't need to wait to finish lru_add_drain_all().
-> if mlock() can't turn on PG_mlock, vmscan turn it on later.
-> 
-> Thus, this patch replace it with lru_add_drain_all_async().
+> 2009/10/10 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-So why don't we just remove the lru_add_drain_all() call from sys_mlock()?
+> > This patch series is only for "child" cgroup. Sorry, I had to write it
+> > clearer. No effects to root.
+> >
+> 
+> Ok, Thanks for making it clearer. :) So Do you mind post the cgroup+memcg
+> configuration
+> while you are running on your host?
+> 
 
-How did you work out why the lru_add_drain_all() is present in
-sys_mlock() anyway?  Neither the code nor the original changelog tell
-us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
+#mount -t cgroup /dev/null /cgroups -omemory
+#mkdir /cgroups/A
+#echo $$ > /cgroups/A
 
-There are many callers of lru_add_drain_all() all over the place.  Each
-of those is vulnerable to the same starvation issue, is it not?
+and run test.
 
-If so, it would be better to just fix up lru_add_drain_all().  Afaict
-all of its functions can be performed in hard IRQ context, so we can
-use smp_call_function()?
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
