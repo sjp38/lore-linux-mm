@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 890A66B00A2
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 00:26:11 -0400 (EDT)
-Subject: Re: [resend][PATCH v2] mlock() doesn't wait to finish lru_add_drain_all()
-In-Reply-To: Your message of "Tue, 13 Oct 2009 10:17:48 +0900."
-             <20091013090347.C752.A69D9226@jp.fujitsu.com>
-From: Valdis.Kletnieks@vt.edu
-References: <20091009111709.1291.A69D9226@jp.fujitsu.com> <20091012165747.97f5bd87.akpm@linux-foundation.org>
-            <20091013090347.C752.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 43B4A6B00A4
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 00:54:52 -0400 (EDT)
+Date: Tue, 13 Oct 2009 13:49:03 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [RFC][PATCH 0/8] memcg: recharge at task move (Oct13)
+Message-Id: <20091013134903.66c9682a.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1255407959_3557P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 13 Oct 2009 00:25:59 -0400
-Message-ID: <15231.1255407959@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mike Galbraith <efault@gmx.de>, Oleg Nesterov <onestero@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1255407959_3557P
-Content-Type: text/plain; charset=us-ascii
+Hi.
 
-On Tue, 13 Oct 2009 10:17:48 +0900, KOSAKI Motohiro said:
+These are my current patches for recharge at task move.
 
-> > How did you work out why the lru_add_drain_all() is present in
-> > sys_mlock() anyway?  Neither the code nor the original changelog tell
-> > us.  Who do I thwap for that?  Nick and his reviewers.  Sigh.
-> 
-> [Umm, My dictionaly don't tell me the meaning of "thwap".  An meaning of
-> an imitative word strongly depend on culture. Thus, I probably
-> misunderstand this paragraph.]
+In current memcg, charges associated with a task aren't moved to the new cgroup
+at task move. These patches are for this feature, that is, for recharging to
+the new cgroup and, of course, uncharging from old cgroup at task move.
 
-http://ars.userfriendly.org/cartoons/?id=20030210&mode=classic
+I've tested these patches on 2.6.32-rc3(+ some patches) with memory pressure
+and rmdir, they didn't cause any BUGs during last weekend.
 
-(biff, thwap, it's all the same - the sound of a cluebat impacting somebody ;)
+Major Changes from Sep24:
+- rebased on mmotm-2009-10-09-01-07 + KAMEZAWA-san's batched charge/uncharge(Oct09)
+  + part of KAMEZAWA-san's cleanup/fix patches(4,5,7 of Sep25 with some fixes).
+- changed the term "migrate" to "recharge".
 
---==_Exmh_1255407959_3557P
-Content-Type: application/pgp-signature
+TODO:
+- update Documentation/cgroup/memory.txt
+- implement madvise(2) (MADV_MEMCG_RECHARGE/NORECHARGE)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+Any comments or suggestions would be welcome.
 
-iD8DBQFK1AFXcC3lWbTT17ARAoeQAKCYdCjq/kfHDCI2Rv34Pm9qNPVH7gCfXh0d
-VHh8gS/i1yh4u1ksCJvnSnY=
-=7xJN
------END PGP SIGNATURE-----
 
---==_Exmh_1255407959_3557P--
+Thanks,
+Dasiuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
