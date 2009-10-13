@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C286B00A5
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 01:00:03 -0400 (EDT)
-Date: Tue, 13 Oct 2009 13:50:27 +0900
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 457696B00A7
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2009 01:00:10 -0400 (EDT)
+Date: Tue, 13 Oct 2009 13:51:42 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][PATCH 1/8] cgroup: introduce cancel_attach()
-Message-Id: <20091013135027.c60285a8.nishimura@mxp.nes.nec.co.jp>
+Subject: [RFC][PATCH 2/8] memcg: cleanup mem_cgroup_move_parent()
+Message-Id: <20091013135142.8bc4b025.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20091013134903.66c9682a.nishimura@mxp.nes.nec.co.jp>
 References: <20091013134903.66c9682a.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -13,121 +13,195 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: linux-mm <linux-mm@kvack.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds cancel_attach() operation to struct cgroup_subsys.
-cancel_attach() can be used when can_attach() operation prepares something
-for the subsys, but we should discard what can_attach() operation has prepared
-if attach task fails afterwards.
+mem_cgroup_move_parent() calls try_charge first and cancel_charge on failure.
+IMHO, charge/uncharge(especially charge) is high cost operation, so we should
+avoid it as far as possible.
+
+This patch tries to delay try_charge in mem_cgroup_move_parent() by re-ordering
+checks it does.
+
+And this patch renames mem_cgroup_move_account() to __mem_cgroup_move_account(),
+changes the return value of __mem_cgroup_move_account() from int to void,
+and adds a new wrapper(mem_cgroup_move_account()), which checks whether a @pc
+is valid for moving account and calls __mem_cgroup_move_account().
+
+This patch removes the last caller of trylock_page_cgroup(), so removes its
+definition too.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- Documentation/cgroups/cgroups.txt |   12 ++++++++++++
- include/linux/cgroup.h            |    2 ++
- kernel/cgroup.c                   |   27 ++++++++++++++++++++-------
- 3 files changed, 34 insertions(+), 7 deletions(-)
+ include/linux/page_cgroup.h |    7 +---
+ mm/memcontrol.c             |   84 ++++++++++++++++++-------------------------
+ 2 files changed, 37 insertions(+), 54 deletions(-)
 
-diff --git a/Documentation/cgroups/cgroups.txt b/Documentation/cgroups/cgroups.txt
-index 0b33bfe..fd8e1c1 100644
---- a/Documentation/cgroups/cgroups.txt
-+++ b/Documentation/cgroups/cgroups.txt
-@@ -540,6 +540,18 @@ remain valid while the caller holds cgroup_mutex. If threadgroup is
- true, then a successful result indicates that all threads in the given
- thread's threadgroup can be moved together.
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index 4b938d4..b0e4eb1 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -57,6 +57,8 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+ static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+ 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
  
-+void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+	       struct task_struct *task, bool threadgroup)
-+(cgroup_mutex held by caller)
++TESTPCGFLAG(Locked, LOCK)
 +
-+Called when a task attach operation has failed after can_attach() has succeeded.
-+For example, this will be called if some subsystems are mounted on the same
-+hierarchy, can_attach() operations have succeeded about part of the subsystems,
-+but has failed about next subsystem. This will be called only about subsystems
-+whose can_attach() operation has succeeded. A subsystem whose can_attach() has
-+some side-effects should provide this function, so that the subsytem can
-+implement a rollback. If not, not necessary.
-+
- void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 	    struct cgroup *old_cgrp, struct task_struct *task,
- 	    bool threadgroup)
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 0008dee..d4cc200 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -427,6 +427,8 @@ struct cgroup_subsys {
- 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
- 	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			  struct task_struct *tsk, bool threadgroup);
-+	void (*cancel_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-+			  struct task_struct *tsk, bool threadgroup);
- 	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
- 			struct cgroup *old_cgrp, struct task_struct *tsk,
- 			bool threadgroup);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index 0249f4b..bc145f8 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -1539,7 +1539,7 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
- int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- {
- 	int retval = 0;
--	struct cgroup_subsys *ss;
-+	struct cgroup_subsys *ss, *fail = NULL;
- 	struct cgroup *oldcgrp;
- 	struct css_set *cg;
- 	struct css_set *newcg;
-@@ -1553,8 +1553,10 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	for_each_subsys(root, ss) {
- 		if (ss->can_attach) {
- 			retval = ss->can_attach(ss, cgrp, tsk, false);
--			if (retval)
--				return retval;
-+			if (retval) {
-+				fail = ss;
-+				goto out;
-+			}
- 		}
- 	}
- 
-@@ -1568,14 +1570,17 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	 */
- 	newcg = find_css_set(cg, cgrp);
- 	put_css_set(cg);
--	if (!newcg)
--		return -ENOMEM;
-+	if (!newcg) {
-+		retval = -ENOMEM;
-+		goto out;
-+	}
- 
- 	task_lock(tsk);
- 	if (tsk->flags & PF_EXITING) {
- 		task_unlock(tsk);
- 		put_css_set(newcg);
--		return -ESRCH;
-+		retval = -ESRCH;
-+		goto out;
- 	}
- 	rcu_assign_pointer(tsk->cgroups, newcg);
- 	task_unlock(tsk);
-@@ -1601,7 +1606,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
- 	 * is no longer empty.
- 	 */
- 	cgroup_wakeup_rmdir_waiter(cgrp);
--	return 0;
-+out:
-+	if (retval)
-+		for_each_subsys(root, ss) {
-+			if (ss == fail)
-+				break;
-+			if (ss->cancel_attach)
-+				ss->cancel_attach(ss, cgrp, tsk, false);
-+		}
-+	return retval;
+ /* Cache flag is set only once (at allocation) */
+ TESTPCGFLAG(Cache, CACHE)
+ CLEARPCGFLAG(Cache, CACHE)
+@@ -86,11 +88,6 @@ static inline void lock_page_cgroup(struct page_cgroup *pc)
+ 	bit_spin_lock(PCG_LOCK, &pc->flags);
  }
  
- /*
+-static inline int trylock_page_cgroup(struct page_cgroup *pc)
+-{
+-	return bit_spin_trylock(PCG_LOCK, &pc->flags);
+-}
+-
+ static inline void unlock_page_cgroup(struct page_cgroup *pc)
+ {
+ 	bit_spin_unlock(PCG_LOCK, &pc->flags);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f604469..fb20564 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1646,45 +1646,29 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ }
+ 
+ /**
+- * mem_cgroup_move_account - move account of the page
++ * __mem_cgroup_move_account - move account of the page
+  * @pc:	page_cgroup of the page.
+  * @from: mem_cgroup which the page is moved from.
+  * @to:	mem_cgroup which the page is moved to. @from != @to.
+  *
+  * The caller must confirm following.
+  * - page is not on LRU (isolate_page() is useful.)
+- *
+- * returns 0 at success,
+- * returns -EBUSY when lock is busy or "pc" is unstable.
++ * - the pc is locked, used, and ->mem_cgroup points to @from.
+  *
+  * This function does "uncharge" from old cgroup but doesn't do "charge" to
+  * new cgroup. It should be done by a caller.
+  */
+ 
+-static int mem_cgroup_move_account(struct page_cgroup *pc,
++static void __mem_cgroup_move_account(struct page_cgroup *pc,
+ 	struct mem_cgroup *from, struct mem_cgroup *to)
+ {
+-	struct mem_cgroup_per_zone *from_mz, *to_mz;
+-	int nid, zid;
+-	int ret = -EBUSY;
+ 	struct page *page;
+ 
+ 	VM_BUG_ON(from == to);
+ 	VM_BUG_ON(PageLRU(pc->page));
+-
+-	nid = page_cgroup_nid(pc);
+-	zid = page_cgroup_zid(pc);
+-	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
+-	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
+-
+-	if (!trylock_page_cgroup(pc))
+-		return ret;
+-
+-	if (!PageCgroupUsed(pc))
+-		goto out;
+-
+-	if (pc->mem_cgroup != from)
+-		goto out;
++	VM_BUG_ON(!PageCgroupLocked(pc));
++	VM_BUG_ON(!PageCgroupUsed(pc));
++	VM_BUG_ON(pc->mem_cgroup != from);
+ 
+ 	if (!mem_cgroup_is_root(from))
+ 		res_counter_uncharge(&from->res, PAGE_SIZE);
+@@ -1705,15 +1689,28 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+ 	css_get(&to->css);
+ 	pc->mem_cgroup = to;
+ 	mem_cgroup_charge_statistics(to, pc, true);
+-	ret = 0;
+-out:
+-	unlock_page_cgroup(pc);
+ 	/*
+ 	 * We charges against "to" which may not have any tasks. Then, "to"
+ 	 * can be under rmdir(). But in current implementation, caller of
+ 	 * this function is just force_empty() and it's garanteed that
+ 	 * "to" is never removed. So, we don't check rmdir status here.
+ 	 */
++}
++
++/*
++ * check whether the @pc is valid for moving account and call
++ * __mem_cgroup_move_account()
++ */
++static int mem_cgroup_move_account(struct page_cgroup *pc,
++				struct mem_cgroup *from, struct mem_cgroup *to)
++{
++	int ret = -EINVAL;
++	lock_page_cgroup(pc);
++	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
++		__mem_cgroup_move_account(pc, from, to);
++		ret = 0;
++	}
++	unlock_page_cgroup(pc);
+ 	return ret;
+ }
+ 
+@@ -1735,38 +1732,27 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
+ 	if (!pcg)
+ 		return -EINVAL;
+ 
++	ret = -EBUSY;
++	if (!get_page_unless_zero(page))
++		goto out;
++	if (isolate_lru_page(page))
++		goto put;
+ 
+ 	parent = mem_cgroup_from_cgroup(pcg);
+-
+-
+ 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page);
+ 	if (ret || !parent)
+-		return ret;
+-
+-	if (!get_page_unless_zero(page)) {
+-		ret = -EBUSY;
+-		goto uncharge;
+-	}
+-
+-	ret = isolate_lru_page(page);
+-
+-	if (ret)
+-		goto cancel;
++		goto put_back;
+ 
+ 	ret = mem_cgroup_move_account(pc, child, parent);
+-
++	if (!ret)
++		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
++	else
++		mem_cgroup_cancel_charge(parent);	/* does css_put */
++put_back:
+ 	putback_lru_page(page);
+-	if (!ret) {
+-		put_page(page);
+-		/* drop extra refcnt by try_charge() */
+-		css_put(&parent->css);
+-		return 0;
+-	}
+-
+-cancel:
++put:
+ 	put_page(page);
+-uncharge:
+-	mem_cgroup_cancel_charge(parent);
++out:
+ 	return ret;
+ }
+ 
 -- 
 1.5.6.1
 
