@@ -1,73 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5B8256B004F
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 17:55:30 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C96466B004F
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 19:56:36 -0400 (EDT)
+Date: Thu, 15 Oct 2009 00:56:36 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-From: reinette chatre <reinette.chatre@intel.com>
-In-Reply-To: <200910142333.29625.elendil@planet.nl>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera>
-	 <20091014165051.GE5027@csn.ul.ie> <1255552911.21134.51.camel@rc-desk>
-	 <200910142333.29625.elendil@planet.nl>
-Content-Type: text/plain
-Date: Wed, 14 Oct 2009 14:55:17 -0700
-Message-Id: <1255557317.21134.82.camel@rc-desk>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <20091014235636.GF5027@csn.ul.ie>
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <200910141510.11059.elendil@planet.nl> <20091014154026.GC5027@csn.ul.ie> <200910142034.58826.elendil@planet.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <200910142034.58826.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
 To: Frans Pop <elendil@planet.nl>
-Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Reinette Chatre <reinette.chatre@intel.com>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, Mohamed Abbas <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-10-14 at 14:33 -0700, Frans Pop wrote:
-> On Wednesday 14 October 2009, reinette chatre wrote:
-> > We do queue the GFP_KERNEL allocations when there are only a few buffers
-> > remaining in the queue (8 right now) ...
+On Wed, Oct 14, 2009 at 08:34:56PM +0200, Frans Pop wrote:
+> Some initial results; all negative I'm afraid.
 > 
-> Are you sure of this? I have zero messages in my logs about allocation 
-> failures with GFP_KERNEL, but I do have plenty with "Only 0 free buffers 
-> remaining" with GFP_ATOMIC.
 
-That does make sense to me. We do not expect allocations with GFP_KERNEL
-to fail. Considering how I understand how things work I am considering
-the following scenario:
+These are highly unlikely candidates. I say highly unlikely because they
+are before the page allocator patches when your analysis indicated
+things were ok.
 
-* start with system low on available memory
-* now introduce incoming traffic (causing the RX code to run)
-* upon receipt of frame we attempt an allocation (to reclaim the buffer)
-with GFP_ATOMIC (state: num RX buffer free > watermark)
-  * this fails since memory is not available
-  * num RX buffer free reduces
-  * does _not_ queue replenishment of buffers with GFP_KERNEL
-* repeat above until we hit the watermark (currently 8)
-* upon receipt of frame we attempt an allocation (to reclaim the buffer)
-with GFP_ATOMIC (state: num RX buffer free <= watermark) 
-  * this fails (now user sees big warning)
-  * queue replenishment of buffers with GFP_KERNEL
+Commit 70ac23c readahead: sequential mmap readahead
+	This affects readahead for mmap() and could have an impact on the
+	number of allocations made by the streaming IO. This might be
+	generating more bursty network traffic in 2.6.31 than 2.6.30 and
+	affecting the allocation apttern enough to cause problems
 
-Essentially what I suspect could happen is that
-we do attempt to replenish the buffers with GFP_KERNEL after several
-failures with GFP_ATOMIC, but at that point we have already run out
-completely.
+Commit 2fad6f5 readahead: enforce full readahead size on async mmap readahead
+	Another readahead change that may affect the rate of network
+	traffic being generated when streaming IO over the network
 
-One way to test this theory is to queue the GFP_KERNEL allocation
-earlier (when we still have a significant number of RX buffers
-available), 8 may turn out to be too small.
+Commit 10be0b3 readahead: introduce context readahead algorithm
+	By using readahead in more situations, it again may be affecting
+	the burst rate of network traffic and the rate of GFP_ATOMIC arrivals
 
-> Does that indicate a bug or could they fall under the ratelimit somehow?
+Commit 78dc583 vmscan: low order lumpy reclaim also should use PAGEOUT_IO_SYNC
+	Very low probability that this is a problem, but it affects
+	lumpy reclaim and so has to be considered. It's an awkward
+	revert but I think the most important part is just to revert the
+	condition that checks if congestion_wait() should be called or not
 
-In your kernel log I do see that the driver's error messages related to
-GFP_ATOMIC are rate limited (we see many more "order-2 allocation
-failure" messages than the "Failed to allocate" messages). All of these
-allocation failures are from the "replenish_now" code though, which is
-GFP_ATOMIC. So even though we do not see the "Failed to allocate" errors
-(which are rate limited) it seems that all allocation failures are from
-that (the GFP_ATOMIC) code.
+I relooked at the page allocator patches themselves just in case. Of the
+patches in there, I came up with
 
-Reinette
+Commit 11e33f6 page allocator: break up the allocator entry point into fast and slow paths
+	This is possibly the most disruptive patch in the set. It should
+	not have affected behaviour but the complexity of the patch is
+	quite high. I did spot an oddity whereby a process exiting making
+	a __GFP_NOFAIL allocation can ignore watermarks. It's unlikely
+	this is the problem but as the journal layer uses __GFP_NOFAIL,
+	you never know - it might be pushing things down low enough for
+	other watermark checks to fail. Patch is below. This is also the
+	patch that cause kswapd to wake up less. I sent a patch for that
+	problem but I still don't know if it reduced the number of
+	failures for you or not.
 
+Commit f2260e6 page allocator: update NR_FREE_PAGES only as necessary
+	This patch affects the timing of when NR_FREE_PAGES is updated.
+	The reclaim algorithm makes decisions based on this NR_FREE_PAGES
+	value.	Crucially, the value can determine if the anon list is force
+	scanned or not. The window during which this can make a difference
+	should be extremely small but maybe it's enough to make a difference.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Outside the range of commits suspected of causing problems was the
+following. It's extremely low probability
+
+Commit 8aa7e84 Fix congestion_wait() sync/async vs read/write confusion
+	This patch alters the call to congestion_wait() in the page
+	allocator. Frankly, I don't get the change but it might worth
+	checking if replacing BLK_RW_ASYNC with WRITE on top of 2.6.31
+	makes any difference
+
+After a lot more eyeballing, the best next candidate within mm is the
+following patch. Should be tested on it's own and in combination with
+the wakeup-kswapd patch sent before.
+
+====
