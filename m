@@ -1,91 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1E0D56B005A
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 18:49:50 -0400 (EDT)
-From: Robin Holt <holt@sgi.com>
-Message-Id: <20091015224946.396355000@alcatraz.americas.sgi.com>
-Date: Thu, 15 Oct 2009 17:40:00 -0500
-Subject: [patch 1/2] x86, UV: Fix information in __uv_hub_info structure.
-References: <20091015223959.783988000@alcatraz.americas.sgi.com>
-Content-Disposition: inline; filename=uv_hub_info_fix
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8F2296B004F
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 19:04:16 -0400 (EDT)
+Date: Fri, 16 Oct 2009 00:04:14 +0100 (BST)
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Subject: Re: [PATCH 2/9] swap_info: change to array of pointers
+In-Reply-To: <Pine.LNX.4.64.0910152324220.4447@sister.anvils>
+Message-ID: <Pine.LNX.4.64.0910152356110.9759@sister.anvils>
+References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
+ <Pine.LNX.4.64.0910150146210.3291@sister.anvils>
+ <20091015111107.b505b676.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0910152324220.4447@sister.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: mingo@elte.hu, tglx@linutronix.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jack Steiner <steiner@sgi.com>, Cliff Whickman <cpw@sgi.com>, stable@kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nigel Cunningham <ncunningham@crca.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 15 Oct 2009, Hugh Dickins wrote:
+> On Thu, 15 Oct 2009, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 15 Oct 2009 01:48:01 +0100 (BST)
+> > Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> > > @@ -1675,11 +1674,13 @@ static void *swap_start(struct seq_file
+> > >  	if (!l)
+> > >  		return SEQ_START_TOKEN;
+> > >  
+> > > -	for (i = 0; i < nr_swapfiles; i++, ptr++) {
+> > > -		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
+> > > +	for (type = 0; type < nr_swapfiles; type++) {
+> > > +		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+> > > +		si = swap_info[type];
+> > 
+> > 		if (!si) ?
 
-A few parts of the uv_hub_info structure are initialized incorrectly.
+Re-reading, I see that I missed your interjection there.
 
- - n_val is being loaded with m_val.
- - gpa_mask is initialized with a bytes instead of an unsigned long.
- - Handle the case where none of the alias registers are used.
+Precisely because we read swap_info[type] after reading nr_swapfiles,
+with smp_rmb() here to enforce that, and smp_wmb() where they're set
+in swapon, there is no way for si to be seen as NULL here.  Is there?
 
-Lastly I converted the bau over to using the uv_hub_info->m_val which
-is the correct value.
+Or are you asking for a further comment here on why that's so?
+I think I'd rather just switch to taking swap_lock in swap_start()
+and swap_next(), than be adding comments on why we don't need it.
 
-To: Ingo Molnar <mingo@elte.hu>
-To: tglx@linutronix.de
-Signed-off-by: Robin Holt <holt@sgi.com>
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-Cc: stable@kernel.org
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-
----
- arch/x86/kernel/apic/x2apic_uv_x.c |    8 ++++----
- arch/x86/kernel/tlb_uv.c           |    4 ++--
- 2 files changed, 6 insertions(+), 6 deletions(-)
-Index: linux/arch/x86/kernel/apic/x2apic_uv_x.c
-===================================================================
---- linux.orig/arch/x86/kernel/apic/x2apic_uv_x.c	2009-10-15 17:02:33.000000000 -0500
-+++ linux/arch/x86/kernel/apic/x2apic_uv_x.c	2009-10-15 17:24:13.000000000 -0500
-@@ -352,14 +352,14 @@ static __init void get_lowmem_redirect(u
- 
- 	for (i = 0; i < ARRAY_SIZE(redir_addrs); i++) {
- 		alias.v = uv_read_local_mmr(redir_addrs[i].alias);
--		if (alias.s.base == 0) {
-+		if (alias.s.enable && alias.s.base == 0) {
- 			*size = (1UL << alias.s.m_alias);
- 			redirect.v = uv_read_local_mmr(redir_addrs[i].redirect);
- 			*base = (unsigned long)redirect.s.dest_base << DEST_SHIFT;
- 			return;
- 		}
- 	}
--	BUG();
-+	*base = *size = 0;
- }
- 
- enum map_type {map_wb, map_uc};
-@@ -619,12 +619,12 @@ void __init uv_system_init(void)
- 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
- 		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
- 		uv_cpu_hub_info(cpu)->m_val = m_val;
--		uv_cpu_hub_info(cpu)->n_val = m_val;
-+		uv_cpu_hub_info(cpu)->n_val = n_val;
- 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
- 		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
- 		uv_cpu_hub_info(cpu)->pnode = pnode;
- 		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
--		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
-+		uv_cpu_hub_info(cpu)->gpa_mask = (1UL << (m_val + n_val)) - 1;
- 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
- 		uv_cpu_hub_info(cpu)->gnode_extra = gnode_extra;
- 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
-Index: linux/arch/x86/kernel/tlb_uv.c
-===================================================================
---- linux.orig/arch/x86/kernel/tlb_uv.c	2009-10-15 17:02:33.000000000 -0500
-+++ linux/arch/x86/kernel/tlb_uv.c	2009-10-15 17:29:32.000000000 -0500
-@@ -843,8 +843,8 @@ static int __init uv_bau_init(void)
- 				       GFP_KERNEL, cpu_to_node(cur_cpu));
- 
- 	uv_bau_retry_limit = 1;
--	uv_nshift = uv_hub_info->n_val;
--	uv_mmask = (1UL << uv_hub_info->n_val) - 1;
-+	uv_nshift = uv_hub_info->m_val;
-+	uv_mmask = (1UL << uv_hub_info->m_val) - 1;
- 	nblades = uv_num_possible_blades();
- 
- 	uv_bau_table_bases = (struct bau_control **)
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
