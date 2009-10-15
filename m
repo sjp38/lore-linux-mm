@@ -1,109 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E5186B004F
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 19:33:50 -0400 (EDT)
-Date: Thu, 15 Oct 2009 16:33:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 14403] New: Kernel freeze when going out of memory
-Message-Id: <20091015163345.4898b34e.akpm@linux-foundation.org>
-In-Reply-To: <bug-14403-27@http.bugzilla.kernel.org/>
-References: <bug-14403-27@http.bugzilla.kernel.org/>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5EAFF6B004D
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 19:48:52 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9FNmnxM002840
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 16 Oct 2009 08:48:49 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 808E845DE53
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 08:48:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6319945DE4C
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 08:48:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 42B591DB8040
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 08:48:49 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E86461DB803A
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 08:48:48 +0900 (JST)
+Date: Fri, 16 Oct 2009 08:46:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/9] swap_info: change to array of pointers
+Message-Id: <20091016084621.7199411d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0910152324220.4447@sister.anvils>
+References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
+	<Pine.LNX.4.64.0910150146210.3291@sister.anvils>
+	<20091015111107.b505b676.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0910152324220.4447@sister.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: arnout@mind.be
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nigel Cunningham <ncunningham@crca.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 15 Oct 2009 23:41:19 +0100 (BST)
+Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+> On Thu, 15 Oct 2009, KAMEZAWA Hiroyuki wrote:
+> > On Thu, 15 Oct 2009 01:48:01 +0100 (BST)
+> > Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+> > > --- si1/mm/swapfile.c	2009-10-14 21:25:58.000000000 +0100
+> > > +++ si2/mm/swapfile.c	2009-10-14 21:26:09.000000000 +0100
+> > > @@ -49,7 +49,7 @@ static const char Unused_offset[] = "Unu
+> > >  
+> > >  static struct swap_list_t swap_list = {-1, -1};
+> > >  
+> > > -static struct swap_info_struct swap_info[MAX_SWAPFILES];
+> > > +static struct swap_info_struct *swap_info[MAX_SWAPFILES];
+> > >  
+> > 
+> > Could you add some comment like this ?
+> > ==
+> > nr_swapfile is never decreased.
+> > swap_info[type] pointer will never be invalid if it turns to be valid once.
+> > 
+> > 
+> > for (i = 0; i < nr_swapfiles; i++) {
+> > 	smp_rmp();
+> > 	sis = swap_info[type];
+> > 	....
+> > } 
+> > Then, we can execute above without checking sis is valid or not.
+> > smp_rmb() is required when we do above loop without swap_lock().
+> 
+> I do describe this (too briefly?) in the comment on smp_wmb() where
+> swap_info[type] is set and nr_swapfiles raised, in swapon (see below).
+> And make a quick same-line comment on the corresponding smp_rmb()s.
+> 
+> Those seem more useful to me than such a comment on the
+> static struct swap_info_struct *swap_info[MAX_SWAPFILES];
+> 
+yes.
 
-On Wed, 14 Oct 2009 11:44:08 GMT
-bugzilla-daemon@bugzilla.kernel.org wrote:
 
-> http://bugzilla.kernel.org/show_bug.cgi?id=14403
-> 
->            Summary: Kernel freeze when going out of memory
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 2.6.24.6 through 2.6.31.1
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@linux-foundation.org
->         ReportedBy: arnout@mind.be
->                 CC: arnout@mind.be
->         Regression: No
-> 
-> 
-> Created an attachment (id=23404)
->  --> (http://bugzilla.kernel.org/attachment.cgi?id=23404)
-> console log during freeze (bzip2)
-> 
-> I get very frequent kernel freezes on two of my systems when they go out of
-> memory.  This happens with all kernels I tried (2.6.24 through 2.6.31).  These
-> systems run a set of applications that occupy most of the memory, they have no
-> swap space, and they have very high network and disk activity (xfs).  The
-> network chip varies (tg3, bnx2, r8169).
-> 
-> Symptoms are that no user processes make any progress, though SysRq interaction
-> is still possible.  SysRq-I recovers the system (init starts new gettys).
-> 
-> During the freeze, there are a lot of page allocation failures from the network
-> interrupt handler.  There doesn't seem to be any invocation of the OOM killer
-> (I can't find any 'kill process ... score ...' messages), although before the
-> freeze the OOM killer is usually called successfully a couple of times.  Note
-> that the killed processes are restarted soon after (but with lower memory
-> consumption).
-> 
-> During the freeze, pinging and arping the system is (usually) still possible. 
-> There is very little traffic on the network interface, most of it is broadcast.
->  There are also TCP ACKs still going around.  The amount of page allocation
-> failures seems to correspond more or less with the amount of traffic on the
-> interface, but it's hard to be sure (serial line has delay and printks are not
-> timestamped).  Still, some skb allocations must be successful or the ping would
-> never get a reply.
-> 
-> Manual invocation of the OOM killer doesn't seem to do anything (nothing is
-> killed, no memory is freed).
-> 
-> Attached is a long log taken over the serial console.  In the beginning there
-> are some invocations of the OOM killer which bring userspace back (as can be
-> seen from the syslog output that appears after a while).  Then, while the
-> system is frozen there is a continuous stream of page allocation failures (2158
-> in this hour).  This log corresponds to about 1 hour of frozen time (from 11:48
-> till 12:47).  In this time I did a couple of SysRq-T's, a SysRq-F with no
-> results, a SysRq-E with no results (not surprising since userspace is never
-> invoked), and finally a SysRq-I where the SysRq-M immediately before and after
-> show that it was successful.
-> 
-> About the memory usage: 620MB is due to files in tmpfs that I created in order
-> to trigger the out of memory situation sooner.
-> 
 
-It would help if we could see the result of the sysrq-t output when the
-kernel is frozen.
+> I was about to add (now, in writing this mail) that /proc/swaps is
+> the only thing that reads them without swap_lock; but that's not
+> true, of course, swap_duplicate and swap_free (or their helpers)
+> make preliminary checks without swap_lock - but the difference
+> there is that (unless the pagetable has become corrupted) they're
+> dealing with a swap entry which was previously valid, so can by
+> this time rely upon swap_info[type] and nr_swapfiles to be safe.
+> 
+Ah, a fact which confusing me very much at frist look was
+  
+  - nr_swapfiles nerver decreases
+  - then, swap_info[type] will be never freed once allocated
 
-- enable and configure a serial console or netconsole
-  (Documentation/networking/netconsole.txt)
+I hope this should be commented upon this.
 
-- boot with log_buf_len=1M
+static struct swap_info_struct *swap_info[MAX_SWAPFILES];
 
-- run `dmesg -n 7'
+Regards,
+-Kame
 
-- freeze the kernel
-
-- hit sysrq-t
-
-- send us the resulting output.  Please don't let it get wordwrapped
-  by your email client!
-
+> > swapon_mutex() will be no help.
+> > 
+> > Whether sis is used or not can be detelcted by sis->flags.
+> > 
+> > > @@ -1675,11 +1674,13 @@ static void *swap_start(struct seq_file
+> > >  	if (!l)
+> > >  		return SEQ_START_TOKEN;
+> > >  
+> > > -	for (i = 0; i < nr_swapfiles; i++, ptr++) {
+> > > -		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
+> > > +	for (type = 0; type < nr_swapfiles; type++) {
+> > > +		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+> > > +		si = swap_info[type];
+> > 
+> > 		if (!si) ?
+> > 
+> > > +		if (!(si->flags & SWP_USED) || !si->swap_map)
+> > >  			continue;
+> > >  		if (!--l)
+> > > -			return ptr;
+> > > +			return si;
+> > >  	}
+> ...
+> > >  static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
+> > >  {
+> > > -	struct swap_info_struct *ptr;
+> > > -	struct swap_info_struct *endptr = swap_info + nr_swapfiles;
+> > > +	struct swap_info_struct *si = v;
+> > > +	int type;
+> > >  
+> > >  	if (v == SEQ_START_TOKEN)
+> > > -		ptr = swap_info;
+> > > -	else {
+> > > -		ptr = v;
+> > > -		ptr++;
+> > > -	}
+> > > +		type = 0;
+> > > +	else
+> > > +		type = si->type + 1;
+> > >  
+> > > -	for (; ptr < endptr; ptr++) {
+> > > -		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
+> > > +	for (; type < nr_swapfiles; type++) {
+> > > +		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+> > > +		si = swap_info[type];
+> > > +		if (!(si->flags & SWP_USED) || !si->swap_map)
+> ...
+> > > @@ -1799,23 +1800,45 @@ SYSCALL_DEFINE2(swapon, const char __use
+> ...
+> > > -	if (type >= nr_swapfiles)
+> > > -		nr_swapfiles = type+1;
+> > > -	memset(p, 0, sizeof(*p));
+> > >  	INIT_LIST_HEAD(&p->extent_list);
+> > > +	if (type >= nr_swapfiles) {
+> > > +		p->type = type;
+> > > +		swap_info[type] = p;
+> > > +		/*
+> > > +		 * Write swap_info[type] before nr_swapfiles, in case a
+> > > +		 * racing procfs swap_start() or swap_next() is reading them.
+> > > +		 * (We never shrink nr_swapfiles, we never free this entry.)
+> > > +		 */
+> > > +		smp_wmb();
+> > > +		nr_swapfiles++;
+> > > +	} else {
+> > > +		kfree(p);
+> > > +		p = swap_info[type];
+> > > +		/*
+> > > +		 * Do not memset this entry: a racing procfs swap_next()
+> > > +		 * would be relying on p->type to remain valid.
+> > > +		 */
+> > > +	}
+> ...
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
