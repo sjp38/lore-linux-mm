@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 46DD16B004F
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 21:54:37 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9F1sYgG020561
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 15 Oct 2009 10:54:35 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4416D2AEA82
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:34 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F48345DE4F
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:34 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F213E1800D
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:33 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C98E31DB805E
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm: move inc_zone_page_state(NR_ISOLATED) to just isolated place
-In-Reply-To: <20091013115957.e2871557.akpm@linux-foundation.org>
-References: <20091009100527.1284.A69D9226@jp.fujitsu.com> <20091013115957.e2871557.akpm@linux-foundation.org>
-Message-Id: <20091015105154.C76A.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4A41A6B004F
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 22:02:07 -0400 (EDT)
+From: Frans Pop <elendil@planet.nl>
+Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
+Date: Thu, 15 Oct 2009 04:02:00 +0200
+References: <3onW63eFtRF.A.xXH.oMTxKB@chimera> <20091014165051.GE5027@csn.ul.ie> <1255552911.21134.51.camel@rc-desk>
+In-Reply-To: <1255552911.21134.51.camel@rc-desk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 15 Oct 2009 10:54:32 +0900 (JST)
+Content-Disposition: inline
+Message-Id: <200910150402.03953.elendil@planet.nl>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, stable@kernel.org
+To: reinette chatre <reinette.chatre@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri,  9 Oct 2009 10:06:58 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > This patch series is trivial cleanup and fix of page migration.
-> > 
-> > 
-> > ==========================================================
-> > 
-> > Christoph pointed out inc_zone_page_state(NR_ISOLATED) should be placed
-> > in right after isolate_page().
-> 
-> The bugfixes are appropriate for 2.6.32 and should be backported into
-> -stable too, I think.  I haven't checked to see how long those bugs
-> have been present.
-> 
-> The cleanup is more appropriate for 2.6.33 so I had to switch the order
-> of these patches.  Hopefully the bugfixes were not dependent on the
-> cleanup.  
+On Wednesday 14 October 2009, reinette chatre wrote:
+> We do queue the GFP_KERNEL allocations when there are only a few buffers
+> remaining in the queue (8 right now) ... maybe we can make this higher?
 
-Yes, each patches are independent.
-[1/3] is cleanup.
-[2/3] and [3/3] are bugfixes.
+I've tried increasing it to 50. Here's the result for a single test:
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 25 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+__ratelimit: 1 callbacks suppressed
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+__ratelimit: 97 callbacks suppressed
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 44 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
+iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
 
-I'm sorry for lack of prudence of patch order.
+This is with current mainline (v2.6.32-rc4-149-ga3ccf63).
 
-
+The log file timestamps don't tell much as the logging gets delayed,
+so they all end up at the same time. Maybe I should enable the kernel
+timestamps so we can see how far apart these failures are.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
