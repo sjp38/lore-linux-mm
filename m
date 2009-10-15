@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0D5B76B0055
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 20:58:53 -0400 (EDT)
-Date: Thu, 15 Oct 2009 01:58:51 +0100 (BST)
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: [PATCH 9/9] swap_info: reorder its fields
-In-Reply-To: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
-Message-ID: <Pine.LNX.4.64.0910150157310.3291@sister.anvils>
-References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 46DD16B004F
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2009 21:54:37 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9F1sYgG020561
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 15 Oct 2009 10:54:35 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4416D2AEA82
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F48345DE4F
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F213E1800D
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C98E31DB805E
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:54:32 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/3] mm: move inc_zone_page_state(NR_ISOLATED) to just isolated place
+In-Reply-To: <20091013115957.e2871557.akpm@linux-foundation.org>
+References: <20091009100527.1284.A69D9226@jp.fujitsu.com> <20091013115957.e2871557.akpm@linux-foundation.org>
+Message-Id: <20091015105154.C76A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 15 Oct 2009 10:54:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Reorder (and comment) the fields of swap_info_struct, to make better
-use of its cachelines: it's good for swap_duplicate() in particular
-if unsigned int max and swap_map are near the start.
+> On Fri,  9 Oct 2009 10:06:58 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+> > This patch series is trivial cleanup and fix of page migration.
+> > 
+> > 
+> > ==========================================================
+> > 
+> > Christoph pointed out inc_zone_page_state(NR_ISOLATED) should be placed
+> > in right after isolate_page().
+> 
+> The bugfixes are appropriate for 2.6.32 and should be backported into
+> -stable too, I think.  I haven't checked to see how long those bugs
+> have been present.
+> 
+> The cleanup is more appropriate for 2.6.33 so I had to switch the order
+> of these patches.  Hopefully the bugfixes were not dependent on the
+> cleanup.  
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
----
+Yes, each patches are independent.
+[1/3] is cleanup.
+[2/3] and [3/3] are bugfixes.
 
- include/linux/swap.h |   26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+I'm sorry for lack of prudence of patch order.
 
---- si8/include/linux/swap.h	2009-10-14 21:27:07.000000000 +0100
-+++ si9/include/linux/swap.h	2009-10-14 21:27:14.000000000 +0100
-@@ -167,21 +167,21 @@ struct swap_info_struct {
- 	signed short	prio;		/* swap priority of this type */
- 	signed char	type;		/* strange name for an index */
- 	signed char	next;		/* next type on the swap list */
--	struct file *swap_file;
--	struct block_device *bdev;
--	struct swap_extent first_swap_extent;
--	struct swap_extent *curr_swap_extent;
--	unsigned char *swap_map;
--	unsigned int lowest_bit;
--	unsigned int highest_bit;
-+	unsigned int	max;		/* extent of the swap_map */
-+	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
-+	unsigned int lowest_bit;	/* index of first free in swap_map */
-+	unsigned int highest_bit;	/* index of last free in swap_map */
-+	unsigned int pages;		/* total of usable pages of swap */
-+	unsigned int inuse_pages;	/* number of those currently in use */
-+	unsigned int cluster_next;	/* likely index for next allocation */
-+	unsigned int cluster_nr;	/* countdown to next cluster search */
- 	unsigned int lowest_alloc;	/* while preparing discard cluster */
- 	unsigned int highest_alloc;	/* while preparing discard cluster */
--	unsigned int cluster_next;
--	unsigned int cluster_nr;
--	unsigned int pages;
--	unsigned int max;
--	unsigned int inuse_pages;
--	unsigned int old_block_size;
-+	struct swap_extent *curr_swap_extent;
-+	struct swap_extent first_swap_extent;
-+	struct block_device *bdev;	/* swap device or bdev of swap file */
-+	struct file *swap_file;		/* seldom referenced */
-+	unsigned int old_block_size;	/* seldom referenced */
- };
- 
- struct swap_list_t {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
