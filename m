@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7D5C16B004F
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 11:29:29 -0400 (EDT)
-Subject: Re: [Bug #14141] order 2 page allocation failures in iwlagn
-From: reinette chatre <reinette.chatre@intel.com>
-In-Reply-To: <200910150402.03953.elendil@planet.nl>
-References: <3onW63eFtRF.A.xXH.oMTxKB@chimera>
-	 <20091014165051.GE5027@csn.ul.ie> <1255552911.21134.51.camel@rc-desk>
-	 <200910150402.03953.elendil@planet.nl>
-Content-Type: text/plain
-Date: Thu, 15 Oct 2009 08:29:27 -0700
-Message-Id: <1255620567.21134.162.camel@rc-desk>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D456B004F
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 14:22:36 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.1/8.13.1) with ESMTP id n9FILVYx015215
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 18:21:31 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id n9FILPCO1237092
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 20:21:31 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n9FILMIO014677
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 20:21:25 +0200
+Message-ID: <4AD7681C.7060800@linux.vnet.ibm.com>
+Date: Thu, 15 Oct 2009 20:21:16 +0200
+From: Gerald Schaefer <geralds@linux.vnet.ibm.com>
+Reply-To: gerald.schaefer@de.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2][v2] powerpc: Make the CMM memory hotplug aware
+References: <20091002184458.GC4908@austin.ibm.com> <20091002185248.GD4908@austin.ibm.com> <4ACDD71D.30809@linux.vnet.ibm.com> <20091008131355.GA22118@austin.ibm.com>
+In-Reply-To: <20091008131355.GA22118@austin.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Frans Pop <elendil@planet.nl>
-Cc: Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, "Abbas, Mohamed" <mohamed.abbas@intel.com>, "John W. Linville" <linville@tuxdriver.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Robert Jennings <rcj@linux.vnet.ibm.com>
+Cc: gerald.schaefer@de.ibm.com, Mel Gorman <mel@csn.ul.ie>, Ingo Molnar <mingo@elte.hu>, Badari Pulavarty <pbadari@us.ibm.com>, Brian King <brking@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-10-14 at 19:02 -0700, Frans Pop wrote:
-> On Wednesday 14 October 2009, reinette chatre wrote:
-> > We do queue the GFP_KERNEL allocations when there are only a few buffers
-> > remaining in the queue (8 right now) ... maybe we can make this higher?
+Robert Jennings wrote:
+>>> @@ -110,6 +125,9 @@ static long cmm_alloc_pages(long nr)
+>>>  	cmm_dbg("Begin request for %ld pages\n", nr);
+>>>
+>>>  	while (nr) {
+>>> +		if (atomic_read(&hotplug_active))
+>>> +			break;
+>>> +
+>>>  		addr = __get_free_page(GFP_NOIO | __GFP_NOWARN |
+>>>  				       __GFP_NORETRY | __GFP_NOMEMALLOC);
+>>>  		if (!addr)
+>>> @@ -119,8 +137,10 @@ static long cmm_alloc_pages(long nr)
+>>>  		if (!pa || pa->index >= CMM_NR_PAGES) {
+>>>  			/* Need a new page for the page list. */
+>>>  			spin_unlock(&cmm_lock);
+>>> -			npa = (struct cmm_page_array *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
+>>> -								       __GFP_NORETRY | __GFP_NOMEMALLOC);
+>>> +			npa = (struct cmm_page_array *)__get_free_page(
+>>> +					GFP_NOIO | __GFP_NOWARN |
+>>> +					__GFP_NORETRY | __GFP_NOMEMALLOC |
+>>> +					__GFP_MOVABLE);
+>>>  			if (!npa) {
+>>>  				pr_info("%s: Can not allocate new page list\n", __func__);
+>>>  				free_page(addr);
+>> Why is the __GFP_MOVABLE added here, for the page list alloc, and not
+>> above for the balloon page alloc?
 > 
-> I've tried increasing it to 50. Here's the result for a single test:
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 25 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 48 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> __ratelimit: 1 callbacks suppressed
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> __ratelimit: 97 callbacks suppressed
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 44 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> iwlagn 0000:10:00.0: Failed to allocate SKB buffer with GFP_ATOMIC. Only 0 free buffers remaining.
-> 
-> This is with current mainline (v2.6.32-rc4-149-ga3ccf63).
+> The pages allocated as __GFP_MOVABLE are used to store the list of pages
+> allocated by the balloon.  They reference virtual addresses and it would
+> be fine for the kernel to migrate the physical pages for those, the
+> balloon would not notice this.
 
-> The log file timestamps don't tell much as the logging gets delayed,
-> so they all end up at the same time. Maybe I should enable the kernel
-> timestamps so we can see how far apart these failures are.
+Does page migration really work for kernel pages that were allocated
+with __get_free_page()? I was wondering if we can do this on s390, where
+we have a 1:1 mapping of kernel virtual to physical addresses, but
+looking at migrate_pages() and friends, it seems that kernel pages
+w/o mapping and rmap should not be migrateable at all. Any thoughts from
+the memory migration experts?
 
-If you can get accurate timing it will be very useful. I am interested
-to see how quickly it goes from "48 free buffers" to "0 free buffers".
+BTW, since we have real memory hotplug support on s390, allowing us
+to add and remove memory chunks to/from ZONE_MOVABLE, this basically
+makes cmm ballooning in ZONE_NORMAL obsolete, so we decided not to
+support memory hotplug aware cmm on s390.
 
-Thank you
-
-Reinette
-
-
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
