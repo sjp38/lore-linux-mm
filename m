@@ -1,238 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D712F6B004F
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 18:47:09 -0400 (EDT)
-Date: Thu, 15 Oct 2009 15:47:07 -0700 (PDT)
-From: Vincent Li <root@brc.ubc.ca>
-Subject: Re: [RESEND][PATCH V1] mm/vsmcan: check shrink_active_list()
- sc->isolate_pages() return value.
-In-Reply-To: <20090909082759.7144aaa5.minchan.kim@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.0910151507260.2882@kernalhack.brc.ubc.ca>
-References: <1251935365-7044-1-git-send-email-macli@brc.ubc.ca> <20090903140602.e0169ffc.akpm@linux-foundation.org> <alpine.DEB.2.00.0909031458160.5762@kernelhack.brc.ubc.ca> <20090903154704.da62dd76.akpm@linux-foundation.org>
- <alpine.DEB.2.00.0909041431370.32680@kernelhack.brc.ubc.ca> <20090904165305.c19429ce.akpm@linux-foundation.org> <20090908132100.GA17446@csn.ul.ie> <alpine.DEB.2.00.0909081516550.3524@kernelhack.brc.ubc.ca>
- <20090909082759.7144aaa5.minchan.kim@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6379E6B004F
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 18:49:48 -0400 (EDT)
+From: Robin Holt <holt@sgi.com>
+Message-Id: <20091015223959.783988000@alcatraz.americas.sgi.com>
+Date: Thu, 15 Oct 2009 17:39:59 -0500
+Subject: [patch 0/2] x86, UV: fixups for configurations with a large number of nodes.
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Vincent Li <macli@brc.ubc.ca>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org
+To: mingo@elte.hu, tglx@linutronix.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jack Steiner <steiner@sgi.com>, Cliff Whickman <cpw@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
 
-
-On Wed, 9 Sep 2009, Minchan Kim wrote:
-
->
-> You're right. the experiment said so.
-> But hackbench performs fork-bomb test
-> so that it makes corner case, I think.
-> Such a case shows the your patch is good.
-> But that case is rare.
->
-> The thing remained is to test your patch
-> in normal case. so you need to test hackbench with
-> smaller parameters to make for the number of task
-> to fit your memory size but does happen reclaim.
->
-
-Hi Kim,
-
-I finally got some time to rerun the perf test and press Alt + SysRq 
-+ M the same time  on a freshly start computer.
-
-I run the perf with repeat only 1 instead of 5, so run hackbench 
-with number 100 does not cause my system stall, the system  is still quite 
-responsive during the test, I assume that is normal situation, not fork 
-bomb case?
-
-In general, it seems nr_taken_zero does happen in normal page reclaim 
-situation, but it is also true that nr_taken_zero does not happen from 
-time to time.
-
-
-###1 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 80
-Running with 80*40 (== 3200) tasks.
-Time: 4.912
-
-  Performance counter stats for 'hackbench 80':
-
-               0  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-               0  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-     5.286915156  seconds time elapsed
-
-
-[   45.290044] SysRq : Show Memory
-[   45.291132] active_anon:3283 inactive_anon:0 isolated_anon:0
-[   45.291133]  active_file:2538 inactive_file:7964 isolated_file:0
-
-###2 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 90
-Running with 90*40 (== 3600) tasks.
-Time: 12.548
-
-  Performance counter stats for 'hackbench 90':
-
-              76  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-             361  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    12.980680642  seconds time elapsed
-
-[  324.098169] SysRq : Show Memory
-[  324.099261] active_anon:3793 inactive_anon:1635 isolated_anon:590
-[  324.099262]  active_file:1334 inactive_file:4262 isolated_file:0
-
-###3 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 100
-Running with 100*40 (== 4000) tasks.
-Time: 47.296
-
-  Performance counter stats for 'hackbench 100':
-
-               0  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-            1064  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    47.765099490  seconds time elapsed
-
-[  454.130625] SysRq : Show Memory
-[  454.131718] active_anon:8375 inactive_anon:10350 isolated_anon:10285
-[  454.131720]  active_file:1675 inactive_file:7148 isolated_file:30
-
-###4 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 80
-Running with 80*40 (== 3200) tasks.
-Time: 4.790
-
-  Performance counter stats for 'hackbench 80':
-
-               0  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-               0  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-     5.210933885  seconds time elapsed
-
-[  599.514166] SysRq : Show Memory
-[  599.515263] active_anon:27830 inactive_anon:114 isolated_anon:0
-[  599.515264]  active_file:1195 inactive_file:3284 isolated_file:0
-
-###5 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 90
-Running with 90*40 (== 3600) tasks.
-Time: 5.836
-
-  Performance counter stats for 'hackbench 90':
-
-               0  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-               0  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-     6.258902896  seconds time elapsed
-
-[  753.201247] SysRq : Show Memory
-[  753.202346] active_anon:37091 inactive_anon:114 isolated_anon:0
-[  753.202348]  active_file:1211 inactive_file:3314 isolated_file:0
-
-###6 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 100
-Running with 100*40 (== 4000) tasks.
-Time: 6.445
-
-  Performance counter stats for 'hackbench 100':
-
-               0  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-               0  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-     6.920834955  seconds time elapsed
-
-[  836.228395] SysRq : Show Memory
-[  836.229487] active_anon:30157 inactive_anon:114 isolated_anon:0
-[  836.229488]  active_file:1217 inactive_file:3338 isolated_file:0
-
-###7 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 120
-Running with 120*40 (== 4800) tasks.
-Time: 66.182
-
-  Performance counter stats for 'hackbench 120':
-
-            3307  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-            1218  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    66.767057051  seconds time elapsed
-
-[  927.855061] SysRq : Show Memory
-[  927.856156] active_anon:11320 inactive_anon:11962 isolated_anon:11879
-[  927.856157]  active_file:1220 inactive_file:3253 isolated_file:0
-
-###8 run
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 110
-Running with 110*40 (== 4400) tasks.
-Time: 47.128
-
-  Performance counter stats for 'hackbench 110':
-
-               6  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-             934  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    47.657109224  seconds time elapsed
-
-[ 1058.031490] SysRq : Show Memory
-[ 1058.032573] active_anon:15351 inactive_anon:245 isolated_anon:23350
-[ 1058.032574]  active_file:2112 inactive_file:5036 isolated_file:0
-
-###9 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 100
-Running with 100*40 (== 4000) tasks.
-Time: 14.223
-
-  Performance counter stats for 'hackbench 100':
-
-               9  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-             382  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    14.773145947  seconds time elapsed
-
-[ 1242.620748] SysRq : Show Memory
-[ 1242.621843] active_anon:5926 inactive_anon:3066 isolated_anon:788
-[ 1242.621844]  active_file:1297 inactive_file:3145 isolated_file:0
-
-###10 run
-
-root@kernalhack:~# perf stat --repeat 1 -e kmem:mm_vmscan_nr_taken_zero -e 
-kmem:mm_vmscan_nr_taken_nonzero hackbench 110
-Running with 110*40 (== 4400) tasks.
-Time: 39.346
-
-  Performance counter stats for 'hackbench 110':
-
-             367  kmem:mm_vmscan_nr_taken_zero #      0.000 M/sec
-             810  kmem:mm_vmscan_nr_taken_nonzero #      0.000 M/sec
-
-    39.880113992  seconds time elapsed
-
-[ 1346.694702] SysRq : Show Memory
-[ 1346.695797] active_anon:12729 inactive_anon:6726 isolated_anon:3804
-[ 1346.695798]  active_file:1311 inactive_file:3141 isolated_file:0
+We need the __uv_hub_info structure to contain the correct values for
+n_val, gpa_mask, and lowmem_remap_*.  The first patch in the series
+accomplishes this.   Could this be included in the stable tree as well.
+Without this patch, booting a large configuration hits a problem where
+the upper bits of the gnode affect the pnode and the bau will not operate.
+
+The second patch cleans up the broadcast assist unit code a small bit.
 
 Thanks,
-
-Vincent
+Robin Holt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
