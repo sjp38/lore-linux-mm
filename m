@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 718136B004F
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 10:57:48 -0400 (EDT)
-Message-ID: <4AD73862.4010102@redhat.com>
-Date: Thu, 15 Oct 2009 10:57:38 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C70446B004F
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 11:03:09 -0400 (EDT)
+Message-ID: <4AD739A0.6010707@redhat.com>
+Date: Thu, 15 Oct 2009 11:02:56 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/9] swap_info: private to swapfile.c
-References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils> <Pine.LNX.4.64.0910150144310.3291@sister.anvils>
-In-Reply-To: <Pine.LNX.4.64.0910150144310.3291@sister.anvils>
+Subject: Re: [PATCH 2/9] swap_info: change to array of pointers
+References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils> <Pine.LNX.4.64.0910150146210.3291@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0910150146210.3291@sister.anvils>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,16 +17,20 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Nigel Cunningham <ncunningham@crc
 List-ID: <linux-mm.kvack.org>
 
 Hugh Dickins wrote:
-> The swap_info_struct is mostly private to mm/swapfile.c, with only
-> one other in-tree user: get_swap_bio().  Adjust its interface to
-> map_swap_page(), so that we can then remove get_swap_info_struct().
+> The swap_info_struct is only 76 or 104 bytes, but it does seem wrong
+> to reserve an array of about 30 of them in bss, when most people will
+> want only one.  Change swap_info[] to an array of pointers.
 > 
-> But there is a popular user out-of-tree, TuxOnIce: so leave the
-> declaration of swap_info_struct in linux/swap.h.
+> That does need a "type" field in the structure: pack it as a char with
+> next type and short prio (aha, char is unsigned by default on PowerPC).
+> Use the (admittedly peculiar) name "type" throughout for this index.
+> 
+> /proc/swaps does not take swap_lock: I wouldn't want it to, but do take
+> care with barriers when adding a new item to the array (never removed).
 > 
 > Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed.
