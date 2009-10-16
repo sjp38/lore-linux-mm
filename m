@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F296B005C
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A7D136B005D
 	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 06:37:34 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/2] Reduce number of GFP_ATOMIC allocation failures
-Date: Fri, 16 Oct 2009 11:37:24 +0100
-Message-Id: <1255689446-3858-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/2] page allocator: Direct reclaim should always obey watermarks
+Date: Fri, 16 Oct 2009 11:37:26 +0100
+Message-Id: <1255689446-3858-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1255689446-3858-1-git-send-email-mel@csn.ul.ie>
+References: <1255689446-3858-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>, stable <stable@kernel.org>
 Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, David Miller <davem@davemloft.net>, Frans Pop <elendil@planet.nl>, reinette chatre <reinette.chatre@intel.com>, Kalle Valo <kalle.valo@iki.fi>, "John W. Linville" <linville@tuxdriver.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, Karol Lewandowski <karol.k.lewandowski@gmail.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, "linux-mm@kvack.org\"" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-The following two patches against 2.6.32-rc4 should reduce allocation
-failure reports for GFP_ATOMIC allocations that have being cropping up
-since 2.6.31-rc1.
+ALLOC_NO_WATERMARKS should be cleared when trying to allocate from the
+free-lists after a direct reclaim. If it's not, __GFP_NOFAIL allocations
+from a process that is exiting can ignore watermarks. __GFP_NOFAIL is not
+often used but the journal layer is one of those places. This is suspected of
+causing an increase in the number of GFP_ATOMIC allocation failures reported.
 
-I believe these are candidates for -stable as they address issues in the
-following commit introduced in the v2.6.30..v2.6.31-rc1 window
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-11e33f6 page allocator: break up the allocator entry point into fast and slow paths
-
-The patch should not have made functional changes but at least two slipped
-by. The first patch wakes kswapd up each time after OOM-killing has been
-considered. This can be important to high-order allocations where kswapd
-needs to reclaim at a higher order. The second patch corrects a problem
-whereby a process that is exiting and making a __GFP_NOFAIL allocation can
-ignore watermarks.
-
-These patches in combination should help reduce the number of GFP_ATOMIC
-failures in the following bug.
-
-[Bug #14141] order 2 page allocation failures in iwlagn
-
-However, this bug should not yet be closed as there are still problems in
-the driver itself that increase the number of GFP_ATOMIC allocations that bug.
-
-The patches should also help the following bugs as well and testing there
-would be appreciated.
-
-[Bug #14265] ifconfig: page allocation failure. order:5, mode:0x8020 w/ e100
-
-It might also have helped the following bug although that driver has already
-been fixed by not making high-order atomic allocations.
-
-[Bug #14016] mm/ipw2200 regression
-
- mm/page_alloc.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dfa4362..a3e5fed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1860,7 +1860,8 @@ rebalance:
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+ 					zonelist, high_zoneidx,
+ 					nodemask,
+-					alloc_flags, preferred_zone,
++					alloc_flags & ~ALLOC_NO_WATERMARKS,
++					preferred_zone,
+ 					migratetype, &did_some_progress);
+ 	if (page)
+ 		goto got_pg;
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
