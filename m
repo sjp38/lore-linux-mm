@@ -1,69 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 100B86B004D
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 00:08:51 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n9G48n99013808
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 16 Oct 2009 13:08:49 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E4F5745DE51
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 13:08:48 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C85F045DE4C
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 13:08:48 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id ABB4E1DB8038
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 13:08:48 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C5521DB803A
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 13:08:48 +0900 (JST)
-Date: Fri, 16 Oct 2009 13:06:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 95A536B004D
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2009 00:50:42 -0400 (EDT)
+Received: by yxe10 with SMTP id 10so1441530yxe.12
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2009 21:50:41 -0700 (PDT)
+Message-ID: <4AD7FB57.2030403@vflare.org>
+Date: Fri, 16 Oct 2009 10:19:27 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+MIME-Version: 1.0
 Subject: Re: [PATCH 7/9] swap_info: swap count continuations
-Message-Id: <20091016130622.8c096641.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0910160314310.2993@sister.anvils>
-References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
-	<Pine.LNX.4.64.0910150153560.3291@sister.anvils>
-	<20091015123024.21ca3ef7.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910160016160.11643@sister.anvils>
-	<20091016102951.a4f66a19.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0910160314310.2993@sister.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils> <Pine.LNX.4.64.0910150153560.3291@sister.anvils>
+In-Reply-To: <Pine.LNX.4.64.0910150153560.3291@sister.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, hongshin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, hongshin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Oct 2009 03:24:57 +0100 (BST)
-Hugh Dickins <hugh.dickins@tiscali.co.uk> wrote:
+On 10/15/2009 06:26 AM, Hugh Dickins wrote:
+> Swap is duplicated (reference count incremented by one) whenever the same
+> swap page is inserted into another mm (when forking finds a swap entry in
+> place of a pte, or when reclaim unmaps a pte to insert the swap entry).
+> 
+> swap_info_struct's vmalloc'ed swap_map is the array of these reference
+> counts: but what happens when the unsigned short (or unsigned char since
+> the preceding patch) is full? (and its high bit is kept for a cache flag)
+> 
+> We then lose track of it, never freeing, leaving it in use until swapoff:
+> at which point we _hope_ that a single pass will have found all instances,
+> assume there are no more, and will lose user data if we're wrong.
+> 
+> Swapping of KSM pages has not yet been enabled; but it is implemented,
+> and makes it very easy for a user to overflow the maximum swap count:
+> possible with ordinary process pages, but unlikely, even when pid_max
+> has been raised from PID_MAX_DEFAULT.
+> 
+> This patch implements swap count continuations: when the count overflows,
+> a continuation page is allocated and linked to the original vmalloc'ed
+> map page, and this used to hold the continuation counts for that entry
+> and its neighbours.  These continuation pages are seldom referenced:
+> the common paths all work on the original swap_map, only referring to
+> a continuation page when the low "digit" of a count is incremented or
+> decremented through SWAP_MAP_MAX.
+> 
 
-> On Fri, 16 Oct 2009, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > My concern is that small numbers of swap_map[] which has too much refcnt
-> > can consume too much pages.
-> > 
-> > If an entry is shared by 65535, 65535/128 = 512 page will be used.
-> > (I'm sorry if I don't undestand implementation correctly.)
-> 
-> Ah, you're thinking it's additive: perhaps because I use the name
-> "continuation", which may give that impression - maybe there's a
-> better name I can give it.
-> 
-> No, it's multiplicative - just like 999 is almost a thousand, not 27.
-> 
-> If an entry is shared by 65535, then it needs its original swap_map
-> page (0 to 0x3e) and a continuation page (0 to 0x7f) and another
-> continuation page (0 to 0x7f): if I've got my arithmetic right,
-> those three pages can hold a shared count up to 1032191, for
-> every one of that group of PAGE_SIZE neighbouring pages.
-> 
-Ah, okay. I see. thank you for explanation.
 
-Regards,
--Kame
+I think the patch can be simplified a lot if we have just 2 levels (hard-coded)
+of swap_map, each level having 16-bit count -- combined 32-bit count should be
+sufficient for about anything. Saving 1-byte for level-1 swap_map and then having
+arbitrary levels of swap_map doesn't look like its worth the complexity.
+
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
