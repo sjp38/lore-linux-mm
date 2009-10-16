@@ -1,51 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7CDBD6B004D
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 20:21:20 -0400 (EDT)
-Date: Fri, 16 Oct 2009 01:21:14 +0100 (BST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 71B4E6B005A
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2009 20:28:28 -0400 (EDT)
+Date: Fri, 16 Oct 2009 01:28:19 +0100 (BST)
 From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Subject: Re: [PATCH 7/9] swap_info: swap count continuations
-In-Reply-To: <alpine.DEB.1.00.0910151414570.25796@chino.kir.corp.google.com>
-Message-ID: <Pine.LNX.4.64.0910160106580.14004@sister.anvils>
+Subject: Re: [PATCH 1/9] swap_info: private to swapfile.c
+In-Reply-To: <4AD7ABE7.40105@crca.org.au>
+Message-ID: <Pine.LNX.4.64.0910160121240.14004@sister.anvils>
 References: <Pine.LNX.4.64.0910150130001.2250@sister.anvils>
- <Pine.LNX.4.64.0910150153560.3291@sister.anvils>
- <20091015123024.21ca3ef7.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.1.00.0910151414570.25796@chino.kir.corp.google.com>
+ <Pine.LNX.4.64.0910150144310.3291@sister.anvils> <4AD7ABE7.40105@crca.org.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, hongshin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nigel Cunningham <ncunningham@crca.org.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Oct 2009, David Rientjes wrote:
-> On Thu, 15 Oct 2009, KAMEZAWA Hiroyuki wrote:
-> > Hmm...maybe I don't understand the benefit of this style of data structure.
+On Fri, 16 Oct 2009, Nigel Cunningham wrote:
+> Hugh Dickins wrote:
+> > The swap_info_struct is mostly private to mm/swapfile.c, with only
+> > one other in-tree user: get_swap_bio().  Adjust its interface to
+> > map_swap_page(), so that we can then remove get_swap_info_struct().
 > > 
-> > Do we need fine grain chain ? 
-> > Is  array of "unsigned long" counter is bad ?  (too big?)
+> > But there is a popular user out-of-tree, TuxOnIce: so leave the
+> > declaration of swap_info_struct in linux/swap.h.
 > 
-> I'm wondering if flex_array can be used for this purpose, which can store 
-> up to 261632 elements of size unsigned long with 4K pages, or whether 
-> finding the first available bit or weight would be too expensive.
+> Sorry for the delay in replying.
 
-When flex_arrays were first mooted, I did briefly wonder if we could
-use them instead of vmalloc for the swap_map; but no, their interface
-would slow down scan_swap_map() unacceptably.
+Delay?  Not at all!  Just leave the delays to me ;)
 
-Extensions of the swap_map are a different matter, they are seldom
-referenced, and referenced just an item at a time: much better suited
-to a flex_array.  And looking at Jon's Doc, I see they're good for
-sparse arrays, that would suit swap_map extensions very well.
+> 
+> I don't mind if you don't leave swap_info_struct in
+> include/linux/swap.h.
 
-However... that limit of 261632 elements rules them out here (or can
-we have a flex_array of flex_arrays?), and the lack of support for
-__GFP_HIGHMEM is disappointing - the current implementation of swap
-count continuations does use highmem (though perhaps these pages
-are so rarely needed that it actually doesn't matter).
+Okay, thanks for the info, that's good.  I won't take it out of swap.h
+at this point, I'm finished in that area for now; but it's useful to
+know that later on we can do so.
 
-It seems that the flex_array is a solution in search of a problem,
-and that the swap_map extension is not the right problem for it.
+> I'm currently reworking my swap support anyway,
+
+There should be better ways to interface to it than get_swap_info_struct().
+
+> adding support for honouring the priority field. I've also recently
+> learned that under some circumstances, allocating all available swap can
+> take quite a while (I have a user who is hibernating with 32GB of RAM!),
+> so I've been thinking about what I can do to optimise that.
+
+Have fun!
 
 Hugh
 
